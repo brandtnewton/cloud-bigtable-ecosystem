@@ -619,5 +619,199 @@
         ],
         "success_message": "Map deletion using subtraction syntax completed successfully.",
         "failure_message": "Map deletion using subtraction syntax failed."
+    },
+    {
+        "title": "Map reads",
+        "description": "Read from map columns in various ways",
+        "kind": "dml",
+        "operations": [
+            {
+                "query": "INSERT INTO bigtabledevinstance.user_info (name, age, extra_info) VALUES (?, ?, ?)",
+                "query_type": "INSERT",
+                "query_desc": "Initialize user with MAP<TEXT, TEXT> values",
+                "params": [
+                    {
+                        "value": "map_read_test",
+                        "datatype": "text"
+                    },
+                    {
+                        "value": 90,
+                        "datatype": "bigint"
+                    },
+                    {
+                        "value": {
+                            "keyA": "valueA",
+                            "keyB": "valueB",
+                            "keyC": "valueC",
+                            "keyD": "valueD"
+                        },
+                        "datatype": "map<text,text>"
+                    }
+                ],
+                "expected_result": null
+            },
+            {
+                "query": "SELECT name, extra_info FROM bigtabledevinstance.user_info WHERE name = ? AND age = ?",
+                "query_type": "SELECT",
+                "query_desc": "Read the entire map",
+                "params": [
+                    {
+                        "value": "map_read_test",
+                        "datatype": "text"
+                    },
+                    {
+                        "value": 90,
+                        "datatype": "bigint"
+                    }
+                ],
+                "expected_result": [
+                    {
+                        "name": "map_read_test",
+                        "datatype": "text"
+                    },
+                    {
+                        "extra_info": {
+                            "keyA": "valueA",
+                            "keyB": "valueB",
+                            "keyC": "valueC",
+                            "keyD": "valueD"
+                        },
+                        "datatype": "map<text,text>"
+                    }
+                ]
+            },
+            {
+                "query": "SELECT name as n, extra_info as ei FROM bigtabledevinstance.user_info WHERE name = ? AND age = ?",
+                "query_type": "SELECT",
+                "query_desc": "Read the entire map with aliases",
+                "params": [
+                    {
+                        "value": "map_read_test",
+                        "datatype": "text"
+                    },
+                    {
+                        "value": 90,
+                        "datatype": "bigint"
+                    }
+                ],
+                "expected_result": [
+                    {
+                        "n": "map_read_test",
+                        "datatype": "text"
+                    },
+                    {
+                        "ei": {
+                            "keyA": "valueA",
+                            "keyB": "valueB",
+                            "keyC": "valueC",
+                            "keyD": "valueD"
+                        },
+                        "datatype": "map<text,text>"
+                    }
+                ]
+            },
+            {
+                "query": "SELECT name, extra_info['keyA'] FROM bigtabledevinstance.user_info WHERE name = ? AND age = ?",
+                "query_type": "SELECT",
+                "query_desc": "Read a key from map that exists",
+                "params": [
+                    {
+                        "value": "map_read_test",
+                        "datatype": "text"
+                    },
+                    {
+                        "value": 90,
+                        "datatype": "bigint"
+                    }
+                ],
+                "expected_result": [
+                    {
+                        "name": "map_read_test",
+                        "datatype": "text"
+                    },
+                    {
+                        "extra_info['keyA']": "valueA",
+                        "datatype": "text"
+                    }
+                ]
+            },
+            {
+                "query": "SELECT name as n, extra_info['keyA'] as v FROM bigtabledevinstance.user_info WHERE name = ? AND age = ?",
+                "query_type": "SELECT",
+                "query_desc": "Read a key from map that exists with alias",
+                "params": [
+                    {
+                        "value": "map_read_test",
+                        "datatype": "text"
+                    },
+                    {
+                        "value": 90,
+                        "datatype": "bigint"
+                    }
+                ],
+                "expected_result": [
+                    {
+                        "name": "n",
+                        "datatype": "text"
+                    },
+                    {
+                        "v": "valueA",
+                        "datatype": "text"
+                    }
+                ]
+            },
+            {
+                "query": "SELECT name, extra_info['missingKey'] FROM bigtabledevinstance.user_info WHERE name = ? AND age = ?",
+                "query_type": "SELECT",
+                "query_desc": "Read a key from map that does NOT exists",
+                "params": [
+                    {
+                        "value": "map_read_test",
+                        "datatype": "text"
+                    },
+                    {
+                        "value": 90,
+                        "datatype": "bigint"
+                    }
+                ],
+                "expected_result": [
+                    {
+                        "name": "map_read_test",
+                        "datatype": "text"
+                    },
+                    {
+                        "extra_info['missingKey']": null,
+                        "datatype": "text"
+                    }
+                ]
+            },
+            {
+                "query": "SELECT name as n, extra_info['missingKey'] as v FROM bigtabledevinstance.user_info WHERE name = ? AND age = ?",
+                "query_type": "SELECT",
+                "query_desc": "Read a key from map that does NOT exists with alias",
+                "params": [
+                    {
+                        "value": "map_read_test",
+                        "datatype": "text"
+                    },
+                    {
+                        "value": 90,
+                        "datatype": "bigint"
+                    }
+                ],
+                "expected_result": [
+                    {
+                        "n": "map_read_test",
+                        "datatype": "text"
+                    },
+                    {
+                        "v": null,
+                        "datatype": "text"
+                    }
+                ]
+            }
+        ],
+        "success_message": "Map reads successful.",
+        "failure_message": "Map reads failed."
     }
 ]

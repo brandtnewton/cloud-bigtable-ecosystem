@@ -312,5 +312,204 @@
         ],
         "success_message": "SET<INT> uniqueness enforced.",
         "failure_message": "SET<INT> allowed duplicates."
+    },
+    {
+        "title": "Validate set reads",
+        "description": "perform various reads on sets.",
+        "kind": "dml",
+        "operations": [
+            {
+                "query": "INSERT INTO bigtabledevinstance.user_info (name, age, set_int) VALUES (?, ?, ?)",
+                "query_type": "INSERT",
+                "query_desc": "Initialize user SET<INT>.",
+                "params": [
+                    {
+                        "value": "set_reads",
+                        "datatype": "text"
+                    },
+                    {
+                        "value": 900,
+                        "datatype": "bigint"
+                    },
+                    {
+                        "value": [
+                            28,
+                            56,
+                            2
+                        ],
+                        "datatype": "set<int>"
+                    }
+                ],
+                "expected_result": null
+            },
+            {
+                "query": "SELECT name, set_int FROM bigtabledevinstance.user_info WHERE name = ? AND age = ?",
+                "query_type": "SELECT",
+                "query_desc": "Read entire set.",
+                "params": [
+                    {
+                        "value": "set_reads",
+                        "datatype": "text"
+                    },
+                    {
+                        "value": 30,
+                        "datatype": "bigint"
+                    }
+                ],
+                "expected_result": [
+                    {
+                        "name": "set_reads",
+                        "datatype": "text"
+                    },
+                    {
+                        "set_int": [
+                            28,
+                            56,
+                            2
+                        ],
+                        "datatype": "set<int>"
+                    }
+                ]
+            },
+            {
+                "query": "SELECT name as n, set_int as s FROM bigtabledevinstance.user_info WHERE name = ? AND age = ?",
+                "query_type": "SELECT",
+                "query_desc": "Read entire set with aliases.",
+                "params": [
+                    {
+                        "value": "set_reads",
+                        "datatype": "text"
+                    },
+                    {
+                        "value": 30,
+                        "datatype": "bigint"
+                    }
+                ],
+                "expected_result": [
+                    {
+                        "n": "set_reads",
+                        "datatype": "text"
+                    },
+                    {
+                        "s": [
+                            28,
+                            56,
+                            2
+                        ],
+                        "datatype": "set<int>"
+                    }
+                ]
+            },
+            {
+                "query": "SELECT name as n, set_int FROM bigtabledevinstance.user_info WHERE name = ? AND age = ?",
+                "query_type": "SELECT",
+                "query_desc": "Read set value.",
+                "params": [
+                    {
+                        "value": "set_reads",
+                        "datatype": "text"
+                    },
+                    {
+                        "value": 30,
+                        "datatype": "bigint"
+                    }
+                ],
+                "expected_result": [
+                    {
+                        "n": "set_reads",
+                        "datatype": "text"
+                    },
+                    {
+                        "s": [
+                            28,
+                            56,
+                            2
+                        ],
+                        "datatype": "set<int>"
+                    }
+                ]
+            }
+        ],
+        "success_message": "Set reads successful.",
+        "failure_message": "Set reads failed."
+    },
+    {
+        "title": "Set read of undefined set",
+        "description": "Read a row that doesn't have any value for the set column",
+        "kind": "dml",
+        "operations": [
+            {
+                "query": "INSERT INTO bigtabledevinstance.user_info (name, age, code) VALUES (?, ?, ?)",
+                "query_type": "INSERT",
+                "query_desc": "Initialize user with no extra_info defined",
+                "params": [
+                    {
+                        "value": "undefined_set_row",
+                        "datatype": "text"
+                    },
+                    {
+                        "value": 99,
+                        "datatype": "bigint"
+                    },
+                    {
+                        "value": 20,
+                        "datatype": "int"
+                    }
+                ],
+                "expected_result": null
+            },
+            {
+                "query": "SELECT name, set_int FROM bigtabledevinstance.user_info WHERE name = ? AND age = ?",
+                "query_type": "SELECT",
+                "query_desc": "Read the set",
+                "params": [
+                    {
+                        "value": "undefined_set_row",
+                        "datatype": "text"
+                    },
+                    {
+                        "value": 99,
+                        "datatype": "bigint"
+                    }
+                ],
+                "expected_result": [
+                    {
+                        "name": "undefined_set_row",
+                        "datatype": "text"
+                    },
+                    {
+                        "set_int": {},
+                        "datatype": "set<int>"
+                    }
+                ]
+            },
+            {
+                "query": "SELECT name as n, set_int as s FROM bigtabledevinstance.user_info WHERE name = ? AND age = ?",
+                "query_type": "SELECT",
+                "query_desc": "Read the set with aliases.",
+                "params": [
+                    {
+                        "value": "undefined_set_row",
+                        "datatype": "text"
+                    },
+                    {
+                        "value": 99,
+                        "datatype": "bigint"
+                    }
+                ],
+                "expected_result": [
+                    {
+                        "n": "undefined_set_row",
+                        "datatype": "text"
+                    },
+                    {
+                        "s": {},
+                        "datatype": "set<int>"
+                    }
+                ]
+            }
+        ],
+        "success_message": "Undefined set reads successful.",
+        "failure_message": "Undefined set reads failed."
     }
 ]

@@ -813,5 +813,84 @@
         ],
         "success_message": "Map reads successful.",
         "failure_message": "Map reads failed."
+    },
+    {
+        "title": "Map read of undefined map",
+        "description": "Read a row that doesn't have any value for the map column",
+        "kind": "dml",
+        "operations": [
+            {
+                "query": "INSERT INTO bigtabledevinstance.user_info (name, age, code) VALUES (?, ?, ?)",
+                "query_type": "INSERT",
+                "query_desc": "Initialize user with no extra_info defined",
+                "params": [
+                    {
+                        "value": "undefined_map_row",
+                        "datatype": "text"
+                    },
+                    {
+                        "value": 99,
+                        "datatype": "bigint"
+                    },
+                    {
+                        "value": 20,
+                        "datatype": "int"
+                    }
+                ],
+                "expected_result": null
+            },
+            {
+                "query": "SELECT name, extra_info FROM bigtabledevinstance.user_info WHERE name = ? AND age = ?",
+                "query_type": "SELECT",
+                "query_desc": "Read the map",
+                "params": [
+                    {
+                        "value": "undefined_map_row",
+                        "datatype": "text"
+                    },
+                    {
+                        "value": 99,
+                        "datatype": "bigint"
+                    }
+                ],
+                "expected_result": [
+                    {
+                        "name": "undefined_map_row",
+                        "datatype": "text"
+                    },
+                    {
+                        "extra_info": {},
+                        "datatype": "map<text,text>"
+                    }
+                ]
+            },
+            {
+                "query": "SELECT name as n, extra_info as e FROM bigtabledevinstance.user_info WHERE name = ? AND age = ?",
+                "query_type": "SELECT",
+                "query_desc": "Read the map with aliases.",
+                "params": [
+                    {
+                        "value": "undefined_map_row",
+                        "datatype": "text"
+                    },
+                    {
+                        "value": 99,
+                        "datatype": "bigint"
+                    }
+                ],
+                "expected_result": [
+                    {
+                        "n": "undefined_map_row",
+                        "datatype": "text"
+                    },
+                    {
+                        "e": {},
+                        "datatype": "map<text,text>"
+                    }
+                ]
+            }
+        ],
+        "success_message": "Undefined map reads successful.",
+        "failure_message": "Undefined map reads failed."
     }
 ]

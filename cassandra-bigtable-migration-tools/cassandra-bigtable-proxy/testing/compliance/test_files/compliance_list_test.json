@@ -1024,5 +1024,145 @@
         ],
         "success_message": "Large LIST<INT> inserted successfully.",
         "failure_message": "Large LIST<INT> insertion failed."
+    },
+    {
+        "title": "Read list",
+        "description": "Read a list in various ways.",
+        "operations": [
+            {
+                "query": "INSERT INTO bigtabledevinstance.user_info (name, age, list_int) VALUES (?, ?, ?)",
+                "query_desc": "Initialize user with a list.",
+                "query_type": "INSERT",
+                "params": [
+                    {
+                        "value": "list_reads",
+                        "datatype": "text"
+                    },
+                    {
+                        "value": 55,
+                        "datatype": "bigint"
+                    },
+                    {
+                        "value": [
+                            33,
+                            56,
+                            55
+                        ],
+                        "datatype": "list<int>"
+                    }
+                ],
+                "expected_result": null
+            },
+            {
+                "query": "SELECT name, list_int FROM bigtabledevinstance.user_info WHERE name = ? AND age = ?",
+                "query_desc": "read the entire list.",
+                "query_type": "SELECT",
+                "params": [
+                    {
+                        "value": "list_reads",
+                        "datatype": "text"
+                    },
+                    {
+                        "value": 55,
+                        "datatype": "bigint"
+                    }
+                ],
+                "expected_result": [
+                    {
+                        "name": "list_reads",
+                        "datatype": "text"
+                    },
+                    {
+                        "list_int": [
+                            33,
+                            56,
+                            55
+                        ],
+                        "datatype": "list<int>"
+                    }
+                ]
+            },
+            {
+                "query": "SELECT name as n, list_int as l FROM bigtabledevinstance.user_info WHERE name = ? AND age = ?",
+                "query_desc": "read the entire list with aliases.",
+                "query_type": "SELECT",
+                "params": [
+                    {
+                        "value": "list_reads",
+                        "datatype": "text"
+                    },
+                    {
+                        "value": 55,
+                        "datatype": "bigint"
+                    }
+                ],
+                "expected_result": [
+                    {
+                        "n": "list_reads",
+                        "datatype": "text"
+                    },
+                    {
+                        "l": [
+                            33,
+                            56,
+                            55
+                        ],
+                        "datatype": "list<int>"
+                    }
+                ]
+            },
+            {
+                "query": "SELECT name, list_int[0] FROM bigtabledevinstance.user_info WHERE name = ? AND age = ?",
+                "query_desc": "read the first element of the list.",
+                "query_type": "SELECT",
+                "params": [
+                    {
+                        "value": "list_reads",
+                        "datatype": "text"
+                    },
+                    {
+                        "value": 55,
+                        "datatype": "bigint"
+                    }
+                ],
+                "expected_result": [
+                    {
+                        "name": "list_reads",
+                        "datatype": "text"
+                    },
+                    {
+                        "list_int[0]": 33,
+                        "datatype": "int"
+                    }
+                ]
+            },
+            {
+                "query": "SELECT name as n, list_int[0] as l FROM bigtabledevinstance.user_info WHERE name = ? AND age = ?",
+                "query_desc": "read the first element of the list with aliases.",
+                "query_type": "SELECT",
+                "params": [
+                    {
+                        "value": "list_reads",
+                        "datatype": "text"
+                    },
+                    {
+                        "value": 55,
+                        "datatype": "bigint"
+                    }
+                ],
+                "expected_result": [
+                    {
+                        "n": "list_reads",
+                        "datatype": "text"
+                    },
+                    {
+                        "l": 33,
+                        "datatype": "int"
+                    }
+                ]
+            }
+        ],
+        "success_message": "List read successfully.",
+        "failure_message": "List read failed."
     }
 ]

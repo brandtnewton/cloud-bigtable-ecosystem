@@ -449,7 +449,7 @@
                         "datatype": "text"
                     },
                     {
-                        "set_int": {},
+                        "set_int": [],
                         "datatype": "set<int>"
                     }
                 ]
@@ -474,7 +474,7 @@
                         "datatype": "text"
                     },
                     {
-                        "s": {},
+                        "s": [],
                         "datatype": "set<int>"
                     }
                 ]

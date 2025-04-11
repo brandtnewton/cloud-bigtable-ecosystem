@@ -859,7 +859,7 @@
                         "datatype": "text"
                     },
                     {
-                        "extra_info": {},
+                        "extra_info": null,
                         "datatype": "map<text,text>"
                     }
                 ]
@@ -884,7 +884,7 @@
                         "datatype": "text"
                     },
                     {
-                        "e": {},
+                        "e": null,
                         "datatype": "map<text,text>"
                     }
                 ]

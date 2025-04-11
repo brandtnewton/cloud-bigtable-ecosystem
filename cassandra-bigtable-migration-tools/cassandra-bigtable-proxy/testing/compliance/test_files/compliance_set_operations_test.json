@@ -352,7 +352,7 @@
                         "datatype": "text"
                     },
                     {
-                        "value": 30,
+                        "value": 900,
                         "datatype": "bigint"
                     }
                 ],
@@ -363,9 +363,9 @@
                     },
                     {
                         "set_int": [
+                            2,
                             28,
-                            56,
-                            2
+                            56
                         ],
                         "datatype": "set<int>"
                     }
@@ -381,7 +381,7 @@
                         "datatype": "text"
                     },
                     {
-                        "value": 30,
+                        "value": 900,
                         "datatype": "bigint"
                     }
                 ],
@@ -392,38 +392,9 @@
                     },
                     {
                         "s": [
+                            2,
                             28,
-                            56,
-                            2
-                        ],
-                        "datatype": "set<int>"
-                    }
-                ]
-            },
-            {
-                "query": "SELECT name as n, set_int FROM bigtabledevinstance.user_info WHERE name = ? AND age = ?",
-                "query_type": "SELECT",
-                "query_desc": "Read set value.",
-                "params": [
-                    {
-                        "value": "set_reads",
-                        "datatype": "text"
-                    },
-                    {
-                        "value": 30,
-                        "datatype": "bigint"
-                    }
-                ],
-                "expected_result": [
-                    {
-                        "n": "set_reads",
-                        "datatype": "text"
-                    },
-                    {
-                        "s": [
-                            28,
-                            56,
-                            2
+                            56
                         ],
                         "datatype": "set<int>"
                     }

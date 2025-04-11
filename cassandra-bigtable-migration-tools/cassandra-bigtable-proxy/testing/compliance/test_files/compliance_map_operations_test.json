@@ -751,7 +751,7 @@
                 ],
                 "expected_result": [
                     {
-                        "name": "n",
+                        "n": "map_read_test",
                         "datatype": "text"
                     },
                     {
@@ -780,7 +780,7 @@
                         "datatype": "text"
                     },
                     {
-                        "extra_info['missingKey']": null,
+                        "extra_info['missingKey']": "",
                         "datatype": "text"
                     }
                 ]
@@ -805,7 +805,7 @@
                         "datatype": "text"
                     },
                     {
-                        "v": null,
+                        "v": "",
                         "datatype": "text"
                     }
                 ]

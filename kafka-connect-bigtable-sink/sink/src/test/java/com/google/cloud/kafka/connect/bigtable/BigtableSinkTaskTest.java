@@ -47,6 +47,8 @@ import com.google.api.gax.batching.Batcher;
 import com.google.api.gax.rpc.ApiException;
 import com.google.bigtable.admin.v2.Table;
 import com.google.cloud.bigtable.admin.v2.BigtableTableAdminClient;
+import com.google.cloud.bigtable.admin.v2.stub.BigtableTableAdminStub;
+import com.google.cloud.bigtable.admin.v2.stub.EnhancedBigtableTableAdminStub;
 import com.google.cloud.bigtable.data.v2.BigtableDataClient;
 import com.google.cloud.bigtable.data.v2.models.Mutation;
 import com.google.cloud.bigtable.data.v2.models.RowMutationEntry;
@@ -97,19 +99,30 @@ import org.slf4j.Logger;
 
 @RunWith(JUnit4.class)
 public class BigtableSinkTaskTest {
+
   TestBigtableSinkTask task;
   BigtableSinkTaskConfig config;
-  @Mock BigtableDataClient bigtableData;
-  @Mock BigtableTableAdminClient bigtableAdmin;
-  @Mock KeyMapper keyMapper;
-  @Mock ValueMapper valueMapper;
-  @Mock BigtableSchemaManager schemaManager;
-  @Mock SinkTaskContext context;
-  @Mock ErrantRecordReporter errorReporter;
+  BigtableTableAdminClient bigtableAdmin;
+
+  @Mock
+  BigtableDataClient bigtableData;
+  @Mock
+  EnhancedBigtableTableAdminStub adminStub;
+  @Mock
+  KeyMapper keyMapper;
+  @Mock
+  ValueMapper valueMapper;
+  @Mock
+  BigtableSchemaManager schemaManager;
+  @Mock
+  SinkTaskContext context;
+  @Mock
+  ErrantRecordReporter errorReporter;
 
   @Before
   public void setUp() {
     openMocks(this);
+    bigtableAdmin = BigtableTableAdminClient.create("project", "instance", adminStub);
     config = new BigtableSinkTaskConfig(BasicPropertiesFactory.getTaskProps());
   }
 
@@ -478,11 +491,11 @@ public class BigtableSinkTaskTest {
     String batcherTable = "batcherTable";
     Batcher<RowMutationEntry, Void> batcher = mock(Batcher.class);
     doAnswer(
-            invocation -> {
-              TestBigtableSinkTask task = (TestBigtableSinkTask) invocation.getMock();
-              task.getBatchers().computeIfAbsent(batcherTable, ignored -> batcher);
-              return null;
-            })
+        invocation -> {
+          TestBigtableSinkTask task = (TestBigtableSinkTask) invocation.getMock();
+          task.getBatchers().computeIfAbsent(batcherTable, ignored -> batcher);
+          return null;
+        })
         .when(task)
         .performUpsertBatch(any(), any());
 
@@ -583,11 +596,11 @@ public class BigtableSinkTaskTest {
       byte[] rowKey = "rowKey".getBytes(StandardCharsets.UTF_8);
       doReturn(rowKey).when(keyMapper).getKey(any());
       doAnswer(
-              i -> {
-                MutationDataBuilder builder = new MutationDataBuilder();
-                builder.deleteRow();
-                return builder;
-              })
+          i -> {
+            MutationDataBuilder builder = new MutationDataBuilder();
+            builder.deleteRow();
+            return builder;
+          })
           .when(valueMapper)
           .getRecordMutationDataBuilder(any(), anyString(), anyLong());
 
@@ -622,6 +635,7 @@ public class BigtableSinkTaskTest {
   }
 
   private static class TestBigtableSinkTask extends BigtableSinkTask {
+
     public TestBigtableSinkTask(
         BigtableSinkTaskConfig config,
         BigtableDataClient bigtableData,

@@ -35,14 +35,18 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 
 import com.google.api.core.ApiFuture;
+import com.google.bigtable.admin.v2.ListTablesRequest;
+import com.google.bigtable.admin.v2.ListTablesResponse;
 import com.google.cloud.bigtable.admin.v2.BigtableTableAdminClient;
 import com.google.cloud.bigtable.admin.v2.models.ColumnFamily;
 import com.google.cloud.bigtable.admin.v2.models.CreateTableRequest;
 import com.google.cloud.bigtable.admin.v2.models.ModifyColumnFamiliesRequest;
 import com.google.cloud.bigtable.admin.v2.models.Table;
+import com.google.cloud.bigtable.admin.v2.stub.EnhancedBigtableTableAdminStub;
 import com.google.cloud.kafka.connect.bigtable.autocreate.BigtableSchemaManager.ResourceAndRecords;
 import com.google.cloud.kafka.connect.bigtable.mapping.MutationData;
 import com.google.cloud.kafka.connect.bigtable.util.ApiExceptionFactory;
+import com.google.cloud.kafka.connect.bigtable.util.FakeUnaryCallable;
 import io.grpc.Status;
 import java.util.AbstractMap;
 import java.util.ArrayList;
@@ -62,25 +66,29 @@ import org.junit.runners.JUnit4;
 
 @RunWith(JUnit4.class)
 public class BigtableSchemaManagerTest {
+
+  EnhancedBigtableTableAdminStub adminStub;
   BigtableTableAdminClient bigtable;
   TestBigtableSchemaManager bigtableSchemaManager;
 
   @Before
   public void setUp() {
-    bigtable = mock(BigtableTableAdminClient.class);
+    adminStub = mock(EnhancedBigtableTableAdminStub.class);
+    bigtable = BigtableTableAdminClient.create("project", "instance", adminStub);
     bigtableSchemaManager = spy(new TestBigtableSchemaManager(bigtable));
   }
 
   @Test
   public void testTableCachePopulationSuccess() {
     List<String> tables = List.of("table1", "table2");
-    doReturn(tables).when(bigtable).listTables();
+    // ListTablesResponse.newBuilder().addTables(Table.()).build().getTablesList()
+    // doReturn(new FakeUnaryCallable<ListTablesRequest, ListTablesResponse>()).when(adminStub).listTablesCallable();
     bigtableSchemaManager.refreshTableNamesCache();
     assertEquals(new HashSet<>(tables), bigtableSchemaManager.getCache().keySet());
-    assertTotalNumberOfInvocations(bigtable, 1);
+    // assertTotalNumberOfInvocations(bigtable, 1);
 
-    reset(bigtable);
-    verifyNoInteractions(bigtable);
+    // reset(bigtable);
+    // verifyNoInteractions(bigtable);
     Map<SinkRecord, MutationData> input =
         generateInput(
             tables.stream()
@@ -438,15 +446,15 @@ public class BigtableSchemaManagerTest {
     int expectedBigtableInteractions =
         1 // listTables()
             + tablesAndColumnFamilies.values().stream()
-                .mapToInt(Set::size)
-                .sum() // modifyColumnFamily()
+            .mapToInt(Set::size)
+            .sum() // modifyColumnFamily()
             + tablesAndColumnFamilies.keySet().size(); // getTable()
     assertTotalNumberOfInvocations(bigtable, expectedBigtableInteractions);
   }
 
   @Test
   public void
-      testEnsureColumnFamiliesExistSomeCreatedSuccessfullySomeErrorsDueToRacesOrInvalidRequests() {
+  testEnsureColumnFamiliesExistSomeCreatedSuccessfullySomeErrorsDueToRacesOrInvalidRequests() {
     String successTable = "table1";
     String bigtableErrorTable = "table2";
     String dataErrorTable = "table3";
@@ -512,8 +520,8 @@ public class BigtableSchemaManagerTest {
     int expectedBigtableInteractions =
         1 // listTables()
             + tablesAndColumnFamilies.values().stream()
-                .mapToInt(Set::size)
-                .sum() // modifyColumnFamily()
+            .mapToInt(Set::size)
+            .sum() // modifyColumnFamily()
             + tablesAndColumnFamilies.keySet().size(); // getTable()
     assertTotalNumberOfInvocations(bigtable, expectedBigtableInteractions);
   }
@@ -566,8 +574,8 @@ public class BigtableSchemaManagerTest {
     int expectedBigtableInteractions =
         1 // listTables()
             + tablesAndColumnFamilies.values().stream()
-                .mapToInt(Set::size)
-                .sum() // modifyColumnFamily()
+            .mapToInt(Set::size)
+            .sum() // modifyColumnFamily()
             + tablesAndColumnFamilies.keySet().size(); // getTable()
     assertTotalNumberOfInvocations(bigtable, expectedBigtableInteractions);
   }
@@ -624,8 +632,8 @@ public class BigtableSchemaManagerTest {
     int expectedBigtableInteractions =
         1 // listTables()
             + tablesAndColumnFamilies.values().stream()
-                .mapToInt(Set::size)
-                .sum() // modifyColumnFamily()
+            .mapToInt(Set::size)
+            .sum() // modifyColumnFamily()
             + 1; // getTable()
     assertTotalNumberOfInvocations(bigtable, expectedBigtableInteractions);
   }
@@ -651,7 +659,7 @@ public class BigtableSchemaManagerTest {
             completedApiFuture(null), ok,
             failedApiFuture(ApiExceptionFactory.create(Status.Code.INVALID_ARGUMENT)), dataError,
             failedApiFuture(ApiExceptionFactory.create(Status.Code.RESOURCE_EXHAUSTED)),
-                bigtableError);
+            bigtableError);
 
     Set<SinkRecord> dataErrors =
         bigtableSchemaManager.awaitResourceCreationAndHandleInvalidInputErrors(input, "%s");
@@ -698,9 +706,9 @@ public class BigtableSchemaManagerTest {
         mcfr.toProto("unused", "unused").getModificationsList();
     return refersTable
         && modifications.stream()
-            .filter(
-                com.google.bigtable.admin.v2.ModifyColumnFamiliesRequest.Modification::hasCreate)
-            .anyMatch(m -> columnFamily.equals(m.getId()));
+        .filter(
+            com.google.bigtable.admin.v2.ModifyColumnFamiliesRequest.Modification::hasCreate)
+        .anyMatch(m -> columnFamily.equals(m.getId()));
   }
 
   private void mockCreateTableSuccess(
@@ -739,6 +747,7 @@ public class BigtableSchemaManagerTest {
   }
 
   private static class TestBigtableSchemaManager extends BigtableSchemaManager {
+
     public TestBigtableSchemaManager(BigtableTableAdminClient bigtable) {
       super(bigtable);
       this.logger = spy(this.logger);

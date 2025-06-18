@@ -39,3 +39,15 @@ CREATE TABLE IF NOT EXISTS bigtabledevinstance.user_info (
 );
 
 CREATE TABLE IF NOT EXISTS bigtabledevinstance.orders (user_id varchar, order_num int, name varchar, PRIMARY KEY (user_id, order_num));
+
+CREATE TABLE IF NOT EXISTS bigtabledevinstance.aggregation_grouping_test (
+    region text,
+    category varchar,
+    item_id int,
+    sale_timestamp timestamp,
+    quantity int,
+    price float,
+    discount double,
+    revenue_bigint bigint,
+    PRIMARY KEY (category, item_id)
+);

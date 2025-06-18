@@ -26,15 +26,14 @@ import (
 	"time"
 
 	"cloud.google.com/go/bigtable"
-	btpb "cloud.google.com/go/bigtable/apiv2/bigtablepb"
-	bt "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/bigtable"
-	mockbigtable "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/mocks/bigtable"
-	rh "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/responsehandler"
-	schemaMapping "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/schema-mapping"
+	bt "github.com/ollionorg/cassandra-to-bigtable-proxy/bigtable"
+	types "github.com/ollionorg/cassandra-to-bigtable-proxy/global/types"
+	mockbigtable "github.com/ollionorg/cassandra-to-bigtable-proxy/mocks/bigtable"
+	rh "github.com/ollionorg/cassandra-to-bigtable-proxy/responsehandler"
+	schemaMapping "github.com/ollionorg/cassandra-to-bigtable-proxy/schema-mapping"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"go.uber.org/zap"
-	"google.golang.org/grpc"
 )
 
 func Test_parseProtocolVersion(t *testing.T) {
@@ -285,8 +284,8 @@ func TestRun(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel() // Ensure resources are released
 	t.Setenv("CONFIG_FILE", "../fakedata/testConfigFile.yaml")
-	tbData := make(map[string]map[string]*schemaMapping.Column)
-	pkData := make(map[string][]schemaMapping.Column)
+	tbData := make(map[string]map[string]*types.Column)
+	pkData := make(map[string][]types.Column)
 	bgtmockface := new(mockbigtable.BigTableClientIface)
 	bgtmockface.On("GetSchemaMappingConfigs", ctx, "bigtabledevinstancetest", "schema_mapping_test").Return(tbData, pkData, nil)
 	bgtmockface.On("LoadConfigs", mock.AnythingOfType("*responsehandler.TypeHandler"), mock.AnythingOfType("*schemaMapping.SchemaMappingConfig")).Return(tbData, pkData, nil)
@@ -295,7 +294,7 @@ func TestRun(t *testing.T) {
 
 	// Override the factory function to return the mock
 	originalNewBigTableClient := bt.NewBigtableClient
-	bt.NewBigtableClient = func(client map[string]*bigtable.Client, adminClients map[string]*bigtable.AdminClient, logger *zap.Logger, sqlClient btpb.BigtableClient, config bt.BigtableConfig, responseHandler rh.ResponseHandlerIface, grpcConn *grpc.ClientConn, schemaMapping *schemaMapping.SchemaMappingConfig) bt.BigTableClientIface {
+	bt.NewBigtableClient = func(client map[string]*bigtable.Client, adminClients map[string]*bigtable.AdminClient, logger *zap.Logger, config bt.BigtableConfig, responseHandler rh.ResponseHandlerIface, schemaMapping *schemaMapping.SchemaMappingConfig) bt.BigTableClientIface {
 		return bgtmockface
 	}
 	defer func() { bt.NewBigtableClient = originalNewBigTableClient }()

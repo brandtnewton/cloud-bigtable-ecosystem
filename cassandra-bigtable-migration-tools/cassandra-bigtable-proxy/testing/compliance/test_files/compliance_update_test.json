@@ -205,7 +205,8 @@
         "expected_result": [
           {
             "expect_error": true,
-            "error_message": "invalid input paramaters found for table or keyspace"
+            "error_message": "invalid input paramaters found for table or keyspace",
+            "cassandra_error_message": "table user_info does not exist"
           }
         ]
       },

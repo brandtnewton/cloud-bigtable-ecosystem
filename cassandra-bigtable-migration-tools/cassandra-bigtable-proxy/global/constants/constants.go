@@ -13,4 +13,15 @@
  * License for the specific language governing permissions and limitations under
  * the License.
  */
-package bigtableclient
+
+package constants
+
+// TODO: we need to move all the constants here.
+// Just to keep the code clean, we have defined the constants here.
+// It will help in reducing the number of magic strings in the code also to avoid the circular dependency.
+const (
+	BETWEEN     = "BETWEEN"
+	LIKE        = "LIKE"
+	BETWEEN_AND = "BETWEEN-AND"
+	IN          = "IN"
+)

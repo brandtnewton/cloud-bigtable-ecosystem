@@ -27,10 +27,10 @@ import (
 	"strings"
 	"sync"
 
-	bigtableModule "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/bigtable"
-	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/utilities"
 	"github.com/alecthomas/kong"
 	"github.com/datastax/go-cassandra-native-protocol/primitive"
+	bigtableModule "github.com/ollionorg/cassandra-to-bigtable-proxy/bigtable"
+	"github.com/ollionorg/cassandra-to-bigtable-proxy/utilities"
 	"go.uber.org/zap"
 	"gopkg.in/yaml.v2"
 )
@@ -125,8 +125,6 @@ type runConfig struct {
 	ProxyKeyFile       string   `yaml:"proxy-key-file" help:"Path to a PEM encoded private key file. This is used to encrypt traffic for proxy clients" env:"PROXY_KEY_FILE"`
 	// hidden because we only intend the java session wrapper to use this flag
 	UserAgentOverride string `yaml:"-" help:"" hidden:"" optional:"" default:"" short:"u"`
-	ClientPid         int32     `yaml:"client-pid" help:"" hidden:"" optional:"" default:"" short:""`
-	ClientUid         uint32    `yaml:"client-uid" help:"" hidden:"" optional:"" default:"" short:""`
 }
 
 // Run starts the proxy command. 'args' shouldn't include the executable (i.e. os.Args[1:]). It returns the exit code
@@ -232,7 +230,7 @@ func Run(ctx context.Context, args []string) int {
 	}
 	defer logger.Sync()
 	if cfg.Version {
-		cliCtx.Printf("Version - " + proxyReleaseVersion)
+		cliCtx.Printf("%s", "Version - "+proxyReleaseVersion)
 		return 0
 	}
 
@@ -289,8 +287,6 @@ func Run(ctx context.Context, args []string) int {
 			CQLVersion:     cqlVersion,
 			OtelConfig:     UserConfig.Otel,
 			UserAgent:      userAgent,
-			ClientPid:      cfg.ClientPid,
-			ClientUid:      cfg.ClientUid,
 		})
 
 		if err1 != nil {
@@ -429,7 +425,7 @@ func (c *runConfig) listenAndServe(p *Proxy, mux *http.ServeMux, ctx context.Con
 	for _, listener := range listeners {
 		go func(l net.Listener) {
 			defer wg.Done()
-			// WARNING: Do NOT change this log - the cassandra-bigtable-java-client-lib and compliance tests use the "Starting to serve on listener" log message to check for start up.
+			// WARNING: Do NOT change this log - the google-cloud-bigtable-cassandra-proxy-lib and compliance tests use the "Starting to serve on listener" log message to check for start up.
 			logger.Info(fmt.Sprintf("Starting to serve on listener: %v\n", l.Addr()))
 			err := p.Serve(l)
 			if err != nil && err != ErrProxyClosed {
@@ -454,18 +450,18 @@ func resolveAndListen(bind string, useUnixSocket bool, unixSocketPath, certFile,
 		if err := os.RemoveAll(unixSocketPath); err != nil {
 			return nil, fmt.Errorf("failed to remove existing socket file: %v", err)
 		}
-		logger.Debug(fmt.Sprintf("Creating Unix Domain Socket"))
+		logger.Info(fmt.Sprintf("Creating Unix Domain Socket at: %s\n", unixSocketPath))
 		listener, err := net.Listen("unix", unixSocketPath)
 		if err != nil {
 			return nil, fmt.Errorf("failed to create Unix Domain Socket: %v", err)
 		}
-		logger.Debug("Successfully created Unix Domain Socket listener\n")
+		logger.Info("Successfully created Unix Domain Socket listener\n")
 
 		// Set socket permissions
-		if err := os.Chmod(unixSocketPath, 0600); err != nil {
+		if err := os.Chmod(unixSocketPath, 0666); err != nil {
 			return nil, fmt.Errorf("failed to set socket permissions: %v", err)
 		}
-		logger.Debug("Set socket permissions\n")
+		logger.Info("Set socket permissions to 0666\n")
 
 		return listener, nil
 	}

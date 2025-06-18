@@ -482,7 +482,8 @@
         "expected_result": [
           {
             "expect_error": true,
-            "error_message": "Non PRIMARY KEY columns found in where clause: credited "
+            "error_message": "Non PRIMARY KEY columns found in where clause: credited ",
+            "cassandra_error_message": "Some partition key parts are missing: age"
           }
         ]
       }

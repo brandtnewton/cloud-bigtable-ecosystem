@@ -13,4 +13,28 @@
  * License for the specific language governing permissions and limitations under
  * the License.
  */
-package bigtableclient
+package types
+
+import (
+	"github.com/datastax/go-cassandra-native-protocol/datatype"
+	"github.com/datastax/go-cassandra-native-protocol/message"
+)
+
+type Column struct {
+	Name         string
+	CQLType      datatype.DataType
+	ColumnName   string
+	IsPrimaryKey bool
+	PkPrecedence int
+	IsCollection bool
+	KeyType      string
+	Metadata     message.ColumnMetadata
+	ColumnFamily string
+}
+
+type Clause struct {
+	Column       string
+	Operator     string
+	Value        string
+	IsPrimaryKey bool
+}

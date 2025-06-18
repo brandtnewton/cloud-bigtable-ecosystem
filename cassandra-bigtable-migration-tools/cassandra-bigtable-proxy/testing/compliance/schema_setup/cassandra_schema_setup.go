@@ -21,8 +21,8 @@ import (
 	"os"
 	"strings"
 
-	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/testing/compliance/utility"
 	"github.com/gocql/gocql"
+	"github.com/ollionorg/cassandra-to-bigtable-proxy/testing/compliance/utility"
 )
 
 // SetupCassandraSchema sets up the Cassandra keyspace and tables

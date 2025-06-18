@@ -1,0 +1,8 @@
+package constants
+
+const (
+	ARRAY_INCLUDES   = "ARRAY_INCLUDES"
+	MAP_CONTAINS_KEY = "MAP_CONTAINS_KEY"
+	CONTAINS_KEY     = "CONTAINS KEY"
+	CONTAINS         = "CONTAINS"
+)

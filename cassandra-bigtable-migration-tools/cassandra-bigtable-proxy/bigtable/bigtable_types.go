@@ -19,8 +19,8 @@ package bigtableclient
 import (
 	"cloud.google.com/go/bigtable"
 	btpb "cloud.google.com/go/bigtable/apiv2/bigtablepb"
-	rh "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/responsehandler"
-	schemaMapping "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/schema-mapping"
+	rh "github.com/ollionorg/cassandra-to-bigtable-proxy/responsehandler"
+	schemaMapping "github.com/ollionorg/cassandra-to-bigtable-proxy/schema-mapping"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
 )
@@ -36,6 +36,7 @@ type MutationData struct {
 	RowKey       string
 	Columns      []ColumnData
 	ColumnFamily string
+	Timestamp    bigtable.Timestamp
 }
 
 type BulkOperationResponse struct {
@@ -51,6 +52,10 @@ type BigtableClient struct {
 	ResponseHandler     rh.ResponseHandlerIface
 	SchemaMappingConfig *schemaMapping.SchemaMappingConfig
 	grpcConn            *grpc.ClientConn
+
+	// Cache for prepared statements // commenting it out to improve/implement in future
+	// preparedStatementCache map[string]*bigtable.PreparedStatement
+	// preparedStatementMutex sync.RWMutex
 }
 
 type BigtableConfig struct {

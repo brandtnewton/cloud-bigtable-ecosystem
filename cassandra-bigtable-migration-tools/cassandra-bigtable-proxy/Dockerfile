@@ -1,4 +1,4 @@
-FROM golang:1.23.0 as builder
+FROM golang:1.24.0 as builder
 
 # Disable cgo to remove gcc dependency
 ENV CGO_ENABLED=0
@@ -13,7 +13,7 @@ RUN go mod download
 COPY . ./
 
 # Build and install binary
-RUN go install github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy
+RUN go install github.com/ollionorg/cassandra-to-bigtable-proxy
 
 RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o /go/bin/cassandra-to-bigtable-proxy .
 
@@ -28,4 +28,4 @@ COPY --from=builder /go/bin/cassandra-to-bigtable-proxy  .
 
 COPY config.yaml /
 
-ENTRYPOINT ["/cassandra-to-bigtable-proxy"]
+ENTRYPOINT ["/cassandra-to-bigtable-proxy", "--rpc-address", "10.5.0.41"]

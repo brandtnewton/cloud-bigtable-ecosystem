@@ -23,8 +23,8 @@ import (
 	"strings"
 
 	"cloud.google.com/go/bigtable"
-	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/testing/compliance/utility"
 	"github.com/gocql/gocql"
+	"github.com/ollionorg/cassandra-to-bigtable-proxy/testing/compliance/utility"
 )
 
 const (

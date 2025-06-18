@@ -31,17 +31,17 @@ import (
 	"unicode/utf8"
 
 	"cloud.google.com/go/bigtable"
+	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/collectiondecoder"
+	constants "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/global/constants"
+	types "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/global/types"
+	schemaMapping "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/schema-mapping"
+	cql "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/third_party/cqlparser"
+	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/third_party/datastax/proxycore"
+	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/utilities"
 	"github.com/antlr4-go/antlr/v4"
 	"github.com/datastax/go-cassandra-native-protocol/datatype"
 	"github.com/datastax/go-cassandra-native-protocol/message"
 	"github.com/datastax/go-cassandra-native-protocol/primitive"
-	"github.com/ollionorg/cassandra-to-bigtable-proxy/collectiondecoder"
-	constants "github.com/ollionorg/cassandra-to-bigtable-proxy/global/constants"
-	types "github.com/ollionorg/cassandra-to-bigtable-proxy/global/types"
-	schemaMapping "github.com/ollionorg/cassandra-to-bigtable-proxy/schema-mapping"
-	cql "github.com/ollionorg/cassandra-to-bigtable-proxy/third_party/cqlparser"
-	"github.com/ollionorg/cassandra-to-bigtable-proxy/third_party/datastax/proxycore"
-	"github.com/ollionorg/cassandra-to-bigtable-proxy/utilities"
 )
 
 const (
@@ -433,6 +433,10 @@ func processCollectionColumnsForRawQueries(input ProcessRawCollectionsInput) (*P
 			default:
 				return nil, fmt.Errorf("column %s is not a collection type", column.Name)
 			}
+		} else if column.CQLType == datatype.Counter {
+			if err := handleCounterOperation(val, column, input, output); err != nil {
+				return nil, err
+			}
 		} else {
 			output.NewColumns = append(output.NewColumns, column)
 			output.NewValues = append(output.NewValues, val)
@@ -664,6 +668,36 @@ func removeSetElements(keys []string, colFamily string, column types.Column, out
 		})
 	}
 	return nil
+}
+
+func handleCounterOperation(val interface{}, column types.Column, input ProcessRawCollectionsInput, output *ProcessRawCollectionsOutput) error {
+	switch v := val.(type) {
+	case ComplexAssignment:
+		switch v.Operation {
+		case "+", "-":
+			str, ok := v.Right.(string)
+			if !ok {
+				return fmt.Errorf("expected string for counter operation, got %T", val)
+			}
+			intVal, err := strconv.ParseInt(str, 10, 64)
+			if err != nil {
+				return err
+			}
+			if v.Operation == "-" {
+				// make the increment value negative for decrementing
+				intVal *= -1
+			}
+			output.ComplexMeta[column.Name] = &ComplexOperation{
+				Increment:      true,
+				IncrementValue: intVal,
+			}
+			return nil
+		default:
+			return fmt.Errorf("unsupported counter operation: %s", v.Operation)
+		}
+	default:
+		return fmt.Errorf("unsupported counter operation")
+	}
 }
 
 // handleMapOperation processes map operations in raw queries.

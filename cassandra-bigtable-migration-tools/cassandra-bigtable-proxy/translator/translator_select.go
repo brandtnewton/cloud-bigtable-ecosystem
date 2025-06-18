@@ -22,10 +22,10 @@ import (
 	"strconv"
 	"strings"
 
-	methods "github.com/ollionorg/cassandra-to-bigtable-proxy/global/methods"
-	types "github.com/ollionorg/cassandra-to-bigtable-proxy/global/types"
-	schemaMapping "github.com/ollionorg/cassandra-to-bigtable-proxy/schema-mapping"
-	cql "github.com/ollionorg/cassandra-to-bigtable-proxy/third_party/cqlparser"
+	methods "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/global/methods"
+	types "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/global/types"
+	schemaMapping "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/schema-mapping"
+	cql "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/third_party/cqlparser"
 )
 
 const (

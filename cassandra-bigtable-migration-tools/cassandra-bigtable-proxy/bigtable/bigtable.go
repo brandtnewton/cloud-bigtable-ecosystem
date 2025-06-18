@@ -33,16 +33,16 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
+	constants "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/global/constants"
+	methods "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/global/methods"
+	types "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/global/types"
+	otelgo "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/otel"
+	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/responsehandler"
+	rh "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/responsehandler"
+	schemaMapping "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/schema-mapping"
+	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/translator"
+	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/utilities"
 	"github.com/datastax/go-cassandra-native-protocol/message"
-	constants "github.com/ollionorg/cassandra-to-bigtable-proxy/global/constants"
-	methods "github.com/ollionorg/cassandra-to-bigtable-proxy/global/methods"
-	types "github.com/ollionorg/cassandra-to-bigtable-proxy/global/types"
-	otelgo "github.com/ollionorg/cassandra-to-bigtable-proxy/otel"
-	"github.com/ollionorg/cassandra-to-bigtable-proxy/responsehandler"
-	rh "github.com/ollionorg/cassandra-to-bigtable-proxy/responsehandler"
-	schemaMapping "github.com/ollionorg/cassandra-to-bigtable-proxy/schema-mapping"
-	"github.com/ollionorg/cassandra-to-bigtable-proxy/translator"
-	"github.com/ollionorg/cassandra-to-bigtable-proxy/utilities"
 	"go.uber.org/zap"
 )
 
@@ -63,6 +63,7 @@ const (
 	mutationTypeDeleteColumnFamily = "DeleteColumnFamilies"
 	mutationTypeUpdate             = "Update"
 	schemaMappingTableColumnFamily = "cf"
+	counterColumnQualifier         = "v"
 )
 
 type BigTableClientIface interface {
@@ -185,6 +186,9 @@ func (btc *BigtableClient) mutateRow(ctx context.Context, tableName, rowKey stri
 
 	// Handle complex updates
 	for cf, meta := range ComplexOperation {
+		if meta.Increment {
+			mut.AddIntToCell(cf, counterColumnQualifier, 0, meta.IncrementValue)
+		}
 		if meta.UpdateListIndex != "" {
 			index, err := strconv.Atoi(meta.UpdateListIndex)
 			if err != nil {

@@ -21,7 +21,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ollionorg/cassandra-to-bigtable-proxy/third_party/datastax/parser"
+	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/third_party/datastax/parser"
 )
 
 var queries = []struct {

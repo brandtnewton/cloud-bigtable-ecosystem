@@ -23,13 +23,14 @@ import (
 	"strconv"
 	"strings"
 
+	methods "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/global/methods"
+	types "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/global/types"
+	schemaMapping "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/schema-mapping"
+	cql "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/third_party/cqlparser"
+	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/utilities"
 	"github.com/antlr4-go/antlr/v4"
+	"github.com/datastax/go-cassandra-native-protocol/datatype"
 	"github.com/datastax/go-cassandra-native-protocol/primitive"
-	methods "github.com/ollionorg/cassandra-to-bigtable-proxy/global/methods"
-	types "github.com/ollionorg/cassandra-to-bigtable-proxy/global/types"
-	schemaMapping "github.com/ollionorg/cassandra-to-bigtable-proxy/schema-mapping"
-	cql "github.com/ollionorg/cassandra-to-bigtable-proxy/third_party/cqlparser"
-	"github.com/ollionorg/cassandra-to-bigtable-proxy/utilities"
 )
 
 // Helper function to check if a node is a column reference
@@ -45,6 +46,20 @@ func isCollection(node antlr.Tree) bool {
 	switch node.(type) {
 	case cql.IAssignmentListContext, cql.IAssignmentSetContext, cql.IAssignmentMapContext:
 		return true
+	}
+	return false
+}
+
+// Helper function to check if a node is a collection type
+func isCounter(node antlr.Tree) bool {
+	switch v := node.(type) {
+	//case cql.IAggregateContext:
+	//	return true
+	case cql.IDecimalLiteralContext:
+		fmt.Printf("decimal??: `%s`\n", v.GetText())
+		return true
+		//default:
+		//	fmt.Printf("not a counter: `%T`", node)
 	}
 	return false
 }
@@ -69,6 +84,9 @@ func getNodeValue(node antlr.Tree, parent antlr.ParserRuleContext) interface{} {
 	case cql.IAssignmentMapContext:
 		val, _ := parseCqlValue(ctx)
 		return val
+	case cql.IDecimalLiteralContext:
+		// todo error handling??
+		return ctx.GetText()
 	case antlr.TerminalNode:
 		return ctx.GetText()
 	default:
@@ -136,11 +154,11 @@ func parseAssignments(assignments []cql.IAssignmentElementContext, tableName str
 			left := setVal.GetChild(opIndex - 1)
 			right := setVal.GetChild(opIndex + 1)
 			var leftVal, rightVal interface{}
-			if isColumn(left, columnName) && isCollection(right) && op == "+" {
+			if isColumn(left, columnName) && (isCollection(right) || isCounter(right)) && op == "+" {
 				// Append: col = col + [values]
 				leftVal = getNodeText(left, setVal.GetParser())
 				rightVal = getNodeValue(right, setVal)
-			} else if isCollection(left) && isColumn(right, columnName) && op == "+" {
+			} else if (isCollection(left) || isCounter(left)) && isColumn(right, columnName) && op == "+" {
 				// Prepend: col = [values] + col
 				leftVal = getNodeValue(left, setVal)
 				rightVal = getNodeText(right, setVal.GetParser())
@@ -232,7 +250,7 @@ func parseAssignments(assignments []cql.IAssignmentElementContext, tableName str
 			return nil, fmt.Errorf("primary key not allowed to assignments")
 		}
 		if !isPreparedQuery {
-			if columnType.IsCollection {
+			if columnType.IsCollection || columnType.CQLType == datatype.Counter {
 				val = value
 			} else {
 				val, err = formatValues(fmt.Sprintf("%v", value), columnType.CQLType, 4)

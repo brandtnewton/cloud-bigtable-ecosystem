@@ -21,12 +21,12 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/collectiondecoder"
+	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/global/types"
+	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/third_party/datastax/proxycore"
 	"github.com/datastax/go-cassandra-native-protocol/datatype"
 	"github.com/datastax/go-cassandra-native-protocol/primitive"
 	"github.com/natefinch/lumberjack"
-	"github.com/ollionorg/cassandra-to-bigtable-proxy/collectiondecoder"
-	"github.com/ollionorg/cassandra-to-bigtable-proxy/global/types"
-	"github.com/ollionorg/cassandra-to-bigtable-proxy/third_party/datastax/proxycore"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 )

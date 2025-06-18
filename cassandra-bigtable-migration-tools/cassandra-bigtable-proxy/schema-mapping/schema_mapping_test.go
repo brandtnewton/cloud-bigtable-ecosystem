@@ -20,9 +20,9 @@ import (
 	"reflect"
 	"testing"
 
+	types "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/global/types"
 	"github.com/datastax/go-cassandra-native-protocol/datatype"
 	"github.com/datastax/go-cassandra-native-protocol/message"
-	types "github.com/ollionorg/cassandra-to-bigtable-proxy/global/types"
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/zap"
 )

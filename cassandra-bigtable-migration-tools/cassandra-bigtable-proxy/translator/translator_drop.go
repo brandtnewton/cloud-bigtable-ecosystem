@@ -20,8 +20,8 @@ import (
 	"errors"
 	"fmt"
 
+	cql "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/third_party/cqlparser"
 	"github.com/antlr4-go/antlr/v4"
-	cql "github.com/ollionorg/cassandra-to-bigtable-proxy/third_party/cqlparser"
 )
 
 // antlrErrorListener collects syntax errors from ANTLR parsing

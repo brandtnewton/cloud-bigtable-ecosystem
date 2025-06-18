@@ -319,11 +319,13 @@ func (btc *BigtableClient) createSchemaMappingTableMaybe(ctx context.Context, ke
 		return err
 	}
 	if !exists {
+		btc.Logger.Info("schema mapping table not found. Automatically creating it...")
 		err = adminClient.CreateTable(ctx, schemaMappingTableName)
 		if err != nil {
 			btc.Logger.Error("failed to create schema mapping table", zap.Error(err))
 			return err
 		}
+		btc.Logger.Info("schema mapping table created.")
 	}
 
 	err = adminClient.CreateColumnFamily(ctx, schemaMappingTableName, schemaMappingTableColumnFamily)
@@ -369,14 +371,8 @@ func (btc *BigtableClient) CreateTable(ctx context.Context, data *translator.Cre
 		rowKeySchemaFields = append(rowKeySchemaFields, part)
 	}
 
-	columnFamilies := make(map[string]bigtable.Family)
-	for _, col := range data.Columns {
-		if utilities.IsCollectionDataType(col.Type) {
-			columnFamilies[col.Name] = bigtable.Family{
-				GCPolicy: bigtable.MaxVersionsPolicy(1),
-			}
-		}
-	}
+	columnFamilies, err := btc.addColumnFamilies(data.Columns)
+
 	columnFamilies[btc.BigtableConfig.DefaultColumnFamily] = bigtable.Family{
 		GCPolicy: bigtable.MaxVersionsPolicy(1),
 	}
@@ -447,12 +443,15 @@ func (btc *BigtableClient) AlterTable(ctx context.Context, data *translator.Alte
 		return err
 	}
 
-	for _, col := range data.AddColumns {
-		if utilities.IsCollectionDataType(col.Type) {
-			err = adminClient.CreateColumnFamily(ctx, data.Table, col.Name)
-			if err != nil {
-				return err
-			}
+	columnFamilies, err := btc.addColumnFamilies(data.AddColumns)
+	if err != nil {
+		return err
+	}
+
+	for family, config := range columnFamilies {
+		err = adminClient.CreateColumnFamilyWithConfig(ctx, data.Table, family, config)
+		if err != nil {
+			return err
 		}
 	}
 
@@ -463,6 +462,30 @@ func (btc *BigtableClient) AlterTable(ctx context.Context, data *translator.Alte
 	}
 
 	return nil
+}
+
+func (btc *BigtableClient) addColumnFamilies(columns []message.ColumnMetadata) (map[string]bigtable.Family, error) {
+	columnFamilies := make(map[string]bigtable.Family)
+	for _, col := range columns {
+		if utilities.IsCollectionDataType(col.Type) {
+			if col.Name == btc.BigtableConfig.DefaultColumnFamily {
+				return nil, fmt.Errorf("collection type columns cannot be named '%s' because it's reserved as the default column family", btc.BigtableConfig.DefaultColumnFamily)
+			}
+			columnFamilies[col.Name] = bigtable.Family{
+				GCPolicy: bigtable.MaxVersionsPolicy(1),
+			}
+		} else if col.Type == datatype.Counter {
+			columnFamilies[col.Name] = bigtable.Family{
+				GCPolicy: bigtable.NoGcPolicy(),
+				ValueType: bigtable.AggregateType{
+					Input:      bigtable.Int64Type{},
+					Aggregator: bigtable.SumAggregator{},
+				},
+			}
+		}
+	}
+
+	return columnFamilies, nil
 }
 
 func (btc *BigtableClient) updateTableSchema(ctx context.Context, keyspace string, schemaMappingTableName string, tableName string, pmks []translator.CreateTablePrimaryKeyConfig, addCols []message.ColumnMetadata, dropCols []string) error {

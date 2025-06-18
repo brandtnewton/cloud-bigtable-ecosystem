@@ -94,6 +94,7 @@ const (
 	CassandraTypeUuid      = "uuid"
 	CassandraTypeFloat     = "float"
 	CassandraTypeDouble    = "double"
+	CassandraTypeCounter   = "counter"
 )
 const (
 	Info  = "info"
@@ -183,6 +184,8 @@ func GetCassandraColumnType(c string) (datatype.DataType, error) {
 		return datatype.Float, nil
 	case CassandraTypeDouble:
 		return datatype.Double, nil
+	case CassandraTypeCounter:
+		return datatype.Counter, nil
 	default:
 		return nil, fmt.Errorf("unsupported column type: %s", choice)
 	}

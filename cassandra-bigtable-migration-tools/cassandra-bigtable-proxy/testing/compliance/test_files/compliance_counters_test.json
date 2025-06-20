@@ -5,7 +5,7 @@
     "kind": "dml",
     "operations": [
       {
-        "query": "INSERT INTO bigtabledevinstance.social_posts (user_id, id, content, likes, impressions) VALUES (?, ?, ?, ?, ?)",
+        "query": "INSERT INTO bigtabledevinstance.social_posts (user_id, id, likes) VALUES (?, ?, ?)",
         "query_desc": "TODO insert. not sure what cassandra does",
         "query_type": "INSERT",
         "params": [
@@ -18,14 +18,6 @@
             "datatype": "int"
           },
           {
-            "value": "I ate cottage cheese for dinner.",
-            "datatype": "varchar"
-          },
-          {
-            "value": 0,
-            "datatype": "bigint"
-          },
-          {
             "value": 0,
             "datatype": "bigint"
           }
@@ -33,7 +25,7 @@
         "expected_result": null
       },
       {
-        "query": "SELECT user_id, id, content, likes, impressions FROM bigtabledevinstance.social_posts WHERE user_id = ? AND id = ?",
+        "query": "SELECT user_id, id, likes FROM bigtabledevinstance.social_posts WHERE user_id = ? AND id = ?",
         "query_type": "SELECT",
         "query_desc": "",
         "params": [
@@ -54,14 +46,6 @@
           {
             "value": 30,
             "datatype": "int"
-          },
-          {
-            "value": "I ate cottage cheese for dinner.",
-            "datatype": "varchar"
-          },
-          {
-            "value": 0,
-            "datatype": "bigint"
           },
           {
             "value": 0,
@@ -86,23 +70,7 @@
         "expected_result": null
       },
       {
-        "query": "UPDATE FROM bigtabledevinstance.social_posts set impressions = impressions + 10 WHERE user_id = ? AND id = ?",
-        "query_type": "SELECT",
-        "query_desc": "increment impressions",
-        "params": [
-          {
-            "value": "user123",
-            "datatype": "text"
-          },
-          {
-            "value": 30,
-            "datatype": "int"
-          }
-        ],
-        "expected_result": null
-      },
-      {
-        "query": "SELECT user_id, id, content, likes, impressions FROM bigtabledevinstance.social_posts WHERE user_id = ? AND id = ?",
+        "query": "SELECT user_id, id, likes FROM bigtabledevinstance.social_posts WHERE user_id = ? AND id = ?",
         "query_type": "SELECT",
         "query_desc": "",
         "params": [
@@ -125,15 +93,7 @@
             "datatype": "int"
           },
           {
-            "value": "I ate cottage cheese for dinner.",
-            "datatype": "varchar"
-          },
-          {
             "value": 2,
-            "datatype": "bigint"
-          },
-          {
-            "value": 10,
             "datatype": "bigint"
           }
         ]
@@ -148,7 +108,7 @@
     "kind": "dml",
     "operations": [
       {
-        "query": "INSERT INTO bigtabledevinstance.social_posts (user_id, id, content, likes, impressions) VALUES (?, ?, ?, ?, ?)",
+        "query": "INSERT INTO bigtabledevinstance.social_posts (user_id, id, likes) VALUES (?, ?, ?)",
         "query_desc": "TODO insert. not sure what cassandra does",
         "query_type": "INSERT",
         "params": [
@@ -161,22 +121,14 @@
             "datatype": "int"
           },
           {
-            "value": "Look at my new car.",
-            "datatype": "varchar"
-          },
-          {
             "value": 3,
-            "datatype": "bigint"
-          },
-          {
-            "value": 4,
             "datatype": "bigint"
           }
         ],
         "expected_result": null
       },
       {
-        "query": "SELECT user_id, id, content, likes, impressions FROM bigtabledevinstance.social_posts WHERE user_id = ? AND id = ?",
+        "query": "SELECT user_id, id, likes FROM bigtabledevinstance.social_posts WHERE user_id = ? AND id = ?",
         "query_type": "SELECT",
         "query_desc": "",
         "params": [
@@ -199,15 +151,7 @@
             "datatype": "int"
           },
           {
-            "value": "Look at my new car.",
-            "datatype": "varchar"
-          },
-          {
             "value": 3,
-            "datatype": "bigint"
-          },
-          {
-            "value": 4,
             "datatype": "bigint"
           }
         ]
@@ -246,7 +190,7 @@
     "kind": "dml",
     "operations": [
       {
-        "query": "INSERT INTO bigtabledevinstance.social_posts (user_id, id, content) VALUES (?, ?, ?)",
+        "query": "INSERT INTO bigtabledevinstance.social_posts (user_id, id) VALUES (?, ?)",
         "query_desc": "TODO insert. not sure what cassandra does",
         "query_type": "INSERT",
         "params": [
@@ -257,16 +201,12 @@
           {
             "value": 0,
             "datatype": "int"
-          },
-          {
-            "value": "Bigtable is so good at storing things!",
-            "datatype": "varchar"
           }
         ],
         "expected_result": null
       },
       {
-        "query": "SELECT user_id, id, content, likes, impressions FROM bigtabledevinstance.social_posts WHERE user_id = ? AND id = ?",
+        "query": "SELECT user_id, id, likes FROM bigtabledevinstance.social_posts WHERE user_id = ? AND id = ?",
         "query_type": "SELECT",
         "query_desc": "",
         "params": [
@@ -287,14 +227,6 @@
           {
             "value": 0,
             "datatype": "int"
-          },
-          {
-            "value": "Bigtable is so good at storing things!",
-            "datatype": "varchar"
-          },
-          {
-            "value": 0,
-            "datatype": "bigint"
           },
           {
             "value": 0,

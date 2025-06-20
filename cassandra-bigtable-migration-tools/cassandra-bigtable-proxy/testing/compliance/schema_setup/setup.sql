@@ -55,8 +55,6 @@ CREATE TABLE IF NOT EXISTS bigtabledevinstance.aggregation_grouping_test (
 CREATE TABLE IF NOT EXISTS bigtabledevinstance.social_posts (
     user_id varchar,
     id int,
-    content varchar,
     likes counter,
-    impressions counter,
     PRIMARY KEY (user_id, id)
 );

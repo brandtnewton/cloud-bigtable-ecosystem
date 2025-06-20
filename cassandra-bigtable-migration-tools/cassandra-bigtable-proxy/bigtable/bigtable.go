@@ -75,6 +75,7 @@ type BigTableClientIface interface {
 	SelectStatement(context.Context, rh.QueryMetadata) (*message.RowsResult, time.Time, error)
 	AlterTable(ctx context.Context, data *translator.AlterTableStatementMap, schemaMappingTableName string) error
 	CreateTable(ctx context.Context, data *translator.CreateTableStatementMap, schemaMappingTableName string) error
+	TruncateTable(ctx context.Context, data *translator.TruncateTableStatementMap) error
 	DropTable(ctx context.Context, data *translator.DropTableStatementMap, schemaMappingTableName string) error
 	UpdateRow(context.Context, *translator.UpdateQueryMapping) (*message.RowsResult, error)
 	PrepareStatement(ctx context.Context, query rh.QueryMetadata) (*bigtable.PreparedStatement, error)
@@ -251,6 +252,16 @@ func (btc *BigtableClient) mutateRow(ctx context.Context, tableName, rowKey stri
 			LastContinuousPage: true,
 		},
 	}, nil
+}
+
+func (btc *BigtableClient) TruncateTable(ctx context.Context, data *translator.TruncateTableStatementMap) error {
+	adminClient, ok := btc.AdminClients[data.Keyspace]
+	if !ok {
+		return fmt.Errorf("invalid keyspace `%s`", data.Keyspace)
+	}
+	
+	err := adminClient.DropAllRows(ctx, data.Table)
+	return err
 }
 
 func (btc *BigtableClient) DropTable(ctx context.Context, data *translator.DropTableStatementMap, schemaMappingTableName string) error {

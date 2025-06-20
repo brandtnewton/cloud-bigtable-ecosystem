@@ -197,6 +197,12 @@ type DropTableStatementMap struct {
 	IfExists  bool
 }
 
+type TruncateTableStatementMap struct {
+	QueryType string
+	Keyspace  string
+	Table     string
+}
+
 // UpdateQueryMapping represents the mapping of an update query along with its translation details.
 type UpdateQueryMapping struct {
 	Query                 string // Original query string

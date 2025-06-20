@@ -38,7 +38,11 @@ CREATE TABLE IF NOT EXISTS bigtabledevinstance.user_info (
   PRIMARY KEY (age, name)
 );
 
+TRUNCATE TABLE bigtabledevinstance.user_info;
+
 CREATE TABLE IF NOT EXISTS bigtabledevinstance.orders (user_id varchar, order_num int, name varchar, PRIMARY KEY (user_id, order_num));
+
+TRUNCATE TABLE bigtabledevinstance.orders;
 
 CREATE TABLE IF NOT EXISTS bigtabledevinstance.aggregation_grouping_test (
     region text,
@@ -52,9 +56,14 @@ CREATE TABLE IF NOT EXISTS bigtabledevinstance.aggregation_grouping_test (
     PRIMARY KEY (category, item_id)
 );
 
+TRUNCATE TABLE bigtabledevinstance.aggregation_grouping_test;
+
+
 CREATE TABLE IF NOT EXISTS bigtabledevinstance.social_posts (
     user_id varchar,
     id int,
     likes counter,
     PRIMARY KEY (user_id, id)
 );
+
+TRUNCATE TABLE bigtabledevinstance.social_post;

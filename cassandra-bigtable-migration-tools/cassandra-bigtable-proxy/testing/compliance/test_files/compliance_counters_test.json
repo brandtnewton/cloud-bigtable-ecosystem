@@ -1,0 +1,309 @@
+[
+  {
+    "title": "Basic Counter and Validation Test",
+    "description": "",
+    "kind": "dml",
+    "operations": [
+      {
+        "query": "INSERT INTO bigtabledevinstance.social_posts (user_id, id, content, likes, impressions) VALUES (?, ?, ?, ?, ?)",
+        "query_desc": "TODO insert. not sure what cassandra does",
+        "query_type": "INSERT",
+        "params": [
+          {
+            "value": "user123",
+            "datatype": "text"
+          },
+          {
+            "value": 30,
+            "datatype": "int"
+          },
+          {
+            "value": "I ate cottage cheese for dinner.",
+            "datatype": "varchar"
+          },
+          {
+            "value": 0,
+            "datatype": "bigint"
+          },
+          {
+            "value": 0,
+            "datatype": "bigint"
+          }
+        ],
+        "expected_result": null
+      },
+      {
+        "query": "SELECT user_id, id, content, likes, impressions FROM bigtabledevinstance.social_posts WHERE user_id = ? AND id = ?",
+        "query_type": "SELECT",
+        "query_desc": "",
+        "params": [
+          {
+            "value": "user123",
+            "datatype": "text"
+          },
+          {
+            "value": 30,
+            "datatype": "int"
+          }
+        ],
+        "expected_result": [
+          {
+            "value": "user123",
+            "datatype": "text"
+          },
+          {
+            "value": 30,
+            "datatype": "int"
+          },
+          {
+            "value": "I ate cottage cheese for dinner.",
+            "datatype": "varchar"
+          },
+          {
+            "value": 0,
+            "datatype": "bigint"
+          },
+          {
+            "value": 0,
+            "datatype": "bigint"
+          }
+        ]
+      },
+      {
+        "query": "UPDATE FROM bigtabledevinstance.social_posts set likes = likes + 2 WHERE user_id = ? AND id = ?",
+        "query_type": "SELECT",
+        "query_desc": "increment likes",
+        "params": [
+          {
+            "value": "user123",
+            "datatype": "text"
+          },
+          {
+            "value": 30,
+            "datatype": "int"
+          }
+        ],
+        "expected_result": null
+      },
+      {
+        "query": "UPDATE FROM bigtabledevinstance.social_posts set impressions = impressions + 10 WHERE user_id = ? AND id = ?",
+        "query_type": "SELECT",
+        "query_desc": "increment impressions",
+        "params": [
+          {
+            "value": "user123",
+            "datatype": "text"
+          },
+          {
+            "value": 30,
+            "datatype": "int"
+          }
+        ],
+        "expected_result": null
+      },
+      {
+        "query": "SELECT user_id, id, content, likes, impressions FROM bigtabledevinstance.social_posts WHERE user_id = ? AND id = ?",
+        "query_type": "SELECT",
+        "query_desc": "",
+        "params": [
+          {
+            "value": "user123",
+            "datatype": "text"
+          },
+          {
+            "value": 30,
+            "datatype": "int"
+          }
+        ],
+        "expected_result": [
+          {
+            "value": "user123",
+            "datatype": "text"
+          },
+          {
+            "value": 30,
+            "datatype": "int"
+          },
+          {
+            "value": "I ate cottage cheese for dinner.",
+            "datatype": "varchar"
+          },
+          {
+            "value": 2,
+            "datatype": "bigint"
+          },
+          {
+            "value": 10,
+            "datatype": "bigint"
+          }
+        ]
+      }
+    ],
+    "success_message": "",
+    "failure_message": ""
+  },
+  {
+    "title": "Set a counter value directly",
+    "description": "This test case the behavior of setting a counter value directly",
+    "kind": "dml",
+    "operations": [
+      {
+        "query": "INSERT INTO bigtabledevinstance.social_posts (user_id, id, content, likes, impressions) VALUES (?, ?, ?, ?, ?)",
+        "query_desc": "TODO insert. not sure what cassandra does",
+        "query_type": "INSERT",
+        "params": [
+          {
+            "value": "userABC",
+            "datatype": "text"
+          },
+          {
+            "value": 1,
+            "datatype": "int"
+          },
+          {
+            "value": "Look at my new car.",
+            "datatype": "varchar"
+          },
+          {
+            "value": 3,
+            "datatype": "bigint"
+          },
+          {
+            "value": 4,
+            "datatype": "bigint"
+          }
+        ],
+        "expected_result": null
+      },
+      {
+        "query": "SELECT user_id, id, content, likes, impressions FROM bigtabledevinstance.social_posts WHERE user_id = ? AND id = ?",
+        "query_type": "SELECT",
+        "query_desc": "",
+        "params": [
+          {
+            "value": "userABC",
+            "datatype": "text"
+          },
+          {
+            "value": 1,
+            "datatype": "int"
+          }
+        ],
+        "expected_result": [
+          {
+            "value": "userABC",
+            "datatype": "text"
+          },
+          {
+            "value": 1,
+            "datatype": "int"
+          },
+          {
+            "value": "Look at my new car.",
+            "datatype": "varchar"
+          },
+          {
+            "value": 3,
+            "datatype": "bigint"
+          },
+          {
+            "value": 4,
+            "datatype": "bigint"
+          }
+        ]
+      },
+      {
+        "query": "UPDATE FROM bigtabledevinstance.social_posts set likes = ? WHERE user_id = ? AND id = ?",
+        "query_type": "SELECT",
+        "query_desc": "increment likes",
+        "params": [
+          {
+            "value": "userABC",
+            "datatype": "text"
+          },
+          {
+            "value": 1,
+            "datatype": "int"
+          },
+          {
+            "value": 2,
+            "datatype": "bigint"
+          }
+        ],
+        "expected_result": [
+          {
+            "error_message": "TODO"
+          }
+        ]
+      }
+    ],
+    "success_message": "",
+    "failure_message": ""
+  },
+  {
+    "title": "Undefined counter",
+    "description": "Insert a row without initializing the counter",
+    "kind": "dml",
+    "operations": [
+      {
+        "query": "INSERT INTO bigtabledevinstance.social_posts (user_id, id, content) VALUES (?, ?, ?)",
+        "query_desc": "TODO insert. not sure what cassandra does",
+        "query_type": "INSERT",
+        "params": [
+          {
+            "value": "userXYZ",
+            "datatype": "text"
+          },
+          {
+            "value": 0,
+            "datatype": "int"
+          },
+          {
+            "value": "Bigtable is so good at storing things!",
+            "datatype": "varchar"
+          }
+        ],
+        "expected_result": null
+      },
+      {
+        "query": "SELECT user_id, id, content, likes, impressions FROM bigtabledevinstance.social_posts WHERE user_id = ? AND id = ?",
+        "query_type": "SELECT",
+        "query_desc": "",
+        "params": [
+          {
+            "value": "userXYZ",
+            "datatype": "text"
+          },
+          {
+            "value": 0,
+            "datatype": "int"
+          }
+        ],
+        "expected_result": [
+          {
+            "value": "userXYZ",
+            "datatype": "text"
+          },
+          {
+            "value": 0,
+            "datatype": "int"
+          },
+          {
+            "value": "Bigtable is so good at storing things!",
+            "datatype": "varchar"
+          },
+          {
+            "value": 0,
+            "datatype": "bigint"
+          },
+          {
+            "value": 0,
+            "datatype": "bigint"
+          }
+        ]
+      }
+    ],
+    "success_message": "",
+    "failure_message": ""
+  }
+]

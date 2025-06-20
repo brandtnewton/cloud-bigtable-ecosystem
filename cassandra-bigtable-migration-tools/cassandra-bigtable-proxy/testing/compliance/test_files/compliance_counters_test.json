@@ -5,9 +5,8 @@
     "kind": "dml",
     "operations": [
       {
-        "query": "INSERT INTO bigtabledevinstance.social_posts (user_id, id, likes) VALUES (?, ?, ?)",
-        "query_desc": "TODO insert. not sure what cassandra does",
-        "query_type": "INSERT",
+        "query": "UPDATE bigtabledevinstance.social_posts set likes = likes + ? WHERE user_id = ? AND id = ?",
+        "query_type": "UPDATE",
         "params": [
           {
             "value": "user123",
@@ -19,7 +18,7 @@
           },
           {
             "value": 0,
-            "datatype": "bigint"
+            "datatype": "int"
           }
         ],
         "expected_result": null
@@ -27,7 +26,6 @@
       {
         "query": "SELECT user_id, id, likes FROM bigtabledevinstance.social_posts WHERE user_id = ? AND id = ?",
         "query_type": "SELECT",
-        "query_desc": "",
         "params": [
           {
             "value": "user123",
@@ -40,15 +38,15 @@
         ],
         "expected_result": [
           {
-            "value": "user123",
+            "user_id": "user123",
             "datatype": "text"
           },
           {
-            "value": 30,
+            "id": 30,
             "datatype": "int"
           },
           {
-            "value": 0,
+            "likes": 0,
             "datatype": "bigint"
           }
         ]
@@ -56,7 +54,6 @@
       {
         "query": "UPDATE bigtabledevinstance.social_posts set likes = likes + 2 WHERE user_id = ? AND id = ?",
         "query_type": "UPDATE",
-        "query_desc": "increment likes",
         "params": [
           {
             "value": "user123",
@@ -85,15 +82,15 @@
         ],
         "expected_result": [
           {
-            "value": "user123",
+            "user_id": "user123",
             "datatype": "text"
           },
           {
-            "value": 30,
+            "id": 30,
             "datatype": "int"
           },
           {
-            "value": 2,
+            "likes": 2,
             "datatype": "bigint"
           }
         ]

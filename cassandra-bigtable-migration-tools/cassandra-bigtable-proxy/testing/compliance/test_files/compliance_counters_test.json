@@ -168,8 +168,7 @@
         "expected_result": null
       },
       {
-        "query": "UPDATE bigtabledevinstance.social_posts set likes = 2 + likes WHERE user_id = ? AND id = ?",
-        "query_desc": "Incrementing counter with number first",
+        "query": "UPDATE bigtabledevinstance.social_posts set likes = likes + 3 WHERE user_id = ? AND id = ?",
         "query_type": "UPDATE",
         "params": [
           {
@@ -214,7 +213,7 @@
         ],
         "expected_result": [
           {
-            "value": 3,
+            "value": 4,
             "datatype": "bigint"
           }
         ]

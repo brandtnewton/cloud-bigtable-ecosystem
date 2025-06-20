@@ -14,6 +14,7 @@ The Cassandra to Bigtable Proxy is intended to help you in migrating and integra
     | float                    |     ✓     |                                RAW BYTES                                |
     | double                   |     ✓     |                                RAW BYTES                                |
     | boolean                  |     ✓     |                                RAW BYTES                                |
+    | counter                  |     ✓     | Col name as col family, "_v" used as column qualifier.                  |
     | map<text, text>          |     ✓     |   Col name as col family, MAP key as column qualifier, value as value   |
     | map<text, int>           |     ✓     |   Col name as col family, MAP key as column qualifier, value as value   |
     | map<text, bigint>        |     ✓     |   Col name as col family, MAP key as column qualifier, value as value   |

@@ -103,7 +103,7 @@
     "failure_message": ""
   },
   {
-    "title": "Increment a counter",
+    "title": "Increment a counter with 0",
     "description": "increment counter",
     "kind": "dml",
     "operations": [
@@ -123,7 +123,7 @@
         "expected_result": null
       },
       {
-        "query": "SELECT user_id, id, likes FROM bigtabledevinstance.social_posts WHERE user_id = ? AND id = ?",
+        "query": "SELECT likes FROM bigtabledevinstance.social_posts WHERE user_id = ? AND id = ?",
         "query_type": "SELECT",
         "query_desc": "",
         "params": [
@@ -138,15 +138,83 @@
         ],
         "expected_result": [
           {
+            "value": 0,
+            "datatype": "bigint"
+          }
+        ]
+      }
+    ],
+    "success_message": "",
+    "failure_message": ""
+  },
+  {
+    "title": "Increment a counter",
+    "description": "increment counter",
+    "kind": "dml",
+    "operations": [
+      {
+        "query": "UPDATE bigtabledevinstance.social_posts set likes = likes + 2 WHERE user_id = ? AND id = ?",
+        "query_type": "UPDATE",
+        "params": [
+          {
             "value": "userABC",
             "datatype": "text"
           },
           {
             "value": 1,
             "datatype": "int"
+          }
+        ],
+        "expected_result": null
+      },
+      {
+        "query": "UPDATE bigtabledevinstance.social_posts set likes = 2 + likes WHERE user_id = ? AND id = ?",
+        "query_desc": "Incrementing counter with number first",
+        "query_type": "UPDATE",
+        "params": [
+          {
+            "value": "userABC",
+            "datatype": "text"
           },
           {
-            "value": 0,
+            "value": 1,
+            "datatype": "int"
+          }
+        ],
+        "expected_result": null
+      },
+      {
+        "query": "UPDATE bigtabledevinstance.social_posts set likes = likes - 1 WHERE user_id = ? AND id = ?",
+        "query_type": "UPDATE",
+        "params": [
+          {
+            "value": "userABC",
+            "datatype": "text"
+          },
+          {
+            "value": 1,
+            "datatype": "int"
+          }
+        ],
+        "expected_result": null
+      },
+      {
+        "query": "SELECT likes FROM bigtabledevinstance.social_posts WHERE user_id = ? AND id = ?",
+        "query_type": "SELECT",
+        "query_desc": "",
+        "params": [
+          {
+            "value": "userABC",
+            "datatype": "text"
+          },
+          {
+            "value": 1,
+            "datatype": "int"
+          }
+        ],
+        "expected_result": [
+          {
+            "value": 3,
             "datatype": "bigint"
           }
         ]
@@ -196,7 +264,6 @@
     "operations": [
       {
         "query": "INSERT INTO bigtabledevinstance.social_posts (user_id, id) VALUES (?, ?)",
-        "query_desc": "TODO insert. not sure what cassandra does",
         "query_type": "INSERT",
         "params": [
           {

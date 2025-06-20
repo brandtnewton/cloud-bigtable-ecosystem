@@ -259,9 +259,15 @@ func (btc *BigtableClient) TruncateTable(ctx context.Context, data *translator.T
 	if !ok {
 		return fmt.Errorf("invalid keyspace `%s`", data.Keyspace)
 	}
-	
+
+	btc.Logger.Info("truncate table: dropping all bigtable rows")
 	err := adminClient.DropAllRows(ctx, data.Table)
-	return err
+	if err != nil {
+		btc.Logger.Error("truncate table: failed", zap.Error(err))
+		return err
+	}
+	btc.Logger.Info("truncate table: complete")
+	return nil
 }
 
 func (btc *BigtableClient) DropTable(ctx context.Context, data *translator.DropTableStatementMap, schemaMappingTableName string) error {

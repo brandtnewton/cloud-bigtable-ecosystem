@@ -66,4 +66,4 @@ CREATE TABLE IF NOT EXISTS bigtabledevinstance.social_posts (
     PRIMARY KEY (user_id, id)
 );
 
-TRUNCATE TABLE bigtabledevinstance.social_post;
+TRUNCATE TABLE bigtabledevinstance.social_posts;

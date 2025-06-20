@@ -54,8 +54,8 @@
         ]
       },
       {
-        "query": "UPDATE FROM bigtabledevinstance.social_posts set likes = likes + 2 WHERE user_id = ? AND id = ?",
-        "query_type": "SELECT",
+        "query": "UPDATE bigtabledevinstance.social_posts set likes = likes + 2 WHERE user_id = ? AND id = ?",
+        "query_type": "UPDATE",
         "query_desc": "increment likes",
         "params": [
           {
@@ -157,8 +157,8 @@
         ]
       },
       {
-        "query": "UPDATE FROM bigtabledevinstance.social_posts set likes = ? WHERE user_id = ? AND id = ?",
-        "query_type": "SELECT",
+        "query": "UPDATE bigtabledevinstance.social_posts set likes = ? WHERE user_id = ? AND id = ?",
+        "query_type": "UPDATE",
         "query_desc": "increment likes",
         "params": [
           {
@@ -190,9 +190,9 @@
     "kind": "dml",
     "operations": [
       {
-        "query": "INSERT INTO bigtabledevinstance.social_posts (user_id, id) VALUES (?, ?)",
+        "query": "UPDATE bigtabledevinstance.social_posts SET likes = ? WHERE user_id = ? AND id = ?",
         "query_desc": "TODO insert. not sure what cassandra does",
-        "query_type": "INSERT",
+        "query_type": "UPDATE",
         "params": [
           {
             "value": "userXYZ",
@@ -201,6 +201,10 @@
           {
             "value": 0,
             "datatype": "int"
+          },
+          {
+            "value": 0,
+            "datatype": "bigint"
           }
         ],
         "expected_result": null
@@ -237,5 +241,33 @@
     ],
     "success_message": "",
     "failure_message": ""
+  },
+  {
+    "title": "Insert counter row",
+    "description": "Insert a row should fail",
+    "kind": "dml",
+    "operations": [
+      {
+        "query": "INSERT INTO bigtabledevinstance.social_posts (user_id, id) VALUES (?, ?)",
+        "query_desc": "TODO insert. not sure what cassandra does",
+        "query_type": "INSERT",
+        "params": [
+          {
+            "value": "userXYZ",
+            "datatype": "text"
+          },
+          {
+            "value": 0,
+            "datatype": "int"
+          }
+        ],
+        "expected_result": {
+          "expect_error": true,
+          "error_message": "INSERT statements are not allowed on counter tables, use UPDATE instead"
+        }
+      }
+    ],
+    "success_message": "Insert failed as expected",
+    "failure_message": "Inserts should fail because it's a counter table"
   }
 ]

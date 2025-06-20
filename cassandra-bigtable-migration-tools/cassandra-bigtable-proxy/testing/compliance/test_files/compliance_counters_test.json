@@ -103,14 +103,13 @@
     "failure_message": ""
   },
   {
-    "title": "Set a counter value directly",
-    "description": "This test case the behavior of setting a counter value directly",
+    "title": "Increment a counter",
+    "description": "increment counter",
     "kind": "dml",
     "operations": [
       {
-        "query": "INSERT INTO bigtabledevinstance.social_posts (user_id, id, likes) VALUES (?, ?, ?)",
-        "query_desc": "TODO insert. not sure what cassandra does",
-        "query_type": "INSERT",
+        "query": "UPDATE bigtabledevinstance.social_posts set likes = likes + 0 WHERE user_id = ? AND id = ?",
+        "query_type": "UPDATE",
         "params": [
           {
             "value": "userABC",
@@ -119,10 +118,6 @@
           {
             "value": 1,
             "datatype": "int"
-          },
-          {
-            "value": 3,
-            "datatype": "bigint"
           }
         ],
         "expected_result": null
@@ -151,32 +146,8 @@
             "datatype": "int"
           },
           {
-            "value": 3,
+            "value": 0,
             "datatype": "bigint"
-          }
-        ]
-      },
-      {
-        "query": "UPDATE bigtabledevinstance.social_posts set likes = ? WHERE user_id = ? AND id = ?",
-        "query_type": "UPDATE",
-        "query_desc": "increment likes",
-        "params": [
-          {
-            "value": "userABC",
-            "datatype": "text"
-          },
-          {
-            "value": 1,
-            "datatype": "int"
-          },
-          {
-            "value": 2,
-            "datatype": "bigint"
-          }
-        ],
-        "expected_result": [
-          {
-            "error_message": "TODO"
           }
         ]
       }
@@ -185,13 +156,13 @@
     "failure_message": ""
   },
   {
-    "title": "Undefined counter",
-    "description": "Insert a row without initializing the counter",
+    "title": "Set counter fails",
+    "description": "Setting a counter should fail",
     "kind": "dml",
     "operations": [
       {
         "query": "UPDATE bigtabledevinstance.social_posts SET likes = ? WHERE user_id = ? AND id = ?",
-        "query_desc": "TODO insert. not sure what cassandra does",
+        "query_desc": "Setting a counter which isn't allowed",
         "query_type": "UPDATE",
         "params": [
           {
@@ -207,34 +178,10 @@
             "datatype": "bigint"
           }
         ],
-        "expected_result": null
-      },
-      {
-        "query": "SELECT user_id, id, likes FROM bigtabledevinstance.social_posts WHERE user_id = ? AND id = ?",
-        "query_type": "SELECT",
-        "query_desc": "",
-        "params": [
-          {
-            "value": "userXYZ",
-            "datatype": "text"
-          },
-          {
-            "value": 0,
-            "datatype": "int"
-          }
-        ],
         "expected_result": [
           {
-            "value": "userXYZ",
-            "datatype": "text"
-          },
-          {
-            "value": 0,
-            "datatype": "int"
-          },
-          {
-            "value": 0,
-            "datatype": "bigint"
+            "expect_error": true,
+            "error_message": "Cannot set the value of counter column likes (counters can only be incremented/decremented, not set)"
           }
         ]
       }

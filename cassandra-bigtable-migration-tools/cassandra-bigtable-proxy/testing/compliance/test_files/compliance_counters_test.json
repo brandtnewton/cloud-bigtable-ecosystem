@@ -9,15 +9,15 @@
         "query_type": "UPDATE",
         "params": [
           {
+            "value": 0,
+            "datatype": "int"
+          },
+          {
             "value": "user123",
             "datatype": "text"
           },
           {
             "value": 30,
-            "datatype": "int"
-          },
-          {
-            "value": 0,
             "datatype": "int"
           }
         ],

@@ -261,10 +261,12 @@
             "datatype": "int"
           }
         ],
-        "expected_result": {
-          "expect_error": true,
-          "error_message": "INSERT statements are not allowed on counter tables, use UPDATE instead"
-        }
+        "expected_result": [
+          {
+            "expect_error": true,
+            "error_message": "INSERT statements are not allowed on counter tables, use UPDATE instead"
+          }
+        ]
       }
     ],
     "success_message": "Insert failed as expected",

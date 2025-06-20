@@ -138,7 +138,7 @@
         ],
         "expected_result": [
           {
-            "value": 0,
+            "likes": 0,
             "datatype": "bigint"
           }
         ]
@@ -213,7 +213,7 @@
         ],
         "expected_result": [
           {
-            "value": 4,
+            "likes": 4,
             "datatype": "bigint"
           }
         ]

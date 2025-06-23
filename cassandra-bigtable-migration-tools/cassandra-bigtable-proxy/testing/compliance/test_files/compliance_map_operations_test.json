@@ -1,623 +1,663 @@
 [
-    {
-        "title": "MAP Operation: Addition (MAP<TEXT, TEXT>)",
-        "description": "Test adding key-value pairs to MAP<TEXT, TEXT> using map = map + {key:value} syntax",
-        "kind": "dml",
-        "operations": [
-            {
-                "query": "INSERT INTO bigtabledevinstance.user_info (name, age, extra_info) VALUES (?, ?, ?)",
-                "query_type": "INSERT",
-                "query_desc": "Initialize user with empty MAP<TEXT, TEXT>",
-                "params": [
-                    {
-                        "value": "User_Map_Add1",
-                        "datatype": "text"
-                    },
-                    {
-                        "value": 25,
-                        "datatype": "bigint"
-                    },
-                    {
-                        "value": {},
-                        "datatype": "map<text,text>"
-                    }
-                ],
-                "expected_result": null
-            },
-            {
-                "query": "UPDATE bigtabledevinstance.user_info SET extra_info = extra_info + ? WHERE name = ? AND age = ?",
-                "query_type": "UPDATE",
-                "query_desc": "Add key-value pairs to map",
-                "params": [
-                    {
-                        "value": {
-                            "key1": "value1",
-                            "key2": "value2"
-                        },
-                        "datatype": "map<text,text>"
-                    },
-                    {
-                        "value": "User_Map_Add1",
-                        "datatype": "text"
-                    },
-                    {
-                        "value": 25,
-                        "datatype": "bigint"
-                    }
-                ],
-                "expected_result": null
-            },
-            {
-                "query": "SELECT extra_info FROM bigtabledevinstance.user_info WHERE name = ? AND age = ?",
-                "query_type": "SELECT",
-                "query_desc": "Verify map contains added key-value pairs",
-                "params": [
-                    {
-                        "value": "User_Map_Add1",
-                        "datatype": "text"
-                    },
-                    {
-                        "value": 25,
-                        "datatype": "bigint"
-                    }
-                ],
-                "expected_result": [
-                    {
-                        "extra_info": {
-                            "key1": "value1",
-                            "key2": "value2"
-                        },
-                        "datatype": "map<text,text>"
-                    },
-                    {
-                        "title": "MAP Operation: Addition (MAP<TIMESTAMP, TEXT>)",
-                        "description": "Test adding key-value pairs to MAP<TIMESTAMP, TEXT> using map = map + {key:value} syntax",
-                        "kind": "dml",
-                        "operations": [
-                            {
-                                "query": "INSERT INTO bigtabledevinstance.user_info (name, age, ts_text_map) VALUES (?, ?, ?)",
-                                "query_type": "INSERT",
-                                "query_desc": "Initialize user with empty MAP<TIMESTAMP, TEXT>",
-                                "params": [
-                                    {
-                                        "value": "User_Map_TS_Add1",
-                                        "datatype": "text"
-                                    },
-                                    {
-                                        "value": 25,
-                                        "datatype": "bigint"
-                                    },
-                                    {
-                                        "value": {},
-                                        "datatype": "map<timestamp,text>"
-                                    }
-                                ],
-                                "expected_result": null
-                            },
-                            {
-                                "query": "UPDATE bigtabledevinstance.user_info SET ts_text_map = ts_text_map + ? WHERE name = ? AND age = ?",
-                                "query_type": "UPDATE",
-                                "query_desc": "Add key-value pairs to map",
-                                "params": [
-                                    {
-                                        "value": {
-                                            "2023-01-01T00:00:00Z": "Event1",
-                                            "2023-02-01T00:00:00Z": "Event2"
-                                        },
-                                        "datatype": "map<timestamp,text>"
-                                    },
-                                    {
-                                        "value": "User_Map_TS_Add1",
-                                        "datatype": "text"
-                                    },
-                                    {
-                                        "value": 25,
-                                        "datatype": "bigint"
-                                    }
-                                ],
-                                "expected_result": null
-                            },
-                            {
-                                "query": "SELECT ts_text_map FROM bigtabledevinstance.user_info WHERE name = ? AND age = ?",
-                                "query_type": "SELECT",
-                                "query_desc": "Verify map contains added key-value pairs",
-                                "params": [
-                                    {
-                                        "value": "User_Map_TS_Add1",
-                                        "datatype": "text"
-                                    },
-                                    {
-                                        "value": 25,
-                                        "datatype": "bigint"
-                                    }
-                                ],
-                                "expected_result": [
-                                    {
-                                        "ts_text_map": {
-                                            "2023-01-01T00:00:00Z": "Event1",
-                                            "2023-02-01T00:00:00Z": "Event2"
-                                        },
-                                        "datatype": "map<timestamp,text>"
-                                    }
-                                ]
-                            }
-                        ],
-                        "success_message": "MAP<TIMESTAMP, TEXT> addition operation completed successfully.",
-                        "failure_message": "MAP<TIMESTAMP, TEXT> addition operation failed."
-                    }
-                ]
-            }
+  {
+    "title": "MAP Operation: Addition (MAP<TEXT, TEXT>)",
+    "description": "Test adding key-value pairs to MAP<TEXT, TEXT> using map = map + {key:value} syntax",
+    "kind": "dml",
+    "operations": [
+      {
+        "query": "INSERT INTO bigtabledevinstance.user_info (name, age, extra_info) VALUES (?, ?, ?)",
+        "query_type": "INSERT",
+        "query_desc": "Initialize user with empty MAP<TEXT, TEXT>",
+        "params": [
+          {
+            "value": "User_Map_Add1",
+            "datatype": "text"
+          },
+          {
+            "value": 25,
+            "datatype": "bigint"
+          },
+          {
+            "value": {},
+            "datatype": "map<text,text>"
+          }
         ],
-        "success_message": "MAP<TEXT, TEXT> addition operation completed successfully.",
-        "failure_message": "MAP<TEXT, TEXT> addition operation failed."
-    },
-    {
-        "title": "MAP Operation: Subtraction (MAP<TEXT, TEXT>)",
-        "description": "Test removing keys from MAP<TEXT, TEXT> using map = map - key syntax",
-        "kind": "dml",
-        "operations": [
-            {
-                "query": "INSERT INTO bigtabledevinstance.user_info (name, age, extra_info) VALUES (?, ?, ?)",
-                "query_type": "INSERT",
-                "query_desc": "Initialize user with MAP<TEXT, TEXT> values",
-                "params": [
-                    {
-                        "value": "User_Map_Sub1",
-                        "datatype": "text"
-                    },
-                    {
-                        "value": 25,
-                        "datatype": "bigint"
-                    },
-                    {
-                        "value": {
-                            "key1": "value1",
-                            "key2": "value2",
-                            "key3": "value3"
-                        },
-                        "datatype": "map<text,text>"
-                    }
-                ],
-                "expected_result": null
+        "expected_result": null
+      },
+      {
+        "query": "UPDATE bigtabledevinstance.user_info SET extra_info = extra_info + ? WHERE name = ? AND age = ?",
+        "query_type": "UPDATE",
+        "query_desc": "Add key-value pairs to map",
+        "params": [
+          {
+            "value": {
+              "key1": "value1",
+              "key2": "value2"
             },
-            {
-                "query": "UPDATE bigtabledevinstance.user_info SET extra_info = extra_info - ? WHERE name = ? AND age = ?",
-                "query_type": "UPDATE",
-                "query_desc": "Remove keys from map",
-                "params": [
-                    {
-                        "value": [
-                            "key1",
-                            "key3"
-                        ],
-                        "datatype": "set<text>"
-                    },
-                    {
-                        "value": "User_Map_Sub1",
-                        "datatype": "text"
-                    },
-                    {
-                        "value": 25,
-                        "datatype": "bigint"
-                    }
-                ],
-                "expected_result": null
-            },
-            {
-                "query": "SELECT extra_info FROM bigtabledevinstance.user_info WHERE name = ? AND age = ?",
-                "query_type": "SELECT",
-                "query_desc": "Verify only key2 remains in map",
-                "params": [
-                    {
-                        "value": "User_Map_Sub1",
-                        "datatype": "text"
-                    },
-                    {
-                        "value": 25,
-                        "datatype": "bigint"
-                    }
-                ],
-                "expected_result": [
-                    {
-                        "extra_info": {
-                            "key2": "value2"
-                        },
-                        "datatype": "map<text,text>"
-                    }
-                ]
-            }
+            "datatype": "map<text,text>"
+          },
+          {
+            "value": "User_Map_Add1",
+            "datatype": "text"
+          },
+          {
+            "value": 25,
+            "datatype": "bigint"
+          }
         ],
-        "success_message": "MAP<TEXT, TEXT> subtraction operation completed successfully.",
-        "failure_message": "MAP<TEXT, TEXT> subtraction operation failed."
-    },
-    {
-        "title": "MAP Operation: Update (MAP<TEXT, INT>)",
-        "description": "Test updating values in MAP<TEXT, INT> using map[key] = value syntax",
-        "kind": "dml",
-        "operations": [
-            {
-                "query": "INSERT INTO bigtabledevinstance.user_info (name, age, map_text_int) VALUES (?, ?, ?)",
-                "query_type": "INSERT",
-                "query_desc": "Initialize user with MAP<TEXT, INT> values",
-                "params": [
-                    {
-                        "value": "User_Map_Update1",
-                        "datatype": "text"
-                    },
-                    {
-                        "value": 25,
-                        "datatype": "bigint"
-                    },
-                    {
-                        "value": {
-                            "score1": 100,
-                            "score2": 200
-                        },
-                        "datatype": "map<text,int>"
-                    }
-                ],
-                "expected_result": null
-            },
-            {
-                "query": "UPDATE bigtabledevinstance.user_info SET map_text_int['score1'] = ? WHERE name = ? AND age = ?",
-                "query_type": "UPDATE",
-                "query_desc": "Update value in map",
-                "params": [
-                    {
-                        "value": 150,
-                        "datatype": "int"
-                    },
-                    {
-                        "value": "User_Map_Update1",
-                        "datatype": "text"
-                    },
-                    {
-                        "value": 25,
-                        "datatype": "bigint"
-                    }
-                ],
-                "expected_result": null
-            },
-            {
-                "query": "SELECT map_text_int FROM bigtabledevinstance.user_info WHERE name = ? AND age = ?",
-                "query_type": "SELECT",
-                "query_desc": "Verify map contains updated value",
-                "params": [
-                    {
-                        "value": "User_Map_Update1",
-                        "datatype": "text"
-                    },
-                    {
-                        "value": 25,
-                        "datatype": "bigint"
-                    }
-                ],
-                "expected_result": [
-                    {
-                        "map_text_int": {
-                            "score1": 150,
-                            "score2": 200
-                        },
-                        "datatype": "map<text,int>"
-                    }
-                ]
-            }
+        "expected_result": null
+      },
+      {
+        "query": "SELECT extra_info FROM bigtabledevinstance.user_info WHERE name = ? AND age = ?",
+        "query_type": "SELECT",
+        "query_desc": "Verify map contains added key-value pairs",
+        "params": [
+          {
+            "value": "User_Map_Add1",
+            "datatype": "text"
+          },
+          {
+            "value": 25,
+            "datatype": "bigint"
+          }
         ],
-        "success_message": "MAP<TEXT, INT> update operation completed successfully.",
-        "failure_message": "MAP<TEXT, INT> update operation failed."
-    },
-    {
-        "title": "MAP Operation: Delete (MAP<TEXT, TIMESTAMP>)",
-        "description": "Test deleting key from MAP<TEXT, TIMESTAMP> using DELETE map[key] syntax",
-        "kind": "dml",
-        "operations": [
-            {
-                "query": "INSERT INTO bigtabledevinstance.user_info (name, age, map_text_ts) VALUES (?, ?, ?)",
-                "query_type": "INSERT",
-                "query_desc": "Initialize user with MAP<TEXT, TIMESTAMP> values",
-                "params": [
-                    {
-                        "value": "User_Map_Delete1",
-                        "datatype": "text"
-                    },
-                    {
-                        "value": 25,
-                        "datatype": "bigint"
-                    },
-                    {
-                        "value": {
-                            "event1": "2023-01-01T00:00:00Z",
-                            "event2": "2023-02-01T00:00:00Z"
-                        },
-                        "datatype": "map<text,timestamp>"
-                    }
-                ],
-                "expected_result": null
+        "expected_result": [
+          {
+            "extra_info": {
+              "key1": "value1",
+              "key2": "value2"
             },
-            {
-                "query": "DELETE map_text_ts['event1'] FROM bigtabledevinstance.user_info WHERE name = ? AND age = ?",
-                "query_type": "DELETE",
-                "query_desc": "Delete key from map",
-                "params": [
-                    {
-                        "value": "User_Map_Delete1",
-                        "datatype": "text"
-                    },
-                    {
-                        "value": 25,
-                        "datatype": "bigint"
-                    }
-                ],
-                "expected_result": null
-            },
-            {
-                "query": "SELECT map_text_ts FROM bigtabledevinstance.user_info WHERE name = ? AND age = ?",
-                "query_type": "SELECT",
-                "query_desc": "Verify only event2 remains in map",
-                "params": [
-                    {
-                        "value": "User_Map_Delete1",
-                        "datatype": "text"
-                    },
-                    {
-                        "value": 25,
-                        "datatype": "bigint"
-                    }
-                ],
-                "expected_result": [
-                    {
-                        "map_text_ts": {
-                            "event2": "2023-02-01T00:00:00Z"
-                        },
-                        "datatype": "map<text,timestamp>"
-                    }
-                ]
-            }
+            "datatype": "map<text,text>"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "title": "MAP Operation: Addition (MAP<TIMESTAMP, TEXT>)",
+    "description": "Test adding key-value pairs to MAP<TIMESTAMP, TEXT> using map = map + {key:value} syntax",
+    "kind": "dml",
+    "operations": [
+      {
+        "query": "INSERT INTO bigtabledevinstance.user_info (name, age, ts_text_map) VALUES (?, ?, ?)",
+        "query_type": "INSERT",
+        "query_desc": "Initialize user with empty MAP<TIMESTAMP, TEXT>",
+        "params": [
+          {
+            "value": "User_Map_TS_Add1",
+            "datatype": "text"
+          },
+          {
+            "value": 25,
+            "datatype": "bigint"
+          },
+          {
+            "value": {},
+            "datatype": "map<timestamp,text>"
+          }
         ],
-        "success_message": "MAP<TEXT, TIMESTAMP> delete operation completed successfully.",
-        "failure_message": "MAP<TEXT, TIMESTAMP> delete operation failed."
-    },
-    {
-        "title": "Complex Update on MAP<TEXT, TEXT>: Merge, Delete and Update",
-        "description": "Insert a record with an initial MAP<TEXT, TEXT>, then update by merging new key-value pairs, updating existing keys, and removing a key. Verify the final state of the map.",
-        "kind": "dml",
-        "operations": [
-            {
-                "query": "INSERT INTO bigtabledevinstance.user_info (name, age, extra_info) VALUES (?, ?, ?)",
-                "query_type": "INSERT",
-                "query_desc": "Initialize user with predefined MAP<TEXT, TEXT> values.",
-                "params": [
-                    {
-                        "value": "User_Map_Text1",
-                        "datatype": "text"
-                    },
-                    {
-                        "value": 28,
-                        "datatype": "bigint"
-                    },
-                    {
-                        "value": {
-                            "key1": "value1",
-                            "key2": "value2"
-                        },
-                        "datatype": "map<text,text>"
-                    }
-                ],
-                "expected_result": null
+        "expected_result": null
+      },
+      {
+        "query": "UPDATE bigtabledevinstance.user_info SET ts_text_map = ts_text_map + ? WHERE name = ? AND age = ?",
+        "query_type": "UPDATE",
+        "query_desc": "Add key-value pairs to map",
+        "params": [
+          {
+            "value": {
+              "2023-01-01T00:00:00Z": "Event1",
+              "2023-02-01T00:00:00Z": "Event2"
             },
-            {
-                "query": "UPDATE bigtabledevinstance.user_info SET extra_info = extra_info + ?  WHERE name = ? AND age = ?",
-                "query_type": "UPDATE",
-                "query_desc": "Merge new key-value pairs; update 'key2' and add 'key3', while removing 'key1'.",
-                "params": [
-                    {
-                        "value": {
-                            "key2": "updated_value",
-                            "key3": "value3"
-                        },
-                        "datatype": "map<text,text>"
-                    },
-                    {
-                        "value": "User_Map_Text1",
-                        "datatype": "text"
-                    },
-                    {
-                        "value": 28,
-                        "datatype": "bigint"
-                    }
-                ],
-                "expected_result": null
-            },
-            {
-                "query": "SELECT extra_info FROM bigtabledevinstance.user_info WHERE name = ? AND age = ?",
-                "query_type": "SELECT",
-                "query_desc": "Validate that the map now contains 'key2': 'updated_value' and 'key3': 'value3' only.",
-                "params": [
-                    {
-                        "value": "User_Map_Text1",
-                        "datatype": "text"
-                    },
-                    {
-                        "value": 28,
-                        "datatype": "bigint"
-                    }
-                ],
-                "expected_result": [
-                    {
-                        "extra_info": {
-                            "key1": "value1",
-                            "key2": "updated_value",
-                            "key3": "value3"
-                        },
-                        "datatype": "map<text,text>"
-                    }
-                ]
-            }
+            "datatype": "map<timestamp,text>"
+          },
+          {
+            "value": "User_Map_TS_Add1",
+            "datatype": "text"
+          },
+          {
+            "value": 25,
+            "datatype": "bigint"
+          }
         ],
-        "success_message": "Complex update on MAP<TEXT, TEXT> completed successfully.",
-        "failure_message": "Complex map update on MAP<TEXT, TEXT> failed."
-    },
-    {
-        "title": "Complex Update on MAP<TEXT, INT>: Modify Multiple Keys",
-        "description": "Insert a record with a MAP<TEXT, INT> containing several keys, then update multiple entries and remove one key, verifying the final map state.",
-        "kind": "dml",
-        "operations": [
-            {
-                "query": "INSERT INTO bigtabledevinstance.user_info (name, age, map_text_int) VALUES (?, ?, ?)",
-                "query_type": "INSERT",
-                "query_desc": "Initialize user with MAP<TEXT, INT> having multiple subject scores.",
-                "params": [
-                    {
-                        "value": "User_Map_Int2",
-                        "datatype": "text"
-                    },
-                    {
-                        "value": 30,
-                        "datatype": "bigint"
-                    },
-                    {
-                        "value": {
-                            "science": 85,
-                            "math": 75,
-                            "english": 65
-                        },
-                        "datatype": "map<text,int>"
-                    }
-                ],
-                "expected_result": null
-            },
-            {
-                "query": "UPDATE bigtabledevinstance.user_info SET map_text_int = map_text_int + ? WHERE name = ? AND age = ?",
-                "query_type": "UPDATE",
-                "query_desc": "Update 'math' score, add 'history' score, and remove 'english'.",
-                "params": [
-                    {
-                        "value": {
-                            "math": 95,
-                            "history": 80
-                        },
-                        "datatype": "map<text,int>"
-                    },
-                    {
-                        "value": "User_Map_Int2",
-                        "datatype": "text"
-                    },
-                    {
-                        "value": 30,
-                        "datatype": "bigint"
-                    }
-                ],
-                "expected_result": null
-            },
-            {
-                "query": "SELECT map_text_int FROM bigtabledevinstance.user_info WHERE name = ? AND age = ?",
-                "query_type": "SELECT",
-                "query_desc": "Validate that the map contains updated scores for 'math' and new key 'history', and that 'english' is removed.",
-                "params": [
-                    {
-                        "value": "User_Map_Int2",
-                        "datatype": "text"
-                    },
-                    {
-                        "value": 30,
-                        "datatype": "bigint"
-                    }
-                ],
-                "expected_result": [
-                    {
-                        "map_text_int": {
-                            "english": 65,
-                            "science": 85,
-                            "math": 95,
-                            "history": 80
-                        },
-                        "datatype": "map<text,int>"
-                    }
-                ]
-            }
+        "expected_result": null
+      },
+      {
+        "query": "SELECT ts_text_map FROM bigtabledevinstance.user_info WHERE name = ? AND age = ?",
+        "query_type": "SELECT",
+        "query_desc": "Verify map contains added key-value pairs",
+        "params": [
+          {
+            "value": "User_Map_TS_Add1",
+            "datatype": "text"
+          },
+          {
+            "value": 25,
+            "datatype": "bigint"
+          }
         ],
-        "success_message": "Complex update on MAP<TEXT, INT> executed successfully.",
-        "failure_message": "Complex map update on MAP<TEXT, INT> failed."
-    },
-    {
-        "title": "Complex Delete Operation on MAP<TEXT, TEXT> using map = map - key",
-        "description": "Insert a record with MAP<TEXT, TEXT>, then delete specific keys using map = map - key syntax, verifying the deletion.",
-        "kind": "dml",
-        "operations": [
-            {
-                "query": "INSERT INTO bigtabledevinstance.user_info (name, age, extra_info) VALUES (?, ?, ?)",
-                "query_type": "INSERT",
-                "query_desc": "Initialize user with MAP<TEXT, TEXT> values to test deletion",
-                "params": [
-                    {
-                        "value": "User_Map_Delete1",
-                        "datatype": "text"
-                    },
-                    {
-                        "value": 25,
-                        "datatype": "bigint"
-                    },
-                    {
-                        "value": {
-                            "key1": "value1",
-                            "key2": "value2",
-                            "key3": "value3",
-                            "key4": "value4"
-                        },
-                        "datatype": "map<text,text>"
-                    }
-                ],
-                "expected_result": null
+        "expected_result": [
+          {
+            "ts_text_map": {
+              "2023-01-01T00:00:00Z": "Event1",
+              "2023-02-01T00:00:00Z": "Event2"
             },
-            {
-                "query": "UPDATE bigtabledevinstance.user_info SET extra_info = extra_info - ? WHERE name = ? AND age = ?",
-                "query_type": "UPDATE",
-                "query_desc": "Delete specific keys from the map using subtraction syntax",
-                "params": [
-                    {
-                        "value": [
-                            "key1",
-                            "key3"
-                        ],
-                        "datatype": "set<text>"
-                    },
-                    {
-                        "value": "User_Map_Delete1",
-                        "datatype": "text"
-                    },
-                    {
-                        "value": 25,
-                        "datatype": "bigint"
-                    }
-                ],
-                "expected_result": null
+            "datatype": "map<timestamp,text>"
+          }
+        ]
+      }
+    ],
+    "success_message": "MAP<TIMESTAMP, TEXT> addition operation completed successfully.",
+    "failure_message": "MAP<TIMESTAMP, TEXT> addition operation failed."
+  },
+  {
+    "title": "MAP Operation: Subtraction (MAP<TEXT, TEXT>)",
+    "description": "Test removing keys from MAP<TEXT, TEXT> using map = map - key syntax",
+    "kind": "dml",
+    "operations": [
+      {
+        "query": "INSERT INTO bigtabledevinstance.user_info (name, age, extra_info) VALUES (?, ?, ?)",
+        "query_type": "INSERT",
+        "query_desc": "Initialize user with MAP<TEXT, TEXT> values",
+        "params": [
+          {
+            "value": "User_Map_Sub1",
+            "datatype": "text"
+          },
+          {
+            "value": 25,
+            "datatype": "bigint"
+          },
+          {
+            "value": {
+              "key1": "value1",
+              "key2": "value2",
+              "key3": "value3"
             },
-            {
-                "query": "SELECT extra_info FROM bigtabledevinstance.user_info WHERE name = ? AND age = ?",
-                "query_type": "SELECT",
-                "query_desc": "Verify that only key2 and key4 remain in the map",
-                "params": [
-                    {
-                        "value": "User_Map_Delete1",
-                        "datatype": "text"
-                    },
-                    {
-                        "value": 25,
-                        "datatype": "bigint"
-                    }
-                ],
-                "expected_result": [
-                    {
-                        "extra_info": {
-                            "key2": "value2",
-                            "key4": "value4"
-                        },
-                        "datatype": "map<text,text>"
-                    }
-                ]
-            }
+            "datatype": "map<text,text>"
+          }
         ],
-        "success_message": "Map deletion using subtraction syntax completed successfully.",
-        "failure_message": "Map deletion using subtraction syntax failed."
-    }
+        "expected_result": null
+      },
+      {
+        "query": "UPDATE bigtabledevinstance.user_info SET extra_info = extra_info - ? WHERE name = ? AND age = ?",
+        "query_type": "UPDATE",
+        "query_desc": "Remove keys from map",
+        "params": [
+          {
+            "value": [
+              "key1",
+              "key3"
+            ],
+            "datatype": "set<text>"
+          },
+          {
+            "value": "User_Map_Sub1",
+            "datatype": "text"
+          },
+          {
+            "value": 25,
+            "datatype": "bigint"
+          }
+        ],
+        "expected_result": null
+      },
+      {
+        "query": "SELECT extra_info FROM bigtabledevinstance.user_info WHERE name = ? AND age = ?",
+        "query_type": "SELECT",
+        "query_desc": "Verify only key2 remains in map",
+        "params": [
+          {
+            "value": "User_Map_Sub1",
+            "datatype": "text"
+          },
+          {
+            "value": 25,
+            "datatype": "bigint"
+          }
+        ],
+        "expected_result": [
+          {
+            "extra_info": {
+              "key2": "value2"
+            },
+            "datatype": "map<text,text>"
+          }
+        ]
+      }
+    ],
+    "success_message": "MAP<TEXT, TEXT> subtraction operation completed successfully.",
+    "failure_message": "MAP<TEXT, TEXT> subtraction operation failed."
+  },
+  {
+    "title": "MAP Operation: Update (MAP<TEXT, INT>)",
+    "description": "Test updating values in MAP<TEXT, INT> using map[key] = value syntax",
+    "kind": "dml",
+    "operations": [
+      {
+        "query": "INSERT INTO bigtabledevinstance.user_info (name, age, map_text_int) VALUES (?, ?, ?)",
+        "query_type": "INSERT",
+        "query_desc": "Initialize user with MAP<TEXT, INT> values",
+        "params": [
+          {
+            "value": "User_Map_Update1",
+            "datatype": "text"
+          },
+          {
+            "value": 25,
+            "datatype": "bigint"
+          },
+          {
+            "value": {
+              "score1": 100,
+              "score2": 200
+            },
+            "datatype": "map<text,int>"
+          }
+        ],
+        "expected_result": null
+      },
+      {
+        "query": "UPDATE bigtabledevinstance.user_info SET map_text_int['score1'] = ? WHERE name = ? AND age = ?",
+        "query_type": "UPDATE",
+        "query_desc": "Update value in map",
+        "params": [
+          {
+            "value": 150,
+            "datatype": "int"
+          },
+          {
+            "value": "User_Map_Update1",
+            "datatype": "text"
+          },
+          {
+            "value": 25,
+            "datatype": "bigint"
+          }
+        ],
+        "expected_result": null
+      },
+      {
+        "query": "SELECT map_text_int FROM bigtabledevinstance.user_info WHERE name = ? AND age = ?",
+        "query_type": "SELECT",
+        "query_desc": "Verify map contains updated value",
+        "params": [
+          {
+            "value": "User_Map_Update1",
+            "datatype": "text"
+          },
+          {
+            "value": 25,
+            "datatype": "bigint"
+          }
+        ],
+        "expected_result": [
+          {
+            "map_text_int": {
+              "score1": 150,
+              "score2": 200
+            },
+            "datatype": "map<text,int>"
+          }
+        ]
+      }
+    ],
+    "success_message": "MAP<TEXT, INT> update operation completed successfully.",
+    "failure_message": "MAP<TEXT, INT> update operation failed."
+  },
+  {
+    "title": "MAP Operation: Delete (MAP<TEXT, TIMESTAMP>)",
+    "description": "Test deleting key from MAP<TEXT, TIMESTAMP> using DELETE map[key] syntax",
+    "kind": "dml",
+    "operations": [
+      {
+        "query": "INSERT INTO bigtabledevinstance.user_info (name, age, map_text_ts) VALUES (?, ?, ?)",
+        "query_type": "INSERT",
+        "query_desc": "Initialize user with MAP<TEXT, TIMESTAMP> values",
+        "params": [
+          {
+            "value": "User_Map_Delete1",
+            "datatype": "text"
+          },
+          {
+            "value": 25,
+            "datatype": "bigint"
+          },
+          {
+            "value": {
+              "event1": "2023-01-01T00:00:00Z",
+              "event2": "2023-02-01T00:00:00Z"
+            },
+            "datatype": "map<text,timestamp>"
+          }
+        ],
+        "expected_result": null
+      },
+      {
+        "query": "DELETE map_text_ts['event1'] FROM bigtabledevinstance.user_info WHERE name = ? AND age = ?",
+        "query_type": "DELETE",
+        "query_desc": "Delete key from map",
+        "params": [
+          {
+            "value": "User_Map_Delete1",
+            "datatype": "text"
+          },
+          {
+            "value": 25,
+            "datatype": "bigint"
+          }
+        ],
+        "expected_result": null
+      },
+      {
+        "query": "SELECT map_text_ts FROM bigtabledevinstance.user_info WHERE name = ? AND age = ?",
+        "query_type": "SELECT",
+        "query_desc": "Verify only event2 remains in map",
+        "params": [
+          {
+            "value": "User_Map_Delete1",
+            "datatype": "text"
+          },
+          {
+            "value": 25,
+            "datatype": "bigint"
+          }
+        ],
+        "expected_result": [
+          {
+            "map_text_ts": {
+              "event2": "2023-02-01T00:00:00Z"
+            },
+            "datatype": "map<text,timestamp>"
+          }
+        ]
+      }
+    ],
+    "success_message": "MAP<TEXT, TIMESTAMP> delete operation completed successfully.",
+    "failure_message": "MAP<TEXT, TIMESTAMP> delete operation failed."
+  },
+  {
+    "title": "Complex Update on MAP<TEXT, TEXT>: Merge, Delete and Update",
+    "description": "Insert a record with an initial MAP<TEXT, TEXT>, then update by merging new key-value pairs, updating existing keys, and removing a key. Verify the final state of the map.",
+    "kind": "dml",
+    "operations": [
+      {
+        "query": "INSERT INTO bigtabledevinstance.user_info (name, age, extra_info) VALUES (?, ?, ?)",
+        "query_type": "INSERT",
+        "query_desc": "Initialize user with predefined MAP<TEXT, TEXT> values.",
+        "params": [
+          {
+            "value": "User_Map_Text1",
+            "datatype": "text"
+          },
+          {
+            "value": 28,
+            "datatype": "bigint"
+          },
+          {
+            "value": {
+              "key1": "value1",
+              "key2": "value2"
+            },
+            "datatype": "map<text,text>"
+          }
+        ],
+        "expected_result": null
+      },
+      {
+        "query": "UPDATE bigtabledevinstance.user_info SET extra_info = extra_info + ?  WHERE name = ? AND age = ?",
+        "query_type": "UPDATE",
+        "query_desc": "Merge new key-value pairs; update 'key2' and add 'key3', while removing 'key1'.",
+        "params": [
+          {
+            "value": {
+              "key2": "updated_value",
+              "key3": "value3"
+            },
+            "datatype": "map<text,text>"
+          },
+          {
+            "value": "User_Map_Text1",
+            "datatype": "text"
+          },
+          {
+            "value": 28,
+            "datatype": "bigint"
+          }
+        ],
+        "expected_result": null
+      },
+      {
+        "query": "SELECT extra_info FROM bigtabledevinstance.user_info WHERE name = ? AND age = ?",
+        "query_type": "SELECT",
+        "query_desc": "Validate that the map now contains 'key2': 'updated_value' and 'key3': 'value3' only.",
+        "params": [
+          {
+            "value": "User_Map_Text1",
+            "datatype": "text"
+          },
+          {
+            "value": 28,
+            "datatype": "bigint"
+          }
+        ],
+        "expected_result": [
+          {
+            "extra_info": {
+              "key1": "value1",
+              "key2": "updated_value",
+              "key3": "value3"
+            },
+            "datatype": "map<text,text>"
+          }
+        ]
+      }
+    ],
+    "success_message": "Complex update on MAP<TEXT, TEXT> completed successfully.",
+    "failure_message": "Complex map update on MAP<TEXT, TEXT> failed."
+  },
+  {
+    "title": "Complex Update on MAP<TEXT, INT>: Modify Multiple Keys",
+    "description": "Insert a record with a MAP<TEXT, INT> containing several keys, then update multiple entries and remove one key, verifying the final map state.",
+    "kind": "dml",
+    "operations": [
+      {
+        "query": "INSERT INTO bigtabledevinstance.user_info (name, age, map_text_int) VALUES (?, ?, ?)",
+        "query_type": "INSERT",
+        "query_desc": "Initialize user with MAP<TEXT, INT> having multiple subject scores.",
+        "params": [
+          {
+            "value": "User_Map_Int2",
+            "datatype": "text"
+          },
+          {
+            "value": 30,
+            "datatype": "bigint"
+          },
+          {
+            "value": {
+              "science": 85,
+              "math": 75,
+              "english": 65
+            },
+            "datatype": "map<text,int>"
+          }
+        ],
+        "expected_result": null
+      },
+      {
+        "query": "UPDATE bigtabledevinstance.user_info SET map_text_int = map_text_int + ? WHERE name = ? AND age = ?",
+        "query_type": "UPDATE",
+        "query_desc": "Update 'math' score, add 'history' score, and remove 'english'.",
+        "params": [
+          {
+            "value": {
+              "math": 95,
+              "history": 80
+            },
+            "datatype": "map<text,int>"
+          },
+          {
+            "value": "User_Map_Int2",
+            "datatype": "text"
+          },
+          {
+            "value": 30,
+            "datatype": "bigint"
+          }
+        ],
+        "expected_result": null
+      },
+      {
+        "query": "SELECT map_text_int FROM bigtabledevinstance.user_info WHERE name = ? AND age = ?",
+        "query_type": "SELECT",
+        "query_desc": "Validate that the map contains updated scores for 'math' and new key 'history', and that 'english' is removed.",
+        "params": [
+          {
+            "value": "User_Map_Int2",
+            "datatype": "text"
+          },
+          {
+            "value": 30,
+            "datatype": "bigint"
+          }
+        ],
+        "expected_result": [
+          {
+            "map_text_int": {
+              "english": 65,
+              "science": 85,
+              "math": 95,
+              "history": 80
+            },
+            "datatype": "map<text,int>"
+          }
+        ]
+      }
+    ],
+    "success_message": "Complex update on MAP<TEXT, INT> executed successfully.",
+    "failure_message": "Complex map update on MAP<TEXT, INT> failed."
+  },
+  {
+    "title": "Complex Delete Operation on MAP<TEXT, TEXT> using map = map - key",
+    "description": "Insert a record with MAP<TEXT, TEXT>, then delete specific keys using map = map - key syntax, verifying the deletion.",
+    "kind": "dml",
+    "operations": [
+      {
+        "query": "INSERT INTO bigtabledevinstance.user_info (name, age, extra_info) VALUES (?, ?, ?)",
+        "query_type": "INSERT",
+        "query_desc": "Initialize user with MAP<TEXT, TEXT> values to test deletion",
+        "params": [
+          {
+            "value": "User_Map_Delete1",
+            "datatype": "text"
+          },
+          {
+            "value": 25,
+            "datatype": "bigint"
+          },
+          {
+            "value": {
+              "key1": "value1",
+              "key2": "value2",
+              "key3": "value3",
+              "key4": "value4"
+            },
+            "datatype": "map<text,text>"
+          }
+        ],
+        "expected_result": null
+      },
+      {
+        "query": "UPDATE bigtabledevinstance.user_info SET extra_info = extra_info - ? WHERE name = ? AND age = ?",
+        "query_type": "UPDATE",
+        "query_desc": "Delete specific keys from the map using subtraction syntax",
+        "params": [
+          {
+            "value": [
+              "key1",
+              "key3"
+            ],
+            "datatype": "set<text>"
+          },
+          {
+            "value": "User_Map_Delete1",
+            "datatype": "text"
+          },
+          {
+            "value": 25,
+            "datatype": "bigint"
+          }
+        ],
+        "expected_result": null
+      },
+      {
+        "query": "SELECT extra_info FROM bigtabledevinstance.user_info WHERE name = ? AND age = ?",
+        "query_type": "SELECT",
+        "query_desc": "Verify that only key2 and key4 remain in the map",
+        "params": [
+          {
+            "value": "User_Map_Delete1",
+            "datatype": "text"
+          },
+          {
+            "value": 25,
+            "datatype": "bigint"
+          }
+        ],
+        "expected_result": [
+          {
+            "extra_info": {
+              "key2": "value2",
+              "key4": "value4"
+            },
+            "datatype": "map<text,text>"
+          }
+        ]
+      },
+      {
+        "query": "SELECT extra_info['key2'] FROM bigtabledevinstance.user_info WHERE name = ? AND age = ?",
+        "query_type": "SELECT",
+        "query_desc": "Verify that only key2 and key4 remain in the map",
+        "params": [
+          {
+            "value": "User_Map_Delete1",
+            "datatype": "text"
+          },
+          {
+            "value": 25,
+            "datatype": "bigint"
+          }
+        ],
+        "expected_result": [
+          {
+            "extra_info['key2']": "value2",
+            "datatype": "map<text,text>"
+          }
+        ]
+      },
+      {
+        "query": "SELECT extra_info['key2'] as k2 FROM bigtabledevinstance.user_info WHERE name = ? AND age = ?",
+        "query_type": "SELECT",
+        "query_desc": "Verify that only key2 and key4 remain in the map",
+        "params": [
+          {
+            "value": "User_Map_Delete1",
+            "datatype": "text"
+          },
+          {
+            "value": 25,
+            "datatype": "bigint"
+          }
+        ],
+        "expected_result": [
+          {
+            "k2": "value2",
+            "datatype": "map<text,text>"
+          }
+        ]
+      }
+    ],
+    "success_message": "Map deletion using subtraction syntax completed successfully.",
+    "failure_message": "Map deletion using subtraction syntax failed."
+  }
 ]

@@ -85,13 +85,20 @@ type Listener struct {
 }
 
 // Bigtable holds the Bigtable database configuration
+
+type InstancesMap struct {
+	BigtableInstance string `yaml:"bigtableInstance"`
+	Keyspace         string `yaml:"keyspace"`
+	AppProfileID     string `yaml:"appProfileID"`
+}
 type Bigtable struct {
-	ProjectID           string  `yaml:"projectId"`
-	InstanceIDs         string  `yaml:"instanceIds"`
-	SchemaMappingTable  string  `yaml:"schemaMappingTable"`
-	Session             Session `yaml:"Session"`
-	DefaultColumnFamily string  `yaml:"defaultColumnFamily"`
-	AppProfileID        string  `yaml:"appProfileID"`
+	ProjectID           string         `yaml:"projectId"`
+	Instances           []InstancesMap `yaml:"instances"`
+	InstanceIDs         string         `yaml:"instanceIds"`
+	SchemaMappingTable  string         `yaml:"schemaMappingTable"`
+	Session             Session        `yaml:"Session"`
+	DefaultColumnFamily string         `yaml:"defaultColumnFamily"`
+	AppProfileID        string         `yaml:"appProfileID"`
 }
 
 // Session describes the settings for Bigtable sessions
@@ -262,13 +269,34 @@ func Run(ctx context.Context, args []string) int {
 	}
 
 	for _, listener := range UserConfig.Listeners {
+		InstanceMap := make(map[string]bigtableModule.InstanceConfig)
+		if listener.Bigtable.InstanceIDs != "" {
+			instances := strings.Split(listener.Bigtable.InstanceIDs, ",")
+			for _, v := range instances {
+				InstanceMap[v] = bigtableModule.InstanceConfig{
+					BigtableInstance: v,
+					AppProfileId:     listener.Bigtable.AppProfileID,
+				}
+			}
+		} else {
+			for _, v := range listener.Bigtable.Instances {
+				AppProfileId := listener.Bigtable.AppProfileID
+				if v.AppProfileID != "" {
+					AppProfileId = v.AppProfileID
+				}
+				InstanceMap[v.Keyspace] = bigtableModule.InstanceConfig{
+					BigtableInstance: v.BigtableInstance,
+					AppProfileId:     AppProfileId,
+				}
+			}
+		}
+
 		bigtableConfig := bigtableModule.BigtableConfig{
 			NumOfChannels:       listener.Bigtable.Session.GrpcChannels,
 			SchemaMappingTable:  listener.Bigtable.SchemaMappingTable,
-			InstanceID:          listener.Bigtable.InstanceIDs,
+			InstancesMap:        InstanceMap,
 			GCPProjectID:        listener.Bigtable.ProjectID,
 			DefaultColumnFamily: listener.Bigtable.DefaultColumnFamily,
-			AppProfileID:        listener.Bigtable.AppProfileID,
 			// todo remove once we support ordered code ints
 			EncodeIntValuesWithBigEndian: encodeIntValuesWithBigEndian,
 		}

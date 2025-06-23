@@ -96,7 +96,7 @@ type BigTableClientIface interface {
 //
 // Returns:
 //   - BigtableClient: New instance of BigtableClient
-var NewBigtableClient = func(client map[string]*bigtable.Client, adminClients map[string]*bigtable.AdminClient, logger *zap.Logger, config BigtableConfig, responseHandler rh.ResponseHandlerIface, schemaMapping *schemaMapping.SchemaMappingConfig) BigTableClientIface {
+var NewBigtableClient = func(client map[string]*bigtable.Client, adminClients map[string]*bigtable.AdminClient, logger *zap.Logger, config BigtableConfig, responseHandler rh.ResponseHandlerIface, schemaMapping *schemaMapping.SchemaMappingConfig, instancesMap map[string]InstanceConfig) BigTableClientIface {
 	return &BigtableClient{
 		Clients:             client,
 		AdminClients:        adminClients,
@@ -104,6 +104,7 @@ var NewBigtableClient = func(client map[string]*bigtable.Client, adminClients ma
 		BigtableConfig:      config,
 		ResponseHandler:     responseHandler,
 		SchemaMappingConfig: schemaMapping,
+		InstancesMap:        instancesMap,
 	}
 }
 
@@ -168,9 +169,9 @@ func (btc *BigtableClient) mutateRow(ctx context.Context, tableName, rowKey stri
 
 	btc.Logger.Info("mutating row", zap.String("key", hex.EncodeToString([]byte(rowKey))))
 
-	client, ok := btc.Clients[keyspace]
-	if !ok {
-		return nil, fmt.Errorf("invalid keySpace - `%s`", keyspace)
+	client, err := btc.getClient(keyspace)
+	if err != nil {
+		return nil, err
 	}
 
 	tbl := client.Open(tableName)
@@ -236,7 +237,7 @@ func (btc *BigtableClient) mutateRow(ctx context.Context, tableName, rowKey stri
 	}
 
 	// If no conditions, apply the mutation directly
-	err := tbl.Apply(ctx, rowKey, mut)
+	err = tbl.Apply(ctx, rowKey, mut)
 	otelgo.AddAnnotation(ctx, bigtableMutationApplied)
 	if err != nil {
 		return nil, err
@@ -250,20 +251,20 @@ func (btc *BigtableClient) mutateRow(ctx context.Context, tableName, rowKey stri
 }
 
 func (btc *BigtableClient) DropTable(ctx context.Context, data *translator.DropTableStatementMap, schemaMappingTableName string) error {
-	client, ok := btc.Clients[data.Keyspace]
-	if !ok {
-		return fmt.Errorf("invalid keyspace `%s`", data.Keyspace)
+	client, err := btc.getClient(data.Keyspace)
+	if err != nil {
+		return err
 	}
-	adminClient, ok := btc.AdminClients[data.Keyspace]
-	if !ok {
-		return fmt.Errorf("invalid keyspace `%s`", data.Keyspace)
+	adminClient, err := btc.getAdminClient(data.Keyspace)
+	if err != nil {
+		return err
 	}
 
 	// first clean up table from schema mapping table because that's the SoT
 	tbl := client.Open(schemaMappingTableName)
 	var deleteMuts []*bigtable.Mutation
 	var rowKeysToDelete []string
-	err := tbl.ReadRows(ctx, bigtable.PrefixRange(data.Table+"#"), func(row bigtable.Row) bool {
+	err = tbl.ReadRows(ctx, bigtable.PrefixRange(data.Table+"#"), func(row bigtable.Row) bool {
 		mut := bigtable.NewMutation()
 		mut.DeleteRow()
 		deleteMuts = append(deleteMuts, mut)
@@ -310,9 +311,9 @@ func (btc *BigtableClient) DropTable(ctx context.Context, data *translator.DropT
 
 func (btc *BigtableClient) createSchemaMappingTableMaybe(ctx context.Context, keyspace, schemaMappingTableName string) error {
 	btc.Logger.Info("ensuring schema mapping table exists")
-	adminClient, ok := btc.AdminClients[keyspace]
-	if !ok {
-		return fmt.Errorf("invalid keyspace `%s`", keyspace)
+	adminClient, err := btc.getAdminClient(keyspace)
+	if err != nil {
+		return err
 	}
 
 	// do a read to check if the table exists to save on admin API write quota
@@ -340,13 +341,13 @@ func (btc *BigtableClient) createSchemaMappingTableMaybe(ctx context.Context, ke
 }
 
 func (btc *BigtableClient) CreateTable(ctx context.Context, data *translator.CreateTableStatementMap, schemaMappingTableName string) error {
-	client, ok := btc.Clients[data.Keyspace]
-	if !ok {
-		return fmt.Errorf("invalid keyspace `%s`", data.Keyspace)
+	client, err := btc.getClient(data.Keyspace)
+	if err != nil {
+		return err
 	}
-	adminClient, ok := btc.AdminClients[data.Keyspace]
-	if !ok {
-		return fmt.Errorf("invalid keyspace `%s`", data.Keyspace)
+	adminClient, err := btc.getAdminClient(data.Keyspace)
+	if err != nil {
+		return err
 	}
 
 	exists, err := btc.tableSchemaExists(ctx, client, schemaMappingTableName, data.Table)
@@ -439,12 +440,12 @@ func createBigtableRowKeyField(key string, cols []message.ColumnMetadata, encode
 }
 
 func (btc *BigtableClient) AlterTable(ctx context.Context, data *translator.AlterTableStatementMap, schemaMappingTableName string) error {
-	adminClient, ok := btc.AdminClients[data.Keyspace]
-	if !ok {
-		return fmt.Errorf("invalid keyspace `%s`", data.Keyspace)
+	adminClient, err := btc.getAdminClient(data.Keyspace)
+	if err != nil {
+		return err
 	}
 	// passing nil in as pmks because we don't have access to them here and because primary keys can't be altered
-	err := btc.updateTableSchema(ctx, data.Keyspace, schemaMappingTableName, data.Table, nil, data.AddColumns, data.DropColumns)
+	err = btc.updateTableSchema(ctx, data.Keyspace, schemaMappingTableName, data.Table, nil, data.AddColumns, data.DropColumns)
 	if err != nil {
 		return err
 	}
@@ -468,7 +469,7 @@ func (btc *BigtableClient) AlterTable(ctx context.Context, data *translator.Alte
 }
 
 func (btc *BigtableClient) updateTableSchema(ctx context.Context, keyspace string, schemaMappingTableName string, tableName string, pmks []translator.CreateTablePrimaryKeyConfig, addCols []message.ColumnMetadata, dropCols []string) error {
-	client, exists := btc.Clients[keyspace]
+	client, exists := btc.Clients[btc.InstancesMap[keyspace].BigtableInstance]
 	if !exists {
 		return fmt.Errorf("invalid keyspace `%s`", keyspace)
 	}
@@ -555,9 +556,9 @@ func (btc *BigtableClient) UpdateRow(ctx context.Context, updateQueryData *trans
 //   - error: Error if the deletion fails.
 func (btc *BigtableClient) DeleteRowNew(ctx context.Context, deleteQueryData *translator.DeleteQueryMapping) (*message.RowsResult, error) {
 	otelgo.AddAnnotation(ctx, applyingDeleteMutation)
-	client, ok := btc.Clients[deleteQueryData.Keyspace]
-	if !ok {
-		return nil, fmt.Errorf("invalid keySpace - `%s`", deleteQueryData.Keyspace)
+	client, err := btc.getClient(deleteQueryData.Keyspace)
+	if err != nil {
+		return nil, err
 	}
 	tbl := client.Open(deleteQueryData.Table)
 	mut := bigtable.NewMutation()
@@ -628,9 +629,9 @@ func (btc *BigtableClient) GetSchemaMappingConfigs(ctx context.Context, keyspace
 	}
 
 	otelgo.AddAnnotation(ctx, fetchingSchemaMappingConfig)
-	client, ok := btc.Clients[keyspace]
-	if !ok {
-		return nil, nil, fmt.Errorf("invalid keySpace - `%s`", keyspace)
+	client, err := btc.getClient(keyspace)
+	if err != nil {
+		return nil, nil, err
 	}
 
 	table := client.Open(schemaMappingTable)
@@ -641,7 +642,7 @@ func (btc *BigtableClient) GetSchemaMappingConfigs(ctx context.Context, keyspace
 	metaIndex := 0
 
 	var readErr error
-	err := table.ReadRows(ctx, bigtable.InfiniteRange(""), func(row bigtable.Row) bool {
+	err = table.ReadRows(ctx, bigtable.InfiniteRange(""), func(row bigtable.Row) bool {
 		// Extract the row key and column values
 		var tableName, columnName, columnType, KeyType string
 		var isPrimaryKey, isCollection bool
@@ -785,11 +786,11 @@ func (btc *BigtableClient) ApplyBulkMutation(ctx context.Context, tableName stri
 	}
 	otelgo.AddAnnotation(ctx, applyingBulkMutation)
 
-	client, ok := btc.Clients[keyspace]
-	if !ok {
+	client, err := btc.getClient(keyspace)
+	if err != nil {
 		return BulkOperationResponse{
 			FailedRows: "All Rows are failed",
-		}, fmt.Errorf("invalid keySpace - `%s`", keyspace)
+		}, err
 	}
 
 	tbl := client.Open(tableName)
@@ -845,9 +846,9 @@ func (btc *BigtableClient) Close() {
 //   - string: The timestamp qualifier if found.
 //   - error: An error if the row does not exist, the index is out of bounds, or any other retrieval failure occurs.
 func (btc *BigtableClient) getIndexOpTimestamp(ctx context.Context, tableName, rowKey, columnFamily, keyspace string, index int) (string, error) {
-	client, ok := btc.Clients[keyspace]
-	if !ok {
-		return "", fmt.Errorf("invalid keySpace - `%s`", keyspace)
+	client, err := btc.getClient(keyspace)
+	if err != nil {
+		return "", err
 	}
 	tbl := client.Open(tableName)
 	row, err := tbl.ReadRow(ctx, rowKey, bigtable.RowFilter(bigtable.ChainFilters(
@@ -888,9 +889,9 @@ func (btc *BigtableClient) getIndexOpTimestamp(ctx context.Context, tableName, r
 // Returns:
 //   - error: An error if the row does not exist or if list elements cannot be deleted.
 func (btc *BigtableClient) setMutationforListDelete(ctx context.Context, tableName, rowKey, columnFamily, keyspace string, deleteList [][]byte, mut *bigtable.Mutation) error {
-	client, ok := btc.Clients[keyspace]
-	if !ok {
-		return fmt.Errorf("invalid keySpace - `%s`", keyspace)
+	client, err := btc.getClient(keyspace)
+	if err != nil {
+		return err
 	}
 
 	tbl := client.Open(tableName)
@@ -930,9 +931,9 @@ func (btc *BigtableClient) LoadConfigs(rh *responsehandler.TypeHandler, schemaCo
 
 // PrepareStatement prepares a query for execution using the Bigtable SQL client.
 func (btc *BigtableClient) PrepareStatement(ctx context.Context, query rh.QueryMetadata) (*bigtable.PreparedStatement, error) {
-	client, ok := btc.Clients[query.KeyspaceName]
-	if !ok {
-		return nil, fmt.Errorf("invalid keySpace - `%s`", query.KeyspaceName)
+	client, err := btc.getClient(query.KeyspaceName)
+	if err != nil {
+		return nil, err
 	}
 
 	paramTypes := make(map[string]bigtable.SQLType)
@@ -997,4 +998,51 @@ func inferSQLType(value interface{}) (bigtable.SQLType, error) {
 		return bigtable.ArraySQLType{ElemType: elemSQLType}, nil
 
 	}
+}
+
+// getClient retrieves a Bigtable client for a given keyspace.
+// It looks up the instance information associated with the keyspace in the InstancesMap,
+// then returns the corresponding client from the Clients map.
+//
+// Parameters:
+//   - keyspace: string representing the Cassandra keyspace name
+//
+// Returns:
+//   - *bigtable.Client: the Bigtable client instance associated with the keyspace
+//   - error: returns an error if either the keyspace is not found in InstancesMap
+//     or if no client exists for the corresponding Bigtable instance
+func (btc *BigtableClient) getClient(keyspace string) (*bigtable.Client, error) {
+	instanceInfo, ok := btc.InstancesMap[keyspace]
+	if !ok {
+		return nil, fmt.Errorf("keyspace not found: '%s'", keyspace)
+	}
+	client, ok := btc.Clients[instanceInfo.BigtableInstance]
+	if !ok {
+		return nil, fmt.Errorf("client not found for instance '%s' (from keyspace '%s')", instanceInfo.BigtableInstance, keyspace)
+	}
+	return client, nil
+}
+
+// getAdminClient retrieves the Bigtable AdminClient associated with the given keyspace.
+// It looks up the instance information for the provided keyspace in the InstancesMap,
+// then fetches the corresponding AdminClient from the AdminClients map using the
+// Bigtable instance name. If the keyspace or the admin client is not found, it returns
+// an error describing the missing resource.
+//
+// Parameters:
+//   - keyspace: The keyspace name to look up.
+//
+// Returns:
+//   - *bigtable.AdminClient: The admin client associated with the keyspace.
+//   - error: An error if the keyspace or admin client is not found.
+func (btc *BigtableClient) getAdminClient(keyspace string) (*bigtable.AdminClient, error) {
+	instanceInfo, ok := btc.InstancesMap[keyspace]
+	if !ok {
+		return nil, fmt.Errorf("keyspace not found: '%s'", keyspace)
+	}
+	Adminclient, ok := btc.AdminClients[instanceInfo.BigtableInstance]
+	if !ok {
+		return nil, fmt.Errorf("admin client not found for instance '%s' (from keyspace '%s')", instanceInfo.BigtableInstance, keyspace)
+	}
+	return Adminclient, nil
 }

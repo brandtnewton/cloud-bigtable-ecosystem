@@ -459,7 +459,8 @@
                         ],
                         "datatype": "set<text>"
                     }
-                ]
+                ],
+                "expect_cassandra_specific_error": "Cannot execute this query as it might involve data filtering and thus may have unpredictable performance. If you want to execute this query despite the performance unpredictability, use ALLOW FILTERING"
             },
             {
                 "query": "SELECT tags FROM bigtabledevinstance.user_info WHERE tags CONTAINS ?",
@@ -471,7 +472,8 @@
                         "datatype": "text"
                     }
                 ],
-                "expected_result": null
+                "expected_result": null,
+                "expect_cassandra_specific_error": "Cannot execute this query as it might involve data filtering and thus may have unpredictable performance. If you want to execute this query despite the performance unpredictability, use ALLOW FILTERING"
             }
         ],
         "success_message": "Set operations with contains clause completed successfully.",

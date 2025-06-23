@@ -20,8 +20,12 @@ package constants
 // Just to keep the code clean, we have defined the constants here.
 // It will help in reducing the number of magic strings in the code also to avoid the circular dependency.
 const (
-	BETWEEN     = "BETWEEN"
-	LIKE        = "LIKE"
-	BETWEEN_AND = "BETWEEN-AND"
-	IN          = "IN"
+	BETWEEN          = "BETWEEN"
+	LIKE             = "LIKE"
+	BETWEEN_AND      = "BETWEEN-AND"
+	IN               = "IN"
+	ARRAY_INCLUDES   = "ARRAY_INCLUDES"
+	MAP_CONTAINS_KEY = "MAP_CONTAINS_KEY"
+	CONTAINS_KEY     = "CONTAINS KEY"
+	CONTAINS         = "CONTAINS"
 )

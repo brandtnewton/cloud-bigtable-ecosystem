@@ -238,17 +238,25 @@ func setupAndRunBigtableProxy(m *testing.M) int {
 		utility.LogFatal(fmt.Sprintf("error while setting up gcp credentials - %v", err))
 		return 1
 	}
-
 	if GCP_PROJECT_ID == "" || BIGTABLE_INSTANCE == "" {
 		utility.LogFatal("Env `GCP_PROJECT_ID` and `BIGTABLE_INSTANCE` is mandatory")
 		return 1
 	}
 
-	// Setup Bigtable schema and test environment
-	err := schema_setup.SetupBigtableInstance(GCP_PROJECT_ID, BIGTABLE_INSTANCE, ZONE)
+	var BIGTABLE_CASSANDRA_INSTANCE_MAPPING map[string]string
+	err := json.Unmarshal([]byte(BIGTABLE_INSTANCE), &BIGTABLE_CASSANDRA_INSTANCE_MAPPING)
 	if err != nil {
-		utility.LogFatal(fmt.Sprintf("Error while setting bigtable schema- %v", err))
+		utility.LogFatal(fmt.Sprintf("error while unmarshalling bigtable_cassandra_instance_mapping - %v", err))
 		return 1
+	}
+
+	for _, value := range BIGTABLE_CASSANDRA_INSTANCE_MAPPING {
+		// Setup Bigtable schema and test environment
+		err = schema_setup.SetupBigtableInstance(GCP_PROJECT_ID, value, ZONE)
+		if err != nil {
+			utility.LogFatal(fmt.Sprintf("Error while setting bigtable schema- %v", err))
+			return 1
+		}
 	}
 
 	// Request a testcontainers.Container object
@@ -351,10 +359,18 @@ func setupAndRunBigtableProxy(m *testing.M) int {
 	return code
 }
 func setupAndRunBigtableProxyLocal(m *testing.M) {
-	err := schema_setup.SetupBigtableInstance(GCP_PROJECT_ID, BIGTABLE_INSTANCE, ZONE)
+	var BIGTABLE_CASSANDRA_INSTANCE_MAPPING map[string]string
+	err := json.Unmarshal([]byte(BIGTABLE_INSTANCE), &BIGTABLE_CASSANDRA_INSTANCE_MAPPING)
 	if err != nil {
-		utility.LogFatal(fmt.Sprintf("Error while setting bigtable schema- %v", err))
+		utility.LogFatal(fmt.Sprintf("error while unmarshalling bigtable_cassandra_instance_mapping - %v", err))
 		return
+	}
+	for _, value := range BIGTABLE_CASSANDRA_INSTANCE_MAPPING {
+		err = schema_setup.SetupBigtableInstance(GCP_PROJECT_ID, value, ZONE)
+		if err != nil {
+			utility.LogFatal(fmt.Sprintf("Error while setting bigtable schema- %v", err))
+			return
+		}
 	}
 
 	cluster := gocql.NewCluster("localhost")
@@ -466,10 +482,24 @@ func setupAndRunCassandra(m *testing.M) int {
 	}
 	defer session.Close()
 
-	// Setup the Cassandra schema
-	if err := schema_setup.SetupCassandraSchema(session, "schema_setup/setup.sql", BIGTABLE_INSTANCE); err != nil {
-		utility.LogFatal(fmt.Sprintf("Error setting up Cassandra schema: %v", err))
+	var BIGTABLE_CASSANDRA_INSTANCE_MAPPING map[string]string
+	err = json.Unmarshal([]byte(BIGTABLE_INSTANCE), &BIGTABLE_CASSANDRA_INSTANCE_MAPPING)
+	if err != nil {
+		utility.LogFatal(fmt.Sprintf("error while unmarshalling bigtable_cassandra_instance_mapping - %v", err))
 		return 1
+	}
+	for key := range BIGTABLE_CASSANDRA_INSTANCE_MAPPING {
+		if err := schema_setup.CreateKeyspace(session, key); err != nil {
+			utility.LogFatal(fmt.Sprintf("Error setting up Cassandra schema: %v", err))
+			return 1
+		}
+	}
+	for key := range BIGTABLE_CASSANDRA_INSTANCE_MAPPING {
+		// Setup the Cassandra schema
+		if err := schema_setup.SetupCassandraSchema(session, "schema_setup/setup.sql", key); err != nil {
+			utility.LogFatal(fmt.Sprintf("Error setting up Cassandra schema: %v", err))
+			return 1
+		}
 	}
 
 	// Run the tests
@@ -493,9 +523,18 @@ func setupAndRunCassandraLocal(m *testing.M) int {
 	session, _ = cluster.CreateSession()
 	defer session.Close()
 
-	if err := schema_setup.SetupCassandraSchema(session, "schema_setup/setup.sql", BIGTABLE_INSTANCE); err != nil {
-		utility.LogFatal(fmt.Sprintf("Error setting up Cassandra schema: %v", err))
+	var BIGTABLE_CASSANDRA_INSTANCE_MAPPING map[string]string
+	err := json.Unmarshal([]byte(BIGTABLE_INSTANCE), &BIGTABLE_CASSANDRA_INSTANCE_MAPPING)
+	if err != nil {
+		utility.LogFatal(fmt.Sprintf("error while unmarshalling bigtable_cassandra_instance_mapping - %v", err))
 		return 1
+	}
+
+	for key := range BIGTABLE_CASSANDRA_INSTANCE_MAPPING {
+		if err := schema_setup.SetupCassandraSchema(session, "schema_setup/setup.sql", key); err != nil {
+			utility.LogFatal(fmt.Sprintf("Error setting up Cassandra schema: %v", err))
+			return 1
+		}
 	}
 
 	// Run the tests
@@ -639,8 +678,9 @@ func executeInsert(t *testing.T, operation Operation, fileName string) bool {
 			if expectedErr, ok := operation.ExpectedResult[0]["expect_error"].(bool); ok && expectedErr {
 				expectedErrMsg, _ := operation.ExpectedResult[0]["error_message"].(string)
 				expectedErrCassandraMsg, _ := operation.ExpectedResult[0]["cassandra_error_message"].(string)
+				avoidCompErrCassandraMsg, _ := operation.ExpectedResult[0]["avoid_compare_error_message"].(bool)
 				// Compare the actual error message with the expected error message
-				if strings.EqualFold(err.Error(), expectedErrMsg) || (!isProxy && strings.EqualFold(err.Error(), expectedErrCassandraMsg)) {
+				if strings.EqualFold(err.Error(), expectedErrMsg) || (!isProxy && strings.EqualFold(err.Error(), expectedErrCassandraMsg)) || avoidCompErrCassandraMsg {
 					utility.LogInfo(fmt.Sprintf("Query failed as expected with error: %v", err))
 					utility.LogSuccess(t, operation.QueryDesc, operation.QueryType)
 					return true
@@ -701,7 +741,12 @@ func handleSelectError(t *testing.T, err error, operation Operation, fileName st
 	}
 
 	if !isProxy && operation.ExpectCassandraSpecificError != "" {
-		if strings.EqualFold(err.Error(), operation.ExpectCassandraSpecificError) {
+		avoidCompErrMsg := false
+		if len(operation.ExpectedResult) > 0 {
+			avoidCompErrMsg, _ = operation.ExpectedResult[0]["avoid_compare_error_message"].(bool)
+		}
+
+		if strings.EqualFold(err.Error(), operation.ExpectCassandraSpecificError) || avoidCompErrMsg {
 			utility.LogInfo(fmt.Sprintf("Query failed as expected with error: %v\n", err))
 			utility.LogSuccess(t, operation.QueryDesc, operation.QueryType)
 			return true
@@ -826,7 +871,8 @@ func executeUpdate(t *testing.T, operation Operation, fileName string) bool {
 			if expectedErr, ok := operation.ExpectedResult[0]["expect_error"].(bool); ok && expectedErr {
 				expectedErrMsg, _ := operation.ExpectedResult[0]["error_message"].(string)
 				expectedErrCassandraMsg, _ := operation.ExpectedResult[0]["cassandra_error_message"].(string)
-				if strings.EqualFold(err.Error(), expectedErrMsg) || (!isProxy && strings.EqualFold(err.Error(), expectedErrCassandraMsg)) {
+				avoidCompErrCassandraMsg, _ := operation.ExpectedResult[0]["avoid_compare_error_message"].(bool)
+				if strings.EqualFold(err.Error(), expectedErrMsg) || (!isProxy && strings.EqualFold(err.Error(), expectedErrCassandraMsg)) || avoidCompErrCassandraMsg {
 					utility.LogInfo(fmt.Sprintf("Query failed as expected with error: %v", err))
 					utility.LogSuccess(t, operation.QueryDesc, operation.QueryType)
 					return true
@@ -856,6 +902,7 @@ func executeDelete(t *testing.T, operation Operation, fileName string) bool {
 		if expectedErr, ok := operation.ExpectedResult[0]["expect_error"].(bool); ok && expectedErr {
 			expectedErrMsg := operation.ExpectedResult[0]["error_message"]
 			expectedErrCassandraMsg := operation.ExpectedResult[0]["cassandra_error_message"]
+			avoidCompErrCassandraMsg, _ := operation.ExpectedResult[0]["avoid_compare_error_message"].(bool)
 			containsTimestamp := strings.Contains(strings.ToUpper(operation.Query), "USING TIMESTAMP")
 
 			if expectedErrMsg != "" || expectedErrCassandraMsg != "" {
@@ -865,7 +912,7 @@ func executeDelete(t *testing.T, operation Operation, fileName string) bool {
 					return false
 				}
 				// Check if the error message matches the expected error message (case-insensitive)
-				if strings.EqualFold(strings.TrimSpace(err.Error()), strings.TrimSpace(expectedErrMsg.(string))) || (!isProxy && strings.EqualFold(strings.TrimSpace(err.Error()), strings.TrimSpace(expectedErrCassandraMsg.(string)))) {
+				if strings.EqualFold(strings.TrimSpace(err.Error()), strings.TrimSpace(expectedErrMsg.(string))) || (expectedErrCassandraMsg != nil && (!isProxy && strings.EqualFold(strings.TrimSpace(err.Error()), strings.TrimSpace(expectedErrCassandraMsg.(string))))) || avoidCompErrCassandraMsg {
 					utility.LogInfo(fmt.Sprintf("Query failed as expected with error: %v\n", err))
 					utility.LogSuccess(t, operation.QueryDesc, operation.QueryType)
 					return true

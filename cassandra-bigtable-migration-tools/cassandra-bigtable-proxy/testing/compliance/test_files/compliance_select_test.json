@@ -918,7 +918,8 @@
             "age": 1550,
             "datatype": "bigint"
           }]
-        ]
+        ],
+        "expect_cassandra_specific_error": "Cannot execute this query as it might involve data filtering and thus may have unpredictable performance. If you want to execute this query despite the performance unpredictability, use ALLOW FILTERING"
       },
       {
         "query": "SELECT name, age  FROM bigtabledevinstance.user_info WHERE age > ?",
@@ -939,7 +940,8 @@
             "age": 1550,
             "datatype": "bigint"
           }
-        ]
+        ],
+        "expect_cassandra_specific_error": "Cannot execute this query as it might involve data filtering and thus may have unpredictable performance. If you want to execute this query despite the performance unpredictability, use ALLOW FILTERING"
       },
       {
         "query": "SELECT name, age  FROM bigtabledevinstance.user_info WHERE age > ?",
@@ -951,7 +953,8 @@
             "datatype": "bigint"
           }
         ],
-        "expected_result": []
+        "expected_result": [],
+        "expect_cassandra_specific_error": "Cannot execute this query as it might involve data filtering and thus may have unpredictable performance. If you want to execute this query despite the performance unpredictability, use ALLOW FILTERING"
       },
       {
         "query": "SELECT name, age  FROM bigtabledevinstance.user_info WHERE age <= ?",
@@ -980,7 +983,8 @@
             "age": 1,
             "datatype": "bigint"
           }]
-        ]
+        ],
+        "expect_cassandra_specific_error": "Cannot execute this query as it might involve data filtering and thus may have unpredictable performance. If you want to execute this query despite the performance unpredictability, use ALLOW FILTERING"
       },
       {
         "query": "SELECT name, age  FROM bigtabledevinstance.user_info WHERE age < ?",
@@ -1009,7 +1013,8 @@
             "age": 1,
             "datatype": "bigint"
           }]
-        ]
+        ],
+        "expect_cassandra_specific_error": "Cannot execute this query as it might involve data filtering and thus may have unpredictable performance. If you want to execute this query despite the performance unpredictability, use ALLOW FILTERING"
       },
       {
         "query": "SELECT name, age  FROM bigtabledevinstance.user_info WHERE age < ?",
@@ -1021,7 +1026,8 @@
             "datatype": "bigint"
           }
         ],
-        "expected_result": []
+        "expected_result": [],
+        "expect_cassandra_specific_error": "Cannot execute this query as it might involve data filtering and thus may have unpredictable performance. If you want to execute this query despite the performance unpredictability, use ALLOW FILTERING"
       },
       {
         "query": "SELECT name, age  FROM bigtabledevinstance.user_info WHERE age < ?",
@@ -1040,7 +1046,8 @@
         {
           "age": 1,
           "datatype": "bigint"
-        }]
+        }],
+        "expect_cassandra_specific_error": "Cannot execute this query as it might involve data filtering and thus may have unpredictable performance. If you want to execute this query despite the performance unpredictability, use ALLOW FILTERING"
       }
     ],
     "success_message": "Successfully validated all WHERE clause with different operators.",
@@ -1114,7 +1121,8 @@
             "age": 1230,
             "datatype": "bigint"
           }
-        ]
+        ],
+        "expect_cassandra_specific_error": "line 1:62 no viable alternative at input 'BETWEEN' (...age FROM bigtabledevinstance.user_info WHERE [age] BETWEEN...)"
       },
       {
         "query": "SELECT name, age FROM bigtabledevinstance.user_info WHERE age BETWEEN ? AND ?",
@@ -1130,7 +1138,8 @@
             "datatype": "bigint"
           }
         ],
-        "expected_result": []
+        "expected_result": [],
+        "expect_cassandra_specific_error": "line 1:62 no viable alternative at input 'BETWEEN' (...age FROM bigtabledevinstance.user_info WHERE [age] BETWEEN...)"
       },
       {
         "query": "SELECT name, age FROM bigtabledevinstance.user_info WHERE age BETWEEN ? AND ?",
@@ -1155,7 +1164,8 @@
             "age": 1220,
             "datatype": "bigint"
           }
-        ]
+        ],
+        "expect_cassandra_specific_error": "line 1:62 no viable alternative at input 'BETWEEN' (...age FROM bigtabledevinstance.user_info WHERE [age] BETWEEN...)"
       },
       {
         "query": "SELECT name, age FROM bigtabledevinstance.user_info WHERE age BETWEEN ? AND ?",
@@ -1188,7 +1198,8 @@
             "age": 1230,
             "datatype": "bigint"
           }]
-        ]
+        ],
+        "expect_cassandra_specific_error": "line 1:62 no viable alternative at input 'BETWEEN' (...age FROM bigtabledevinstance.user_info WHERE [age] BETWEEN...)"
       },
       {
         "query": "SELECT name, age FROM bigtabledevinstance.user_info WHERE age BETWEEN",
@@ -1246,7 +1257,8 @@
             "datatype": "int"
           }
         ],
-        "expected_result": null
+        "expected_result": null,
+        "expect_cassandra_specific_error": "line 1:62 no viable alternative at input 'BETWEEN' (...age FROM bigtabledevinstance.user_info WHERE [age] BETWEEN...)"
       },
       {
         "query": "INSERT INTO bigtabledevinstance.user_info (name, age, code) VALUES (?, ?, ?)",
@@ -1287,7 +1299,8 @@
             "age": 1300,
             "datatype": "bigint"
           }
-        ]
+        ],
+        "expect_cassandra_specific_error": "LIKE restriction is only supported on properly indexed columns. name LIKE ? is not valid."
       },
       {
         "query": "SELECT name, age FROM bigtabledevinstance.user_info WHERE name LIKE ?",
@@ -1316,7 +1329,8 @@
             "age": 1310,
             "datatype": "bigint"
           }]
-        ]
+        ],
+        "expect_cassandra_specific_error": "LIKE restriction is only supported on properly indexed columns. name LIKE ? is not valid."
       },
       {
         "query": "SELECT name, age FROM bigtabledevinstance.user_info WHERE name LIKE ?",
@@ -1328,7 +1342,8 @@
             "datatype": "text"
           }
         ],
-        "expected_result": []
+        "expected_result": [],
+        "expect_cassandra_specific_error": "LIKE restriction is only supported on properly indexed columns. name LIKE ? is not valid."
       },
       {
         "query": "SELECT name, age FROM bigtabledevinstance.user_info WHERE name LIKE",

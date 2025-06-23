@@ -514,7 +514,8 @@
               { "total_code": 300, "datatype": "int" },
               { "system.avg(balance)": 1500.0, "datatype": "float" }
             ]
-          ]
+          ],
+          "expect_cassandra_specific_error": "Undefined column name total_code in table bigtabledevinstance.user_info"
         },
         {
           "query": "SELECT age AS user_age, name, SUM(code) AS total_code FROM bigtabledevinstance.user_info WHERE age = ? GROUP BY age, name ORDER BY user_age ASC, total_code DESC LIMIT 2",
@@ -532,7 +533,8 @@
               { "name": "CompreTwo", "datatype": "text" },
               { "total_code": 200, "datatype": "int" }
             ]
-          ]
+          ],
+          "expect_cassandra_specific_error": "Undefined column name user_age in table bigtabledevinstance.user_info"
         },
         {
           "query": "SELECT age, name AS username, SUM(code) AS total_code, MAX(balance) AS max_balance FROM bigtabledevinstance.user_info WHERE age = ? GROUP BY age, name ORDER BY username ASC, max_balance DESC LIMIT 2",
@@ -552,7 +554,8 @@
               { "total_code": 300, "datatype": "int" },
               { "max_balance": 1500.0, "datatype": "float" }
             ]
-          ]
+          ],
+          "expect_cassandra_specific_error": "Undefined column name username in table bigtabledevinstance.user_info"
         },
         {
           "query": "SELECT age, name, COUNT(*) FROM bigtabledevinstance.user_info WHERE age = ? GROUP BY age, name ORDER BY age ASC, name DESC LIMIT 2",
@@ -570,7 +573,8 @@
               { "name": "CompreTwo", "datatype": "text" },
               { "system.count(*)": 1, "datatype": "bigint" }
             ]
-          ]
+          ],
+          "expect_cassandra_specific_error": "Order by is currently only supported on the clustered columns of the PRIMARY KEY, got age"
         }
       ],
       "success_message": "Successfully tested GROUP BY, ORDER BY (multi-col), LIMIT, WHERE, aggregates, and AS keyword combinations on user_info (isolated, robust).",

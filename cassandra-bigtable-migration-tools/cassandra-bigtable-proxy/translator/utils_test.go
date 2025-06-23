@@ -1801,9 +1801,9 @@ func TestTranslator_CreateOrderedCodeKey(t *testing.T) {
 			values: map[string]interface{}{
 				"user_id": int64(-1),
 			},
-			want:                         nil,
+			want:                         []byte{0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff},
 			encodeIntValuesWithBigEndian: true,
-			wantErr:                      true,
+			wantErr:                      false,
 		},
 		{
 			name: "int zero",

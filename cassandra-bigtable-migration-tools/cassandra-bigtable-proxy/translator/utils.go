@@ -850,6 +850,23 @@ func processCollectionColumnsForPrepareQueries(input ProcessPrepareCollectionsIn
 			default:
 				return nil, fmt.Errorf("column %s is not a collection type", column.Name)
 			}
+		} else if column.CQLType == datatype.Counter {
+			decodedValue, err := proxycore.DecodeType(datatype.Counter, input.ProtocolV, input.Values[i].Contents)
+			if err != nil {
+				return nil, err
+			}
+			intVal, ok := decodedValue.(int64)
+			if !ok {
+				return nil, fmt.Errorf("failed to convert counter param")
+			}
+			// todo handle negatives?
+
+			meta, ok := input.ComplexMeta[column.Name]
+			if !ok {
+				return nil, fmt.Errorf("unexpected state: no existing operation for counter param")
+			}
+
+			meta.IncrementValue = intVal
 		} else {
 			valInInterface, err := DataConversionInInsertionIfRequired(input.Values[i].Contents, input.ProtocolV, column.CQLType, "byte")
 			if err != nil {
@@ -2504,6 +2521,14 @@ func (t *Translator) ProcessComplexUpdate(columns []types.Column, values []inter
 				meta.Delete = true
 			}
 			complexMeta[column.Name] = meta
+		case primitive.DataTypeCodeCounter:
+			if ca.Operation == "+" || ca.Operation == "-" {
+				meta.Increment = true
+				meta.ExpectedDatatype = datatype.Bigint
+				complexMeta[column.Name] = meta
+			} else {
+				return nil, fmt.Errorf("unsupported counter operation: `%s`", ca.Operation)
+			}
 		default:
 			return nil, fmt.Errorf("column %s is not a collection type", column.Name)
 		}

@@ -359,19 +359,19 @@ func setupAndRunBigtableProxy(m *testing.M) int {
 	return code
 }
 func setupAndRunBigtableProxyLocal(m *testing.M) {
-	var BIGTABLE_CASSANDRA_INSTANCE_MAPPING map[string]string
-	err := json.Unmarshal([]byte(BIGTABLE_INSTANCE), &BIGTABLE_CASSANDRA_INSTANCE_MAPPING)
-	if err != nil {
-		utility.LogFatal(fmt.Sprintf("error while unmarshalling bigtable_cassandra_instance_mapping - %v", err))
-		return
-	}
-	for _, value := range BIGTABLE_CASSANDRA_INSTANCE_MAPPING {
-		err = schema_setup.SetupBigtableInstance(GCP_PROJECT_ID, value, ZONE)
-		if err != nil {
-			utility.LogFatal(fmt.Sprintf("Error while setting bigtable schema- %v", err))
-			return
-		}
-	}
+	//var BIGTABLE_CASSANDRA_INSTANCE_MAPPING map[string]string
+	//err := json.Unmarshal([]byte(BIGTABLE_INSTANCE), &BIGTABLE_CASSANDRA_INSTANCE_MAPPING)
+	//if err != nil {
+	//	utility.LogFatal(fmt.Sprintf("error while unmarshalling bigtable_cassandra_instance_mapping - %v", err))
+	//	return
+	//}
+	//for _, value := range BIGTABLE_CASSANDRA_INSTANCE_MAPPING {
+	//	err = schema_setup.SetupBigtableInstance(GCP_PROJECT_ID, value, ZONE)
+	//	if err != nil {
+	//		utility.LogFatal(fmt.Sprintf("Error while setting bigtable schema- %v", err))
+	//		return
+	//	}
+	//}
 
 	cluster := gocql.NewCluster("localhost")
 	cluster.Port = 9042
@@ -382,7 +382,7 @@ func setupAndRunBigtableProxyLocal(m *testing.M) {
 
 	defer session.Close()
 
-	err = schema_setup.SetupBigtableSchema(session, "schema_setup/setup.sql")
+	err := schema_setup.SetupBigtableSchema(session, "schema_setup/setup.sql")
 	if err != nil {
 		utility.LogFatal(fmt.Sprintf("Error while setting bigtable schema- %v", err))
 		return

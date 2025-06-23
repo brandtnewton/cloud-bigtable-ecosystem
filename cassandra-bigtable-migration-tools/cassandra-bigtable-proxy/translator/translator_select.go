@@ -406,10 +406,11 @@ func processFunctionColumn(t *Translator, columnMetadata schemaMapping.SelectedC
 // ensuring that only appropriate types are used for aggregate operations.
 func dtAllowedInAggregate(dataType string) bool {
 	allowedDataTypes := map[string]bool{
-		"int":    true,
-		"bigint": true,
-		"float":  true,
-		"double": true,
+		"int":     true,
+		"bigint":  true,
+		"float":   true,
+		"double":  true,
+		"counter": true,
 	}
 	return allowedDataTypes[dataType]
 }

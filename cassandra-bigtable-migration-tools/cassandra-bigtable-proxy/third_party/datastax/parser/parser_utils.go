@@ -233,7 +233,6 @@ func IsQueryHandledWithQueryType(keyspace Identifier, query string) (handled boo
 
 	switch t {
 	case tkIdentifier:
-		fmt.Printf("FOOOOOO %s!\n", l.identifier().id)
 		if l.identifier().equal("describe") || l.identifier().equal("desc") {
 			stmt, err := isHandledDescribeStmt(&l)
 			return false, stmt, "describe", err

@@ -1461,6 +1461,9 @@ func castColumns(colMeta *types.Column, columnFamily string) (string, error) {
 		nc = fmt.Sprintf("TO_INT64(%s['%s'])", columnFamily, colMeta.ColumnName)
 	case datatype.Timestamp:
 		nc = fmt.Sprintf("TO_TIME(%s['%s'])", columnFamily, colMeta.ColumnName)
+	case datatype.Counter:
+		// todo use constant
+		nc = fmt.Sprintf("%s['%s']", colMeta.ColumnName, "v")
 	case datatype.Blob:
 		nc = fmt.Sprintf("TO_BLOB(%s['%s'])", columnFamily, colMeta.ColumnName)
 	case datatype.Varchar:

@@ -279,5 +279,115 @@
     ],
     "success_message": "",
     "failure_message": ""
+  },
+  {
+    "title": "Aggregate queries on counters",
+    "description": "run aggregate queries (sum, max, etc.) on counters",
+    "kind": "dml",
+    "operations": [
+      {
+        "query": "UPDATE bigtabledevinstance.social_posts set likes = likes + ? WHERE user_id = ? AND id = ?",
+        "query_type": "UPDATE",
+        "params": [
+          {
+            "value": 2,
+            "datatype": "bigint"
+          },
+          {
+            "value": "user_aggregate_test",
+            "datatype": "text"
+          },
+          {
+            "value": 1,
+            "datatype": "int"
+          }
+        ],
+        "expected_result": null
+      },
+      {
+        "query": "UPDATE bigtabledevinstance.social_posts set likes = likes + ? WHERE user_id = ? AND id = ?",
+        "query_type": "UPDATE",
+        "params": [
+          {
+            "value": 50,
+            "datatype": "bigint"
+          },
+          {
+            "value": "user_aggregate_test",
+            "datatype": "text"
+          },
+          {
+            "value": 2,
+            "datatype": "int"
+          }
+        ],
+        "expected_result": null
+      },
+      {
+        "query": "UPDATE bigtabledevinstance.social_posts set likes = likes + ? WHERE user_id = ? AND id = ?",
+        "query_type": "UPDATE",
+        "params": [
+          {
+            "value": 1,
+            "datatype": "bigint"
+          },
+          {
+            "value": "user_aggregate_test",
+            "datatype": "text"
+          },
+          {
+            "value": 3,
+            "datatype": "int"
+          }
+        ],
+        "expected_result": null
+      },
+      {
+        "query": "UPDATE bigtabledevinstance.social_posts set likes = likes + ? WHERE user_id = ? AND id = ?",
+        "query_type": "UPDATE",
+        "params": [
+          {
+            "value": 10,
+            "datatype": "bigint"
+          },
+          {
+            "value": "user_aggregate_test",
+            "datatype": "text"
+          },
+          {
+            "value": 3,
+            "datatype": "int"
+          }
+        ],
+        "expected_result": null
+      },
+      {
+        "query": "SELECT max(likes), min(likes), sum(likes) FROM bigtabledevinstance.social_posts WHERE user_id = ?",
+        "query_type": "SELECT",
+        "query_desc": "",
+        "params": [
+          {
+            "value": "user_aggregate_test",
+            "datatype": "text"
+          }
+        ],
+        "expected_result": [
+          {
+            "system.max(likes)": 50,
+            "datatype": "bigint"
+          },
+          {
+            "system.min(likes)": 2,
+            "datatype": "bigint"
+          },
+          {
+            "system.sum(likes)": 63,
+            "datatype": "bigint"
+          }
+        ]
+      }
+    ],
+    "success_message": "",
+    "failure_message": ""
   }
 ]

@@ -939,7 +939,7 @@
           { "value": "Alexa Batch", "datatype": "text" },
           { "value": 32, "datatype": "bigint" },
           { "value": 987, "datatype": "int" },
-          { "value": "1747651510418530", "datatype": "bigintTimestamp" }
+          { "value": "1747651510418000", "datatype": "bigintTimestamp" }
         ],
         "expected_result": null
       },

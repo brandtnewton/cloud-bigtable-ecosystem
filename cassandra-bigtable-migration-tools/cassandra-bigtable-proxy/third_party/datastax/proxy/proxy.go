@@ -178,10 +178,9 @@ func createBigtableConnection(ctx context.Context, config Config) (map[string]*b
 
 	// Initialize Bigtable client
 	connConfig := bigtableModule.ConnConfig{
-		InstanceIDs:   config.BigtableConfig.InstanceID,
+		InstancesMap:  config.BigtableConfig.InstancesMap,
 		NumOfChannels: config.BigtableConfig.NumOfChannels,
 		GCPProjectID:  config.BigtableConfig.GCPProjectID,
-		AppProfileID:  config.BigtableConfig.AppProfileID,
 		UserAgent:     config.UserAgent,
 	}
 
@@ -208,18 +207,12 @@ func NewProxy(ctx context.Context, config Config) (*Proxy, error) {
 	if err != nil {
 		return nil, err
 	}
-
 	logger := proxycore.GetOrCreateNopLogger(config.Logger)
-	if err != nil {
-		return nil, err
-	}
-	instanceIDs := strings.Split(config.BigtableConfig.InstanceID, ",")
-
 	tableMetadata := make(map[string]map[string]map[string]*types.Column)
 	pkMetadata := make(map[string]map[string][]types.Column)
-	bigtableCl := bigtableModule.NewBigtableClient(bigtableClients, adminClients, logger, config.BigtableConfig, &responsehandler.TypeHandler{}, &schemaMapping.SchemaMappingConfig{})
-	for _, v := range instanceIDs {
-		instanceID := strings.TrimSpace(v)
+	bigtableCl := bigtableModule.NewBigtableClient(bigtableClients, adminClients, logger, config.BigtableConfig, &responsehandler.TypeHandler{}, &schemaMapping.SchemaMappingConfig{}, config.BigtableConfig.InstancesMap)
+	for k, _ := range config.BigtableConfig.InstancesMap {
+		instanceID := strings.TrimSpace(k)
 
 		tbdata, pkdata, err := bigtableCl.GetSchemaMappingConfigs(ctx, instanceID, config.BigtableConfig.SchemaMappingTable)
 		if err != nil {
@@ -260,18 +253,16 @@ func NewProxy(ctx context.Context, config Config) (*Proxy, error) {
 			ServiceName:        config.OtelConfig.ServiceName,
 			OTELEnabled:        config.OtelConfig.Enabled,
 			TraceSampleRatio:   config.OtelConfig.Traces.SamplingRatio,
-			Instance:           config.BigtableConfig.InstanceID,
 			HealthCheckEnabled: config.OtelConfig.HealthCheck.Enabled,
 			HealthCheckEp:      config.OtelConfig.HealthCheck.Endpoint,
 			ServiceVersion:     config.Version.String(),
 		}
-		config.Logger.Info("OTEL enabled at the application start for the database: " + config.BigtableConfig.InstanceID)
 	} else {
 		otelConfig = &otelgo.OTelConfig{OTELEnabled: false}
 	}
 	otelInst, shutdownOTel, err = otelgo.NewOpenTelemetry(ctx, otelConfig, config.Logger)
 	if err != nil {
-		config.Logger.Error("Failed to enable the OTEL for the database: " + config.BigtableConfig.InstanceID)
+		config.Logger.Error("Failed to enable the OTEL: " + err.Error())
 		return nil, err
 	}
 	systemQueryMetadataCache, err := ConstructSystemMetadataRows(tableMetadata)
@@ -1069,7 +1060,7 @@ func (c *client) handleBatch(raw *frame.RawFrame, msg *partialBatch) {
 	})
 	defer c.proxy.otelInst.EndSpan(span)
 	var otelErr error
-	defer c.proxy.otelInst.RecordMetrics(otelCtx, handleBatch, startTime, handleBatch, otelErr)
+	defer c.proxy.otelInst.RecordMetrics(otelCtx, handleBatch, startTime, handleBatch, c.keyspace, otelErr)
 	tableMutationsMap := make(map[string][]bigtableModule.MutationData)
 	for index, queryId := range msg.queryOrIds {
 		queryOrId, ok := queryId.([]byte)
@@ -1178,7 +1169,7 @@ func (c *client) handleExecuteForSelect(raw *frame.RawFrame, msg *partialExecute
 		attribute.String(rowKey, st.TranslatedQuery),
 	})
 	defer c.proxy.otelInst.EndSpan(span)
-	defer c.proxy.otelInst.RecordMetrics(otelCtx, handleExecuteForSelect, startTime, selectType, err)
+	defer c.proxy.otelInst.RecordMetrics(otelCtx, handleExecuteForSelect, startTime, selectType, c.keyspace, err)
 
 	// Get Decoded parameters
 	otelgo.AddAnnotation(otelCtx, "Decoding Bytes To Cassandra Column Type")
@@ -1191,7 +1182,14 @@ func (c *client) handleExecuteForSelect(raw *frame.RawFrame, msg *partialExecute
 			return
 		}
 		clause, _ := utilities.GetClauseByColumn(st.Clauses, columnMetada.Name)
-		if clause.Operator == constants.MAP_CONTAINS_KEY || clause.Operator == constants.ARRAY_INCLUDES {
+		isMapContainsKey := clause.Operator == constants.MAP_CONTAINS_KEY
+		isArrayIncludes := clause.Operator == constants.ARRAY_INCLUDES
+		isNotPrimaryKey := !slices.Contains(st.PrimaryKeys, columnMetada.Name)
+		isColumnNotLimitValue := columnMetada.Name != limitValue
+		isOperatorNotIn := clause.Operator != constants.IN
+		if isMapContainsKey ||
+			isArrayIncludes ||
+			(isNotPrimaryKey && isColumnNotLimitValue && isOperatorNotIn) {
 			// these function will only accept bytes value in the prepare query
 			valInBytes, err := utilities.TypeConversion(decodedValue, raw.Header.Version)
 			if err != nil {
@@ -1219,14 +1217,12 @@ func (c *client) handleExecuteForSelect(raw *frame.RawFrame, msg *partialExecute
 		IsStar:              st.ColumnMeta.Star,
 		Limit:               st.Limit,
 	}
-
 	// query, err = ReplaceLimitValue(query)
 	if val, exists := query.Params[limitValue]; exists {
 		if val.(int64) <= 0 {
 			err = fmt.Errorf("LIMIT must be strictly positive")
 		}
 	}
-
 	if err != nil {
 		c.proxy.logger.Error(errorAtBigtable, zap.String(Query, st.Query), zap.Error(err))
 		c.sender.Send(raw.Header, &message.Invalid{ErrorMessage: err.Error()})
@@ -1261,7 +1257,7 @@ func (c *client) handleExecuteForUpdate(raw *frame.RawFrame, msg *partialExecute
 		attribute.String(rowKey, st.RowKey),
 	})
 	defer c.proxy.otelInst.EndSpan(span)
-	defer c.proxy.otelInst.RecordMetrics(otelCtx, handleExecuteForUpdate, startTime, updateType, otelErr)
+	defer c.proxy.otelInst.RecordMetrics(otelCtx, handleExecuteForUpdate, startTime, updateType, c.keyspace, otelErr)
 
 	queryMetadata, _, err := c.prepareUpdateQueryMetadata(raw, msg.PositionalValues, st)
 
@@ -1293,7 +1289,7 @@ func (c *client) handleExecuteForDelete(raw *frame.RawFrame, msg *partialExecute
 		attribute.String(rowKey, st.RowKey),
 	})
 	defer c.proxy.otelInst.EndSpan(span)
-	defer c.proxy.otelInst.RecordMetrics(otelCtx, handleExecuteForDelete, start, deleteType, otelErr)
+	defer c.proxy.otelInst.RecordMetrics(otelCtx, handleExecuteForDelete, start, deleteType, c.keyspace, otelErr)
 
 	var deleteMetadata *translator.DeleteQueryMapping
 	deleteMetadata, err := c.prepareDeleteQueryMetadata(raw, msg.PositionalValues, st)
@@ -1335,7 +1331,7 @@ func (c *client) handleExecuteForInsert(raw *frame.RawFrame, msg *partialExecute
 		attribute.String(rowKey, queryMetadata.RowKey),
 	})
 	defer c.proxy.otelInst.EndSpan(span)
-	defer c.proxy.otelInst.RecordMetrics(otelCtx, handleExecuteForDelete, start, deleteType, otelErr)
+	defer c.proxy.otelInst.RecordMetrics(otelCtx, handleExecuteForDelete, start, deleteType, c.keyspace, otelErr)
 
 	otelgo.AddAnnotation(otelCtx, executingBigtableRequestEvent)
 	resp, iErr := c.proxy.bClient.InsertRow(otelCtx, queryMetadata)
@@ -1455,7 +1451,7 @@ func (c *client) handleQuery(raw *frame.RawFrame, msg *partialQuery) {
 	} else {
 		var result *message.RowsResult
 		var otelErr error
-		defer c.proxy.otelInst.RecordMetrics(otelCtx, handleQuery, startTime, queryType, otelErr)
+		defer c.proxy.otelInst.RecordMetrics(otelCtx, handleQuery, startTime, queryType, c.keyspace, otelErr)
 
 		switch queryType {
 		case describeType:
@@ -1740,7 +1736,7 @@ func (c *client) localIP() net.IP {
 	if c.proxy.config.RPCAddr != "" {
 		return net.ParseIP(c.proxy.config.RPCAddr)
 	}
-	return net.ParseIP("10.5.0.41")
+	return net.ParseIP("127.0.0.1")
 }
 
 func (c *client) filterSystemPeerValues(stmt *parser.SelectStatement, filtered []*message.ColumnMetadata, peer *node, peerCount int) (row []message.Column, err error) {

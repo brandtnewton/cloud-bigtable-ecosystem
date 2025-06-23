@@ -242,7 +242,8 @@
                             "datatype": "float"
                         }
                     ]
-                ]
+                ],
+                "expect_cassandra_specific_error": "Group by is currently only supported on the columns of the PRIMARY KEY, got region"
             },
             {
                 "query": "SELECT region, category, SUM(revenue_bigint) AS total_revenue, AVG(discount) AS avg_discount FROM bigtabledevinstance.aggregation_grouping_test GROUP BY region, category",
@@ -304,7 +305,8 @@
                             "datatype": "double"
                         }
                     ]
-                ]
+                ],
+                "expect_cassandra_specific_error": "Group by is currently only supported on the columns of the PRIMARY KEY, got region"
             },
             {
                 "query": "SELECT category, SUM(quantity), AVG(price) FROM bigtabledevinstance.aggregation_grouping_test GROUP BY category",
@@ -384,7 +386,8 @@
                             "datatype": "float"
                         }
                     ]
-                ]
+                ],
+                "expect_cassandra_specific_error": "Group by is currently only supported on the columns of the PRIMARY KEY, got region"
             }
         ],
         "success_message": "Successfully tested GROUP BY operations with and without aliases",

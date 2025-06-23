@@ -2240,9 +2240,6 @@ func encodeInt64Key(value int64, encodeIntValuesWithBigEndian bool) ([]byte, err
 	// todo remove once ordered byte encoding is supported for ints
 	// override ordered code value with BigEndian
 	if encodeIntValuesWithBigEndian {
-		if value < 0 {
-			return nil, errors.New("row keys cannot contain negative integer values until ordered byte encoding is supported")
-		}
 
 		var b bytes.Buffer
 		err := binary.Write(&b, binary.BigEndian, value)

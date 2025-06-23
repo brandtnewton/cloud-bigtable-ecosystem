@@ -1174,7 +1174,8 @@
                         ],
                         "datatype": "list<int>"
                     }
-                ]
+                ],
+                "expect_cassandra_specific_error": "Cannot execute this query as it might involve data filtering and thus may have unpredictable performance. If you want to execute this query despite the performance unpredictability, use ALLOW FILTERING"
             },
             {
                 "query": "SELECT name as n, list_int as l, list_text as t FROM bigtabledevinstance.user_info WHERE list_text CONTAINS ?",
@@ -1207,7 +1208,8 @@
                         ],
                         "datatype": "list<text>"
                     }
-                ]
+                ],
+                "expect_cassandra_specific_error": "Cannot execute this query as it might involve data filtering and thus may have unpredictable performance. If you want to execute this query despite the performance unpredictability, use ALLOW FILTERING"
             },
             {
                 "query": "SELECT name as n, list_int as l, list_text as t FROM bigtabledevinstance.user_info WHERE list_text CONTAINS ?",
@@ -1219,7 +1221,8 @@
                         "datatype": "text"
                     }
                 ],
-                "expected_result": []
+                "expected_result": [],
+                "expect_cassandra_specific_error": "Cannot execute this query as it might involve data filtering and thus may have unpredictable performance. If you want to execute this query despite the performance unpredictability, use ALLOW FILTERING"
             }
         ],
         "success_message": "Successfully read the list with contains key clause.",

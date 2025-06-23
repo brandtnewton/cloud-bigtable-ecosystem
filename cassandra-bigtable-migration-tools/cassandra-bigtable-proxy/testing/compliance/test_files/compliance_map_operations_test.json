@@ -1001,7 +1001,8 @@
                         },
                         "datatype": "map<text,text>"
                     }
-                ]
+                ],
+                "expect_cassandra_specific_error": "Cannot execute this query as it might involve data filtering and thus may have unpredictable performance. If you want to execute this query despite the performance unpredictability, use ALLOW FILTERING"
             },
             {
                 "query": "SELECT map_text_int FROM bigtabledevinstance.user_info WHERE map_text_int CONTAINS KEY ?",
@@ -1021,7 +1022,8 @@
                         },
                         "datatype": "map<text,int>"
                     }
-                ]
+                ],
+                "expect_cassandra_specific_error": "Cannot execute this query as it might involve data filtering and thus may have unpredictable performance. If you want to execute this query despite the performance unpredictability, use ALLOW FILTERING"
             },
             {
                 "query": "SELECT extra_info FROM bigtabledevinstance.user_info WHERE extra_info CONTAINS KEY ?",
@@ -1033,7 +1035,8 @@
                         "datatype": "text"
                     }
                 ],
-                "expected_result": null
+                "expected_result": null,
+                "expect_cassandra_specific_error": "Cannot execute this query as it might involve data filtering and thus may have unpredictable performance. If you want to execute this query despite the performance unpredictability, use ALLOW FILTERING"
             }
         ],
         "success_message": "Map operation with contains key clause completed successfully.",

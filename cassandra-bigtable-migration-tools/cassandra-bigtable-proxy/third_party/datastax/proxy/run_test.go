@@ -227,7 +227,7 @@ func TestLoadConfig(t *testing.T) {
 						Port: 9092,
 						Bigtable: Bigtable{
 							ProjectID:           "cassandra-prod-789",
-							InstanceIDs:         "prod-instance-001",
+							Instances:           []InstancesMap{{BigtableInstance: "prod-instance-001", Keyspace: "prodinstance001"}},
 							SchemaMappingTable:  "prod_table_config",
 							DefaultColumnFamily: "cf_default",
 							AppProfileID:        "prod-profile-123",
@@ -294,7 +294,7 @@ func TestRun(t *testing.T) {
 
 	// Override the factory function to return the mock
 	originalNewBigTableClient := bt.NewBigtableClient
-	bt.NewBigtableClient = func(client map[string]*bigtable.Client, adminClients map[string]*bigtable.AdminClient, logger *zap.Logger, config bt.BigtableConfig, responseHandler rh.ResponseHandlerIface, schemaMapping *schemaMapping.SchemaMappingConfig) bt.BigTableClientIface {
+	bt.NewBigtableClient = func(client map[string]*bigtable.Client, adminClients map[string]*bigtable.AdminClient, logger *zap.Logger, config bt.BigtableConfig, responseHandler rh.ResponseHandlerIface, schemaMapping *schemaMapping.SchemaMappingConfig, instancesMap map[string]bt.InstanceConfig) bt.BigTableClientIface {
 		return bgtmockface
 	}
 	defer func() { bt.NewBigtableClient = originalNewBigTableClient }()

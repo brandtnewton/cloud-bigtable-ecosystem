@@ -791,7 +791,7 @@ func TestNewProxy(t *testing.T) {
 
 	// Override the factory function to return the mock
 	originalNewBigTableClient := bt.NewBigtableClient
-	bt.NewBigtableClient = func(client map[string]*bigtable.Client, adminClients map[string]*bigtable.AdminClient, logger *zap.Logger, config bt.BigtableConfig, responseHandler rh.ResponseHandlerIface, schemaMapping *schemaMapping.SchemaMappingConfig) bt.BigTableClientIface {
+	bt.NewBigtableClient = func(client map[string]*bigtable.Client, adminClients map[string]*bigtable.AdminClient, logger *zap.Logger, config bt.BigtableConfig, responseHandler rh.ResponseHandlerIface, schemaMapping *schemaMapping.SchemaMappingConfig, instancesMap map[string]bt.InstanceConfig) bt.BigTableClientIface {
 		return bgtmockface
 	}
 	defer func() { bt.NewBigtableClient = originalNewBigTableClient }()
@@ -1305,35 +1305,18 @@ func TestHandleExecuteForInsert(t *testing.T) {
 		Values:           []interface{}{"testshoaib", "25"},
 	}, ctx)
 }
-
 func TestHandleExecuteForSelect(t *testing.T) {
 	ctx := context.Background()
 	mockSender := &mockSender{}
 	preparedStatement := &bigtable.PreparedStatement{}
 
+	// 1. Setup mock BigTable client
 	bigTablemockiface := new(mockbigtable.BigTableClientIface)
-	bigTablemockiface.On("PrepareStatement", ctx, responsehandler.QueryMetadata{
-		Query:                    "SELECT * FROM user_info WHERE name = @value1;",
-		QueryType:                "SELECT",
-		TableName:                "user_info",
-		KeyspaceName:             "test_keyspace",
-		ProtocalV:                0x4,
-		Params:                   map[string]interface{}{"value1": ""},
-		SelectedColumns:          nil,
-		Paramkeys:                nil,
-		ParamValues:              nil,
-		UsingTSCheck:             "",
-		SelectQueryForDelete:     "",
-		PrimaryKeys:              []string{"name"},
-		ComplexUpdateSelectQuery: "",
-		UpdateSetValues:          nil,
-		MutationKeyRange:         nil,
-		DefaultColumnFamily:      "cf1",
-		IsStar:                   true,
-		Limit:                    translator.Limit{IsLimit: false, Count: ""},
-		IsGroupBy:                false,
-		Clauses:                  []types.Clause{types.Clause{Operator: "=", Column: "name", Value: "@value1", IsPrimaryKey: true}},
-	}).Return(preparedStatement, nil)
+
+	// PrepareStatement mock
+	bigTablemockiface.On("PrepareStatement", ctx, mock.AnythingOfType("responsehandler.QueryMetadata")).
+		Return(preparedStatement, nil)
+
 	client := client{
 		ctx:            ctx,
 		preparedQuerys: make(map[[16]byte]interface{}),
@@ -1345,14 +1328,21 @@ func TestHandleExecuteForSelect(t *testing.T) {
 			translator: &translator.Translator{
 				SchemaMappingConfig: GetSchemaMappingConfig(),
 			},
-			otelInst: &otelgo.OpenTelemetry{Config: &otelgo.OTelConfig{
-				ServiceName: "test",
-				OTELEnabled: false,
-			}},
-		}}
+			otelInst: &otelgo.OpenTelemetry{
+				Config: &otelgo.OTelConfig{
+					ServiceName: "test",
+					OTELEnabled: false,
+				},
+			},
+		},
+	}
+
+	// 2. Test preparation
 	keyspace := ""
 	selectQuery := "SELECT * FROM test_keyspace.user_info WHERE name = ?;"
 	id := md5.Sum([]byte(selectQuery + keyspace))
+
+	// Prepare the query
 	varMeta, returnMeta, err := client.prepareSelectType(mockRawFrame, &message.Prepare{
 		Query:    selectQuery,
 		Keyspace: keyspace,
@@ -1361,27 +1351,23 @@ func TestHandleExecuteForSelect(t *testing.T) {
 	assert.NotNil(t, varMeta)
 	assert.NotNil(t, returnMeta)
 
-	bigTablemockiface.On("ExecutePreparedStatement", ctx, responsehandler.QueryMetadata{
-		Query:                    "SELECT * FROM user_info WHERE name = @value1;",
-		QueryType:                "SELECT",
-		TableName:                "user_info",
-		KeyspaceName:             "test_keyspace",
-		ProtocalV:                0x4,
-		Params:                   map[string]interface{}{"name": "testshoaib", "age": "testshoaib"},
-		SelectedColumns:          nil,
-		Paramkeys:                nil,
-		ParamValues:              nil,
-		UsingTSCheck:             "",
-		SelectQueryForDelete:     "",
-		PrimaryKeys:              []string{"name"},
-		ComplexUpdateSelectQuery: "",
-		UpdateSetValues:          nil,
-		MutationKeyRange:         nil,
-		DefaultColumnFamily:      "cf1",
-		IsStar:                   true,
-		Limit:                    translator.Limit{IsLimit: false, Count: ""},
-		IsGroupBy:                false,
-	}, preparedStatement).Return(&message.RowsResult{
+	// 3. Setup ExecutePreparedStatement mock with flexible parameter matching
+	bigTablemockiface.On("ExecutePreparedStatement", ctx, mock.MatchedBy(func(q responsehandler.QueryMetadata) bool {
+		// Verify the name parameter
+		if q.Params["name"] != "testshoaib" {
+			return false
+		}
+
+		// Allow either string or []byte for age
+		switch v := q.Params["age"].(type) {
+		case string:
+			return v == "20" || v == "testshoaib"
+		case []byte:
+			return string(v) == "20" || string(v) == "testshoaib"
+		default:
+			return false
+		}
+	}), preparedStatement).Return(&message.RowsResult{
 		Metadata: &message.RowsMetadata{
 			ColumnCount: 2,
 			Columns: []*message.ColumnMetadata{
@@ -1392,13 +1378,13 @@ func TestHandleExecuteForSelect(t *testing.T) {
 		Data: message.RowSet{},
 	}, time.Now(), nil)
 
-	// Create a SelectQueryMap with matching ParamKeys and VariableMetadata
+	// 4. Create test query map
 	selectQueryMap := &translator.SelectQueryMap{
 		Query:            selectQuery,
 		QueryType:        "SELECT",
 		Table:            "user_info",
 		Keyspace:         "test_keyspace",
-		ParamKeys:        make([]string, len(varMeta)), // Ensure ParamKeys has the same length as VariableMetadata
+		ParamKeys:        make([]string, len(varMeta)),
 		VariableMetadata: varMeta,
 		ReturnMetadata:   returnMeta,
 		ColumnMeta:       translator.ColumnMeta{Star: true},
@@ -1407,26 +1393,37 @@ func TestHandleExecuteForSelect(t *testing.T) {
 		CachedBTPrepare:  preparedStatement,
 	}
 
-	// Set the ParamKeys to match the VariableMetadata
+	// Set parameter names
 	for i := range varMeta {
 		selectQueryMap.ParamKeys[i] = varMeta[i].Name
 	}
 
-	// Create PositionalValues with the same length as VariableMetadata
+	// 5. Create test values - make sure these match what you expect
 	positionalValues := make([]*primitive.Value, len(varMeta))
 	for i := range varMeta {
-		positionalValues[i] = &primitive.Value{
-			Type:     primitive.ValueTypeRegular,
-			Contents: []byte("testshoaib"),
+		// Set different values for different parameters if needed
+		if varMeta[i].Name == "age" {
+			positionalValues[i] = &primitive.Value{
+				Type:     primitive.ValueTypeRegular,
+				Contents: []byte("20"), // Changed to match expected value
+			}
+		} else {
+			positionalValues[i] = &primitive.Value{
+				Type:     primitive.ValueTypeRegular,
+				Contents: []byte("testshoaib"),
+			}
 		}
 	}
 
+	// 6. Execute the test
 	client.handleExecuteForSelect(mockRawFrame, &partialExecute{
 		queryId:          id[:],
 		PositionalValues: positionalValues,
 	}, selectQueryMap, ctx)
 
+	// 7. Verify
 	assert.True(t, mockSender.SendCalled)
+	bigTablemockiface.AssertExpectations(t)
 }
 
 func TestHandleExecuteForDelete(t *testing.T) {

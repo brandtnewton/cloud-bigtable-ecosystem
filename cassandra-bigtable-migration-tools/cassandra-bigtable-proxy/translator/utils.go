@@ -683,12 +683,12 @@ func handleCounterOperation(val interface{}, column types.Column, input ProcessR
 			if err != nil {
 				return err
 			}
+			var op = Increment
 			if v.Operation == "-" {
-				// make the increment value negative for decrementing
-				intVal *= -1
+				op = Decrement
 			}
 			output.ComplexMeta[column.Name] = &ComplexOperation{
-				Increment:      true,
+				Increment:      op,
 				IncrementValue: intVal,
 			}
 			return nil
@@ -2523,7 +2523,11 @@ func (t *Translator) ProcessComplexUpdate(columns []types.Column, values []inter
 			complexMeta[column.Name] = meta
 		case primitive.DataTypeCodeCounter:
 			if ca.Operation == "+" || ca.Operation == "-" {
-				meta.Increment = true
+				var op = Increment
+				if ca.Operation == "-" {
+					op = Decrement
+				}
+				meta.Increment = op
 				meta.ExpectedDatatype = datatype.Bigint
 				complexMeta[column.Name] = meta
 			} else {

@@ -188,8 +188,10 @@ func (btc *BigtableClient) mutateRow(ctx context.Context, tableName, rowKey stri
 
 	// Handle complex updates
 	for cf, meta := range ComplexOperation {
-		if meta.Increment {
+		if meta.Increment == translator.Increment {
 			mut.AddIntToCell(cf, counterColumnQualifier, 0, meta.IncrementValue)
+		} else if meta.Increment == translator.Decrement {
+			mut.AddIntToCell(cf, counterColumnQualifier, 0, meta.IncrementValue*-1)
 		}
 		if meta.UpdateListIndex != "" {
 			index, err := strconv.Atoi(meta.UpdateListIndex)

@@ -109,18 +109,27 @@ type TimestampInfo struct {
 	HasUsingTimestamp bool
 	Index             int32
 }
+
+type IncrementOperationType int
+
+const (
+	None IncrementOperationType = iota
+	Increment
+	Decrement
+)
+
 type ComplexOperation struct {
-	Append           bool              // this is for map/set/list
-	PrependList      bool              // this is for list
-	Delete           bool              // this is for map/set/list
-	Increment        bool              // for incrementing counter
-	UpdateListIndex  string            // this is for List index
-	ExpectedDatatype datatype.DataType // this datatype has to be provided in case of change in want datatype.
-	mapKey           interface{}       // this key is for map key
-	Value            []byte            // this is value for setting at index for list
-	ListDelete       bool              // this is for list = list - {value1, value2}
-	ListDeleteValues [][]byte          // this stores the values to be deleted from list
-	IncrementValue   int64             // how much to increment the counter by
+	Append           bool                   // this is for map/set/list
+	PrependList      bool                   // this is for list
+	Delete           bool                   // this is for map/set/list
+	Increment        IncrementOperationType // for incrementing counter
+	UpdateListIndex  string                 // this is for List index
+	ExpectedDatatype datatype.DataType      // this datatype has to be provided in case of change in want datatype.
+	mapKey           interface{}            // this key is for map key
+	Value            []byte                 // this is value for setting at index for list
+	ListDelete       bool                   // this is for list = list - {value1, value2}
+	ListDeleteValues [][]byte               // this stores the values to be deleted from list
+	IncrementValue   int64                  // how much to increment the counter by
 }
 
 // InsertQueryMapping represents the mapping of an insert query along with its translation details.

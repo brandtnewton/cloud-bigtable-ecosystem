@@ -26,6 +26,7 @@ import (
 	types "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/global/types"
 	schemaMapping "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/schema-mapping"
 	cql "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/third_party/cqlparser"
+	"github.com/datastax/go-cassandra-native-protocol/datatype"
 )
 
 const (
@@ -516,7 +517,9 @@ Returns:
 	An updated slice of strings with the new formatted column reference appended.
 */
 func processRegularColumn(columnMetadata schemaMapping.SelectedColumns, tableName string, columnFamily string, colMeta *types.Column, columns []string, isGroupBy bool) []string {
-	if !colMeta.IsCollection {
+	if colMeta.CQLType == datatype.Counter {
+		columns = append(columns, fmt.Sprintf("%s['v']", columnMetadata.Name))
+	} else if !colMeta.IsCollection {
 		if isGroupBy {
 			castedCol, _ := castColumns(colMeta, columnFamily)
 			columns = append(columns, castedCol)

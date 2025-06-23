@@ -204,7 +204,7 @@ func (btc *BigtableClient) convertResultRowToMap(resultRow bigtable.ResultRow, q
 		case nil:
 			rowMap[colName] = nil
 		default:
-			convertErr = fmt.Errorf("unsupported Bigtable SQL type  %v for column %s", v, colName)
+			convertErr = fmt.Errorf("unsupported Bigtable SQL type  %T for column %s", v, colName)
 		}
 		if convertErr != nil {
 			return nil, convertErr // Return error if conversion failed

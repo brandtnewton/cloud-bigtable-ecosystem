@@ -53,7 +53,7 @@ CREATE TABLE IF NOT EXISTS bigtabledevinstance.aggregation_grouping_test (
 );
 
 
-CREATE TABLE IF NOT EXISTS cassandrakeysapce.user_info (
+CREATE TABLE IF NOT EXISTS cassandrakeyspace.user_info (
   name text,
   age bigint,
   code int,
@@ -93,9 +93,9 @@ CREATE TABLE IF NOT EXISTS cassandrakeysapce.user_info (
   PRIMARY KEY (age, name)
 );
 
-CREATE TABLE IF NOT EXISTS cassandrakeysapce.orders (user_id varchar, order_num int, name varchar, PRIMARY KEY (user_id, order_num));
+CREATE TABLE IF NOT EXISTS cassandrakeyspace.orders (user_id varchar, order_num int, name varchar, PRIMARY KEY (user_id, order_num));
 
-CREATE TABLE IF NOT EXISTS cassandrakeysapce.aggregation_grouping_test (
+CREATE TABLE IF NOT EXISTS cassandrakeyspace.aggregation_grouping_test (
     region text,
     category varchar,
     item_id int,

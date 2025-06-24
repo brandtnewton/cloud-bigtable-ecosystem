@@ -21,47 +21,47 @@ cassandraToBigtableConfigs:
   defaultColumnFamily: cf1
 
 listeners:
-  - name: cluster1
-    port: 9042
-    bigtable:
-      # [Optional], skip if it is the same as global_projectId.
-      projectId: cassandra-to-spanner
+- name: cluster1
+  port: 9042
+  bigtable:
+    # [Optional], skip if it is the same as global_projectId.
+    projectId: cassandra-to-spanner
 
-      # [Optional] appProfileID (global) is required only if you want to use a specific app profile.
-      # If a per-instance appProfileID is specified, it will override this global setting.
+    # [Optional] appProfileID (global) is required only if you want to use a specific app profile.
+    # If a per-instance appProfileID is specified, it will override this global setting.
+    # appProfileID: bigtable-dev-profile
+
+    # If you want to use multiple instances then pass the instance names by comma seperated
+    # Instance(cassandra keyspace) name should not contain any special characters except underscore(_)
+    # if instanceIds values given here then proxy wont read from the below instances list
+    # instanceIds: instance1,instance2
+
+    # If you want to use multiple instances, define them as a list of objects below.
+    instances:
+    # [Required] The name of the Bigtable instance.
+    - bigtableInstance: bigtabledevinstance
+      # [Required] The cassandra keyspace associated with this Bigtable instance.
+      # Cassandra keyspace should not contain any special characters except underscore(_).
+      keyspace: bigtabledevinstance
+      # [Optional] appProfileID is required only if you want to use a specific app profile for this instance.
+      # This will override the global appProfileID if specified.
       # appProfileID: bigtable-dev-profile
+      # [example for adding another keyspace instance]
+      # - bigtableInstance: bt-instance
+      #   keyspace: cassandrakeyspace
+      #   appProfileID: bigtable-dev-profile
 
-      # If you want to use multiple instances then pass the instance names by comma seperated
-      # Instance(cassandra keyspace) name should not contain any special characters except underscore(_)
-      # if instanceIds values given here then proxy wont read from the below instances list
-      # instanceIds: instance1,instance2
-
-      # If you want to use multiple instances, define them as a list of objects below.
-      instances:
-        # [Required] The name of the Bigtable instance.
-        - bigtableInstance: bigtabledevinstance
-          # [Required] The cassandra keyspace associated with this Bigtable instance.
-          # Cassandra keyspace should not contain any special characters except underscore(_).
-          keyspace: bigtabledevinstance
-          # [Optional] appProfileID is required only if you want to use a specific app profile for this instance.
-          # This will override the global appProfileID if specified.
-          # appProfileID: bigtable-dev-profile
-        # [example for adding another keyspace instance]
-        # - bigtableInstance: bt-instance
-        #   keyspace: cassandrakeysapce
-        #   appProfileID: bigtable-dev-profile
-
-        # [Required] The name of the Bigtable instance.
+      # [Required] The name of the Bigtable instance.
 
       # [Required] Name of the table  where cassandra schema to bigtable schema mapping is stored.
-      schemaMappingTable: schema_mapping
+    schemaMappingTable: schema_mapping
 
-      #[Required] Default column family for primitive data types is "cf1"
-      defaultColumnFamily: cf1
+    #[Required] Default column family for primitive data types is "cf1"
+    defaultColumnFamily: cf1
 
-      # Number of grpc channels to be used for Bigtable session.
-      Session:
-        grpcChannels: 4
+    # Number of grpc channels to be used for Bigtable session.
+    Session:
+      grpcChannels: 4
 
 otel:
   # Set enabled to true or false for OTEL metrics/traces/logs.

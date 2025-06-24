@@ -32,21 +32,21 @@ import (
 	"time"
 
 	"cloud.google.com/go/bigtable"
+	bigtableModule "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/bigtable"
+	constants "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/global/constants"
+	types "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/global/types"
+	otelgo "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/otel"
+	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/responsehandler"
+	schemaMapping "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/schema-mapping"
+	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/third_party/datastax/parser"
+	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/third_party/datastax/proxycore"
+	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/translator"
+	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/utilities"
 	"github.com/datastax/go-cassandra-native-protocol/datatype"
 	"github.com/datastax/go-cassandra-native-protocol/frame"
 	"github.com/datastax/go-cassandra-native-protocol/message"
 	"github.com/datastax/go-cassandra-native-protocol/primitive"
 	lru "github.com/hashicorp/golang-lru"
-	bigtableModule "github.com/ollionorg/cassandra-to-bigtable-proxy/bigtable"
-	constants "github.com/ollionorg/cassandra-to-bigtable-proxy/global/constants"
-	types "github.com/ollionorg/cassandra-to-bigtable-proxy/global/types"
-	otelgo "github.com/ollionorg/cassandra-to-bigtable-proxy/otel"
-	"github.com/ollionorg/cassandra-to-bigtable-proxy/responsehandler"
-	schemaMapping "github.com/ollionorg/cassandra-to-bigtable-proxy/schema-mapping"
-	"github.com/ollionorg/cassandra-to-bigtable-proxy/third_party/datastax/parser"
-	"github.com/ollionorg/cassandra-to-bigtable-proxy/third_party/datastax/proxycore"
-	"github.com/ollionorg/cassandra-to-bigtable-proxy/translator"
-	"github.com/ollionorg/cassandra-to-bigtable-proxy/utilities"
 	"go.opentelemetry.io/otel/attribute"
 	"go.uber.org/zap"
 )
@@ -132,6 +132,8 @@ type Config struct {
 	// capacity of ~100MB.
 	PreparedCache proxycore.PreparedCache
 	UserAgent     string
+	ClientPid     int32
+	ClientUid     uint32
 }
 
 type Proxy struct {
@@ -409,6 +411,15 @@ func (p *Proxy) Ready() bool {
 	return true
 }
 
+type UCred struct {
+	Pid int32
+	Uid uint32
+}
+
+func getUdsPeerCredentials(conn *net.UnixConn) (UCred, error) {
+	return getUdsPeerCredentialsOS(conn)
+}
+
 func (p *Proxy) handle(conn net.Conn) {
 	if tcpConn, ok := conn.(*net.TCPConn); ok {
 		if err := tcpConn.SetKeepAlive(false); err != nil {
@@ -416,6 +427,14 @@ func (p *Proxy) handle(conn net.Conn) {
 		}
 		if err := tcpConn.SetNoDelay(true); err != nil {
 			p.logger.Warn("failed to set TCP_NODELAY on connection", zap.Error(err))
+		}
+	}
+
+	if unixConn, ok := conn.(*net.UnixConn); ok {
+		UCred, err := getUdsPeerCredentials(unixConn)
+		if err != nil || p.config.ClientPid != UCred.Pid || p.config.ClientUid != UCred.Uid {
+			conn.Close()
+			p.logger.Error("failed to authenticate connection")
 		}
 	}
 

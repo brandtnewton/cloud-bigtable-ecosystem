@@ -357,7 +357,7 @@ We can setup the `cassandra-to-bigtable-proxy` adaptor via 3 different methods a
 
 Steps to run the adaptor locally are as mentioned below:
 
-- Clone the repository (https://github.com/ollionorg/cassandra-to-bigtable-proxy.git)
+- Clone the repository (https://github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem.git)
 - Update `config.yaml`
   #### There are several ways to run/start proxy(Using Build and without Build):
   **1. Using Build**

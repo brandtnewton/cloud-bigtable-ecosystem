@@ -287,7 +287,7 @@ func stringToPrimitives(value string, cqlType datatype.DataType) (interface{}, e
 		}
 		iv = int32(val)
 
-	case datatype.Bigint:
+	case datatype.Bigint, datatype.Counter:
 		val, err := strconv.ParseInt(value, 10, 64)
 		if err != nil {
 			return nil, fmt.Errorf("error converting string to int64: %w", err)

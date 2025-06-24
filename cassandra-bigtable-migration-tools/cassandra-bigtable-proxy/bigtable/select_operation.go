@@ -80,7 +80,7 @@ func (btc *BigtableClient) ExecutePreparedStatement(ctx context.Context, query r
 		rowMap, convertErr := btc.convertResultRowToMap(resultRow, query) // Call the implemented helper
 		if convertErr != nil {
 			// Log the error and stop processing
-			btc.Logger.Error("Failed to convert result row", zap.Error(convertErr))
+			btc.Logger.Error("Failed to convert result row", zap.Error(convertErr), zap.String("btql", query.Query))
 			processingErr = convertErr // Capture the error
 			return false               // Stop execution
 		}

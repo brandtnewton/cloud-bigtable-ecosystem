@@ -26,6 +26,7 @@ import com.google.cloud.bigtable.data.v2.BigtableDataClient;
 import com.google.cloud.bigtable.data.v2.models.Query;
 import com.google.cloud.bigtable.data.v2.models.Row;
 import com.google.cloud.kafka.connect.bigtable.wrappers.BigtableTableAdminClientInterface;
+import com.google.common.util.concurrent.Futures;
 import com.google.protobuf.ByteString;
 import java.util.List;
 import java.util.Map;

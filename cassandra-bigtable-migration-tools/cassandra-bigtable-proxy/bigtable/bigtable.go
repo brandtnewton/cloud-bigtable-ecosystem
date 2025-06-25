@@ -258,13 +258,13 @@ func (btc *BigtableClient) mutateRow(ctx context.Context, tableName, rowKey stri
 }
 
 func (btc *BigtableClient) TruncateTable(ctx context.Context, data *translator.TruncateTableStatementMap) error {
-	adminClient, ok := btc.AdminClients[data.Keyspace]
-	if !ok {
-		return fmt.Errorf("invalid keyspace `%s`", data.Keyspace)
+	adminClient, err := btc.getAdminClient(data.Keyspace)
+	if err != nil {
+		return err
 	}
 
 	btc.Logger.Info("truncate table: dropping all bigtable rows")
-	err := adminClient.DropAllRows(ctx, data.Table)
+	err = adminClient.DropAllRows(ctx, data.Table)
 	if err != nil {
 		btc.Logger.Error("truncate table: failed", zap.Error(err))
 		return err
@@ -515,9 +515,9 @@ func (btc *BigtableClient) addColumnFamilies(columns []message.ColumnMetadata) (
 }
 
 func (btc *BigtableClient) updateTableSchema(ctx context.Context, keyspace string, schemaMappingTableName string, tableName string, pmks []translator.CreateTablePrimaryKeyConfig, addCols []message.ColumnMetadata, dropCols []string) error {
-	client, exists := btc.Clients[btc.InstancesMap[keyspace].BigtableInstance]
-	if !exists {
-		return fmt.Errorf("invalid keyspace `%s`", keyspace)
+	client, err := btc.getClient(keyspace)
+	if err != nil {
+		return err
 	}
 
 	ts := bigtable.Now()
@@ -558,7 +558,7 @@ func (btc *BigtableClient) updateTableSchema(ctx context.Context, keyspace strin
 
 	btc.Logger.Info("updating schema mapping table")
 	table := client.Open(schemaMappingTableName)
-	_, err := table.ApplyBulk(ctx, rowKeys, muts)
+	_, err = table.ApplyBulk(ctx, rowKeys, muts)
 
 	if err != nil {
 		btc.Logger.Error("update schema mapping table failed")

@@ -5,7 +5,7 @@
       "kind": "dml",
       "operations": [
         {
-          "query": "INSERT INTO cassandrakeysapce.user_info (name, age, code) VALUES (?, ?, ?)",
+          "query": "INSERT INTO cassandrakeyspace.user_info (name, age, code) VALUES (?, ?, ?)",
           "query_desc": "Perform an INSERT operation to add a new user record with 'name', 'age', and 'code'.",
           "query_type": "INSERT",
           "params": [
@@ -25,7 +25,7 @@
           "expected_result": null
         },
         {
-          "query": "SELECT name, age, code FROM cassandrakeysapce.user_info WHERE name = ? AND age = ?",
+          "query": "SELECT name, age, code FROM cassandrakeyspace.user_info WHERE name = ? AND age = ?",
           "query_type": "SELECT",
           "query_desc": "Run a SELECT query to retrieve and validate the inserted user record based on 'name' and 'age'.",
           "params": [
@@ -54,7 +54,7 @@
           ]
         },
         {
-          "query": "UPDATE cassandrakeysapce.user_info SET code = ? WHERE name = ? AND age = ?",
+          "query": "UPDATE cassandrakeyspace.user_info SET code = ? WHERE name = ? AND age = ?",
           "query_desc": "Update the age and code of the user record identified by 'name'.",
           "query_type": "UPDATE",
           "params": [
@@ -75,7 +75,7 @@
           "expected_result": null
         },
         {
-          "query": "SELECT name, age, code FROM cassandrakeysapce.user_info WHERE name = ? AND age = ?",
+          "query": "SELECT name, age, code FROM cassandrakeyspace.user_info WHERE name = ? AND age = ?",
           "query_type": "SELECT",
           "query_desc": "Run a SELECT query to retrieve and validate the updated user record based on 'name' and 'age'.",
           "params": [
@@ -104,7 +104,7 @@
           ]
         },
         {
-          "query": "DELETE FROM cassandrakeysapce.user_info WHERE name = ? AND age = ?",
+          "query": "DELETE FROM cassandrakeyspace.user_info WHERE name = ? AND age = ?",
           "query_desc": "Delete the user record identified by 'name' and 'age'.",
           "query_type": "DELETE",
           "params": [

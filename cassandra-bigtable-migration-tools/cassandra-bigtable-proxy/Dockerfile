@@ -13,7 +13,7 @@ RUN go mod download
 COPY . ./
 
 # Build and install binary
-RUN go install github.com/ollionorg/cassandra-to-bigtable-proxy
+RUN go install github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy
 
 RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o /go/bin/cassandra-to-bigtable-proxy .
 

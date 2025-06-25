@@ -33,12 +33,9 @@ import (
 	"cloud.google.com/go/secretmanager/apiv1/secretmanagerpb"
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/testing/compliance/schema_setup"
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/testing/compliance/utility"
-	"github.com/docker/docker/api/types/container"
 	"github.com/gocql/gocql"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
-	"github.com/testcontainers/testcontainers-go"
-	"github.com/testcontainers/testcontainers-go/wait"
 )
 
 var (
@@ -203,15 +200,8 @@ func TestMain(m *testing.M) {
 	switch target {
 	case "proxy":
 		isProxy = true
-		setupAndRunBigtableProxy(m)
-	case "local":
-		isProxy = true
 		setupAndRunBigtableProxyLocal(m)
 	case "cassandra":
-		isProxy = false
-		exitCode = setupAndRunCassandra(m)
-
-	case "cassandralocal":
 		isProxy = false
 		exitCode = setupAndRunCassandraLocal(m)
 	default:
@@ -219,145 +209,6 @@ func TestMain(m *testing.M) {
 	}
 }
 
-// setupAndRunBigtableProxy() initializes and starts the Bigtable Proxy environment within a Docker container.
-// It ensures that the required GCP credentials are available, starts a test container running the Bigtable
-// Proxy, and establishes a Cassandra-compatible session for testing.
-//
-// Steps:
-//  1. Fetches and stores GCP credentials by calling `fetchAndStoreCredentials`.
-//  2. Configures and starts a Docker container using the Bigtable Proxy image with the appropriate environment
-//     variables and credential bindings.
-//  3. Waits for the container to initialize by monitoring the log output for a specific message indicating readiness.
-//  4. Retrieves the container's host and mapped ports, and creates a new Cassandra session using these details.
-//  5. Runs the test suite, then terminates the container and cleans up resources.
-//
-// If the container fails to start or if Cassandra cannot connect to the proxy, the function logs the error and exits.
-func setupAndRunBigtableProxy(m *testing.M) int {
-	ctx := context.Background()
-	if err := fetchAndStoreCredentials(ctx); err != nil {
-		utility.LogFatal(fmt.Sprintf("error while setting up gcp credentials - %v", err))
-		return 1
-	}
-	if GCP_PROJECT_ID == "" || BIGTABLE_INSTANCE == "" {
-		utility.LogFatal("Env `GCP_PROJECT_ID` and `BIGTABLE_INSTANCE` is mandatory")
-		return 1
-	}
-
-	var BIGTABLE_CASSANDRA_INSTANCE_MAPPING map[string]string
-	err := json.Unmarshal([]byte(BIGTABLE_INSTANCE), &BIGTABLE_CASSANDRA_INSTANCE_MAPPING)
-	if err != nil {
-		utility.LogFatal(fmt.Sprintf("error while unmarshalling bigtable_cassandra_instance_mapping - %v", err))
-		return 1
-	}
-
-	for _, value := range BIGTABLE_CASSANDRA_INSTANCE_MAPPING {
-		// Setup Bigtable schema and test environment
-		err = schema_setup.SetupBigtableInstance(GCP_PROJECT_ID, value, ZONE)
-		if err != nil {
-			utility.LogFatal(fmt.Sprintf("Error while setting bigtable schema- %v", err))
-			return 1
-		}
-	}
-
-	// Request a testcontainers.Container object
-	req := testcontainers.ContainerRequest{
-		Image:        containerImage,
-		ExposedPorts: []string{"9042/tcp"},
-		Env: map[string]string{
-			"GOOGLE_APPLICATION_CREDENTIALS": "/tmp/keys/service-account.json",
-		},
-		HostConfigModifier: func(hostConfig *container.HostConfig) {
-			hostConfig.Binds = []string{
-				fmt.Sprintf("%s:/tmp/keys/service-account.json", credentialsFilePath),
-			}
-		},
-		WaitingFor: wait.ForLog("proxy is listening").WithStartupTimeout(60 * time.Second),
-	}
-
-	proxyContainer, err := testcontainers.GenericContainer(ctx, testcontainers.GenericContainerRequest{
-		ContainerRequest: req,
-		Started:          true,
-	})
-
-	if err != nil {
-		utility.LogFatal(fmt.Sprintf("Could not start container: %v", err))
-		return 1
-	}
-	defer func() {
-		utility.LogInfo("Terminating test container...")
-		err := proxyContainer.Terminate(ctx)
-		if err != nil {
-			utility.LogFatal(fmt.Sprintf("error while terminating - %v", err.Error()))
-		}
-	}()
-
-	host, err := proxyContainer.Host(ctx)
-	if err != nil {
-		utility.LogFatal(fmt.Sprintf("Could not get container host: %v", err))
-		// Cleanup
-		session.Close()
-		if err := schema_setup.TeardownBigtableInstance(GCP_PROJECT_ID, BIGTABLE_INSTANCE); err != nil {
-			utility.LogFatal(fmt.Sprintf("Error during Bigtable teardown: %v", err))
-			return 1
-		} else {
-			utility.LogInfo("Bigtable teardown completed successfully.")
-		}
-		return 1
-	}
-
-	mappedPort, err := proxyContainer.MappedPort(ctx, "9042")
-	if err != nil {
-		utility.LogFatal(fmt.Sprintf("Could not get mapped port: %v", err))
-		// Cleanup
-		session.Close()
-		if err := schema_setup.TeardownBigtableInstance(GCP_PROJECT_ID, BIGTABLE_INSTANCE); err != nil {
-			utility.LogFatal(fmt.Sprintf("Error during Bigtable teardown: %v", err))
-			return 1
-		} else {
-			utility.LogInfo("Bigtable teardown completed successfully.")
-		}
-		return 1
-	}
-
-	cluster := gocql.NewCluster(host)
-	cluster.Port = mappedPort.Int()
-	cluster.Keyspace = BIGTABLE_INSTANCE
-	cluster.ProtoVersion = 4
-
-	session, err = cluster.CreateSession()
-	if err != nil {
-		utility.LogFatal(fmt.Sprintf("Could not connect to Cassandra: %v", err))
-		// Cleanup
-		session.Close()
-		if err := schema_setup.TeardownBigtableInstance(GCP_PROJECT_ID, BIGTABLE_INSTANCE); err != nil {
-			utility.LogFatal(fmt.Sprintf("Error during Bigtable teardown: %v", err))
-			return 1
-		} else {
-			utility.LogInfo("Bigtable teardown completed successfully.")
-		}
-		return 1
-	}
-	defer session.Close()
-
-	err = schema_setup.SetupBigtableSchema(session, "schema_setup/setup.sql")
-	if err != nil {
-		utility.LogFatal(fmt.Sprintf("Error while setting bigtable schema- %v", err))
-		return 1
-	}
-
-	// Run tests
-	code := m.Run()
-
-	// Cleanup
-	session.Close()
-	if err := schema_setup.TeardownBigtableInstance(GCP_PROJECT_ID, BIGTABLE_INSTANCE); err != nil {
-		utility.LogFatal(fmt.Sprintf("Error during Bigtable teardown: %v", err))
-		return 1
-	} else {
-		utility.LogInfo("Bigtable teardown completed successfully.")
-	}
-	return code
-}
 func setupAndRunBigtableProxyLocal(m *testing.M) {
 	//var BIGTABLE_CASSANDRA_INSTANCE_MAPPING map[string]string
 	//err := json.Unmarshal([]byte(BIGTABLE_INSTANCE), &BIGTABLE_CASSANDRA_INSTANCE_MAPPING)
@@ -394,120 +245,6 @@ func setupAndRunBigtableProxyLocal(m *testing.M) {
 	// Cleanup
 	session.Close()
 	os.Exit(code)
-}
-
-// setupAndRunCassandra() sets up and runs a local Cassandra environment using a Docker container.
-// It configures the container, initializes the Cassandra database, and ensures the appropriate schema
-// (keyspaces and tables) are created before running the tests.
-//
-// Steps:
-// 1. Creates a Docker container running the latest version of Cassandra.
-// 2. Exposes the default Cassandra CQL port (9042) and configures the environment variables for memory tuning.
-// 3. Waits for the container to fully initialize by monitoring the logs for a message indicating CQL client readiness.
-// 4. Retrieves the host and mapped port of the running Cassandra container.
-// 5. Creates a new Cassandra session and initializes the database schema (keyspaces and tables).
-// 6. Executes the test suite after the environment is ready.
-// 7. Cleans up by terminating the container after the tests are complete.
-//
-// This function ensures Cassandra is provisioned with the necessary tables and data types for integration testing.
-func setupAndRunCassandra(m *testing.M) int {
-	// Create a context with a 5-minute timeout
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
-	defer cancel()
-
-	// Fetch and store GCP credentials if needed
-	if err := fetchAndStoreCredentials(ctx); err != nil {
-		utility.LogFatal(fmt.Sprintf("Error while setting up GCP credentials - %v", err))
-	}
-
-	// Define the container request
-	req := testcontainers.ContainerRequest{
-		Image:        "cassandra:latest",
-		ExposedPorts: []string{"9042/tcp"}, // Expose the default Cassandra CQL port
-		Env: map[string]string{
-			"MAX_HEAP_SIZE": "512M", // Optional tuning for Cassandra
-			"HEAP_NEWSIZE":  "100M",
-		},
-		HostConfigModifier: func(hostConfig *container.HostConfig) {
-			// Optional: Mount GCP credentials if needed
-			hostConfig.Binds = []string{
-				fmt.Sprintf("%s:/tmp/keys/service-account.json", credentialsFilePath),
-			}
-		},
-		WaitingFor: wait.ForLog("Starting listening for CQL clients on /0.0.0.0:9042").WithStartupTimeout(120 * time.Second), // Wait until Cassandra is ready
-	}
-
-	// Start the Cassandra container
-	cassandraContainer, err := testcontainers.GenericContainer(ctx, testcontainers.GenericContainerRequest{
-		ContainerRequest: req,
-		Started:          true,
-	})
-	if err != nil {
-		utility.LogFatal(fmt.Sprintf("Could not start container: %v", err))
-		return 1
-	}
-	defer func() {
-		utility.LogInfo("Terminating test container...")
-		// Ensure the container is terminated after tests
-		if err := cassandraContainer.Terminate(ctx); err != nil {
-			utility.LogFatal(fmt.Sprintf("Error while terminating container - %v", err))
-		}
-	}()
-
-	// Get the container host and mapped port for Cassandra
-	host, err := cassandraContainer.Host(ctx)
-	if err != nil {
-		utility.LogFatal(fmt.Sprintf("Could not get container host: %v", err))
-		return 1
-	}
-
-	mappedPort, err := cassandraContainer.MappedPort(ctx, "9042")
-	if err != nil {
-		utility.LogFatal(fmt.Sprintf("Could not get mapped port: %v", err))
-		return 1
-	}
-
-	// Configure and create a new Cassandra cluster session
-	cluster := gocql.NewCluster(host)
-	cluster.Port = mappedPort.Int()           // Use the mapped port from the container
-	cluster.ProtoVersion = 4                  // Use protocol version 4
-	cluster.ConnectTimeout = 30 * time.Second // Set connection timeout
-	cluster.Keyspace = "system"               // Use the default 'system' keyspace initially
-
-	// Create a session with Cassandra
-	session, err = cluster.CreateSession()
-	if err != nil {
-		utility.LogFatal(fmt.Sprintf("Could not connect to Cassandra: %v", err))
-		return 1
-	}
-	defer session.Close()
-
-	var BIGTABLE_CASSANDRA_INSTANCE_MAPPING map[string]string
-	err = json.Unmarshal([]byte(BIGTABLE_INSTANCE), &BIGTABLE_CASSANDRA_INSTANCE_MAPPING)
-	if err != nil {
-		utility.LogFatal(fmt.Sprintf("error while unmarshalling bigtable_cassandra_instance_mapping - %v", err))
-		return 1
-	}
-	for key := range BIGTABLE_CASSANDRA_INSTANCE_MAPPING {
-		if err := schema_setup.CreateKeyspace(session, key); err != nil {
-			utility.LogFatal(fmt.Sprintf("Error setting up Cassandra schema: %v", err))
-			return 1
-		}
-	}
-	for key := range BIGTABLE_CASSANDRA_INSTANCE_MAPPING {
-		// Setup the Cassandra schema
-		if err := schema_setup.SetupCassandraSchema(session, "schema_setup/setup.sql", key); err != nil {
-			utility.LogFatal(fmt.Sprintf("Error setting up Cassandra schema: %v", err))
-			return 1
-		}
-	}
-
-	// Run the tests
-	code := m.Run()
-
-	// Cleanup and exit
-	session.Close()
-	return code
 }
 
 func setupAndRunCassandraLocal(m *testing.M) int {

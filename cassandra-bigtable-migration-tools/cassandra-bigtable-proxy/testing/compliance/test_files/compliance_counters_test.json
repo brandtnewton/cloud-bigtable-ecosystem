@@ -324,6 +324,86 @@
             "datatype": "bigint"
           }
         ]
+      },
+      {
+        "query": "UPDATE bigtabledevinstance.social_posts set likes = likes - ? WHERE user_id = ? AND id = ?",
+        "query_desc": "subtract a negative counter value",
+        "query_type": "UPDATE",
+        "params": [
+          {
+            "value": -1,
+            "datatype": "bigint"
+          },
+          {
+            "value": "userABC",
+            "datatype": "text"
+          },
+          {
+            "value": 1,
+            "datatype": "int"
+          }
+        ],
+        "expected_result": null
+      },
+      {
+        "query": "SELECT likes FROM bigtabledevinstance.social_posts WHERE user_id = ? AND id = ?",
+        "query_type": "SELECT",
+        "params": [
+          {
+            "value": "userABC",
+            "datatype": "text"
+          },
+          {
+            "value": 1,
+            "datatype": "int"
+          }
+        ],
+        "expected_result": [
+          {
+            "likes": 4,
+            "datatype": "bigint"
+          }
+        ]
+      },
+      {
+        "query": "UPDATE bigtabledevinstance.social_posts set likes = likes - ? WHERE user_id = ? AND id = ?",
+        "query_desc": "subtract enough to turn the counter value negative",
+        "query_type": "UPDATE",
+        "params": [
+          {
+            "value": 99,
+            "datatype": "bigint"
+          },
+          {
+            "value": "userABC",
+            "datatype": "text"
+          },
+          {
+            "value": 1,
+            "datatype": "int"
+          }
+        ],
+        "expected_result": null
+      },
+      {
+        "query": "SELECT likes FROM bigtabledevinstance.social_posts WHERE user_id = ? AND id = ?",
+        "query_type": "SELECT",
+        "params": [
+          {
+            "value": "userABC",
+            "datatype": "text"
+          },
+          {
+            "value": 1,
+            "datatype": "int"
+          }
+        ],
+        "expected_result": [
+          {
+            "likes": -95,
+            "datatype": "bigint"
+          }
+        ]
       }
     ],
     "success_message": "",

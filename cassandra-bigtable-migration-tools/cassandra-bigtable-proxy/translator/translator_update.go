@@ -52,16 +52,12 @@ func isCollection(node antlr.Tree) bool {
 
 // Helper function to check if a node is a collection type
 func isCounter(node antlr.Tree) bool {
-	switch v := node.(type) {
-	//case cql.IAggregateContext:
-	//	return true
+	switch node.(type) {
 	case cql.IDecimalLiteralContext:
-		fmt.Printf("decimal??: `%s`\n", v.GetText())
 		return true
-		//default:
-		//	fmt.Printf("not a counter: `%T`", node)
+	default:
+		return false
 	}
-	return false
 }
 
 // Helper function to get text from a node

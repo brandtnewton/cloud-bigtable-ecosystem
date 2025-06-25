@@ -434,5 +434,194 @@
     ],
     "success_message": "",
     "failure_message": ""
+  },
+  {
+    "title": "Group by and order by counters",
+    "kind": "dml",
+    "operations": [
+      {
+        "query": "UPDATE bigtabledevinstance.social_posts set likes = likes + ? WHERE user_id = ? AND id = ?",
+        "query_type": "UPDATE",
+        "params": [
+          {
+            "value": 2,
+            "datatype": "bigint"
+          },
+          {
+            "value": "gbob",
+            "datatype": "text"
+          },
+          {
+            "value": 1,
+            "datatype": "int"
+          }
+        ],
+        "expected_result": null
+      },
+      {
+        "query": "UPDATE bigtabledevinstance.social_posts set likes = likes + ? WHERE user_id = ? AND id = ?",
+        "query_type": "UPDATE",
+        "params": [
+          {
+            "value": 3,
+            "datatype": "bigint"
+          },
+          {
+            "value": "gbob",
+            "datatype": "text"
+          },
+          {
+            "value": 2,
+            "datatype": "int"
+          }
+        ],
+        "expected_result": null
+      },
+      {
+        "query": "UPDATE bigtabledevinstance.social_posts set likes = likes + ? WHERE user_id = ? AND id = ?",
+        "query_type": "UPDATE",
+        "params": [
+          {
+            "value": 2,
+            "datatype": "bigint"
+          },
+          {
+            "value": "gbob",
+            "datatype": "text"
+          },
+          {
+            "value": 3,
+            "datatype": "int"
+          }
+        ],
+        "expected_result": null
+      },
+      {
+        "query": "UPDATE bigtabledevinstance.social_posts set likes = likes + ? WHERE user_id = ? AND id = ?",
+        "query_type": "UPDATE",
+        "params": [
+          {
+            "value": 5,
+            "datatype": "bigint"
+          },
+          {
+            "value": "gbob",
+            "datatype": "text"
+          },
+          {
+            "value": 4,
+            "datatype": "int"
+          }
+        ],
+        "expected_result": null
+      },
+      {
+        "query": "SELECT likes FROM bigtabledevinstance.social_posts WHERE user_id = ? order by likes",
+        "query_type": "SELECT",
+        "query_desc": "",
+        "params": [
+          {
+            "value": "gbob",
+            "datatype": "text"
+          }
+        ],
+        "expected_multi_row_result": [
+          [
+            {
+              "likes": 2,
+              "datatype": "bigint"
+            }
+          ],
+          [
+            {
+              "likes": 2,
+              "datatype": "bigint"
+            }
+          ],
+          [
+            {
+              "likes": 3,
+              "datatype": "bigint"
+            }
+          ],
+          [
+            {
+              "likes": 5,
+              "datatype": "bigint"
+            }
+          ]
+        ]
+      },
+      {
+        "query": "SELECT likes as l FROM bigtabledevinstance.social_posts WHERE user_id = ? order by l desc",
+        "query_type": "SELECT",
+        "query_desc": "",
+        "params": [
+          {
+            "value": "gbob",
+            "datatype": "text"
+          }
+        ],
+        "expected_multi_row_result": [
+          [
+            {
+              "l": 5,
+              "datatype": "bigint"
+            }
+          ],
+          [
+            {
+              "l": 3,
+              "datatype": "bigint"
+            }
+          ],
+          [
+            {
+              "l": 2,
+              "datatype": "bigint"
+            }
+          ],
+          [
+            {
+              "l": 2,
+              "datatype": "bigint"
+            }
+          ]
+        ]
+      },
+      {
+        "query": "SELECT likes FROM bigtabledevinstance.social_posts WHERE user_id = ? group by likes",
+        "query_type": "SELECT",
+        "query_desc": "",
+        "params": [
+          {
+            "value": "gbob",
+            "datatype": "text"
+          }
+        ],
+        "expected_multi_row_result": [
+          [
+            {
+              "likes": 2,
+              "datatype": "bigint"
+            }
+          ],
+          [
+            {
+              "likes": 3,
+              "datatype": "bigint"
+            }
+          ],
+          [
+            {
+              "likes": 5,
+              "datatype": "bigint"
+            }
+          ]
+        ]
+      }
+    ],
+    "success_message": "",
+    "failure_message": ""
   }
 ]

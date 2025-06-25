@@ -215,9 +215,9 @@
         "expected_result": null
       },
       {
-        "query": "SELECT likes FROM bigtabledevinstance.social_posts WHERE user_id = ? AND id = ?",
+        "query": "SELECT likes as l FROM bigtabledevinstance.social_posts WHERE user_id = ? AND id = ?",
         "query_type": "SELECT",
-        "query_desc": "",
+        "query_desc": "confirm value is updated and use an alias",
         "params": [
           {
             "value": "userABC",
@@ -230,7 +230,7 @@
         ],
         "expected_result": [
           {
-            "likes": 4,
+            "l": 4,
             "datatype": "bigint"
           }
         ]
@@ -382,6 +382,31 @@
           },
           {
             "system.sum(likes)": 63,
+            "datatype": "bigint"
+          }
+        ]
+      },
+      {
+        "query": "SELECT max(likes) as mxl, min(likes), sum(likes) as sml FROM bigtabledevinstance.social_posts WHERE user_id = ?",
+        "query_type": "SELECT",
+        "query_desc": "aggregates of counters with aliases",
+        "params": [
+          {
+            "value": "user_aggregate_test",
+            "datatype": "text"
+          }
+        ],
+        "expected_result": [
+          {
+            "mxl": 50,
+            "datatype": "bigint"
+          },
+          {
+            "system.min(likes)": 2,
+            "datatype": "bigint"
+          },
+          {
+            "sml": 63,
             "datatype": "bigint"
           }
         ]

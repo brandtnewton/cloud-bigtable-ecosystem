@@ -224,10 +224,11 @@ func NewProxy(ctx context.Context, config Config) (*Proxy, error) {
 		pkMetadata[instanceID] = pkdata
 	}
 	schemaMappingConfig := &schemaMapping.SchemaMappingConfig{
-		Logger:             config.Logger,
-		TablesMetaData:     tableMetadata,
-		PkMetadataCache:    pkMetadata,
-		SystemColumnFamily: config.BigtableConfig.DefaultColumnFamily,
+		Logger:              config.Logger,
+		TablesMetaData:      tableMetadata,
+		PkMetadataCache:     pkMetadata,
+		SystemColumnFamily:  config.BigtableConfig.DefaultColumnFamily,
+		CounterColumnFamily: config.BigtableConfig.CounterColumnFamily,
 	}
 	responseHandler := &responsehandler.TypeHandler{
 		Logger:              config.Logger,

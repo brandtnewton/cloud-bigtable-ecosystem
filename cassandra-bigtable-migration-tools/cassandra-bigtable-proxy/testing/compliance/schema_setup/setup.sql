@@ -56,6 +56,7 @@ CREATE TABLE IF NOT EXISTS bigtabledevinstance.social_posts (
     user_id varchar,
     id int,
     likes counter,
+    views counter,
     PRIMARY KEY (user_id, id)
 );
 

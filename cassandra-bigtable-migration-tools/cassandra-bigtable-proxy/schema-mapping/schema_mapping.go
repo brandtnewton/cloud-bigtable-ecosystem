@@ -33,10 +33,11 @@ const (
 )
 
 type SchemaMappingConfig struct {
-	Logger             *zap.Logger
-	TablesMetaData     map[string]map[string]map[string]*types.Column
-	PkMetadataCache    map[string]map[string][]types.Column
-	SystemColumnFamily string
+	Logger                 *zap.Logger
+	TablesMetaData         map[string]map[string]map[string]*types.Column
+	PkMetadataCache        map[string]map[string][]types.Column
+	SystemColumnFamily  string
+	CounterColumnFamily string
 }
 
 type SelectedColumns struct {

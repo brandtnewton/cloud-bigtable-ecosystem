@@ -27,6 +27,11 @@ type BigTableClientIface struct {
 	mock.Mock
 }
 
+func (_m *BigTableClientIface) TruncateTable(ctx context.Context, data *translator.TruncateTableStatementMap) error {
+	//TODO implement me
+	panic("implement me")
+}
+
 // AlterTable provides a mock function with given fields: ctx, data, schemaMappingTableName
 func (_m *BigTableClientIface) AlterTable(ctx context.Context, data *translator.AlterTableStatementMap, schemaMappingTableName string) error {
 	ret := _m.Called(ctx, data, schemaMappingTableName)

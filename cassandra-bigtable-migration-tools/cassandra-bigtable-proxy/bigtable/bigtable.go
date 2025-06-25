@@ -63,7 +63,6 @@ const (
 	mutationTypeDeleteColumnFamily = "DeleteColumnFamilies"
 	mutationTypeUpdate             = "Update"
 	schemaMappingTableColumnFamily = "cf"
-	counterColumnQualifier         = "v"
 )
 
 type BigTableClientIface interface {
@@ -187,25 +186,28 @@ func (btc *BigtableClient) mutateRow(ctx context.Context, tableName, rowKey stri
 	}
 
 	// Handle complex updates
-	for cf, meta := range ComplexOperation {
-		if meta.Increment == translator.Increment {
-			mut.AddIntToCell(cf, counterColumnQualifier, 0, meta.IncrementValue)
-		} else if meta.Increment == translator.Decrement {
-			mut.AddIntToCell(cf, counterColumnQualifier, 0, meta.IncrementValue*-1)
+	for col, meta := range ComplexOperation {
+		if meta.IncrementType != translator.None {
+			var incrementValue = meta.IncrementValue
+			if meta.IncrementType == translator.Decrement {
+				incrementValue *= -1
+			}
+			// note: all counters are stored in a single column family dedicated to counter columns
+			mut.AddIntToCell(btc.BigtableConfig.CounterColumnFamily, col, 0, incrementValue)
 		}
 		if meta.UpdateListIndex != "" {
 			index, err := strconv.Atoi(meta.UpdateListIndex)
 			if err != nil {
 				return nil, err
 			}
-			reqTimestamp, err := btc.getIndexOpTimestamp(ctx, tableName, rowKey, cf, keyspace, index)
+			reqTimestamp, err := btc.getIndexOpTimestamp(ctx, tableName, rowKey, col, keyspace, index)
 			if err != nil {
 				return nil, err
 			}
-			mut.Set(cf, reqTimestamp, timestamp, meta.Value)
+			mut.Set(col, reqTimestamp, timestamp, meta.Value)
 		}
 		if meta.ListDelete {
-			if err := btc.setMutationforListDelete(ctx, tableName, rowKey, cf, keyspace, meta.ListDeleteValues, mut); err != nil {
+			if err := btc.setMutationforListDelete(ctx, tableName, rowKey, col, keyspace, meta.ListDeleteValues, mut); err != nil {
 				return nil, err
 			}
 		}
@@ -399,8 +401,18 @@ func (btc *BigtableClient) CreateTable(ctx context.Context, data *translator.Cre
 
 	columnFamilies, err := btc.addColumnFamilies(data.Columns)
 
+	// add default column family
 	columnFamilies[btc.BigtableConfig.DefaultColumnFamily] = bigtable.Family{
 		GCPolicy: bigtable.MaxVersionsPolicy(1),
+	}
+
+	// add counter column family (even if there are no counter columns yet)
+	columnFamilies[btc.BigtableConfig.CounterColumnFamily] = bigtable.Family{
+		GCPolicy: bigtable.NoGcPolicy(),
+		ValueType: bigtable.AggregateType{
+			Input:      bigtable.Int64Type{},
+			Aggregator: bigtable.SumAggregator{},
+		},
 	}
 
 	btc.Logger.Info("creating bigtable table")
@@ -500,17 +512,8 @@ func (btc *BigtableClient) addColumnFamilies(columns []message.ColumnMetadata) (
 			columnFamilies[col.Name] = bigtable.Family{
 				GCPolicy: bigtable.MaxVersionsPolicy(1),
 			}
-		} else if col.Type == datatype.Counter {
-			columnFamilies[col.Name] = bigtable.Family{
-				GCPolicy: bigtable.NoGcPolicy(),
-				ValueType: bigtable.AggregateType{
-					Input:      bigtable.Int64Type{},
-					Aggregator: bigtable.SumAggregator{},
-				},
-			}
 		}
 	}
-
 	return columnFamilies, nil
 }
 

@@ -2698,7 +2698,7 @@ func Test_processAsColumn(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := processAsColumn(tt.columnMetadata, tt.tableName, tt.columnFamily, tt.colMeta, tt.columns, tt.isGroupBy)
+			got := processAsColumn(tt.columnMetadata, tt.tableName, "ccf", tt.columnFamily, tt.colMeta, tt.columns, tt.isGroupBy)
 			if !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("processAsColumn() = %v, want %v", got, tt.want)
 			}

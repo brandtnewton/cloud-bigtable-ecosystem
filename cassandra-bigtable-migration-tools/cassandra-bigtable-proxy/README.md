@@ -273,6 +273,9 @@ listeners:
 
     #[Required] Default column family for primitive data types is "cf1"
     defaultColumnFamily: DEFAULT_COLUMN_FAMILY
+    
+    # The column qualifier that should be used for counter columns. Counter columns are stored in a column family
+    counterColumnQualifier: COUNTER_COLUMN_QUALIFIER
 
     # Number of grpc channels to be used for Bigtable session.
     Session:

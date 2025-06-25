@@ -388,7 +388,7 @@ func processFunctionColumn(t *Translator, columnMetadata schemaMapping.SelectedC
 			return nil, fmt.Errorf("column not supported for aggregate")
 		}
 	}
-	castValue, castErr := castColumns(colMeta, colFamiliy)
+	castValue, castErr := castColumns(colMeta, colFamiliy, t.SchemaMappingConfig.CounterColumnFamily)
 	if castErr != nil {
 		return nil, castErr
 	}
@@ -449,9 +449,9 @@ func processNonFunctionColumn(t *Translator, columnMetadata schemaMapping.Select
 	if columnMetadata.IsWriteTimeColumn {
 		columns = processWriteTimeColumn(t, columnMetadata, tableName, keySpace, columnFamily, columns)
 	} else if columnMetadata.IsAs {
-		columns = processAsColumn(columnMetadata, tableName, columnFamily, colMeta, columns, isGroupBy)
+		columns = processAsColumn(columnMetadata, tableName, t.SchemaMappingConfig.CounterColumnFamily, columnFamily, colMeta, columns, isGroupBy)
 	} else {
-		columns = processRegularColumn(columnMetadata, tableName, columnFamily, colMeta, columns, isGroupBy)
+		columns = processRegularColumn(columnMetadata, tableName, t.SchemaMappingConfig.CounterColumnFamily, columnFamily, colMeta, columns, isGroupBy)
 	}
 	return columns, nil
 }
@@ -471,17 +471,16 @@ func processWriteTimeColumn(t *Translator, columnMetadata schemaMapping.Selected
 	return columns
 }
 
-func processAsColumn(columnMetadata schemaMapping.SelectedColumns, tableName string, columnFamily string, colMeta *types.Column, columns []string, isGroupBy bool) []string {
+func processAsColumn(columnMetadata schemaMapping.SelectedColumns, tableName string, counterColumnFamily string, columnFamily string, colMeta *types.Column, columns []string, isGroupBy bool) []string {
 	var columnSelected string
 	if !colMeta.IsCollection {
 		var columnName = columnMetadata.Name
 		if colMeta.CQLType == datatype.Counter {
-			columnFamily = columnMetadata.Name
-			// todo use constant
-			columnName = "v"
+			// override column family and name because counters are stored in the same column family
+			columnFamily = counterColumnFamily
 		}
 		if isGroupBy {
-			castedCol, _ := castColumns(colMeta, columnFamily)
+			castedCol, _ := castColumns(colMeta, columnFamily, counterColumnFamily)
 			columnSelected = castedCol + " as " + columnMetadata.Alias
 		} else if colMeta.IsPrimaryKey {
 			columnSelected = fmt.Sprintf("%s as %s", columnName, columnMetadata.Alias)
@@ -523,17 +522,15 @@ Returns:
 
 	An updated slice of strings with the new formatted column reference appended.
 */
-func processRegularColumn(columnMetadata schemaMapping.SelectedColumns, tableName string, columnFamily string, colMeta *types.Column, columns []string, isGroupBy bool) []string {
+func processRegularColumn(columnMetadata schemaMapping.SelectedColumns, tableName string, counterColumnFamily string, columnFamily string, colMeta *types.Column, columns []string, isGroupBy bool) []string {
 	if !colMeta.IsCollection {
 		var columnName = columnMetadata.Name
-		// override column family and name because counters are stored differently
 		if colMeta.CQLType == datatype.Counter {
-			columnFamily = columnMetadata.Name
-			// todo use constant
-			columnName = "v"
+			// override column family and name because counters are stored in the same column family
+			columnFamily = counterColumnFamily
 		}
 		if isGroupBy {
-			castedCol, _ := castColumns(colMeta, columnFamily)
+			castedCol, _ := castColumns(colMeta, columnFamily, counterColumnFamily)
 			columns = append(columns, castedCol)
 		} else if colMeta.IsPrimaryKey {
 			columns = append(columns, columnName)
@@ -627,7 +624,7 @@ func getBigtableSelectQuery(t *Translator, data *SelectQueryMap) (string, error)
 			} else {
 				if colMeta, ok := t.SchemaMappingConfig.TablesMetaData[data.Keyspace][data.Table][lookupCol]; ok {
 					if !colMeta.IsCollection {
-						col, err := castColumns(colMeta, t.SchemaMappingConfig.SystemColumnFamily)
+						col, err := castColumns(colMeta, t.SchemaMappingConfig.SystemColumnFamily, t.SchemaMappingConfig.CounterColumnFamily)
 						if err != nil {
 							return "", err
 						}
@@ -652,7 +649,7 @@ func getBigtableSelectQuery(t *Translator, data *SelectQueryMap) (string, error)
 					if colMeta.IsPrimaryKey {
 						orderByClauses = append(orderByClauses, orderByCol.Column+" "+string(orderByCol.Operation))
 					} else if !colMeta.IsCollection {
-						orderByKey, err := castColumns(colMeta, t.SchemaMappingConfig.SystemColumnFamily)
+						orderByKey, err := castColumns(colMeta, t.SchemaMappingConfig.SystemColumnFamily, t.SchemaMappingConfig.CounterColumnFamily)
 						if err != nil {
 							return "", err
 						}

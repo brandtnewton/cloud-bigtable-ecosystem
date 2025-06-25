@@ -125,6 +125,10 @@
           {
             "likes": 2,
             "datatype": "bigint"
+          },
+          {
+            "views": 0,
+            "datatype": "bigint"
           }
         ]
       }
@@ -244,7 +248,27 @@
         "expected_result": null
       },
       {
-        "query": "SELECT likes FROM bigtabledevinstance.social_posts WHERE user_id = ? AND id = ?",
+        "query": "UPDATE bigtabledevinstance.social_posts set views = views - ? WHERE user_id = ? AND id = ?",
+        "query_type": "UPDATE",
+        "params": [
+          {
+            "value": 10,
+            "datatype": "bigint"
+          },
+          {
+            "value": "userABC",
+            "datatype": "text"
+          },
+          {
+            "value": 1,
+            "datatype": "int"
+          }
+        ],
+        "expected_result": null
+      },
+      {
+        "query": "SELECT likes, views FROM bigtabledevinstance.social_posts WHERE user_id = ? AND id = ?",
+        "query_desc": "verify all counter updates are as applied as expected",
         "query_type": "SELECT",
         "params": [
           {
@@ -260,11 +284,15 @@
           {
             "likes": 4,
             "datatype": "bigint"
+          },
+          {
+            "views": -10,
+            "datatype": "bigint"
           }
         ]
       },
       {
-        "query": "SELECT likes as l FROM bigtabledevinstance.social_posts WHERE user_id = ? AND id = ?",
+        "query": "SELECT likes as l, views as v FROM bigtabledevinstance.social_posts WHERE user_id = ? AND id = ?",
         "query_type": "SELECT",
         "query_desc": "run the same select again, but with an alias",
         "params": [
@@ -280,6 +308,10 @@
         "expected_result": [
           {
             "l": 4,
+            "datatype": "bigint"
+          },
+          {
+            "v": -10,
             "datatype": "bigint"
           }
         ]
@@ -305,7 +337,7 @@
         "expected_result": null
       },
       {
-        "query": "SELECT likes FROM bigtabledevinstance.social_posts WHERE user_id = ? AND id = ?",
+        "query": "SELECT likes, views FROM bigtabledevinstance.social_posts WHERE user_id = ? AND id = ?",
         "query_type": "SELECT",
         "query_desc": "",
         "params": [
@@ -321,6 +353,10 @@
         "expected_result": [
           {
             "likes": 3,
+            "datatype": "bigint"
+          },
+          {
+            "views": -10,
             "datatype": "bigint"
           }
         ]
@@ -386,7 +422,7 @@
         "expected_result": null
       },
       {
-        "query": "SELECT likes FROM bigtabledevinstance.social_posts WHERE user_id = ? AND id = ?",
+        "query": "SELECT * FROM bigtabledevinstance.social_posts WHERE user_id = ? AND id = ?",
         "query_type": "SELECT",
         "params": [
           {
@@ -400,7 +436,19 @@
         ],
         "expected_result": [
           {
+            "user_id": "userABC",
+            "datatype": "text"
+          },
+          {
+            "id": 1,
+            "datatype": "int"
+          },
+          {
             "likes": -95,
+            "datatype": "bigint"
+          },
+          {
+            "views": -10,
             "datatype": "bigint"
           }
         ]

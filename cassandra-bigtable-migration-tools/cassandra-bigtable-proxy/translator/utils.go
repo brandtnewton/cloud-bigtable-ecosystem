@@ -58,7 +58,6 @@ const (
 	maxNanos           = int32(9999)
 	referenceTime      = int64(1262304000000)
 	ifExists           = "ifexists"
-	rowKeyJoinString   = "#"
 )
 
 var (
@@ -688,7 +687,7 @@ func handleCounterOperation(val interface{}, column types.Column, input ProcessR
 				op = Decrement
 			}
 			output.ComplexMeta[column.Name] = &ComplexOperation{
-				Increment:      op,
+				IncrementType:  op,
 				IncrementValue: intVal,
 			}
 			return nil
@@ -1405,7 +1404,7 @@ func buildWhereClause(clauses []types.Clause, t *Translator, tableName string, k
 			// Check if the column is a primitive type and prepend the column family
 			if !colMeta.IsCollection {
 				var castErr error
-				column, castErr = castColumns(colMeta, columnFamily)
+				column, castErr = castColumns(colMeta, columnFamily, t.SchemaMappingConfig.CounterColumnFamily)
 				if castErr != nil {
 					return "", castErr
 				}
@@ -1438,7 +1437,7 @@ func buildWhereClause(clauses []types.Clause, t *Translator, tableName string, k
 // castColumns handles column type casting in queries.
 // Manages type conversion for column values with validation.
 // Returns error if column type is invalid or conversion fails.
-func castColumns(colMeta *types.Column, columnFamily string) (string, error) {
+func castColumns(colMeta *types.Column, columnFamily string, counterColumnFamily string) (string, error) {
 	var nc string
 	switch colMeta.CQLType {
 	case datatype.Int:
@@ -1462,8 +1461,7 @@ func castColumns(colMeta *types.Column, columnFamily string) (string, error) {
 	case datatype.Timestamp:
 		nc = fmt.Sprintf("TO_TIME(%s['%s'])", columnFamily, colMeta.ColumnName)
 	case datatype.Counter:
-		// todo use constant
-		nc = fmt.Sprintf("%s['%s']", colMeta.ColumnName, "v")
+		nc = fmt.Sprintf("%s['%s']", counterColumnFamily, colMeta.ColumnName)
 	case datatype.Blob:
 		nc = fmt.Sprintf("TO_BLOB(%s['%s'])", columnFamily, colMeta.ColumnName)
 	case datatype.Varchar:
@@ -2530,7 +2528,7 @@ func (t *Translator) ProcessComplexUpdate(columns []types.Column, values []inter
 				if ca.Operation == "-" {
 					op = Decrement
 				}
-				meta.Increment = op
+				meta.IncrementType = op
 				meta.ExpectedDatatype = datatype.Bigint
 				complexMeta[column.Name] = meta
 			} else {

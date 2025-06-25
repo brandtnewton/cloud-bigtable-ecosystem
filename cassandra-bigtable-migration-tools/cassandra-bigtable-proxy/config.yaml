@@ -51,13 +51,13 @@ listeners:
       #   keyspace: cassandrakeyspace
       #   appProfileID: bigtable-dev-profile
 
-      # [Required] The name of the Bigtable instance.
-
-      # [Required] Name of the table  where cassandra schema to bigtable schema mapping is stored.
     schemaMappingTable: schema_mapping
 
     #[Required] Default column family for primitive data types is "cf1"
     defaultColumnFamily: cf1
+
+    # [Optional] The column qualifier that should be used for counter columns. Counter columns are stored in a column family
+    # counterColumnQualifier: ccf
 
     # Number of grpc channels to be used for Bigtable session.
     Session:

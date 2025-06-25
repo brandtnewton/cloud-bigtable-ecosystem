@@ -215,9 +215,29 @@
         "expected_result": null
       },
       {
+        "query": "SELECT likes FROM bigtabledevinstance.social_posts WHERE user_id = ? AND id = ?",
+        "query_type": "SELECT",
+        "params": [
+          {
+            "value": "userABC",
+            "datatype": "text"
+          },
+          {
+            "value": 1,
+            "datatype": "int"
+          }
+        ],
+        "expected_result": [
+          {
+            "likes": 4,
+            "datatype": "bigint"
+          }
+        ]
+      },
+      {
         "query": "SELECT likes as l FROM bigtabledevinstance.social_posts WHERE user_id = ? AND id = ?",
         "query_type": "SELECT",
-        "query_desc": "confirm value is updated and use an alias",
+        "query_desc": "run the same select again, but with an alias",
         "params": [
           {
             "value": "userABC",

@@ -474,13 +474,19 @@ func processWriteTimeColumn(t *Translator, columnMetadata schemaMapping.Selected
 func processAsColumn(columnMetadata schemaMapping.SelectedColumns, tableName string, columnFamily string, colMeta *types.Column, columns []string, isGroupBy bool) []string {
 	var columnSelected string
 	if !colMeta.IsCollection {
+		var columnName = columnMetadata.Name
+		if colMeta.CQLType == datatype.Counter {
+			columnFamily = columnMetadata.Name
+			// todo use constant
+			columnName = "v"
+		}
 		if isGroupBy {
 			castedCol, _ := castColumns(colMeta, columnFamily)
 			columnSelected = castedCol + " as " + columnMetadata.Alias
 		} else if colMeta.IsPrimaryKey {
-			columnSelected = fmt.Sprintf("%s as %s", columnMetadata.Name, columnMetadata.Alias)
+			columnSelected = fmt.Sprintf("%s as %s", columnName, columnMetadata.Alias)
 		} else {
-			columnSelected = fmt.Sprintf("%s['%s'] as %s", columnFamily, columnMetadata.Name, columnMetadata.Alias)
+			columnSelected = fmt.Sprintf("%s['%s'] as %s", columnFamily, columnName, columnMetadata.Alias)
 		}
 	} else {
 		colType, _ := methods.ConvertCQLDataTypeToString(colMeta.CQLType)
@@ -518,16 +524,21 @@ Returns:
 	An updated slice of strings with the new formatted column reference appended.
 */
 func processRegularColumn(columnMetadata schemaMapping.SelectedColumns, tableName string, columnFamily string, colMeta *types.Column, columns []string, isGroupBy bool) []string {
-	if colMeta.CQLType == datatype.Counter {
-		columns = append(columns, fmt.Sprintf("%s['v']", columnMetadata.Name))
-	} else if !colMeta.IsCollection {
+	if !colMeta.IsCollection {
+		var columnName = columnMetadata.Name
+		// override column family and name because counters are stored differently
+		if colMeta.CQLType == datatype.Counter {
+			columnFamily = columnMetadata.Name
+			// todo use constant
+			columnName = "v"
+		}
 		if isGroupBy {
 			castedCol, _ := castColumns(colMeta, columnFamily)
 			columns = append(columns, castedCol)
 		} else if colMeta.IsPrimaryKey {
-			columns = append(columns, columnMetadata.Name)
+			columns = append(columns, columnName)
 		} else {
-			columns = append(columns, fmt.Sprintf("%s['%s']", columnFamily, columnMetadata.Name))
+			columns = append(columns, fmt.Sprintf("%s['%s']", columnFamily, columnName))
 		}
 	} else {
 		var collectionColumn string

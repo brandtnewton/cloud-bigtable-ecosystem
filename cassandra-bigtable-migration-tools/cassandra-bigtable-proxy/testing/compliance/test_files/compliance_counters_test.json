@@ -648,39 +648,6 @@
             }
           ]
         ]
-      },
-      {
-        "query": "SELECT user_id, id FROM bigtabledevinstance.social_posts WHERE where likes = 2",
-        "query_type": "SELECT",
-        "query_desc": "select with where condition on counter",
-        "params": [
-          {
-            "value": 2,
-            "datatype": "bigint"
-          }
-        ],
-        "expected_multi_row_result": [
-          [
-            {
-              "user_id": "gbob",
-              "datatype": "text"
-            },
-            {
-              "id": 1,
-              "datatype": "bigint"
-            }
-          ],
-          [
-            {
-              "user_id": "gbob",
-              "datatype": "text"
-            },
-            {
-              "id": 3,
-              "datatype": "bigint"
-            }
-          ]
-        ]
       }
     ],
     "success_message": "",

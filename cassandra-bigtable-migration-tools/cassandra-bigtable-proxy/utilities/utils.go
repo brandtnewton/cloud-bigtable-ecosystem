@@ -131,7 +131,7 @@ func DecodeBytesToCassandraColumnType(b []byte, choice datatype.PrimitiveType, p
 		return proxycore.DecodeType(datatype.Double, protocolVersion, b)
 	case primitive.DataTypeCodeFloat:
 		return proxycore.DecodeType(datatype.Float, protocolVersion, b)
-	case primitive.DataTypeCodeBigint:
+	case primitive.DataTypeCodeBigint, primitive.DataTypeCodeCounter:
 		return proxycore.DecodeType(datatype.Bigint, protocolVersion, b)
 	case primitive.DataTypeCodeTimestamp:
 		return proxycore.DecodeType(datatype.Timestamp, protocolVersion, b)

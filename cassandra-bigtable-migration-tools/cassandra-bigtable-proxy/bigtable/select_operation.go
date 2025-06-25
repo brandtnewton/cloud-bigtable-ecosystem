@@ -156,6 +156,12 @@ func (btc *BigtableClient) convertResultRowToMap(resultRow bigtable.ResultRow, q
 			rowMap[colName] = []byte(v)
 		case []byte:
 			rowMap[colName] = v
+		case map[string]*int64:
+			// counters are always a column family with a single column
+			for _, value := range v {
+				rowMap[colName] = *value
+				break
+			}
 		case map[string][]uint8: //specific case of select * column in select
 			if colName == query.DefaultColumnFamily { // default column family e.g cf1
 				for k, val := range v {

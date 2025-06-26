@@ -382,12 +382,17 @@ func (btc *BigtableClient) CreateTable(ctx context.Context, data *translator.Cre
 		return err
 	}
 
-	if !exists {
-		btc.Logger.Info("updating table schema")
-		err = btc.updateTableSchema(ctx, data.Keyspace, schemaMappingTableName, data.Table, data.PrimaryKeys, data.Columns, nil)
-		if err != nil {
-			return err
-		}
+	if exists && data.IfNotExists {
+		// already exists - nothing to do.
+		return nil
+	} else if exists && !data.IfNotExists {
+		return fmt.Errorf("cannot create table %s becauase it already exists", data.Table)
+	}
+
+	btc.Logger.Info("updating table schema")
+	err = btc.updateTableSchema(ctx, data.Keyspace, schemaMappingTableName, data.Table, data.PrimaryKeys, data.Columns, nil)
+	if err != nil {
+		return err
 	}
 
 	var rowKeySchemaFields []bigtable.StructField
@@ -422,10 +427,6 @@ func (btc *BigtableClient) CreateTable(ctx context.Context, data *translator.Cre
 	if err != nil {
 		btc.Logger.Error("failed to create bigtable table", zap.Error(err))
 		return err
-	}
-
-	if exists && !data.IfNotExists {
-		return fmt.Errorf("cannot create table %s becauase it already exists", data.Table)
 	}
 
 	err = btc.maybeAddCounterColumnFamily(ctx, adminClient, data.Keyspace, data.Table, data.Columns)

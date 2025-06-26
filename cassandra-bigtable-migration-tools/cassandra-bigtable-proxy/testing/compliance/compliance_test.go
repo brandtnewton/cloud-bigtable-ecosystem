@@ -379,8 +379,6 @@ func executeDMLTestCases(t *testing.T, testCase TestCase, fileName string) bool 
 			result = executeUpdate(t, operation, fileName)
 		case "delete":
 			result = executeDelete(t, operation, fileName)
-		case "ddl":
-			result = executeDdl(t, operation, fileName)
 		default:
 			utility.LogWarning(t, fmt.Sprintf("Unknown operation type: %s", operation.QueryType))
 			result = false
@@ -624,42 +622,6 @@ func executeDelete(t *testing.T, operation Operation, fileName string) bool {
 
 	if err := iter.Close(); err != nil {
 
-		if expectedErr, ok := operation.ExpectedResult[0]["expect_error"].(bool); ok && expectedErr {
-			expectedErrMsg := operation.ExpectedResult[0]["error_message"]
-			expectedErrCassandraMsg := operation.ExpectedResult[0]["cassandra_error_message"]
-			avoidCompErrCassandraMsg, _ := operation.ExpectedResult[0]["avoid_compare_error_message"].(bool)
-			containsTimestamp := strings.Contains(strings.ToUpper(operation.Query), "USING TIMESTAMP")
-
-			if expectedErrMsg != "" || expectedErrCassandraMsg != "" {
-				// If the error contains a timestamp and it's a proxy, handle it differently
-				if containsTimestamp && !isProxy {
-					utility.LogWarning(t, fmt.Sprintf("expected no error for Cassandra. got %v", err))
-					return false
-				}
-				// Check if the error message matches the expected error message (case-insensitive)
-				if strings.EqualFold(strings.TrimSpace(err.Error()), strings.TrimSpace(expectedErrMsg.(string))) || (expectedErrCassandraMsg != nil && (!isProxy && strings.EqualFold(strings.TrimSpace(err.Error()), strings.TrimSpace(expectedErrCassandraMsg.(string))))) || avoidCompErrCassandraMsg {
-					utility.LogInfo(fmt.Sprintf("Query failed as expected with error: %v\n", err))
-					utility.LogSuccess(t, operation.QueryDesc, operation.QueryType)
-					return true
-				}
-				utility.LogWarning(t, fmt.Sprintf("Error message mismatch:\nExpected: '%s'\nActual:   '%s'\n", expectedErrMsg, err.Error()))
-				return false
-			}
-			utility.LogSuccess(t, operation.QueryDesc, operation.QueryType)
-			return true
-		}
-		utility.LogError(t, fileName, operation.QueryDesc, operation.Query, err)
-		return false
-	}
-	utility.LogSuccess(t, operation.QueryDesc, operation.QueryType)
-	return true
-}
-
-func executeDdl(t *testing.T, operation Operation, fileName string) bool {
-	params := utility.ConvertParams(t, operation.Params, fileName, operation.Query)
-	iter := session.Query(operation.Query, params...).Iter()
-
-	if err := iter.Close(); err != nil {
 		if expectedErr, ok := operation.ExpectedResult[0]["expect_error"].(bool); ok && expectedErr {
 			expectedErrMsg := operation.ExpectedResult[0]["error_message"]
 			expectedErrCassandraMsg := operation.ExpectedResult[0]["cassandra_error_message"]

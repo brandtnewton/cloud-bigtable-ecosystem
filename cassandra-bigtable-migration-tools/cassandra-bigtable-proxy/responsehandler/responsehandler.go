@@ -113,9 +113,8 @@ func (th *TypeHandler) BuildResponseRow(rowMap map[string]interface{}, query Que
 	var mr message.Row
 	for index, metaData := range cmd {
 		key := metaData.Name
-		// todo is this ever OK to do? Should we just fail instead?
 		if rowMap[key] == nil {
-			th.Logger.Error(fmt.Sprintf("no result in row map found for key `%s`", key), zap.Any("row map", rowMap), zap.Any("column metadata", metaData), zap.String("btql", query.Query))
+			th.Logger.Warn(fmt.Sprintf("no result in row map found for key `%s`", key), zap.Any("row map", rowMap), zap.Any("column metadata", metaData), zap.String("btql", query.Query))
 			rowMap[key] = []byte{}
 			mr = append(mr, nil)
 			continue

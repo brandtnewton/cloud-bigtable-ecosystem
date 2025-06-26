@@ -18,15 +18,15 @@ package proxy
 import "fmt"
 
 var (
-	BigtableGrpcChannels          = 1
-	BigtableMinSession            = 100
-	BigtableMaxSession            = 400
-	SchemaMappingTable            = "schema_mapping"
-	ErrorAuditTable               = "error_audit"
-	DefaultColumnFamily           = "cf1"
-	DefaultCounterColumnQualifier = "ccf"
-	DefaultProfileId              = "default"
-	TimestampColumnName           = "ts_column"
+	BigtableGrpcChannels       = 1
+	BigtableMinSession         = 100
+	BigtableMaxSession         = 400
+	SchemaMappingTable         = "schema_mapping"
+	ErrorAuditTable            = "error_audit"
+	DefaultColumnFamily        = "cf1"
+	DefaultCounterColumnFamily = "ccf"
+	DefaultProfileId           = "default"
+	TimestampColumnName        = "ts_column"
 )
 
 // ApplyDefaults applies default values to the configuration after it is loaded
@@ -41,8 +41,8 @@ func ValidateAndApplyDefaults(cfg *UserConfig) error {
 		if cfg.Listeners[i].Bigtable.DefaultColumnFamily == "" {
 			cfg.Listeners[i].Bigtable.DefaultColumnFamily = DefaultColumnFamily
 		}
-		if cfg.Listeners[i].Bigtable.CounterColumnQualifier == "" {
-			cfg.Listeners[i].Bigtable.CounterColumnQualifier = DefaultCounterColumnQualifier
+		if cfg.Listeners[i].Bigtable.CounterColumnFamily == "" {
+			cfg.Listeners[i].Bigtable.CounterColumnFamily = DefaultCounterColumnFamily
 		}
 		if cfg.Listeners[i].Bigtable.AppProfileID == "" {
 			cfg.Listeners[i].Bigtable.AppProfileID = DefaultProfileId

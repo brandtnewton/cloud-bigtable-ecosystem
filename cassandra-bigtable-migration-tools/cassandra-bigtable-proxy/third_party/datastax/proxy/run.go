@@ -92,14 +92,14 @@ type InstancesMap struct {
 	AppProfileID     string `yaml:"appProfileID"`
 }
 type Bigtable struct {
-	ProjectID              string         `yaml:"projectId"`
-	Instances              []InstancesMap `yaml:"instances"`
-	InstanceIDs            string         `yaml:"instanceIds"`
-	SchemaMappingTable     string         `yaml:"schemaMappingTable"`
-	Session                Session        `yaml:"Session"`
-	DefaultColumnFamily    string         `yaml:"defaultColumnFamily"`
-	CounterColumnQualifier string         `yaml:"counterColumnQualifier"`
-	AppProfileID           string         `yaml:"appProfileID"`
+	ProjectID           string         `yaml:"projectId"`
+	Instances           []InstancesMap `yaml:"instances"`
+	InstanceIDs         string         `yaml:"instanceIds"`
+	SchemaMappingTable  string         `yaml:"schemaMappingTable"`
+	Session             Session        `yaml:"Session"`
+	DefaultColumnFamily string         `yaml:"defaultColumnFamily"`
+	CounterColumnFamily string         `yaml:"counterColumnFamily"`
+	AppProfileID        string         `yaml:"appProfileID"`
 }
 
 // Session describes the settings for Bigtable sessions
@@ -300,7 +300,7 @@ func Run(ctx context.Context, args []string) int {
 			InstancesMap:        InstanceMap,
 			GCPProjectID:        listener.Bigtable.ProjectID,
 			DefaultColumnFamily: listener.Bigtable.DefaultColumnFamily,
-			CounterColumnFamily: listener.Bigtable.CounterColumnQualifier,
+			CounterColumnFamily: listener.Bigtable.CounterColumnFamily,
 			// todo remove once we support ordered code ints
 			EncodeIntValuesWithBigEndian: encodeIntValuesWithBigEndian,
 		}

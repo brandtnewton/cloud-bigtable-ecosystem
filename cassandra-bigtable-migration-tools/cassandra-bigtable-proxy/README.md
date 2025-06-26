@@ -271,11 +271,11 @@ listeners:
     # [Required] Name of the table  where cassandra schema to bigtable schema mapping is stored.
     schemaMappingTable: SCHEMA_MAPPING_TABLE_NAME
 
-    #[Required] Default column family for primitive data types is "cf1"
+    # [Optional] Default column family for primitive data types is "cf1".
     defaultColumnFamily: DEFAULT_COLUMN_FAMILY
     
-    # [Optional] The column qualifier that should be used for counter columns. Counter columns are stored in a column family
-    counterColumnQualifier: COUNTER_COLUMN_QUALIFIER
+    # [Optional] The column family used to store counter columns. The default is "ccf".
+    counterColumnFamily: COUNTER_COLUMN_FAMILY
 
     # Number of grpc channels to be used for Bigtable session.
     Session:

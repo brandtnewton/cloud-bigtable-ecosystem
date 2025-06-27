@@ -74,7 +74,7 @@ type BigTableClientIface interface {
 	SelectStatement(context.Context, rh.QueryMetadata) (*message.RowsResult, time.Time, error)
 	AlterTable(ctx context.Context, data *translator.AlterTableStatementMap, schemaMappingTableName string) error
 	CreateTable(ctx context.Context, data *translator.CreateTableStatementMap, schemaMappingTableName string) error
-	TruncateTable(ctx context.Context, data *translator.TruncateTableStatementMap) error
+	DropAllRows(ctx context.Context, data *translator.TruncateTableStatementMap) error
 	DropTable(ctx context.Context, data *translator.DropTableStatementMap, schemaMappingTableName string) error
 	UpdateRow(context.Context, *translator.UpdateQueryMapping) (*message.RowsResult, error)
 	PrepareStatement(ctx context.Context, query rh.QueryMetadata) (*bigtable.PreparedStatement, error)
@@ -259,7 +259,7 @@ func (btc *BigtableClient) mutateRow(ctx context.Context, tableName, rowKey stri
 	}, nil
 }
 
-func (btc *BigtableClient) TruncateTable(ctx context.Context, data *translator.TruncateTableStatementMap) error {
+func (btc *BigtableClient) DropAllRows(ctx context.Context, data *translator.TruncateTableStatementMap) error {
 	adminClient, err := btc.getAdminClient(data.Keyspace)
 	if err != nil {
 		return err
@@ -514,12 +514,16 @@ func (btc *BigtableClient) maybeAddCounterColumnFamily(ctx context.Context, admi
 		return nil
 	}
 
-	alreadyHasCounterColumn := slices.ContainsFunc(btc.SchemaMappingConfig.GetAllColumns(keyspace, tableName), func(c *types.Column) bool {
-		return c.CQLType == datatype.Counter
-	})
-	// the table already has a counter column, so it's safe to assume the column family exists
-	if !alreadyHasCounterColumn {
-		return nil
+	existingColumns, foundExistingColumns := btc.SchemaMappingConfig.GetAllColumns(keyspace, tableName)
+	// foundExistingColumns will be false if the we're just creating the table now because metadata hasn't been refreshed yet.
+	if foundExistingColumns {
+		alreadyHasCounterColumn := slices.ContainsFunc(existingColumns, func(c *types.Column) bool {
+			return c.CQLType == datatype.Counter
+		})
+		// the table already has a counter column, so it's safe to assume the column family exists
+		if alreadyHasCounterColumn {
+			return nil
+		}
 	}
 
 	btc.Logger.Info(fmt.Sprintf("adding a counter column family `%s` to table `%s.%s`", btc.SchemaMappingConfig.CounterColumnFamily, keyspace, tableName))

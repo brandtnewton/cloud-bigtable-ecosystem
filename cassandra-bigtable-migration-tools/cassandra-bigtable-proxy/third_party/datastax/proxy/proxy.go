@@ -1687,7 +1687,7 @@ func (c *client) handleQuery(raw *frame.RawFrame, msg *partialQuery) {
 			}
 
 			otelgo.AddAnnotation(otelCtx, bigtableExecutionDoneEvent)
-			err = c.proxy.bClient.TruncateTable(c.proxy.ctx, queryMetadata)
+			err = c.proxy.bClient.DropAllRows(c.proxy.ctx, queryMetadata)
 			if err != nil {
 				c.proxy.logger.Error(errorAtBigtable, zap.String(Query, msg.query), zap.Error(err))
 				otelErr = err

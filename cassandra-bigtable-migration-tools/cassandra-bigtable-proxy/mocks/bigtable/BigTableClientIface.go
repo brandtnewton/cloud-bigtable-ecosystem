@@ -27,7 +27,7 @@ type BigTableClientIface struct {
 	mock.Mock
 }
 
-func (_m *BigTableClientIface) TruncateTable(ctx context.Context, data *translator.TruncateTableStatementMap) error {
+func (_m *BigTableClientIface) DropAllRows(ctx context.Context, data *translator.TruncateTableStatementMap) error {
 	//TODO implement me
 	panic("implement me")
 }

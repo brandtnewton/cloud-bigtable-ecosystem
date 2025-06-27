@@ -355,7 +355,7 @@ func (t *Translator) TranslateDeleteQuerytoBigtable(queryStr string, isPreparedQ
 		if err != nil {
 			return nil, err
 		}
-		rowKeyBytes, err := createOrderedCodeKey(pmks, pkValues, t.EncodeIntValuesWithBigEndian)
+		rowKeyBytes, err := createOrderedCodeKey(pmks, pkValues)
 		if err != nil {
 			return nil, fmt.Errorf("key encoding failed. %w", err)
 		}
@@ -397,7 +397,7 @@ func (t *Translator) BuildDeletePrepareQuery(values []*primitive.Value, st *Dele
 	if err != nil {
 		return "", TimestampInfo{}, err
 	}
-	rowKeyBytes, err := createOrderedCodeKey(pmks, valueMap, t.EncodeIntValuesWithBigEndian)
+	rowKeyBytes, err := createOrderedCodeKey(pmks, valueMap)
 	if err != nil {
 		return "", timestamp, fmt.Errorf("key encoding failed. %w", err)
 	}

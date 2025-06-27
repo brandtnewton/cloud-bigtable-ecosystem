@@ -430,7 +430,7 @@ func (t *Translator) TranslateUpdateQuerytoBigtable(queryStr string, isPreparedQ
 		if err != nil {
 			return nil, err
 		}
-		rowKeyBytes, err := createOrderedCodeKey(pmks, pkValues, t.EncodeIntValuesWithBigEndian)
+		rowKeyBytes, err := createOrderedCodeKey(pmks, pkValues)
 		if err != nil {
 			return nil, err
 		}
@@ -579,7 +579,7 @@ func (t *Translator) BuildUpdatePrepareQuery(columnsResponse []types.Column, val
 	if err != nil {
 		return nil, err
 	}
-	rowKeyBytes, err := createOrderedCodeKey(pmks, unencrypted, t.EncodeIntValuesWithBigEndian)
+	rowKeyBytes, err := createOrderedCodeKey(pmks, unencrypted)
 	if err != nil {
 		return nil, err
 	}

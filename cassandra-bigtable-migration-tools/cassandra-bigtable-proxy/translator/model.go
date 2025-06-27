@@ -27,10 +27,8 @@ import (
 )
 
 type Translator struct {
-	Logger *zap.Logger
-	// todo remove once we support ordered code ints
-	EncodeIntValuesWithBigEndian bool
-	SchemaMappingConfig          *schemaMapping.SchemaMappingConfig
+	Logger              *zap.Logger
+	SchemaMappingConfig *schemaMapping.SchemaMappingConfig
 }
 
 // SelectQueryMap represents the mapping of a select query along with its translation details.

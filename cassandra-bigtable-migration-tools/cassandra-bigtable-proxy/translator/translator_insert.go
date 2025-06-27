@@ -269,7 +269,7 @@ func (t *Translator) TranslateInsertQuerytoBigtable(queryStr string, protocolV p
 		if err != nil {
 			return nil, err
 		}
-		rowKeyBytes, err := createOrderedCodeKey(pmks, unencrypted, t.EncodeIntValuesWithBigEndian)
+		rowKeyBytes, err := createOrderedCodeKey(pmks, unencrypted)
 		if err != nil {
 			return nil, err
 		}
@@ -363,7 +363,7 @@ func (t *Translator) BuildInsertPrepareQuery(columnsResponse []types.Column, val
 		return nil, err
 	}
 
-	rowKeyBytes, err := createOrderedCodeKey(pmks, unencrypted, t.EncodeIntValuesWithBigEndian)
+	rowKeyBytes, err := createOrderedCodeKey(pmks, unencrypted)
 	if err != nil {
 		return nil, err
 	}

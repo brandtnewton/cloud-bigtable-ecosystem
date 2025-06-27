@@ -267,8 +267,6 @@ var mockProxy = &Proxy{
 	schemaMapping: schemaConfigs,
 	translator: &translator.Translator{
 		SchemaMappingConfig: schemaConfigs,
-		// todo remove once we support ordered code ints
-		EncodeIntValuesWithBigEndian: false,
 	},
 	logger: zap.NewNop(),
 }
@@ -339,8 +337,7 @@ func Test_handleExecutionForDeletePreparedQuery(t *testing.T) {
 	mockProxy := &Proxy{
 		schemaMapping: schemaConfigs,
 		translator: &translator.Translator{
-			SchemaMappingConfig:          schemaConfigs,
-			EncodeIntValuesWithBigEndian: false,
+			SchemaMappingConfig: schemaConfigs,
 		},
 		logger:  zap.NewNop(),
 		ctx:     context.Background(),

@@ -682,7 +682,7 @@
             "datatype": "text"
           }
         ],
-        "expect_cassandra_specific_error": "Orderby is currently only supported on the clustered columns of the PRIMARY KEY, got likes",
+        "expect_cassandra_specific_error": "Order by is currently only supported on the clustered columns of the PRIMARY KEY, got likes",
         "expected_multi_row_result": [
           [
             {

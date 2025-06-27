@@ -4,7 +4,6 @@ go 1.24.0
 
 require (
 	cloud.google.com/go/secretmanager v1.14.6
-	github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy v0.0.0-20250613201457-ed237894d5b5
 	github.com/alecthomas/kong v0.2.17
 	github.com/antlr4-go/antlr/v4 v4.13.0
 	github.com/datastax/go-cassandra-native-protocol v0.0.0-20211124104234-f6aea54fa801

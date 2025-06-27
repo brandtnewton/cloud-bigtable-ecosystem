@@ -547,6 +547,8 @@ func (btc *BigtableClient) addColumnFamilies(columns []message.ColumnMetadata) (
 		if utilities.IsCollectionDataType(col.Type) {
 			if col.Name == btc.BigtableConfig.DefaultColumnFamily {
 				return nil, fmt.Errorf("collection type columns cannot be named '%s' because it's reserved as the default column family", btc.BigtableConfig.DefaultColumnFamily)
+			} else if col.Name == btc.BigtableConfig.CounterColumnFamily {
+				return nil, fmt.Errorf("collection type columns cannot be named '%s' because it's reserved as the counter column family", btc.BigtableConfig.CounterColumnFamily)
 			}
 			columnFamilies[col.Name] = bigtable.Family{
 				GCPolicy: bigtable.MaxVersionsPolicy(1),

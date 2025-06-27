@@ -682,6 +682,7 @@
             "datatype": "text"
           }
         ],
+        "expect_cassandra_specific_error": "Orderby is currently only supported on the clustered columns of the PRIMARY KEY, got likes",
         "expected_multi_row_result": [
           [
             {
@@ -719,6 +720,7 @@
             "datatype": "text"
           }
         ],
+        "expect_cassandra_specific_error": "Undefined column name l in table bigtabledevinstance.social_posts",
         "expected_multi_row_result": [
           [
             {
@@ -756,6 +758,7 @@
             "datatype": "text"
           }
         ],
+        "expect_cassandra_specific_error": "Group by is currently only supported on the columns of the PRIMARY KEY, got likes",
         "expected_multi_row_result": [
           [
             {

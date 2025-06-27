@@ -259,6 +259,35 @@ func (btc *BigtableClient) mutateRow(ctx context.Context, tableName, rowKey stri
 	}, nil
 }
 
+// validateCounterColumn - ensures that the counter column family, if it exists, is correctly configured.
+func (btc *BigtableClient) validateCounterColumn(ctx context.Context, keyspace, tableName string) error {
+	adminClient, err := btc.getAdminClient(keyspace)
+	if err != nil {
+		return err
+	}
+
+	tableInfo, err := adminClient.TableInfo(ctx, tableName)
+	if err != nil {
+		return err
+	}
+
+	for _, info := range tableInfo.FamilyInfos {
+		if info.Name == btc.SchemaMappingConfig.CounterColumnFamily && !isCounterColumnFamilyType(info) {
+			return fmt.Errorf("counter column family `%s` in table `%s.%s` is not configured with required sum aggregate", btc.SchemaMappingConfig.CounterColumnFamily, keyspace, tableName)
+		}
+	}
+	return nil
+}
+
+func isCounterColumnFamilyType(info bigtable.FamilyInfo) bool {
+	switch vt := info.ValueType.(type) {
+	case bigtable.AggregateType:
+		return vt.Aggregator == bigtable.SumAggregator{} && vt.Input == bigtable.Int64Type{}
+	default:
+		return false
+	}
+}
+
 func (btc *BigtableClient) DropAllRows(ctx context.Context, data *translator.TruncateTableStatementMap) error {
 	adminClient, err := btc.getAdminClient(data.Keyspace)
 	if err != nil {
@@ -534,11 +563,17 @@ func (btc *BigtableClient) maybeAddCounterColumnFamily(ctx context.Context, admi
 			Aggregator: bigtable.SumAggregator{},
 		},
 	})
-	// ignore already exists errors - the table already has a counter column family. This could happen if all previous counter columns were dropped since we don't clean up the column family.
+	// already exists errors are probably ok - the table already has a counter column family. This could happen if all previous counter columns were dropped since we don't clean up the column family.
 	if status.Code(err) == codes.AlreadyExists {
-		err = nil
+		// we didn't expect the column family to exist - verify that it's correctly configured
+		err = btc.validateCounterColumn(ctx, keyspace, tableName)
+		if err != nil {
+			return err
+		}
+	} else if err != nil {
+		return err
 	}
-	return err
+	return nil
 }
 
 func (btc *BigtableClient) addColumnFamilies(columns []message.ColumnMetadata) (map[string]bigtable.Family, error) {

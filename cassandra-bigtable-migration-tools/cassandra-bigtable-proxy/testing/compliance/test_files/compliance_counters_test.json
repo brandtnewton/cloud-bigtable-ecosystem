@@ -24,8 +24,9 @@
         "expected_result": null
       },
       {
-        "query": "SELECT user_id, id, likes FROM bigtabledevinstance.social_posts WHERE user_id = ? AND id = ?",
+        "query": "SELECT user_id, id, likes, views FROM bigtabledevinstance.social_posts WHERE user_id = ? AND id = ?",
         "query_type": "SELECT",
+        "query_desc": "Confirm likes is set correctly and that views, not initialized, defaults to 0",
         "params": [
           {
             "value": "user123",
@@ -47,6 +48,10 @@
           },
           {
             "likes": 0,
+            "datatype": "bigint"
+          },
+          {
+            "views": 0,
             "datatype": "bigint"
           }
         ]

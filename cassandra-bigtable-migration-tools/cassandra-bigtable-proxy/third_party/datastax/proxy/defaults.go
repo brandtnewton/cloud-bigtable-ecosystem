@@ -67,6 +67,9 @@ func ValidateAndApplyDefaults(cfg *UserConfig) error {
 		if len(cfg.Listeners[i].Bigtable.Instances) != 0 && cfg.Listeners[i].Bigtable.InstanceIDs != "" {
 			return fmt.Errorf("only one of 'instances' or 'instance_ids' should be set for listener %s on port %d", cfg.Listeners[i].Name, cfg.Listeners[i].Port)
 		}
+		if cfg.Listeners[i].Bigtable.DefaultColumnFamily == cfg.Listeners[i].Bigtable.CounterColumnFamily {
+			return fmt.Errorf("default column family is the same as counter column family for listener %s but must be different", cfg.Listeners[i].Name)
+		}
 	}
 	return nil
 }

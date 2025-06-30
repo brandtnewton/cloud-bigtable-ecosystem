@@ -72,12 +72,17 @@ func (c *SchemaMappingConfig) GetPkByTableName(tableName string, keySpace string
 	return pkMeta, nil
 }
 
-func (c *SchemaMappingConfig) GetAllColumns(keySpace, tableName string) []*types.Column {
+func (c *SchemaMappingConfig) GetAllColumns(keySpace, tableName string) ([]*types.Column, bool) {
+	metadata, ok := c.TablesMetaData[keySpace][tableName]
+	if !ok {
+		return nil, false
+	}
+
 	var result []*types.Column
-	for _, column := range c.TablesMetaData[keySpace][tableName] {
+	for _, column := range metadata {
 		result = append(result, column)
 	}
-	return result
+	return result, true
 }
 
 func (c *SchemaMappingConfig) GetPkByTableNameWithFilter(tableName string, keySpace string, filterPrimaryKeys []string) ([]types.Column, error) {

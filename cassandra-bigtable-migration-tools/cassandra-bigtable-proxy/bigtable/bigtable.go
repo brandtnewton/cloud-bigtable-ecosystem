@@ -397,7 +397,7 @@ func (btc *BigtableClient) CreateTable(ctx context.Context, data *translator.Cre
 
 	var rowKeySchemaFields []bigtable.StructField
 	for _, key := range data.PrimaryKeys {
-		part, err := createBigtableRowKeyField(key.Name, data.Columns, btc.BigtableConfig.EncodeIntValuesWithBigEndian)
+		part, err := createBigtableRowKeyField(key.Name, data.Columns)
 		if err != nil {
 			return err
 		}
@@ -443,7 +443,7 @@ func (btc *BigtableClient) CreateTable(ctx context.Context, data *translator.Cre
 	return nil
 }
 
-func createBigtableRowKeyField(key string, cols []message.ColumnMetadata, encodeIntValuesWithBigEndian bool) (bigtable.StructField, error) {
+func createBigtableRowKeyField(key string, cols []message.ColumnMetadata) (bigtable.StructField, error) {
 	for _, column := range cols {
 		if column.Name != key {
 			continue
@@ -453,10 +453,6 @@ func createBigtableRowKeyField(key string, cols []message.ColumnMetadata, encode
 		case datatype.Varchar:
 			return bigtable.StructField{FieldName: key, FieldType: bigtable.StringType{Encoding: bigtable.StringUtf8BytesEncoding{}}}, nil
 		case datatype.Int, datatype.Bigint, datatype.Timestamp:
-			// todo remove once ordered byte encoding is supported for ints
-			if encodeIntValuesWithBigEndian {
-				return bigtable.StructField{FieldName: key, FieldType: bigtable.Int64Type{Encoding: bigtable.BigEndianBytesEncoding{}}}, nil
-			}
 			return bigtable.StructField{FieldName: key, FieldType: bigtable.Int64Type{Encoding: bigtable.Int64OrderedCodeBytesEncoding{}}}, nil
 		default:
 			return bigtable.StructField{}, fmt.Errorf("unhandled row key type %s", column.Type)

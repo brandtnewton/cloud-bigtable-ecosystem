@@ -482,7 +482,6 @@ func createBigtableRowKeyField(key string, cols []message.ColumnMetadata, encode
 		case datatype.Varchar:
 			return bigtable.StructField{FieldName: key, FieldType: bigtable.StringType{Encoding: bigtable.StringUtf8BytesEncoding{}}}, nil
 		case datatype.Int, datatype.Bigint, datatype.Timestamp:
-			// todo remove once ordered byte encoding is supported for ints
 			if encodeIntValuesWithBigEndian {
 				return bigtable.StructField{FieldName: key, FieldType: bigtable.Int64Type{Encoding: bigtable.BigEndianBytesEncoding{}}}, nil
 			}

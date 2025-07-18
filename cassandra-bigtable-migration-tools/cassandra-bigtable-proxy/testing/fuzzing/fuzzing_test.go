@@ -302,12 +302,6 @@ func FuzzRowKeys(f *testing.F) {
 		name := fmt.Sprintf("name%d", rand.Int63())
 		err := session.Query("insert into bigtabledevinstance.fuzztestkeys (id, str_key, int_key, bigint_key, name) values (?, ?, ?, ?, ?)", id, strKey, intKey, bigIntKey, name).Exec()
 
-		// negative values should cause an error because we currently use big-endian encoding. non-utf8 strings should also cause an error because varchar enforces it
-		if intKey < 0 || bigIntKey < 0 || !utf8.Valid([]byte(strKey)) {
-			assert.Error(t, err)
-			return
-		}
-
 		assert.NoError(t, err)
 		scanner := session.Query("select id, str_key, int_key, bigint_key, name from bigtabledevinstance.fuzztestkeys where id=? AND str_key=? AND int_key=? AND bigint_key=?", id, strKey, intKey, bigIntKey).Iter().Scanner()
 

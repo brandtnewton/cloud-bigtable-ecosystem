@@ -27,8 +27,7 @@ import (
 )
 
 type Translator struct {
-	Logger *zap.Logger
-	// todo remove once we support ordered code ints
+	Logger                       *zap.Logger
 	EncodeIntValuesWithBigEndian bool
 	SchemaMappingConfig          *schemaMapping.SchemaMappingConfig
 }

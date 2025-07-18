@@ -59,6 +59,12 @@ listeners:
     # [Optional] The column family used to store counter columns. The default is "ccf".
     #counterColumnFamily: ccf
 
+    # [Optional] Deprecated. Only included for backwards compatability reasons.
+    # Any tables created with <= v0.1.4 must set this to True. We recommend
+    # migrating any such tables which can be done by recreating them with any
+    # > v0.1.4 version of this proxy and this config unspecified or False.
+    # encodeIntValuesWithBigEndian: False
+
     # Number of grpc channels to be used for Bigtable session.
     Session:
       grpcChannels: 4

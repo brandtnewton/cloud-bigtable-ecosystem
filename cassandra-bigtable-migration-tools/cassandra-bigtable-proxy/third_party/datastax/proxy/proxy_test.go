@@ -266,8 +266,7 @@ var schemaConfigs = &schemaMapping.SchemaMappingConfig{
 var mockProxy = &Proxy{
 	schemaMapping: schemaConfigs,
 	translator: &translator.Translator{
-		SchemaMappingConfig: schemaConfigs,
-		// todo remove once we support ordered code ints
+		SchemaMappingConfig:          schemaConfigs,
 		EncodeIntValuesWithBigEndian: false,
 	},
 	logger: zap.NewNop(),

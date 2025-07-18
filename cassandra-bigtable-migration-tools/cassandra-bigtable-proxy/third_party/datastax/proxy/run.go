@@ -301,8 +301,6 @@ func Run(ctx context.Context, args []string) int {
 			GCPProjectID:        listener.Bigtable.ProjectID,
 			DefaultColumnFamily: listener.Bigtable.DefaultColumnFamily,
 			CounterColumnFamily: listener.Bigtable.CounterColumnFamily,
-			// todo remove once we support ordered code ints
-			EncodeIntValuesWithBigEndian: encodeIntValuesWithBigEndian,
 		}
 
 		p, err1 := NewProxy(ctx, Config{

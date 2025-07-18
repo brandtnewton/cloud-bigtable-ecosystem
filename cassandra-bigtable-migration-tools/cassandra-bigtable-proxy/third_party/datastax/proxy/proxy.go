@@ -111,8 +111,6 @@ const (
 	bigtableExecutionDoneEvent          = "bigtable Execution Done"
 	gotBulkApplyResp                    = "Got the response for bulk apply"
 	sendingBulkApplyMutation            = "Sending Mutation For Bulk Apply"
-	// todo remove once we support ordered code ints
-	encodeIntValuesWithBigEndian = true
 )
 
 type Config struct {
@@ -237,10 +235,8 @@ func NewProxy(ctx context.Context, config Config) (*Proxy, error) {
 
 	bigtableCl.LoadConfigs(responseHandler, schemaMappingConfig)
 	proxyTranslator := &translator.Translator{
-		Logger: config.Logger,
-		// todo remove once we support ordered code ints
-		EncodeIntValuesWithBigEndian: encodeIntValuesWithBigEndian,
-		SchemaMappingConfig:          schemaMappingConfig,
+		Logger:              config.Logger,
+		SchemaMappingConfig: schemaMappingConfig,
 	}
 
 	// Enable OpenTelemetry traces by setting environment variable GOOGLE_API_GO_EXPERIMENTAL_TELEMETRY_PLATFORM_TRACING to the case-insensitive value "opentelemetry" before loading the client library.

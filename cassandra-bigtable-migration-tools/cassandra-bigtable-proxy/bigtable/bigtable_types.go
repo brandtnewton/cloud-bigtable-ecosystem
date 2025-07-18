@@ -64,13 +64,12 @@ type BigtableClient struct {
 }
 
 type BigtableConfig struct {
-	SchemaMappingTable  string
-	NumOfChannels       int
-	InstancesMap        map[string]InstanceConfig //map of key[cassandra keyspace] to Instance Configuration[bigtable instance]
-	GCPProjectID        string
-	DefaultColumnFamily string
-	CounterColumnFamily string
-	// todo remove once we support ordered code ints
+	SchemaMappingTable           string
+	NumOfChannels                int
+	InstancesMap                 map[string]InstanceConfig //map of key[cassandra keyspace] to Instance Configuration[bigtable instance]
+	GCPProjectID                 string
+	DefaultColumnFamily          string
+	CounterColumnFamily          string
 	EncodeIntValuesWithBigEndian bool
 }
 type ConnConfig struct {

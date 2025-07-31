@@ -31,6 +31,7 @@ limitations under the License.
   <description>
     BOM for Cassandra to Bigtable Client for Java
   </description>
+  <name>Cassandra Bigtable Java Client BOM</name>
 
   <dependencyManagement>
     <dependencies>

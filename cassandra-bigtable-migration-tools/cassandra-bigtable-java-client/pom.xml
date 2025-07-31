@@ -25,6 +25,7 @@ limitations under the License.
     <description>
         Parent project for Cassandra to Bigtable Client for Java
     </description>
+    <name>Cassandra Bigtable Java Client Parent</name>
 
     <parent>
       <groupId>com.google.cloud</groupId>

@@ -31,6 +31,7 @@ limitations under the License.
   <description>
     Bigtable CQL Client for Java library
   </description>
+  <name>Cassandra Bigtable Java Client Library</name>
 
   <properties>
     <maven.compiler.source>8</maven.compiler.source>

@@ -46,10 +46,6 @@ limitations under the License.
     <dependency>
       <groupId>com.google.cloud</groupId>
       <artifactId>cassandra-bigtable-java-client-lib</artifactId>
-    </dependency>
-    <dependency>
-      <groupId>com.google.cloud</groupId>
-      <artifactId>cassandra-bigtable-java-client-core</artifactId>
       <classifier>linux-amd64</classifier>
     </dependency>
     <dependency>

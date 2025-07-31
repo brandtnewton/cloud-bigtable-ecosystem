@@ -4,31 +4,37 @@ The Cassandra to Bigtable Client for Java lets you integrate your Cassandra-base
 
 # How to include this dependency in your code
 
-Add the following dependency to the `<dependencyManagement><dependencies>` section of your Maven `pom.xml` (replacing `VERSION-HERE` with the latest version):
+Add the following dependency to your Maven `pom.xml`, replacing `VERSION-HERE` with the latest version (current version is: `0.1.1`<!-- {x-version-update:cassandra-bigtable-java-client-lib:current} -->):
 
 ```xml
-<dependency>
-  <groupId>com.google.cloud</groupId>
-  <artifactId>cassandra-bigtable-java-client-bom</artifactId>
-  <version>VERSION-HERE</version>
-  <type>pom</type>
-  <scope>import</scope>
-</dependency>
+<dependencyManagement>
+  <dependencies>
+    <dependency>
+      <groupId>com.google.cloud</groupId>
+      <artifactId>cassandra-bigtable-java-client-bom</artifactId>
+      <version>VERSION-HERE</version>
+      <type>pom</type>
+      <scope>import</scope>
+    </dependency>
+  </dependencies>
+</dependencyManagement>
 ```
 
-Add the dependencies below to the `<dependencies>` section of your Maven `pom.xml` file (replacing `SPECIFY-CLASSIFIER-HERE` with one from [this list of classifiers](#classifiers)):
+Then, add the dependencies below to your Maven `pom.xml` file (replacing `SPECIFY-CLASSIFIER-HERE` with one from [this list of classifiers](#classifiers)):
 
 ```xml
-<dependency>
-  <groupId>com.google.cloud</groupId>
-  <artifactId>cassandra-bigtable-java-client-lib</artifactId>
-  <classifier>SPECIFY-CLASSIFIER-HERE</classifier>
-</dependency>
-<dependency>
-  <groupId>org.apache.cassandra</groupId>
-  <artifactId>java-driver-core</artifactId>
-  <version>4.19.0</version>
-</dependency>
+<dependencies>
+  <dependency>
+    <groupId>com.google.cloud</groupId>
+    <artifactId>cassandra-bigtable-java-client-lib</artifactId>
+    <classifier>SPECIFY-CLASSIFIER-HERE</classifier>
+  </dependency>
+  <dependency>
+    <groupId>org.apache.cassandra</groupId>
+    <artifactId>java-driver-core</artifactId>
+    <version>4.19.0</version>
+  </dependency>
+<dependencies>
 ```
 
 ## Classifiers

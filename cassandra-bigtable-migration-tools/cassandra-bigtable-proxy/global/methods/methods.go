@@ -149,8 +149,8 @@ func ConvertCQLDataTypeToString(cqlType datatype.DataType) (string, error) {
 	default:
 		typeCode := cqlType.GetDataTypeCode()
 
-		// Check for specific type code value (0x0022 = 34 = Set)
-		if typeCode == primitive.DataTypeCode(0x0022) {
+		// Check for specific type code value (0x0022 = 34 = Set) primitive.DataTypeCodeSet
+		if typeCode == primitive.DataTypeCodeSet {
 			setType, ok := cqlType.(datatype.SetType)
 			if !ok {
 				return "", fmt.Errorf("failed to assert set type for %v", cqlType)

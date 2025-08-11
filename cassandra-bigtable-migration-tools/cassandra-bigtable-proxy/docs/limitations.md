@@ -2,50 +2,30 @@
 ## Overview
 The Cassandra to Bigtable Proxy is intended to help you in migrating and integrating your Cassandra applications with Google Cloud Bigtable, ensuring that this complicated move runs as smoothly as possible. However, it is important to understand that this process is not without its challenges. Some of the limitations you might encounter start from fundamental incompatibilities between the Cassandra and Bigtable database architectures—imagine them as mismatched puzzle pieces that don't quite fit together. Other limitations exist simply because certain features haven't been fully implemented yet in the proxy.
 
-## 1. Supported Datatype
+## 1. Supported data types
 
-    | CQL Type                 | Supported |                         Cloud Bigtable Mapping                          |
-    | ------------------       | :-------: | :---------------------------------------------------------------------: |
-    | text                     |     ✓     |                                RAW BYTES                                |
-    | blob                     |     ✓     |                                RAW BYTES                                |
-    | timestamp                |     ✓     |                                RAW BYTES                                |
-    | int                      |     ✓     |                                RAW BYTES                                |
-    | bigint                   |     ✓     |                                RAW BYTES                                |
-    | float                    |     ✓     |                                RAW BYTES                                |
-    | double                   |     ✓     |                                RAW BYTES                                |
-    | boolean                  |     ✓     |                                RAW BYTES                                |
-    | counter                  |     ✓     | Col name as col family, "v" used as column qualifier.                  |
-    | map<text, text>          |     ✓     |   Col name as col family, MAP key as column qualifier, value as value   |
-    | map<text, int>           |     ✓     |   Col name as col family, MAP key as column qualifier, value as value   |
-    | map<text, bigint>        |     ✓     |   Col name as col family, MAP key as column qualifier, value as value   |
-    | map<text, float>         |     ✓     |   Col name as col family, MAP key as column qualifier, value as value   |
-    | map<text, double>        |     ✓     |   Col name as col family, MAP key as column qualifier, value as value   |
-    | map<text, boolean>       |     ✓     |   Col name as col family, MAP key as column qualifier, value as value   |
-    | map<text, timestamp>     |     ✓     |   Col name as col family, MAP key as column qualifier, value as value   |
-    | map<timestamp, text>     |     ✓     |   Col name as col family, MAP key as column qualifier, value as value   |
-    | map<timestamp, int>      |     ✓     |   Col name as col family, MAP key as column qualifier, value as value   |
-    | map<timestamp, bigint>   |     ✓     |   Col name as col family, MAP key as column qualifier, value as value   |
-    | map<timestamp, float>    |     ✓     |   Col name as col family, MAP key as column qualifier, value as value   |
-    | map<timestamp, double>   |     ✓     |   Col name as col family, MAP key as column qualifier, value as value   |
-    | map<timestamp, boolean>  |     ✓     |   Col name as col family, MAP key as column qualifier, value as value   |
-    | map<timestamp, timestamp>|     ✓     |   Col name as col family, MAP key as column qualifier, value as value   |
-    | set<text>                |     ✓     | Col name as col family, SET key as column qualifier, value remain empty |
-    | set<int>                 |     ✓     | Col name as col family, SET key as column qualifier, value remain empty |
-    | set<bigint>              |     ✓     | Col name as col family, SET key as column qualifier, value remain empty |
-    | set<float>               |     ✓     | Col name as col family, SET key as column qualifier, value remain empty |
-    | set<double>              |     ✓     | Col name as col family, SET key as column qualifier, value remain empty |
-    | set<boolean>             |     ✓     | Col name as col family, SET key as column qualifier, value remain empty |
-    | set<timestamp>           |     ✓     | Col name as col family, SET key as column qualifier, value remain empty |
-    | list<text>               |     ✓     | YES                                                                     |
-    | list<int>                |     ✓     | YES                                                                     |
-    | list<bigint>             |     ✓     | YES                                                                     |
-    | list<float>              |     ✓     | YES                                                                     |
-    | list<double>             |     ✓     | YES                                                                     |
-    | list<boolean>            |     ✓     | YES                                                                     |
-    | list<timestamp>          |     ✓     | YES                                                                     |
+ 
+  | CQL Type                 | Supported |                         Cloud Bigtable Mapping                          |
+  | ------------------       | :-------: | :---------------------------------------------------------------------: |
+  | text                     |     ✓     |                                RAW BYTES                                |
+  | blob                     |     ✓     |                                RAW BYTES                                |
+  | timestamp                |     ✓     |                                RAW BYTES                                |
+  | int                      |     ✓     |                                RAW BYTES                                |
+  | bigint                   |     ✓     |                                RAW BYTES                                |
+  | float                    |     ✓     |                                RAW BYTES                                |
+  | double                   |     ✓     |                                RAW BYTES                                |
+  | boolean                  |     ✓     |                                RAW BYTES                                |
+  | counter                  |     ✓     | Col name as col family, "v" used as column qualifier.                  |
+    | map<key, value>          |     ✓     |   Col name as col family, MAP key as column qualifier, value as value   |
+  | set&lt;item&gt;          |     ✓     | Col name as col family, SET item as column qualifier, value remain empty |
+  | list&lt;item&gt;         |     ✓     | Col name as col family, current timestamp as column qualifier, list items as value |
 
 All list types follow the same storage pattern:  
 **Col name as col family, current timestamp (with nanosecond precision) as column qualifier, list items as column value.**
+
+### Non-supported data types
+
+The proxy currently doesn't support the following data types: US-ASCII, blob, counter, date, decimal, duration, inet, smallint, time, timeuuid, tinyint, uuid, varint, frozen and user-defined types (UDT).
 
 ## 2. Supported Functions
   We are only supporting these functions as of now.

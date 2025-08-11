@@ -2,48 +2,49 @@
 
 The Cassandra to Bigtable Client for Java lets you integrate your Cassandra-based Java applications with Bigtable using CQL.
 
-# How to build library
-
-- Ensure you have the installed [these pre-requisites](../../cassandra-bigtable-proxy/README.md#pre-requisites)
-- Navigate to the parent directory (`cassandra-bigtable-java-client`)
-- Run the following Maven command, replacing `<SPECIFY-PROFILE-HERE>` with one from [this list of classifiers](#classifiers)
-
-```shell
-mvn install -P<SPECIFY-PROFILE-HERE>
-```
-
 # How to include this dependency in your code
 
-Add the following dependency to the `<dependencyManagement><dependencies>` section of your Maven `pom.xml`:
+Add the following dependency to your Maven `pom.xml`, replacing `VERSION-HERE` with the latest version
 
 ```xml
-<dependency>
-  <groupId>com.google.cloud</groupId>
-  <artifactId>cassandra-bigtable-java-client-bom</artifactId>
-  <version>0.1.0-SNAPSHOT</version>
-  <type>pom</type>
-  <scope>import</scope>
-</dependency>
+<dependencyManagement>
+  <dependencies>
+    <dependency>
+      <groupId>com.google.cloud</groupId>
+      <artifactId>cassandra-bigtable-java-client-bom</artifactId>
+      <version>VERSION-HERE</version>
+      <type>pom</type>
+      <scope>import</scope>
+    </dependency>
+  </dependencies>
+</dependencyManagement>
 ```
 
-Add the dependencies below to the `<dependencies>` section of your Maven `pom.xml` file, replacing `SPECIFY-CLASSIFIER-HERE` with one from [this list of classifiers](#classifiers)
+The latest version is: `0.1.3`.
+
+Then, add the dependencies below to your Maven `pom.xml` file (replacing `SPECIFY-CLASSIFIER-HERE` with one from [this list of classifiers](#classifiers)):
 
 ```xml
-<dependency>
-  <groupId>com.google.cloud</groupId>
-  <artifactId>cassandra-bigtable-java-client-lib</artifactId>
-  <classifier>SPECIFY-CLASSIFIER-HERE</classifier>
-</dependency>
-<dependency>
-  <groupId>org.apache.cassandra</groupId>
-  <artifactId>java-driver-core</artifactId>
-  <version>4.19.0</version>
-</dependency>
+<dependencies>
+  <dependency>
+    <groupId>com.google.cloud</groupId>
+    <artifactId>cassandra-bigtable-java-client-lib</artifactId>
+    <classifier>SPECIFY-CLASSIFIER-HERE</classifier>
+    <version>VERSION-HERE</version>
+  </dependency>
+  <dependency>
+    <groupId>org.apache.cassandra</groupId>
+    <artifactId>java-driver-core</artifactId>
+    <version>4.19.0</version>
+  </dependency>
+</dependencies>
 ```
+
+`org.apache.cassandra:java-driver-core:4.19.0` is the latest supported version.
 
 ## Classifiers
 
-For the `cassandra-bigtable-java-client-core` package, specify the relevant `<classifier>` corresponding to the target platform/architecture:
+Below are the values of `<classifier>` corresponding to different target platform/architectures:
 
 - Linux Builds
   - `linux-amd64`

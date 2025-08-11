@@ -497,8 +497,8 @@ func Test_resolveAndListen(t *testing.T) {
 				if err != nil {
 					t.Errorf("Failed to stat socket file: %v", err)
 				}
-				if info.Mode().Perm() != 0666 {
-					t.Errorf("Expected socket permissions 0666, got %o", info.Mode().Perm())
+				if info.Mode().Perm() != 0600 {
+					t.Errorf("Expected socket permissions 0600, got %o", info.Mode().Perm())
 				}
 			},
 		},

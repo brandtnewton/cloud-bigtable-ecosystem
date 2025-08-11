@@ -953,7 +953,6 @@ func (btc *BigtableClient) Close() {
 	for _, clients := range btc.Clients {
 		clients.Close()
 	}
-	btc.grpcConn.Close()
 }
 
 // getIndexOpTimestamp() retrieves the timestamp qualifier for a given list index in a Bigtable row.

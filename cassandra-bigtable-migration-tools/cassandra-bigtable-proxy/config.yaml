@@ -14,47 +14,47 @@
 
 cassandraToBigtableConfigs:
   # [Optional] Global default GCP Project ID
-  projectId: cassandra-to-spanner
+  projectId: YOUR_GCP_PROJECT_ID
   # [Optional] Global default configuration table name
-  schemaMappingTable: schema_mapping
+  schemaMappingTable: SCHEMA_MAPPING_TABLE_NAME
   #[Required] Default column family for premitive data types
-  defaultColumnFamily: cf1
+  defaultColumnFamily: DEFAULT_COLUMN_FAMILY
 
 listeners:
 - name: cluster1
   port: 9042
   bigtable:
     # [Optional], skip if it is the same as global_projectId.
-    projectId: cassandra-to-spanner
+    projectId: YOUR_GCP_PROJECT_ID
 
     # [Optional] appProfileID (global) is required only if you want to use a specific app profile.
     # If a per-instance appProfileID is specified, it will override this global setting.
-    # appProfileID: bigtable-dev-profile
+    # appProfileID: GCP_BIGTABLE_APP_PROFILE_ID
 
     # If you want to use multiple instances then pass the instance names by comma seperated
     # Instance(cassandra keyspace) name should not contain any special characters except underscore(_)
     # if instanceIds values given here then proxy wont read from the below instances list
-    # instanceIds: instance1,instance2
+    # instanceIds: GCP_BIGTABLE_INSTANCE_ID1,GCP_BIGTABLE_INSTANCE_ID2
 
     # If you want to use multiple instances, define them as a list of objects below.
     instances:
     # [Required] The name of the Bigtable instance.
-    - bigtableInstance: bigtabledevinstance
+    - bigtableInstance: GCP_BIGTABLE_INSTANCE_ID1
       # [Required] The cassandra keyspace associated with this Bigtable instance.
       # Cassandra keyspace should not contain any special characters except underscore(_).
-      keyspace: bigtabledevinstance
+      keyspace: KEYSPACE_MAP_TO_INSTANCE
       # [Optional] appProfileID is required only if you want to use a specific app profile for this instance.
       # This will override the global appProfileID if specified.
-      # appProfileID: bigtable-dev-profile
+      # appProfileID: GCP_BIGTABLE_APP_PROFILE_ID
       # [example for adding another keyspace instance]
-      # - bigtableInstance: bt-instance
-      #   keyspace: cassandrakeyspace
-      #   appProfileID: bigtable-dev-profile
+      # - bigtableInstance: GCP_BIGTABLE_INSTANCE_ID2
+      #   keyspace: KEYSPACE_MAP_TO_INSTANCE2
+      #   appProfileID: GCP_BIGTABLE_APP_PROFILE_ID
 
-    schemaMappingTable: schema_mapping
+    schemaMappingTable: SCHEMA_MAPPING_TABLE_NAME
 
     #[Required] Default column family for primitive data types is "cf1"
-    defaultColumnFamily: cf1
+    defaultColumnFamily: DEFAULT_COLUMN_FAMILY
 
     # [Optional] The column family used to store counter columns. The default is "ccf".
     #counterColumnFamily: ccf
@@ -71,10 +71,12 @@ listeners:
 
 otel:
   # Set enabled to true or false for OTEL metrics/traces/logs.
-  enabled: True
+  enabled: False
+  # Set enabled to true or false for client side OTEL (metrics/traces).
+  enabledClientSideMetrics: True
 
   # Name of the collector service to be setup as a sidecar
-  serviceName: cassandra-to-bigtable-otel-service
+  serviceName: YOUR_OTEL_COLLECTOR_SERVICE_NAME
 
   healthcheck:
     # Enable the health check in this proxy application config only if the
@@ -91,11 +93,11 @@ otel:
     endpoint: localhost:13133
   metrics:
     # Collector service endpoint
-    endpoint: localhost:4317
+    endpoint: METRICS_SERVICE_ENDPOINT
 
   traces:
     # Collector service endpoint
-    endpoint: localhost:4317
+    endpoint: TRACER_SERVICE_ENDPOINT
     #Sampling ratio should be between 0 and 1. Here 0.05 means 5/100 Sampling ratio.
     samplingRatio: 1
 

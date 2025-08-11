@@ -30,8 +30,8 @@ import (
 
 // IsCollection() Function to determine if provided colunm if type of collection or not
 // It returns true if given column is of collection type or else return false
-func (t *Translator) IsCollection(keySpace, tableName, columnName string) bool {
-	if colType, err := t.SchemaMappingConfig.GetColumnType(keySpace, tableName, columnName); err == nil {
+func (t *Translator) IsCollection(tableConfig *schemaMapping.TableConfig, columnName string) bool {
+	if colType, err := tableConfig.GetColumnType(columnName); err == nil {
 		return colType.IsCollection
 	}
 	return false
@@ -45,7 +45,7 @@ func (t *Translator) IsCollection(keySpace, tableName, columnName string) bool {
 //   - schemaMapping: JSON Config which maintains column and its datatypes info.
 //
 // Returns: ColumnsResponse struct and error if any
-func parseColumnsAndValuesFromInsert(input cql.IInsertColumnSpecContext, tableName string, schemaMapping *schemaMapping.SchemaMappingConfig, keyspace string) (*ColumnsResponse, error) {
+func parseColumnsAndValuesFromInsert(input cql.IInsertColumnSpecContext, tableName string, tableConfig *schemaMapping.TableConfig, keyspace string) (*ColumnsResponse, error) {
 
 	if input == nil {
 		return nil, errors.New("parseColumnsAndValuesFromInsert: No Input paramaters found for columns")
@@ -73,7 +73,7 @@ func parseColumnsAndValuesFromInsert(input cql.IInsertColumnSpecContext, tableNa
 			return nil, errors.New("parseColumnsAndValuesFromInsert: No Columns found in the Insert Query")
 		}
 		columnName = strings.ReplaceAll(columnName, literalPlaceholder, "")
-		columnType, err := schemaMapping.GetColumnType(keyspace, tableName, columnName)
+		columnType, err := tableConfig.GetColumnType(columnName)
 		if err != nil {
 			return nil, fmt.Errorf("undefined column name %s in table %s.%s", columnName, keyspace, tableName)
 
@@ -84,7 +84,7 @@ func parseColumnsAndValuesFromInsert(input cql.IInsertColumnSpecContext, tableNa
 		}
 		column := types.Column{
 			Name:         columnName,
-			ColumnFamily: schemaMapping.SystemColumnFamily,
+			ColumnFamily: tableConfig.SystemColumnFamily,
 			CQLType:      columnType.CQLType,
 			IsPrimaryKey: isPrimaryKey,
 		}
@@ -111,7 +111,7 @@ func parseColumnsAndValuesFromInsert(input cql.IInsertColumnSpecContext, tableNa
 //   - columns: Array of Column Names
 //
 // Returns: Map Interface for param name as key and its value and error if any
-func setParamsFromValues(input cql.IInsertValuesSpecContext, columns []types.Column, schemaMapping *schemaMapping.SchemaMappingConfig, protocolV primitive.ProtocolVersion, tableName string, keySpace string, isPreparedQuery bool) (map[string]interface{}, []interface{}, map[string]interface{}, error) {
+func setParamsFromValues(input cql.IInsertValuesSpecContext, columns []types.Column, tableConfig *schemaMapping.TableConfig, protocolV primitive.ProtocolVersion, isPreparedQuery bool) (map[string]interface{}, []interface{}, map[string]interface{}, error) {
 	if input != nil {
 		valuesExpressionList := input.ExpressionList()
 		if valuesExpressionList == nil {
@@ -138,7 +138,7 @@ func setParamsFromValues(input cql.IInsertValuesSpecContext, columns []types.Col
 			if !isPreparedQuery {
 				var val interface{}
 				var unenVal interface{}
-				columnType, er := schemaMapping.GetColumnType(keySpace, tableName, col.Name)
+				columnType, er := tableConfig.GetColumnType(col.Name)
 				if er != nil {
 					return nil, nil, nil, er
 				}
@@ -206,11 +206,9 @@ func (t *Translator) TranslateInsertQuerytoBigtable(queryStr string, protocolV p
 		return nil, fmt.Errorf("invalid input paramaters found for table")
 	}
 
-	if !t.SchemaMappingConfig.InstanceExists(keyspaceName) {
-		return nil, fmt.Errorf("keyspace %s does not exist", keyspaceName)
-	}
-	if !t.SchemaMappingConfig.TableExist(keyspaceName, tableName) {
-		return nil, fmt.Errorf("table %s does not exist", tableName)
+	tableConfig, err := t.SchemaMappingConfig.GetTableConfig(keyspaceName, tableName)
+	if err != nil {
+		return nil, err
 	}
 
 	ifNotExistObj := insertObj.IfNotExist()
@@ -221,7 +219,7 @@ func (t *Translator) TranslateInsertQuerytoBigtable(queryStr string, protocolV p
 			ifNotExists = true
 		}
 	}
-	resp, err := parseColumnsAndValuesFromInsert(insertObj.InsertColumnSpec(), tableName, t.SchemaMappingConfig, keyspaceName)
+	resp, err := parseColumnsAndValuesFromInsert(insertObj.InsertColumnSpec(), tableName, tableConfig, keyspaceName)
 	if err != nil {
 		return nil, err
 	}
@@ -234,7 +232,7 @@ func (t *Translator) TranslateInsertQuerytoBigtable(queryStr string, protocolV p
 	var unencrypted map[string]interface{}
 
 	if !isPreparedQuery {
-		params, values, unencrypted, err = setParamsFromValues(insertObj.InsertValuesSpec(), columnsResponse.Columns, t.SchemaMappingConfig, protocolV, tableName, keyspaceName, isPreparedQuery)
+		params, values, unencrypted, err = setParamsFromValues(insertObj.InsertValuesSpec(), columnsResponse.Columns, tableConfig, protocolV, isPreparedQuery)
 		if err != nil {
 			return nil, err
 		}
@@ -250,14 +248,14 @@ func (t *Translator) TranslateInsertQuerytoBigtable(queryStr string, protocolV p
 	var newColumns []types.Column = columnsResponse.Columns
 	var rawOutput *ProcessRawCollectionsOutput // Declare rawOutput
 
-	primaryKeys, err := getPrimaryKeys(t.SchemaMappingConfig, tableName, keyspaceName)
+	primaryKeys := tableConfig.GetPrimaryKeys()
 	if err != nil {
 		return nil, err
 	}
 
 	if !ValidateRequiredPrimaryKeys(primaryKeys, columnsResponse.PrimayColumns) {
 		missingKey := findFirstMissingKey(primaryKeys, columnsResponse.PrimayColumns)
-		missingPkColumnType, err := t.SchemaMappingConfig.GetPkKeyType(tableName, keyspaceName, missingKey)
+		missingPkColumnType, err := tableConfig.GetPkKeyType(missingKey)
 		if err != nil {
 			return nil, err
 		}
@@ -265,7 +263,7 @@ func (t *Translator) TranslateInsertQuerytoBigtable(queryStr string, protocolV p
 	}
 
 	if !isPreparedQuery {
-		pmks, err := t.SchemaMappingConfig.GetPkByTableNameWithFilter(tableName, keyspaceName, primaryKeys)
+		pmks, err := tableConfig.GetPkByTableNameWithFilter(primaryKeys)
 		if err != nil {
 			return nil, err
 		}
@@ -283,7 +281,7 @@ func (t *Translator) TranslateInsertQuerytoBigtable(queryStr string, protocolV p
 			Translator: t,
 			KeySpace:   keyspaceName,
 		}
-		rawOutput, err = processCollectionColumnsForRawQueries(rawInput)
+		rawOutput, err = processCollectionColumnsForRawQueries(tableConfig, rawInput)
 		if err != nil {
 			return nil, fmt.Errorf("error processing raw collection columns: %w", err)
 		}
@@ -330,8 +328,13 @@ func (t *Translator) BuildInsertPrepareQuery(columnsResponse []types.Column, val
 	var unencrypted map[string]interface{}
 	var prepareOutput *ProcessPrepareCollectionsOutput // Declare prepareOutput
 
+	tableConfig, err := t.SchemaMappingConfig.GetTableConfig(st.Keyspace, st.Table)
+	if err != nil {
+		return nil, err
+	}
+
 	if len(primaryKeys) == 0 {
-		primaryKeys, _ = getPrimaryKeys(t.SchemaMappingConfig, st.Table, st.Keyspace)
+		primaryKeys = tableConfig.GetPrimaryKeys()
 	}
 	timestampInfo, err := ProcessTimestamp(st, values)
 	if err != nil {
@@ -348,7 +351,7 @@ func (t *Translator) BuildInsertPrepareQuery(columnsResponse []types.Column, val
 		KeySpace:        st.Keyspace,
 		ComplexMeta:     nil, // Assuming nil for insert
 	}
-	prepareOutput, err = processCollectionColumnsForPrepareQueries(prepareInput)
+	prepareOutput, err = processCollectionColumnsForPrepareQueries(tableConfig, prepareInput)
 	if err != nil {
 		fmt.Println("Error processing prepared collection columns:", err)
 		return nil, err
@@ -358,7 +361,7 @@ func (t *Translator) BuildInsertPrepareQuery(columnsResponse []types.Column, val
 	unencrypted = prepareOutput.Unencrypted
 	delColumnFamily = prepareOutput.DelColumnFamily
 
-	pmks, err := t.SchemaMappingConfig.GetPkByTableNameWithFilter(st.Table, st.Keyspace, primaryKeys)
+	pmks, err := tableConfig.GetPkByTableNameWithFilter(primaryKeys)
 	if err != nil {
 		return nil, err
 	}

@@ -17,10 +17,9 @@ package bigtableclient
 
 import (
 	"encoding/base64"
-	"errors"
 	"sort"
 
-	types "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/global/types"
+	schemaMapping "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/schema-mapping"
 	"github.com/datastax/go-cassandra-native-protocol/datatype"
 	"github.com/datastax/go-cassandra-native-protocol/message"
 )
@@ -28,21 +27,6 @@ import (
 const (
 	DefaultProfileId = "default"
 )
-
-// GetAllColumns(): Retrieves all columns for a table from the schema mapping configuration.
-func (btc *BigtableClient) GetAllColumns(tableName string, keySpace string) ([]string, string, error) {
-	tableData := btc.SchemaMappingConfig.TablesMetaData[keySpace][tableName]
-	if tableData == nil {
-		return nil, "", errors.New("schema mapping not found")
-	}
-	var columns []string
-	for _, value := range tableData {
-		if !value.IsCollection {
-			columns = append(columns, value.ColumnName)
-		}
-	}
-	return columns, btc.SchemaMappingConfig.SystemColumnFamily, nil
-}
 
 // sortPkData sorts the primary key columns of each table based on their precedence.
 // The function takes a map where the keys are table names and the values are slices of columns.
@@ -54,15 +38,12 @@ func (btc *BigtableClient) GetAllColumns(tableName string, keySpace string) ([]s
 //
 // Returns:
 // - A map with the same structure as the input, but with the columns sorted by primary key precedence.
-func sortPkData(pkMetadata map[string][]types.Column) map[string][]types.Column {
-
-	for tableName, columns := range pkMetadata {
-		sort.Slice(columns, func(i, j int) bool {
-			return columns[i].PkPrecedence < columns[j].PkPrecedence
+func sortPkData(tables map[string]*schemaMapping.TableConfig) {
+	for _, tableConfig := range tables {
+		sort.Slice(tableConfig.PrimaryKeys, func(i, j int) bool {
+			return tableConfig.PrimaryKeys[i].PkPrecedence < tableConfig.PrimaryKeys[j].PkPrecedence
 		})
-		pkMetadata[tableName] = columns
 	}
-	return pkMetadata
 }
 
 // GetProfileId returns the provided profile ID if it is not empty.

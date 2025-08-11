@@ -858,7 +858,7 @@ func Test_InstanceExists(t *testing.T) {
 			want:     false,
 		},
 		{
-			name: "Empty TablesMetaData",
+			name: "Empty Columns",
 			fields: SchemaMappingConfig{
 				TablesMetaData: map[string]map[string]map[string]*types.Column{},
 			},
@@ -943,7 +943,7 @@ func Test_TableExist(t *testing.T) {
 			want:      false,
 		},
 		{
-			name: "Empty TablesMetaData",
+			name: "Empty Columns",
 			fields: SchemaMappingConfig{
 				TablesMetaData: map[string]map[string]map[string]*types.Column{},
 			},

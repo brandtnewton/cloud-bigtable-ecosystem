@@ -402,23 +402,6 @@ func renameLiterals(query string) string {
 	})
 }
 
-// getPrimaryKeys retrieves the primary key columns for a given table.
-// Returns the list of primary key column names from the schema mapping.
-// Returns error if table doesn't exist or schema mapping fails.
-func getPrimaryKeys(schemaMapping *schemaMapping.SchemaMappingConfig, tableName string, keySpace string) ([]string, error) {
-	var primaryKeys []string
-	pks, err := schemaMapping.GetPkByTableName(tableName, keySpace)
-	if err != nil {
-		return nil, err
-	}
-
-	for _, pk := range pks {
-		primaryKeys = append(primaryKeys, pk.ColumnName)
-	}
-
-	return primaryKeys, nil
-}
-
 // processCollectionColumnsForRawQueries() processes collection columns in raw CQL queries.
 // Handles list, set, and map collection types with their respective operations.
 // For each column:
@@ -427,15 +410,15 @@ func getPrimaryKeys(schemaMapping *schemaMapping.SchemaMappingConfig, tableName 
 //   - For non-collection columns: adds to output as-is
 //
 // Returns ProcessRawCollectionsOutput containing processed columns and values, or error if processing fails.
-func processCollectionColumnsForRawQueries(input ProcessRawCollectionsInput) (*ProcessRawCollectionsOutput, error) {
+func processCollectionColumnsForRawQueries(tableConfig *schemaMapping.TableConfig, input ProcessRawCollectionsInput) (*ProcessRawCollectionsOutput, error) {
 	output := &ProcessRawCollectionsOutput{ComplexMeta: make(map[string]*ComplexOperation)}
 	for i, column := range input.Columns {
 		if column.IsPrimaryKey {
 			continue
 		}
 		val := input.Values[i]
-		if input.Translator.IsCollection(input.KeySpace, input.TableName, column.Name) {
-			colFamily := input.Translator.GetColumnFamily(input.KeySpace, input.TableName, column.Name)
+		if input.Translator.IsCollection(tableConfig, column.Name) {
+			colFamily := tableConfig.GetColumnFamily(column.Name)
 			switch column.CQLType.GetDataTypeCode() {
 			case primitive.DataTypeCodeList:
 				if err := handleListOperation(val, column, colFamily, input, output); err != nil {
@@ -799,7 +782,7 @@ func updateMapIndex(key interface{}, value interface{}, dt datatype.DataType, co
 // processCollectionColumnsForPrepareQueries handles collection operations in prepared queries.
 // Processes set, list, and map operations.
 // Returns error if collection type is invalid or value encoding fails.
-func processCollectionColumnsForPrepareQueries(input ProcessPrepareCollectionsInput) (*ProcessPrepareCollectionsOutput, error) {
+func processCollectionColumnsForPrepareQueries(tableConfig *schemaMapping.TableConfig, input ProcessPrepareCollectionsInput) (*ProcessPrepareCollectionsOutput, error) {
 	output := &ProcessPrepareCollectionsOutput{
 		Unencrypted: make(map[string]interface{}),
 	}
@@ -812,9 +795,9 @@ func processCollectionColumnsForPrepareQueries(input ProcessPrepareCollectionsIn
 			continue
 		}
 		// todo validate the column exists again, in case the column was dropped after the query was prepared.
-		if input.Translator.IsCollection(input.KeySpace, input.TableName, column.Name) {
+		if input.Translator.IsCollection(tableConfig, column.Name) {
 
-			colFamily := input.Translator.GetColumnFamily(input.KeySpace, input.TableName, column.Name)
+			colFamily := tableConfig.GetColumnFamily(column.Name)
 			switch column.CQLType.GetDataTypeCode() {
 			case primitive.DataTypeCodeList:
 				if err := handlePrepareListOperation(input.Values[i].Contents, column, colFamily, input, output); err != nil {
@@ -1363,13 +1346,13 @@ func processSet[V any](
 // It iterates over the clauses and constructs the WHERE clause by combining the column name, operator, and value of each clause.
 // If the operator is "IN", the value is wrapped with the UNNEST function.
 // The constructed WHERE clause is returned as a string.
-func buildWhereClause(clauses []types.Clause, t *Translator, tableName string, keySpace string) (string, error) {
+func buildWhereClause(clauses []types.Clause, tableConfig *schemaMapping.TableConfig, tableName string, keySpace string) (string, error) {
 	whereClause := ""
-	columnFamily := t.SchemaMappingConfig.SystemColumnFamily
+	columnFamily := tableConfig.SystemColumnFamily
 	for _, val := range clauses {
 		column := "`" + val.Column + "`"
 		value := val.Value
-		if colMeta, ok := t.SchemaMappingConfig.TablesMetaData[keySpace][tableName][val.Column]; ok {
+		if colMeta, ok := tableConfig.Columns[val.Column]; ok {
 			// Check if the column is a primitive type and prepend the column family
 			if !colMeta.IsCollection {
 				var castErr error
@@ -1446,7 +1429,7 @@ func castColumns(colMeta *types.Column, columnFamily string) (string, error) {
 // parseWhereByClause parses the WHERE clause from a CQL query.
 // Extracts and processes WHERE conditions with type validation.
 // Returns error if clause parsing fails or invalid conditions are found.
-func parseWhereByClause(input cql.IWhereSpecContext, tableName string, schemaMapping *schemaMapping.SchemaMappingConfig, keyspace string) (*QueryClauses, error) {
+func parseWhereByClause(input cql.IWhereSpecContext, tableConfig *schemaMapping.TableConfig) (*QueryClauses, error) {
 	if input == nil {
 		return nil, errors.New("no input parameters found for clauses")
 	}
@@ -1524,7 +1507,7 @@ func parseWhereByClause(input cql.IWhereSpecContext, tableName string, schemaMap
 			}
 		}
 		colName = strings.ReplaceAll(colName, literalPlaceholder, "")
-		columnType, err := schemaMapping.GetColumnType(keyspace, tableName, colName)
+		columnType, err := tableConfig.GetColumnType(colName)
 		if err != nil {
 			return nil, err
 		}
@@ -1774,18 +1757,6 @@ func parseWhereByClause(input cql.IWhereSpecContext, tableName string, schemaMap
 	return &response, nil
 }
 
-// GetColumnFamily retrieves the column family for a given column.
-// Returns the column family name from the schema mapping with validation.
-// Returns default column family for primitive types and column name for collections.
-func (t *Translator) GetColumnFamily(keyspace, tableName, columnName string) string {
-	if colType, err := t.SchemaMappingConfig.GetColumnType(keyspace, tableName, columnName); err == nil {
-		if colType.IsCollection {
-			return columnName
-		}
-	}
-	return t.SchemaMappingConfig.SystemColumnFamily
-}
-
 // getTimestampValue extracts timestamp value from a query.
 // Parses timestamp specifications in USING TIMESTAMP clauses with validation.
 // Returns error if timestamp format is invalid or parsing fails.
@@ -1995,18 +1966,14 @@ func ProcessTimestampByDelete(st *DeleteQueryMapping, values []*primitive.Value)
 // GetAllColumns retrieves all columns for a given table.
 // Returns the list of column names and their types with validation.
 // Returns error if table doesn't exist or schema mapping fails.
-func (t *Translator) GetAllColumns(tableName string, keySpace string) ([]string, string, error) {
-	tableData := t.SchemaMappingConfig.TablesMetaData[keySpace][tableName]
-	if tableData == nil {
-		return nil, "", errors.New("schema mapping not found")
-	}
+func (t *Translator) GetAllColumns(tableConfig *schemaMapping.TableConfig) ([]string, string) {
 	var columns []string
-	for _, value := range tableData {
+	for _, value := range tableConfig.Columns {
 		if !value.IsCollection {
 			columns = append(columns, value.ColumnName)
 		}
 	}
-	return columns, t.SchemaMappingConfig.SystemColumnFamily, nil
+	return columns, t.SchemaMappingConfig.SystemColumnFamily
 }
 
 // ValidateRequiredPrimaryKeys validates primary key requirements.
@@ -2079,7 +2046,7 @@ func ExtractWritetimeValue(s string) (string, bool) {
 // convertAllValuesToRowKeyType converts values to row key types.
 // Handles type conversion for row key values with validation.
 // Returns error if value type is invalid or conversion fails.
-func convertAllValuesToRowKeyType(primaryKeys []types.Column, values map[string]interface{}) (map[string]interface{}, error) {
+func convertAllValuesToRowKeyType(primaryKeys []*types.Column, values map[string]interface{}) (map[string]interface{}, error) {
 	result := make(map[string]interface{})
 	for _, pmk := range primaryKeys {
 		if !pmk.IsPrimaryKey {
@@ -2157,7 +2124,7 @@ var kOrderedCodeDelimiter = []byte("\x00\x01")
 // createOrderedCodeKey creates an ordered row key.
 // Generates a byte-encoded row key from primary key values with validation.
 // Returns error if key type is invalid or encoding fails.
-func createOrderedCodeKey(primaryKeys []types.Column, values map[string]interface{}, encodeIntValuesWithBigEndian bool) ([]byte, error) {
+func createOrderedCodeKey(primaryKeys []*types.Column, values map[string]interface{}, encodeIntValuesWithBigEndian bool) ([]byte, error) {
 	fixedValues, err := convertAllValuesToRowKeyType(primaryKeys, values)
 	if err != nil {
 		return nil, err

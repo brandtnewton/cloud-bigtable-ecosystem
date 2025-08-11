@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"sort"
 
+	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/global/types"
 	schemaMapping "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/schema-mapping"
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/third_party/datastax/proxycore"
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/utilities"
@@ -56,8 +57,12 @@ type ResponseHandlerIface interface {
 //
 // This function uses helper functions to extract unique keys, handle aliases, and determine column types
 func (th *TypeHandler) BuildMetadata(rowMap []map[string]interface{}, query QueryMetadata) (cmd []*message.ColumnMetadata, err error) {
+	tableConfig, err := th.SchemaMappingConfig.GetTableConfig(query.KeyspaceName, query.TableName)
+	if err != nil {
+		return nil, err
+	}
 	if query.IsStar {
-		return th.SchemaMappingConfig.GetMetadataForSelectedColumns(query.TableName, query.SelectedColumns, query.KeyspaceName)
+		return tableConfig.GetMetadataForSelectedColumns(query.SelectedColumns)
 	}
 	uniqueColumns := ExtractUniqueKeys(rowMap, query)
 	i := 0
@@ -66,7 +71,6 @@ func (th *TypeHandler) BuildMetadata(rowMap []map[string]interface{}, query Quer
 			continue
 		}
 		var cqlType datatype.DataType
-		var err error
 		columnObj := GetQueryColumn(query, i, column)
 		if columnObj.FuncName == FUNC_NAME_COUNT {
 			cqlType = datatype.Bigint
@@ -77,10 +81,11 @@ func (th *TypeHandler) BuildMetadata(rowMap []map[string]interface{}, query Quer
 			if columnObj.Alias != "" || columnObj.IsFunc || columnObj.MapKey != "" {
 				lookupColumn = columnObj.ColumnName
 			}
-			cqlType, _, err = th.GetColumnMeta(query.KeyspaceName, query.TableName, lookupColumn)
+			tableCol, err := tableConfig.GetColumn(lookupColumn)
 			if err != nil {
 				return nil, err
 			}
+			cqlType = tableCol.CQLType
 		}
 		if columnObj.MapKey != "" && cqlType.GetDataTypeCode() == primitive.DataTypeCodeMap {
 			cqlType = cqlType.(datatype.MapType).GetValueType() // this gets the type of map value e.g map<varchar,int> -> datatype(int)
@@ -110,6 +115,10 @@ func (th *TypeHandler) BuildMetadata(rowMap []map[string]interface{}, query Quer
 //   - mr: A message.Row containing the serialized row data.
 //   - err: An error if any occurs during the construction of the row, especially in data retrieval or encoding.
 func (th *TypeHandler) BuildResponseRow(rowMap map[string]interface{}, query QueryMetadata, cmd []*message.ColumnMetadata) (message.Row, error) {
+	tableConfig, err := th.SchemaMappingConfig.GetTableConfig(query.KeyspaceName, query.TableName)
+	if err != nil {
+		return nil, err
+	}
 	var mr message.Row
 	for index, metaData := range cmd {
 		key := metaData.Name
@@ -129,12 +138,15 @@ func (th *TypeHandler) BuildResponseRow(rowMap map[string]interface{}, query Que
 		} else if col.IsWriteTimeColumn {
 			cqlType = datatype.Timestamp
 		} else if col.IsFunc || col.MapKey != "" || col.IsAs {
-			cqlType, isCollection, err = th.GetColumnMeta(query.KeyspaceName, query.TableName, col.ColumnName)
+			var tableCol *types.Column
+			tableCol, err = tableConfig.GetColumn(col.ColumnName)
+			isCollection = tableCol.IsCollection
+			cqlType = tableCol.CQLType
 		} else {
-			cqlType, isCollection, err = th.GetColumnMeta(query.KeyspaceName, query.TableName, key)
-		}
-		if err != nil {
-			return nil, err
+			var tableCol *types.Column
+			tableCol, err = tableConfig.GetColumn(key)
+			isCollection = tableCol.IsCollection
+			cqlType = tableCol.CQLType
 		}
 		if err != nil {
 			return nil, err
@@ -274,25 +286,6 @@ func (th *TypeHandler) BuildResponseRow(rowMap map[string]interface{}, query Que
 		}
 	}
 	return mr, nil
-}
-
-// GetColumnMeta retrieves the metadata for a specified column within a given keyspace and table.
-//
-// Parameters:
-//   - keyspace: The name of the keyspace where the table resides.
-//   - tableName: The name of the table containing the column.
-//   - columnName: The name of the column for which metadata is retrieved.
-//
-// Returns:
-//   - A string representing the CQL type of the column.
-//   - A boolean indicating whether the column is a collection type.
-//   - An error if the metadata retrieval fails.
-func (th *TypeHandler) GetColumnMeta(keyspace, tableName, columnName string) (datatype.DataType, bool, error) {
-	column, err := th.SchemaMappingConfig.GetColumnType(keyspace, tableName, columnName)
-	if err != nil {
-		return nil, false, err
-	}
-	return column.CQLType, column.IsCollection, nil
 }
 
 // HandleSetType converts a array or set type to a Cassandra  set type.

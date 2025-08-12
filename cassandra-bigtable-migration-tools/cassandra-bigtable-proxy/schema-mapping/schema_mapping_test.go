@@ -56,7 +56,7 @@ var tablesMetaData = map[string]map[string]*TableConfig{
 						Keyspace: "keyspace",
 						Table:    "table1",
 						Name:     "column2",
-						Index:    int32(0),
+						Index:    int32(1),
 						Type:     datatype.Int,
 					},
 				},
@@ -84,7 +84,7 @@ func Test_GetColumnType(t *testing.T) {
 		columnName string
 	}{
 		tableName:  "table1",
-		columnName: "column2",
+		columnName: "column3",
 	}
 
 	columnExistsWant := &types.Column{
@@ -290,7 +290,10 @@ func Test_GetMetadataForColumns(t *testing.T) {
 				tableName:   "table1",
 				columnNames: []string{},
 			},
-			want:    expectedResponse,
+			want: []*message.ColumnMetadata{
+				{Keyspace: "keyspace", Name: "column1", Table: "table1", Type: datatype.Varchar, Index: 0},
+				{Keyspace: "keyspace", Name: "column2", Table: "table1", Type: datatype.Int, Index: 1},
+			},
 			wantErr: false,
 		},
 		{
@@ -400,7 +403,10 @@ func Test_GetMetadataForSelectedColumns(t *testing.T) {
 				columnNames: []SelectedColumns{},
 				keySpace:    "keyspace",
 			},
-			want:    expectedResponse,
+			want: []*message.ColumnMetadata{
+				{Keyspace: "keyspace", Name: "column1", Table: "table1", Type: datatype.Varchar, Index: 0},
+				{Keyspace: "keyspace", Name: "column2", Table: "table1", Type: datatype.Int, Index: 1},
+			},
 			wantErr: false,
 		},
 		{

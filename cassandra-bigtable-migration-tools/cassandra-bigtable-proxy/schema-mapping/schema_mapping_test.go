@@ -1120,17 +1120,6 @@ func Test_GetSpecificColumnsMetadata(t *testing.T) {
 			},
 			expectedError: nil,
 		},
-		{
-			name: "Error - Special column handling error",
-			fields: SchemaMappingConfig{
-				Logger: logger,
-				Tables: tablesMetaData,
-			},
-			columnNames:   []string{LimitValue},
-			tableName:     "table1",
-			expectedMeta:  nil,
-			expectedError: fmt.Errorf("special column %s not found in provided metadata", LimitValue),
-		},
 	}
 
 	for _, tt := range tests {

@@ -22,7 +22,7 @@ var mockTableConfig = map[string]map[string]*schemaMapping.TableConfig{
 			Logger:   nil,
 			Columns: map[string]*types.Column{
 				"column1": &types.Column{
-					ColumnName:   "column1",
+					Name:         "column1",
 					CQLType:      datatype.Varchar,
 					IsPrimaryKey: true,
 					PkPrecedence: 1,
@@ -35,17 +35,17 @@ var mockTableConfig = map[string]map[string]*schemaMapping.TableConfig{
 					},
 				},
 				"column2": &types.Column{
-					ColumnName:   "column2",
+					Name:         "column2",
 					CQLType:      datatype.Blob,
 					IsPrimaryKey: false,
 				},
 				"column3": &types.Column{
-					ColumnName:   "column3",
+					Name:         "column3",
 					CQLType:      datatype.Boolean,
 					IsPrimaryKey: false,
 				},
 				"column4": &types.Column{
-					ColumnName:   "column4",
+					Name:         "column4",
 					CQLType:      datatype.NewListType(datatype.Varchar),
 					IsPrimaryKey: false,
 					Metadata: message.ColumnMetadata{
@@ -56,20 +56,19 @@ var mockTableConfig = map[string]map[string]*schemaMapping.TableConfig{
 					},
 				},
 				"column5": &types.Column{
-					ColumnName:   "column5",
+					Name:         "column5",
 					CQLType:      datatype.Timestamp,
 					IsPrimaryKey: false,
 				},
 				"column6": &types.Column{
-					ColumnName:   "column6",
+					Name:         "column6",
 					CQLType:      datatype.Int,
 					IsPrimaryKey: false,
 				},
 				"column7": &types.Column{
-					ColumnName:   "column7",
+					Name:         "column7",
 					CQLType:      datatype.NewSetType(datatype.Varchar),
 					IsPrimaryKey: false,
-					IsCollection: true,
 					Metadata: message.ColumnMetadata{
 						Keyspace: "test_keyspace",
 						Table:    "test_table",
@@ -78,10 +77,9 @@ var mockTableConfig = map[string]map[string]*schemaMapping.TableConfig{
 					},
 				},
 				"column8": &types.Column{
-					ColumnName:   "column8",
+					Name:         "column8",
 					CQLType:      datatype.NewMapType(datatype.Varchar, datatype.Boolean),
 					IsPrimaryKey: false,
-					IsCollection: true,
 					Metadata: message.ColumnMetadata{
 						Keyspace: "test_keyspace",
 						Table:    "test_table",
@@ -90,32 +88,31 @@ var mockTableConfig = map[string]map[string]*schemaMapping.TableConfig{
 					},
 				},
 				"column9": &types.Column{
-					ColumnName:   "column9",
+					Name:         "column9",
 					CQLType:      datatype.Bigint,
 					IsPrimaryKey: false,
 				},
 				"column10": &types.Column{
-					ColumnName:   "column10",
+					Name:         "column10",
 					CQLType:      datatype.Varchar,
 					IsPrimaryKey: true,
 					PkPrecedence: 2,
 				},
 				"column11": &types.Column{
-					ColumnName:   "column11",
+					Name:         "column11",
 					CQLType:      datatype.NewSetType(datatype.Varchar),
 					IsPrimaryKey: false,
-					IsCollection: true,
 				},
 			},
 			PrimaryKeys: []*types.Column{
 				{
-					ColumnName:   "column1",
+					Name:         "column1",
 					CQLType:      datatype.Varchar,
 					IsPrimaryKey: true,
 					PkPrecedence: 1,
 				},
 				{
-					ColumnName:   "column10",
+					Name:         "column10",
 					CQLType:      datatype.Varchar,
 					IsPrimaryKey: true,
 					PkPrecedence: 2,
@@ -128,11 +125,10 @@ var mockTableConfig = map[string]map[string]*schemaMapping.TableConfig{
 			Logger:   nil,
 			Columns: map[string]*types.Column{
 				"name": &types.Column{
-					ColumnName:   "name",
+					Name:         "name",
 					CQLType:      datatype.Varchar,
 					IsPrimaryKey: true,
 					PkPrecedence: 0,
-					IsCollection: false,
 					Metadata: message.ColumnMetadata{
 						Keyspace: "user_info",
 						Table:    "user_info",
@@ -142,11 +138,10 @@ var mockTableConfig = map[string]map[string]*schemaMapping.TableConfig{
 					},
 				},
 				"age": &types.Column{
-					ColumnName:   "age",
+					Name:         "age",
 					CQLType:      datatype.Varchar,
 					IsPrimaryKey: false,
 					PkPrecedence: 0,
-					IsCollection: false,
 					Metadata: message.ColumnMetadata{
 						Keyspace: "user_info",
 						Table:    "user_info",
@@ -158,7 +153,7 @@ var mockTableConfig = map[string]map[string]*schemaMapping.TableConfig{
 			},
 			PrimaryKeys: []*types.Column{
 				{
-					ColumnName:   "name",
+					Name:         "name",
 					CQLType:      datatype.Varchar,
 					IsPrimaryKey: true,
 					PkPrecedence: 0,

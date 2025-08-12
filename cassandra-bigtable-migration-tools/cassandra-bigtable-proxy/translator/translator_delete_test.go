@@ -623,7 +623,7 @@ func TestTranslator_BuildDeletePrepareQuery(t *testing.T) {
 func newTestTableConfig() *schemaMapping.SchemaMappingConfig {
 	tc := &schemaMapping.SchemaMappingConfig{
 		Tables: map[string]map[string]*schemaMapping.TableConfig{
-			"test_keyspace": {"test_table": &schemaMapping.TableConfig{
+			"test_keyspace": {"testtable": &schemaMapping.TableConfig{
 				Keyspace: "test_keyspace",
 				Name:     "testtable",
 				Logger:   nil,

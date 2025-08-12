@@ -172,7 +172,7 @@ func parseAssignments(assignments []cql.IAssignmentElementContext, tableConfig *
 				return nil, fmt.Errorf("primary key not allowed to assignments")
 			}
 			if value != questionMark {
-				if columnType.IsCollection {
+				if utilities.IsCollectionColumn(columnType) {
 					val = value
 				} else {
 					val, err = formatValues(fmt.Sprintf("%v", value), columnType.CQLType, 4)
@@ -232,7 +232,7 @@ func parseAssignments(assignments []cql.IAssignmentElementContext, tableConfig *
 			return nil, fmt.Errorf("primary key not allowed to assignments")
 		}
 		if !isPreparedQuery {
-			if columnType.IsCollection {
+			if utilities.IsCollectionColumn(columnType) {
 				val = value
 			} else {
 				val, err = formatValues(fmt.Sprintf("%v", value), columnType.CQLType, 4)
@@ -439,7 +439,7 @@ func (t *Translator) TranslateUpdateQuerytoBigtable(queryStr string, isPreparedQ
 		for _, val := range QueryClauses.Clauses {
 			var column types.Column
 			if columns, exists := tableConfig.Columns[val.Column]; exists {
-				column = types.Column{Name: columns.ColumnName, ColumnFamily: tableConfig.SystemColumnFamily, CQLType: columns.CQLType}
+				column = types.Column{Name: columns.Name, ColumnFamily: tableConfig.SystemColumnFamily, CQLType: columns.CQLType}
 			}
 			newColumns = append(newColumns, column)
 
@@ -547,7 +547,7 @@ func (t *Translator) BuildUpdatePrepareQuery(columnsResponse []types.Column, val
 	for i, clause := range st.Clauses {
 		var column types.Column
 		if columns, exists := tableConfig.Columns[clause.Column]; exists {
-			column = types.Column{Name: columns.ColumnName}
+			column = types.Column{Name: columns.Name}
 		}
 
 		if slices.Contains(primaryKeys, column.Name) {

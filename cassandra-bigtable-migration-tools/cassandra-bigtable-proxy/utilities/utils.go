@@ -103,6 +103,10 @@ const (
 	Warn  = "warn"
 )
 
+func IsCollectionColumn(c *types.Column) bool {
+	return IsCollectionDataType(c.CQLType)
+}
+
 // IsCollectionDataType() checks if the provided data type is a collection type (list, set, or map).
 func IsCollectionDataType(dt datatype.DataType) bool {
 	switch dt.GetDataTypeCode() {

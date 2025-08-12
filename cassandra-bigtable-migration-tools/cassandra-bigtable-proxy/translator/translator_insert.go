@@ -24,18 +24,10 @@ import (
 	types "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/global/types"
 	schemaMapping "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/schema-mapping"
 	cql "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/third_party/cqlparser"
+	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/utilities"
 	"github.com/antlr4-go/antlr/v4"
 	"github.com/datastax/go-cassandra-native-protocol/primitive"
 )
-
-// IsCollection() Function to determine if provided colunm if type of collection or not
-// It returns true if given column is of collection type or else return false
-func (t *Translator) IsCollection(tableConfig *schemaMapping.TableConfig, columnName string) bool {
-	if colType, err := tableConfig.GetColumnType(columnName); err == nil {
-		return colType.IsCollection
-	}
-	return false
-}
 
 // parseColumnsAndValuesFromInsert() parses columns and values from the Insert query
 //
@@ -142,7 +134,7 @@ func setParamsFromValues(input cql.IInsertValuesSpecContext, columns []types.Col
 				if er != nil {
 					return nil, nil, nil, er
 				}
-				if columnType.IsCollection {
+				if utilities.IsCollectionColumn(columnType) {
 					val = goValue
 					unenVal = goValue
 				} else {

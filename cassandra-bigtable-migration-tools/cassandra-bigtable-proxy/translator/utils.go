@@ -417,7 +417,7 @@ func processCollectionColumnsForRawQueries(tableConfig *schemaMapping.TableConfi
 			continue
 		}
 		val := input.Values[i]
-		if input.Translator.IsCollection(tableConfig, column.Name) {
+		if utilities.IsCollectionColumn(&column) {
 			colFamily := tableConfig.GetColumnFamily(column.Name)
 			switch column.CQLType.GetDataTypeCode() {
 			case primitive.DataTypeCodeList:
@@ -795,8 +795,7 @@ func processCollectionColumnsForPrepareQueries(tableConfig *schemaMapping.TableC
 			continue
 		}
 		// todo validate the column exists again, in case the column was dropped after the query was prepared.
-		if input.Translator.IsCollection(tableConfig, column.Name) {
-
+		if utilities.IsCollectionColumn(&column) {
 			colFamily := tableConfig.GetColumnFamily(column.Name)
 			switch column.CQLType.GetDataTypeCode() {
 			case primitive.DataTypeCodeList:
@@ -1354,7 +1353,7 @@ func buildWhereClause(clauses []types.Clause, tableConfig *schemaMapping.TableCo
 		value := val.Value
 		if colMeta, ok := tableConfig.Columns[val.Column]; ok {
 			// Check if the column is a primitive type and prepend the column family
-			if !colMeta.IsCollection {
+			if !utilities.IsCollectionColumn(colMeta) {
 				var castErr error
 				column, castErr = castColumns(colMeta, columnFamily)
 				if castErr != nil {
@@ -1394,31 +1393,31 @@ func castColumns(colMeta *types.Column, columnFamily string) (string, error) {
 	switch colMeta.CQLType {
 	case datatype.Int:
 		if colMeta.IsPrimaryKey {
-			nc = colMeta.ColumnName
+			nc = colMeta.Name
 		} else {
-			nc = fmt.Sprintf("TO_INT64(%s['%s'])", columnFamily, colMeta.ColumnName)
+			nc = fmt.Sprintf("TO_INT64(%s['%s'])", columnFamily, colMeta.Name)
 		}
 	case datatype.Bigint:
 		if colMeta.IsPrimaryKey {
-			nc = colMeta.ColumnName
+			nc = colMeta.Name
 		} else {
-			nc = fmt.Sprintf("TO_INT64(%s['%s'])", columnFamily, colMeta.ColumnName)
+			nc = fmt.Sprintf("TO_INT64(%s['%s'])", columnFamily, colMeta.Name)
 		}
 	case datatype.Float:
-		nc = fmt.Sprintf("TO_FLOAT32(%s['%s'])", columnFamily, colMeta.ColumnName)
+		nc = fmt.Sprintf("TO_FLOAT32(%s['%s'])", columnFamily, colMeta.Name)
 	case datatype.Double:
-		nc = fmt.Sprintf("TO_FLOAT64(%s['%s'])", columnFamily, colMeta.ColumnName)
+		nc = fmt.Sprintf("TO_FLOAT64(%s['%s'])", columnFamily, colMeta.Name)
 	case datatype.Boolean:
-		nc = fmt.Sprintf("TO_INT64(%s['%s'])", columnFamily, colMeta.ColumnName)
+		nc = fmt.Sprintf("TO_INT64(%s['%s'])", columnFamily, colMeta.Name)
 	case datatype.Timestamp:
-		nc = fmt.Sprintf("TO_TIME(%s['%s'])", columnFamily, colMeta.ColumnName)
+		nc = fmt.Sprintf("TO_TIME(%s['%s'])", columnFamily, colMeta.Name)
 	case datatype.Blob:
-		nc = fmt.Sprintf("TO_BLOB(%s['%s'])", columnFamily, colMeta.ColumnName)
+		nc = fmt.Sprintf("TO_BLOB(%s['%s'])", columnFamily, colMeta.Name)
 	case datatype.Varchar:
 		if colMeta.IsPrimaryKey {
-			nc = colMeta.ColumnName
+			nc = colMeta.Name
 		} else {
-			nc = fmt.Sprintf("%s['%s']", columnFamily, colMeta.ColumnName)
+			nc = fmt.Sprintf("%s['%s']", columnFamily, colMeta.Name)
 		}
 	default:
 		return "", fmt.Errorf("unsupported CQL type: %s", colMeta.CQLType)
@@ -1969,8 +1968,8 @@ func ProcessTimestampByDelete(st *DeleteQueryMapping, values []*primitive.Value)
 func (t *Translator) GetAllColumns(tableConfig *schemaMapping.TableConfig) ([]string, string) {
 	var columns []string
 	for _, value := range tableConfig.Columns {
-		if !value.IsCollection {
-			columns = append(columns, value.ColumnName)
+		if !utilities.IsCollectionColumn(value) {
+			columns = append(columns, value.Name)
 		}
 	}
 	return columns, t.SchemaMappingConfig.SystemColumnFamily
@@ -2053,66 +2052,66 @@ func convertAllValuesToRowKeyType(primaryKeys []*types.Column, values map[string
 			continue
 		}
 
-		value, exists := values[pmk.ColumnName]
+		value, exists := values[pmk.Name]
 		if !exists {
-			return nil, fmt.Errorf("missing primary key `%s`", pmk.ColumnName)
+			return nil, fmt.Errorf("missing primary key `%s`", pmk.Name)
 		}
 		switch pmk.CQLType {
 		case datatype.Int:
 			switch v := value.(type) {
 			// bigtable row keys don't support int32 so convert all int32 values to int64
 			case int:
-				result[pmk.ColumnName] = int64(v)
+				result[pmk.Name] = int64(v)
 			case int32:
-				result[pmk.ColumnName] = int64(v)
+				result[pmk.Name] = int64(v)
 			case int64:
-				result[pmk.ColumnName] = v
+				result[pmk.Name] = v
 			case string:
 				i, err := strconv.Atoi(v)
 				if err != nil {
-					return nil, fmt.Errorf("failed to convert Int value %s for key %s", value.(string), pmk.ColumnName)
+					return nil, fmt.Errorf("failed to convert Int value %s for key %s", value.(string), pmk.Name)
 				}
-				result[pmk.ColumnName] = int64(i)
+				result[pmk.Name] = int64(i)
 			default:
-				return nil, fmt.Errorf("failed to convert %T to Int for key %s", value, pmk.ColumnName)
+				return nil, fmt.Errorf("failed to convert %T to Int for key %s", value, pmk.Name)
 			}
 		case datatype.Bigint:
 			switch v := value.(type) {
 			case int:
-				result[pmk.ColumnName] = int64(v)
+				result[pmk.Name] = int64(v)
 			case int32:
-				result[pmk.ColumnName] = int64(v)
+				result[pmk.Name] = int64(v)
 			case int64:
-				result[pmk.ColumnName] = value
+				result[pmk.Name] = value
 			case string:
 				i, err := strconv.ParseInt(v, 10, 0)
 				if err != nil {
-					return nil, fmt.Errorf("failed to convert BigInt value %s for key %s", value.(string), pmk.ColumnName)
+					return nil, fmt.Errorf("failed to convert BigInt value %s for key %s", value.(string), pmk.Name)
 				}
-				result[pmk.ColumnName] = i
+				result[pmk.Name] = i
 			default:
-				return nil, fmt.Errorf("failed to convert %T to BigInt for key %s", value, pmk.ColumnName)
+				return nil, fmt.Errorf("failed to convert %T to BigInt for key %s", value, pmk.Name)
 			}
 		case datatype.Varchar:
 			switch v := value.(type) {
 			case string:
 				// todo move this validation to all columns not just keys
 				if !utf8.Valid([]byte(v)) {
-					return nil, fmt.Errorf("invalid utf8 value provided for varchar row key field %s", pmk.ColumnName)
+					return nil, fmt.Errorf("invalid utf8 value provided for varchar row key field %s", pmk.Name)
 				}
-				result[pmk.ColumnName] = v
+				result[pmk.Name] = v
 			default:
-				return nil, fmt.Errorf("failed to convert %T to BigInt for key %s", value, pmk.ColumnName)
+				return nil, fmt.Errorf("failed to convert %T to BigInt for key %s", value, pmk.Name)
 			}
 		case datatype.Blob:
 			switch v := value.(type) {
 			case string:
-				result[pmk.ColumnName] = v
+				result[pmk.Name] = v
 			default:
-				return nil, fmt.Errorf("failed to convert %T to BigInt for key %s", value, pmk.ColumnName)
+				return nil, fmt.Errorf("failed to convert %T to BigInt for key %s", value, pmk.Name)
 			}
 		default:
-			return nil, fmt.Errorf("unsupported primary key type %s for key %s", pmk.CQLType.String(), pmk.ColumnName)
+			return nil, fmt.Errorf("unsupported primary key type %s for key %s", pmk.CQLType.String(), pmk.Name)
 		}
 	}
 	return result, nil
@@ -2136,9 +2135,9 @@ func createOrderedCodeKey(primaryKeys []*types.Column, values map[string]interfa
 		if i != pmk.PkPrecedence-1 {
 			return nil, fmt.Errorf("wrong order for primary keys")
 		}
-		value, exists := fixedValues[pmk.ColumnName]
+		value, exists := fixedValues[pmk.Name]
 		if !exists {
-			return nil, fmt.Errorf("missing primary key `%s`", pmk.ColumnName)
+			return nil, fmt.Errorf("missing primary key `%s`", pmk.Name)
 		}
 
 		var orderEncodedField []byte

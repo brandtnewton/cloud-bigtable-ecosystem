@@ -31,7 +31,7 @@ var mockTableConfigs = map[string]map[string]*schemaMapping.TableConfig{
 			Logger:   nil,
 			Columns: map[string]*types.Column{
 				"column1": {
-					ColumnName:   "column1",
+					Name:         "column1",
 					CQLType:      datatype.Varchar,
 					IsPrimaryKey: true,
 					PkPrecedence: 1,
@@ -43,7 +43,7 @@ var mockTableConfigs = map[string]map[string]*schemaMapping.TableConfig{
 					},
 				},
 				"column2": {
-					ColumnName:   "column2",
+					Name:         "column2",
 					CQLType:      datatype.Blob,
 					IsPrimaryKey: false,
 					Metadata: message.ColumnMetadata{
@@ -54,7 +54,7 @@ var mockTableConfigs = map[string]map[string]*schemaMapping.TableConfig{
 					},
 				},
 				"column3": {
-					ColumnName:   "column3",
+					Name:         "column3",
 					CQLType:      datatype.Boolean,
 					IsPrimaryKey: false,
 					Metadata: message.ColumnMetadata{
@@ -65,7 +65,7 @@ var mockTableConfigs = map[string]map[string]*schemaMapping.TableConfig{
 					},
 				},
 				"column5": {
-					ColumnName:   "column5",
+					Name:         "column5",
 					CQLType:      datatype.Timestamp,
 					IsPrimaryKey: false,
 					Metadata: message.ColumnMetadata{
@@ -76,7 +76,7 @@ var mockTableConfigs = map[string]map[string]*schemaMapping.TableConfig{
 					},
 				},
 				"column6": {
-					ColumnName:   "column6",
+					Name:         "column6",
 					CQLType:      datatype.Int,
 					IsPrimaryKey: false,
 					Metadata: message.ColumnMetadata{
@@ -87,10 +87,9 @@ var mockTableConfigs = map[string]map[string]*schemaMapping.TableConfig{
 					},
 				},
 				"column7": {
-					ColumnName:   "column7",
+					Name:         "column7",
 					CQLType:      datatype.NewSetType(datatype.Varchar),
 					IsPrimaryKey: false,
-					IsCollection: true,
 					Metadata: message.ColumnMetadata{
 						Table: "test_table",
 						Name:  "column7",
@@ -99,10 +98,9 @@ var mockTableConfigs = map[string]map[string]*schemaMapping.TableConfig{
 					},
 				},
 				"column8": {
-					ColumnName:   "column8",
+					Name:         "column8",
 					CQLType:      datatype.NewMapType(datatype.Varchar, datatype.Boolean),
 					IsPrimaryKey: false,
-					IsCollection: true,
 					Metadata: message.ColumnMetadata{
 						Table: "test_table",
 						Name:  "column8",
@@ -111,7 +109,7 @@ var mockTableConfigs = map[string]map[string]*schemaMapping.TableConfig{
 					},
 				},
 				"column9": {
-					ColumnName:   "column9",
+					Name:         "column9",
 					CQLType:      datatype.Bigint,
 					IsPrimaryKey: false,
 					Metadata: message.ColumnMetadata{
@@ -122,7 +120,7 @@ var mockTableConfigs = map[string]map[string]*schemaMapping.TableConfig{
 					},
 				},
 				"column10": {
-					ColumnName:   "column10",
+					Name:         "column10",
 					CQLType:      datatype.Varchar,
 					IsPrimaryKey: true,
 					PkPrecedence: 2,
@@ -134,7 +132,7 @@ var mockTableConfigs = map[string]map[string]*schemaMapping.TableConfig{
 					},
 				},
 				"blob_col": {
-					ColumnName:   "blob_col",
+					Name:         "blob_col",
 					CQLType:      datatype.Blob,
 					IsPrimaryKey: false,
 					Metadata: message.ColumnMetadata{
@@ -145,7 +143,7 @@ var mockTableConfigs = map[string]map[string]*schemaMapping.TableConfig{
 					},
 				},
 				"bool_col": {
-					ColumnName:   "bool_col",
+					Name:         "bool_col",
 					CQLType:      datatype.Boolean,
 					IsPrimaryKey: false,
 					Metadata: message.ColumnMetadata{
@@ -156,7 +154,7 @@ var mockTableConfigs = map[string]map[string]*schemaMapping.TableConfig{
 					},
 				},
 				"timestamp_col": {
-					ColumnName:   "timestamp_col",
+					Name:         "timestamp_col",
 					CQLType:      datatype.Timestamp,
 					IsPrimaryKey: false,
 					Metadata: message.ColumnMetadata{
@@ -167,7 +165,7 @@ var mockTableConfigs = map[string]map[string]*schemaMapping.TableConfig{
 					},
 				},
 				"int_col": {
-					ColumnName:   "int_col",
+					Name:         "int_col",
 					CQLType:      datatype.Int,
 					IsPrimaryKey: false,
 					Metadata: message.ColumnMetadata{
@@ -178,10 +176,9 @@ var mockTableConfigs = map[string]map[string]*schemaMapping.TableConfig{
 					},
 				},
 				"set_text_col": {
-					ColumnName:   "set_text_col",
+					Name:         "set_text_col",
 					CQLType:      datatype.NewSetType(datatype.Varchar),
 					IsPrimaryKey: false,
-					IsCollection: true,
 					Metadata: message.ColumnMetadata{
 						Table: "test_table",
 						Name:  "set_text_col",
@@ -190,10 +187,9 @@ var mockTableConfigs = map[string]map[string]*schemaMapping.TableConfig{
 					},
 				},
 				"map_text_bool_col": {
-					ColumnName:   "map_text_bool_col",
+					Name:         "map_text_bool_col",
 					CQLType:      datatype.NewMapType(datatype.Varchar, datatype.Boolean),
 					IsPrimaryKey: false,
-					IsCollection: true,
 					Metadata: message.ColumnMetadata{
 						Table: "test_table",
 						Name:  "map_text_bool_col",
@@ -202,7 +198,7 @@ var mockTableConfigs = map[string]map[string]*schemaMapping.TableConfig{
 					},
 				},
 				"bigint_col": {
-					ColumnName:   "bigint_col",
+					Name:         "bigint_col",
 					CQLType:      datatype.Bigint,
 					IsPrimaryKey: false,
 					Metadata: message.ColumnMetadata{
@@ -213,7 +209,7 @@ var mockTableConfigs = map[string]map[string]*schemaMapping.TableConfig{
 					},
 				},
 				"float_col": {
-					ColumnName:   "float_col",
+					Name:         "float_col",
 					CQLType:      datatype.Float,
 					IsPrimaryKey: false,
 					Metadata: message.ColumnMetadata{
@@ -224,7 +220,7 @@ var mockTableConfigs = map[string]map[string]*schemaMapping.TableConfig{
 					},
 				},
 				"double_col": {
-					ColumnName:   "double_col",
+					Name:         "double_col",
 					CQLType:      datatype.Double,
 					IsPrimaryKey: false,
 					Metadata: message.ColumnMetadata{
@@ -235,10 +231,9 @@ var mockTableConfigs = map[string]map[string]*schemaMapping.TableConfig{
 					},
 				},
 				"map_text_text": {
-					ColumnName:   "map_text_text",
+					Name:         "map_text_text",
 					CQLType:      datatype.NewMapType(datatype.Varchar, datatype.Varchar),
 					IsPrimaryKey: false,
-					IsCollection: true,
 					Metadata: message.ColumnMetadata{
 						Table: "non_primitive_table",
 						Name:  "map_text_text",
@@ -247,10 +242,9 @@ var mockTableConfigs = map[string]map[string]*schemaMapping.TableConfig{
 					},
 				},
 				"list_text": {
-					ColumnName:   "list_text",
+					Name:         "list_text",
 					CQLType:      datatype.NewListType(datatype.Varchar),
 					IsPrimaryKey: false,
-					IsCollection: true,
 					Metadata: message.ColumnMetadata{
 						Table: "non_primitive_table",
 						Name:  "list_text",
@@ -261,7 +255,7 @@ var mockTableConfigs = map[string]map[string]*schemaMapping.TableConfig{
 			},
 			PrimaryKeys: []*types.Column{
 				{
-					ColumnName:   "column1",
+					Name:         "column1",
 					CQLType:      datatype.Varchar,
 					IsPrimaryKey: true,
 					PkPrecedence: 1,
@@ -273,7 +267,7 @@ var mockTableConfigs = map[string]map[string]*schemaMapping.TableConfig{
 					},
 				},
 				{
-					ColumnName:   "column10",
+					Name:         "column10",
 					CQLType:      datatype.Varchar,
 					IsPrimaryKey: true,
 					PkPrecedence: 2,
@@ -292,11 +286,10 @@ var mockTableConfigs = map[string]map[string]*schemaMapping.TableConfig{
 			Logger:   nil,
 			Columns: map[string]*types.Column{
 				"num": {
-					ColumnName:   "num",
+					Name:         "num",
 					CQLType:      datatype.Int,
 					IsPrimaryKey: true,
 					PkPrecedence: 1,
-					IsCollection: false,
 					Metadata: message.ColumnMetadata{
 						Table: "int_table",
 						Name:  "num",
@@ -305,11 +298,10 @@ var mockTableConfigs = map[string]map[string]*schemaMapping.TableConfig{
 					},
 				},
 				"big_num": {
-					ColumnName:   "big_num",
+					Name:         "big_num",
 					CQLType:      datatype.Bigint,
 					IsPrimaryKey: true,
 					PkPrecedence: 2,
-					IsCollection: false,
 					Metadata: message.ColumnMetadata{
 						Table: "int_table",
 						Name:  "big_num",
@@ -318,11 +310,10 @@ var mockTableConfigs = map[string]map[string]*schemaMapping.TableConfig{
 					},
 				},
 				"name": {
-					ColumnName:   "name",
+					Name:         "name",
 					CQLType:      datatype.Varchar,
 					IsPrimaryKey: false,
 					PkPrecedence: 1,
-					IsCollection: false,
 					Metadata: message.ColumnMetadata{
 						Table: "int_table",
 						Name:  "name",
@@ -333,7 +324,7 @@ var mockTableConfigs = map[string]map[string]*schemaMapping.TableConfig{
 			},
 			PrimaryKeys: []*types.Column{
 				{
-					ColumnName:   "num",
+					Name:         "num",
 					CQLType:      datatype.Int,
 					IsPrimaryKey: true,
 					PkPrecedence: 1,
@@ -345,7 +336,7 @@ var mockTableConfigs = map[string]map[string]*schemaMapping.TableConfig{
 					},
 				},
 				{
-					ColumnName:   "big_num",
+					Name:         "big_num",
 					CQLType:      datatype.Bigint,
 					IsPrimaryKey: true,
 					PkPrecedence: 2,
@@ -364,11 +355,10 @@ var mockTableConfigs = map[string]map[string]*schemaMapping.TableConfig{
 			Logger:   nil,
 			Columns: map[string]*types.Column{
 				"name": {
-					ColumnName:   "name",
+					Name:         "name",
 					CQLType:      datatype.Varchar,
 					IsPrimaryKey: true,
 					PkPrecedence: 1,
-					IsCollection: false,
 					Metadata: message.ColumnMetadata{
 						Table: "user_info",
 						Name:  "name",
@@ -377,11 +367,10 @@ var mockTableConfigs = map[string]map[string]*schemaMapping.TableConfig{
 					},
 				},
 				"age": {
-					ColumnName:   "age",
+					Name:         "age",
 					CQLType:      datatype.Int,
 					IsPrimaryKey: true,
 					PkPrecedence: 2,
-					IsCollection: false,
 					Metadata: message.ColumnMetadata{
 						Table: "user_info",
 						Name:  "age",
@@ -392,11 +381,10 @@ var mockTableConfigs = map[string]map[string]*schemaMapping.TableConfig{
 			},
 			PrimaryKeys: []*types.Column{
 				{
-					ColumnName:   "name",
+					Name:         "name",
 					CQLType:      datatype.Varchar,
 					IsPrimaryKey: true,
 					PkPrecedence: 1,
-					IsCollection: false,
 					Metadata: message.ColumnMetadata{
 						Table: "user_info",
 						Name:  "name",
@@ -405,11 +393,10 @@ var mockTableConfigs = map[string]map[string]*schemaMapping.TableConfig{
 					},
 				},
 				{
-					ColumnName:   "age",
+					Name:         "age",
 					CQLType:      datatype.Int,
 					IsPrimaryKey: true,
 					PkPrecedence: 2,
-					IsCollection: false,
 					Metadata: message.ColumnMetadata{
 						Table: "user_info",
 						Name:  "age",
@@ -425,10 +412,9 @@ var mockTableConfigs = map[string]map[string]*schemaMapping.TableConfig{
 			Logger:   nil,
 			Columns: map[string]*types.Column{
 				"map_text_text": {
-					ColumnName:   "map_text_text",
+					Name:         "map_text_text",
 					CQLType:      datatype.NewMapType(datatype.Varchar, datatype.Varchar),
 					IsPrimaryKey: false,
-					IsCollection: true,
 					Metadata: message.ColumnMetadata{
 						Table: "non_primitive_table",
 						Name:  "map_text_text",
@@ -437,10 +423,9 @@ var mockTableConfigs = map[string]map[string]*schemaMapping.TableConfig{
 					},
 				},
 				"map_text_int": {
-					ColumnName:   "map_text_int",
+					Name:         "map_text_int",
 					CQLType:      datatype.NewMapType(datatype.Varchar, datatype.Int),
 					IsPrimaryKey: false,
-					IsCollection: true,
 					Metadata: message.ColumnMetadata{
 						Table: "non_primitive_table",
 						Name:  "map_text_int",
@@ -449,7 +434,7 @@ var mockTableConfigs = map[string]map[string]*schemaMapping.TableConfig{
 					},
 				},
 				"pk_1_text": {
-					ColumnName:   "pk_1_text",
+					Name:         "pk_1_text",
 					CQLType:      datatype.Varchar,
 					IsPrimaryKey: true,
 					PkPrecedence: 1,
@@ -461,10 +446,9 @@ var mockTableConfigs = map[string]map[string]*schemaMapping.TableConfig{
 					},
 				},
 				"map_text_float": {
-					ColumnName:   "map_text_float",
+					Name:         "map_text_float",
 					CQLType:      datatype.NewMapType(datatype.Varchar, datatype.Float),
 					IsPrimaryKey: false,
-					IsCollection: true,
 					Metadata: message.ColumnMetadata{
 						Table: "non_primitive_table",
 						Name:  "map_text_float",
@@ -473,10 +457,9 @@ var mockTableConfigs = map[string]map[string]*schemaMapping.TableConfig{
 					},
 				},
 				"map_text_double": {
-					ColumnName:   "map_text_double",
+					Name:         "map_text_double",
 					CQLType:      datatype.NewMapType(datatype.Varchar, datatype.Double),
 					IsPrimaryKey: false,
-					IsCollection: true,
 					Metadata: message.ColumnMetadata{
 						Table: "non_primitive_table",
 						Name:  "map_text_double",
@@ -485,10 +468,9 @@ var mockTableConfigs = map[string]map[string]*schemaMapping.TableConfig{
 					},
 				},
 				"map_text_timestamp": {
-					ColumnName:   "map_text_timestamp",
+					Name:         "map_text_timestamp",
 					CQLType:      datatype.NewMapType(datatype.Varchar, datatype.Timestamp),
 					IsPrimaryKey: false,
-					IsCollection: true,
 					Metadata: message.ColumnMetadata{
 						Table: "non_primitive_table",
 						Name:  "map_text_timestamp",
@@ -497,10 +479,9 @@ var mockTableConfigs = map[string]map[string]*schemaMapping.TableConfig{
 					},
 				},
 				"map_timestamp_text": {
-					ColumnName:   "map_timestamp_text",
+					Name:         "map_timestamp_text",
 					CQLType:      datatype.NewMapType(datatype.Timestamp, datatype.Varchar),
 					IsPrimaryKey: false,
-					IsCollection: true,
 					Metadata: message.ColumnMetadata{
 						Table: "non_primitive_table",
 						Name:  "map_timestamp_text",
@@ -509,10 +490,9 @@ var mockTableConfigs = map[string]map[string]*schemaMapping.TableConfig{
 					},
 				},
 				"map_timestamp_int": {
-					ColumnName:   "map_timestamp_int",
+					Name:         "map_timestamp_int",
 					CQLType:      datatype.NewMapType(datatype.Timestamp, datatype.Int),
 					IsPrimaryKey: false,
-					IsCollection: true,
 					Metadata: message.ColumnMetadata{
 						Table: "non_primitive_table",
 						Name:  "map_timestamp_int",
@@ -521,10 +501,9 @@ var mockTableConfigs = map[string]map[string]*schemaMapping.TableConfig{
 					},
 				},
 				"map_timestamp_boolean": {
-					ColumnName:   "map_timestamp_boolean",
+					Name:         "map_timestamp_boolean",
 					CQLType:      datatype.NewMapType(datatype.Timestamp, datatype.Boolean),
 					IsPrimaryKey: false,
-					IsCollection: true,
 					Metadata: message.ColumnMetadata{
 						Table: "non_primitive_table",
 						Name:  "map_timestamp_boolean",
@@ -533,10 +512,9 @@ var mockTableConfigs = map[string]map[string]*schemaMapping.TableConfig{
 					},
 				},
 				"map_timestamp_timestamp": {
-					ColumnName:   "map_timestamp_timestamp",
+					Name:         "map_timestamp_timestamp",
 					CQLType:      datatype.NewMapType(datatype.Timestamp, datatype.Timestamp),
 					IsPrimaryKey: false,
-					IsCollection: true,
 					Metadata: message.ColumnMetadata{
 						Table: "non_primitive_table",
 						Name:  "map_timestamp_timestamp",
@@ -545,10 +523,9 @@ var mockTableConfigs = map[string]map[string]*schemaMapping.TableConfig{
 					},
 				},
 				"map_timestamp_bigint": {
-					ColumnName:   "map_timestamp_bigint",
+					Name:         "map_timestamp_bigint",
 					CQLType:      datatype.NewMapType(datatype.Timestamp, datatype.Bigint),
 					IsPrimaryKey: false,
-					IsCollection: true,
 					Metadata: message.ColumnMetadata{
 						Table: "non_primitive_table",
 						Name:  "map_timestamp_bigint",
@@ -557,10 +534,9 @@ var mockTableConfigs = map[string]map[string]*schemaMapping.TableConfig{
 					},
 				},
 				"map_timestamp_float": {
-					ColumnName:   "map_timestamp_float",
+					Name:         "map_timestamp_float",
 					CQLType:      datatype.NewMapType(datatype.Timestamp, datatype.Float),
 					IsPrimaryKey: false,
-					IsCollection: true,
 					Metadata: message.ColumnMetadata{
 						Table: "non_primitive_table",
 						Name:  "map_timestamp_float",
@@ -569,10 +545,9 @@ var mockTableConfigs = map[string]map[string]*schemaMapping.TableConfig{
 					},
 				},
 				"map_timestamp_double": {
-					ColumnName:   "map_timestamp_double",
+					Name:         "map_timestamp_double",
 					CQLType:      datatype.NewMapType(datatype.Timestamp, datatype.Double),
 					IsPrimaryKey: false,
-					IsCollection: true,
 					Metadata: message.ColumnMetadata{
 						Table: "non_primitive_table",
 						Name:  "map_timestamp_double",
@@ -581,10 +556,9 @@ var mockTableConfigs = map[string]map[string]*schemaMapping.TableConfig{
 					},
 				},
 				"set_text": {
-					ColumnName:   "set_text",
+					Name:         "set_text",
 					CQLType:      datatype.NewSetType(datatype.Varchar),
 					IsPrimaryKey: false,
-					IsCollection: true,
 					Metadata: message.ColumnMetadata{
 						Table: "non_primitive_table",
 						Name:  "set_text",
@@ -593,10 +567,9 @@ var mockTableConfigs = map[string]map[string]*schemaMapping.TableConfig{
 					},
 				},
 				"set_boolean": {
-					ColumnName:   "set_boolean",
+					Name:         "set_boolean",
 					CQLType:      datatype.NewSetType(datatype.Boolean),
 					IsPrimaryKey: false,
-					IsCollection: true,
 					Metadata: message.ColumnMetadata{
 						Table: "non_primitive_table",
 						Name:  "set_boolean",
@@ -605,10 +578,9 @@ var mockTableConfigs = map[string]map[string]*schemaMapping.TableConfig{
 					},
 				},
 				"set_int": {
-					ColumnName:   "set_int",
+					Name:         "set_int",
 					CQLType:      datatype.NewSetType(datatype.Int),
 					IsPrimaryKey: false,
-					IsCollection: true,
 					Metadata: message.ColumnMetadata{
 						Table: "non_primitive_table",
 						Name:  "set_int",
@@ -617,10 +589,9 @@ var mockTableConfigs = map[string]map[string]*schemaMapping.TableConfig{
 					},
 				},
 				"set_float": {
-					ColumnName:   "set_float",
+					Name:         "set_float",
 					CQLType:      datatype.NewSetType(datatype.Float),
 					IsPrimaryKey: false,
-					IsCollection: true,
 					Metadata: message.ColumnMetadata{
 						Table: "non_primitive_table",
 						Name:  "set_float",
@@ -629,10 +600,9 @@ var mockTableConfigs = map[string]map[string]*schemaMapping.TableConfig{
 					},
 				},
 				"set_double": {
-					ColumnName:   "set_double",
+					Name:         "set_double",
 					CQLType:      datatype.NewSetType(datatype.Double),
 					IsPrimaryKey: false,
-					IsCollection: true,
 					Metadata: message.ColumnMetadata{
 						Table: "non_primitive_table",
 						Name:  "set_double",
@@ -641,10 +611,9 @@ var mockTableConfigs = map[string]map[string]*schemaMapping.TableConfig{
 					},
 				},
 				"set_bigint": {
-					ColumnName:   "set_bigint",
+					Name:         "set_bigint",
 					CQLType:      datatype.NewSetType(datatype.Bigint),
 					IsPrimaryKey: false,
-					IsCollection: true,
 					Metadata: message.ColumnMetadata{
 						Table: "non_primitive_table",
 						Name:  "set_bigint",
@@ -653,10 +622,9 @@ var mockTableConfigs = map[string]map[string]*schemaMapping.TableConfig{
 					},
 				},
 				"set_timestamp": {
-					ColumnName:   "set_timestamp",
+					Name:         "set_timestamp",
 					CQLType:      datatype.NewSetType(datatype.Timestamp),
 					IsPrimaryKey: false,
-					IsCollection: true,
 					Metadata: message.ColumnMetadata{
 						Table: "non_primitive_table",
 						Name:  "set_timestamp",
@@ -665,10 +633,9 @@ var mockTableConfigs = map[string]map[string]*schemaMapping.TableConfig{
 					},
 				},
 				"map_text_boolean": {
-					ColumnName:   "map_text_boolean",
+					Name:         "map_text_boolean",
 					CQLType:      datatype.NewMapType(datatype.Varchar, datatype.Boolean),
 					IsPrimaryKey: false,
-					IsCollection: true,
 					Metadata: message.ColumnMetadata{
 						Table: "non_primitive_table",
 						Name:  "map_text_boolean",
@@ -677,10 +644,9 @@ var mockTableConfigs = map[string]map[string]*schemaMapping.TableConfig{
 					},
 				},
 				"map_text_bigint": {
-					ColumnName:   "map_text_bigint",
+					Name:         "map_text_bigint",
 					CQLType:      datatype.NewMapType(datatype.Varchar, datatype.Bigint),
 					IsPrimaryKey: false,
-					IsCollection: true,
 					Metadata: message.ColumnMetadata{
 						Table: "non_primitive_table",
 						Name:  "map_text_bigint",
@@ -689,10 +655,9 @@ var mockTableConfigs = map[string]map[string]*schemaMapping.TableConfig{
 					},
 				},
 				"list_text": {
-					ColumnName:   "list_text",
+					Name:         "list_text",
 					CQLType:      datatype.NewListType(datatype.Varchar),
 					IsPrimaryKey: false,
-					IsCollection: true,
 					Metadata: message.ColumnMetadata{
 						Table: "non_primitive_table",
 						Name:  "list_text",
@@ -701,10 +666,9 @@ var mockTableConfigs = map[string]map[string]*schemaMapping.TableConfig{
 					},
 				},
 				"list_int": {
-					ColumnName:   "list_int",
+					Name:         "list_int",
 					CQLType:      datatype.NewListType(datatype.Int),
 					IsPrimaryKey: false,
-					IsCollection: true,
 					Metadata: message.ColumnMetadata{
 						Table: "non_primitive_table",
 						Name:  "list_int",
@@ -713,10 +677,9 @@ var mockTableConfigs = map[string]map[string]*schemaMapping.TableConfig{
 					},
 				},
 				"list_float": {
-					ColumnName:   "list_float",
+					Name:         "list_float",
 					CQLType:      datatype.NewListType(datatype.Float),
 					IsPrimaryKey: false,
-					IsCollection: true,
 					Metadata: message.ColumnMetadata{
 						Table: "non_primitive_table",
 						Name:  "list_float",
@@ -725,10 +688,9 @@ var mockTableConfigs = map[string]map[string]*schemaMapping.TableConfig{
 					},
 				},
 				"list_double": {
-					ColumnName:   "list_double",
+					Name:         "list_double",
 					CQLType:      datatype.NewListType(datatype.Double),
 					IsPrimaryKey: false,
-					IsCollection: true,
 					Metadata: message.ColumnMetadata{
 						Table: "non_primitive_table",
 						Name:  "list_double",
@@ -737,10 +699,9 @@ var mockTableConfigs = map[string]map[string]*schemaMapping.TableConfig{
 					},
 				},
 				"list_boolean": {
-					ColumnName:   "list_boolean",
+					Name:         "list_boolean",
 					CQLType:      datatype.NewListType(datatype.Boolean),
 					IsPrimaryKey: false,
-					IsCollection: true,
 					Metadata: message.ColumnMetadata{
 						Table: "non_primitive_table",
 						Name:  "list_boolean",
@@ -749,10 +710,9 @@ var mockTableConfigs = map[string]map[string]*schemaMapping.TableConfig{
 					},
 				},
 				"list_timestamp": {
-					ColumnName:   "list_timestamp",
+					Name:         "list_timestamp",
 					CQLType:      datatype.NewListType(datatype.Timestamp),
 					IsPrimaryKey: false,
-					IsCollection: true,
 					Metadata: message.ColumnMetadata{
 						Table: "non_primitive_table",
 						Name:  "list_timestamp",
@@ -761,10 +721,9 @@ var mockTableConfigs = map[string]map[string]*schemaMapping.TableConfig{
 					},
 				},
 				"list_bigint": {
-					ColumnName:   "list_bigint",
+					Name:         "list_bigint",
 					CQLType:      datatype.NewListType(datatype.Bigint),
 					IsPrimaryKey: false,
-					IsCollection: true,
 					Metadata: message.ColumnMetadata{
 						Table: "non_primitive_table",
 						Name:  "list_bigint",

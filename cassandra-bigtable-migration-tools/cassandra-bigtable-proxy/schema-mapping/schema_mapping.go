@@ -22,6 +22,7 @@ import (
 	"sort"
 
 	types "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/global/types"
+	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/utilities"
 	"github.com/datastax/go-cassandra-native-protocol/datatype"
 	"github.com/datastax/go-cassandra-native-protocol/message"
 	"github.com/datastax/go-cassandra-native-protocol/primitive"
@@ -112,7 +113,7 @@ func (c *SchemaMappingConfig) GetTableConfig(keySpace string, tableName string) 
 func (tableConfig *TableConfig) GetPkByTableNameWithFilter(filterPrimaryKeys []string) ([]*types.Column, error) {
 	var result []*types.Column
 	for _, pmk := range tableConfig.PrimaryKeys {
-		if slices.Contains(filterPrimaryKeys, pmk.ColumnName) {
+		if slices.Contains(filterPrimaryKeys, pmk.Name) {
 			result = append(result, pmk)
 		}
 	}
@@ -124,7 +125,7 @@ func (tableConfig *TableConfig) GetPkByTableNameWithFilter(filterPrimaryKeys []s
 // Returns default column family for primitive types and column name for collections.
 func (tableConfig *TableConfig) GetColumnFamily(columnName string) string {
 	if colType, err := tableConfig.GetColumnType(columnName); err == nil {
-		if colType.IsCollection {
+		if utilities.IsCollectionColumn(colType) {
 			return columnName
 		}
 	}
@@ -142,7 +143,7 @@ func (tableConfig *TableConfig) GetColumn(columnName string) (*types.Column, err
 func (tableConfig *TableConfig) GetPrimaryKeys() []string {
 	var primaryKeys []string
 	for _, pk := range tableConfig.PrimaryKeys {
-		primaryKeys = append(primaryKeys, pk.ColumnName)
+		primaryKeys = append(primaryKeys, pk.Name)
 	}
 	return primaryKeys
 }
@@ -174,7 +175,6 @@ func (tableConfig *TableConfig) GetColumnType(columnName string) (*types.Column,
 	return &types.Column{
 		CQLType:      col.CQLType,
 		IsPrimaryKey: col.IsPrimaryKey,
-		IsCollection: col.IsCollection,
 		KeyType:      col.KeyType,
 	}, nil
 }
@@ -460,7 +460,7 @@ func (c *SchemaMappingConfig) InstanceExists(keyspace string) bool {
 // - The specified column is not a primary key in the table
 func (tableConfig *TableConfig) GetPkKeyType(columnName string) (string, error) {
 	for _, col := range tableConfig.PrimaryKeys {
-		if col.ColumnName == columnName {
+		if col.Name == columnName {
 			return col.KeyType, nil
 		}
 	}

@@ -26,6 +26,7 @@ import (
 	types "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/global/types"
 	schemaMapping "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/schema-mapping"
 	cql "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/third_party/cqlparser"
+	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/utilities"
 )
 
 const (
@@ -469,7 +470,7 @@ func processWriteTimeColumn(tableConfig *schemaMapping.TableConfig, columnMetada
 
 func processAsColumn(columnMetadata schemaMapping.SelectedColumns, columnFamily string, colMeta *types.Column, columns []string, isGroupBy bool) []string {
 	var columnSelected string
-	if !colMeta.IsCollection {
+	if !utilities.IsCollectionDataType(colMeta.CQLType) {
 		if isGroupBy {
 			castedCol, _ := castColumns(colMeta, columnFamily)
 			columnSelected = castedCol + " as " + columnMetadata.Alias
@@ -514,7 +515,7 @@ Returns:
 	An updated slice of strings with the new formatted column reference appended.
 */
 func processRegularColumn(columnMetadata schemaMapping.SelectedColumns, tableName string, columnFamily string, colMeta *types.Column, columns []string, isGroupBy bool) []string {
-	if !colMeta.IsCollection {
+	if !utilities.IsCollectionDataType(colMeta.CQLType) {
 		if isGroupBy {
 			castedCol, _ := castColumns(colMeta, columnFamily)
 			columns = append(columns, castedCol)
@@ -614,7 +615,7 @@ func getBigtableSelectQuery(t *Translator, data *SelectQueryMap) (string, error)
 				groupBykeys = append(groupBykeys, col)
 			} else {
 				if colMeta, ok := tableConfig.Columns[lookupCol]; ok {
-					if !colMeta.IsCollection {
+					if !utilities.IsCollectionDataType(colMeta.CQLType) {
 						col, err := castColumns(colMeta, t.SchemaMappingConfig.SystemColumnFamily)
 						if err != nil {
 							return "", err
@@ -639,7 +640,7 @@ func getBigtableSelectQuery(t *Translator, data *SelectQueryMap) (string, error)
 				if colMeta, ok := tableConfig.Columns[lookupCol]; ok {
 					if colMeta.IsPrimaryKey {
 						orderByClauses = append(orderByClauses, orderByCol.Column+" "+string(orderByCol.Operation))
-					} else if !colMeta.IsCollection {
+					} else if !utilities.IsCollectionDataType(colMeta.CQLType) {
 						orderByKey, err := castColumns(colMeta, t.SchemaMappingConfig.SystemColumnFamily)
 						if err != nil {
 							return "", err

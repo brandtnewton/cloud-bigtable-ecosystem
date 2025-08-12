@@ -22,14 +22,12 @@ import (
 
 type Column struct {
 	Name         string
+	ColumnFamily string
 	CQLType      datatype.DataType
-	ColumnName   string
 	IsPrimaryKey bool
 	PkPrecedence int
-	IsCollection bool
 	KeyType      string
 	Metadata     message.ColumnMetadata
-	ColumnFamily string
 }
 
 type Clause struct {

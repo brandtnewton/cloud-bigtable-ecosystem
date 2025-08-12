@@ -477,7 +477,7 @@ func (btc *BigtableClient) updateTableSchema(ctx context.Context, keyspace strin
 	})
 	for _, col := range addCols {
 		mut := bigtable.NewMutation()
-		mut.Set(schemaMappingTableColumnFamily, "ColumnName", ts, []byte(col.Name))
+		mut.Set(schemaMappingTableColumnFamily, "Name", ts, []byte(col.Name))
 		mut.Set(schemaMappingTableColumnFamily, "ColumnType", ts, []byte(col.Type.String()))
 		isCollection := utilities.IsCollectionDataType(col.Type)
 		mut.Set(schemaMappingTableColumnFamily, "IsCollection", ts, []byte(strconv.FormatBool(isCollection)))
@@ -639,14 +639,14 @@ func (btc *BigtableClient) GetSchemaMappingConfigs(ctx context.Context, keyspace
 	err = table.ReadRows(ctx, bigtable.InfiniteRange(""), func(row bigtable.Row) bool {
 		// Extract the row key and column values
 		var tableName, columnName, columnType, KeyType string
-		var isPrimaryKey, isCollection bool
+		var isPrimaryKey bool
 		var pkPrecedence int
 		// Extract column values
 		for _, item := range row[schemaMappingTableColumnFamily] {
 			switch item.Column {
 			case schemaMappingTableColumnFamily + ":TableName":
 				tableName = string(item.Value)
-			case schemaMappingTableColumnFamily + ":ColumnName":
+			case schemaMappingTableColumnFamily + ":Name":
 				columnName = string(item.Value)
 			case schemaMappingTableColumnFamily + ":ColumnType":
 				columnType = string(item.Value)
@@ -657,8 +657,6 @@ func (btc *BigtableClient) GetSchemaMappingConfigs(ctx context.Context, keyspace
 				if readErr != nil {
 					return false
 				}
-			case schemaMappingTableColumnFamily + ":IsCollection":
-				isCollection = string(item.Value) == "true"
 			case schemaMappingTableColumnFamily + ":KeyType":
 				KeyType = string(item.Value)
 			}
@@ -679,11 +677,10 @@ func (btc *BigtableClient) GetSchemaMappingConfigs(ctx context.Context, keyspace
 
 		// Create a new column struct
 		column := types.Column{
-			ColumnName:   columnName,
+			Name:         columnName,
 			CQLType:      cqlType,
 			IsPrimaryKey: isPrimaryKey,
 			PkPrecedence: pkPrecedence,
-			IsCollection: isCollection,
 			Metadata:     columnMetadata,
 			KeyType:      KeyType,
 		}
@@ -701,7 +698,7 @@ func (btc *BigtableClient) GetSchemaMappingConfigs(ctx context.Context, keyspace
 			tables[tableName] = tableConfig
 		}
 
-		tableConfig.Columns[column.ColumnName] = &column
+		tableConfig.Columns[column.Name] = &column
 		if column.IsPrimaryKey {
 			tableConfig.PrimaryKeys = append(tableConfig.PrimaryKeys, &column)
 		}

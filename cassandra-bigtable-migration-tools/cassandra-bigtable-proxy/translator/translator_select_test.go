@@ -1206,14 +1206,14 @@ func TestTranslator_TranslateSelectQuerytoBigtable(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			schemaMapping := &schemaMapping.SchemaMappingConfig{
+			schemaMappingConfig := &schemaMapping.SchemaMappingConfig{
 				Logger:             tt.fields.Logger,
 				Tables:             mockTableConfigs,
 				SystemColumnFamily: "cf1",
 			}
 			tr := &Translator{
 				Logger:              tt.fields.Logger,
-				SchemaMappingConfig: schemaMapping,
+				SchemaMappingConfig: schemaMappingConfig,
 			}
 			got, err := tr.TranslateSelectQuerytoBigtable(tt.args.query, tt.defaultKeyspace)
 			if (err != nil) != tt.wantErr {
@@ -1304,6 +1304,7 @@ func Test_GetBigtableSelectQuery(t *testing.T) {
 			args: args{
 				data: &SelectQueryMap{
 					QueryType: "select",
+					Keyspace:  "test_keyspace",
 					Table:     "test_table",
 					ColumnMeta: ColumnMeta{
 						Star: true,

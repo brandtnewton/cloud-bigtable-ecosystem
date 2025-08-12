@@ -140,12 +140,12 @@ func (th *TypeHandler) BuildResponseRow(rowMap map[string]interface{}, query Que
 		} else if col.IsFunc || col.MapKey != "" || col.IsAs {
 			var tableCol *types.Column
 			tableCol, err = tableConfig.GetColumn(col.ColumnName)
-			isCollection = tableCol.IsCollection
+			isCollection = utilities.IsCollectionColumn(tableCol)
 			cqlType = tableCol.CQLType
 		} else {
 			var tableCol *types.Column
 			tableCol, err = tableConfig.GetColumn(key)
-			isCollection = tableCol.IsCollection
+			isCollection = utilities.IsCollectionColumn(tableCol)
 			cqlType = tableCol.CQLType
 		}
 		if err != nil {

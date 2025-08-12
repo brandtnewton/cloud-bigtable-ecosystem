@@ -100,11 +100,11 @@ func CreateTableConfig(mappings map[string]map[string]map[string]*types.Column) 
 func (c *SchemaMappingConfig) GetTableConfig(keySpace string, tableName string) (*TableConfig, error) {
 	keyspace, ok := c.Tables[keySpace]
 	if !ok {
-		return nil, fmt.Errorf("unknown keyspace: '%s'", keySpace)
+		return nil, fmt.Errorf("keyspace %s does not exist", keySpace)
 	}
 	tableConfig, ok := keyspace[tableName]
 	if !ok {
-		return nil, fmt.Errorf("unknown table '%s.%s' (but keyspace is known)", keySpace, tableName)
+		return nil, fmt.Errorf("table %s does not exist", tableName)
 	}
 	return tableConfig, nil
 }
@@ -134,7 +134,7 @@ func (tableConfig *TableConfig) GetColumnFamily(columnName string) string {
 func (tableConfig *TableConfig) GetColumn(columnName string) (*types.Column, error) {
 	col, ok := tableConfig.Columns[columnName]
 	if !ok {
-		return nil, fmt.Errorf("could not find column %s metadata for the table: %s.%s", columnName, tableConfig.Keyspace, tableConfig.Name)
+		return nil, fmt.Errorf("undefined column name %s in table %s.%s", columnName, tableConfig.Keyspace, tableConfig.Name)
 	}
 	return col, nil
 }
@@ -164,11 +164,11 @@ func (tableConfig *TableConfig) GetPrimaryKeys() []string {
 func (tableConfig *TableConfig) GetColumnType(columnName string) (*types.Column, error) {
 	col, ok := tableConfig.Columns[columnName]
 	if !ok {
-		return nil, fmt.Errorf("could not find column %s metadata for the table: %s", columnName, tableConfig.Name)
+		return nil, fmt.Errorf("undefined column name %s in table %s.%s", columnName, tableConfig.Keyspace, tableConfig.Name)
 	}
 
 	if col.CQLType == nil {
-		return nil, fmt.Errorf("could not find column %s metadata for the table: %s", columnName, tableConfig.Name)
+		return nil, fmt.Errorf("undefined column name %s in table %s.%s", columnName, tableConfig.Keyspace, tableConfig.Name)
 	}
 
 	return &types.Column{

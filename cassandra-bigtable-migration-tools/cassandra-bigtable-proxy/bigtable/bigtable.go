@@ -690,7 +690,6 @@ func (btc *BigtableClient) GetSchemaMappingConfigs(ctx context.Context, keyspace
 			tableConfig = &schemaMapping.TableConfig{
 				Keyspace:           keyspace,
 				Name:               tableName,
-				Logger:             btc.SchemaMappingConfig.Logger,
 				Columns:            map[string]*types.Column{},
 				PrimaryKeys:        []*types.Column{},
 				SystemColumnFamily: btc.BigtableConfig.DefaultColumnFamily,
@@ -717,7 +716,9 @@ func (btc *BigtableClient) GetSchemaMappingConfigs(ctx context.Context, keyspace
 	}
 
 	otelgo.AddAnnotation(ctx, schemaMappingConfigFetched)
-	sortPkData(tables)
+	for _, table := range tables {
+		sortPrimaryKeys(table.PrimaryKeys)
+	}
 	return tables, nil
 }
 

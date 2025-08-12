@@ -2714,7 +2714,6 @@ func TestProcessComplexUpdate_SuccessfulCases(t *testing.T) {
 				"test_keyspace": {"test_table": &schemaMapping.TableConfig{
 					Keyspace: "keyspace1",
 					Name:     "table1",
-					Logger:   nil,
 					Columns: map[string]*types.Column{
 						"map_col": {
 							Name:    "map_col",

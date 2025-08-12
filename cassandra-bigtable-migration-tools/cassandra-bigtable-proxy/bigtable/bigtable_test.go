@@ -891,11 +891,10 @@ func TestCreateTable(t *testing.T) {
 
 	require.Equal(t, map[string]*types.Column{
 		"org": {
-			ColumnName:   "org",
+			Name:         "org",
 			CQLType:      datatype.Varchar,
 			IsPrimaryKey: true,
 			PkPrecedence: 1,
-			IsCollection: false,
 			KeyType:      "partition",
 			Metadata: message.ColumnMetadata{
 				Keyspace: "keyspace",
@@ -906,11 +905,10 @@ func TestCreateTable(t *testing.T) {
 			},
 		},
 		"id": {
-			ColumnName:   "id",
+			Name:         "id",
 			CQLType:      datatype.Bigint,
 			IsPrimaryKey: true,
 			PkPrecedence: 2,
-			IsCollection: false,
 			KeyType:      "clustering",
 			Metadata: message.ColumnMetadata{
 				Keyspace: "keyspace",
@@ -921,11 +919,10 @@ func TestCreateTable(t *testing.T) {
 			},
 		},
 		"name": {
-			ColumnName:   "name",
+			Name:         "name",
 			CQLType:      datatype.Varchar,
 			IsPrimaryKey: false,
 			PkPrecedence: 0,
-			IsCollection: false,
 			KeyType:      utilities.KEY_TYPE_REGULAR,
 			Metadata: message.ColumnMetadata{
 				Keyspace: "keyspace",
@@ -936,11 +933,10 @@ func TestCreateTable(t *testing.T) {
 			},
 		},
 		"zipcode": {
-			ColumnName:   "zipcode",
+			Name:         "zipcode",
 			CQLType:      datatype.Int,
 			IsPrimaryKey: false,
 			PkPrecedence: 0,
-			IsCollection: false,
 			KeyType:      utilities.KEY_TYPE_REGULAR,
 			Metadata: message.ColumnMetadata{
 				Keyspace: "keyspace",
@@ -950,7 +946,7 @@ func TestCreateTable(t *testing.T) {
 				Type:     datatype.Int,
 			},
 		},
-	}, tableMetadata["create_table_test"])
+	}, tableMetadata["create_table_test"].Columns)
 	info, err = adminClients["keyspace"].TableInfo(ctx, "create_table_test")
 	require.NoError(t, err)
 	require.NotNil(t, info)
@@ -1001,13 +997,12 @@ func TestAlterTable(t *testing.T) {
 	tableMetadata, err := btClient.GetSchemaMappingConfigs(ctx, "keyspace", "schema-mappings")
 	require.NoError(t, err)
 
-	require.Equal(t, tableMetadata["alter_table_test"], map[string]*types.Column{
+	require.Equal(t, tableMetadata["alter_table_test"].Columns, map[string]*types.Column{
 		"org": {
-			ColumnName:   "org",
+			Name:         "org",
 			CQLType:      datatype.Varchar,
 			IsPrimaryKey: true,
 			PkPrecedence: 1,
-			IsCollection: false,
 			KeyType:      "partition",
 			Metadata: message.ColumnMetadata{
 				Keyspace: "keyspace",
@@ -1018,11 +1013,10 @@ func TestAlterTable(t *testing.T) {
 			},
 		},
 		"id": {
-			ColumnName:   "id",
+			Name:         "id",
 			CQLType:      datatype.Bigint,
 			IsPrimaryKey: true,
 			PkPrecedence: 2,
-			IsCollection: false,
 			KeyType:      "clustering",
 			Metadata: message.ColumnMetadata{
 				Keyspace: "keyspace",
@@ -1033,11 +1027,10 @@ func TestAlterTable(t *testing.T) {
 			},
 		},
 		"name": {
-			ColumnName:   "name",
+			Name:         "name",
 			CQLType:      datatype.Varchar,
 			IsPrimaryKey: false,
 			PkPrecedence: 0,
-			IsCollection: false,
 			KeyType:      utilities.KEY_TYPE_REGULAR,
 			Metadata: message.ColumnMetadata{
 				Keyspace: "keyspace",
@@ -1048,11 +1041,10 @@ func TestAlterTable(t *testing.T) {
 			},
 		},
 		"zodiac": {
-			ColumnName:   "zodiac",
+			Name:         "zodiac",
 			CQLType:      datatype.Varchar,
 			IsPrimaryKey: false,
 			PkPrecedence: 0,
-			IsCollection: false,
 			KeyType:      utilities.KEY_TYPE_REGULAR,
 			Metadata: message.ColumnMetadata{
 				Keyspace: "keyspace",

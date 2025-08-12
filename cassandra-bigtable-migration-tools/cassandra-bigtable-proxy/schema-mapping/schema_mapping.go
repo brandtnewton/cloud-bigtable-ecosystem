@@ -42,7 +42,6 @@ type SchemaMappingConfig struct {
 type TableConfig struct {
 	Keyspace           string
 	Name               string
-	Logger             *zap.Logger
 	Columns            map[string]*types.Column
 	PrimaryKeys        []*types.Column
 	SystemColumnFamily string
@@ -101,11 +100,11 @@ func CreateTableConfig(mappings map[string]map[string]map[string]*types.Column) 
 func (c *SchemaMappingConfig) GetTableConfig(keySpace string, tableName string) (*TableConfig, error) {
 	keyspace, ok := c.Tables[keySpace]
 	if !ok {
-		return nil, fmt.Errorf("unknown keyspace: %s", keySpace)
+		return nil, fmt.Errorf("unknown keyspace: '%s'", keySpace)
 	}
 	tableConfig, ok := keyspace[tableName]
 	if !ok {
-		return nil, fmt.Errorf("unknown table %s.%s (but keyspace is known)", keySpace, tableName)
+		return nil, fmt.Errorf("unknown table '%s.%s' (but keyspace is known)", keySpace, tableName)
 	}
 	return tableConfig, nil
 }
@@ -271,11 +270,8 @@ func (tableConfig *TableConfig) getSpecificColumnsMetadataForSelectedColumns(col
 				return nil, err
 			}
 			columnMetadataList = append(columnMetadataList, metadata)
-			tableConfig.Logger.Debug("Identified a function call", zap.String("columnName", columnName))
 		} else {
-			errMsg := fmt.Sprintf("metadata not found for the `%s` column in `%s`table", columnName, tableConfig.Name)
-			tableConfig.Logger.Error(errMsg)
-			return nil, fmt.Errorf("%s", errMsg)
+			return nil, fmt.Errorf("metadata not found for column `%s` in table `%s`", columnName, tableConfig.Name)
 		}
 		if columnMeta.IsAs {
 			columnMetadataList[i].Name = columnMeta.Alias
@@ -326,9 +322,7 @@ func (tableConfig *TableConfig) getSpecificColumnsMetadata(columnNames []string)
 			}
 			columnMetadataList = append(columnMetadataList, metadata)
 		} else {
-			errMsg := fmt.Sprintf("metadata not found for the `%s` column in `%s`table", columnName, tableConfig.Name)
-			tableConfig.Logger.Error(errMsg)
-			return nil, fmt.Errorf("%s", errMsg)
+			return nil, fmt.Errorf("metadata not found for column `%s` in table `%s`", columnName, tableConfig.Name)
 		}
 	}
 	return columnMetadataList, nil

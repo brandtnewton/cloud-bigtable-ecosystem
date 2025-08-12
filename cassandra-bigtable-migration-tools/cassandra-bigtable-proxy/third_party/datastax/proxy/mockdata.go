@@ -19,7 +19,6 @@ var mockTableConfig = map[string]map[string]*schemaMapping.TableConfig{
 		"test_table": &schemaMapping.TableConfig{
 			Keyspace: "test_keyspace",
 			Name:     "test_table",
-			Logger:   nil,
 			Columns: map[string]*types.Column{
 				"column1": &types.Column{
 					Name:         "column1",
@@ -122,7 +121,6 @@ var mockTableConfig = map[string]map[string]*schemaMapping.TableConfig{
 		"user_info": &schemaMapping.TableConfig{
 			Keyspace: "test_keyspace",
 			Name:     "user_info",
-			Logger:   nil,
 			Columns: map[string]*types.Column{
 				"name": &types.Column{
 					Name:         "name",

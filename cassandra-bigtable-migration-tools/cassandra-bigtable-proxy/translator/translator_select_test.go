@@ -1407,7 +1407,6 @@ func Test_GetBigtableSelectQuery(t *testing.T) {
 						"test_keyspace": {"test_table": &schemaMapping.TableConfig{
 							Keyspace: "test_keyspace",
 							Name:     "test_table",
-							Logger:   nil,
 							Columns: map[string]*types.Column{
 								"column1": {Name: "column1", CQLType: datatype.Varchar, IsPrimaryKey: true},
 								"column2": {Name: "column2", CQLType: datatype.Bigint},
@@ -1454,7 +1453,6 @@ func Test_GetBigtableSelectQuery(t *testing.T) {
 						"test_keyspace": {"test_table": &schemaMapping.TableConfig{
 							Keyspace: "test_keyspace",
 							Name:     "test_table",
-							Logger:   nil,
 							Columns: map[string]*types.Column{
 								"column1": {Name: "column1", CQLType: datatype.Varchar, IsPrimaryKey: true},
 								"column2": {Name: "column2", CQLType: datatype.Bigint},
@@ -1496,7 +1494,6 @@ func Test_GetBigtableSelectQuery(t *testing.T) {
 						"test_keyspace": {"test_table": &schemaMapping.TableConfig{
 							Keyspace: "test_keyspace",
 							Name:     "test_table",
-							Logger:   nil,
 							Columns: map[string]*types.Column{
 								"column1": {Name: "column1", CQLType: datatype.Bigint, IsPrimaryKey: true},
 							},
@@ -1542,7 +1539,6 @@ func Test_GetBigtableSelectQuery(t *testing.T) {
 						"test_keyspace": {"test_table": &schemaMapping.TableConfig{
 							Keyspace: "test_keyspace",
 							Name:     "test_table",
-							Logger:   nil,
 							Columns: map[string]*types.Column{
 								"column1": {Name: "column1", CQLType: datatype.Varchar, IsPrimaryKey: true},
 								"column2": {Name: "column2", CQLType: datatype.Bigint},
@@ -1581,7 +1577,6 @@ func Test_GetBigtableSelectQuery(t *testing.T) {
 						"test_keyspace": {"test_table": &schemaMapping.TableConfig{
 							Keyspace: "test_keyspace",
 							Name:     "test_table",
-							Logger:   nil,
 							Columns: map[string]*types.Column{
 								"column1": {Name: "column1", CQLType: datatype.Varchar, IsPrimaryKey: true},
 								"column2": {Name: "column2", CQLType: datatype.Bigint},
@@ -1628,7 +1623,6 @@ func Test_GetBigtableSelectQuery(t *testing.T) {
 						"test_keyspace": {"test_table": &schemaMapping.TableConfig{
 							Keyspace: "test_keyspace",
 							Name:     "test_table",
-							Logger:   nil,
 							Columns: map[string]*types.Column{
 								"name": {Name: "name", CQLType: datatype.Varchar, IsPrimaryKey: true},
 								"age":  {Name: "age", CQLType: datatype.Bigint},
@@ -1675,7 +1669,6 @@ func Test_GetBigtableSelectQuery(t *testing.T) {
 						"test_keyspace": {"test_table": &schemaMapping.TableConfig{
 							Keyspace: "test_keyspace",
 							Name:     "test_table",
-							Logger:   nil,
 							Columns: map[string]*types.Column{
 								"name": {Name: "name", CQLType: datatype.Varchar, IsPrimaryKey: true},
 								"age":  {Name: "age", CQLType: datatype.Bigint},
@@ -1723,7 +1716,6 @@ func Test_GetBigtableSelectQuery(t *testing.T) {
 						"test_keyspace": {"test_table": &schemaMapping.TableConfig{
 							Keyspace: "test_keyspace",
 							Name:     "test_table",
-							Logger:   nil,
 							Columns: map[string]*types.Column{
 								"name": {Name: "name", CQLType: datatype.Varchar, IsPrimaryKey: true},
 								"age":  {Name: "age", CQLType: datatype.Bigint},
@@ -2137,7 +2129,6 @@ func Test_processFunctionColumn(t *testing.T) {
 						"test_keyspace": {"user_info": &schemaMapping.TableConfig{
 							Keyspace: "test_keyspace",
 							Name:     "user_info",
-							Logger:   nil,
 							Columns: map[string]*types.Column{
 								"age": {
 									Name:    "age",
@@ -2610,21 +2601,20 @@ func TestProcessSetStrings(t *testing.T) {
 						"test_keyspace": {"user_info": &schemaMapping.TableConfig{
 							Keyspace: "test_keyspace",
 							Name:     "user_info",
-							Logger:   nil,
 							Columns: map[string]*types.Column{
-								"name": &types.Column{
+								"name": {
 									Name:    "name",
 									CQLType: datatype.Varchar,
 								},
-								"age": &types.Column{
+								"age": {
 									Name:    "age",
 									CQLType: datatype.Bigint,
 								},
-								"code": &types.Column{
+								"code": {
 									Name:    "code",
 									CQLType: datatype.Int,
 								},
-								"map_col": &types.Column{
+								"map_col": {
 									Name:    "map_col",
 									CQLType: datatype.NewMapType(datatype.Varchar, datatype.Varchar),
 								},

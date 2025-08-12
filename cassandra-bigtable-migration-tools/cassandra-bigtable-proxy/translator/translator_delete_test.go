@@ -626,7 +626,6 @@ func newTestTableConfig() *schemaMapping.SchemaMappingConfig {
 			"test_keyspace": {"testtable": &schemaMapping.TableConfig{
 				Keyspace: "test_keyspace",
 				Name:     "testtable",
-				Logger:   nil,
 				Columns: map[string]*types.Column{
 					"col1": {CQLType: datatype.Varchar, IsPrimaryKey: false},
 					"col2": {CQLType: datatype.Int, IsPrimaryKey: false},

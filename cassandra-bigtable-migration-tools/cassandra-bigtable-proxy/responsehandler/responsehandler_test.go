@@ -1222,16 +1222,15 @@ func TestTypeHandler_BuildResponseRow(t *testing.T) {
 						"test_keyspace": {"test_table": &schemaMapping.TableConfig{
 							Keyspace: "test_keyspace",
 							Name:     "user_info",
-							Logger:   nil,
 							Columns: map[string]*types.Column{
-								"column1": &types.Column{
-									ColumnName:   "column1",
+								"column1": {
+									Name:         "column1",
 									CQLType:      datatype.Varchar,
 									IsPrimaryKey: true,
 									PkPrecedence: 1,
 								},
-								"column7": &types.Column{
-									ColumnName:   "column7",
+								"column7": {
+									Name:         "column7",
 									CQLType:      datatype.NewSetType(datatype.NewCustomType("foo")),
 									IsPrimaryKey: false,
 									PkPrecedence: 1,
@@ -1239,7 +1238,7 @@ func TestTypeHandler_BuildResponseRow(t *testing.T) {
 							},
 							PrimaryKeys: []*types.Column{
 								{
-									ColumnName:   "column1",
+									Name:         "column1",
 									CQLType:      datatype.Varchar,
 									IsPrimaryKey: true,
 									PkPrecedence: 1,

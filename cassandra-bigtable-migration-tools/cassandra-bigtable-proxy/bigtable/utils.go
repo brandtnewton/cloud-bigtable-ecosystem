@@ -19,7 +19,7 @@ import (
 	"encoding/base64"
 	"sort"
 
-	schemaMapping "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/schema-mapping"
+	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/global/types"
 	"github.com/datastax/go-cassandra-native-protocol/datatype"
 	"github.com/datastax/go-cassandra-native-protocol/message"
 )
@@ -28,7 +28,7 @@ const (
 	DefaultProfileId = "default"
 )
 
-// sortPkData sorts the primary key columns of each table based on their precedence.
+// sortPrimaryKeys sorts the primary key columns of each table based on their precedence.
 // The function takes a map where the keys are table names and the values are slices of columns.
 // It returns the same map with the columns sorted by their primary key precedence.
 //
@@ -38,12 +38,10 @@ const (
 //
 // Returns:
 // - A map with the same structure as the input, but with the columns sorted by primary key precedence.
-func sortPkData(tables map[string]*schemaMapping.TableConfig) {
-	for _, tableConfig := range tables {
-		sort.Slice(tableConfig.PrimaryKeys, func(i, j int) bool {
-			return tableConfig.PrimaryKeys[i].PkPrecedence < tableConfig.PrimaryKeys[j].PkPrecedence
-		})
-	}
+func sortPrimaryKeys(keys []*types.Column) {
+	sort.Slice(keys, func(i, j int) bool {
+		return keys[i].PkPrecedence < keys[j].PkPrecedence
+	})
 }
 
 // GetProfileId returns the provided profile ID if it is not empty.

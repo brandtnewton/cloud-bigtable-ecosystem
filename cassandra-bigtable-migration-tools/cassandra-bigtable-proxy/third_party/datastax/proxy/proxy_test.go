@@ -612,10 +612,11 @@ func Test_client_handlePrepare(t *testing.T) {
 var mockTableSchemaConfig = map[string]map[string]*schemaMapping.TableConfig{
 	"keyspace": {
 		"test_table": &schemaMapping.TableConfig{
+			SystemColumnFamily: "cf1",
 			Columns: map[string]*types.Column{
 				"test_id": {
-					ColumnName: "test_id",
-					CQLType:    datatype.Varchar,
+					Name:    "test_id",
+					CQLType: datatype.Varchar,
 					Metadata: message.ColumnMetadata{
 						Keyspace: "",
 						Table:    "test_table",
@@ -626,8 +627,8 @@ var mockTableSchemaConfig = map[string]map[string]*schemaMapping.TableConfig{
 					IsPrimaryKey: true,
 				},
 				"test_hash": {
-					ColumnName: "test_hash",
-					CQLType:    datatype.Varchar,
+					Name:    "test_hash",
+					CQLType: datatype.Varchar,
 					Metadata: message.ColumnMetadata{
 						Keyspace: "",
 						Table:    "test_table",
@@ -637,24 +638,24 @@ var mockTableSchemaConfig = map[string]map[string]*schemaMapping.TableConfig{
 					},
 				},
 				"column1": &types.Column{
-					ColumnName:   "column1",
+					Name:         "column1",
 					CQLType:      datatype.Varchar,
 					IsPrimaryKey: true,
 					PkPrecedence: 1,
 				},
 				"column2": &types.Column{
-					ColumnName:   "column2",
+					Name:         "column2",
 					CQLType:      datatype.Blob,
 					IsPrimaryKey: false,
 				},
 				"column3": &types.Column{
-					ColumnName:   "column3",
+					Name:         "column3",
 					CQLType:      datatype.Boolean,
 					IsPrimaryKey: false,
 				},
 
 				"column10": &types.Column{
-					ColumnName:   "column10",
+					Name:         "column10",
 					CQLType:      datatype.Varchar,
 					IsPrimaryKey: true,
 					PkPrecedence: 2,
@@ -664,11 +665,10 @@ var mockTableSchemaConfig = map[string]map[string]*schemaMapping.TableConfig{
 		"user_info": &schemaMapping.TableConfig{
 			Columns: map[string]*types.Column{
 				"name": &types.Column{
-					ColumnName:   "name",
+					Name:         "name",
 					CQLType:      datatype.Varchar,
 					IsPrimaryKey: true,
 					PkPrecedence: 0,
-					IsCollection: false,
 					Metadata: message.ColumnMetadata{
 						Keyspace: "user_info",
 						Table:    "user_info",
@@ -678,11 +678,10 @@ var mockTableSchemaConfig = map[string]map[string]*schemaMapping.TableConfig{
 					},
 				},
 				"age": &types.Column{
-					ColumnName:   "age",
+					Name:         "age",
 					CQLType:      datatype.Varchar,
 					IsPrimaryKey: false,
 					PkPrecedence: 0,
-					IsCollection: false,
 					Metadata: message.ColumnMetadata{
 						Keyspace: "user_info",
 						Table:    "user_info",

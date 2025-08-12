@@ -26,9 +26,9 @@ import (
 var mockTableConfigs = map[string]map[string]*schemaMapping.TableConfig{
 	"test_keyspace": {
 		"test_table": &schemaMapping.TableConfig{
-			Keyspace: "test_keyspace",
-			Name:     "test_table",
-			Logger:   nil,
+			Keyspace:           "test_keyspace",
+			Name:               "test_table",
+			SystemColumnFamily: "cf1",
 			Columns: map[string]*types.Column{
 				"column1": {
 					Name:         "column1",
@@ -283,7 +283,6 @@ var mockTableConfigs = map[string]map[string]*schemaMapping.TableConfig{
 		"int_table": &schemaMapping.TableConfig{
 			Keyspace: "test_keyspace",
 			Name:     "int_table",
-			Logger:   nil,
 			Columns: map[string]*types.Column{
 				"num": {
 					Name:         "num",
@@ -350,9 +349,9 @@ var mockTableConfigs = map[string]map[string]*schemaMapping.TableConfig{
 			},
 		},
 		"user_info": &schemaMapping.TableConfig{
-			Keyspace: "test_keyspace",
-			Name:     "user_info",
-			Logger:   nil,
+			Keyspace:           "test_keyspace",
+			Name:               "user_info",
+			SystemColumnFamily: "cf1",
 			Columns: map[string]*types.Column{
 				"name": {
 					Name:         "name",
@@ -409,7 +408,6 @@ var mockTableConfigs = map[string]map[string]*schemaMapping.TableConfig{
 		"non_primitive_table": &schemaMapping.TableConfig{
 			Keyspace: "test_keyspace",
 			Name:     "non_primitive_table",
-			Logger:   nil,
 			Columns: map[string]*types.Column{
 				"map_text_text": {
 					Name:         "map_text_text",

@@ -2585,7 +2585,7 @@ func TestProcessSetStrings(t *testing.T) {
 			tableName:   "user_info",
 			keySpace:    "test_keyspace",
 			isGroupBy:   false,
-			wantColumns: []string{"cf1['map_col'] as renamed_map"},
+			wantColumns: []string{"`map_col` as renamed_map"},
 			wantErr:     false,
 		},
 		{

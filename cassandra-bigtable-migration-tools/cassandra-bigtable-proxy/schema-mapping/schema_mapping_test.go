@@ -35,8 +35,8 @@ var tablesMetaData = map[string]map[string]*TableConfig{
 			Name:     "table1",
 			Columns: map[string]*types.Column{
 				"column1": {
-					CQLType:      datatype.Varchar,
 					Name:         "column1",
+					CQLType:      datatype.Varchar,
 					IsPrimaryKey: false,
 					PkPrecedence: 0,
 					Metadata: message.ColumnMetadata{
@@ -45,6 +45,19 @@ var tablesMetaData = map[string]map[string]*TableConfig{
 						Name:     "column1",
 						Index:    int32(0),
 						Type:     datatype.Varchar,
+					},
+				},
+				"column2": {
+					Name:         "column2",
+					CQLType:      datatype.Int,
+					IsPrimaryKey: false,
+					PkPrecedence: 0,
+					Metadata: message.ColumnMetadata{
+						Keyspace: "keyspace",
+						Table:    "table1",
+						Name:     "column2",
+						Index:    int32(0),
+						Type:     datatype.Int,
 					},
 				},
 			},
@@ -965,7 +978,6 @@ func Test_GetSpecificColumnsMetadata(t *testing.T) {
 	tests := []struct {
 		name          string
 		fields        SchemaMappingConfig
-		columnsMap    map[string]*types.Column
 		columnNames   []string
 		tableName     string
 		expectedMeta  []*message.ColumnMetadata
@@ -977,19 +989,15 @@ func Test_GetSpecificColumnsMetadata(t *testing.T) {
 				Logger: logger,
 				Tables: tablesMetaData,
 			},
-			columnsMap: map[string]*types.Column{
-				"column1": {
-					Metadata: message.ColumnMetadata{
-						Type: datatype.Varchar,
-					},
-				},
-			},
 			columnNames: []string{"column1"},
 			tableName:   "table1",
 			expectedMeta: []*message.ColumnMetadata{
 				{
-					Type:  datatype.Varchar,
-					Index: 0,
+					Name:     "column1",
+					Table:    "table1",
+					Keyspace: "keyspace",
+					Type:     datatype.Varchar,
+					Index:    0,
 				},
 			},
 			expectedError: nil,
@@ -1000,21 +1008,15 @@ func Test_GetSpecificColumnsMetadata(t *testing.T) {
 				Logger: logger,
 				Tables: tablesMetaData,
 			},
-			columnsMap: map[string]*types.Column{
-				"column1": {
-					Metadata: message.ColumnMetadata{
-						Type: datatype.Varchar,
-					},
-				},
-			},
 			columnNames: []string{LimitValue},
 			tableName:   "table1",
 			expectedMeta: []*message.ColumnMetadata{
 				{
-					Type:  datatype.Bigint,
-					Index: 0,
-					Name:  LimitValue,
-				},
+					Type:     datatype.Bigint,
+					Index:    0,
+					Name:     LimitValue,
+					Keyspace: "keyspace",
+					Table:    "table1"},
 			},
 			expectedError: nil,
 		},
@@ -1024,28 +1026,22 @@ func Test_GetSpecificColumnsMetadata(t *testing.T) {
 				Logger: logger,
 				Tables: tablesMetaData,
 			},
-			columnsMap: map[string]*types.Column{
-				"column1": {
-					Metadata: message.ColumnMetadata{
-						Type: datatype.Varchar,
-					},
-				},
-				"column2": {
-					Metadata: message.ColumnMetadata{
-						Type: datatype.Int,
-					},
-				},
-			},
 			columnNames: []string{"column1", "column2"},
 			tableName:   "table1",
 			expectedMeta: []*message.ColumnMetadata{
 				{
-					Type:  datatype.Varchar,
-					Index: 0,
+					Name:     "column1",
+					Keyspace: "keyspace",
+					Table:    "table1",
+					Type:     datatype.Varchar,
+					Index:    0,
 				},
 				{
-					Type:  datatype.Int,
-					Index: 1,
+					Name:     "column2",
+					Keyspace: "keyspace",
+					Table:    "table1",
+					Type:     datatype.Int,
+					Index:    1,
 				},
 			},
 			expectedError: nil,
@@ -1056,24 +1052,22 @@ func Test_GetSpecificColumnsMetadata(t *testing.T) {
 				Logger: logger,
 				Tables: tablesMetaData,
 			},
-			columnsMap: map[string]*types.Column{
-				"column1": {
-					Metadata: message.ColumnMetadata{
-						Type: datatype.Varchar,
-					},
-				},
-			},
 			columnNames: []string{"column1", LimitValue},
 			tableName:   "table1",
 			expectedMeta: []*message.ColumnMetadata{
 				{
-					Type:  datatype.Varchar,
-					Index: 0,
+					Name:     "column1",
+					Keyspace: "keyspace",
+					Table:    "table1",
+					Type:     datatype.Varchar,
+					Index:    0,
 				},
 				{
-					Type:  datatype.Bigint,
-					Index: 1,
-					Name:  LimitValue,
+					Name:     LimitValue,
+					Keyspace: "keyspace",
+					Table:    "table1",
+					Type:     datatype.Bigint,
+					Index:    1,
 				},
 			},
 			expectedError: nil,
@@ -1083,13 +1077,6 @@ func Test_GetSpecificColumnsMetadata(t *testing.T) {
 			fields: SchemaMappingConfig{
 				Logger: logger,
 				Tables: tablesMetaData,
-			},
-			columnsMap: map[string]*types.Column{
-				"column1": {
-					Metadata: message.ColumnMetadata{
-						Type: datatype.Varchar,
-					},
-				},
 			},
 			columnNames:   []string{"nonexistent_column"},
 			tableName:     "table1",
@@ -1102,13 +1089,6 @@ func Test_GetSpecificColumnsMetadata(t *testing.T) {
 				Logger: logger,
 				Tables: tablesMetaData,
 			},
-			columnsMap: map[string]*types.Column{
-				"column1": {
-					Metadata: message.ColumnMetadata{
-						Type: datatype.Varchar,
-					},
-				},
-			},
 			columnNames:   []string{},
 			tableName:     "table1",
 			expectedMeta:  nil,
@@ -1120,25 +1100,22 @@ func Test_GetSpecificColumnsMetadata(t *testing.T) {
 				Logger: logger,
 				Tables: tablesMetaData,
 			},
-			columnsMap: map[string]*types.Column{
-				"column1": {
-					Metadata: message.ColumnMetadata{
-						Type: datatype.Varchar,
-					},
-				},
-			},
 			columnNames: []string{LimitValue, LimitValue},
 			tableName:   "table1",
 			expectedMeta: []*message.ColumnMetadata{
 				{
-					Type:  datatype.Bigint,
-					Index: 0,
-					Name:  LimitValue,
+					Table:    "table1",
+					Keyspace: "keyspace",
+					Type:     datatype.Bigint,
+					Index:    0,
+					Name:     LimitValue,
 				},
 				{
-					Type:  datatype.Bigint,
-					Index: 1,
-					Name:  LimitValue,
+					Table:    "table1",
+					Keyspace: "keyspace",
+					Type:     datatype.Bigint,
+					Index:    1,
+					Name:     LimitValue,
 				},
 			},
 			expectedError: nil,
@@ -1149,9 +1126,8 @@ func Test_GetSpecificColumnsMetadata(t *testing.T) {
 				Logger: logger,
 				Tables: tablesMetaData,
 			},
-			columnsMap:    map[string]*types.Column{},
 			columnNames:   []string{LimitValue},
-			tableName:     "test_table",
+			tableName:     "table1",
 			expectedMeta:  nil,
 			expectedError: fmt.Errorf("special column %s not found in provided metadata", LimitValue),
 		},
@@ -1159,9 +1135,10 @@ func Test_GetSpecificColumnsMetadata(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			tc := TableConfig{
-				Keyspace: "test_keyspace",
-				Name:     tt.tableName,
+			tc, err := tt.fields.GetTableConfig("keyspace", tt.tableName)
+			if err != nil {
+				t.Errorf("table config error: %v", err)
+				return
 			}
 			metadata, err := tc.getSpecificColumnsMetadata(tt.columnNames)
 
@@ -1196,7 +1173,8 @@ func Test_GetSpecificColumnsMetadata(t *testing.T) {
 				// Compare metadata entries by name
 				for name, expected := range expectedMap {
 					actual, exists := actualMap[name]
-					assert.True(t, exists, "Expected metadata for column %s not found", name)
+					assert.True(t, exists, "Expected metadata for column '%s' not found", name)
+					assert.NotNil(t, actual, "nil metadata result for column '%s'", name)
 					assert.Equal(t, expected.Keyspace, actual.Keyspace)
 					assert.Equal(t, expected.Table, actual.Table)
 					assert.Equal(t, expected.Type, actual.Type)

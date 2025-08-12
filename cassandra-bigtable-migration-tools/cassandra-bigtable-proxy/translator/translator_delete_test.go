@@ -632,8 +632,8 @@ func newTestTableConfig() *schemaMapping.SchemaMappingConfig {
 					"col2": {CQLType: datatype.Int, IsPrimaryKey: false},
 				},
 				PrimaryKeys: []*types.Column{
-					{CQLType: datatype.Varchar, IsPrimaryKey: false, ColumnName: "col1"},
-					{CQLType: datatype.Int, IsPrimaryKey: false, ColumnName: "col2"},
+					{CQLType: datatype.Varchar, IsPrimaryKey: false, Name: "col1"},
+					{CQLType: datatype.Int, IsPrimaryKey: false, Name: "col2"},
 				},
 			},
 			},

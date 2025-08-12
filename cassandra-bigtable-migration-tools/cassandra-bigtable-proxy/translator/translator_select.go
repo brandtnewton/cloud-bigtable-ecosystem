@@ -27,6 +27,7 @@ import (
 	schemaMapping "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/schema-mapping"
 	cql "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/third_party/cqlparser"
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/utilities"
+	"github.com/datastax/go-cassandra-native-protocol/primitive"
 )
 
 const (
@@ -480,8 +481,7 @@ func processAsColumn(columnMetadata schemaMapping.SelectedColumns, columnFamily 
 			columnSelected = fmt.Sprintf("%s['%s'] as %s", columnFamily, columnMetadata.Name, columnMetadata.Alias)
 		}
 	} else {
-		colType, _ := methods.ConvertCQLDataTypeToString(colMeta.CQLType)
-		if strings.Contains(colType, "list") {
+		if colMeta.CQLType.GetDataTypeCode() == primitive.DataTypeCodeList {
 			columnSelected = fmt.Sprintf("MAP_VALUES(%s) as %s", columnMetadata.Name, columnMetadata.Alias)
 		} else {
 			columnSelected = fmt.Sprintf("`%s` as %s", columnMetadata.Name, columnMetadata.Alias)

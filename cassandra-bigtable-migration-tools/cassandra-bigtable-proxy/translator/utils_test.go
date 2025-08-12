@@ -167,12 +167,11 @@ func TestTranslator_GetAllColumns(t *testing.T) {
 		tableName string
 	}
 	tests := []struct {
-		name    string
-		fields  fields
-		args    args
-		want    []string
-		want1   string
-		wantErr bool
+		name   string
+		fields fields
+		args   args
+		want   []string
+		want1  string
 	}{
 		{
 			name: "Valid Input",
@@ -183,22 +182,8 @@ func TestTranslator_GetAllColumns(t *testing.T) {
 			args: args{
 				tableName: "test_table",
 			},
-			want:    []string{"bigint_col", "blob_col", "bool_col", "column1", "column10", "column2", "column3", "column5", "column6", "column9", "double_col", "float_col", "int_col", "timestamp_col"},
-			want1:   "cf1",
-			wantErr: false,
-		},
-		{
-			name: "Valid Input",
-			fields: fields{
-				Logger:              zap.NewNop(),
-				SchemaMappingConfig: GetSchemaMappingConfig(),
-			},
-			args: args{
-				tableName: "test_table123",
-			},
-			want:    nil,
-			want1:   "",
-			wantErr: true,
+			want:  []string{"bigint_col", "blob_col", "bool_col", "column1", "column10", "column2", "column3", "column5", "column6", "column9", "double_col", "float_col", "int_col", "timestamp_col"},
+			want1: "cf1",
 		},
 	}
 	for _, tt := range tests {
@@ -208,13 +193,13 @@ func TestTranslator_GetAllColumns(t *testing.T) {
 				SchemaMappingConfig: tt.fields.SchemaMappingConfig,
 			}
 			tc, err := tr.SchemaMappingConfig.GetTableConfig("test_keyspace", tt.args.tableName)
+			if err != nil {
+				t.Errorf("table config should exist: %v", err)
+				return
+			}
 			got, got1 := tr.GetAllColumns(tc)
 			sort.Strings(got)
 			sort.Strings(tt.want)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("Translator.GetAllColumns() error = %v, wantErr %v", err, tt.wantErr)
-				return
-			}
 			if !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("Translator.GetAllColumns() got = %v, want %v", got, tt.want)
 			}
@@ -1542,8 +1527,8 @@ func TestCastColumns(t *testing.T) {
 		{
 			name: "integer type",
 			colMeta: &types.Column{
-				ColumnName: "age",
-				CQLType:    datatype.Int,
+				Name:    "age",
+				CQLType: datatype.Int,
 			},
 			columnFamily: "cf1",
 			want:         "TO_INT64(cf1['age'])",
@@ -1552,8 +1537,8 @@ func TestCastColumns(t *testing.T) {
 		{
 			name: "bigint type",
 			colMeta: &types.Column{
-				ColumnName: "timestamp",
-				CQLType:    datatype.Bigint,
+				Name:    "timestamp",
+				CQLType: datatype.Bigint,
 			},
 			columnFamily: "cf1",
 			want:         "TO_INT64(cf1['timestamp'])",
@@ -1562,8 +1547,8 @@ func TestCastColumns(t *testing.T) {
 		{
 			name: "float type",
 			colMeta: &types.Column{
-				ColumnName: "price",
-				CQLType:    datatype.Float,
+				Name:    "price",
+				CQLType: datatype.Float,
 			},
 			columnFamily: "cf1",
 			want:         "TO_FLOAT32(cf1['price'])",
@@ -1572,8 +1557,8 @@ func TestCastColumns(t *testing.T) {
 		{
 			name: "double type",
 			colMeta: &types.Column{
-				ColumnName: "value",
-				CQLType:    datatype.Double,
+				Name:    "value",
+				CQLType: datatype.Double,
 			},
 			columnFamily: "cf1",
 			want:         "TO_FLOAT64(cf1['value'])",
@@ -1582,8 +1567,8 @@ func TestCastColumns(t *testing.T) {
 		{
 			name: "boolean type",
 			colMeta: &types.Column{
-				ColumnName: "active",
-				CQLType:    datatype.Boolean,
+				Name:    "active",
+				CQLType: datatype.Boolean,
 			},
 			columnFamily: "cf1",
 			want:         "TO_INT64(cf1['active'])",
@@ -1592,8 +1577,8 @@ func TestCastColumns(t *testing.T) {
 		{
 			name: "timestamp type",
 			colMeta: &types.Column{
-				ColumnName: "created_at",
-				CQLType:    datatype.Timestamp,
+				Name:    "created_at",
+				CQLType: datatype.Timestamp,
 			},
 			columnFamily: "cf1",
 			want:         "TO_TIME(cf1['created_at'])",
@@ -1602,8 +1587,8 @@ func TestCastColumns(t *testing.T) {
 		{
 			name: "blob type",
 			colMeta: &types.Column{
-				ColumnName: "data",
-				CQLType:    datatype.Blob,
+				Name:    "data",
+				CQLType: datatype.Blob,
 			},
 			columnFamily: "cf1",
 			want:         "TO_BLOB(cf1['data'])",
@@ -1612,8 +1597,8 @@ func TestCastColumns(t *testing.T) {
 		{
 			name: "text type",
 			colMeta: &types.Column{
-				ColumnName: "name",
-				CQLType:    datatype.Varchar,
+				Name:    "name",
+				CQLType: datatype.Varchar,
 			},
 			columnFamily: "cf1",
 			want:         "cf1['name']",
@@ -1622,8 +1607,8 @@ func TestCastColumns(t *testing.T) {
 		{
 			name: "unsupported type",
 			colMeta: &types.Column{
-				ColumnName: "unsupported",
-				CQLType:    nil,
+				Name:    "unsupported",
+				CQLType: nil,
 			},
 			columnFamily: "cf1",
 			want:         "",
@@ -1632,8 +1617,8 @@ func TestCastColumns(t *testing.T) {
 		{
 			name: "handle special characters in column name",
 			colMeta: &types.Column{
-				ColumnName: "special-name",
-				CQLType:    datatype.Varchar,
+				Name:    "special-name",
+				CQLType: datatype.Varchar,
 			},
 			columnFamily: "cf1",
 			want:         "cf1['special-name']",
@@ -1680,7 +1665,7 @@ func TestTranslator_CreateOrderedCodeKey(t *testing.T) {
 			pmks: []*types.Column{
 				{
 					CQLType:      datatype.Varchar,
-					ColumnName:   "user_id",
+					Name:         "user_id",
 					IsPrimaryKey: true,
 					PkPrecedence: 1,
 				},
@@ -1697,7 +1682,7 @@ func TestTranslator_CreateOrderedCodeKey(t *testing.T) {
 			pmks: []*types.Column{
 				{
 					CQLType:      datatype.Bigint,
-					ColumnName:   "user_id",
+					Name:         "user_id",
 					IsPrimaryKey: true,
 					PkPrecedence: 1,
 				},
@@ -1714,7 +1699,7 @@ func TestTranslator_CreateOrderedCodeKey(t *testing.T) {
 			pmks: []*types.Column{
 				{
 					CQLType:      datatype.Int,
-					ColumnName:   "user_id",
+					Name:         "user_id",
 					IsPrimaryKey: true,
 					PkPrecedence: 1,
 				},
@@ -1731,7 +1716,7 @@ func TestTranslator_CreateOrderedCodeKey(t *testing.T) {
 			pmks: []*types.Column{
 				{
 					CQLType:      datatype.Int,
-					ColumnName:   "user_id",
+					Name:         "user_id",
 					IsPrimaryKey: true,
 					PkPrecedence: 1,
 				},
@@ -1748,7 +1733,7 @@ func TestTranslator_CreateOrderedCodeKey(t *testing.T) {
 			pmks: []*types.Column{
 				{
 					CQLType:      datatype.Int,
-					ColumnName:   "user_id",
+					Name:         "user_id",
 					IsPrimaryKey: true,
 					PkPrecedence: 1,
 				},
@@ -1765,7 +1750,7 @@ func TestTranslator_CreateOrderedCodeKey(t *testing.T) {
 			pmks: []*types.Column{
 				{
 					CQLType:      datatype.Bigint,
-					ColumnName:   "user_id",
+					Name:         "user_id",
 					IsPrimaryKey: true,
 					PkPrecedence: 1,
 				},
@@ -1782,7 +1767,7 @@ func TestTranslator_CreateOrderedCodeKey(t *testing.T) {
 			pmks: []*types.Column{
 				{
 					CQLType:      datatype.Bigint,
-					ColumnName:   "user_id",
+					Name:         "user_id",
 					IsPrimaryKey: true,
 					PkPrecedence: 1,
 				},
@@ -1799,7 +1784,7 @@ func TestTranslator_CreateOrderedCodeKey(t *testing.T) {
 			pmks: []*types.Column{
 				{
 					CQLType:      datatype.Bigint,
-					ColumnName:   "user_id",
+					Name:         "user_id",
 					IsPrimaryKey: true,
 					PkPrecedence: 1,
 				},
@@ -1816,7 +1801,7 @@ func TestTranslator_CreateOrderedCodeKey(t *testing.T) {
 			pmks: []*types.Column{
 				{
 					CQLType:      datatype.Bigint,
-					ColumnName:   "user_id",
+					Name:         "user_id",
 					IsPrimaryKey: true,
 					PkPrecedence: 1,
 				},
@@ -1833,7 +1818,7 @@ func TestTranslator_CreateOrderedCodeKey(t *testing.T) {
 			pmks: []*types.Column{
 				{
 					CQLType:      datatype.Bigint,
-					ColumnName:   "user_id",
+					Name:         "user_id",
 					IsPrimaryKey: true,
 					PkPrecedence: 1,
 				},
@@ -1850,19 +1835,19 @@ func TestTranslator_CreateOrderedCodeKey(t *testing.T) {
 			pmks: []*types.Column{
 				{
 					CQLType:      datatype.Varchar,
-					ColumnName:   "user_id",
+					Name:         "user_id",
 					IsPrimaryKey: true,
 					PkPrecedence: 1,
 				},
 				{
 					CQLType:      datatype.Bigint,
-					ColumnName:   "team_num",
+					Name:         "team_num",
 					IsPrimaryKey: true,
 					PkPrecedence: 2,
 				},
 				{
 					CQLType:      datatype.Varchar,
-					ColumnName:   "city",
+					Name:         "city",
 					IsPrimaryKey: true,
 					PkPrecedence: 3,
 				},
@@ -1881,19 +1866,19 @@ func TestTranslator_CreateOrderedCodeKey(t *testing.T) {
 			pmks: []*types.Column{
 				{
 					CQLType:      datatype.Varchar,
-					ColumnName:   "user_id",
+					Name:         "user_id",
 					IsPrimaryKey: true,
 					PkPrecedence: 1,
 				},
 				{
 					CQLType:      datatype.Bigint,
-					ColumnName:   "team_num",
+					Name:         "team_num",
 					IsPrimaryKey: true,
 					PkPrecedence: 2,
 				},
 				{
 					CQLType:      datatype.Varchar,
-					ColumnName:   "city",
+					Name:         "city",
 					IsPrimaryKey: true,
 					PkPrecedence: 3,
 				},
@@ -1912,25 +1897,25 @@ func TestTranslator_CreateOrderedCodeKey(t *testing.T) {
 			pmks: []*types.Column{
 				{
 					CQLType:      datatype.Varchar,
-					ColumnName:   "user_id",
+					Name:         "user_id",
 					IsPrimaryKey: true,
 					PkPrecedence: 1,
 				},
 				{
 					CQLType:      datatype.Bigint,
-					ColumnName:   "team_num",
+					Name:         "team_num",
 					IsPrimaryKey: true,
 					PkPrecedence: 2,
 				},
 				{
 					CQLType:      datatype.Varchar,
-					ColumnName:   "city",
+					Name:         "city",
 					IsPrimaryKey: true,
 					PkPrecedence: 3,
 				},
 				{
 					CQLType:      datatype.Varchar,
-					ColumnName:   "borough",
+					Name:         "borough",
 					IsPrimaryKey: true,
 					PkPrecedence: 4,
 				},
@@ -1950,25 +1935,25 @@ func TestTranslator_CreateOrderedCodeKey(t *testing.T) {
 			pmks: []*types.Column{
 				{
 					CQLType:      datatype.Varchar,
-					ColumnName:   "user_id",
+					Name:         "user_id",
 					IsPrimaryKey: true,
 					PkPrecedence: 1,
 				},
 				{
 					CQLType:      datatype.Bigint,
-					ColumnName:   "team_num",
+					Name:         "team_num",
 					IsPrimaryKey: true,
 					PkPrecedence: 2,
 				},
 				{
 					CQLType:      datatype.Varchar,
-					ColumnName:   "city",
+					Name:         "city",
 					IsPrimaryKey: true,
 					PkPrecedence: 3,
 				},
 				{
 					CQLType:      datatype.Varchar,
-					ColumnName:   "borough",
+					Name:         "borough",
 					IsPrimaryKey: true,
 					PkPrecedence: 4,
 				},
@@ -1988,19 +1973,19 @@ func TestTranslator_CreateOrderedCodeKey(t *testing.T) {
 			pmks: []*types.Column{
 				{
 					CQLType:      datatype.Blob,
-					ColumnName:   "user_id",
+					Name:         "user_id",
 					IsPrimaryKey: true,
 					PkPrecedence: 1,
 				},
 				{
 					CQLType:      datatype.Blob,
-					ColumnName:   "team_id",
+					Name:         "team_id",
 					IsPrimaryKey: true,
 					PkPrecedence: 2,
 				},
 				{
 					CQLType:      datatype.Blob,
-					ColumnName:   "city",
+					Name:         "city",
 					IsPrimaryKey: true,
 					PkPrecedence: 3,
 				},
@@ -2019,7 +2004,7 @@ func TestTranslator_CreateOrderedCodeKey(t *testing.T) {
 			pmks: []*types.Column{
 				{
 					CQLType:      datatype.Blob,
-					ColumnName:   "user_id",
+					Name:         "user_id",
 					IsPrimaryKey: true,
 					PkPrecedence: 1,
 				},
@@ -2036,25 +2021,25 @@ func TestTranslator_CreateOrderedCodeKey(t *testing.T) {
 			pmks: []*types.Column{
 				{
 					CQLType:      datatype.Blob,
-					ColumnName:   "user_id",
+					Name:         "user_id",
 					IsPrimaryKey: true,
 					PkPrecedence: 1,
 				},
 				{
 					CQLType:      datatype.Blob,
-					ColumnName:   "team_num",
+					Name:         "team_num",
 					IsPrimaryKey: true,
 					PkPrecedence: 2,
 				},
 				{
 					CQLType:      datatype.Blob,
-					ColumnName:   "city",
+					Name:         "city",
 					IsPrimaryKey: true,
 					PkPrecedence: 3,
 				},
 				{
 					CQLType:      datatype.Blob,
-					ColumnName:   "borough",
+					Name:         "borough",
 					IsPrimaryKey: true,
 					PkPrecedence: 4,
 				},
@@ -2074,13 +2059,13 @@ func TestTranslator_CreateOrderedCodeKey(t *testing.T) {
 			pmks: []*types.Column{
 				{
 					CQLType:      datatype.Blob,
-					ColumnName:   "user_id",
+					Name:         "user_id",
 					IsPrimaryKey: true,
 					PkPrecedence: 1,
 				},
 				{
 					CQLType:      datatype.Blob,
-					ColumnName:   "city",
+					Name:         "city",
 					IsPrimaryKey: true,
 					PkPrecedence: 2,
 				},
@@ -2098,13 +2083,13 @@ func TestTranslator_CreateOrderedCodeKey(t *testing.T) {
 			pmks: []*types.Column{
 				{
 					CQLType:      datatype.Varchar,
-					ColumnName:   "user_id",
+					Name:         "user_id",
 					IsPrimaryKey: true,
 					PkPrecedence: 1,
 				},
 				{
 					CQLType:      datatype.Blob,
-					ColumnName:   "city",
+					Name:         "city",
 					IsPrimaryKey: true,
 					PkPrecedence: 2,
 				},
@@ -2122,19 +2107,19 @@ func TestTranslator_CreateOrderedCodeKey(t *testing.T) {
 			pmks: []*types.Column{
 				{
 					CQLType:      datatype.Varchar,
-					ColumnName:   "user_id",
+					Name:         "user_id",
 					IsPrimaryKey: true,
 					PkPrecedence: 1,
 				},
 				{
 					CQLType:      datatype.Varchar,
-					ColumnName:   "city",
+					Name:         "city",
 					IsPrimaryKey: true,
 					PkPrecedence: 2,
 				},
 				{
 					CQLType:      datatype.Varchar,
-					ColumnName:   "borough",
+					Name:         "borough",
 					IsPrimaryKey: true,
 					PkPrecedence: 3,
 				},
@@ -2153,19 +2138,19 @@ func TestTranslator_CreateOrderedCodeKey(t *testing.T) {
 			pmks: []*types.Column{
 				{
 					CQLType:      datatype.Varchar,
-					ColumnName:   "user_id",
+					Name:         "user_id",
 					IsPrimaryKey: true,
 					PkPrecedence: 1,
 				},
 				{
 					CQLType:      datatype.Bigint,
-					ColumnName:   "team_num",
+					Name:         "team_num",
 					IsPrimaryKey: true,
 					PkPrecedence: 2,
 				},
 				{
 					CQLType:      datatype.Varchar,
-					ColumnName:   "city",
+					Name:         "city",
 					IsPrimaryKey: true,
 					PkPrecedence: 3,
 				},
@@ -2184,7 +2169,7 @@ func TestTranslator_CreateOrderedCodeKey(t *testing.T) {
 			pmks: []*types.Column{
 				{
 					CQLType:      datatype.Varchar,
-					ColumnName:   "user_id",
+					Name:         "user_id",
 					IsPrimaryKey: true,
 					PkPrecedence: 1,
 				},
@@ -2201,7 +2186,7 @@ func TestTranslator_CreateOrderedCodeKey(t *testing.T) {
 			pmks: []*types.Column{
 				{
 					CQLType:      datatype.Varchar,
-					ColumnName:   "user_id",
+					Name:         "user_id",
 					IsPrimaryKey: true,
 					PkPrecedence: 1,
 				},
@@ -2732,14 +2717,12 @@ func TestProcessComplexUpdate_SuccessfulCases(t *testing.T) {
 					Logger:   nil,
 					Columns: map[string]*types.Column{
 						"map_col": {
-							ColumnName:   "map_col",
-							CQLType:      datatype.NewMapType(datatype.Varchar, datatype.Varchar),
-							IsCollection: true,
+							Name:    "map_col",
+							CQLType: datatype.NewMapType(datatype.Varchar, datatype.Varchar),
 						},
 						"list_col": {
-							ColumnName:   "list_col",
-							CQLType:      datatype.NewListType(datatype.Varchar),
-							IsCollection: true,
+							Name:    "list_col",
+							CQLType: datatype.NewListType(datatype.Varchar),
 						},
 					},
 					PrimaryKeys: []*types.Column{},
@@ -3568,9 +3551,8 @@ func TestHandleMapOperation(t *testing.T) {
 func TestProcessCollectionColumnsForRawQueries(t *testing.T) {
 	// Mock key data types for columns
 	colList := types.Column{
-		Name:         "list_text",
-		CQLType:      datatype.NewListType(datatype.Varchar),
-		IsCollection: true,
+		Name:    "list_text",
+		CQLType: datatype.NewListType(datatype.Varchar),
 	}
 	colSet := types.Column{
 		Name:    "column7",
@@ -3612,22 +3594,22 @@ func TestProcessCollectionColumnsForRawQueries(t *testing.T) {
 func TestConvertAllValuesToRowKeyType(t *testing.T) {
 	pkCols := []*types.Column{
 		{
-			ColumnName:   "id_int",
+			Name:         "id_int",
 			CQLType:      datatype.Int,
 			IsPrimaryKey: true,
 		},
 		{
-			ColumnName:   "id_bigint",
+			Name:         "id_bigint",
 			CQLType:      datatype.Bigint,
 			IsPrimaryKey: true,
 		},
 		{
-			ColumnName:   "name_varchar",
+			Name:         "name_varchar",
 			CQLType:      datatype.Varchar,
 			IsPrimaryKey: true,
 		},
 		{
-			ColumnName:   "blob_pk",
+			Name:         "blob_pk",
 			CQLType:      datatype.Blob,
 			IsPrimaryKey: true,
 		},

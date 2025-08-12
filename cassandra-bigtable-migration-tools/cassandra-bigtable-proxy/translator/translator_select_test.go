@@ -1409,9 +1409,9 @@ func Test_GetBigtableSelectQuery(t *testing.T) {
 							Name:     "test_table",
 							Logger:   nil,
 							Columns: map[string]*types.Column{
-								"column1": {ColumnName: "column1", CQLType: datatype.Varchar, IsPrimaryKey: true},
-								"column2": {ColumnName: "column2", CQLType: datatype.Bigint},
-								"column3": {ColumnName: "column3", CQLType: datatype.Bigint, IsPrimaryKey: true},
+								"column1": {Name: "column1", CQLType: datatype.Varchar, IsPrimaryKey: true},
+								"column2": {Name: "column2", CQLType: datatype.Bigint},
+								"column3": {Name: "column3", CQLType: datatype.Bigint, IsPrimaryKey: true},
 							},
 							PrimaryKeys: []*types.Column{},
 						},
@@ -1456,9 +1456,9 @@ func Test_GetBigtableSelectQuery(t *testing.T) {
 							Name:     "test_table",
 							Logger:   nil,
 							Columns: map[string]*types.Column{
-								"column1": {ColumnName: "column1", CQLType: datatype.Varchar, IsPrimaryKey: true},
-								"column2": {ColumnName: "column2", CQLType: datatype.Bigint},
-								"column3": {ColumnName: "column3", CQLType: datatype.Bigint},
+								"column1": {Name: "column1", CQLType: datatype.Varchar, IsPrimaryKey: true},
+								"column2": {Name: "column2", CQLType: datatype.Bigint},
+								"column3": {Name: "column3", CQLType: datatype.Bigint},
 							},
 							PrimaryKeys: []*types.Column{},
 						},
@@ -1498,7 +1498,7 @@ func Test_GetBigtableSelectQuery(t *testing.T) {
 							Name:     "test_table",
 							Logger:   nil,
 							Columns: map[string]*types.Column{
-								"column1": {ColumnName: "column1", CQLType: datatype.Bigint, IsPrimaryKey: true},
+								"column1": {Name: "column1", CQLType: datatype.Bigint, IsPrimaryKey: true},
 							},
 							PrimaryKeys: []*types.Column{},
 						},
@@ -1544,8 +1544,8 @@ func Test_GetBigtableSelectQuery(t *testing.T) {
 							Name:     "test_table",
 							Logger:   nil,
 							Columns: map[string]*types.Column{
-								"column1": {ColumnName: "column1", CQLType: datatype.Varchar, IsPrimaryKey: true},
-								"column2": {ColumnName: "column2", CQLType: datatype.Bigint},
+								"column1": {Name: "column1", CQLType: datatype.Varchar, IsPrimaryKey: true},
+								"column2": {Name: "column2", CQLType: datatype.Bigint},
 							},
 							PrimaryKeys: []*types.Column{},
 						},
@@ -1583,8 +1583,8 @@ func Test_GetBigtableSelectQuery(t *testing.T) {
 							Name:     "test_table",
 							Logger:   nil,
 							Columns: map[string]*types.Column{
-								"column1": {ColumnName: "column1", CQLType: datatype.Varchar, IsPrimaryKey: true},
-								"column2": {ColumnName: "column2", CQLType: datatype.Bigint},
+								"column1": {Name: "column1", CQLType: datatype.Varchar, IsPrimaryKey: true},
+								"column2": {Name: "column2", CQLType: datatype.Bigint},
 							},
 							PrimaryKeys: []*types.Column{},
 						},
@@ -1630,9 +1630,9 @@ func Test_GetBigtableSelectQuery(t *testing.T) {
 							Name:     "test_table",
 							Logger:   nil,
 							Columns: map[string]*types.Column{
-								"name": {ColumnName: "name", CQLType: datatype.Varchar, IsPrimaryKey: true},
-								"age":  {ColumnName: "age", CQLType: datatype.Bigint},
-								"code": {ColumnName: "code", CQLType: datatype.Bigint},
+								"name": {Name: "name", CQLType: datatype.Varchar, IsPrimaryKey: true},
+								"age":  {Name: "age", CQLType: datatype.Bigint},
+								"code": {Name: "code", CQLType: datatype.Bigint},
 							},
 							PrimaryKeys: []*types.Column{},
 						},
@@ -1677,9 +1677,9 @@ func Test_GetBigtableSelectQuery(t *testing.T) {
 							Name:     "test_table",
 							Logger:   nil,
 							Columns: map[string]*types.Column{
-								"name": {ColumnName: "name", CQLType: datatype.Varchar, IsPrimaryKey: true},
-								"age":  {ColumnName: "age", CQLType: datatype.Bigint},
-								"code": {ColumnName: "code", CQLType: datatype.Bigint},
+								"name": {Name: "name", CQLType: datatype.Varchar, IsPrimaryKey: true},
+								"age":  {Name: "age", CQLType: datatype.Bigint},
+								"code": {Name: "code", CQLType: datatype.Bigint},
 							},
 							PrimaryKeys: []*types.Column{},
 						},
@@ -1725,9 +1725,9 @@ func Test_GetBigtableSelectQuery(t *testing.T) {
 							Name:     "test_table",
 							Logger:   nil,
 							Columns: map[string]*types.Column{
-								"name": {ColumnName: "name", CQLType: datatype.Varchar, IsPrimaryKey: true},
-								"age":  {ColumnName: "age", CQLType: datatype.Bigint},
-								"code": {ColumnName: "code", CQLType: datatype.Bigint},
+								"name": {Name: "name", CQLType: datatype.Varchar, IsPrimaryKey: true},
+								"age":  {Name: "age", CQLType: datatype.Bigint},
+								"code": {Name: "code", CQLType: datatype.Bigint},
 							},
 							PrimaryKeys: []*types.Column{},
 						},
@@ -2140,20 +2140,20 @@ func Test_processFunctionColumn(t *testing.T) {
 							Logger:   nil,
 							Columns: map[string]*types.Column{
 								"age": {
-									ColumnName: "age",
-									CQLType:    datatype.Bigint,
+									Name:    "age",
+									CQLType: datatype.Bigint,
 								},
 								"balance": {
-									ColumnName: "balance",
-									CQLType:    datatype.Float,
+									Name:    "balance",
+									CQLType: datatype.Float,
 								},
 								"name": {
-									ColumnName: "name",
-									CQLType:    datatype.Varchar,
+									Name:    "name",
+									CQLType: datatype.Varchar,
 								},
 								"code": {
-									ColumnName: "code",
-									CQLType:    datatype.Int,
+									Name:    "code",
+									CQLType: datatype.Int,
 								},
 							},
 							PrimaryKeys: []*types.Column{},
@@ -2164,7 +2164,12 @@ func Test_processFunctionColumn(t *testing.T) {
 				},
 			}
 
-			gotColumns, err := processFunctionColumn(translator, tt.columnMetadata, translator.SchemaMappingConfig.Tables[tt.tableName][tt.keySpace], tt.inputColumns)
+			tc, err := translator.SchemaMappingConfig.GetTableConfig(tt.keySpace, tt.tableName)
+			if err != nil {
+				t.Errorf("table config should exist for %s.%s", tt.keySpace, tt.tableName)
+				return
+			}
+			gotColumns, err := processFunctionColumn(translator, tt.columnMetadata, tc, tt.inputColumns)
 
 			if tt.wantErr {
 				if err == nil {
@@ -2602,26 +2607,26 @@ func TestProcessSetStrings(t *testing.T) {
 				Logger: zap.NewNop(),
 				SchemaMappingConfig: &schemaMapping.SchemaMappingConfig{
 					Tables: map[string]map[string]*schemaMapping.TableConfig{
-						"test_keyspace": {"test_table": &schemaMapping.TableConfig{
+						"test_keyspace": {"user_info": &schemaMapping.TableConfig{
 							Keyspace: "test_keyspace",
-							Name:     "test_table",
+							Name:     "user_info",
 							Logger:   nil,
 							Columns: map[string]*types.Column{
 								"name": &types.Column{
-									ColumnName: "name",
-									CQLType:    datatype.Varchar,
+									Name:    "name",
+									CQLType: datatype.Varchar,
 								},
 								"age": &types.Column{
-									ColumnName: "age",
-									CQLType:    datatype.Bigint,
+									Name:    "age",
+									CQLType: datatype.Bigint,
 								},
 								"code": &types.Column{
-									ColumnName: "code",
-									CQLType:    datatype.Int,
+									Name:    "code",
+									CQLType: datatype.Int,
 								},
 								"map_col": &types.Column{
-									ColumnName: "map_col",
-									CQLType:    datatype.NewMapType(datatype.Varchar, datatype.Varchar),
+									Name:    "map_col",
+									CQLType: datatype.NewMapType(datatype.Varchar, datatype.Varchar),
 								},
 							},
 							PrimaryKeys: []*types.Column{},
@@ -2632,7 +2637,12 @@ func TestProcessSetStrings(t *testing.T) {
 				},
 			}
 
-			gotColumns, err := processSetStrings(tr, tr.SchemaMappingConfig.Tables[tt.tableName][tt.keySpace], tt.selectedColumns, tt.isGroupBy)
+			tc, err := tr.SchemaMappingConfig.GetTableConfig(tt.keySpace, tt.tableName)
+			if err != nil {
+				t.Errorf("table config should exist for %s.%s", tt.keySpace, tt.tableName)
+				return
+			}
+			gotColumns, err := processSetStrings(tr, tc, tt.selectedColumns, tt.isGroupBy)
 
 			if (err != nil) != tt.wantErr {
 				t.Errorf("processStrings() error = %v, wantErr %v", err, tt.wantErr)
@@ -2668,9 +2678,8 @@ func Test_processAsColumn(t *testing.T) {
 			tableName:    "test_table",
 			columnFamily: "cf1",
 			colMeta: &types.Column{
-				IsCollection: false,
-				CQLType:      datatype.Varchar,
-				ColumnName:   "pk_1_text",
+				Name:    "pk_1_text",
+				CQLType: datatype.Varchar,
 			},
 			columns:   []string{},
 			isGroupBy: true,
@@ -2685,8 +2694,8 @@ func Test_processAsColumn(t *testing.T) {
 			tableName:    "test_table",
 			columnFamily: "cf1",
 			colMeta: &types.Column{
-				ColumnName:   "pk_1_text",
-				IsCollection: false,
+				Name:    "pk_1_text",
+				CQLType: datatype.Varchar,
 			},
 			columns:   []string{},
 			isGroupBy: false,
@@ -2701,7 +2710,7 @@ func Test_processAsColumn(t *testing.T) {
 			tableName:    "test_table",
 			columnFamily: "cf1",
 			colMeta: &types.Column{
-				IsCollection: true,
+				CQLType: datatype.NewMapType(datatype.Varchar, datatype.Varchar),
 			},
 			columns:   []string{},
 			isGroupBy: false,
@@ -2716,7 +2725,7 @@ func Test_processAsColumn(t *testing.T) {
 			tableName:    "test_table",
 			columnFamily: "cf1",
 			colMeta: &types.Column{
-				IsCollection: false,
+				CQLType: datatype.Varchar,
 			},
 			columns:   []string{"existing_column"},
 			isGroupBy: false,
@@ -2732,7 +2741,7 @@ func Test_processAsColumn(t *testing.T) {
 			tableName:    "test_table",
 			columnFamily: "cf1",
 			colMeta: &types.Column{
-				IsCollection: false,
+				CQLType: datatype.Varchar,
 			},
 			columns:   []string{},
 			isGroupBy: false,

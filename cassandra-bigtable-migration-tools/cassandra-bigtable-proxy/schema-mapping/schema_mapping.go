@@ -60,6 +60,32 @@ type SelectedColumns struct {
 	IsWriteTimeColumn bool
 }
 
+func CreateTableConfig(mappings map[string]map[string]map[string]*types.Column) map[string]map[string]*TableConfig {
+	results := make(map[string]map[string]*TableConfig)
+
+	for keyspace, tables := range mappings {
+		// add new keyspace
+		if _, ok := results[keyspace]; !ok {
+			results[keyspace] = make(map[string]*TableConfig)
+		}
+		for tableName, columns := range tables {
+			// add new table
+			if _, ok := results[keyspace][tableName]; !ok {
+				results[keyspace][tableName] = &TableConfig{
+					Keyspace: keyspace,
+					Name:     tableName,
+					Columns:  make(map[string]*types.Column),
+				}
+			}
+			for columnName, column := range columns {
+				results[keyspace][tableName].Columns[columnName] = column
+			}
+		}
+	}
+
+	return results
+}
+
 // GetTableConfig finds the primary key columns of a specified table in a given keyspace.
 //
 // This method looks up the cached primary key metadata and returns the relevant columns.
@@ -72,9 +98,13 @@ type SelectedColumns struct {
 //   - []types.Column: A slice of types.Column structs representing the primary keys of the table.
 //   - error: Returns an error if the primary key metadata is not found.
 func (c *SchemaMappingConfig) GetTableConfig(keySpace string, tableName string) (*TableConfig, error) {
-	tableConfig, ok := c.Tables[keySpace][tableName]
+	keyspace, ok := c.Tables[keySpace]
 	if !ok {
-		return nil, fmt.Errorf("could not find metadata for the table: %s", tableName)
+		return nil, fmt.Errorf("unknown keyspace: %s", keySpace)
+	}
+	tableConfig, ok := keyspace[tableName]
+	if !ok {
+		return nil, fmt.Errorf("unknown table %s.%s (but keyspace is known)", keySpace, tableName)
 	}
 	return tableConfig, nil
 }
@@ -420,19 +450,6 @@ func isSpecialColumn(columnName string) bool {
 //   - bool: true if the keyspace exists, false otherwise
 func (c *SchemaMappingConfig) InstanceExists(keyspace string) bool {
 	_, ok := c.Tables[keyspace]
-	return ok
-}
-
-// TableExist checks if a given table exists within a specified keyspace in the schema mapping configuration.
-//
-// Parameters:
-//   - keyspace: The name of the keyspace containing the table
-//   - tableName: The name of the table to check
-//
-// Returns:
-//   - bool: true if the table exists in the specified keyspace, false otherwise
-func (c *SchemaMappingConfig) TableExist(keyspace string, tableName string) bool {
-	_, ok := c.Tables[keyspace][tableName]
 	return ok
 }
 

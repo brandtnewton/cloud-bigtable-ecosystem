@@ -34,8 +34,7 @@ import (
 
 func createSchemaMappingConfigs() *schemaMapping.SchemaMappingConfig {
 	return &schemaMapping.SchemaMappingConfig{
-		TablesMetaData:  mockSchemaMappingConfig,
-		PkMetadataCache: mockPkMetadata,
+		Tables: mockTableConfigs,
 	}
 }
 
@@ -623,20 +622,20 @@ func TestTranslator_BuildDeletePrepareQuery(t *testing.T) {
 // newTestTableConfig returns a minimal SchemaMappingConfig for testing.
 func newTestTableConfig() *schemaMapping.SchemaMappingConfig {
 	tc := &schemaMapping.SchemaMappingConfig{
-		TablesMetaData: map[string]map[string]map[string]*types.Column{
-			"test_keyspace": {
-				"testtable": {
+		Tables: map[string]map[string]*schemaMapping.TableConfig{
+			"test_keyspace": {"test_table": &schemaMapping.TableConfig{
+				Keyspace: "test_keyspace",
+				Name:     "testtable",
+				Logger:   nil,
+				Columns: map[string]*types.Column{
 					"col1": {CQLType: datatype.Varchar, IsPrimaryKey: false},
 					"col2": {CQLType: datatype.Int, IsPrimaryKey: false},
 				},
-			},
-		},
-		PkMetadataCache: map[string]map[string][]types.Column{
-			"testtable": {
-				"test_keyspace": {
+				PrimaryKeys: []*types.Column{
 					{CQLType: datatype.Varchar, IsPrimaryKey: false, ColumnName: "col1"},
 					{CQLType: datatype.Int, IsPrimaryKey: false, ColumnName: "col2"},
 				},
+			},
 			},
 		},
 	}
@@ -743,7 +742,7 @@ func TestParseDeleteColumns(t *testing.T) {
 					t.Fatalf("returned object does not implement IDeleteColumnListContext")
 				}
 			}
-			cols, err := parseDeleteColumns(deleteColumnList, table, tc, keyspace)
+			cols, err := parseDeleteColumns(deleteColumnList, tc.Tables[keyspace][table])
 			if (err != nil) != tt.wantErr {
 				t.Fatalf("parseDeleteColumns() error = %v, wantErr %v", err, tt.wantErr)
 			}

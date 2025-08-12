@@ -713,7 +713,7 @@ func (t *Translator) TranslateSelectQuerytoBigtable(originalQuery, sessionKeyspa
 		}
 	}
 
-	tableConfig, err := t.SchemaMappingConfig.GetTableConfig(tableName, keyspaceName)
+	tableConfig, err := t.SchemaMappingConfig.GetTableConfig(keyspaceName, tableName)
 	if err != nil {
 		return nil, err
 	}

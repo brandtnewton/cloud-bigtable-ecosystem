@@ -28,24 +28,33 @@ import (
 )
 
 var systemColumnFamily = "cf1"
-var tablesMetaData = map[string]map[string]map[string]*types.Column{
-	"keyspace": {"table1": {
-		"column1": {
-			CQLType:      datatype.Varchar,
-			ColumnName:   "column1",
-			IsPrimaryKey: false,
-			PkPrecedence: 0,
-			IsCollection: false,
-			Metadata: message.ColumnMetadata{
-				Keyspace: "test-keyspace",
-				Table:    "table1",
-				Name:     "column1",
-				Index:    int32(0),
-				Type:     datatype.Varchar,
+var tablesMetaData = map[string]map[string]*TableConfig{
+	"keyspace": {
+		"table1": &TableConfig{
+			Keyspace: "keyspace",
+			Name:     "table1",
+			Logger:   nil,
+			Columns: map[string]*types.Column{
+				"column1": {
+					CQLType:      datatype.Varchar,
+					ColumnName:   "column1",
+					IsPrimaryKey: false,
+					PkPrecedence: 0,
+					IsCollection: false,
+					Metadata: message.ColumnMetadata{
+						Keyspace: "test-keyspace",
+						Table:    "table1",
+						Name:     "column1",
+						Index:    int32(0),
+						Type:     datatype.Varchar,
+					},
+				},
 			},
+			PrimaryKeys: []*types.Column{},
 		},
-	}},
+	},
 }
+
 var expectedResponse = []*message.ColumnMetadata{
 	{Keyspace: "test-keyspace", Name: "column1", Table: "table1", Type: datatype.Varchar, Index: 0},
 }
@@ -94,7 +103,7 @@ func Test_GetColumnType(t *testing.T) {
 		{
 			name: "types.Column exists",
 			fields: SchemaMappingConfig{
-				TablesMetaData:     tablesMetaData,
+				Tables:             tablesMetaData,
 				SystemColumnFamily: systemColumnFamily,
 			},
 			args:    columnExistsArgs,
@@ -104,7 +113,7 @@ func Test_GetColumnType(t *testing.T) {
 		{
 			name: "Table exists",
 			fields: SchemaMappingConfig{
-				TablesMetaData:     tablesMetaData,
+				Tables:             tablesMetaData,
 				SystemColumnFamily: systemColumnFamily,
 			},
 			args:    tableExistsArgs,
@@ -113,7 +122,7 @@ func Test_GetColumnType(t *testing.T) {
 		{
 			name: "types.Column exists in different table",
 			fields: SchemaMappingConfig{
-				TablesMetaData:     tablesMetaData,
+				Tables:             tablesMetaData,
 				SystemColumnFamily: systemColumnFamily,
 			},
 			args:    columnExistsInDifferentTableArgs,
@@ -123,7 +132,7 @@ func Test_GetColumnType(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := tt.fields.GetColumnType("keyspace", tt.args.tableName, tt.args.columnName)
+			got, err := tt.fields.Tables["keyspace"][tt.args.tableName].GetColumnType(tt.args.columnName)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("GetColumnType() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -152,7 +161,7 @@ func Test_GetMetadataForColumns(t *testing.T) {
 			name: "Success - Single regular column",
 			fields: SchemaMappingConfig{
 				Logger:             logger,
-				TablesMetaData:     tablesMetaData,
+				Tables:             tablesMetaData,
 				SystemColumnFamily: "cf1",
 			},
 			args: struct {
@@ -169,19 +178,27 @@ func Test_GetMetadataForColumns(t *testing.T) {
 			name: "Success - Multiple regular columns",
 			fields: SchemaMappingConfig{
 				Logger: logger,
-				TablesMetaData: map[string]map[string]map[string]*types.Column{
-					"keyspace": {"table1": {
-						"column1": {
-							Metadata: message.ColumnMetadata{
-								Type: datatype.Varchar,
+				Tables: map[string]map[string]*TableConfig{
+					"keyspace": {
+						"table1": &TableConfig{
+							Keyspace: "keyspace",
+							Name:     "table1",
+							Logger:   nil,
+							Columns: map[string]*types.Column{
+								"column1": {
+									Metadata: message.ColumnMetadata{
+										Type: datatype.Varchar,
+									},
+								},
+								"column2": {
+									Metadata: message.ColumnMetadata{
+										Type: datatype.Int,
+									},
+								},
 							},
+							PrimaryKeys: []*types.Column{},
 						},
-						"column2": {
-							Metadata: message.ColumnMetadata{
-								Type: datatype.Int,
-							},
-						},
-					}},
+					},
 				},
 				SystemColumnFamily: "cf1",
 			},
@@ -202,7 +219,7 @@ func Test_GetMetadataForColumns(t *testing.T) {
 			name: "Success - Special column (LimitValue)",
 			fields: SchemaMappingConfig{
 				Logger:             logger,
-				TablesMetaData:     tablesMetaData,
+				Tables:             tablesMetaData,
 				SystemColumnFamily: "cf1",
 			},
 			args: struct {
@@ -225,7 +242,7 @@ func Test_GetMetadataForColumns(t *testing.T) {
 			name: "Success - Mixed column types",
 			fields: SchemaMappingConfig{
 				Logger:             logger,
-				TablesMetaData:     tablesMetaData,
+				Tables:             tablesMetaData,
 				SystemColumnFamily: "cf1",
 			},
 			args: struct {
@@ -249,7 +266,7 @@ func Test_GetMetadataForColumns(t *testing.T) {
 			name: "Error - types.Column not found in metadata",
 			fields: SchemaMappingConfig{
 				Logger:             logger,
-				TablesMetaData:     tablesMetaData,
+				Tables:             tablesMetaData,
 				SystemColumnFamily: "cf1",
 			},
 			args: struct {
@@ -266,7 +283,7 @@ func Test_GetMetadataForColumns(t *testing.T) {
 			name: "Error - Table not found",
 			fields: SchemaMappingConfig{
 				Logger:             logger,
-				TablesMetaData:     tablesMetaData,
+				Tables:             tablesMetaData,
 				SystemColumnFamily: "cf1",
 			},
 			args: struct {
@@ -283,7 +300,7 @@ func Test_GetMetadataForColumns(t *testing.T) {
 			name: "Empty column names",
 			fields: SchemaMappingConfig{
 				Logger:             zap.NewNop(),
-				TablesMetaData:     tablesMetaData,
+				Tables:             tablesMetaData,
 				SystemColumnFamily: "cf1",
 			},
 			args: struct {
@@ -300,7 +317,7 @@ func Test_GetMetadataForColumns(t *testing.T) {
 			name: "Success - Multiple special columns",
 			fields: SchemaMappingConfig{
 				Logger:             logger,
-				TablesMetaData:     tablesMetaData,
+				Tables:             tablesMetaData,
 				SystemColumnFamily: "cf1",
 			},
 			args: struct {
@@ -328,7 +345,7 @@ func Test_GetMetadataForColumns(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := tt.fields.GetMetadataForColumns("keyspace", tt.args.tableName, tt.args.columnNames)
+			got, err := tt.fields.Tables["keyspace"][tt.args.tableName].GetMetadataForColumns(tt.args.columnNames)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("GetMetadataForColumns() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -368,8 +385,8 @@ func Test_GetMetadataForSelectedColumns(t *testing.T) {
 		{
 			name: "Successfully retrieve metadata for specific column",
 			fields: SchemaMappingConfig{
-				Logger:         logger,
-				TablesMetaData: tablesMetaData,
+				Logger: logger,
+				Tables: tablesMetaData,
 			},
 			args: struct {
 				tableName   string
@@ -386,8 +403,8 @@ func Test_GetMetadataForSelectedColumns(t *testing.T) {
 		{
 			name: "Return all columns when no specific columns provided",
 			fields: SchemaMappingConfig{
-				Logger:         logger,
-				TablesMetaData: tablesMetaData,
+				Logger: logger,
+				Tables: tablesMetaData,
 			},
 			args: struct {
 				tableName   string
@@ -404,8 +421,8 @@ func Test_GetMetadataForSelectedColumns(t *testing.T) {
 		{
 			name: "Error when table is not found",
 			fields: SchemaMappingConfig{
-				Logger:         logger,
-				TablesMetaData: tablesMetaData,
+				Logger: logger,
+				Tables: tablesMetaData,
 			},
 			args: struct {
 				tableName   string
@@ -422,8 +439,8 @@ func Test_GetMetadataForSelectedColumns(t *testing.T) {
 		{
 			name: "Error when column is not found",
 			fields: SchemaMappingConfig{
-				Logger:         logger,
-				TablesMetaData: tablesMetaData,
+				Logger: logger,
+				Tables: tablesMetaData,
 			},
 			args: struct {
 				tableName   string
@@ -441,7 +458,7 @@ func Test_GetMetadataForSelectedColumns(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := tt.fields.GetMetadataForSelectedColumns(tt.args.tableName, tt.args.columnNames, tt.args.keySpace)
+			got, err := tt.fields.Tables[tt.args.keySpace][tt.args.tableName].GetMetadataForSelectedColumns(tt.args.columnNames)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("GetMetadataForSelectedColumns() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -453,114 +470,17 @@ func Test_GetMetadataForSelectedColumns(t *testing.T) {
 	}
 }
 
-func Test_GetPkByTableName(t *testing.T) {
-	logger := zap.NewNop()
-
-	// Sample data for testing
-	pkMetadataCache := map[string]map[string][]types.Column{
-		"keyspace1": {
-			"table1": {
-				{
-					CQLType:      datatype.Varchar,
-					ColumnName:   "id",
-					IsPrimaryKey: true,
-					PkPrecedence: 1,
-					IsCollection: false,
-				},
-			},
-		},
-	}
-
-	expectedPkResponse := []types.Column{
-		{
-			CQLType:      datatype.Varchar,
-			ColumnName:   "id",
-			IsPrimaryKey: true,
-			PkPrecedence: 1,
-			IsCollection: false,
-		},
-	}
-
-	tests := []struct {
-		name   string
-		fields SchemaMappingConfig
-		args   struct {
-			tableName string
-			keySpace  string
-		}
-		want    []types.Column
-		wantErr bool
-	}{
-		{
-			name: "Successfully retrieve primary key metadata for table",
-			fields: SchemaMappingConfig{
-				Logger:          logger,
-				PkMetadataCache: pkMetadataCache,
-			},
-			args: struct {
-				tableName string
-				keySpace  string
-			}{
-				tableName: "table1",
-				keySpace:  "keyspace1",
-			},
-			want:    expectedPkResponse,
-			wantErr: false,
-		},
-		{
-			name: "Error when table metadata is not found",
-			fields: SchemaMappingConfig{
-				Logger:          logger,
-				PkMetadataCache: pkMetadataCache,
-			},
-			args: struct {
-				tableName string
-				keySpace  string
-			}{
-				tableName: "nonexistent_table",
-				keySpace:  "keyspace1",
-			},
-			want:    nil,
-			wantErr: true,
-		},
-		{
-			name: "Error when keyspace metadata is not found",
-			fields: SchemaMappingConfig{
-				Logger:          logger,
-				PkMetadataCache: pkMetadataCache,
-			},
-			args: struct {
-				tableName string
-				keySpace  string
-			}{
-				tableName: "table1",
-				keySpace:  "nonexistent_keyspace",
-			},
-			want:    nil,
-			wantErr: true,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got, err := tt.fields.GetPkByTableName(tt.args.tableName, tt.args.keySpace)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("GetPkByTableName() error = %v, wantErr %v", err, tt.wantErr)
-				return
-			}
-			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("GetPkByTableName() = %v, want %v", got, tt.want)
-			}
-		})
-	}
-}
 func Test_GetPkKeyType(t *testing.T) {
 	logger := zap.NewNop()
 
 	// Sample data for testing
-	pkMetadataCache := map[string]map[string][]types.Column{
-		"keyspace1": {
-			"table1": {
+	tables := map[string]map[string]*TableConfig{
+		"test_keyspace": {"test_table": &TableConfig{
+			Keyspace: "keyspace1",
+			Name:     "table1",
+			Logger:   nil,
+			Columns:  map[string]*types.Column{},
+			PrimaryKeys: []*types.Column{
 				{
 					ColumnName:   "id",
 					KeyType:      "partition",
@@ -572,6 +492,7 @@ func Test_GetPkKeyType(t *testing.T) {
 					IsPrimaryKey: true,
 				},
 			},
+		},
 		},
 	}
 
@@ -589,8 +510,8 @@ func Test_GetPkKeyType(t *testing.T) {
 		{
 			name: "Successfully get partition key type",
 			fields: SchemaMappingConfig{
-				Logger:          logger,
-				PkMetadataCache: pkMetadataCache,
+				Logger: logger,
+				Tables: tables,
 			},
 			args: struct {
 				tableName  string
@@ -607,8 +528,8 @@ func Test_GetPkKeyType(t *testing.T) {
 		{
 			name: "Successfully get clustering key type",
 			fields: SchemaMappingConfig{
-				Logger:          logger,
-				PkMetadataCache: pkMetadataCache,
+				Logger: logger,
+				Tables: tables,
 			},
 			args: struct {
 				tableName  string
@@ -625,8 +546,8 @@ func Test_GetPkKeyType(t *testing.T) {
 		{
 			name: "Error when column is not a primary key",
 			fields: SchemaMappingConfig{
-				Logger:          logger,
-				PkMetadataCache: pkMetadataCache,
+				Logger: logger,
+				Tables: tables,
 			},
 			args: struct {
 				tableName  string
@@ -640,29 +561,11 @@ func Test_GetPkKeyType(t *testing.T) {
 			want:    "",
 			wantErr: true,
 		},
-		{
-			name: "Error when table not found",
-			fields: SchemaMappingConfig{
-				Logger:          logger,
-				PkMetadataCache: pkMetadataCache,
-			},
-			args: struct {
-				tableName  string
-				keySpace   string
-				columnName string
-			}{
-				tableName:  "nonexistent_table",
-				keySpace:   "keyspace1",
-				columnName: "id",
-			},
-			want:    "",
-			wantErr: true,
-		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := tt.fields.GetPkKeyType(tt.args.tableName, tt.args.keySpace, tt.args.columnName)
+			got, err := tt.fields.Tables[tt.args.keySpace][tt.args.tableName].GetPkKeyType(tt.args.columnName)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("GetPkKeyType() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -793,8 +696,7 @@ func Test_HandleSpecialColumn(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			config := &SchemaMappingConfig{}
-			metadata, err := config.handleSpecialColumn(tt.columnsMap, tt.columnName, tt.index, tt.isWriteTimeFunction)
+			metadata, err := handleSpecialColumn(tt.columnsMap, tt.columnName, tt.index, tt.isWriteTimeFunction)
 
 			// Check error cases
 			if tt.expectedError != nil {
@@ -810,155 +712,6 @@ func Test_HandleSpecialColumn(t *testing.T) {
 			assert.Equal(t, tt.expectedMetadata.Type, metadata.Type)
 			assert.Equal(t, tt.expectedMetadata.Index, metadata.Index)
 			assert.Equal(t, tt.expectedMetadata.Name, metadata.Name)
-		})
-	}
-}
-
-func Test_InstanceExists(t *testing.T) {
-	tests := []struct {
-		name     string
-		fields   SchemaMappingConfig
-		keyspace string
-		want     bool
-	}{
-		{
-			name: "Keyspace exists",
-			fields: SchemaMappingConfig{
-				TablesMetaData: map[string]map[string]map[string]*types.Column{
-					"test_keyspace": {
-						"table1": {
-							"column1": {
-								CQLType:      datatype.Varchar,
-								ColumnName:   "column1",
-								IsPrimaryKey: false,
-							},
-						},
-					},
-				},
-			},
-			keyspace: "test_keyspace",
-			want:     true,
-		},
-		{
-			name: "Keyspace does not exist",
-			fields: SchemaMappingConfig{
-				TablesMetaData: map[string]map[string]map[string]*types.Column{
-					"test_keyspace": {
-						"table1": {
-							"column1": {
-								CQLType:      datatype.Varchar,
-								ColumnName:   "column1",
-								IsPrimaryKey: false,
-							},
-						},
-					},
-				},
-			},
-			keyspace: "nonexistent_keyspace",
-			want:     false,
-		},
-		{
-			name: "Empty Columns",
-			fields: SchemaMappingConfig{
-				TablesMetaData: map[string]map[string]map[string]*types.Column{},
-			},
-			keyspace: "any_keyspace",
-			want:     false,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got := tt.fields.InstanceExists(tt.keyspace)
-			if got != tt.want {
-				t.Errorf("InstanceExists() = %v, want %v", got, tt.want)
-			}
-		})
-	}
-}
-
-func Test_TableExist(t *testing.T) {
-	tests := []struct {
-		name      string
-		fields    SchemaMappingConfig
-		keyspace  string
-		tableName string
-		want      bool
-	}{
-		{
-			name: "Table exists in keyspace",
-			fields: SchemaMappingConfig{
-				TablesMetaData: map[string]map[string]map[string]*types.Column{
-					"test_keyspace": {
-						"table1": {
-							"column1": {
-								CQLType:      datatype.Varchar,
-								ColumnName:   "column1",
-								IsPrimaryKey: false,
-							},
-						},
-					},
-				},
-			},
-			keyspace:  "test_keyspace",
-			tableName: "table1",
-			want:      true,
-		},
-		{
-			name: "Table does not exist in keyspace",
-			fields: SchemaMappingConfig{
-				TablesMetaData: map[string]map[string]map[string]*types.Column{
-					"test_keyspace": {
-						"table1": {
-							"column1": {
-								CQLType:      datatype.Varchar,
-								ColumnName:   "column1",
-								IsPrimaryKey: false,
-							},
-						},
-					},
-				},
-			},
-			keyspace:  "test_keyspace",
-			tableName: "nonexistent_table",
-			want:      false,
-		},
-		{
-			name: "Keyspace does not exist",
-			fields: SchemaMappingConfig{
-				TablesMetaData: map[string]map[string]map[string]*types.Column{
-					"test_keyspace": {
-						"table1": {
-							"column1": {
-								CQLType:      datatype.Varchar,
-								ColumnName:   "column1",
-								IsPrimaryKey: false,
-							},
-						},
-					},
-				},
-			},
-			keyspace:  "nonexistent_keyspace",
-			tableName: "table1",
-			want:      false,
-		},
-		{
-			name: "Empty Columns",
-			fields: SchemaMappingConfig{
-				TablesMetaData: map[string]map[string]map[string]*types.Column{},
-			},
-			keyspace:  "any_keyspace",
-			tableName: "any_table",
-			want:      false,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got := tt.fields.TableExist(tt.keyspace, tt.tableName)
-			if got != tt.want {
-				t.Errorf("TableExist() = %v, want %v", got, tt.want)
-			}
 		})
 	}
 }
@@ -1203,7 +956,7 @@ func Test_GetSpecificColumnsMetadataForSelectedColumns(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			metadata, err := tt.fields.getSpecificColumnsMetadataForSelectedColumns(tt.columnsMap, tt.selectedCols, tt.tableName, "test_keyspace")
+			metadata, err := tt.fields.Tables["test_keyspace"][tt.tableName].getSpecificColumnsMetadataForSelectedColumns(tt.columnsMap, tt.selectedCols)
 
 			if tt.expectedError != nil {
 				assert.Error(t, err)
@@ -1419,7 +1172,11 @@ func Test_GetSpecificColumnsMetadata(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			metadata, err := tt.fields.getSpecificColumnsMetadata(tt.columnsMap, tt.columnNames, tt.tableName)
+			tc := TableConfig{
+				Keyspace: "test_keyspace",
+				Name:     tt.tableName,
+			}
+			metadata, err := tc.getSpecificColumnsMetadata(tt.columnNames)
 
 			// Check error cases
 			if tt.expectedError != nil {
@@ -1551,8 +1308,7 @@ func Test_CloneColumnMetadata(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			config := &SchemaMappingConfig{}
-			result := config.cloneColumnMetadata(tt.metadata, tt.index)
+			result := cloneColumnMetadata(tt.metadata, tt.index)
 
 			// Verify the result is not nil
 			assert.NotNil(t, result)
@@ -1765,7 +1521,7 @@ func Test_GetAllColumnsMetadata(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			metadata := tt.fields.getAllColumnsMetadata(tt.columnsMap)
+			metadata := getAllColumnsMetadata(tt.columnsMap)
 
 			// Check if the result is not nil (except for empty columns map case)
 			if len(tt.columnsMap) > 0 {
@@ -2003,7 +1759,11 @@ func Test_HandleSpecialSelectedColumn(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			metadata, err := tt.fields.handleSpecialSelectedColumn(tt.columnsMap, tt.columnSelected, tt.index, tt.tableName, tt.keySpace)
+			tc := TableConfig{
+				Keyspace: tt.keySpace,
+				Name:     tt.tableName,
+			}
+			metadata, err := tc.handleSpecialSelectedColumn(tt.columnsMap, tt.columnSelected, tt.index)
 
 			if tt.expectedError != nil {
 				assert.Error(t, err)
@@ -2026,13 +1786,13 @@ func Test_HandleSpecialSelectedColumn(t *testing.T) {
 
 func Test_ListKeyspaces(t *testing.T) {
 	tests := []struct {
-		name       string
-		tablesMeta map[string]map[string]map[string]*types.Column
-		expected   []string
+		name     string
+		tables   map[string]map[string]*TableConfig
+		expected []string
 	}{
 		{
 			name: "Multiple keyspaces, unsorted input",
-			tablesMeta: map[string]map[string]map[string]*types.Column{
+			tables: map[string]map[string]*TableConfig{
 				"zeta":  {},
 				"alpha": {},
 				"beta":  {},
@@ -2041,20 +1801,20 @@ func Test_ListKeyspaces(t *testing.T) {
 		},
 		{
 			name: "Single keyspace",
-			tablesMeta: map[string]map[string]map[string]*types.Column{
+			tables: map[string]map[string]*TableConfig{
 				"only": {},
 			},
 			expected: []string{"only"},
 		},
 		{
-			name:       "No keyspaces",
-			tablesMeta: map[string]map[string]map[string]*types.Column{},
-			expected:   []string{},
+			name:     "No keyspaces",
+			tables:   map[string]map[string]*TableConfig{},
+			expected: []string{},
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			cfg := &SchemaMappingConfig{TablesMetaData: tt.tablesMeta}
+			cfg := &SchemaMappingConfig{Tables: tt.tables}
 			got := cfg.ListKeyspaces()
 			assert.Equal(t, tt.expected, got)
 		})

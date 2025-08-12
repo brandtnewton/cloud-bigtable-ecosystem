@@ -1208,8 +1208,7 @@ func TestTranslator_TranslateSelectQuerytoBigtable(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			schemaMapping := &schemaMapping.SchemaMappingConfig{
 				Logger:             tt.fields.Logger,
-				TablesMetaData:     mockSchemaMappingConfig,
-				PkMetadataCache:    mockPkMetadata,
+				Tables:             mockTableConfigs,
 				SystemColumnFamily: "cf1",
 			}
 			tr := &Translator{
@@ -1235,7 +1234,7 @@ func TestTranslator_TranslateSelectQuerytoBigtable(t *testing.T) {
 func Test_GetBigtableSelectQuery(t *testing.T) {
 	schemaMap := &schemaMapping.SchemaMappingConfig{
 		Logger:             zap.NewNop(),
-		TablesMetaData:     mockSchemaMappingConfig,
+		Tables:             mockTableConfigs,
 		SystemColumnFamily: "cf1",
 	}
 	tr := &Translator{
@@ -1403,13 +1402,18 @@ func Test_GetBigtableSelectQuery(t *testing.T) {
 			translator: &Translator{
 				Logger: zap.NewNop(),
 				SchemaMappingConfig: &schemaMapping.SchemaMappingConfig{
-					TablesMetaData: map[string]map[string]map[string]*types.Column{
-						"test_keyspace": {
-							"test_table": {
+					Tables: map[string]map[string]*schemaMapping.TableConfig{
+						"test_keyspace": {"test_table": &schemaMapping.TableConfig{
+							Keyspace: "test_keyspace",
+							Name:     "test_table",
+							Logger:   nil,
+							Columns: map[string]*types.Column{
 								"column1": {ColumnName: "column1", CQLType: datatype.Varchar, IsPrimaryKey: true},
 								"column2": {ColumnName: "column2", CQLType: datatype.Bigint},
 								"column3": {ColumnName: "column3", CQLType: datatype.Bigint, IsPrimaryKey: true},
 							},
+							PrimaryKeys: []*types.Column{},
+						},
 						},
 					},
 					SystemColumnFamily: "cf1",
@@ -1445,13 +1449,18 @@ func Test_GetBigtableSelectQuery(t *testing.T) {
 			translator: &Translator{
 				Logger: zap.NewNop(),
 				SchemaMappingConfig: &schemaMapping.SchemaMappingConfig{
-					TablesMetaData: map[string]map[string]map[string]*types.Column{
-						"test_keyspace": {
-							"test_table": {
+					Tables: map[string]map[string]*schemaMapping.TableConfig{
+						"test_keyspace": {"test_table": &schemaMapping.TableConfig{
+							Keyspace: "test_keyspace",
+							Name:     "test_table",
+							Logger:   nil,
+							Columns: map[string]*types.Column{
 								"column1": {ColumnName: "column1", CQLType: datatype.Varchar, IsPrimaryKey: true},
 								"column2": {ColumnName: "column2", CQLType: datatype.Bigint},
 								"column3": {ColumnName: "column3", CQLType: datatype.Bigint},
 							},
+							PrimaryKeys: []*types.Column{},
+						},
 						},
 					},
 					SystemColumnFamily: "cf1",
@@ -1482,11 +1491,16 @@ func Test_GetBigtableSelectQuery(t *testing.T) {
 			translator: &Translator{
 				Logger: zap.NewNop(),
 				SchemaMappingConfig: &schemaMapping.SchemaMappingConfig{
-					TablesMetaData: map[string]map[string]map[string]*types.Column{
-						"test_keyspace": {
-							"test_table": {
+					Tables: map[string]map[string]*schemaMapping.TableConfig{
+						"test_keyspace": {"test_table": &schemaMapping.TableConfig{
+							Keyspace: "test_keyspace",
+							Name:     "test_table",
+							Logger:   nil,
+							Columns: map[string]*types.Column{
 								"column1": {ColumnName: "column1", CQLType: datatype.Bigint, IsPrimaryKey: true},
 							},
+							PrimaryKeys: []*types.Column{},
+						},
 						},
 					},
 					SystemColumnFamily: "cf1",
@@ -1523,12 +1537,17 @@ func Test_GetBigtableSelectQuery(t *testing.T) {
 			translator: &Translator{
 				Logger: zap.NewNop(),
 				SchemaMappingConfig: &schemaMapping.SchemaMappingConfig{
-					TablesMetaData: map[string]map[string]map[string]*types.Column{
-						"test_keyspace": {
-							"test_table": {
+					Tables: map[string]map[string]*schemaMapping.TableConfig{
+						"test_keyspace": {"test_table": &schemaMapping.TableConfig{
+							Keyspace: "test_keyspace",
+							Name:     "test_table",
+							Logger:   nil,
+							Columns: map[string]*types.Column{
 								"column1": {ColumnName: "column1", CQLType: datatype.Varchar, IsPrimaryKey: true},
 								"column2": {ColumnName: "column2", CQLType: datatype.Bigint},
 							},
+							PrimaryKeys: []*types.Column{},
+						},
 						},
 					},
 					SystemColumnFamily: "cf1",
@@ -1557,12 +1576,17 @@ func Test_GetBigtableSelectQuery(t *testing.T) {
 			translator: &Translator{
 				Logger: zap.NewNop(),
 				SchemaMappingConfig: &schemaMapping.SchemaMappingConfig{
-					TablesMetaData: map[string]map[string]map[string]*types.Column{
-						"test_keyspace": {
-							"test_table": {
+					Tables: map[string]map[string]*schemaMapping.TableConfig{
+						"test_keyspace": {"test_table": &schemaMapping.TableConfig{
+							Keyspace: "test_keyspace",
+							Name:     "test_table",
+							Logger:   nil,
+							Columns: map[string]*types.Column{
 								"column1": {ColumnName: "column1", CQLType: datatype.Varchar, IsPrimaryKey: true},
 								"column2": {ColumnName: "column2", CQLType: datatype.Bigint},
 							},
+							PrimaryKeys: []*types.Column{},
+						},
 						},
 					},
 					SystemColumnFamily: "cf1",
@@ -1599,13 +1623,18 @@ func Test_GetBigtableSelectQuery(t *testing.T) {
 			translator: &Translator{
 				Logger: zap.NewNop(),
 				SchemaMappingConfig: &schemaMapping.SchemaMappingConfig{
-					TablesMetaData: map[string]map[string]map[string]*types.Column{
-						"test_keyspace": {
-							"test_table": {
+					Tables: map[string]map[string]*schemaMapping.TableConfig{
+						"test_keyspace": {"test_table": &schemaMapping.TableConfig{
+							Keyspace: "test_keyspace",
+							Name:     "test_table",
+							Logger:   nil,
+							Columns: map[string]*types.Column{
 								"name": {ColumnName: "name", CQLType: datatype.Varchar, IsPrimaryKey: true},
 								"age":  {ColumnName: "age", CQLType: datatype.Bigint},
 								"code": {ColumnName: "code", CQLType: datatype.Bigint},
 							},
+							PrimaryKeys: []*types.Column{},
+						},
 						},
 					},
 					SystemColumnFamily: "cf1",
@@ -1641,13 +1670,18 @@ func Test_GetBigtableSelectQuery(t *testing.T) {
 			translator: &Translator{
 				Logger: zap.NewNop(),
 				SchemaMappingConfig: &schemaMapping.SchemaMappingConfig{
-					TablesMetaData: map[string]map[string]map[string]*types.Column{
-						"test_keyspace": {
-							"test_table": {
+					Tables: map[string]map[string]*schemaMapping.TableConfig{
+						"test_keyspace": {"test_table": &schemaMapping.TableConfig{
+							Keyspace: "test_keyspace",
+							Name:     "test_table",
+							Logger:   nil,
+							Columns: map[string]*types.Column{
 								"name": {ColumnName: "name", CQLType: datatype.Varchar, IsPrimaryKey: true},
 								"age":  {ColumnName: "age", CQLType: datatype.Bigint},
 								"code": {ColumnName: "code", CQLType: datatype.Bigint},
 							},
+							PrimaryKeys: []*types.Column{},
+						},
 						},
 					},
 					SystemColumnFamily: "cf1",
@@ -1684,13 +1718,18 @@ func Test_GetBigtableSelectQuery(t *testing.T) {
 			translator: &Translator{
 				Logger: zap.NewNop(),
 				SchemaMappingConfig: &schemaMapping.SchemaMappingConfig{
-					TablesMetaData: map[string]map[string]map[string]*types.Column{
-						"test_keyspace": {
-							"test_table": {
+					Tables: map[string]map[string]*schemaMapping.TableConfig{
+						"test_keyspace": {"test_table": &schemaMapping.TableConfig{
+							Keyspace: "test_keyspace",
+							Name:     "test_table",
+							Logger:   nil,
+							Columns: map[string]*types.Column{
 								"name": {ColumnName: "name", CQLType: datatype.Varchar, IsPrimaryKey: true},
 								"age":  {ColumnName: "age", CQLType: datatype.Bigint},
 								"code": {ColumnName: "code", CQLType: datatype.Bigint},
 							},
+							PrimaryKeys: []*types.Column{},
+						},
 						},
 					},
 					SystemColumnFamily: "cf1",
@@ -1931,30 +1970,6 @@ type mockKwDescContext struct {
 }
 
 func Test_processFunctionColumn(t *testing.T) {
-	// Create a mock schema mapping config
-	mockSchemaMappingConfig := map[string]map[string]map[string]*types.Column{
-		"test_keyspace": {
-			"user_info": {
-				"age": {
-					ColumnName: "age",
-					CQLType:    datatype.Bigint,
-				},
-				"balance": {
-					ColumnName: "balance",
-					CQLType:    datatype.Float,
-				},
-				"name": {
-					ColumnName: "name",
-					CQLType:    datatype.Varchar,
-				},
-				"code": {
-					ColumnName: "code",
-					CQLType:    datatype.Int,
-				},
-			},
-		},
-	}
-
 	tests := []struct {
 		name           string
 		columnMetadata schemaMapping.SelectedColumns
@@ -2117,12 +2132,38 @@ func Test_processFunctionColumn(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			translator := &Translator{
 				SchemaMappingConfig: &schemaMapping.SchemaMappingConfig{
-					TablesMetaData:     mockSchemaMappingConfig,
+					Tables: map[string]map[string]*schemaMapping.TableConfig{
+						"test_keyspace": {"user_info": &schemaMapping.TableConfig{
+							Keyspace: "test_keyspace",
+							Name:     "user_info",
+							Logger:   nil,
+							Columns: map[string]*types.Column{
+								"age": {
+									ColumnName: "age",
+									CQLType:    datatype.Bigint,
+								},
+								"balance": {
+									ColumnName: "balance",
+									CQLType:    datatype.Float,
+								},
+								"name": {
+									ColumnName: "name",
+									CQLType:    datatype.Varchar,
+								},
+								"code": {
+									ColumnName: "code",
+									CQLType:    datatype.Int,
+								},
+							},
+							PrimaryKeys: []*types.Column{},
+						},
+						},
+					},
 					SystemColumnFamily: "cf1",
 				},
 			}
 
-			gotColumns, err := processFunctionColumn(translator, tt.columnMetadata, tt.tableName, tt.keySpace, tt.inputColumns)
+			gotColumns, err := processFunctionColumn(translator, tt.columnMetadata, translator.SchemaMappingConfig.Tables[tt.tableName][tt.keySpace], tt.inputColumns)
 
 			if tt.wantErr {
 				if err == nil {
@@ -2452,30 +2493,6 @@ func Test_funcAllowedInAggregate(t *testing.T) {
 }
 
 func TestProcessSetStrings(t *testing.T) {
-	// Setup mock schema mapping config
-	mockSchemaMappingConfig := map[string]map[string]map[string]*types.Column{
-		"test_keyspace": {
-			"user_info": {
-				"name": &types.Column{
-					ColumnName: "name",
-					CQLType:    datatype.Varchar,
-				},
-				"age": &types.Column{
-					ColumnName: "age",
-					CQLType:    datatype.Bigint,
-				},
-				"code": &types.Column{
-					ColumnName: "code",
-					CQLType:    datatype.Int,
-				},
-				"map_col": &types.Column{
-					ColumnName: "map_col",
-					CQLType:    datatype.NewMapType(datatype.Varchar, datatype.Varchar),
-				},
-			},
-		},
-	}
-
 	tests := []struct {
 		name            string
 		selectedColumns []schemaMapping.SelectedColumns
@@ -2583,12 +2600,38 @@ func TestProcessSetStrings(t *testing.T) {
 			tr := &Translator{
 				Logger: zap.NewNop(),
 				SchemaMappingConfig: &schemaMapping.SchemaMappingConfig{
-					TablesMetaData:     mockSchemaMappingConfig,
+					Tables: map[string]map[string]*schemaMapping.TableConfig{
+						"test_keyspace": {"test_table": &schemaMapping.TableConfig{
+							Keyspace: "test_keyspace",
+							Name:     "test_table",
+							Logger:   nil,
+							Columns: map[string]*types.Column{
+								"name": &types.Column{
+									ColumnName: "name",
+									CQLType:    datatype.Varchar,
+								},
+								"age": &types.Column{
+									ColumnName: "age",
+									CQLType:    datatype.Bigint,
+								},
+								"code": &types.Column{
+									ColumnName: "code",
+									CQLType:    datatype.Int,
+								},
+								"map_col": &types.Column{
+									ColumnName: "map_col",
+									CQLType:    datatype.NewMapType(datatype.Varchar, datatype.Varchar),
+								},
+							},
+							PrimaryKeys: []*types.Column{},
+						},
+						},
+					},
 					SystemColumnFamily: "cf1",
 				},
 			}
 
-			gotColumns, err := processSetStrings(tr, tt.selectedColumns, tt.tableName, tt.keySpace, tt.isGroupBy)
+			gotColumns, err := processSetStrings(tr, tr.SchemaMappingConfig.Tables[tt.tableName][tt.keySpace], tt.selectedColumns, tt.isGroupBy)
 
 			if (err != nil) != tt.wantErr {
 				t.Errorf("processStrings() error = %v, wantErr %v", err, tt.wantErr)
@@ -2698,7 +2741,7 @@ func Test_processAsColumn(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := processAsColumn(tt.columnMetadata, tt.tableName, tt.columnFamily, tt.colMeta, tt.columns, tt.isGroupBy)
+			got := processAsColumn(tt.columnMetadata, tt.columnFamily, tt.colMeta, tt.columns, tt.isGroupBy)
 			if !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("processAsColumn() = %v, want %v", got, tt.want)
 			}

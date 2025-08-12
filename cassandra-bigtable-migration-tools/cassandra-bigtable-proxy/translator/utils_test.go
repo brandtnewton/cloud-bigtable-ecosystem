@@ -207,7 +207,8 @@ func TestTranslator_GetAllColumns(t *testing.T) {
 				Logger:              tt.fields.Logger,
 				SchemaMappingConfig: tt.fields.SchemaMappingConfig,
 			}
-			got, got1, err := tr.GetAllColumns(tt.args.tableName, "test_keyspace")
+			tc, err := tr.SchemaMappingConfig.GetTableConfig("test_keyspace", tt.args.tableName)
+			got, got1 := tr.GetAllColumns(tc)
 			sort.Strings(got)
 			sort.Strings(tt.want)
 			if (err != nil) != tt.wantErr {
@@ -1196,7 +1197,12 @@ func Test_processCollectionColumnsForPrepareQueries(t *testing.T) {
 				KeySpace:        "test_keyspace",
 				ComplexMeta:     nil, // Assuming nil for these tests, adjust if needed
 			}
-			output, err := processCollectionColumnsForPrepareQueries(input)
+			tc, err := GetSchemaMappingConfig().GetTableConfig(input.KeySpace, input.TableName)
+			if (err != nil) != tt.wantErr {
+				t.Fatalf("error = %v, wantErr %v", err, tt.wantErr)
+			}
+
+			output, err := processCollectionColumnsForPrepareQueries(tc, input)
 
 			if (err != nil) != tt.wantErr {
 				t.Fatalf("error = %v, wantErr %v", err, tt.wantErr)
@@ -1663,7 +1669,7 @@ func compareComplexOperation(expected, actual *ComplexOperation) bool {
 func TestTranslator_CreateOrderedCodeKey(t *testing.T) {
 	tests := []struct {
 		name                         string
-		pmks                         []types.Column
+		pmks                         []*types.Column
 		values                       map[string]interface{}
 		want                         []byte
 		encodeIntValuesWithBigEndian bool
@@ -1671,7 +1677,7 @@ func TestTranslator_CreateOrderedCodeKey(t *testing.T) {
 	}{
 		{
 			name: "simple string",
-			pmks: []types.Column{
+			pmks: []*types.Column{
 				{
 					CQLType:      datatype.Varchar,
 					ColumnName:   "user_id",
@@ -1688,7 +1694,7 @@ func TestTranslator_CreateOrderedCodeKey(t *testing.T) {
 		},
 		{
 			name: "int nonzero",
-			pmks: []types.Column{
+			pmks: []*types.Column{
 				{
 					CQLType:      datatype.Bigint,
 					ColumnName:   "user_id",
@@ -1705,7 +1711,7 @@ func TestTranslator_CreateOrderedCodeKey(t *testing.T) {
 		},
 		{
 			name: "int32 nonzero",
-			pmks: []types.Column{
+			pmks: []*types.Column{
 				{
 					CQLType:      datatype.Int,
 					ColumnName:   "user_id",
@@ -1722,7 +1728,7 @@ func TestTranslator_CreateOrderedCodeKey(t *testing.T) {
 		},
 		{
 			name: "int32 nonzero big endian",
-			pmks: []types.Column{
+			pmks: []*types.Column{
 				{
 					CQLType:      datatype.Int,
 					ColumnName:   "user_id",
@@ -1739,7 +1745,7 @@ func TestTranslator_CreateOrderedCodeKey(t *testing.T) {
 		},
 		{
 			name: "int32 max",
-			pmks: []types.Column{
+			pmks: []*types.Column{
 				{
 					CQLType:      datatype.Int,
 					ColumnName:   "user_id",
@@ -1756,7 +1762,7 @@ func TestTranslator_CreateOrderedCodeKey(t *testing.T) {
 		},
 		{
 			name: "int64 max",
-			pmks: []types.Column{
+			pmks: []*types.Column{
 				{
 					CQLType:      datatype.Bigint,
 					ColumnName:   "user_id",
@@ -1773,7 +1779,7 @@ func TestTranslator_CreateOrderedCodeKey(t *testing.T) {
 		},
 		{
 			name: "negative int",
-			pmks: []types.Column{
+			pmks: []*types.Column{
 				{
 					CQLType:      datatype.Bigint,
 					ColumnName:   "user_id",
@@ -1790,7 +1796,7 @@ func TestTranslator_CreateOrderedCodeKey(t *testing.T) {
 		},
 		{
 			name: "negative int big endian fails",
-			pmks: []types.Column{
+			pmks: []*types.Column{
 				{
 					CQLType:      datatype.Bigint,
 					ColumnName:   "user_id",
@@ -1807,7 +1813,7 @@ func TestTranslator_CreateOrderedCodeKey(t *testing.T) {
 		},
 		{
 			name: "int zero",
-			pmks: []types.Column{
+			pmks: []*types.Column{
 				{
 					CQLType:      datatype.Bigint,
 					ColumnName:   "user_id",
@@ -1824,7 +1830,7 @@ func TestTranslator_CreateOrderedCodeKey(t *testing.T) {
 		},
 		{
 			name: "int zero big endian",
-			pmks: []types.Column{
+			pmks: []*types.Column{
 				{
 					CQLType:      datatype.Bigint,
 					ColumnName:   "user_id",
@@ -1841,7 +1847,7 @@ func TestTranslator_CreateOrderedCodeKey(t *testing.T) {
 		},
 		{
 			name: "compound key",
-			pmks: []types.Column{
+			pmks: []*types.Column{
 				{
 					CQLType:      datatype.Varchar,
 					ColumnName:   "user_id",
@@ -1872,7 +1878,7 @@ func TestTranslator_CreateOrderedCodeKey(t *testing.T) {
 		},
 		{
 			name: "compound key big endian",
-			pmks: []types.Column{
+			pmks: []*types.Column{
 				{
 					CQLType:      datatype.Varchar,
 					ColumnName:   "user_id",
@@ -1903,7 +1909,7 @@ func TestTranslator_CreateOrderedCodeKey(t *testing.T) {
 		},
 		{
 			name: "compound key with trailing empty",
-			pmks: []types.Column{
+			pmks: []*types.Column{
 				{
 					CQLType:      datatype.Varchar,
 					ColumnName:   "user_id",
@@ -1941,7 +1947,7 @@ func TestTranslator_CreateOrderedCodeKey(t *testing.T) {
 		},
 		{
 			name: "compound key with trailing empty big endian",
-			pmks: []types.Column{
+			pmks: []*types.Column{
 				{
 					CQLType:      datatype.Varchar,
 					ColumnName:   "user_id",
@@ -1979,7 +1985,7 @@ func TestTranslator_CreateOrderedCodeKey(t *testing.T) {
 		},
 		{
 			name: "compound key with empty middle",
-			pmks: []types.Column{
+			pmks: []*types.Column{
 				{
 					CQLType:      datatype.Blob,
 					ColumnName:   "user_id",
@@ -2010,7 +2016,7 @@ func TestTranslator_CreateOrderedCodeKey(t *testing.T) {
 		},
 		{
 			name: "bytes with delimiter",
-			pmks: []types.Column{
+			pmks: []*types.Column{
 				{
 					CQLType:      datatype.Blob,
 					ColumnName:   "user_id",
@@ -2027,7 +2033,7 @@ func TestTranslator_CreateOrderedCodeKey(t *testing.T) {
 		},
 		{
 			name: "compound key with 2 empty middle fields",
-			pmks: []types.Column{
+			pmks: []*types.Column{
 				{
 					CQLType:      datatype.Blob,
 					ColumnName:   "user_id",
@@ -2065,7 +2071,7 @@ func TestTranslator_CreateOrderedCodeKey(t *testing.T) {
 		},
 		{
 			name: "byte strings",
-			pmks: []types.Column{
+			pmks: []*types.Column{
 				{
 					CQLType:      datatype.Blob,
 					ColumnName:   "user_id",
@@ -2089,7 +2095,7 @@ func TestTranslator_CreateOrderedCodeKey(t *testing.T) {
 		},
 		{
 			name: "empty first value",
-			pmks: []types.Column{
+			pmks: []*types.Column{
 				{
 					CQLType:      datatype.Varchar,
 					ColumnName:   "user_id",
@@ -2113,7 +2119,7 @@ func TestTranslator_CreateOrderedCodeKey(t *testing.T) {
 		},
 		{
 			name: "null escaped",
-			pmks: []types.Column{
+			pmks: []*types.Column{
 				{
 					CQLType:      datatype.Varchar,
 					ColumnName:   "user_id",
@@ -2144,7 +2150,7 @@ func TestTranslator_CreateOrderedCodeKey(t *testing.T) {
 		},
 		{
 			name: "null escaped",
-			pmks: []types.Column{
+			pmks: []*types.Column{
 				{
 					CQLType:      datatype.Varchar,
 					ColumnName:   "user_id",
@@ -2175,7 +2181,7 @@ func TestTranslator_CreateOrderedCodeKey(t *testing.T) {
 		},
 		{
 			name: "invalid utf8 varchar returns error",
-			pmks: []types.Column{
+			pmks: []*types.Column{
 				{
 					CQLType:      datatype.Varchar,
 					ColumnName:   "user_id",
@@ -2192,7 +2198,7 @@ func TestTranslator_CreateOrderedCodeKey(t *testing.T) {
 		},
 		{
 			name: "null char",
-			pmks: []types.Column{
+			pmks: []*types.Column{
 				{
 					CQLType:      datatype.Varchar,
 					ColumnName:   "user_id",
@@ -2628,7 +2634,7 @@ func TestProcessCollectionColumnsForPrepareQueries_ComplexMetaAndNonCollection(t
 				KeySpace:        keySpace,
 				ComplexMeta:     currentComplexMeta,
 			}
-			output, err := processCollectionColumnsForPrepareQueries(input)
+			output, err := processCollectionColumnsForPrepareQueries(translator.SchemaMappingConfig.Tables[input.KeySpace][input.TableName], input)
 
 			if (err != nil) != tt.wantErr {
 				t.Errorf("processCollectionColumnsForPrepareQueries() error = %v, wantErr %v", err, tt.wantErr)
@@ -2719,9 +2725,12 @@ func TestProcessCollectionColumnsForPrepareQueries_ComplexMetaAndNonCollection(t
 func TestProcessComplexUpdate_SuccessfulCases(t *testing.T) {
 	translator := &Translator{
 		SchemaMappingConfig: &schemaMapping.SchemaMappingConfig{
-			TablesMetaData: map[string]map[string]map[string]*types.Column{
-				"keyspace1": {
-					"table1": {
+			Tables: map[string]map[string]*schemaMapping.TableConfig{
+				"test_keyspace": {"test_table": &schemaMapping.TableConfig{
+					Keyspace: "keyspace1",
+					Name:     "table1",
+					Logger:   nil,
+					Columns: map[string]*types.Column{
 						"map_col": {
 							ColumnName:   "map_col",
 							CQLType:      datatype.NewMapType(datatype.Varchar, datatype.Varchar),
@@ -2733,6 +2742,8 @@ func TestProcessComplexUpdate_SuccessfulCases(t *testing.T) {
 							IsCollection: true,
 						},
 					},
+					PrimaryKeys: []*types.Column{},
+				},
 				},
 			},
 		},
@@ -2753,7 +2764,6 @@ func TestProcessComplexUpdate_SuccessfulCases(t *testing.T) {
 			columns: []types.Column{
 				{Name: "map_col", CQLType: datatype.NewMapType(datatype.Varchar, datatype.Varchar)},
 			},
-			// values:         []interface{}{"map_col+{key:?}"},
 			values: []interface{}{
 				ComplexAssignment{
 					Column:    "map_col",
@@ -3588,7 +3598,7 @@ func TestProcessCollectionColumnsForRawQueries(t *testing.T) {
 		},
 	}
 
-	output, err := processCollectionColumnsForRawQueries(inputs)
+	output, err := processCollectionColumnsForRawQueries(inputs.Translator.SchemaMappingConfig.Tables[inputs.KeySpace][inputs.TableName], inputs)
 	if err != nil {
 		t.Fatalf("Failed: %v", err)
 	}
@@ -3600,7 +3610,7 @@ func TestProcessCollectionColumnsForRawQueries(t *testing.T) {
 }
 
 func TestConvertAllValuesToRowKeyType(t *testing.T) {
-	pkCols := []types.Column{
+	pkCols := []*types.Column{
 		{
 			ColumnName:   "id_int",
 			CQLType:      datatype.Int,

@@ -275,7 +275,11 @@ func addSystemKeyspacesToMetadata(tableMetadata map[string]map[string]*schemaMap
 		if ks == "system_schema" {
 			// Add tables table
 			if _, exists := tableMetadata[ks]["tables"]; !exists {
-				tableMetadata[ks]["tables"] = &schemaMapping.TableConfig{}
+				tableMetadata[ks]["tables"] = &schemaMapping.TableConfig{
+					Keyspace: ks,
+					Name:     "tables",
+					Columns:  make(map[string]*types.Column),
+				}
 			}
 			for _, col := range parser.SystemSchemaTablesColumns {
 				tableMetadata[ks]["tables"].Columns[col.Name] = &types.Column{
@@ -293,7 +297,11 @@ func addSystemKeyspacesToMetadata(tableMetadata map[string]map[string]*schemaMap
 
 			// Add columns table
 			if _, exists := tableMetadata[ks]["columns"]; !exists {
-				tableMetadata[ks]["columns"] = &schemaMapping.TableConfig{}
+				tableMetadata[ks]["columns"] = &schemaMapping.TableConfig{
+					Keyspace: ks,
+					Name:     "columns",
+					Columns:  make(map[string]*types.Column),
+				}
 			}
 			for _, col := range parser.SystemSchemaColumnsColumns {
 				tableMetadata[ks]["columns"].Columns[col.Name] = &types.Column{
@@ -311,7 +319,11 @@ func addSystemKeyspacesToMetadata(tableMetadata map[string]map[string]*schemaMap
 
 			// Add keyspaces table
 			if _, exists := tableMetadata[ks]["keyspaces"]; !exists {
-				tableMetadata[ks]["keyspaces"] = &schemaMapping.TableConfig{}
+				tableMetadata[ks]["keyspaces"] = &schemaMapping.TableConfig{
+					Keyspace: ks,
+					Name:     "keyspaces",
+					Columns:  make(map[string]*types.Column),
+				}
 			}
 			for _, col := range parser.SystemSchemaKeyspacesColumns {
 				tableMetadata[ks]["keyspaces"].Columns[col.Name] = &types.Column{
@@ -331,7 +343,11 @@ func addSystemKeyspacesToMetadata(tableMetadata map[string]map[string]*schemaMap
 		if ks == "system" {
 			// Add local table
 			if _, exists := tableMetadata[ks]["local"]; !exists {
-				tableMetadata[ks]["local"] = &schemaMapping.TableConfig{}
+				tableMetadata[ks]["local"] = &schemaMapping.TableConfig{
+					Keyspace: ks,
+					Name:     "local",
+					Columns:  make(map[string]*types.Column),
+				}
 			}
 			// Add columns for system.local
 			columns := []struct {
@@ -372,7 +388,11 @@ func addSystemKeyspacesToMetadata(tableMetadata map[string]map[string]*schemaMap
 
 			// Add peers table
 			if _, exists := tableMetadata[ks]["peers"]; !exists {
-				tableMetadata[ks]["peers"] = &schemaMapping.TableConfig{}
+				tableMetadata[ks]["peers"] = &schemaMapping.TableConfig{
+					Keyspace: ks,
+					Name:     "peers",
+					Columns:  make(map[string]*types.Column),
+				}
 			}
 			// Add columns for system.peers
 			peerColumns := []struct {
@@ -405,7 +425,11 @@ func addSystemKeyspacesToMetadata(tableMetadata map[string]map[string]*schemaMap
 
 			// Add peers_v2 table
 			if _, exists := tableMetadata[ks]["peers_v2"]; !exists {
-				tableMetadata[ks]["peers_v2"] = &schemaMapping.TableConfig{}
+				tableMetadata[ks]["peers_v2"] = &schemaMapping.TableConfig{
+					Keyspace: ks,
+					Name:     "peers_v2",
+					Columns:  make(map[string]*types.Column),
+				}
 			}
 			// Add columns for system.peers_v2
 			peerV2Columns := []struct {
@@ -445,7 +469,11 @@ func addSystemKeyspacesToMetadata(tableMetadata map[string]map[string]*schemaMap
 		tableMetadata["system_virtual_schema"] = make(map[string]*schemaMapping.TableConfig)
 	}
 	// keyspaces
-	tableMetadata["system_virtual_schema"]["keyspaces"] = &schemaMapping.TableConfig{}
+	tableMetadata["system_virtual_schema"]["keyspaces"] = &schemaMapping.TableConfig{
+		Keyspace: "system_virtual_schema",
+		Name:     "keyspaces",
+		Columns:  make(map[string]*types.Column),
+	}
 	for _, col := range parser.SystemVirtualSchemaKeyspaces {
 		tableMetadata["system_virtual_schema"]["keyspaces"].Columns[col.Name] = &types.Column{
 			ColumnName:   col.Name,
@@ -455,7 +483,11 @@ func addSystemKeyspacesToMetadata(tableMetadata map[string]map[string]*schemaMap
 		}
 	}
 	// tables
-	tableMetadata["system_virtual_schema"]["tables"] = &schemaMapping.TableConfig{}
+	tableMetadata["system_virtual_schema"]["tables"] = &schemaMapping.TableConfig{
+		Keyspace: "system_virtual_schema",
+		Name:     "tables",
+		Columns:  make(map[string]*types.Column),
+	}
 	for _, col := range parser.SystemVirtualSchemaTables {
 		tableMetadata["system_virtual_schema"]["tables"].Columns[col.Name] = &types.Column{
 			ColumnName:   col.Name,
@@ -465,7 +497,11 @@ func addSystemKeyspacesToMetadata(tableMetadata map[string]map[string]*schemaMap
 		}
 	}
 	// columns
-	tableMetadata["system_virtual_schema"]["columns"] = &schemaMapping.TableConfig{}
+	tableMetadata["system_virtual_schema"]["columns"] = &schemaMapping.TableConfig{
+		Keyspace: "system_virtual_schema",
+		Name:     "columns",
+		Columns:  make(map[string]*types.Column),
+	}
 	for _, col := range parser.SystemVirtualSchemaColumns {
 		tableMetadata["system_virtual_schema"]["columns"].Columns[col.Name] = &types.Column{
 			ColumnName:   col.Name,

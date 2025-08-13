@@ -477,7 +477,7 @@ func (btc *BigtableClient) updateTableSchema(ctx context.Context, keyspace strin
 	})
 	for _, col := range addCols {
 		mut := bigtable.NewMutation()
-		mut.Set(schemaMappingTableColumnFamily, "Name", ts, []byte(col.Name))
+		mut.Set(schemaMappingTableColumnFamily, "ColumnName", ts, []byte(col.Name))
 		mut.Set(schemaMappingTableColumnFamily, "ColumnType", ts, []byte(col.Type.String()))
 		pmkIndex := slices.IndexFunc(pmks, func(c translator.CreateTablePrimaryKeyConfig) bool {
 			return c.Name == col.Name
@@ -644,7 +644,7 @@ func (btc *BigtableClient) GetSchemaMappingConfigs(ctx context.Context, keyspace
 			switch item.Column {
 			case schemaMappingTableColumnFamily + ":TableName":
 				tableName = string(item.Value)
-			case schemaMappingTableColumnFamily + ":Name":
+			case schemaMappingTableColumnFamily + ":ColumnName":
 				columnName = string(item.Value)
 			case schemaMappingTableColumnFamily + ":ColumnType":
 				columnType = string(item.Value)

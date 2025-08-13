@@ -479,8 +479,6 @@ func (btc *BigtableClient) updateTableSchema(ctx context.Context, keyspace strin
 		mut := bigtable.NewMutation()
 		mut.Set(schemaMappingTableColumnFamily, "Name", ts, []byte(col.Name))
 		mut.Set(schemaMappingTableColumnFamily, "ColumnType", ts, []byte(col.Type.String()))
-		isCollection := utilities.IsCollectionDataType(col.Type)
-		mut.Set(schemaMappingTableColumnFamily, "IsCollection", ts, []byte(strconv.FormatBool(isCollection)))
 		pmkIndex := slices.IndexFunc(pmks, func(c translator.CreateTablePrimaryKeyConfig) bool {
 			return c.Name == col.Name
 		})

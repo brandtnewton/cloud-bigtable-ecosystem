@@ -417,18 +417,6 @@ func isSpecialColumn(columnName string) bool {
 	return columnName == LimitValue
 }
 
-// InstanceExists checks if a given keyspace exists in the schema mapping configuration.
-//
-// Parameters:
-//   - keyspace: The name of the keyspace to check
-//
-// Returns:
-//   - bool: true if the keyspace exists, false otherwise
-func (c *SchemaMappingConfig) InstanceExists(keyspace string) bool {
-	_, ok := c.Tables[keyspace]
-	return ok
-}
-
 // GetPkKeyType() returns the key type of a primary key column for a given table and keyspace.
 // It takes the table name, keyspace name, and column name as input parameters.
 // Returns the key type as a string if the column is a primary key, or an error if:

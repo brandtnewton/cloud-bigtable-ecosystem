@@ -98,9 +98,7 @@ func hasUsingTimestamp(query string) bool {
 // "2024-02-05T14:00:00Z",
 // "2024-02-05 14:00:00",
 // "2024/02/05 14:00:00",
-// "1672522562",             // Unix timestamp (seconds)
 // "1672522562000",          // Unix timestamp (milliseconds)
-// "1672522562000000",       // Unix timestamp (microseconds)
 func parseTimestamp(timestampStr string) (time.Time, error) {
 	// Define multiple layouts to try
 	layouts := []string{

@@ -124,7 +124,7 @@ func (tableConfig *TableConfig) GetPkByTableNameWithFilter(filterPrimaryKeys []s
 // Returns default column family for primitive types and column name for collections.
 func (tableConfig *TableConfig) GetColumnFamily(columnName string) string {
 	colType, err := tableConfig.GetColumnType(columnName)
-	if err != nil && utilities.IsCollection(colType) {
+	if err == nil && utilities.IsCollection(colType) {
 		return columnName
 	}
 	return tableConfig.SystemColumnFamily

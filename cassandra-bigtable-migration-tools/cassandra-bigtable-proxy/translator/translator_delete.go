@@ -348,10 +348,7 @@ func (t *Translator) TranslateDeleteQuerytoBigtable(queryStr string, isPreparedQ
 
 	var rowKey string
 	if !isPreparedQuery {
-		pmks, err := tableConfig.GetPkByTableNameWithFilter(primaryKeys)
-		if err != nil {
-			return nil, err
-		}
+		pmks := tableConfig.GetPkByTableNameWithFilter(primaryKeys)
 		rowKeyBytes, err := createOrderedCodeKey(pmks, pkValues, t.EncodeIntValuesWithBigEndian)
 		if err != nil {
 			return nil, fmt.Errorf("key encoding failed. %w", err)

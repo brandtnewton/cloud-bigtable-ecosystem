@@ -110,14 +110,14 @@ func (c *SchemaMappingConfig) GetTableConfig(keySpace string, tableName string) 
 	return tableConfig, nil
 }
 
-func (tableConfig *TableConfig) GetPkByTableNameWithFilter(filterPrimaryKeys []string) ([]*types.Column, error) {
+func (tableConfig *TableConfig) GetPkByTableNameWithFilter(filterPrimaryKeys []string) []*types.Column {
 	var result []*types.Column
 	for _, pmk := range tableConfig.PrimaryKeys {
 		if slices.Contains(filterPrimaryKeys, pmk.Name) {
 			result = append(result, pmk)
 		}
 	}
-	return result, nil
+	return result
 }
 
 // GetColumnFamily retrieves the column family for a given column.

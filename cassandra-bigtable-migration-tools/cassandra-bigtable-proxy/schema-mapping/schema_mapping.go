@@ -60,7 +60,7 @@ type SelectedColumns struct {
 	IsWriteTimeColumn bool
 }
 
-func CreateTableConfig(mappings map[string]map[string]map[string]*types.Column) map[string]map[string]*TableConfig {
+func CreateTableConfig(systemColumnFamily string, mappings map[string]map[string]map[string]*types.Column) map[string]map[string]*TableConfig {
 	results := make(map[string]map[string]*TableConfig)
 
 	for keyspace, tables := range mappings {
@@ -72,9 +72,10 @@ func CreateTableConfig(mappings map[string]map[string]map[string]*types.Column) 
 			// add new table
 			if _, ok := results[keyspace][tableName]; !ok {
 				results[keyspace][tableName] = &TableConfig{
-					Keyspace: keyspace,
-					Name:     tableName,
-					Columns:  make(map[string]*types.Column),
+					Keyspace:           keyspace,
+					Name:               tableName,
+					SystemColumnFamily: systemColumnFamily,
+					Columns:            make(map[string]*types.Column),
 				}
 			}
 			for columnName, column := range columns {

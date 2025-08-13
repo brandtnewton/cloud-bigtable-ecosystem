@@ -2131,7 +2131,7 @@ func TestHandleDescribeKeyspaces(t *testing.T) {
 			logger := zap.NewNop()
 			schemaMappingConfig := &schemaMapping.SchemaMappingConfig{
 				Logger:             logger,
-				Tables:             schemaMapping.CreateTableConfig(tt.mockTableMeta),
+				Tables:             schemaMapping.CreateTableConfig("cf1", tt.mockTableMeta),
 				SystemColumnFamily: "cf",
 			}
 			proxy := &Proxy{
@@ -2225,7 +2225,7 @@ func TestHandleDescribeTables(t *testing.T) {
 			logger := zap.NewNop()
 			schemaMappingConfig := &schemaMapping.SchemaMappingConfig{
 				Logger:             logger,
-				Tables:             schemaMapping.CreateTableConfig(tt.mockTableMeta),
+				Tables:             schemaMapping.CreateTableConfig("cf1", tt.mockTableMeta),
 				SystemColumnFamily: "cf",
 			}
 			proxy := &Proxy{
@@ -2355,7 +2355,7 @@ func TestHandleDescribeTableColumns(t *testing.T) {
 			logger := zap.NewNop()
 			schemaMappingConfig := &schemaMapping.SchemaMappingConfig{
 				Logger:             logger,
-				Tables:             schemaMapping.CreateTableConfig(tt.mockTableMeta),
+				Tables:             schemaMapping.CreateTableConfig("cf1", tt.mockTableMeta),
 				SystemColumnFamily: "cf",
 			}
 			proxy := &Proxy{
@@ -2526,7 +2526,7 @@ func TestHandlePostDDLEvent(t *testing.T) {
 			}
 			schemaMappingConfig := &schemaMapping.SchemaMappingConfig{
 				Logger:             logger,
-				Tables:             schemaMapping.CreateTableConfig(mockTableMetadata),
+				Tables:             schemaMapping.CreateTableConfig("cf1", mockTableMetadata),
 				SystemColumnFamily: "cf",
 			}
 			proxy := &Proxy{

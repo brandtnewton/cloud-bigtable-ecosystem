@@ -188,7 +188,7 @@ func TestConstructSystemMetadataRows(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			cache, err := ConstructSystemMetadataRows(schemaMapping.CreateTableConfig(tt.metadata))
+			cache, err := ConstructSystemMetadataRows(schemaMapping.CreateTableConfig("cf1", tt.metadata))
 			if tt.expectedError {
 				if err == nil {
 					t.Error("Expected error but got none")
@@ -281,7 +281,7 @@ func TestGetKeyspaceMetadata(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := getKeyspaceMetadata(schemaMapping.CreateTableConfig(tt.tableMetadata))
+			result := getKeyspaceMetadata(schemaMapping.CreateTableConfig("cf1", tt.tableMetadata))
 
 			// Check count
 			assert.Equal(t, tt.expectedCount, len(result), "Expected %d keyspaces, got %d", tt.expectedCount, len(result))
@@ -353,7 +353,7 @@ func TestGetTableMetadata(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := getTableMetadata(schemaMapping.CreateTableConfig(tt.tableMetadata))
+			result := getTableMetadata(schemaMapping.CreateTableConfig("cf1", tt.tableMetadata))
 
 			// Check count
 			assert.Equal(t, tt.expectedCount, len(result), "Expected %d tables, got %d", tt.expectedCount, len(result))
@@ -461,7 +461,7 @@ func TestGetColumnMetadata(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := getColumnMetadata(schemaMapping.CreateTableConfig(tt.tableMetadata))
+			result := getColumnMetadata(schemaMapping.CreateTableConfig("cf1", tt.tableMetadata))
 
 			// Check count
 			assert.Equal(t, tt.expectedCount, len(result), "Expected %d columns, got %d", tt.expectedCount, len(result))

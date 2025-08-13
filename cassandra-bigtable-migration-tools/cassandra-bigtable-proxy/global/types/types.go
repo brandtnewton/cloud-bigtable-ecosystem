@@ -24,10 +24,12 @@ type Column struct {
 	Name         string
 	ColumnFamily string
 	CQLType      datatype.DataType
+	// todo remove this field because it's redundant - you can use PkPrecedence or KeyType to infer this
 	IsPrimaryKey bool
 	PkPrecedence int
 	KeyType      string
-	Metadata     message.ColumnMetadata
+	// todo remove this field because it's mostly redundant - we can move any unique fields to here
+	Metadata message.ColumnMetadata
 }
 
 type Clause struct {

@@ -149,12 +149,12 @@ func processElements(tableConfig *schemaMapping.TableConfig, elements []cql.IRel
 			return nil, nil, nil, err
 		}
 
-		columnType, err := tableConfig.GetColumnType(colName)
+		column, err := tableConfig.GetColumn(colName)
 		if err != nil {
 			return nil, nil, nil, err
 		}
 
-		actualVal, err := handleColumnType(val, columnType, placeholder, params)
+		actualVal, err := handleColumnType(val, column, placeholder, params)
 		if err != nil {
 			return nil, nil, nil, err
 		}
@@ -163,7 +163,7 @@ func processElements(tableConfig *schemaMapping.TableConfig, elements []cql.IRel
 			Column:       colName,
 			Operator:     operator,
 			Value:        actualVal,
-			IsPrimaryKey: columnType.IsPrimaryKey,
+			IsPrimaryKey: column.IsPrimaryKey,
 		}
 		clauses = append(clauses, clause)
 	}

@@ -164,18 +164,18 @@ func parseAssignments(assignments []cql.IAssignmentElementContext, tableConfig *
 				return nil, err
 			}
 			var val interface{}
-			columnType, err := tableConfig.GetColumnType(columnName)
+			column, err := tableConfig.GetColumn(columnName)
 			if err != nil {
 				return nil, err
 			}
-			if columnType.IsPrimaryKey {
+			if column.IsPrimaryKey {
 				return nil, fmt.Errorf("primary key not allowed to assignments")
 			}
 			if value != questionMark {
-				if utilities.IsCollectionColumn(columnType) {
+				if utilities.IsCollectionColumn(column) {
 					val = value
 				} else {
-					val, err = formatValues(fmt.Sprintf("%v", value), columnType.CQLType, 4)
+					val, err = formatValues(fmt.Sprintf("%v", value), column.CQLType, 4)
 					if err != nil {
 						return nil, err
 					}
@@ -183,7 +183,7 @@ func parseAssignments(assignments []cql.IAssignmentElementContext, tableConfig *
 				params["set"+strconv.Itoa(i+1)] = val
 			}
 			paramKeys = append(paramKeys, "set"+strconv.Itoa(i+1))
-			cqlTypeStr, err := methods.ConvertCQLDataTypeToString(columnType.CQLType)
+			cqlTypeStr, err := methods.ConvertCQLDataTypeToString(column.CQLType)
 			if err != nil {
 				return nil, err
 			}
@@ -224,18 +224,18 @@ func parseAssignments(assignments []cql.IAssignmentElementContext, tableConfig *
 		}
 
 		var val interface{} // encrypted val
-		columnType, err := tableConfig.GetColumnType(columnName)
+		column, err := tableConfig.GetColumn(columnName)
 		if err != nil {
 			return nil, err
 		}
-		if columnType.IsPrimaryKey {
+		if column.IsPrimaryKey {
 			return nil, fmt.Errorf("primary key not allowed to assignments")
 		}
 		if !isPreparedQuery {
-			if utilities.IsCollectionColumn(columnType) {
+			if utilities.IsCollectionColumn(column) {
 				val = value
 			} else {
-				val, err = formatValues(fmt.Sprintf("%v", value), columnType.CQLType, 4)
+				val, err = formatValues(fmt.Sprintf("%v", value), column.CQLType, 4)
 				if err != nil {
 					return nil, err
 				}
@@ -245,7 +245,7 @@ func parseAssignments(assignments []cql.IAssignmentElementContext, tableConfig *
 			val = value
 		}
 		paramKeys = append(paramKeys, "set"+strconv.Itoa(i+1))
-		cqlTypeStr, err := methods.ConvertCQLDataTypeToString(columnType.CQLType)
+		cqlTypeStr, err := methods.ConvertCQLDataTypeToString(column.CQLType)
 		if err != nil {
 			return nil, err
 		}

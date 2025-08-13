@@ -65,22 +65,22 @@ func parseColumnsAndValuesFromInsert(input cql.IInsertColumnSpecContext, tableNa
 			return nil, errors.New("parseColumnsAndValuesFromInsert: No Columns found in the Insert Query")
 		}
 		columnName = strings.ReplaceAll(columnName, literalPlaceholder, "")
-		columnType, err := tableConfig.GetColumnType(columnName)
+		sourceColumn, err := tableConfig.GetColumn(columnName)
 		if err != nil {
 			return nil, fmt.Errorf("undefined column name %s in table %s.%s", columnName, keyspace, tableName)
 
 		}
 		isPrimaryKey := false
-		if columnType.IsPrimaryKey {
+		if sourceColumn.IsPrimaryKey {
 			isPrimaryKey = true
 		}
 		column := types.Column{
 			Name:         columnName,
 			ColumnFamily: tableConfig.SystemColumnFamily,
-			CQLType:      columnType.CQLType,
+			CQLType:      sourceColumn.CQLType,
 			IsPrimaryKey: isPrimaryKey,
 		}
-		if columnType.IsPrimaryKey {
+		if sourceColumn.IsPrimaryKey {
 			primaryColumns = append(primaryColumns, columnName)
 		}
 		columnArr = append(columnArr, column)
@@ -130,11 +130,11 @@ func setParamsFromValues(input cql.IInsertValuesSpecContext, columns []types.Col
 			if !isPreparedQuery {
 				var val interface{}
 				var unenVal interface{}
-				columnType, er := tableConfig.GetColumnType(col.Name)
+				column, er := tableConfig.GetColumn(col.Name)
 				if er != nil {
 					return nil, nil, nil, er
 				}
-				if utilities.IsCollectionColumn(columnType) {
+				if utilities.IsCollectionColumn(column) {
 					val = goValue
 					unenVal = goValue
 				} else {

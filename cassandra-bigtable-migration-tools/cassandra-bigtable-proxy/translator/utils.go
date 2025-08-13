@@ -1506,28 +1506,28 @@ func parseWhereByClause(input cql.IWhereSpecContext, tableConfig *schemaMapping.
 			}
 		}
 		colName = strings.ReplaceAll(colName, literalPlaceholder, "")
-		columnType, err := tableConfig.GetColumnType(colName)
+		column, err := tableConfig.GetColumn(colName)
 		if err != nil {
 			return nil, err
 		}
-		if columnType != nil && columnType.CQLType != nil {
+		if column != nil && column.CQLType != nil {
 			if operator == constants.CONTAINS || operator == constants.CONTAINS_KEY {
 				if value == "" {
 					return nil, errors.New("could not parse value from query for one of the clauses")
 				}
 				value = strings.ReplaceAll(value, "'", "")
-				typecode := columnType.CQLType.GetDataTypeCode()
+				typeCode := column.CQLType.GetDataTypeCode()
 				if value != questionMark {
 					if operator == constants.CONTAINS {
-						if typecode == primitive.DataTypeCodeList { // list
+						if typeCode == primitive.DataTypeCodeList { // list
 							operator = constants.ARRAY_INCLUDES
-						} else if typecode == primitive.DataTypeCodeSet { // set
+						} else if typeCode == primitive.DataTypeCodeSet { // set
 							operator = constants.MAP_CONTAINS_KEY
 						} else {
 							return nil, errors.New("CONTAINS are only supported for set and list")
 						}
 					} else {
-						if typecode == primitive.DataTypeCodeMap { // map
+						if typeCode == primitive.DataTypeCodeMap { // map
 							operator = constants.MAP_CONTAINS_KEY
 						} else {
 							return nil, errors.New("CONTAINS KEY are only supported for map")
@@ -1536,13 +1536,13 @@ func parseWhereByClause(input cql.IWhereSpecContext, tableConfig *schemaMapping.
 					params[placeholder] = []byte(value)
 				} else {
 					if operator == "CONTAINS" {
-						if typecode == primitive.DataTypeCodeSet { // set
-							setType, _ := columnType.CQLType.(datatype.SetType)
+						if typeCode == primitive.DataTypeCodeSet { // set
+							setType, _ := column.CQLType.(datatype.SetType)
 							elementType := setType.GetElementType()
 							params[placeholder] = cqlTypeToEmptyPrimitive(elementType, false)
 							operator = constants.MAP_CONTAINS_KEY
-						} else if typecode == primitive.DataTypeCodeList { // list
-							listType, _ := columnType.CQLType.(datatype.ListType)
+						} else if typeCode == primitive.DataTypeCodeList { // list
+							listType, _ := column.CQLType.(datatype.ListType)
 							elementType := listType.GetElementType()
 							params[placeholder] = cqlTypeToEmptyPrimitive(elementType, false)
 							operator = constants.ARRAY_INCLUDES
@@ -1551,7 +1551,7 @@ func parseWhereByClause(input cql.IWhereSpecContext, tableConfig *schemaMapping.
 						}
 					} else {
 						// If it's not contains, then it's a CONTAINS KEY operator
-						if typecode == primitive.DataTypeCodeMap { // map
+						if typeCode == primitive.DataTypeCodeMap { // map
 							// keyType := mapType.GetKeyType()
 							params[placeholder] = cqlTypeToEmptyPrimitive(datatype.Boolean, false)
 							operator = constants.MAP_CONTAINS_KEY
@@ -1569,18 +1569,18 @@ func parseWhereByClause(input cql.IWhereSpecContext, tableConfig *schemaMapping.
 				value = strings.ReplaceAll(value, "'", "")
 				secondValue = strings.ReplaceAll(secondValue, "'", "")
 				if value != questionMark {
-					val, err := stringToPrimitives(value, columnType.CQLType)
+					val, err := stringToPrimitives(value, column.CQLType)
 					if err != nil {
 						return nil, err
 					}
-					secondVal, err := stringToPrimitives(secondValue, columnType.CQLType)
+					secondVal, err := stringToPrimitives(secondValue, column.CQLType)
 					if err != nil {
 						return nil, err
 					}
 					params[placeholder] = val
 					params[secondPlaceholder] = secondVal
 				} else {
-					params[placeholder] = cqlTypeToEmptyPrimitive(columnType.CQLType, columnType.IsPrimaryKey)
+					params[placeholder] = cqlTypeToEmptyPrimitive(column.CQLType, column.IsPrimaryKey)
 					params[secondPlaceholder] = params[placeholder] // CQLType will be same for both the values in the between clause
 				}
 				placeholderCount++ // we need to increase the placeholder count to get the next placeholder as BETWEEN clause has two values
@@ -1598,14 +1598,14 @@ func parseWhereByClause(input cql.IWhereSpecContext, tableConfig *schemaMapping.
 
 				if value != questionMark {
 
-					val, err := stringToPrimitives(value, columnType.CQLType)
+					val, err := stringToPrimitives(value, column.CQLType)
 					if err != nil {
 						return nil, err
 					}
 
 					params[placeholder] = val
 				} else {
-					params[placeholder] = cqlTypeToEmptyPrimitive(columnType.CQLType, columnType.IsPrimaryKey)
+					params[placeholder] = cqlTypeToEmptyPrimitive(column.CQLType, column.IsPrimaryKey)
 				}
 			} else {
 				lower := strings.ToLower(val.GetText())
@@ -1618,7 +1618,7 @@ func parseWhereByClause(input cql.IWhereSpecContext, tableConfig *schemaMapping.
 					if value == nil {
 						return nil, errors.New("could not parse all values inside IN operator")
 					}
-					switch columnType.CQLType {
+					switch column.CQLType {
 					case datatype.Int:
 						var allValues []int
 						for _, inVal := range value {
@@ -1711,7 +1711,7 @@ func parseWhereByClause(input cql.IWhereSpecContext, tableConfig *schemaMapping.
 					}
 				} else {
 					// Create an empty array placeholder value based on the CQL type
-					switch columnType.CQLType {
+					switch column.CQLType {
 					case datatype.Int:
 						params[placeholder] = make([]int, 0)
 					case datatype.Bigint:
@@ -1727,7 +1727,7 @@ func parseWhereByClause(input cql.IWhereSpecContext, tableConfig *schemaMapping.
 					case datatype.Varchar, datatype.Timestamp:
 						params[placeholder] = make([]string, 0)
 					default:
-						return nil, fmt.Errorf("unsupported array CQL type: %s", columnType.CQLType)
+						return nil, fmt.Errorf("unsupported array CQL type: %s", column.CQLType)
 					}
 				}
 			}
@@ -1735,7 +1735,7 @@ func parseWhereByClause(input cql.IWhereSpecContext, tableConfig *schemaMapping.
 				Column:       colName,
 				Operator:     operator,
 				Value:        "@" + placeholder,
-				IsPrimaryKey: columnType.IsPrimaryKey,
+				IsPrimaryKey: column.IsPrimaryKey,
 			}
 
 			clauses = append(clauses, *clause)
@@ -1744,7 +1744,7 @@ func parseWhereByClause(input cql.IWhereSpecContext, tableConfig *schemaMapping.
 					Column:       colName,
 					Operator:     constants.BETWEEN_AND,
 					Value:        "@" + secondPlaceholder,
-					IsPrimaryKey: columnType.IsPrimaryKey,
+					IsPrimaryKey: column.IsPrimaryKey,
 				}
 				clauses = append(clauses, *clause)
 			}

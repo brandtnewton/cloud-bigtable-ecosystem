@@ -91,7 +91,7 @@ func TestParseTimestamp(t *testing.T) {
 		{
 			name:     "Unix timestamp",
 			input:    "1672522562000",
-			expected: time.Unix(0, 1672522562000*int64(time.Millisecond)),
+expected: time.Unix(1672522562, 0).UTC(),
 		},
 		{
 			name:     "Unix timestamp epoch",

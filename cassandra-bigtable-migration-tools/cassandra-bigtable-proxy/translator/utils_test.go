@@ -158,58 +158,6 @@ func TestPrimitivesToString(t *testing.T) {
 	}
 }
 
-func TestTranslator_GetAllColumns(t *testing.T) {
-	type fields struct {
-		Logger              *zap.Logger
-		SchemaMappingConfig *schemaMapping.SchemaMappingConfig
-	}
-	type args struct {
-		tableName string
-	}
-	tests := []struct {
-		name   string
-		fields fields
-		args   args
-		want   []string
-		want1  string
-	}{
-		{
-			name: "Valid Input",
-			fields: fields{
-				Logger:              zap.NewNop(),
-				SchemaMappingConfig: GetSchemaMappingConfig(),
-			},
-			args: args{
-				tableName: "test_table",
-			},
-			want:  []string{"bigint_col", "blob_col", "bool_col", "column1", "column10", "column2", "column3", "column5", "column6", "column9", "double_col", "float_col", "int_col", "timestamp_col"},
-			want1: "cf1",
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			tr := &Translator{
-				Logger:              tt.fields.Logger,
-				SchemaMappingConfig: tt.fields.SchemaMappingConfig,
-			}
-			tc, err := tr.SchemaMappingConfig.GetTableConfig("test_keyspace", tt.args.tableName)
-			if err != nil {
-				t.Errorf("table config should exist: %v", err)
-				return
-			}
-			got, got1 := tr.GetAllColumns(tc)
-			sort.Strings(got)
-			sort.Strings(tt.want)
-			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("Translator.GetAllColumns() got = %v, want %v", got, tt.want)
-			}
-			if got1 != tt.want1 {
-				t.Errorf("Translator.GetAllColumns() got1 = %v, want %v", got1, tt.want1)
-			}
-		})
-	}
-}
-
 func TestStringToPrimitives(t *testing.T) {
 	tests := []struct {
 		value    string

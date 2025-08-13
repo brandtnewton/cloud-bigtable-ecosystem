@@ -1962,19 +1962,6 @@ func ProcessTimestampByDelete(st *DeleteQueryMapping, values []*primitive.Value)
 	return timestampInfo, values, nil
 }
 
-// GetAllColumns retrieves all columns for a given table.
-// Returns the list of column names and their types with validation.
-// Returns error if table doesn't exist or schema mapping fails.
-func (t *Translator) GetAllColumns(tableConfig *schemaMapping.TableConfig) ([]string, string) {
-	var columns []string
-	for _, value := range tableConfig.Columns {
-		if !utilities.IsCollectionColumn(value) {
-			columns = append(columns, value.Name)
-		}
-	}
-	return columns, t.SchemaMappingConfig.SystemColumnFamily
-}
-
 // ValidateRequiredPrimaryKeys validates primary key requirements.
 // Checks if all required primary keys are present in the query with validation.
 // Returns false if any required key is missing or invalid.

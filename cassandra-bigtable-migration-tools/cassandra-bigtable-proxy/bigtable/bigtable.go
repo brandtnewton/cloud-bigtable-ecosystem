@@ -369,7 +369,7 @@ func (btc *BigtableClient) CreateTable(ctx context.Context, data *translator.Cre
 
 	columnFamilies := make(map[string]bigtable.Family)
 	for _, col := range data.Columns {
-		if utilities.IsCollectionDataType(col.Type) {
+		if utilities.IsCollection(col.Type) {
 			columnFamilies[col.Name] = bigtable.Family{
 				GCPolicy: bigtable.MaxVersionsPolicy(1),
 			}
@@ -446,7 +446,7 @@ func (btc *BigtableClient) AlterTable(ctx context.Context, data *translator.Alte
 	}
 
 	for _, col := range data.AddColumns {
-		if utilities.IsCollectionDataType(col.Type) {
+		if utilities.IsCollection(col.Type) {
 			err = adminClient.CreateColumnFamily(ctx, data.Table, col.Name)
 			if err != nil {
 				return err

@@ -123,10 +123,9 @@ func (tableConfig *TableConfig) GetPkByTableNameWithFilter(filterPrimaryKeys []s
 // Returns the column family name from the schema mapping with validation.
 // Returns default column family for primitive types and column name for collections.
 func (tableConfig *TableConfig) GetColumnFamily(columnName string) string {
-	if colType, err := tableConfig.GetColumnType(columnName); err == nil {
-		if utilities.IsCollectionColumn(colType) {
-			return columnName
-		}
+	colType, err := tableConfig.GetColumnType(columnName)
+	if err != nil && utilities.IsCollection(colType) {
+		return columnName
 	}
 	return tableConfig.SystemColumnFamily
 }
@@ -147,21 +146,7 @@ func (tableConfig *TableConfig) GetPrimaryKeys() []string {
 	return primaryKeys
 }
 
-// GetColumnType retrieves the metadata for a specified column in a given table and keyspace.
-//
-// This method is part of the SchemaMappingConfig struct and is responsible for mapping
-// column types from Cassandra (CQL) to Google Cloud Bigtable.
-//
-// Parameters:
-//   - keyspace: The name of the keyspace where the table resides.
-//   - tableName: The name of the table containing the column.
-//   - columnName: The name of the column for which metadata is retrieved.
-//
-// Returns:
-//   - A pointer to a types.Column struct containing the column's CQL type, whether it's a collection,
-//     whether it's a primary key, and its key type.
-//   - An error if the table or column metadata is not found.
-func (tableConfig *TableConfig) GetColumnType(columnName string) (*types.Column, error) {
+func (tableConfig *TableConfig) GetColumnType(columnName string) (datatype.DataType, error) {
 	col, ok := tableConfig.Columns[columnName]
 	if !ok {
 		return nil, fmt.Errorf("undefined column name %s in table %s.%s", columnName, tableConfig.Keyspace, tableConfig.Name)
@@ -171,11 +156,7 @@ func (tableConfig *TableConfig) GetColumnType(columnName string) (*types.Column,
 		return nil, fmt.Errorf("undefined column name %s in table %s.%s", columnName, tableConfig.Keyspace, tableConfig.Name)
 	}
 
-	return &types.Column{
-		CQLType:      col.CQLType,
-		IsPrimaryKey: col.IsPrimaryKey,
-		KeyType:      col.KeyType,
-	}, nil
+	return col.CQLType, nil
 }
 
 // GetMetadataForColumns() retrieves metadata for specific columns in a given table.

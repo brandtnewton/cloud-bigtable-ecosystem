@@ -104,11 +104,11 @@ const (
 )
 
 func IsCollectionColumn(c *types.Column) bool {
-	return IsCollectionDataType(c.CQLType)
+	return IsCollection(c.CQLType)
 }
 
-// IsCollectionDataType() checks if the provided data type is a collection type (list, set, or map).
-func IsCollectionDataType(dt datatype.DataType) bool {
+// IsCollection() checks if the provided data type is a collection type (list, set, or map).
+func IsCollection(dt datatype.DataType) bool {
 	switch dt.GetDataTypeCode() {
 	case primitive.DataTypeCodeList, primitive.DataTypeCodeSet, primitive.DataTypeCodeMap:
 		return true

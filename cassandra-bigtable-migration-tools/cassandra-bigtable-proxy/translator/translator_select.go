@@ -471,7 +471,7 @@ func processWriteTimeColumn(tableConfig *schemaMapping.TableConfig, columnMetada
 
 func processAsColumn(columnMetadata schemaMapping.SelectedColumns, columnFamily string, colMeta *types.Column, columns []string, isGroupBy bool) []string {
 	var columnSelected string
-	if !utilities.IsCollectionDataType(colMeta.CQLType) {
+	if !utilities.IsCollection(colMeta.CQLType) {
 		if isGroupBy {
 			castedCol, _ := castColumns(colMeta, columnFamily)
 			columnSelected = castedCol + " as " + columnMetadata.Alias
@@ -515,7 +515,7 @@ Returns:
 	An updated slice of strings with the new formatted column reference appended.
 */
 func processRegularColumn(columnMetadata schemaMapping.SelectedColumns, tableName string, columnFamily string, colMeta *types.Column, columns []string, isGroupBy bool) []string {
-	if !utilities.IsCollectionDataType(colMeta.CQLType) {
+	if !utilities.IsCollection(colMeta.CQLType) {
 		if isGroupBy {
 			castedCol, _ := castColumns(colMeta, columnFamily)
 			columns = append(columns, castedCol)
@@ -615,7 +615,7 @@ func getBigtableSelectQuery(t *Translator, data *SelectQueryMap) (string, error)
 				groupBykeys = append(groupBykeys, col)
 			} else {
 				if colMeta, ok := tableConfig.Columns[lookupCol]; ok {
-					if !utilities.IsCollectionDataType(colMeta.CQLType) {
+					if !utilities.IsCollection(colMeta.CQLType) {
 						col, err := castColumns(colMeta, t.SchemaMappingConfig.SystemColumnFamily)
 						if err != nil {
 							return "", err
@@ -640,7 +640,7 @@ func getBigtableSelectQuery(t *Translator, data *SelectQueryMap) (string, error)
 				if colMeta, ok := tableConfig.Columns[lookupCol]; ok {
 					if colMeta.IsPrimaryKey {
 						orderByClauses = append(orderByClauses, orderByCol.Column+" "+string(orderByCol.Operation))
-					} else if !utilities.IsCollectionDataType(colMeta.CQLType) {
+					} else if !utilities.IsCollection(colMeta.CQLType) {
 						orderByKey, err := castColumns(colMeta, t.SchemaMappingConfig.SystemColumnFamily)
 						if err != nil {
 							return "", err

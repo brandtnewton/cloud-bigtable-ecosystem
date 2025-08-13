@@ -37,6 +37,7 @@ var tablesMetaData = map[string]map[string]*TableConfig{
 				"column1": {
 					Name:         "column1",
 					CQLType:      datatype.Varchar,
+					ColumnFamily: "cf1",
 					IsPrimaryKey: false,
 					PkPrecedence: 0,
 					Metadata: message.ColumnMetadata{
@@ -50,6 +51,7 @@ var tablesMetaData = map[string]map[string]*TableConfig{
 				"column2": {
 					Name:         "column2",
 					CQLType:      datatype.Int,
+					ColumnFamily: "cf1",
 					IsPrimaryKey: false,
 					PkPrecedence: 0,
 					Metadata: message.ColumnMetadata{
@@ -70,26 +72,13 @@ var expectedResponse = []*message.ColumnMetadata{
 	{Keyspace: "keyspace", Name: "column1", Table: "table1", Type: datatype.Varchar, Index: 0},
 }
 
-func Test_GetColumnType(t *testing.T) {
-	columnExistsArgs := struct {
-		tableName  string
-		columnName string
-	}{
-		tableName:  "table1",
-		columnName: "column1",
-	}
-
+func Test_GetColumn(t *testing.T) {
 	columnExistsInDifferentTableArgs := struct {
 		tableName  string
 		columnName string
 	}{
 		tableName:  "table1",
 		columnName: "column3",
-	}
-
-	columnExistsWant := &types.Column{
-		IsPrimaryKey: false,
-		CQLType:      datatype.Varchar,
 	}
 
 	tests := []struct {
@@ -108,8 +97,19 @@ func Test_GetColumnType(t *testing.T) {
 				Tables:             tablesMetaData,
 				SystemColumnFamily: systemColumnFamily,
 			},
-			args:    columnExistsArgs,
-			want:    columnExistsWant,
+			args: struct {
+				tableName  string
+				columnName string
+			}{
+				tableName:  "table1",
+				columnName: "column1",
+			},
+			want: &types.Column{
+				Name:         "column1",
+				ColumnFamily: "cf1",
+				IsPrimaryKey: false,
+				CQLType:      datatype.Varchar,
+			},
 			wantErr: false,
 		},
 		{
@@ -130,13 +130,15 @@ func Test_GetColumnType(t *testing.T) {
 				t.Errorf("table config error: %v", err)
 				return
 			}
-			got, err := tc.GetColumnType(tt.args.columnName)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("GetColumnType() error = %v, wantErr %v", err, tt.wantErr)
-				return
-			}
-			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("GetColumnType() = %v, want %v", got, tt.want)
+			got, err := tc.GetColumn(tt.args.columnName)
+			if tt.wantErr {
+				assert.Error(t, err)
+			} else {
+				assert.NoError(t, err)
+				assert.Equal(t, tt.want.Name, got.Name)
+				assert.Equal(t, tt.want.ColumnFamily, got.ColumnFamily)
+				assert.Equal(t, tt.want.IsPrimaryKey, got.IsPrimaryKey)
+				assert.Equal(t, tt.want.CQLType, got.CQLType)
 			}
 		})
 	}

@@ -20,7 +20,6 @@ import (
 	"fmt"
 	"sort"
 
-	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/global/types"
 	schemaMapping "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/schema-mapping"
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/third_party/datastax/proxycore"
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/utilities"
@@ -81,11 +80,10 @@ func (th *TypeHandler) BuildMetadata(rowMap []map[string]interface{}, query Quer
 			if columnObj.Alias != "" || columnObj.IsFunc || columnObj.MapKey != "" {
 				lookupColumn = columnObj.ColumnName
 			}
-			tableCol, err := tableConfig.GetColumn(lookupColumn)
+			cqlType, err = tableConfig.GetColumnType(lookupColumn)
 			if err != nil {
 				return nil, err
 			}
-			cqlType = tableCol.CQLType
 		}
 		if columnObj.MapKey != "" && cqlType.GetDataTypeCode() == primitive.DataTypeCodeMap {
 			cqlType = cqlType.(datatype.MapType).GetValueType() // this gets the type of map value e.g map<varchar,int> -> datatype(int)
@@ -131,26 +129,20 @@ func (th *TypeHandler) BuildResponseRow(rowMap map[string]interface{}, query Que
 
 		var cqlType datatype.DataType
 		var err error
-		var isCollection bool
 		col := GetQueryColumn(query, index, key)
 		if col.FuncName == FUNC_NAME_COUNT {
 			cqlType = datatype.Bigint
 		} else if col.IsWriteTimeColumn {
 			cqlType = datatype.Timestamp
 		} else if col.IsFunc || col.MapKey != "" || col.IsAs {
-			var tableCol *types.Column
-			tableCol, err = tableConfig.GetColumn(col.ColumnName)
-			isCollection = utilities.IsCollectionColumn(tableCol)
-			cqlType = tableCol.CQLType
+			cqlType, err = tableConfig.GetColumnType(col.ColumnName)
 		} else {
-			var tableCol *types.Column
-			tableCol, err = tableConfig.GetColumn(key)
-			isCollection = utilities.IsCollectionColumn(tableCol)
-			cqlType = tableCol.CQLType
+			cqlType, err = tableConfig.GetColumnType(key)
 		}
 		if err != nil {
 			return nil, err
 		}
+		isCollection := utilities.IsCollection(cqlType)
 		if col.IsFunc || query.IsGroupBy {
 			if col.FuncName == FUNC_NAME_COUNT {
 				cqlType = datatype.Bigint

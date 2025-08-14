@@ -1507,7 +1507,7 @@ func (c *client) handleQuery(raw *frame.RawFrame, msg *partialQuery) {
 				} else if describeStmt.Tables {
 					c.handleDescribeTables(raw.Header)
 				} else if describeStmt.TableName != "" {
-					c.handleDescribeTableColumns(raw.Header, describeStmt.TableName)
+					c.handleDescribeTableColumns(raw.Header, describeStmt.TableName, c.keyspace)
 				} else if describeStmt.KeyspaceName != "" {
 					c.handleDescribeKeyspace(raw.Header, describeStmt.KeyspaceName)
 				} else {
@@ -2085,7 +2085,7 @@ func (c *client) handleDescribeTables(hdr *frame.Header) {
 			Keyspace: "system_virtual_schema",
 		},
 		{
-			Name:     "table_name",
+			Name:     "name",
 			Type:     datatype.Varchar,
 			Table:    "tables",
 			Keyspace: "system_virtual_schema",
@@ -2108,13 +2108,18 @@ func (c *client) handleDescribeTables(hdr *frame.Header) {
 }
 
 // handleDescribeTableColumns handles the DESCRIBE TABLE command for a specific table
-func (c *client) handleDescribeTableColumns(hdr *frame.Header, fullTableName string) {
+func (c *client) handleDescribeTableColumns(hdr *frame.Header, fullTableName string, sessionKeyspace string) {
 	parts := strings.Split(fullTableName, ".")
-	if len(parts) != 2 {
+	var keyspace, table string
+	if len(parts) == 1 && sessionKeyspace != "" {
+		keyspace = sessionKeyspace
+		table = fullTableName
+	} else if len(parts) == 2 {
+		keyspace, table = parts[0], parts[1]
+	} else {
 		c.sender.Send(hdr, &message.Invalid{ErrorMessage: "Invalid table name format. Use: keyspace_name.table_name"})
 		return
 	}
-	keyspace, table := parts[0], parts[1]
 
 	tableConfig, err := c.proxy.schemaMapping.GetTableConfig(keyspace, table)
 	if err != nil {

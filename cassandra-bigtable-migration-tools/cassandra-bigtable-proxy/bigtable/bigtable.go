@@ -479,12 +479,12 @@ func (btc *BigtableClient) updateTableSchema(ctx context.Context, keyspace strin
 		mut := bigtable.NewMutation()
 		mut.Set(schemaMappingTableColumnFamily, "ColumnName", ts, []byte(col.Name))
 		mut.Set(schemaMappingTableColumnFamily, "ColumnType", ts, []byte(col.Type.String()))
-		pmkIndex := slices.IndexFunc(pmks, func(c translator.CreateTablePrimaryKeyConfig) bool {
-			return c.Name == col.Name
-		})
 		isCollection := utilities.IsCollection(col.Type)
 		// todo remove this IsCollection column now that it's redundant and not ever read
 		mut.Set(schemaMappingTableColumnFamily, "IsCollection", ts, []byte(strconv.FormatBool(isCollection)))
+		pmkIndex := slices.IndexFunc(pmks, func(c translator.CreateTablePrimaryKeyConfig) bool {
+			return c.Name == col.Name
+		})
 		mut.Set(schemaMappingTableColumnFamily, "IsPrimaryKey", ts, []byte(strconv.FormatBool(pmkIndex != -1)))
 		if pmkIndex != -1 {
 			pmkConfig := pmks[pmkIndex]

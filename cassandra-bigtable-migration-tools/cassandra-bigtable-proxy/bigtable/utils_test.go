@@ -20,6 +20,7 @@ import (
 	"reflect"
 	"testing"
 
+	"cloud.google.com/go/bigtable"
 	types "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/global/types"
 	"github.com/stretchr/testify/assert"
 )
@@ -161,6 +162,104 @@ func Test_sortPkData(t *testing.T) {
 			if !reflect.DeepEqual(tt.args.pkMetadata, tt.want) {
 				t.Errorf("sortPrimaryKeys() = %v, want %v", tt.args.pkMetadata, tt.want)
 			}
+		})
+	}
+}
+
+func TestIsTableBigEndianEncoded(t *testing.T) {
+	tests := []struct {
+		name  string
+		input *bigtable.TableInfo
+		want  bool
+	}{
+		{
+			name: "Big Endian encoded field",
+			input: &bigtable.TableInfo{
+				RowKeySchema: &bigtable.StructType{
+					Encoding: bigtable.StructOrderedCodeBytesEncoding{},
+					Fields: []bigtable.StructField{
+						{FieldName: "foo", FieldType: bigtable.Int64Type{Encoding: bigtable.BigEndianBytesEncoding{}}},
+					},
+				},
+			},
+			want: true,
+		},
+		{
+			name: "Ordered bytes encoded field",
+			input: &bigtable.TableInfo{
+				RowKeySchema: &bigtable.StructType{
+					Encoding: bigtable.StructOrderedCodeBytesEncoding{},
+					Fields: []bigtable.StructField{
+						{FieldName: "foo", FieldType: bigtable.Int64Type{Encoding: bigtable.Int64OrderedCodeBytesEncoding{}}}},
+				},
+			},
+			want: false,
+		},
+		{
+			name: "String field",
+			input: &bigtable.TableInfo{
+				RowKeySchema: &bigtable.StructType{
+					Encoding: bigtable.StructOrderedCodeBytesEncoding{},
+					Fields: []bigtable.StructField{
+						{FieldName: "foo", FieldType: bigtable.StringType{Encoding: bigtable.StringUtf8BytesEncoding{}}},
+					},
+				},
+			},
+			want: false,
+		},
+		{
+			name: "Mixed fields with big endian encoding",
+			input: &bigtable.TableInfo{
+				RowKeySchema: &bigtable.StructType{
+					Encoding: bigtable.StructOrderedCodeBytesEncoding{},
+					Fields: []bigtable.StructField{
+						{FieldName: "foo", FieldType: bigtable.StringType{Encoding: bigtable.StringUtf8BytesEncoding{}}},
+						{FieldName: "foo1", FieldType: bigtable.Int64Type{Encoding: bigtable.BigEndianBytesEncoding{}}},
+						{FieldName: "foo2", FieldType: bigtable.StringType{Encoding: bigtable.StringUtf8BytesEncoding{}}},
+					},
+				},
+			},
+			want: true,
+		},
+		{
+			name: "Mixed fields without big endian encoding",
+			input: &bigtable.TableInfo{
+				RowKeySchema: &bigtable.StructType{
+					Encoding: bigtable.StructOrderedCodeBytesEncoding{},
+					Fields: []bigtable.StructField{
+						{FieldName: "foo", FieldType: bigtable.StringType{Encoding: bigtable.StringUtf8BytesEncoding{}}},
+						{FieldName: "foo1", FieldType: bigtable.Int64Type{Encoding: bigtable.Int64OrderedCodeBytesEncoding{}}},
+						{FieldName: "foo2", FieldType: bigtable.StringType{Encoding: bigtable.StringUtf8BytesEncoding{}}},
+					},
+				},
+			},
+			want: false,
+		},
+		{
+			name: "Empty field",
+			input: &bigtable.TableInfo{
+				RowKeySchema: &bigtable.StructType{
+					Encoding: bigtable.StructOrderedCodeBytesEncoding{},
+					Fields: []bigtable.StructField{
+						{FieldName: "foo"},
+					},
+				},
+			},
+			want: false,
+		},
+		{
+			name: "No SRK set for table",
+			input: &bigtable.TableInfo{
+				RowKeySchema: nil,
+			},
+			want: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := isTableBigEndianEncoded(tt.input)
+			assert.Equal(t, tt.want, result)
 		})
 	}
 }

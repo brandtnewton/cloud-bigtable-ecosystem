@@ -2108,15 +2108,15 @@ var kOrderedCodeDelimiter = []byte("\x00\x01")
 // createOrderedCodeKey creates an ordered row key.
 // Generates a byte-encoded row key from primary key values with validation.
 // Returns error if key type is invalid or encoding fails.
-func createOrderedCodeKey(primaryKeys []*types.Column, values map[string]interface{}, encodeIntValuesWithBigEndian bool) ([]byte, error) {
-	fixedValues, err := convertAllValuesToRowKeyType(primaryKeys, values)
+func createOrderedCodeKey(tableConfig *schemaMapping.TableConfig, values map[string]interface{}) ([]byte, error) {
+	fixedValues, err := convertAllValuesToRowKeyType(tableConfig.PrimaryKeys, values)
 	if err != nil {
 		return nil, err
 	}
 
 	var result []byte
 	var trailingEmptyFields []byte
-	for i, pmk := range primaryKeys {
+	for i, pmk := range tableConfig.PrimaryKeys {
 		if i != pmk.PkPrecedence-1 {
 			return nil, fmt.Errorf("wrong order for primary keys")
 		}
@@ -2129,7 +2129,7 @@ func createOrderedCodeKey(primaryKeys []*types.Column, values map[string]interfa
 		var err error
 		switch v := value.(type) {
 		case int64:
-			orderEncodedField, err = encodeInt64Key(v, encodeIntValuesWithBigEndian)
+			orderEncodedField, err = encodeInt64Key(v, tableConfig.EncodeIntRowKeysWithBigEndian)
 			if err != nil {
 				return nil, err
 			}
@@ -2172,10 +2172,9 @@ func createOrderedCodeKey(primaryKeys []*types.Column, values map[string]interfa
 // encodeInt64Key encodes an int64 value for row keys.
 // Converts int64 values to byte representation with validation.
 // Returns error if value is invalid or encoding fails.
-func encodeInt64Key(value int64, encodeIntValuesWithBigEndian bool) ([]byte, error) {
-	// todo remove once ordered byte encoding is supported for ints
+func encodeInt64Key(value int64, encodeIntRowKeysWithBigEndian bool) ([]byte, error) {
 	// override ordered code value with BigEndian
-	if encodeIntValuesWithBigEndian {
+	if encodeIntRowKeysWithBigEndian {
 		if value < 0 {
 			return nil, errors.New("row keys cannot contain negative integer values until ordered byte encoding is supported")
 		}

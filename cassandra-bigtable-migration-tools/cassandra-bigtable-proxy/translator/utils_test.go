@@ -1591,22 +1591,22 @@ func TestCastColumns(t *testing.T) {
 // compareComplexOperation checks if two ComplexOperation structures are equal.
 func compareComplexOperation(expected, actual *ComplexOperation) bool {
 	return expected.Append == actual.Append &&
-		expected.mapKey == actual.mapKey &&
-		expected.PrependList == actual.PrependList &&
-		expected.UpdateListIndex == actual.UpdateListIndex &&
-		expected.Delete == actual.Delete &&
-		expected.ListDelete == actual.ListDelete &&
-		reflect.DeepEqual(expected.ExpectedDatatype, actual.ExpectedDatatype)
+			expected.mapKey == actual.mapKey &&
+			expected.PrependList == actual.PrependList &&
+			expected.UpdateListIndex == actual.UpdateListIndex &&
+			expected.Delete == actual.Delete &&
+			expected.ListDelete == actual.ListDelete &&
+			reflect.DeepEqual(expected.ExpectedDatatype, actual.ExpectedDatatype)
 }
 
 func TestTranslator_CreateOrderedCodeKey(t *testing.T) {
 	tests := []struct {
-		name                         string
-		pmks                         []*types.Column
-		values                       map[string]interface{}
-		want                         []byte
-		encodeIntValuesWithBigEndian bool
-		wantErr                      bool
+		name                          string
+		pmks                          []*types.Column
+		values                        map[string]interface{}
+		want                          []byte
+		encodeIntRowKeysWithBigEndian bool
+		wantErr                       bool
 	}{
 		{
 			name: "simple string",
@@ -1621,9 +1621,9 @@ func TestTranslator_CreateOrderedCodeKey(t *testing.T) {
 			values: map[string]interface{}{
 				"user_id": "user1",
 			},
-			want:                         []byte("user1"),
-			encodeIntValuesWithBigEndian: false,
-			wantErr:                      false,
+			want:                          []byte("user1"),
+			encodeIntRowKeysWithBigEndian: false,
+			wantErr:                       false,
 		},
 		{
 			name: "int nonzero",
@@ -1638,9 +1638,9 @@ func TestTranslator_CreateOrderedCodeKey(t *testing.T) {
 			values: map[string]interface{}{
 				"user_id": int64(1),
 			},
-			want:                         []byte("\x81"),
-			encodeIntValuesWithBigEndian: false,
-			wantErr:                      false,
+			want:                          []byte("\x81"),
+			encodeIntRowKeysWithBigEndian: false,
+			wantErr:                       false,
 		},
 		{
 			name: "int32 nonzero",
@@ -1655,9 +1655,9 @@ func TestTranslator_CreateOrderedCodeKey(t *testing.T) {
 			values: map[string]interface{}{
 				"user_id": int32(1),
 			},
-			want:                         []byte("\x81"),
-			encodeIntValuesWithBigEndian: false,
-			wantErr:                      false,
+			want:                          []byte("\x81"),
+			encodeIntRowKeysWithBigEndian: false,
+			wantErr:                       false,
 		},
 		{
 			name: "int32 nonzero big endian",
@@ -1672,9 +1672,9 @@ func TestTranslator_CreateOrderedCodeKey(t *testing.T) {
 			values: map[string]interface{}{
 				"user_id": int32(1),
 			},
-			want:                         []byte("\x00\xff\x00\xff\x00\xff\x00\xff\x00\xff\x00\xff\x00\xff\x01"),
-			encodeIntValuesWithBigEndian: true,
-			wantErr:                      false,
+			want:                          []byte("\x00\xff\x00\xff\x00\xff\x00\xff\x00\xff\x00\xff\x00\xff\x01"),
+			encodeIntRowKeysWithBigEndian: true,
+			wantErr:                       false,
 		},
 		{
 			name: "int32 max",
@@ -1689,9 +1689,9 @@ func TestTranslator_CreateOrderedCodeKey(t *testing.T) {
 			values: map[string]interface{}{
 				"user_id": int32(2147483647),
 			},
-			want:                         []byte("\x00\xff\x00\xff\x00\xff\x00\xff\x7f\xff\xff\xff"),
-			encodeIntValuesWithBigEndian: true,
-			wantErr:                      false,
+			want:                          []byte("\x00\xff\x00\xff\x00\xff\x00\xff\x7f\xff\xff\xff"),
+			encodeIntRowKeysWithBigEndian: true,
+			wantErr:                       false,
 		},
 		{
 			name: "int64 max",
@@ -1706,9 +1706,9 @@ func TestTranslator_CreateOrderedCodeKey(t *testing.T) {
 			values: map[string]interface{}{
 				"user_id": int64(9223372036854775807),
 			},
-			want:                         []byte("\x7f\xff\xff\xff\xff\xff\xff\xff"),
-			encodeIntValuesWithBigEndian: true,
-			wantErr:                      false,
+			want:                          []byte("\x7f\xff\xff\xff\xff\xff\xff\xff"),
+			encodeIntRowKeysWithBigEndian: true,
+			wantErr:                       false,
 		},
 		{
 			name: "negative int",
@@ -1723,9 +1723,9 @@ func TestTranslator_CreateOrderedCodeKey(t *testing.T) {
 			values: map[string]interface{}{
 				"user_id": int64(-1),
 			},
-			want:                         []byte("\x7f"),
-			encodeIntValuesWithBigEndian: false,
-			wantErr:                      false,
+			want:                          []byte("\x7f"),
+			encodeIntRowKeysWithBigEndian: false,
+			wantErr:                       false,
 		},
 		{
 			name: "negative int big endian fails",
@@ -1740,9 +1740,9 @@ func TestTranslator_CreateOrderedCodeKey(t *testing.T) {
 			values: map[string]interface{}{
 				"user_id": int64(-1),
 			},
-			want:                         nil,
-			encodeIntValuesWithBigEndian: true,
-			wantErr:                      true,
+			want:                          nil,
+			encodeIntRowKeysWithBigEndian: true,
+			wantErr:                       true,
 		},
 		{
 			name: "int zero",
@@ -1757,9 +1757,9 @@ func TestTranslator_CreateOrderedCodeKey(t *testing.T) {
 			values: map[string]interface{}{
 				"user_id": int64(0),
 			},
-			want:                         []byte("\x80"),
-			encodeIntValuesWithBigEndian: false,
-			wantErr:                      false,
+			want:                          []byte("\x80"),
+			encodeIntRowKeysWithBigEndian: false,
+			wantErr:                       false,
 		},
 		{
 			name: "int zero big endian",
@@ -1774,9 +1774,9 @@ func TestTranslator_CreateOrderedCodeKey(t *testing.T) {
 			values: map[string]interface{}{
 				"user_id": int64(0),
 			},
-			want:                         []byte("\x00\xff\x00\xff\x00\xff\x00\xff\x00\xff\x00\xff\x00\xff\x00\xff"),
-			encodeIntValuesWithBigEndian: true,
-			wantErr:                      false,
+			want:                          []byte("\x00\xff\x00\xff\x00\xff\x00\xff\x00\xff\x00\xff\x00\xff\x00\xff"),
+			encodeIntRowKeysWithBigEndian: true,
+			wantErr:                       false,
 		},
 		{
 			name: "compound key",
@@ -1805,9 +1805,9 @@ func TestTranslator_CreateOrderedCodeKey(t *testing.T) {
 				"team_num": int64(1),
 				"city":     "new york",
 			},
-			want:                         []byte("user1\x00\x01\x81\x00\x01new york"),
-			encodeIntValuesWithBigEndian: false,
-			wantErr:                      false,
+			want:                          []byte("user1\x00\x01\x81\x00\x01new york"),
+			encodeIntRowKeysWithBigEndian: false,
+			wantErr:                       false,
 		},
 		{
 			name: "compound key big endian",
@@ -1836,9 +1836,9 @@ func TestTranslator_CreateOrderedCodeKey(t *testing.T) {
 				"team_num": int64(1),
 				"city":     "new york",
 			},
-			want:                         []byte("user1\x00\x01\x00\xff\x00\xff\x00\xff\x00\xff\x00\xff\x00\xff\x00\xff\x01\x00\x01new york"),
-			encodeIntValuesWithBigEndian: true,
-			wantErr:                      false,
+			want:                          []byte("user1\x00\x01\x00\xff\x00\xff\x00\xff\x00\xff\x00\xff\x00\xff\x00\xff\x01\x00\x01new york"),
+			encodeIntRowKeysWithBigEndian: true,
+			wantErr:                       false,
 		},
 		{
 			name: "compound key with trailing empty",
@@ -1874,9 +1874,9 @@ func TestTranslator_CreateOrderedCodeKey(t *testing.T) {
 				"city":     "",
 				"borough":  "",
 			},
-			want:                         []byte("user3\x00\x01\x83"),
-			encodeIntValuesWithBigEndian: false,
-			wantErr:                      false,
+			want:                          []byte("user3\x00\x01\x83"),
+			encodeIntRowKeysWithBigEndian: false,
+			wantErr:                       false,
 		},
 		{
 			name: "compound key with trailing empty big endian",
@@ -1912,9 +1912,9 @@ func TestTranslator_CreateOrderedCodeKey(t *testing.T) {
 				"city":     "",
 				"borough":  "",
 			},
-			want:                         []byte("user3\x00\x01\x00\xff\x00\xff\x00\xff\x00\xff\x00\xff\x00\xff\x00\xff\x03"),
-			encodeIntValuesWithBigEndian: true,
-			wantErr:                      false,
+			want:                          []byte("user3\x00\x01\x00\xff\x00\xff\x00\xff\x00\xff\x00\xff\x00\xff\x00\xff\x03"),
+			encodeIntRowKeysWithBigEndian: true,
+			wantErr:                       false,
 		},
 		{
 			name: "compound key with empty middle",
@@ -1943,9 +1943,9 @@ func TestTranslator_CreateOrderedCodeKey(t *testing.T) {
 				"team_id": "",
 				"city":    "\xb7",
 			},
-			want:                         []byte("\xa2\x00\x01\x00\x00\x00\x01\xb7"),
-			encodeIntValuesWithBigEndian: false,
-			wantErr:                      false,
+			want:                          []byte("\xa2\x00\x01\x00\x00\x00\x01\xb7"),
+			encodeIntRowKeysWithBigEndian: false,
+			wantErr:                       false,
 		},
 		{
 			name: "bytes with delimiter",
@@ -1960,9 +1960,9 @@ func TestTranslator_CreateOrderedCodeKey(t *testing.T) {
 			values: map[string]interface{}{
 				"user_id": "\x80\x00\x01\x81",
 			},
-			want:                         []byte("\x80\x00\xff\x01\x81"),
-			encodeIntValuesWithBigEndian: false,
-			wantErr:                      false,
+			want:                          []byte("\x80\x00\xff\x01\x81"),
+			encodeIntRowKeysWithBigEndian: false,
+			wantErr:                       false,
 		},
 		{
 			name: "compound key with 2 empty middle fields",
@@ -1998,9 +1998,9 @@ func TestTranslator_CreateOrderedCodeKey(t *testing.T) {
 				"city":     "",
 				"borough":  "\xb7",
 			},
-			want:                         []byte("\xa2\x00\x01\x00\x00\x00\x01\x00\x00\x00\x01\xb7"),
-			encodeIntValuesWithBigEndian: false,
-			wantErr:                      false,
+			want:                          []byte("\xa2\x00\x01\x00\x00\x00\x01\x00\x00\x00\x01\xb7"),
+			encodeIntRowKeysWithBigEndian: false,
+			wantErr:                       false,
 		},
 		{
 			name: "byte strings",
@@ -2022,9 +2022,9 @@ func TestTranslator_CreateOrderedCodeKey(t *testing.T) {
 				"user_id": "\xa5",
 				"city":    "\x90",
 			},
-			want:                         []byte("\xa5\x00\x01\x90"),
-			encodeIntValuesWithBigEndian: false,
-			wantErr:                      false,
+			want:                          []byte("\xa5\x00\x01\x90"),
+			encodeIntRowKeysWithBigEndian: false,
+			wantErr:                       false,
 		},
 		{
 			name: "empty first value",
@@ -2046,9 +2046,9 @@ func TestTranslator_CreateOrderedCodeKey(t *testing.T) {
 				"user_id": "",
 				"city":    "\xaa",
 			},
-			want:                         []byte("\x00\x00\x00\x01\xaa"),
-			encodeIntValuesWithBigEndian: false,
-			wantErr:                      false,
+			want:                          []byte("\x00\x00\x00\x01\xaa"),
+			encodeIntRowKeysWithBigEndian: false,
+			wantErr:                       false,
 		},
 		{
 			name: "null escaped",
@@ -2077,9 +2077,9 @@ func TestTranslator_CreateOrderedCodeKey(t *testing.T) {
 				"city":    "t\x00t",
 				"borough": "end",
 			},
-			want:                         []byte("nn\x00\x01t\x00\xfft\x00\x01end"),
-			encodeIntValuesWithBigEndian: false,
-			wantErr:                      false,
+			want:                          []byte("nn\x00\x01t\x00\xfft\x00\x01end"),
+			encodeIntRowKeysWithBigEndian: false,
+			wantErr:                       false,
 		},
 		{
 			name: "null escaped",
@@ -2108,9 +2108,9 @@ func TestTranslator_CreateOrderedCodeKey(t *testing.T) {
 				"team_num": int64(45),
 				"city":     "name",
 			},
-			want:                         []byte("abcd\x00\x01\x00\xff\x00\xff\x00\xff\x00\xff\x00\xff\x00\xff\x00\xff\x2d\x00\x01name"),
-			encodeIntValuesWithBigEndian: true,
-			wantErr:                      false,
+			want:                          []byte("abcd\x00\x01\x00\xff\x00\xff\x00\xff\x00\xff\x00\xff\x00\xff\x00\xff\x2d\x00\x01name"),
+			encodeIntRowKeysWithBigEndian: true,
+			wantErr:                       false,
 		},
 		{
 			name: "invalid utf8 varchar returns error",
@@ -2125,9 +2125,9 @@ func TestTranslator_CreateOrderedCodeKey(t *testing.T) {
 			values: map[string]interface{}{
 				"user_id": string([]uint8{182}),
 			},
-			want:                         nil,
-			encodeIntValuesWithBigEndian: true,
-			wantErr:                      true,
+			want:                          nil,
+			encodeIntRowKeysWithBigEndian: true,
+			wantErr:                       true,
 		},
 		{
 			name: "null char",
@@ -2142,14 +2142,14 @@ func TestTranslator_CreateOrderedCodeKey(t *testing.T) {
 			values: map[string]interface{}{
 				"user_id": "\x00\x01",
 			},
-			want:                         []byte("\x00\xff\x01"),
-			encodeIntValuesWithBigEndian: false,
-			wantErr:                      false,
+			want:                          []byte("\x00\xff\x01"),
+			encodeIntRowKeysWithBigEndian: false,
+			wantErr:                       false,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := createOrderedCodeKey(tt.pmks, tt.values, tt.encodeIntValuesWithBigEndian)
+			got, err := createOrderedCodeKey(tt.pmks, tt.values, tt.encodeIntRowKeysWithBigEndian)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("createOrderedCodeKey() error = %v, wantErr %v", err, tt.wantErr)
 				return

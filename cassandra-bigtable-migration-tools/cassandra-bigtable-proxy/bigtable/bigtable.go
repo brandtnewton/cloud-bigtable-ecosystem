@@ -20,6 +20,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"reflect"
 	"slices"
@@ -360,7 +361,7 @@ func (btc *BigtableClient) CreateTable(ctx context.Context, data *translator.Cre
 
 	var rowKeySchemaFields []bigtable.StructField
 	for _, key := range data.PrimaryKeys {
-		part, err := createBigtableRowKeyField(key.Name, data.Columns, btc.BigtableConfig.EncodeIntValuesWithBigEndian)
+		part, err := createBigtableRowKeyField(key.Name, data.Columns, btc.BigtableConfig.EncodeIntRowKeysWithBigEndian)
 		if err != nil {
 			return err
 		}
@@ -410,7 +411,7 @@ func (btc *BigtableClient) CreateTable(ctx context.Context, data *translator.Cre
 	return nil
 }
 
-func createBigtableRowKeyField(key string, cols []message.ColumnMetadata, encodeIntValuesWithBigEndian bool) (bigtable.StructField, error) {
+func createBigtableRowKeyField(key string, cols []message.ColumnMetadata, encodeIntRowKeysWithBigEndian bool) (bigtable.StructField, error) {
 	for _, column := range cols {
 		if column.Name != key {
 			continue
@@ -420,8 +421,7 @@ func createBigtableRowKeyField(key string, cols []message.ColumnMetadata, encode
 		case datatype.Varchar:
 			return bigtable.StructField{FieldName: key, FieldType: bigtable.StringType{Encoding: bigtable.StringUtf8BytesEncoding{}}}, nil
 		case datatype.Int, datatype.Bigint, datatype.Timestamp:
-			// todo remove once ordered byte encoding is supported for ints
-			if encodeIntValuesWithBigEndian {
+			if encodeIntRowKeysWithBigEndian {
 				return bigtable.StructField{FieldName: key, FieldType: bigtable.Int64Type{Encoding: bigtable.BigEndianBytesEncoding{}}}, nil
 			}
 			return bigtable.StructField{FieldName: key, FieldType: bigtable.Int64Type{Encoding: bigtable.Int64OrderedCodeBytesEncoding{}}}, nil
@@ -712,12 +712,46 @@ func (btc *BigtableClient) GetSchemaMappingConfigs(ctx context.Context, keyspace
 		btc.Logger.Error("Failed to read rows from Bigtable - possible issue with schema_mapping table:", zap.Error(err))
 		return nil, err
 	}
-
+	// todo only do this check on new tables or on start up
+	adminClient, err := btc.getAdminClient(keyspace)
+	if err != nil {
+		errorMessage := fmt.Sprintf("failed to load table state from bigtable for keyspace '%s'", keyspace)
+		btc.Logger.Error(errorMessage, zap.Error(err))
+		return nil, errors.New(errorMessage)
+	}
+	for _, table := range tables {
+		btc.Logger.Info(fmt.Sprintf("loading table info for table %s.%s", keyspace, table.Name))
+		tableInfo, err := adminClient.TableInfo(ctx, table.Name)
+		if err != nil {
+			return nil, err
+		}
+		isBigEndianEncoded := false
+		for _, field := range tableInfo.RowKeySchema.Fields {
+			if isBigEndianEncodedField(field) {
+				btc.Logger.Info(fmt.Sprintf("found big endian encoded row key field %s in table %s.%s", field.FieldName, keyspace, table.Name))
+				isBigEndianEncoded = true
+				break
+			}
+		}
+		table.EncodeIntRowKeysWithBigEndian = isBigEndianEncoded
+	}
 	otelgo.AddAnnotation(ctx, schemaMappingConfigFetched)
 	for _, table := range tables {
 		sortPrimaryKeys(table.PrimaryKeys)
 	}
 	return tables, nil
+}
+
+// todo unit test
+func isBigEndianEncodedField(sf bigtable.StructField) bool {
+	switch v := sf.FieldType.(type) {
+	case bigtable.Int64Type:
+		switch v.Encoding.(type) {
+		case bigtable.BigEndianBytesEncoding:
+			return true
+		}
+	}
+	return false
 }
 
 // ApplyBulkMutation - Applies bulk mutations to the specified Bigtable table.

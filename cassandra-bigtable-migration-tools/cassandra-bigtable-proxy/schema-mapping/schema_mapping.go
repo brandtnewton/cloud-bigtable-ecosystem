@@ -18,7 +18,6 @@ package schemaMapping
 
 import (
 	"fmt"
-	"slices"
 	"sort"
 
 	types "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/global/types"
@@ -40,11 +39,12 @@ type SchemaMappingConfig struct {
 }
 
 type TableConfig struct {
-	Keyspace           string
-	Name               string
-	Columns            map[string]*types.Column
-	PrimaryKeys        []*types.Column
-	SystemColumnFamily string
+	Keyspace                      string
+	Name                          string
+	Columns                       map[string]*types.Column
+	PrimaryKeys                   []*types.Column
+	SystemColumnFamily            string
+	EncodeIntRowKeysWithBigEndian bool
 }
 
 type SelectedColumns struct {
@@ -111,13 +111,14 @@ func (c *SchemaMappingConfig) GetTableConfig(keySpace string, tableName string) 
 }
 
 func (tableConfig *TableConfig) GetPkByTableNameWithFilter(filterPrimaryKeys []string) []*types.Column {
-	var result []*types.Column
-	for _, pmk := range tableConfig.PrimaryKeys {
-		if slices.Contains(filterPrimaryKeys, pmk.Name) {
-			result = append(result, pmk)
-		}
-	}
-	return result
+	//var result []*types.Column
+	//for _, pmk := range tableConfig.PrimaryKeys {
+	//	if slices.Contains(filterPrimaryKeys, pmk.Name) {
+	//		result = append(result, pmk)
+	//	}
+	//}
+	//return result
+	return tableConfig.PrimaryKeys
 }
 
 // GetColumnFamily retrieves the column family for a given column.

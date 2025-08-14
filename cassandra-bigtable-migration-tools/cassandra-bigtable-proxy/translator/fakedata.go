@@ -23,12 +23,13 @@ import (
 	"github.com/datastax/go-cassandra-native-protocol/message"
 )
 
-var mockTableConfigs = map[string]map[string]*schemaMapping.TableConfig{
-	"test_keyspace": {
+func getMockTableConfigs(encodeIntRowKeysWithBigEndian bool) map[string]map[string]*schemaMapping.TableConfig {
+	var result = map[string]map[string]*schemaMapping.TableConfig{"test_keyspace": {
 		"test_table": &schemaMapping.TableConfig{
-			Keyspace:           "test_keyspace",
-			Name:               "test_table",
-			SystemColumnFamily: "cf1",
+			Keyspace:                      "test_keyspace",
+			Name:                          "test_table",
+			SystemColumnFamily:            "cf1",
+			EncodeIntRowKeysWithBigEndian: encodeIntRowKeysWithBigEndian,
 			Columns: map[string]*types.Column{
 				"column1": {
 					Name:         "column1",
@@ -349,9 +350,10 @@ var mockTableConfigs = map[string]map[string]*schemaMapping.TableConfig{
 			},
 		},
 		"user_info": &schemaMapping.TableConfig{
-			Keyspace:           "test_keyspace",
-			Name:               "user_info",
-			SystemColumnFamily: "cf1",
+			Keyspace:                      "test_keyspace",
+			Name:                          "user_info",
+			SystemColumnFamily:            "cf1",
+			EncodeIntRowKeysWithBigEndian: encodeIntRowKeysWithBigEndian,
 			Columns: map[string]*types.Column{
 				"name": {
 					Name:         "name",
@@ -406,8 +408,9 @@ var mockTableConfigs = map[string]map[string]*schemaMapping.TableConfig{
 			},
 		},
 		"non_primitive_table": &schemaMapping.TableConfig{
-			Keyspace: "test_keyspace",
-			Name:     "non_primitive_table",
+			Keyspace:                      "test_keyspace",
+			Name:                          "non_primitive_table",
+			EncodeIntRowKeysWithBigEndian: encodeIntRowKeysWithBigEndian,
 			Columns: map[string]*types.Column{
 				"map_text_text": {
 					Name:         "map_text_text",
@@ -734,11 +737,13 @@ var mockTableConfigs = map[string]map[string]*schemaMapping.TableConfig{
 			PrimaryKeys: []*types.Column{},
 		},
 	},
+	}
+	return result
 }
 
-func GetSchemaMappingConfig() *schemaMapping.SchemaMappingConfig {
+func GetSchemaMappingConfig(encodeIntRowKeysWithBigEndian bool) *schemaMapping.SchemaMappingConfig {
 	return &schemaMapping.SchemaMappingConfig{
-		Tables:             mockTableConfigs,
+		Tables:             getMockTableConfigs(encodeIntRowKeysWithBigEndian),
 		SystemColumnFamily: "cf1",
 	}
 }

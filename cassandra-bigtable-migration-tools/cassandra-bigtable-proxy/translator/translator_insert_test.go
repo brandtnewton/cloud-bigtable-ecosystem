@@ -533,9 +533,9 @@ func TestTranslator_TranslateInsertQuerytoBigtable(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			tr := &Translator{
-				Logger:                       zap.NewNop(),
-				EncodeIntValuesWithBigEndian: false,
-				SchemaMappingConfig:          tt.fields.SchemaMappingConfig,
+				Logger:                        zap.NewNop(),
+				EncodeIntRowKeysWithBigEndian: false,
+				SchemaMappingConfig:           tt.fields.SchemaMappingConfig,
 			}
 			got, err := tr.TranslateInsertQuerytoBigtable(tt.args.queryStr, tt.args.protocolV, tt.args.isPreparedQuery, "test_keyspace")
 			if (err != nil) != tt.wantErr {

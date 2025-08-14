@@ -32,12 +32,6 @@ import (
 	"go.uber.org/zap"
 )
 
-func createSchemaMappingConfigs() *schemaMapping.SchemaMappingConfig {
-	return &schemaMapping.SchemaMappingConfig{
-		Tables: mockTableConfigs,
-	}
-}
-
 func TestTranslator_TranslateDeleteQuerytoBigtable(t *testing.T) {
 	var protocalV primitive.ProtocolVersion = 4
 	params := make(map[string]interface{})
@@ -57,13 +51,12 @@ func TestTranslator_TranslateDeleteQuerytoBigtable(t *testing.T) {
 	}
 
 	tests := []struct {
-		name                         string
-		fields                       fields
-		args                         args
-		want                         *DeleteQueryMapping
-		encodeIntValuesWithBigEndian bool
-		wantErr                      bool
-		defaultKeyspace              string
+		name            string
+		fields          fields
+		args            args
+		want            *DeleteQueryMapping
+		wantErr         bool
+		defaultKeyspace string
 	}{
 		{
 			name: "simple DELETE query without WHERE clause",
@@ -71,7 +64,7 @@ func TestTranslator_TranslateDeleteQuerytoBigtable(t *testing.T) {
 				queryStr: "DELETE FROM test_keyspace.user_info",
 			},
 			fields: fields{
-				SchemaMappingConfig: createSchemaMappingConfigs(),
+				SchemaMappingConfig: GetSchemaMappingConfig(false),
 			},
 			want:            nil,
 			wantErr:         true,
@@ -83,7 +76,7 @@ func TestTranslator_TranslateDeleteQuerytoBigtable(t *testing.T) {
 				queryStr: "DELETE FROM test_keyspace.user_info WHERE name='test'",
 			},
 			fields: fields{
-				SchemaMappingConfig: createSchemaMappingConfigs(),
+				SchemaMappingConfig: GetSchemaMappingConfig(false),
 			},
 			wantErr:         true,
 			defaultKeyspace: "test_keyspace",
@@ -94,7 +87,7 @@ func TestTranslator_TranslateDeleteQuerytoBigtable(t *testing.T) {
 				queryStr: "DELETE FROM test_keyspace.user_info WHERE name='test' AND age=15",
 			},
 			fields: fields{
-				SchemaMappingConfig: createSchemaMappingConfigs(),
+				SchemaMappingConfig: GetSchemaMappingConfig(false),
 			},
 			want: &DeleteQueryMapping{
 				Query:     "DELETE FROM test_keyspace.user_info WHERE name='test' AND age=15",
@@ -120,18 +113,16 @@ func TestTranslator_TranslateDeleteQuerytoBigtable(t *testing.T) {
 				PrimaryKeys: []string{"name", "age"}, // assuming primary keys
 				RowKey:      "test\x00\x01\x8f",
 			},
-			encodeIntValuesWithBigEndian: false,
-			wantErr:                      false,
-			defaultKeyspace:              "test_keyspace",
+			wantErr:         false,
+			defaultKeyspace: "test_keyspace",
 		},
-		// todo remove once we support ordered code ints
 		{
 			name: "DELETE query with multiple WHERE clauses with big endian int key encoding",
 			args: args{
 				queryStr: "DELETE FROM test_keyspace.user_info WHERE name='test' AND age=15",
 			},
 			fields: fields{
-				SchemaMappingConfig: createSchemaMappingConfigs(),
+				SchemaMappingConfig: GetSchemaMappingConfig(true),
 			},
 			want: &DeleteQueryMapping{
 				Query:     "DELETE FROM test_keyspace.user_info WHERE name='test' AND age=15",
@@ -157,9 +148,8 @@ func TestTranslator_TranslateDeleteQuerytoBigtable(t *testing.T) {
 				PrimaryKeys: []string{"name", "age"}, // assuming primary keys
 				RowKey:      "test\x00\x01\x00\xff\x00\xff\x00\xff\x00\xff\x00\xff\x00\xff\x00\xff\x0f",
 			},
-			encodeIntValuesWithBigEndian: true,
-			wantErr:                      false,
-			defaultKeyspace:              "test_keyspace",
+			wantErr:         false,
+			defaultKeyspace: "test_keyspace",
 		},
 		{
 			name: "DELETE query with missing keyspace or table",
@@ -167,7 +157,7 @@ func TestTranslator_TranslateDeleteQuerytoBigtable(t *testing.T) {
 				queryStr: "DELETE FROM .user_info WHERE name='test' AND age=15",
 			},
 			fields: fields{
-				SchemaMappingConfig: createSchemaMappingConfigs(),
+				SchemaMappingConfig: GetSchemaMappingConfig(false),
 			},
 			want:            nil,
 			wantErr:         true,
@@ -179,7 +169,7 @@ func TestTranslator_TranslateDeleteQuerytoBigtable(t *testing.T) {
 				queryStr: "DELETE test_keyspace.user_info WHERE name='test' AND age=15",
 			},
 			fields: fields{
-				SchemaMappingConfig: createSchemaMappingConfigs(),
+				SchemaMappingConfig: GetSchemaMappingConfig(false),
 			},
 			want:            nil,
 			wantErr:         true,
@@ -191,7 +181,7 @@ func TestTranslator_TranslateDeleteQuerytoBigtable(t *testing.T) {
 				queryStr: "DELETE FROM test_keyspace.user_info WHERE name='test' AND age=15 IF EXISTS",
 			},
 			fields: fields{
-				SchemaMappingConfig: createSchemaMappingConfigs(),
+				SchemaMappingConfig: GetSchemaMappingConfig(false),
 			},
 			want: &DeleteQueryMapping{
 				Query:     "DELETE FROM test_keyspace.user_info WHERE name='test' AND age=15 IF EXISTS",
@@ -227,7 +217,7 @@ func TestTranslator_TranslateDeleteQuerytoBigtable(t *testing.T) {
 				queryStr: "DELETE FROM non_existent_keyspace.non_existent_table WHERE name='test'",
 			},
 			fields: fields{
-				SchemaMappingConfig: createSchemaMappingConfigs(),
+				SchemaMappingConfig: GetSchemaMappingConfig(false),
 			},
 			want:            nil,
 			wantErr:         true,
@@ -239,7 +229,7 @@ func TestTranslator_TranslateDeleteQuerytoBigtable(t *testing.T) {
 				queryStr: "DELETE FROM test_keyspace.test_table WHERE column1 = 'abc' AND column10 = 'pkval';",
 			},
 			fields: fields{
-				SchemaMappingConfig: createSchemaMappingConfigs(),
+				SchemaMappingConfig: GetSchemaMappingConfig(false),
 			},
 			want: &DeleteQueryMapping{
 				Query:     "DELETE FROM test_keyspace.test_table WHERE column1 = 'abc' AND column10 = 'pkval';",
@@ -277,7 +267,7 @@ func TestTranslator_TranslateDeleteQuerytoBigtable(t *testing.T) {
 				queryStr: "DELETE FROM test_keyspace.test_table WHERE column1 = 'abc' AND column10 = 'pkval';",
 			},
 			fields: fields{
-				SchemaMappingConfig: createSchemaMappingConfigs(),
+				SchemaMappingConfig: GetSchemaMappingConfig(false),
 			},
 			want: &DeleteQueryMapping{
 				Query:     "DELETE FROM test_keyspace.test_table WHERE column1 = 'abc' AND column10 = 'pkval';",
@@ -315,7 +305,7 @@ func TestTranslator_TranslateDeleteQuerytoBigtable(t *testing.T) {
 				queryStr: "DELETE FROM test_table WHERE column1 = 'abc' AND column10 = 'pkval';",
 			},
 			fields: fields{
-				SchemaMappingConfig: createSchemaMappingConfigs(),
+				SchemaMappingConfig: GetSchemaMappingConfig(false),
 			},
 			want: &DeleteQueryMapping{
 				Query:     "DELETE FROM test_table WHERE column1 = 'abc' AND column10 = 'pkval';",
@@ -353,7 +343,7 @@ func TestTranslator_TranslateDeleteQuerytoBigtable(t *testing.T) {
 				queryStr: "DELETE FROM test_table WHERE column1 = 'abc' AND column10 = 'pkval';",
 			},
 			fields: fields{
-				SchemaMappingConfig: createSchemaMappingConfigs(),
+				SchemaMappingConfig: GetSchemaMappingConfig(false),
 			},
 			want:            nil,
 			wantErr:         true,
@@ -365,7 +355,7 @@ func TestTranslator_TranslateDeleteQuerytoBigtable(t *testing.T) {
 				queryStr: "DELETE FROM test_keyspace.test_table",
 			},
 			fields: fields{
-				SchemaMappingConfig: createSchemaMappingConfigs(),
+				SchemaMappingConfig: GetSchemaMappingConfig(false),
 			},
 			want:            nil,
 			wantErr:         true,
@@ -377,7 +367,7 @@ func TestTranslator_TranslateDeleteQuerytoBigtable(t *testing.T) {
 				queryStr: "DELETE FROM test_keyspace. WHERE column1 = 'abc';",
 			},
 			fields: fields{
-				SchemaMappingConfig: createSchemaMappingConfigs(),
+				SchemaMappingConfig: GetSchemaMappingConfig(false),
 			},
 			want:            nil,
 			wantErr:         true,
@@ -389,7 +379,7 @@ func TestTranslator_TranslateDeleteQuerytoBigtable(t *testing.T) {
 				queryStr: "DELETE FROM .test_table WHERE column1 = 'abc';",
 			},
 			fields: fields{
-				SchemaMappingConfig: createSchemaMappingConfigs(),
+				SchemaMappingConfig: GetSchemaMappingConfig(false),
 			},
 			want:            nil,
 			wantErr:         true,
@@ -401,7 +391,7 @@ func TestTranslator_TranslateDeleteQuerytoBigtable(t *testing.T) {
 				queryStr: "DELETE FROM invalid_keyspace.test_table WHERE column1 = 'abc';",
 			},
 			fields: fields{
-				SchemaMappingConfig: createSchemaMappingConfigs(),
+				SchemaMappingConfig: GetSchemaMappingConfig(false),
 			},
 			want:            nil,
 			wantErr:         true,
@@ -413,7 +403,7 @@ func TestTranslator_TranslateDeleteQuerytoBigtable(t *testing.T) {
 				queryStr: "DELETE FROM test_keyspace.invalid_table WHERE column1 = 'abc';",
 			},
 			fields: fields{
-				SchemaMappingConfig: createSchemaMappingConfigs(),
+				SchemaMappingConfig: GetSchemaMappingConfig(false),
 			},
 			want:            nil,
 			wantErr:         true,
@@ -423,9 +413,8 @@ func TestTranslator_TranslateDeleteQuerytoBigtable(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			tr := &Translator{
-				Logger:                       tt.fields.Logger,
-				EncodeIntValuesWithBigEndian: tt.encodeIntValuesWithBigEndian,
-				SchemaMappingConfig:          tt.fields.SchemaMappingConfig,
+				Logger:              tt.fields.Logger,
+				SchemaMappingConfig: tt.fields.SchemaMappingConfig,
 			}
 			got, err := tr.TranslateDeleteQuerytoBigtable(tt.args.queryStr, false, tt.defaultKeyspace)
 			if (err != nil) != tt.wantErr {
@@ -460,7 +449,7 @@ func TestTranslator_BuildDeletePrepareQuery(t *testing.T) {
 			name: "Valid Input",
 			fields: fields{
 				Logger:              zap.NewNop(),
-				SchemaMappingConfig: GetSchemaMappingConfig(),
+				SchemaMappingConfig: GetSchemaMappingConfig(false),
 			},
 			args: args{
 				values: []*primitive.Value{
@@ -504,7 +493,7 @@ func TestTranslator_BuildDeletePrepareQuery(t *testing.T) {
 			name: "Invalid input with wrong value map",
 			fields: fields{
 				Logger:              zap.NewNop(),
-				SchemaMappingConfig: GetSchemaMappingConfig(),
+				SchemaMappingConfig: GetSchemaMappingConfig(false),
 			},
 			args: args{
 				values: []*primitive.Value{
@@ -537,7 +526,7 @@ func TestTranslator_BuildDeletePrepareQuery(t *testing.T) {
 			name: "Invalid Input with wrong parameter",
 			fields: fields{
 				Logger:              zap.NewNop(),
-				SchemaMappingConfig: GetSchemaMappingConfig(),
+				SchemaMappingConfig: GetSchemaMappingConfig(false),
 			},
 			args: args{
 				values: []*primitive.Value{},
@@ -562,7 +551,7 @@ func TestTranslator_BuildDeletePrepareQuery(t *testing.T) {
 			name: "Invalid Input with timestamp info",
 			fields: fields{
 				Logger:              zap.NewNop(),
-				SchemaMappingConfig: GetSchemaMappingConfig(),
+				SchemaMappingConfig: GetSchemaMappingConfig(false),
 			},
 			args: args{
 				values: []*primitive.Value{

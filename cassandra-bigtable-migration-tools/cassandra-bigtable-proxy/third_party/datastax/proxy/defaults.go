@@ -24,7 +24,7 @@ var (
 	SchemaMappingTable         = "schema_mapping"
 	ErrorAuditTable            = "error_audit"
 	DefaultColumnFamily        = "cf1"
-	DefaultCounterColumnFamily = "ctr"
+	DefaultCounterColumnFamily = "ctrf"
 	DefaultProfileId           = "default"
 	TimestampColumnName        = "ts_column"
 )

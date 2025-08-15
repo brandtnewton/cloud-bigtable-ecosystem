@@ -274,7 +274,7 @@ listeners:
     # [Optional] Default column family for primitive data types is "cf1".
     defaultColumnFamily: DEFAULT_COLUMN_FAMILY
     
-    # [Optional] The column family used to store counter columns. The default is "ctr".
+    # [Optional] The column family used to store counter columns. The default is "ctrf".
     counterColumnFamily: COUNTER_COLUMN_FAMILY
 
     # Number of grpc channels to be used for Bigtable session.

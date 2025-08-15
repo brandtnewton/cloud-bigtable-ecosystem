@@ -2624,7 +2624,7 @@ func Test_processAsColumn(t *testing.T) {
 			},
 			tableName:           "test_table",
 			columnFamily:        "cf1",
-			counterColumnFamily: "ctr",
+			counterColumnFamily: "ctrf",
 			colMeta: &types.Column{
 				IsCollection: false,
 				CQLType:      datatype.Varchar,
@@ -2642,7 +2642,7 @@ func Test_processAsColumn(t *testing.T) {
 			},
 			tableName:           "test_table",
 			columnFamily:        "cf1",
-			counterColumnFamily: "ctr",
+			counterColumnFamily: "ctrf",
 			colMeta: &types.Column{
 				ColumnName:   "pk_1_text",
 				IsCollection: false,
@@ -2659,7 +2659,7 @@ func Test_processAsColumn(t *testing.T) {
 			},
 			tableName:           "test_table",
 			columnFamily:        "cf1",
-			counterColumnFamily: "ctr",
+			counterColumnFamily: "ctrf",
 			colMeta: &types.Column{
 				ColumnName:   "likes",
 				CQLType:      datatype.Counter,
@@ -2667,7 +2667,7 @@ func Test_processAsColumn(t *testing.T) {
 			},
 			columns:   []string{},
 			isGroupBy: false,
-			want:      []string{"ctr['likes'] as l"},
+			want:      []string{"ctrf['likes'] as l"},
 		},
 		{
 			name: "Collection column without GROUP BY",
@@ -2677,7 +2677,7 @@ func Test_processAsColumn(t *testing.T) {
 			},
 			tableName:           "test_table",
 			columnFamily:        "cf1",
-			counterColumnFamily: "ctr",
+			counterColumnFamily: "ctrf",
 			colMeta: &types.Column{
 				IsCollection: true,
 			},
@@ -2693,7 +2693,7 @@ func Test_processAsColumn(t *testing.T) {
 			},
 			tableName:           "test_table",
 			columnFamily:        "cf1",
-			counterColumnFamily: "ctr",
+			counterColumnFamily: "ctrf",
 			colMeta: &types.Column{
 				IsCollection: false,
 			},
@@ -2710,7 +2710,7 @@ func Test_processAsColumn(t *testing.T) {
 			},
 			tableName:           "test_table",
 			columnFamily:        "cf1",
-			counterColumnFamily: "ctr",
+			counterColumnFamily: "ctrf",
 			colMeta: &types.Column{
 				IsCollection: false,
 			},

@@ -680,7 +680,7 @@ func (btc *BigtableClient) GetSchemaMappingConfigs(ctx context.Context, keyspace
 		btc.Logger.Error("Failed to read rows from Bigtable - possible issue with schema_mapping table:", zap.Error(err))
 		return nil, err
 	}
-	// todo only do this check on new tables or on start up
+
 	adminClient, err := btc.getAdminClient(keyspace)
 	if err != nil {
 		errorMessage := fmt.Sprintf("failed to load table state from bigtable for keyspace '%s'", keyspace)
@@ -688,12 +688,18 @@ func (btc *BigtableClient) GetSchemaMappingConfigs(ctx context.Context, keyspace
 		return nil, errors.New(errorMessage)
 	}
 	for _, table := range tables {
+		// if we already know what encoding the table has, just use that, so we don't have to do the extra lookup
+		if existingTable, err := btc.SchemaMappingConfig.GetTableConfig(table.Keyspace, table.Name); err == nil {
+			table.EncodeIntRowKeysWithBigEndian = existingTable.EncodeIntRowKeysWithBigEndian
+			continue
+		}
+
 		btc.Logger.Info(fmt.Sprintf("loading table info for table %s.%s", keyspace, table.Name))
 		tableInfo, err := adminClient.TableInfo(ctx, table.Name)
 		if err != nil {
 			return nil, err
 		}
-		table.EncodeIntRowKeysWithBigEndian = isTableBigEndianEncoded(tableInfo)
+		table.EncodeIntRowKeysWithBigEndian = isTableRowKeyBigEndianEncoded(tableInfo)
 	}
 	otelgo.AddAnnotation(ctx, schemaMappingConfigFetched)
 	for _, table := range tables {

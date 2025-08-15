@@ -99,7 +99,7 @@ func decodeBase64(k string) (string, error) {
 	return string(decoded), nil
 }
 
-func isTableBigEndianEncoded(tableInfo *bigtable.TableInfo) bool {
+func isTableRowKeyBigEndianEncoded(tableInfo *bigtable.TableInfo) bool {
 	// row key schema is nil if no row key schema is set
 	if tableInfo.RowKeySchema == nil {
 		return false

@@ -280,3 +280,8 @@ type ProcessPrepareCollectionsOutput struct {
 	DelColumns      []types.Column
 	ComplexMeta     map[string]*ComplexOperation
 }
+
+type DescribeStatementMap struct {
+	Keyspace string
+	Table    string
+}

@@ -60,6 +60,14 @@ type SelectedColumns struct {
 	IsWriteTimeColumn bool
 }
 
+func (c *SchemaMappingConfig) GetKeyspace(keyspace string) (map[string]*TableConfig, error) {
+	tables, ok := c.Tables[keyspace]
+	if !ok {
+		return nil, fmt.Errorf("keyspace %s does not exist", keyspace)
+	}
+	return tables, nil
+}
+
 func CreateTableConfig(systemColumnFamily string, mappings map[string]map[string]map[string]*types.Column) map[string]map[string]*TableConfig {
 	results := make(map[string]map[string]*TableConfig)
 

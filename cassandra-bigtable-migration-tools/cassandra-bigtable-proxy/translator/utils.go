@@ -97,9 +97,7 @@ func hasUsingTimestamp(query string) bool {
 // "2024-02-05T14:00:00Z",
 // "2024-02-05 14:00:00",
 // "2024/02/05 14:00:00",
-// "1672522562",             // Unix timestamp (seconds)
 // "1672522562000",          // Unix timestamp (milliseconds)
-// "1672522562000000",       // Unix timestamp (microseconds)
 func parseTimestamp(timestampStr string) (time.Time, error) {
 	// Define multiple layouts to try
 	layouts := []string{
@@ -121,16 +119,35 @@ func parseTimestamp(timestampStr string) (time.Time, error) {
 			return parsedTime, nil
 		}
 	}
-
 	// Try to parse as Unix timestamp (in seconds, milliseconds, or microseconds)
 	if unixTime, err := strconv.ParseInt(timestampStr, 10, 64); err == nil {
-		switch len(timestampStr) {
-		case 10: // Seconds
-			return time.Unix(unixTime, 0).UTC(), nil
-		case 13: // Milliseconds
-			return time.Unix(0, unixTime*int64(time.Millisecond)).UTC(), nil
-		case 16: // Microseconds
-			return time.Unix(0, unixTime*int64(time.Microsecond)).UTC(), nil
+		timestrlen := timestampStr
+		if len(timestampStr) > 0 && timestampStr[0] == '-' {
+			timestrlen = timestampStr[1:]
+		}
+		if len(timestrlen) <= 19 {
+			// Handle timestamps in milliseconds (Cassandra supports millisecond epoch time)
+			secs := unixTime / 1000
+			nanos := (unixTime % 1000) * int64(time.Millisecond)
+			return time.Unix(secs, nanos).UTC(), nil
+		} else {
+			return time.Time{}, fmt.Errorf("invalid unix timestamp: %s", timestampStr)
+		}
+		// checking if value is float
+	} else if floatTime, err := strconv.ParseFloat(timestampStr, 64); err == nil {
+		unixTime := int64(floatTime)
+		unixStr := strconv.FormatInt(unixTime, 10)
+		timestrlen := unixStr
+		if len(unixStr) > 0 && unixStr[0] == '-' {
+			timestrlen = timestampStr[1:]
+		}
+		if len(timestrlen) <= 18 {
+			// Handle timestamps in milliseconds (Cassandra supports millisecond epoch time)
+			secs := unixTime / 1000
+			nanos := (unixTime % 1000) * int64(time.Millisecond)
+			return time.Unix(secs, nanos).UTC(), nil
+		} else {
+			return time.Time{}, fmt.Errorf("invalid unix timestamp: %s", timestampStr)
 		}
 	}
 
@@ -2258,6 +2275,9 @@ func encodeInt64Key(value int64, encodeIntValuesWithBigEndian bool) ([]byte, err
 	// todo remove once ordered byte encoding is supported for ints
 	// override ordered code value with BigEndian
 	if encodeIntValuesWithBigEndian {
+		if value < 0 {
+			return nil, errors.New("row keys cannot contain negative integer values until ordered byte encoding is supported")
+		}
 
 		var b bytes.Buffer
 		err := binary.Write(&b, binary.BigEndian, value)
@@ -2644,8 +2664,15 @@ func parseCqlValue(expr antlr.ParserRuleContext) (interface{}, error) {
 			if err != nil {
 				return nil, err
 			}
-			key := fmt.Sprintf("%v", keyRaw)
-			result[key] = fmt.Sprintf("%v", val)
+			key, err := primitivesToString(keyRaw)
+			if err != nil {
+				return nil, err
+			}
+			strval, err := primitivesToString(val)
+			if err != nil {
+				return nil, err
+			}
+			result[key] = strval
 		}
 		return result, nil
 	}
@@ -2657,7 +2684,11 @@ func parseCqlValue(expr antlr.ParserRuleContext) (interface{}, error) {
 			if err != nil {
 				return nil, err
 			}
-			result = append(result, fmt.Sprintf("%v", val))
+			strval, err := primitivesToString(val)
+			if err != nil {
+				return nil, err
+			}
+			result = append(result, strval)
 		}
 		return result, nil
 	}
@@ -2676,7 +2707,11 @@ func parseCqlValue(expr antlr.ParserRuleContext) (interface{}, error) {
 			if err != nil {
 				return nil, err
 			}
-			result = append(result, fmt.Sprintf("%v", val))
+			strval, err := primitivesToString(val)
+			if err != nil {
+				return nil, err
+			}
+			result = append(result, strval)
 		}
 		return result, nil
 	}

@@ -28,4 +28,4 @@ COPY --from=builder /go/bin/cassandra-to-bigtable-proxy  .
 
 COPY config.yaml /
 
-ENTRYPOINT ["/cassandra-to-bigtable-proxy", "--rpc-address", "10.5.0.41"]
+ENTRYPOINT ["/cassandra-to-bigtable-proxy"]

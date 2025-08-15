@@ -22,7 +22,6 @@ import (
 	rh "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/responsehandler"
 	schemaMapping "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/schema-mapping"
 	"go.uber.org/zap"
-	"google.golang.org/grpc"
 )
 
 type ColumnData struct {
@@ -55,7 +54,6 @@ type BigtableClient struct {
 	BigtableConfig      BigtableConfig
 	ResponseHandler     rh.ResponseHandlerIface
 	SchemaMappingConfig *schemaMapping.SchemaMappingConfig
-	grpcConn            *grpc.ClientConn
 	InstancesMap        map[string]InstanceConfig
 
 	// Cache for prepared statements // commenting it out to improve/implement in future

@@ -89,19 +89,19 @@ func TestParseTimestamp(t *testing.T) {
 			expected: time.Date(2024, 2, 5, 14, 0, 0, 0, time.UTC),
 		},
 		{
-			name:     "Unix timestamp (seconds)",
-			input:    "1672522562",
-			expected: time.Unix(1672522562, 0),
-		},
-		{
-			name:     "Unix timestamp (milliseconds)",
+			name:     "Unix timestamp",
 			input:    "1672522562000",
-			expected: time.Unix(0, 1672522562000*int64(time.Millisecond)),
+			expected: time.Unix(1672522562, 0).UTC(),
 		},
 		{
-			name:     "Unix timestamp (microseconds)",
-			input:    "1672522562000000",
-			expected: time.Unix(0, 1672522562000000*int64(time.Microsecond)),
+			name:     "Unix timestamp epoch",
+			input:    "0",
+			expected: time.Date(1970, 1, 1, 0, 0, 0, 0, time.UTC),
+		},
+		{
+			name:     "Unix timestamp negative",
+			input:    "-10000",
+			expected: time.Date(1969, 12, 31, 23, 59, 50, 0, time.UTC),
 		},
 		{
 			name:    "Invalid format",
@@ -1801,9 +1801,9 @@ func TestTranslator_CreateOrderedCodeKey(t *testing.T) {
 			values: map[string]interface{}{
 				"user_id": int64(-1),
 			},
-			want:                         []byte{0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff},
+			want:                         nil,
 			encodeIntValuesWithBigEndian: true,
-			wantErr:                      false,
+			wantErr:                      true,
 		},
 		{
 			name: "int zero",

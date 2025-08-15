@@ -63,6 +63,9 @@ const (
 	mutationTypeDeleteColumnFamily = "DeleteColumnFamilies"
 	mutationTypeUpdate             = "Update"
 	schemaMappingTableColumnFamily = "cf"
+	// Cassandra doesn't have a time dimension to their counters, so we need to
+	// use the same time for all counters
+	counterTimestamp = 0
 )
 
 type BigTableClientIface interface {
@@ -193,7 +196,7 @@ func (btc *BigtableClient) mutateRow(ctx context.Context, tableName, rowKey stri
 				incrementValue *= -1
 			}
 			// note: all counters are stored in a single column family dedicated to counter columns
-			mut.AddIntToCell(btc.BigtableConfig.CounterColumnFamily, col, 0, incrementValue)
+			mut.AddIntToCell(btc.BigtableConfig.CounterColumnFamily, col, counterTimestamp, incrementValue)
 		}
 		if meta.UpdateListIndex != "" {
 			index, err := strconv.Atoi(meta.UpdateListIndex)

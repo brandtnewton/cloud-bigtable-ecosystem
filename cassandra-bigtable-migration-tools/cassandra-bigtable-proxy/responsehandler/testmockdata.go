@@ -129,7 +129,7 @@ func GetSchemaMappingConfig() *schemaMapping.SchemaMappingConfig {
 		TablesMetaData:      mockTableConfig,
 		PkMetadataCache:     mockPkMetadata,
 		SystemColumnFamily:  "cf1",
-		CounterColumnFamily: "ccf",
+		CounterColumnFamily: "ctr",
 	}
 }
 

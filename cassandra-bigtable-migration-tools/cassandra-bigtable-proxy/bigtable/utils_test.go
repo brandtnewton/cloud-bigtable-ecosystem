@@ -50,7 +50,7 @@ func TestGetProfileId(t *testing.T) {
 	}
 }
 
-func Test_sortPkData(t *testing.T) {
+func Test_sortPrimaryKeys(t *testing.T) {
 	type args struct {
 		pkMetadata []*types.Column
 	}

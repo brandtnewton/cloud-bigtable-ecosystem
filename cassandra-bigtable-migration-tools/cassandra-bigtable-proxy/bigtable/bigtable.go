@@ -629,7 +629,6 @@ func (btc *BigtableClient) ReadTableConfigs(ctx context.Context, keyspace, schem
 	filter := bigtable.LatestNFilter(1)
 
 	allColumns := make(map[string][]*types.Column)
-	metaIndex := 0
 
 	var readErr error
 	err = table.ReadRows(ctx, bigtable.InfiniteRange(""), func(row bigtable.Row) bool {
@@ -669,16 +668,8 @@ func (btc *BigtableClient) ReadTableConfigs(ctx context.Context, keyspace, schem
 			CQLType:      cqlType,
 			IsPrimaryKey: isPrimaryKey,
 			PkPrecedence: pkPrecedence,
-			Metadata: message.ColumnMetadata{
-				Keyspace: keyspace,
-				Table:    tableName,
-				Name:     columnName,
-				Type:     cqlType,
-				Index:    int32(metaIndex),
-			},
-			KeyType: KeyType,
+			KeyType:      KeyType,
 		}
-		metaIndex++
 
 		allColumns[tableName] = append(allColumns[tableName], column)
 

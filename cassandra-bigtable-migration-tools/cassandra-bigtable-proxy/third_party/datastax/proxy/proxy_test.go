@@ -258,7 +258,7 @@ var mockRawFrame = &frame.RawFrame{
 	Body: []byte{},
 }
 var schemaConfigs = &schemaMapping.SchemaMappingConfig{
-	Tables: mockTableSchemaConfig,
+	tables: mockTableSchemaConfig,
 	Logger: zap.NewNop(),
 }
 
@@ -777,7 +777,7 @@ func TestNewProxy(t *testing.T) {
 	logger = proxycore.GetOrCreateNopLogger(logger)
 	tbData := make(map[string]map[string]*schemaMapping.TableConfig)
 	bgtmockface := new(mockbigtable.BigTableClientIface)
-	bgtmockface.On("GetSchemaMappingConfigs", ctx, mock.AnythingOfType("string"), mock.AnythingOfType("string")).Return(tbData, nil)
+	bgtmockface.On("ReadTableConfigs", ctx, mock.AnythingOfType("string"), mock.AnythingOfType("string")).Return(tbData, nil)
 	bgtmockface.On("LoadConfigs", mock.AnythingOfType("*responsehandler.TypeHandler"), mock.AnythingOfType("*schemaMapping.SchemaMappingConfig")).Return(tbData, nil)
 
 	// Override the factory function to return the mock
@@ -2131,7 +2131,7 @@ func TestHandleDescribeKeyspaces(t *testing.T) {
 			logger := zap.NewNop()
 			schemaMappingConfig := &schemaMapping.SchemaMappingConfig{
 				Logger:             logger,
-				Tables:             schemaMapping.CreateTableConfig("cf1", tt.mockTableMeta),
+				tables:             schemaMapping.CreateTableConfig("cf1", tt.mockTableMeta),
 				SystemColumnFamily: "cf",
 			}
 			proxy := &Proxy{
@@ -2225,7 +2225,7 @@ func TestHandleDescribeTables(t *testing.T) {
 			logger := zap.NewNop()
 			schemaMappingConfig := &schemaMapping.SchemaMappingConfig{
 				Logger:             logger,
-				Tables:             schemaMapping.CreateTableConfig("cf1", tt.mockTableMeta),
+				tables:             schemaMapping.CreateTableConfig("cf1", tt.mockTableMeta),
 				SystemColumnFamily: "cf",
 			}
 			proxy := &Proxy{
@@ -2355,7 +2355,7 @@ func TestHandleDescribeTableColumns(t *testing.T) {
 			logger := zap.NewNop()
 			schemaMappingConfig := &schemaMapping.SchemaMappingConfig{
 				Logger:             logger,
-				Tables:             schemaMapping.CreateTableConfig("cf1", tt.mockTableMeta),
+				tables:             schemaMapping.CreateTableConfig("cf1", tt.mockTableMeta),
 				SystemColumnFamily: "cf",
 			}
 			proxy := &Proxy{
@@ -2526,7 +2526,7 @@ func TestHandlePostDDLEvent(t *testing.T) {
 			}
 			schemaMappingConfig := &schemaMapping.SchemaMappingConfig{
 				Logger:             logger,
-				Tables:             schemaMapping.CreateTableConfig("cf1", mockTableMetadata),
+				tables:             schemaMapping.CreateTableConfig("cf1", mockTableMetadata),
 				SystemColumnFamily: "cf",
 			}
 			proxy := &Proxy{

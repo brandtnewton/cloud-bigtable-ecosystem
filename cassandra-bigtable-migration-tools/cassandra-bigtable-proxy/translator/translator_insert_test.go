@@ -189,7 +189,8 @@ func Test_setParamsFromValues(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, got1, got2, err := setParamsFromValues(tt.args.input, tt.args.columns, tt.args.schemaMapping.Tables["test_keyspace"]["user_info"], tt.args.protocolV, tt.args.isPreparedQuery)
+			tc, _ := tt.args.schemaMapping.GetTableConfig("test_keyspace", "user_info")
+			got, got1, got2, err := setParamsFromValues(tt.args.input, tt.args.columns, tc, tt.args.protocolV, tt.args.isPreparedQuery)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("setParamsFromValues() error = %v, wantErr %v", err, tt.wantErr)
 				return

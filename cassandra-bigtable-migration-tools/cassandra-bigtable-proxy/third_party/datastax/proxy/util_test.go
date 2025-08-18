@@ -332,7 +332,7 @@ func TestGetTableMetadata(t *testing.T) {
 			},
 		},
 		{
-			name: "Multiple Tables",
+			name: "Multiple tables",
 			tableMetadata: map[string]map[string]map[string]*types.Column{
 				"keyspace1": {
 					"table1": {

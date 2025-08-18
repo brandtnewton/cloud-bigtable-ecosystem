@@ -19,7 +19,6 @@ import (
 	"reflect"
 	"testing"
 
-	types "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/global/types"
 	schemaMapping "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/schema-mapping"
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/third_party/datastax/proxycore"
 	"github.com/datastax/go-cassandra-native-protocol/datatype"
@@ -825,7 +824,7 @@ func TestTypeHandler_BuildMetadata(t *testing.T) {
 			name: "Success",
 			fields: fields{
 				Logger:              zap.NewExample(),
-				SchemaMappingConfig: GetSchemaMappingConfig(),
+				SchemaMappingConfig: schemaMapping.GetTestSchemaMappingConfig(),
 			},
 			args: args{
 				rowMap: []map[string]interface{}{
@@ -910,7 +909,7 @@ func TestTypeHandler_BuildResponseRow(t *testing.T) {
 			name: "Success for string data type",
 			fields: fields{
 				Logger:              zap.NewExample(),
-				SchemaMappingConfig: GetSchemaMappingConfig(),
+				SchemaMappingConfig: schemaMapping.GetTestSchemaMappingConfig(),
 			},
 			args: args{
 				rowMap: map[string]interface{}{
@@ -946,7 +945,7 @@ func TestTypeHandler_BuildResponseRow(t *testing.T) {
 			name: "Success for map with key collection",
 			fields: fields{
 				Logger:              zap.NewExample(),
-				SchemaMappingConfig: GetSchemaMappingConfig(),
+				SchemaMappingConfig: schemaMapping.GetTestSchemaMappingConfig(),
 			},
 			args: args{
 				rowMap: map[string]interface{}{
@@ -981,7 +980,7 @@ func TestTypeHandler_BuildResponseRow(t *testing.T) {
 			name: "Aggregate count with int64 value",
 			fields: fields{
 				Logger:              zap.NewExample(),
-				SchemaMappingConfig: GetSchemaMappingConfig(),
+				SchemaMappingConfig: schemaMapping.GetTestSchemaMappingConfig(),
 			},
 			args: args{
 				rowMap: map[string]interface{}{
@@ -1019,7 +1018,7 @@ func TestTypeHandler_BuildResponseRow(t *testing.T) {
 			name: "Aggregate count with float64 value",
 			fields: fields{
 				Logger:              zap.NewExample(),
-				SchemaMappingConfig: GetSchemaMappingConfig(),
+				SchemaMappingConfig: schemaMapping.GetTestSchemaMappingConfig(),
 			},
 			args: args{
 				// Even if the value is provided as float64, for count, it will be converted to int64.
@@ -1057,7 +1056,7 @@ func TestTypeHandler_BuildResponseRow(t *testing.T) {
 			name: "Aggregate count with alias mapping",
 			fields: fields{
 				Logger:              zap.NewExample(),
-				SchemaMappingConfig: GetSchemaMappingConfig(),
+				SchemaMappingConfig: schemaMapping.GetTestSchemaMappingConfig(),
 			},
 			args: args{
 				// When an alias is provided, the rowMap value is expected to be a nested map.
@@ -1096,7 +1095,7 @@ func TestTypeHandler_BuildResponseRow(t *testing.T) {
 			name: "Success in writetime query",
 			fields: fields{
 				Logger:              zap.NewExample(),
-				SchemaMappingConfig: GetSchemaMappingConfig(),
+				SchemaMappingConfig: schemaMapping.GetTestSchemaMappingConfig(),
 			},
 			args: args{
 				rowMap: map[string]interface{}{
@@ -1136,7 +1135,7 @@ func TestTypeHandler_BuildResponseRow(t *testing.T) {
 			name: "Success in simple `as` keyword",
 			fields: fields{
 				Logger:              zap.NewExample(),
-				SchemaMappingConfig: GetSchemaMappingConfig(),
+				SchemaMappingConfig: schemaMapping.GetTestSchemaMappingConfig(),
 			},
 			args: args{
 				rowMap: map[string]interface{}{
@@ -1176,7 +1175,7 @@ func TestTypeHandler_BuildResponseRow(t *testing.T) {
 			name: "Success in set data types",
 			fields: fields{
 				Logger:              zap.NewExample(),
-				SchemaMappingConfig: GetSchemaMappingConfig(),
+				SchemaMappingConfig: schemaMapping.GetTestSchemaMappingConfig(),
 			},
 			args: args{
 				rowMap: map[string]interface{}{
@@ -1215,40 +1214,8 @@ func TestTypeHandler_BuildResponseRow(t *testing.T) {
 		{
 			name: "Failure case in set data types",
 			fields: fields{
-				Logger: zap.NewExample(),
-				SchemaMappingConfig: &schemaMapping.SchemaMappingConfig{
-					Logger: nil,
-					Tables: map[string]map[string]*schemaMapping.TableConfig{
-						"test_keyspace": {"test_table": &schemaMapping.TableConfig{
-							Keyspace: "test_keyspace",
-							Name:     "user_info",
-							Columns: map[string]*types.Column{
-								"column1": {
-									Name:         "column1",
-									CQLType:      datatype.Varchar,
-									IsPrimaryKey: true,
-									PkPrecedence: 1,
-								},
-								"column7": {
-									Name:         "column7",
-									CQLType:      datatype.NewSetType(datatype.NewCustomType("foo")),
-									IsPrimaryKey: false,
-									PkPrecedence: 1,
-								},
-							},
-							PrimaryKeys: []*types.Column{
-								{
-									Name:         "column1",
-									CQLType:      datatype.Varchar,
-									IsPrimaryKey: true,
-									PkPrecedence: 1,
-								},
-							},
-						},
-						},
-					},
-					SystemColumnFamily: "cf1",
-				},
+				Logger:              zap.NewExample(),
+				SchemaMappingConfig: schemaMapping.GetTestSchemaMappingConfig(),
 			},
 			args: args{
 				rowMap: map[string]interface{}{
@@ -1258,8 +1225,8 @@ func TestTypeHandler_BuildResponseRow(t *testing.T) {
 					},
 				},
 				query: QueryMetadata{
-					TableName:           "test_table",
-					Query:               "SELECT column7 FROM test_table;",
+					TableName:           "invalid_types",
+					Query:               "SELECT invalid_set FROM test_table;",
 					KeyspaceName:        "test_keyspace",
 					IsStar:              false,
 					DefaultColumnFamily: "cf1",
@@ -1272,8 +1239,8 @@ func TestTypeHandler_BuildResponseRow(t *testing.T) {
 				cmd: []*message.ColumnMetadata{
 					{
 						Keyspace: "test_keyspace",
-						Table:    "test_table",
-						Name:     "column7",
+						Table:    "invalid_types",
+						Name:     "invalid_set",
 						Index:    0,
 						Type:     datatype.NewSetType(datatype.NewCustomType("foo")),
 					},
@@ -1286,7 +1253,7 @@ func TestTypeHandler_BuildResponseRow(t *testing.T) {
 			name: "Success case in list data types",
 			fields: fields{
 				Logger:              zap.NewExample(),
-				SchemaMappingConfig: GetSchemaMappingConfig(),
+				SchemaMappingConfig: schemaMapping.GetTestSchemaMappingConfig(),
 			},
 			args: args{
 				rowMap: map[string]interface{}{
@@ -1326,7 +1293,7 @@ func TestTypeHandler_BuildResponseRow(t *testing.T) {
 			name: "Failure case in list data types",
 			fields: fields{
 				Logger:              zap.NewExample(),
-				SchemaMappingConfig: GetSchemaMappingConfig(),
+				SchemaMappingConfig: schemaMapping.GetTestSchemaMappingConfig(),
 			},
 			args: args{
 				rowMap: map[string]interface{}{

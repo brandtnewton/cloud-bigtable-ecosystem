@@ -285,7 +285,7 @@ func TestRun(t *testing.T) {
 	t.Setenv("CONFIG_FILE", "../fakedata/testConfigFile.yaml")
 	tbData := make(map[string]*schemaMapping.TableConfig)
 	bgtmockface := new(mockbigtable.BigTableClientIface)
-	bgtmockface.On("GetSchemaMappingConfigs", ctx, "bigtabledevinstancetest", "schema_mapping_test").Return(tbData, nil)
+	bgtmockface.On("ReadTableConfigs", ctx, "bigtabledevinstancetest", "schema_mapping_test").Return(tbData, nil)
 	bgtmockface.On("LoadConfigs", mock.AnythingOfType("*responsehandler.TypeHandler"), mock.AnythingOfType("*schemaMapping.SchemaMappingConfig")).Return(tbData, nil)
 
 	bgtmockface.On("Close").Return()

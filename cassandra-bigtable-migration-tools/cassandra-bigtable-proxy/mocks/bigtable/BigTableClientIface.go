@@ -185,7 +185,7 @@ func (_m *BigTableClientIface) GetSchemaMappingConfigs(_a0 context.Context, _a1 
 	ret := _m.Called(_a0, _a1, _a2)
 
 	if len(ret) == 0 {
-		panic("no return value specified for GetSchemaMappingConfigs")
+		panic("no return value specified for ReadTableConfigs")
 	}
 
 	var r0 map[string]*schemaMapping.TableConfig

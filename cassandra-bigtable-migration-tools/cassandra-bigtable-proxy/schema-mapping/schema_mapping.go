@@ -69,7 +69,14 @@ func NewTableConfig(
 	columnMap := make(map[string]*types.Column)
 	var pmks []*types.Column = nil
 
-	for _, column := range columns {
+	for i, column := range columns {
+		column.Metadata = message.ColumnMetadata{
+			Keyspace: keyspace,
+			Table:    name,
+			Name:     column.Name,
+			Index:    int32(i),
+			Type:     column.CQLType,
+		}
 		columnMap[column.Name] = column
 		if column.KeyType != utilities.KEY_TYPE_REGULAR {
 			// this field is redundant - make sure it's in sync with other fields
@@ -136,32 +143,6 @@ func NewSchemaMappingConfig(systemColumnFamily string, logger *zap.Logger, table
 		SystemColumnFamily: systemColumnFamily,
 		tables:             tablesMap,
 	}
-}
-func CreateTableConfig(systemColumnFamily string, mappings map[string]map[string]map[string]*types.Column) map[string]map[string]*TableConfig {
-	results := make(map[string]map[string]*TableConfig)
-
-	for keyspace, tables := range mappings {
-		// add new keyspace
-		if _, ok := results[keyspace]; !ok {
-			results[keyspace] = make(map[string]*TableConfig)
-		}
-		for tableName, columns := range tables {
-			// add new table
-			if _, ok := results[keyspace][tableName]; !ok {
-				results[keyspace][tableName] = &TableConfig{
-					Keyspace:           keyspace,
-					Name:               tableName,
-					SystemColumnFamily: systemColumnFamily,
-					Columns:            make(map[string]*types.Column),
-				}
-			}
-			for columnName, column := range columns {
-				results[keyspace][tableName].Columns[columnName] = column
-			}
-		}
-	}
-
-	return results
 }
 
 func CreateTableMap(tables []*TableConfig) map[string]*TableConfig {

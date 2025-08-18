@@ -49,7 +49,7 @@ func TestTypeHandler_HandleTimestampMap(t *testing.T) {
 			name: "Success For Int",
 			fields: fields{
 				Logger:              zap.NewExample(),
-				SchemaMappingConfig: schemaMapping.GetTestSchemaMappingConfig(),
+				SchemaMappingConfig: GetSchemaMappingConfig(),
 			},
 			args: args{
 				mapData: map[string]interface{}{
@@ -67,7 +67,7 @@ func TestTypeHandler_HandleTimestampMap(t *testing.T) {
 			name: "Failed For float",
 			fields: fields{
 				Logger:              zap.NewExample(),
-				SchemaMappingConfig: schemaMapping.GetTestSchemaMappingConfig(),
+				SchemaMappingConfig: GetSchemaMappingConfig(),
 			},
 			args: args{
 				mapData: map[string]interface{}{

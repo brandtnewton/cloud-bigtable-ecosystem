@@ -180,24 +180,24 @@ func (_m *BigTableClientIface) ExecutePreparedStatement(ctx context.Context, que
 	return r0, r1, r2
 }
 
-// GetSchemaMappingConfigs provides a mock function with given fields: _a0, _a1, _a2
-func (_m *BigTableClientIface) GetSchemaMappingConfigs(_a0 context.Context, _a1 string, _a2 string) (map[string]*schemaMapping.TableConfig, error) {
+// ReadTableConfigs provides a mock function with given fields: _a0, _a1, _a2
+func (_m *BigTableClientIface) ReadTableConfigs(_a0 context.Context, _a1 string, _a2 string) ([]*schemaMapping.TableConfig, error) {
 	ret := _m.Called(_a0, _a1, _a2)
 
 	if len(ret) == 0 {
 		panic("no return value specified for ReadTableConfigs")
 	}
 
-	var r0 map[string]*schemaMapping.TableConfig
+	var r0 []*schemaMapping.TableConfig
 	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, string, string) (map[string]*schemaMapping.TableConfig, error)); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, string, string) ([]*schemaMapping.TableConfig, error)); ok {
 		return rf(_a0, _a1, _a2)
 	}
-	if rf, ok := ret.Get(0).(func(context.Context, string, string) map[string]*schemaMapping.TableConfig); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, string, string) []*schemaMapping.TableConfig); ok {
 		r0 = rf(_a0, _a1, _a2)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(map[string]*schemaMapping.TableConfig)
+			r0 = ret.Get(0).([]*schemaMapping.TableConfig)
 		}
 	}
 	if rf, ok := ret.Get(1).(func(context.Context, string, string) error); ok {

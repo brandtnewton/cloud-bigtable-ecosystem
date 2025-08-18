@@ -824,7 +824,7 @@ func TestTypeHandler_BuildMetadata(t *testing.T) {
 			name: "Success",
 			fields: fields{
 				Logger:              zap.NewExample(),
-				SchemaMappingConfig: schemaMapping.GetTestSchemaMappingConfig(),
+				SchemaMappingConfig: GetSchemaMappingConfig(),
 			},
 			args: args{
 				rowMap: []map[string]interface{}{
@@ -909,7 +909,7 @@ func TestTypeHandler_BuildResponseRow(t *testing.T) {
 			name: "Success for string data type",
 			fields: fields{
 				Logger:              zap.NewExample(),
-				SchemaMappingConfig: schemaMapping.GetTestSchemaMappingConfig(),
+				SchemaMappingConfig: GetSchemaMappingConfig(),
 			},
 			args: args{
 				rowMap: map[string]interface{}{
@@ -945,7 +945,7 @@ func TestTypeHandler_BuildResponseRow(t *testing.T) {
 			name: "Success for map with key collection",
 			fields: fields{
 				Logger:              zap.NewExample(),
-				SchemaMappingConfig: schemaMapping.GetTestSchemaMappingConfig(),
+				SchemaMappingConfig: GetSchemaMappingConfig(),
 			},
 			args: args{
 				rowMap: map[string]interface{}{
@@ -980,7 +980,7 @@ func TestTypeHandler_BuildResponseRow(t *testing.T) {
 			name: "Aggregate count with int64 value",
 			fields: fields{
 				Logger:              zap.NewExample(),
-				SchemaMappingConfig: schemaMapping.GetTestSchemaMappingConfig(),
+				SchemaMappingConfig: GetSchemaMappingConfig(),
 			},
 			args: args{
 				rowMap: map[string]interface{}{
@@ -1018,7 +1018,7 @@ func TestTypeHandler_BuildResponseRow(t *testing.T) {
 			name: "Aggregate count with float64 value",
 			fields: fields{
 				Logger:              zap.NewExample(),
-				SchemaMappingConfig: schemaMapping.GetTestSchemaMappingConfig(),
+				SchemaMappingConfig: GetSchemaMappingConfig(),
 			},
 			args: args{
 				// Even if the value is provided as float64, for count, it will be converted to int64.
@@ -1056,7 +1056,7 @@ func TestTypeHandler_BuildResponseRow(t *testing.T) {
 			name: "Aggregate count with alias mapping",
 			fields: fields{
 				Logger:              zap.NewExample(),
-				SchemaMappingConfig: schemaMapping.GetTestSchemaMappingConfig(),
+				SchemaMappingConfig: GetSchemaMappingConfig(),
 			},
 			args: args{
 				// When an alias is provided, the rowMap value is expected to be a nested map.
@@ -1095,7 +1095,7 @@ func TestTypeHandler_BuildResponseRow(t *testing.T) {
 			name: "Success in writetime query",
 			fields: fields{
 				Logger:              zap.NewExample(),
-				SchemaMappingConfig: schemaMapping.GetTestSchemaMappingConfig(),
+				SchemaMappingConfig: GetSchemaMappingConfig(),
 			},
 			args: args{
 				rowMap: map[string]interface{}{
@@ -1135,7 +1135,7 @@ func TestTypeHandler_BuildResponseRow(t *testing.T) {
 			name: "Success in simple `as` keyword",
 			fields: fields{
 				Logger:              zap.NewExample(),
-				SchemaMappingConfig: schemaMapping.GetTestSchemaMappingConfig(),
+				SchemaMappingConfig: GetSchemaMappingConfig(),
 			},
 			args: args{
 				rowMap: map[string]interface{}{
@@ -1175,7 +1175,7 @@ func TestTypeHandler_BuildResponseRow(t *testing.T) {
 			name: "Success in set data types",
 			fields: fields{
 				Logger:              zap.NewExample(),
-				SchemaMappingConfig: schemaMapping.GetTestSchemaMappingConfig(),
+				SchemaMappingConfig: GetSchemaMappingConfig(),
 			},
 			args: args{
 				rowMap: map[string]interface{}{
@@ -1215,7 +1215,7 @@ func TestTypeHandler_BuildResponseRow(t *testing.T) {
 			name: "Failure case in set data types",
 			fields: fields{
 				Logger:              zap.NewExample(),
-				SchemaMappingConfig: schemaMapping.GetTestSchemaMappingConfig(),
+				SchemaMappingConfig: GetSchemaMappingConfig(),
 			},
 			args: args{
 				rowMap: map[string]interface{}{
@@ -1253,7 +1253,7 @@ func TestTypeHandler_BuildResponseRow(t *testing.T) {
 			name: "Success case in list data types",
 			fields: fields{
 				Logger:              zap.NewExample(),
-				SchemaMappingConfig: schemaMapping.GetTestSchemaMappingConfig(),
+				SchemaMappingConfig: GetSchemaMappingConfig(),
 			},
 			args: args{
 				rowMap: map[string]interface{}{
@@ -1293,7 +1293,7 @@ func TestTypeHandler_BuildResponseRow(t *testing.T) {
 			name: "Failure case in list data types",
 			fields: fields{
 				Logger:              zap.NewExample(),
-				SchemaMappingConfig: schemaMapping.GetTestSchemaMappingConfig(),
+				SchemaMappingConfig: GetSchemaMappingConfig(),
 			},
 			args: args{
 				rowMap: map[string]interface{}{

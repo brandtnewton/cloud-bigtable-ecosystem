@@ -94,7 +94,7 @@ func Test_GetColumn(t *testing.T) {
 		{
 			name: "types.Column exists",
 			fields: SchemaMappingConfig{
-				Tables:             tablesMetaData,
+				tables:             tablesMetaData,
 				SystemColumnFamily: systemColumnFamily,
 			},
 			args: struct {
@@ -115,7 +115,7 @@ func Test_GetColumn(t *testing.T) {
 		{
 			name: "types.Column exists in different table",
 			fields: SchemaMappingConfig{
-				Tables:             tablesMetaData,
+				tables:             tablesMetaData,
 				SystemColumnFamily: systemColumnFamily,
 			},
 			args:    columnExistsInDifferentTableArgs,
@@ -161,7 +161,7 @@ func Test_GetMetadataForColumns(t *testing.T) {
 			name: "Success - Single regular column",
 			fields: SchemaMappingConfig{
 				Logger:             logger,
-				Tables:             tablesMetaData,
+				tables:             tablesMetaData,
 				SystemColumnFamily: "cf1",
 			},
 			args: struct {
@@ -178,7 +178,7 @@ func Test_GetMetadataForColumns(t *testing.T) {
 			name: "Success - Multiple regular columns",
 			fields: SchemaMappingConfig{
 				Logger: logger,
-				Tables: map[string]map[string]*TableConfig{
+				tables: map[string]map[string]*TableConfig{
 					"keyspace": {
 						"table1": &TableConfig{
 							Keyspace: "keyspace",
@@ -218,7 +218,7 @@ func Test_GetMetadataForColumns(t *testing.T) {
 			name: "Success - Special column (LimitValue)",
 			fields: SchemaMappingConfig{
 				Logger:             logger,
-				Tables:             tablesMetaData,
+				tables:             tablesMetaData,
 				SystemColumnFamily: "cf1",
 			},
 			args: struct {
@@ -241,7 +241,7 @@ func Test_GetMetadataForColumns(t *testing.T) {
 			name: "Success - Mixed column types",
 			fields: SchemaMappingConfig{
 				Logger:             logger,
-				Tables:             tablesMetaData,
+				tables:             tablesMetaData,
 				SystemColumnFamily: "cf1",
 			},
 			args: struct {
@@ -265,7 +265,7 @@ func Test_GetMetadataForColumns(t *testing.T) {
 			name: "Error - types.Column not found in metadata",
 			fields: SchemaMappingConfig{
 				Logger:             logger,
-				Tables:             tablesMetaData,
+				tables:             tablesMetaData,
 				SystemColumnFamily: "cf1",
 			},
 			args: struct {
@@ -282,7 +282,7 @@ func Test_GetMetadataForColumns(t *testing.T) {
 			name: "Empty column names",
 			fields: SchemaMappingConfig{
 				Logger:             zap.NewNop(),
-				Tables:             tablesMetaData,
+				tables:             tablesMetaData,
 				SystemColumnFamily: "cf1",
 			},
 			args: struct {
@@ -302,7 +302,7 @@ func Test_GetMetadataForColumns(t *testing.T) {
 			name: "Success - Multiple special columns",
 			fields: SchemaMappingConfig{
 				Logger:             logger,
-				Tables:             tablesMetaData,
+				tables:             tablesMetaData,
 				SystemColumnFamily: "cf1",
 			},
 			args: struct {
@@ -376,7 +376,7 @@ func Test_GetMetadataForSelectedColumns(t *testing.T) {
 			name: "Successfully retrieve metadata for specific column",
 			fields: SchemaMappingConfig{
 				Logger: logger,
-				Tables: tablesMetaData,
+				tables: tablesMetaData,
 			},
 			args: struct {
 				tableName   string
@@ -394,7 +394,7 @@ func Test_GetMetadataForSelectedColumns(t *testing.T) {
 			name: "Return all columns when no specific columns provided",
 			fields: SchemaMappingConfig{
 				Logger: logger,
-				Tables: tablesMetaData,
+				tables: tablesMetaData,
 			},
 			args: struct {
 				tableName   string
@@ -415,7 +415,7 @@ func Test_GetMetadataForSelectedColumns(t *testing.T) {
 			name: "Error when column is not found",
 			fields: SchemaMappingConfig{
 				Logger: logger,
-				Tables: tablesMetaData,
+				tables: tablesMetaData,
 			},
 			args: struct {
 				tableName   string
@@ -491,7 +491,7 @@ func Test_GetPkKeyType(t *testing.T) {
 			name: "Successfully get partition key type",
 			fields: SchemaMappingConfig{
 				Logger: logger,
-				Tables: tables,
+				tables: tables,
 			},
 			args: struct {
 				tableName  string
@@ -509,7 +509,7 @@ func Test_GetPkKeyType(t *testing.T) {
 			name: "Successfully get clustering key type",
 			fields: SchemaMappingConfig{
 				Logger: logger,
-				Tables: tables,
+				tables: tables,
 			},
 			args: struct {
 				tableName  string
@@ -527,7 +527,7 @@ func Test_GetPkKeyType(t *testing.T) {
 			name: "Error when column is not a primary key",
 			fields: SchemaMappingConfig{
 				Logger: logger,
-				Tables: tables,
+				tables: tables,
 			},
 			args: struct {
 				tableName  string
@@ -717,7 +717,7 @@ func Test_GetSpecificColumnsMetadataForSelectedColumns(t *testing.T) {
 			name: "Success - Regular column",
 			fields: SchemaMappingConfig{
 				Logger: logger,
-				Tables: tablesMetaData,
+				tables: tablesMetaData,
 			},
 			columnsMap: map[string]*types.Column{
 				"column1": {
@@ -751,7 +751,7 @@ func Test_GetSpecificColumnsMetadataForSelectedColumns(t *testing.T) {
 			name: "Success - Write time column",
 			fields: SchemaMappingConfig{
 				Logger: logger,
-				Tables: tablesMetaData,
+				tables: tablesMetaData,
 			},
 			columnsMap: map[string]*types.Column{
 				"column1": {
@@ -787,7 +787,7 @@ func Test_GetSpecificColumnsMetadataForSelectedColumns(t *testing.T) {
 			name: "Success - Special column",
 			fields: SchemaMappingConfig{
 				Logger: logger,
-				Tables: tablesMetaData,
+				tables: tablesMetaData,
 			},
 			columnsMap: map[string]*types.Column{
 				"column1": {
@@ -821,7 +821,7 @@ func Test_GetSpecificColumnsMetadataForSelectedColumns(t *testing.T) {
 			name: "Success - Function call",
 			fields: SchemaMappingConfig{
 				Logger: logger,
-				Tables: tablesMetaData,
+				tables: tablesMetaData,
 			},
 			columnsMap: map[string]*types.Column{
 				"column1": {
@@ -848,7 +848,7 @@ func Test_GetSpecificColumnsMetadataForSelectedColumns(t *testing.T) {
 			name: "Error - types.Column not found",
 			fields: SchemaMappingConfig{
 				Logger: logger,
-				Tables: tablesMetaData,
+				tables: tablesMetaData,
 			},
 			columnsMap: map[string]*types.Column{
 				"column1": {
@@ -874,7 +874,7 @@ func Test_GetSpecificColumnsMetadataForSelectedColumns(t *testing.T) {
 			name: "Error - Invalid special column",
 			fields: SchemaMappingConfig{
 				Logger: logger,
-				Tables: tablesMetaData,
+				tables: tablesMetaData,
 			},
 			columnsMap: map[string]*types.Column{
 				"column1": {
@@ -900,7 +900,7 @@ func Test_GetSpecificColumnsMetadataForSelectedColumns(t *testing.T) {
 			name: "Error - Empty columns map",
 			fields: SchemaMappingConfig{
 				Logger: logger,
-				Tables: tablesMetaData,
+				tables: tablesMetaData,
 			},
 			columnsMap: map[string]*types.Column{},
 			selectedCols: []SelectedColumns{
@@ -916,7 +916,7 @@ func Test_GetSpecificColumnsMetadataForSelectedColumns(t *testing.T) {
 			name: "Error - Write time column not found",
 			fields: SchemaMappingConfig{
 				Logger: logger,
-				Tables: tablesMetaData,
+				tables: tablesMetaData,
 			},
 			columnsMap: map[string]*types.Column{},
 			selectedCols: []SelectedColumns{
@@ -934,7 +934,7 @@ func Test_GetSpecificColumnsMetadataForSelectedColumns(t *testing.T) {
 			name: "Error - Special column handling error",
 			fields: SchemaMappingConfig{
 				Logger: logger,
-				Tables: tablesMetaData,
+				tables: tablesMetaData,
 			},
 			columnsMap: map[string]*types.Column{},
 			selectedCols: []SelectedColumns{
@@ -995,7 +995,7 @@ func Test_GetSpecificColumnsMetadata(t *testing.T) {
 			name: "Success - Regular column",
 			fields: SchemaMappingConfig{
 				Logger: logger,
-				Tables: tablesMetaData,
+				tables: tablesMetaData,
 			},
 			columnNames: []string{"column1"},
 			tableName:   "table1",
@@ -1014,7 +1014,7 @@ func Test_GetSpecificColumnsMetadata(t *testing.T) {
 			name: "Success - Special column (LimitValue)",
 			fields: SchemaMappingConfig{
 				Logger: logger,
-				Tables: tablesMetaData,
+				tables: tablesMetaData,
 			},
 			columnNames: []string{LimitValue},
 			tableName:   "table1",
@@ -1032,7 +1032,7 @@ func Test_GetSpecificColumnsMetadata(t *testing.T) {
 			name: "Success - Multiple columns",
 			fields: SchemaMappingConfig{
 				Logger: logger,
-				Tables: tablesMetaData,
+				tables: tablesMetaData,
 			},
 			columnNames: []string{"column1", "column2"},
 			tableName:   "table1",
@@ -1058,7 +1058,7 @@ func Test_GetSpecificColumnsMetadata(t *testing.T) {
 			name: "Success - Mixed column types",
 			fields: SchemaMappingConfig{
 				Logger: logger,
-				Tables: tablesMetaData,
+				tables: tablesMetaData,
 			},
 			columnNames: []string{"column1", LimitValue},
 			tableName:   "table1",
@@ -1084,7 +1084,7 @@ func Test_GetSpecificColumnsMetadata(t *testing.T) {
 			name: "Error - types.Column not found",
 			fields: SchemaMappingConfig{
 				Logger: logger,
-				Tables: tablesMetaData,
+				tables: tablesMetaData,
 			},
 			columnNames:   []string{"nonexistent_column"},
 			tableName:     "table1",
@@ -1095,7 +1095,7 @@ func Test_GetSpecificColumnsMetadata(t *testing.T) {
 			name: "Success - Empty column names",
 			fields: SchemaMappingConfig{
 				Logger: logger,
-				Tables: tablesMetaData,
+				tables: tablesMetaData,
 			},
 			columnNames:   []string{},
 			tableName:     "table1",
@@ -1106,7 +1106,7 @@ func Test_GetSpecificColumnsMetadata(t *testing.T) {
 			name: "Success - Multiple special columns",
 			fields: SchemaMappingConfig{
 				Logger: logger,
-				Tables: tablesMetaData,
+				tables: tablesMetaData,
 			},
 			columnNames: []string{LimitValue, LimitValue},
 			tableName:   "table1",
@@ -1302,7 +1302,7 @@ func Test_GetAllColumnsMetadata(t *testing.T) {
 			name: "Success - Single column",
 			fields: SchemaMappingConfig{
 				Logger: logger,
-				Tables: tablesMetaData,
+				tables: tablesMetaData,
 			},
 			columnsMap: map[string]*types.Column{
 				"column1": {
@@ -1330,7 +1330,7 @@ func Test_GetAllColumnsMetadata(t *testing.T) {
 			name: "Success - Multiple columns with different types",
 			fields: SchemaMappingConfig{
 				Logger: logger,
-				Tables: tablesMetaData,
+				tables: tablesMetaData,
 			},
 			columnsMap: map[string]*types.Column{
 				"column1": {
@@ -1390,7 +1390,7 @@ func Test_GetAllColumnsMetadata(t *testing.T) {
 			name: "Success - Empty columns map",
 			fields: SchemaMappingConfig{
 				Logger: logger,
-				Tables: tablesMetaData,
+				tables: tablesMetaData,
 			},
 			columnsMap:    map[string]*types.Column{},
 			expectedMeta:  []*message.ColumnMetadata{},
@@ -1400,7 +1400,7 @@ func Test_GetAllColumnsMetadata(t *testing.T) {
 			name: "Success - Columns with collection types",
 			fields: SchemaMappingConfig{
 				Logger: logger,
-				Tables: tablesMetaData,
+				tables: tablesMetaData,
 			},
 			columnsMap: map[string]*types.Column{
 				"list_column": {
@@ -1444,7 +1444,7 @@ func Test_GetAllColumnsMetadata(t *testing.T) {
 			name: "Success - Columns with null values",
 			fields: SchemaMappingConfig{
 				Logger: logger,
-				Tables: tablesMetaData,
+				tables: tablesMetaData,
 			},
 			columnsMap: map[string]*types.Column{
 				"column1": {
@@ -1579,7 +1579,7 @@ func Test_HandleSpecialSelectedColumn(t *testing.T) {
 			name: "Success - Count function",
 			fields: SchemaMappingConfig{
 				Logger: logger,
-				Tables: tablesMetaData,
+				tables: tablesMetaData,
 			},
 			columnsMap: map[string]*types.Column{},
 			columnSelected: SelectedColumns{
@@ -1602,7 +1602,7 @@ func Test_HandleSpecialSelectedColumn(t *testing.T) {
 			name: "Success - Write time column",
 			fields: SchemaMappingConfig{
 				Logger: logger,
-				Tables: tablesMetaData,
+				tables: tablesMetaData,
 			},
 			columnsMap: map[string]*types.Column{},
 			columnSelected: SelectedColumns{
@@ -1625,7 +1625,7 @@ func Test_HandleSpecialSelectedColumn(t *testing.T) {
 			name: "Success - Regular column with alias",
 			fields: SchemaMappingConfig{
 				Logger: logger,
-				Tables: tablesMetaData,
+				tables: tablesMetaData,
 			},
 			columnsMap: map[string]*types.Column{
 				"original_col": {
@@ -1655,7 +1655,7 @@ func Test_HandleSpecialSelectedColumn(t *testing.T) {
 			name: "Success - Map value access",
 			fields: SchemaMappingConfig{
 				Logger: logger,
-				Tables: tablesMetaData,
+				tables: tablesMetaData,
 			},
 			columnsMap: map[string]*types.Column{
 				"map_col": {
@@ -1685,7 +1685,7 @@ func Test_HandleSpecialSelectedColumn(t *testing.T) {
 			name: "Error - types.Column not found",
 			fields: SchemaMappingConfig{
 				Logger: logger,
-				Tables: tablesMetaData,
+				tables: tablesMetaData,
 			},
 			columnsMap: map[string]*types.Column{},
 			columnSelected: SelectedColumns{
@@ -1702,7 +1702,7 @@ func Test_HandleSpecialSelectedColumn(t *testing.T) {
 			name: "Success - Function call",
 			fields: SchemaMappingConfig{
 				Logger: logger,
-				Tables: tablesMetaData,
+				tables: tablesMetaData,
 			},
 			columnsMap: map[string]*types.Column{
 				"func_col": {
@@ -1787,9 +1787,124 @@ func Test_ListKeyspaces(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			cfg := &SchemaMappingConfig{Tables: tt.tables}
+			cfg := &SchemaMappingConfig{tables: tt.tables}
 			got := cfg.ListKeyspaces()
 			assert.Equal(t, tt.expected, got)
+		})
+	}
+}
+
+func Test_sortPrimaryKeysData(t *testing.T) {
+	type args struct {
+		pkMetadata []*types.Column
+	}
+	tests := []struct {
+		name string
+		args args
+		want []*types.Column
+	}{
+		{
+			name: "Basic Sorting",
+			args: args{
+				pkMetadata: []*types.Column{
+					{Name: "id", PkPrecedence: 2},
+					{Name: "email", PkPrecedence: 1},
+				},
+			},
+			want: []*types.Column{
+				{Name: "email", PkPrecedence: 1},
+				{Name: "id", PkPrecedence: 2},
+			},
+		},
+		{
+			name: "Already Sorted Data",
+			args: args{
+				pkMetadata: []*types.Column{
+					{Name: "order_id", PkPrecedence: 1},
+					{Name: "customer_id", PkPrecedence: 2},
+				},
+			},
+			want: []*types.Column{
+				{Name: "order_id", PkPrecedence: 1},
+				{Name: "customer_id", PkPrecedence: 2},
+			},
+		},
+		{
+			name: "Same Precedence Values (Unchanged Order)",
+			args: args{
+				pkMetadata: []*types.Column{
+					{Name: "product_id", PkPrecedence: 1},
+					{Name: "category_id", PkPrecedence: 1},
+				},
+			},
+			want: []*types.Column{
+				{Name: "product_id", PkPrecedence: 1},
+				{Name: "category_id", PkPrecedence: 1}, // Order should remain the same
+			},
+		},
+		{
+			name: "Single types.Column (No Sorting Needed)",
+			args: args{
+				pkMetadata: []*types.Column{
+					{Name: "category_id", PkPrecedence: 1},
+				},
+			},
+			want: []*types.Column{
+				{Name: "category_id", PkPrecedence: 1},
+			},
+		},
+		{
+			name: "Empty Slice (No Operation)",
+			args: args{
+				pkMetadata: []*types.Column{},
+			},
+			want: []*types.Column{},
+		},
+		{
+			name: "Table With Nil Columns (Should Not Panic)",
+			args: args{
+				pkMetadata: nil,
+			},
+			want: nil,
+		},
+		{
+			name: "Negative Precedence Values (Still Sorted Correctly)",
+			args: args{
+				pkMetadata: []*types.Column{
+					{Name: "col1", PkPrecedence: -1},
+					{Name: "col2", PkPrecedence: -3},
+					{Name: "col3", PkPrecedence: -2},
+				},
+			},
+			want: []*types.Column{
+				{Name: "col2", PkPrecedence: -3},
+				{Name: "col3", PkPrecedence: -2},
+				{Name: "col1", PkPrecedence: -1},
+			},
+		},
+		{
+			name: "Zero Precedence Values (Sorted Normally)",
+			args: args{
+				pkMetadata: []*types.Column{
+					{Name: "colA", PkPrecedence: 0},
+					{Name: "colB", PkPrecedence: 2},
+					{Name: "colC", PkPrecedence: 1},
+				},
+			},
+			want: []*types.Column{
+				{Name: "colA", PkPrecedence: 0},
+				{Name: "colC", PkPrecedence: 1},
+				{Name: "colB", PkPrecedence: 2},
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			sortPrimaryKeys(tt.args.pkMetadata)
+			if !reflect.DeepEqual(tt.args.pkMetadata, tt.want) {
+				t.Errorf("sortPrimaryKeys() = %v, want %v", tt.args.pkMetadata, tt.want)
+			}
 		})
 	}
 }

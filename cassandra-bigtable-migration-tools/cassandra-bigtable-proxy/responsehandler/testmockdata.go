@@ -19,116 +19,53 @@ import (
 	btpb "cloud.google.com/go/bigtable/apiv2/bigtablepb"
 	types "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/global/types"
 	schemaMapping "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/schema-mapping"
+	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/utilities"
 	"github.com/datastax/go-cassandra-native-protocol/datatype"
 	"github.com/datastax/go-cassandra-native-protocol/message"
+	"go.uber.org/zap"
 )
 
-var mockTableConfig = map[string]map[string]*schemaMapping.TableConfig{
-	"test_keyspace": {"test_table": &schemaMapping.TableConfig{
-		Keyspace: "test_keyspace",
-		Name:     "test_table",
-		Columns: map[string]*types.Column{
-			"column1": &types.Column{
-				Name:         "column1",
-				CQLType:      datatype.Varchar,
-				IsPrimaryKey: true,
-				PkPrecedence: 1,
-			},
-			"column2": &types.Column{
-				Name:         "column2",
-				CQLType:      datatype.Blob,
-				IsPrimaryKey: false,
-			},
-			"column3": &types.Column{
-				Name:         "column3",
-				CQLType:      datatype.Boolean,
-				IsPrimaryKey: false,
-			},
-			"column4": &types.Column{
-				Name:         "column4",
-				CQLType:      datatype.NewListType(datatype.Varchar),
-				IsPrimaryKey: false,
-			},
-			"column5": &types.Column{
-				Name:         "column5",
-				CQLType:      datatype.Timestamp,
-				IsPrimaryKey: false,
-			},
-			"column6": &types.Column{
-				Name:         "column6",
-				CQLType:      datatype.Int,
-				IsPrimaryKey: false,
-			},
-			"column7": &types.Column{
-				Name:         "column7",
-				CQLType:      datatype.NewSetType(datatype.Varchar),
-				IsPrimaryKey: false,
-			},
-			"column8": &types.Column{
-				Name:         "column8",
-				CQLType:      datatype.NewMapType(datatype.Varchar, datatype.Boolean),
-				IsPrimaryKey: false,
-			},
-			"column9": &types.Column{
-				Name:         "column9",
-				CQLType:      datatype.Bigint,
-				IsPrimaryKey: false,
-			},
-			"column10": &types.Column{
-				Name:         "column10",
-				CQLType:      datatype.Varchar,
-				IsPrimaryKey: true,
-				PkPrecedence: 2,
-			},
-			"column11": &types.Column{
-				Name:         "column11",
-				CQLType:      datatype.NewSetType(datatype.Varchar),
-				IsPrimaryKey: false,
-			},
-		},
-		PrimaryKeys: []*types.Column{
-			{
-				Name:         "column1",
-				CQLType:      datatype.Varchar,
-				IsPrimaryKey: true,
-				PkPrecedence: 1,
-			},
-			{
-				Name:         "column10",
-				CQLType:      datatype.Varchar,
-				IsPrimaryKey: true,
-				PkPrecedence: 2,
-			},
-		},
-	},
-		"user_info": &schemaMapping.TableConfig{
-			Keyspace: "test_keyspace",
-			Name:     "user_info",
-			Columns: map[string]*types.Column{
-				"name": &types.Column{
-					Name:         "name",
-					CQLType:      datatype.Varchar,
-					IsPrimaryKey: true,
-					PkPrecedence: 0,
-				},
-			},
-			PrimaryKeys: []*types.Column{
-				{
-					Name:         "name",
-					CQLType:      datatype.Varchar,
-					IsPrimaryKey: true,
-					PkPrecedence: 0,
-				},
-			},
-		},
-	},
-}
-
 func GetSchemaMappingConfig() *schemaMapping.SchemaMappingConfig {
-	return &schemaMapping.SchemaMappingConfig{
-		Tables:             mockTableConfig,
-		SystemColumnFamily: "cf1",
+	var (
+		testTableColumns = []*types.Column{
+			{Name: "column1", CQLType: datatype.Varchar, KeyType: utilities.KEY_TYPE_PARTITION, IsPrimaryKey: true, PkPrecedence: 1},
+			{Name: "column10", CQLType: datatype.Varchar, KeyType: utilities.KEY_TYPE_CLUSTERING, IsPrimaryKey: true, PkPrecedence: 2},
+			// Regular columns
+			{Name: "column2", CQLType: datatype.Blob, KeyType: utilities.KEY_TYPE_REGULAR},
+			{Name: "column3", CQLType: datatype.Boolean, KeyType: utilities.KEY_TYPE_REGULAR},
+			{Name: "column4", CQLType: datatype.NewListType(datatype.Varchar), KeyType: utilities.KEY_TYPE_REGULAR},
+			{Name: "column5", CQLType: datatype.Timestamp, KeyType: utilities.KEY_TYPE_REGULAR},
+			{Name: "column6", CQLType: datatype.Int, KeyType: utilities.KEY_TYPE_REGULAR},
+			{Name: "column7", CQLType: datatype.NewSetType(datatype.Varchar), KeyType: utilities.KEY_TYPE_REGULAR},
+			{Name: "column8", CQLType: datatype.NewMapType(datatype.Varchar, datatype.Boolean), KeyType: utilities.KEY_TYPE_REGULAR},
+			{Name: "column9", CQLType: datatype.Bigint, KeyType: utilities.KEY_TYPE_REGULAR},
+			{Name: "column11", CQLType: datatype.NewSetType(datatype.Varchar), KeyType: utilities.KEY_TYPE_REGULAR},
+		}
+
+		userInfoColumns = []*types.Column{
+			{Name: "name", CQLType: datatype.Varchar, KeyType: utilities.KEY_TYPE_PARTITION, IsPrimaryKey: true, PkPrecedence: 0},
+		}
+	)
+
+	var allTableConfigs = []*schemaMapping.TableConfig{
+		schemaMapping.NewTableConfig(
+			"test_keyspace",
+			"test_table",
+			"cf1",
+			testTableColumns,
+		),
+		schemaMapping.NewTableConfig(
+			"test_keyspace",
+			"user_info",
+			"cf1",
+			userInfoColumns,
+		),
 	}
+	return schemaMapping.NewSchemaMappingConfig(
+		"cf1",
+		zap.NewNop(),
+		allTableConfigs,
+	)
 }
 
 // Response Handler

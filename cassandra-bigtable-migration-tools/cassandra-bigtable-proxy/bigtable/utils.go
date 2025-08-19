@@ -33,22 +33,6 @@ const (
 	DefaultProfileId = "default"
 )
 
-// sortPrimaryKeys sorts the primary key columns of each table based on their precedence.
-// The function takes a map where the keys are table names and the values are slices of columns.
-// It returns the same map with the columns sorted by their primary key precedence.
-//
-// Parameters:
-//   - pkMetadata: A map where keys are table names (strings) and values are slices of Column structs.
-//     Each Column struct contains metadata about the columns, including primary key precedence.
-//
-// Returns:
-// - A map with the same structure as the input, but with the columns sorted by primary key precedence.
-func sortPrimaryKeys(keys []*types.Column) {
-	sort.Slice(keys, func(i, j int) bool {
-		return keys[i].PkPrecedence < keys[j].PkPrecedence
-	})
-}
-
 // GetProfileId returns the provided profile ID if it is not empty.
 // If the provided profile ID is empty, it returns a default profile ID.
 func GetProfileId(profileId string) string {

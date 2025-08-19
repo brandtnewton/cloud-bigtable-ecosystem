@@ -28,8 +28,7 @@ type Column struct {
 	IsPrimaryKey bool
 	PkPrecedence int
 	KeyType      string
-	// todo remove this field because it's mostly redundant - we can move any unique fields to here
-	Metadata message.ColumnMetadata
+	Metadata     message.ColumnMetadata
 }
 
 type Clause struct {

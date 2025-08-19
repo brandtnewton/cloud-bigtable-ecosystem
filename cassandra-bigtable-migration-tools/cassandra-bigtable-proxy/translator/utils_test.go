@@ -26,7 +26,6 @@ import (
 
 	"cloud.google.com/go/bigtable"
 	types "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/global/types"
-	schemaMapping "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/schema-mapping"
 	cql "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/third_party/cqlparser"
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/third_party/datastax/proxycore"
 	"github.com/antlr4-go/antlr/v4"
@@ -2567,7 +2566,8 @@ func TestProcessCollectionColumnsForPrepareQueries_ComplexMetaAndNonCollection(t
 				KeySpace:        keySpace,
 				ComplexMeta:     currentComplexMeta,
 			}
-			output, err := processCollectionColumnsForPrepareQueries(translator.SchemaMappingConfig.Tables[input.KeySpace][input.TableName], input)
+			tc, _ := translator.SchemaMappingConfig.GetTableConfig(input.KeySpace, input.TableName)
+			output, err := processCollectionColumnsForPrepareQueries(tc, input)
 
 			if (err != nil) != tt.wantErr {
 				t.Errorf("processCollectionColumnsForPrepareQueries() error = %v, wantErr %v", err, tt.wantErr)
@@ -2657,26 +2657,7 @@ func TestProcessCollectionColumnsForPrepareQueries_ComplexMetaAndNonCollection(t
 
 func TestProcessComplexUpdate_SuccessfulCases(t *testing.T) {
 	translator := &Translator{
-		SchemaMappingConfig: &schemaMapping.SchemaMappingConfig{
-			Tables: map[string]map[string]*schemaMapping.TableConfig{
-				"test_keyspace": {"test_table": &schemaMapping.TableConfig{
-					Keyspace: "keyspace1",
-					Name:     "table1",
-					Columns: map[string]*types.Column{
-						"map_col": {
-							Name:    "map_col",
-							CQLType: datatype.NewMapType(datatype.Varchar, datatype.Varchar),
-						},
-						"list_col": {
-							Name:    "list_col",
-							CQLType: datatype.NewListType(datatype.Varchar),
-						},
-					},
-					PrimaryKeys: []*types.Column{},
-				},
-				},
-			},
-		},
+		SchemaMappingConfig: GetSchemaMappingConfig(),
 	}
 
 	tests := []struct {
@@ -2692,11 +2673,11 @@ func TestProcessComplexUpdate_SuccessfulCases(t *testing.T) {
 		{
 			name: "map append operation",
 			columns: []types.Column{
-				{Name: "map_col", CQLType: datatype.NewMapType(datatype.Varchar, datatype.Varchar)},
+				{Name: "map_text_text", CQLType: datatype.NewMapType(datatype.Varchar, datatype.Varchar)},
 			},
 			values: []interface{}{
 				ComplexAssignment{
-					Column:    "map_col",
+					Column:    "map_text_text",
 					Operation: "+",
 					Left:      "key",
 				},
@@ -2705,7 +2686,7 @@ func TestProcessComplexUpdate_SuccessfulCases(t *testing.T) {
 			keyspaceName:   "keyspace1",
 			prependColumns: []string{},
 			wantMeta: map[string]*ComplexOperation{
-				"map_col": {
+				"map_text_text": {
 					Append: true,
 				},
 			},
@@ -2714,21 +2695,21 @@ func TestProcessComplexUpdate_SuccessfulCases(t *testing.T) {
 		{
 			name: "list prepend operation",
 			columns: []types.Column{
-				{Name: "list_col", CQLType: datatype.NewListType(datatype.Varchar)},
+				{Name: "list_text", CQLType: datatype.NewListType(datatype.Varchar)},
 			},
 			values: []interface{}{
 				ComplexAssignment{
-					Column:    "list_col",
+					Column:    "list_text",
 					Operation: "+",
 					Left:      "key",
-					Right:     "list_col",
+					Right:     "list_text",
 				},
 			},
 			tableName:      "table1",
 			keyspaceName:   "keyspace1",
-			prependColumns: []string{"list_col"},
+			prependColumns: []string{"list_text"},
 			wantMeta: map[string]*ComplexOperation{
-				"list_col": {
+				"list_text": {
 					PrependList: true,
 					mapKey:      nil,
 				},
@@ -2738,36 +2719,36 @@ func TestProcessComplexUpdate_SuccessfulCases(t *testing.T) {
 		{
 			name: "multiple operations",
 			columns: []types.Column{
-				{Name: "map_col", CQLType: datatype.NewMapType(datatype.Varchar, datatype.Varchar)},
-				{Name: "list_col", CQLType: datatype.NewListType(datatype.Varchar)},
+				{Name: "map_text_text", CQLType: datatype.NewMapType(datatype.Varchar, datatype.Varchar)},
+				{Name: "list_text", CQLType: datatype.NewListType(datatype.Varchar)},
 			},
 			// values: []interface{}{
-			// 	"map_col+{key:?}",
-			// 	"list_col+?",
+			// 	"map_text_text+{key:?}",
+			// 	"list_text+?",
 			// },
 			values: []interface{}{
 				ComplexAssignment{
-					Column:    "map_col",
+					Column:    "map_text_text",
 					Operation: "+",
 					Left:      "key",
-					Right:     "map_col",
+					Right:     "map_text_text",
 				},
 				ComplexAssignment{
-					Column:    "list_col",
+					Column:    "list_text",
 					Operation: "+",
 					Left:      "key",
-					Right:     "list_col",
+					Right:     "list_text",
 				},
 			},
 			tableName:      "table1",
 			keyspaceName:   "keyspace1",
-			prependColumns: []string{"list_col"},
+			prependColumns: []string{"list_text"},
 			wantMeta: map[string]*ComplexOperation{
-				"map_col": {
+				"map_text_text": {
 					Append: true,
 					mapKey: nil,
 				},
-				"list_col": {
+				"list_text": {
 					PrependList: true,
 					mapKey:      nil,
 				},
@@ -2789,7 +2770,7 @@ func TestProcessComplexUpdate_SuccessfulCases(t *testing.T) {
 		{
 			name: "skip invalid value type",
 			columns: []types.Column{
-				{Name: "map_col", CQLType: datatype.NewMapType(datatype.Varchar, datatype.Varchar)},
+				{Name: "map_text_text", CQLType: datatype.NewMapType(datatype.Varchar, datatype.Varchar)},
 			},
 			values:         []interface{}{123}, // Not a string
 			tableName:      "table1",
@@ -3527,7 +3508,11 @@ func TestProcessCollectionColumnsForRawQueries(t *testing.T) {
 		},
 	}
 
-	output, err := processCollectionColumnsForRawQueries(inputs.Translator.SchemaMappingConfig.Tables[inputs.KeySpace][inputs.TableName], inputs)
+	tc, err := inputs.Translator.SchemaMappingConfig.GetTableConfig(inputs.KeySpace, inputs.TableName)
+	if err != nil {
+		t.Fatalf("Failed: %v", err)
+	}
+	output, err := processCollectionColumnsForRawQueries(tc, inputs)
 	if err != nil {
 		t.Fatalf("Failed: %v", err)
 	}

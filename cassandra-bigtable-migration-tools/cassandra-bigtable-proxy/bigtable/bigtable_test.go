@@ -898,7 +898,7 @@ func TestCreateTable(t *testing.T) {
 	}, nil, &schemaMapping.SchemaMappingConfig{}, map[string]InstanceConfig{"keyspace": {BigtableInstance: "keyspace"}})
 
 	// force set up the schema mappings table
-	_, err = btClient.GetSchemaMappingConfigs(ctx, "keyspace", "schema-mappings")
+	_, err = btClient.ReadTableConfigs(ctx, "keyspace", "schema-mappings")
 	require.NoError(t, err)
 
 	// table should not exist yet
@@ -910,8 +910,9 @@ func TestCreateTable(t *testing.T) {
 	err = btClient.CreateTable(ctx, &testCreateTableStatementMap, "schema-mappings")
 	require.NoError(t, err)
 
-	tableMetadata, err := btClient.GetSchemaMappingConfigs(ctx, "keyspace", "schema-mappings")
+	tables, err := btClient.ReadTableConfigs(ctx, "keyspace", "schema-mappings")
 	require.NoError(t, err)
+	tableMap := schemaMapping.CreateTableMap(tables)
 
 	require.Equal(t, map[string]*types.Column{
 		"org": {
@@ -970,7 +971,7 @@ func TestCreateTable(t *testing.T) {
 				Type:     datatype.Int,
 			},
 		},
-	}, tableMetadata["create_table_test"].Columns)
+	}, tableMap["create_table_test"].Columns)
 	info, err = adminClients["keyspace"].TableInfo(ctx, "create_table_test")
 	require.NoError(t, err)
 	require.NotNil(t, info)
@@ -1040,7 +1041,7 @@ func TestAlterTable(t *testing.T) {
 	}, nil, &schemaMapping.SchemaMappingConfig{}, map[string]InstanceConfig{"keyspace": {BigtableInstance: "keyspace"}})
 
 	// force set up the schema mappings table
-	_, err = btClient.GetSchemaMappingConfigs(ctx, "keyspace", "schema-mappings")
+	_, err = btClient.ReadTableConfigs(ctx, "keyspace", "schema-mappings")
 	require.NoError(t, err)
 
 	// table should not exist yet
@@ -1073,10 +1074,11 @@ func TestAlterTable(t *testing.T) {
 	}, "schema-mappings")
 	require.NoError(t, err)
 
-	tableMetadata, err := btClient.GetSchemaMappingConfigs(ctx, "keyspace", "schema-mappings")
+	tables, err := btClient.ReadTableConfigs(ctx, "keyspace", "schema-mappings")
 	require.NoError(t, err)
+	tableMap := schemaMapping.CreateTableMap(tables)
 
-	require.Equal(t, tableMetadata["alter_table_test"].Columns, map[string]*types.Column{
+	require.Equal(t, tableMap["alter_table_test"].Columns, map[string]*types.Column{
 		"org": {
 			Name:         "org",
 			CQLType:      datatype.Varchar,
@@ -1145,7 +1147,7 @@ func TestDropTable(t *testing.T) {
 	}, nil, &schemaMapping.SchemaMappingConfig{}, map[string]InstanceConfig{"keyspace": {BigtableInstance: "keyspace"}})
 
 	// force set up the schema mappings table
-	_, err = btClient.GetSchemaMappingConfigs(ctx, "keyspace", "schema-mappings")
+	_, err = btClient.ReadTableConfigs(ctx, "keyspace", "schema-mappings")
 	require.NoError(t, err)
 
 	// table should not exist yet
@@ -1159,9 +1161,10 @@ func TestDropTable(t *testing.T) {
 	err = btClient.CreateTable(ctx, &createTable, "schema-mappings")
 	require.NoError(t, err)
 
-	tableMetadata, err := btClient.GetSchemaMappingConfigs(ctx, "keyspace", "schema-mappings")
+	tables, err := btClient.ReadTableConfigs(ctx, "keyspace", "schema-mappings")
 	require.NoError(t, err)
-	require.NotNil(t, tableMetadata["drop_table_test"])
+	tableMap := schemaMapping.CreateTableMap(tables)
+	require.NotNil(t, tableMap["drop_table_test"])
 
 	err = btClient.DropTable(ctx, &translator.DropTableStatementMap{
 		QueryType: "drop",
@@ -1171,9 +1174,10 @@ func TestDropTable(t *testing.T) {
 	}, "schema-mappings")
 	require.NoError(t, err)
 
-	tableMetadata, err = btClient.GetSchemaMappingConfigs(ctx, "keyspace", "schema-mappings")
+	tables, err = btClient.ReadTableConfigs(ctx, "keyspace", "schema-mappings")
 	require.NoError(t, err)
-	require.Nil(t, tableMetadata["drop_table_test"])
+	tableMap = schemaMapping.CreateTableMap(tables)
+	require.Nil(t, tableMap["drop_table_test"])
 
 	// table should be cleaned up
 	info, err = adminClients["keyspace"].TableInfo(ctx, "drop_table_test")

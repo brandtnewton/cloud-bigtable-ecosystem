@@ -34,7 +34,7 @@ const (
 
 type SchemaMappingConfig struct {
 	Logger             *zap.Logger
-	Tables             map[string]map[string]*TableConfig
+	tables             map[string]map[string]*TableConfig
 	SystemColumnFamily string
 }
 
@@ -60,31 +60,97 @@ type SelectedColumns struct {
 	IsWriteTimeColumn bool
 }
 
-func CreateTableConfig(systemColumnFamily string, mappings map[string]map[string]map[string]*types.Column) map[string]map[string]*TableConfig {
-	results := make(map[string]map[string]*TableConfig)
+func NewTableConfig(
+	keyspace string,
+	name string,
+	systemColumnFamily string,
+	columns []*types.Column,
+) *TableConfig {
+	columnMap := make(map[string]*types.Column)
+	var pmks []*types.Column = nil
 
-	for keyspace, tables := range mappings {
-		// add new keyspace
-		if _, ok := results[keyspace]; !ok {
-			results[keyspace] = make(map[string]*TableConfig)
+	for i, column := range columns {
+		column.Metadata = message.ColumnMetadata{
+			Keyspace: keyspace,
+			Table:    name,
+			Name:     column.Name,
+			Index:    int32(i),
+			Type:     column.CQLType,
 		}
-		for tableName, columns := range tables {
-			// add new table
-			if _, ok := results[keyspace][tableName]; !ok {
-				results[keyspace][tableName] = &TableConfig{
-					Keyspace:           keyspace,
-					Name:               tableName,
-					SystemColumnFamily: systemColumnFamily,
-					Columns:            make(map[string]*types.Column),
-				}
-			}
-			for columnName, column := range columns {
-				results[keyspace][tableName].Columns[columnName] = column
-			}
+		columnMap[column.Name] = column
+		if column.KeyType != utilities.KEY_TYPE_REGULAR {
+			// this field is redundant - make sure it's in sync with other fields
+			column.IsPrimaryKey = true
+			pmks = append(pmks, column)
 		}
 	}
+	sortPrimaryKeys(pmks)
 
-	return results
+	return &TableConfig{
+		Keyspace:           keyspace,
+		Name:               name,
+		Columns:            columnMap,
+		PrimaryKeys:        pmks,
+		SystemColumnFamily: systemColumnFamily,
+	}
+}
+
+// GetAllTables DEPRECATED - will be removed in the future
+func (c *SchemaMappingConfig) GetAllTables() map[string]map[string]*TableConfig {
+	return c.tables
+}
+
+// sortPrimaryKeys sorts the primary key columns of each table based on their precedence.
+// The function takes a map where the keys are table names and the values are slices of columns.
+// It returns the same map with the columns sorted by their primary key precedence.
+//
+// Parameters:
+//   - pkMetadata: A map where keys are table names (strings) and values are slices of Column structs.
+//     Each Column struct contains metadata about the columns, including primary key precedence.
+//
+// Returns:
+// - A map with the same structure as the input, but with the columns sorted by primary key precedence.
+func sortPrimaryKeys(keys []*types.Column) {
+	sort.Slice(keys, func(i, j int) bool {
+		return keys[i].PkPrecedence < keys[j].PkPrecedence
+	})
+}
+
+// todo lock
+func (c *SchemaMappingConfig) UpdateTables(tableConfigs []*TableConfig) {
+	if c.tables == nil {
+		c.tables = make(map[string]map[string]*TableConfig)
+	}
+	for _, tableConfig := range tableConfigs {
+		if _, exists := c.tables[tableConfig.Keyspace]; !exists {
+			c.tables[tableConfig.Keyspace] = make(map[string]*TableConfig)
+		}
+		c.tables[tableConfig.Keyspace][tableConfig.Name] = tableConfig
+	}
+}
+
+func NewSchemaMappingConfig(systemColumnFamily string, logger *zap.Logger, tableConfigs []*TableConfig) *SchemaMappingConfig {
+	tablesMap := make(map[string]map[string]*TableConfig)
+	for _, tableConfig := range tableConfigs {
+		if keyspace, exists := tablesMap[tableConfig.Keyspace]; !exists {
+			keyspace = make(map[string]*TableConfig)
+			tablesMap[tableConfig.Keyspace] = keyspace
+		}
+		tablesMap[tableConfig.Keyspace][tableConfig.Name] = tableConfig
+	}
+	return &SchemaMappingConfig{
+		Logger:             logger,
+		SystemColumnFamily: systemColumnFamily,
+		tables:             tablesMap,
+	}
+}
+
+func CreateTableMap(tables []*TableConfig) map[string]*TableConfig {
+	var result = make(map[string]*TableConfig)
+	for _, table := range tables {
+		result[table.Name] = table
+	}
+	return result
 }
 
 // GetTableConfig finds the primary key columns of a specified table in a given keyspace.
@@ -99,7 +165,7 @@ func CreateTableConfig(systemColumnFamily string, mappings map[string]map[string
 //   - []types.Column: A slice of types.Column structs representing the primary keys of the table.
 //   - error: Returns an error if the primary key metadata is not found.
 func (c *SchemaMappingConfig) GetTableConfig(keySpace string, tableName string) (*TableConfig, error) {
-	keyspace, ok := c.Tables[keySpace]
+	keyspace, ok := c.tables[keySpace]
 	if !ok {
 		return nil, fmt.Errorf("keyspace %s does not exist", keySpace)
 	}
@@ -108,6 +174,14 @@ func (c *SchemaMappingConfig) GetTableConfig(keySpace string, tableName string) 
 		return nil, fmt.Errorf("table %s does not exist", tableName)
 	}
 	return tableConfig, nil
+}
+
+func (c *SchemaMappingConfig) CountTables() int {
+	var result = 0
+	for _, keyspaceTables := range c.tables {
+		result += len(keyspaceTables)
+	}
+	return result
 }
 
 func (tableConfig *TableConfig) GetPkByTableNameWithFilter(filterPrimaryKeys []string) []*types.Column {
@@ -434,8 +508,8 @@ func (tableConfig *TableConfig) GetPkKeyType(columnName string) (string, error) 
 
 // ListKeyspaces returns a sorted list of all keyspace names in the schema mapping.
 func (c *SchemaMappingConfig) ListKeyspaces() []string {
-	keyspaces := make([]string, 0, len(c.Tables))
-	for ks := range c.Tables {
+	keyspaces := make([]string, 0, len(c.tables))
+	for ks := range c.tables {
 		keyspaces = append(keyspaces, ks)
 	}
 	sort.Strings(keyspaces)

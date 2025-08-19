@@ -33,6 +33,7 @@ import (
 	bigtableModule "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/bigtable"
 	rh "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/responsehandler"
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/third_party/datastax/parser"
+	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/utilities"
 	lru "github.com/hashicorp/golang-lru"
 
 	bt "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/bigtable"
@@ -257,15 +258,11 @@ var mockRawFrame = &frame.RawFrame{
 	},
 	Body: []byte{},
 }
-var schemaConfigs = &schemaMapping.SchemaMappingConfig{
-	Tables: mockTableSchemaConfig,
-	Logger: zap.NewNop(),
-}
 
 var mockProxy = &Proxy{
-	schemaMapping: schemaConfigs,
+	schemaMapping: mockTableSchemaConfig,
 	translator: &translator.Translator{
-		SchemaMappingConfig: schemaConfigs,
+		SchemaMappingConfig: mockTableSchemaConfig,
 	},
 	logger: zap.NewNop(),
 }
@@ -334,9 +331,9 @@ func Test_handleExecutionForDeletePreparedQuery(t *testing.T) {
 
 	id := md5.Sum([]byte("DELETE FROM key_space.test_table WHERE test_id = '?'"))
 	mockProxy := &Proxy{
-		schemaMapping: schemaConfigs,
+		schemaMapping: mockTableSchemaConfig,
 		translator: &translator.Translator{
-			SchemaMappingConfig: schemaConfigs,
+			SchemaMappingConfig: mockTableSchemaConfig,
 		},
 		logger:  zap.NewNop(),
 		ctx:     context.Background(),
@@ -606,91 +603,34 @@ func Test_client_handlePrepare(t *testing.T) {
 	}
 }
 
-var mockTableSchemaConfig = map[string]map[string]*schemaMapping.TableConfig{
-	"keyspace": {
-		"test_table": &schemaMapping.TableConfig{
-			SystemColumnFamily: "cf1",
-			Columns: map[string]*types.Column{
-				"test_id": {
-					Name:    "test_id",
-					CQLType: datatype.Varchar,
-					Metadata: message.ColumnMetadata{
-						Keyspace: "",
-						Table:    "test_table",
-						Name:     "test_id",
-						Type:     datatype.Varchar,
-						Index:    0,
-					},
-					IsPrimaryKey: true,
-				},
-				"test_hash": {
-					Name:    "test_hash",
-					CQLType: datatype.Varchar,
-					Metadata: message.ColumnMetadata{
-						Keyspace: "",
-						Table:    "test_table",
-						Name:     "test_hash",
-						Type:     datatype.Varchar,
-						Index:    1,
-					},
-				},
-				"column1": &types.Column{
-					Name:         "column1",
-					CQLType:      datatype.Varchar,
-					IsPrimaryKey: true,
-					PkPrecedence: 1,
-				},
-				"column2": &types.Column{
-					Name:         "column2",
-					CQLType:      datatype.Blob,
-					IsPrimaryKey: false,
-				},
-				"column3": &types.Column{
-					Name:         "column3",
-					CQLType:      datatype.Boolean,
-					IsPrimaryKey: false,
-				},
-
-				"column10": &types.Column{
-					Name:         "column10",
-					CQLType:      datatype.Varchar,
-					IsPrimaryKey: true,
-					PkPrecedence: 2,
-				},
+var mockTableSchemaConfig = schemaMapping.NewSchemaMappingConfig(
+	"cf1",
+	zap.NewNop(),
+	[]*schemaMapping.TableConfig{
+		schemaMapping.NewTableConfig(
+			"keyspace",
+			"test_table",
+			"cf1", // SystemColumnFamily from the original struct
+			[]*types.Column{
+				{Name: "test_id", CQLType: datatype.Varchar, KeyType: utilities.KEY_TYPE_PARTITION, IsPrimaryKey: true},
+				{Name: "column1", CQLType: datatype.Varchar, KeyType: utilities.KEY_TYPE_CLUSTERING, IsPrimaryKey: true, PkPrecedence: 1},
+				{Name: "column10", CQLType: datatype.Varchar, KeyType: utilities.KEY_TYPE_CLUSTERING, IsPrimaryKey: true, PkPrecedence: 2},
+				{Name: "test_hash", CQLType: datatype.Varchar, KeyType: utilities.KEY_TYPE_REGULAR},
+				{Name: "column2", CQLType: datatype.Blob, KeyType: utilities.KEY_TYPE_REGULAR},
+				{Name: "column3", CQLType: datatype.Boolean, KeyType: utilities.KEY_TYPE_REGULAR},
 			},
-		},
-		"user_info": &schemaMapping.TableConfig{
-			Columns: map[string]*types.Column{
-				"name": &types.Column{
-					Name:         "name",
-					CQLType:      datatype.Varchar,
-					IsPrimaryKey: true,
-					PkPrecedence: 0,
-					Metadata: message.ColumnMetadata{
-						Keyspace: "user_info",
-						Table:    "user_info",
-						Name:     "name",
-						Index:    0,
-						Type:     datatype.Varchar,
-					},
-				},
-				"age": &types.Column{
-					Name:         "age",
-					CQLType:      datatype.Varchar,
-					IsPrimaryKey: false,
-					PkPrecedence: 0,
-					Metadata: message.ColumnMetadata{
-						Keyspace: "user_info",
-						Table:    "user_info",
-						Name:     "age",
-						Index:    1,
-						Type:     datatype.Varchar,
-					},
-				},
+		),
+		schemaMapping.NewTableConfig(
+			"keyspace",
+			"user_info",
+			"cf1", // Assuming a default column family
+			[]*types.Column{
+				{Name: "name", CQLType: datatype.Varchar, KeyType: utilities.KEY_TYPE_PARTITION, IsPrimaryKey: true, PkPrecedence: 0},
+				{Name: "age", CQLType: datatype.Varchar, KeyType: utilities.KEY_TYPE_REGULAR},
 			},
-		},
+		),
 	},
-}
+)
 
 func Test_detectEmptyPrimaryKey(t *testing.T) {
 	type args struct {
@@ -772,9 +712,9 @@ func TestNewProxy(t *testing.T) {
 	ctx := context.Background()
 	var logger *zap.Logger
 	logger = proxycore.GetOrCreateNopLogger(logger)
-	tbData := make(map[string]map[string]*schemaMapping.TableConfig)
+	var tbData []*schemaMapping.TableConfig = nil
 	bgtmockface := new(mockbigtable.BigTableClientIface)
-	bgtmockface.On("GetSchemaMappingConfigs", ctx, mock.AnythingOfType("string"), mock.AnythingOfType("string")).Return(tbData, nil)
+	bgtmockface.On("ReadTableConfigs", ctx, mock.AnythingOfType("string"), mock.AnythingOfType("string")).Return(tbData, nil)
 	bgtmockface.On("LoadConfigs", mock.AnythingOfType("*responsehandler.TypeHandler"), mock.AnythingOfType("*schemaMapping.SchemaMappingConfig")).Return(tbData, nil)
 
 	// Override the factory function to return the mock
@@ -2093,32 +2033,38 @@ func TestHandleQuerySelect(t *testing.T) {
 func TestHandleDescribeKeyspaces(t *testing.T) {
 	tests := []struct {
 		name          string
-		mockTableMeta map[string]map[string]map[string]*types.Column
+		mockTableMeta []*schemaMapping.TableConfig
 		expectedKeys  []string
 	}{
 		{
 			name: "multiple keyspaces",
-			mockTableMeta: map[string]map[string]map[string]*types.Column{
-				"custom_keyspace1": {
-					"table1": {
-						"column1": {
+			mockTableMeta: []*schemaMapping.TableConfig{
+				schemaMapping.NewTableConfig(
+					"custom_keyspace1",
+					"table1",
+					"cf1", // Assuming a default column family
+					[]*types.Column{
+						{
 							Name:         "column1",
 							CQLType:      datatype.Varchar,
 							KeyType:      "partition",
 							IsPrimaryKey: true,
 						},
 					},
-				},
-				"custom_keyspace2": {
-					"table2": {
-						"column2": {
+				),
+				schemaMapping.NewTableConfig(
+					"custom_keyspace2",
+					"table2",
+					"cf1", // Assuming a default column family
+					[]*types.Column{
+						{
 							Name:         "column2",
 							CQLType:      datatype.Varchar,
 							KeyType:      "partition",
 							IsPrimaryKey: true,
 						},
 					},
-				},
+				),
 			},
 			expectedKeys: []string{"custom_keyspace1", "custom_keyspace2"},
 		},
@@ -2126,11 +2072,7 @@ func TestHandleDescribeKeyspaces(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			logger := zap.NewNop()
-			schemaMappingConfig := &schemaMapping.SchemaMappingConfig{
-				Logger:             logger,
-				Tables:             schemaMapping.CreateTableConfig("cf1", tt.mockTableMeta),
-				SystemColumnFamily: "cf",
-			}
+			schemaMappingConfig := schemaMapping.NewSchemaMappingConfig("cf", logger, tt.mockTableMeta)
 			proxy := &Proxy{
 				logger:        logger,
 				schemaMapping: schemaMappingConfig,
@@ -2183,33 +2125,12 @@ func TestHandleDescribeKeyspaces(t *testing.T) {
 func TestHandleDescribeTables(t *testing.T) {
 	tests := []struct {
 		name           string
-		mockTableMeta  map[string]map[string]map[string]*types.Column
+		mockTableMeta  *schemaMapping.SchemaMappingConfig
 		expectedTables []struct{ keyspace, table string }
 	}{
 		{
-			name: "multiple keyspaces and tables",
-			mockTableMeta: map[string]map[string]map[string]*types.Column{
-				"keyspace1": {
-					"table1": {
-						"column1": {
-							Name:         "column1",
-							CQLType:      datatype.Varchar,
-							KeyType:      "partition",
-							IsPrimaryKey: true,
-						},
-					},
-				},
-				"keyspace2": {
-					"table2": {
-						"column2": {
-							Name:         "column2",
-							CQLType:      datatype.Varchar,
-							KeyType:      "partition",
-							IsPrimaryKey: true,
-						},
-					},
-				},
-			},
+			name:          "multiple keyspaces and tables",
+			mockTableMeta: mockTableSchemaConfig,
 			expectedTables: []struct{ keyspace, table string }{
 				{"system_virtual_schema", "keyspaces"},
 				{"system_virtual_schema", "tables"},
@@ -2219,14 +2140,9 @@ func TestHandleDescribeTables(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			logger := zap.NewNop()
-			schemaMappingConfig := &schemaMapping.SchemaMappingConfig{
-				Logger:             logger,
-				Tables:             schemaMapping.CreateTableConfig("cf1", tt.mockTableMeta),
-				SystemColumnFamily: "cf",
-			}
+			schemaMappingConfig := tt.mockTableMeta
 			proxy := &Proxy{
-				logger:        logger,
+				logger:        zap.NewNop(),
 				schemaMapping: schemaMappingConfig,
 			}
 			mockSender := &mockSender{}
@@ -2282,64 +2198,65 @@ func TestHandleDescribeTableColumns(t *testing.T) {
 		name          string
 		keyspace      string
 		table         string
-		mockTableMeta map[string]map[string]map[string]*types.Column
+		mockTableMeta *schemaMapping.TableConfig
 		expectedCols  map[string]datatype.DataType
 	}{
 		{
 			name:     "test_table with three columns",
 			keyspace: "test_keyspace",
 			table:    "test_table",
-			mockTableMeta: map[string]map[string]map[string]*types.Column{
-				"test_keyspace": {
-					"test_table": {
-						"id": {
-							Name:         "id",
-							CQLType:      datatype.Uuid,
-							KeyType:      "partition",
-							IsPrimaryKey: true,
-							ColumnFamily: "cf",
-							PkPrecedence: 0,
-							Metadata: message.ColumnMetadata{
-								Keyspace: "test_keyspace",
-								Table:    "test_table",
-								Name:     "id",
-								Type:     datatype.Uuid,
-								Index:    0,
-							},
+			mockTableMeta: schemaMapping.NewTableConfig(
+				"test_keyspace",
+				"test_table",
+				"cf", // Column family derived from the column definitions
+				[]*types.Column{
+					{
+						Name:         "id",
+						CQLType:      datatype.Uuid,
+						KeyType:      "partition",
+						IsPrimaryKey: true,
+						ColumnFamily: "cf",
+						PkPrecedence: 0,
+						Metadata: message.ColumnMetadata{
+							Keyspace: "test_keyspace",
+							Table:    "test_table",
+							Name:     "id",
+							Type:     datatype.Uuid,
+							Index:    0,
 						},
-						"name": {
-							Name:         "name",
-							CQLType:      datatype.Varchar,
-							KeyType:      "clustering",
-							IsPrimaryKey: true,
-							ColumnFamily: "cf",
-							PkPrecedence: 1,
-							Metadata: message.ColumnMetadata{
-								Keyspace: "test_keyspace",
-								Table:    "test_table",
-								Name:     "name",
-								Type:     datatype.Varchar,
-								Index:    1,
-							},
+					},
+					{
+						Name:         "name",
+						CQLType:      datatype.Varchar,
+						KeyType:      "clustering",
+						IsPrimaryKey: true,
+						ColumnFamily: "cf",
+						PkPrecedence: 1,
+						Metadata: message.ColumnMetadata{
+							Keyspace: "test_keyspace",
+							Table:    "test_table",
+							Name:     "name",
+							Type:     datatype.Varchar,
+							Index:    1,
 						},
-						"age": {
-							Name:         "age",
-							CQLType:      datatype.Int,
-							KeyType:      "regular",
-							IsPrimaryKey: false,
-							ColumnFamily: "cf",
-							PkPrecedence: 0,
-							Metadata: message.ColumnMetadata{
-								Keyspace: "test_keyspace",
-								Table:    "test_table",
-								Name:     "age",
-								Type:     datatype.Int,
-								Index:    2,
-							},
+					},
+					{
+						Name:         "age",
+						CQLType:      datatype.Int,
+						KeyType:      "regular",
+						IsPrimaryKey: false,
+						ColumnFamily: "cf",
+						PkPrecedence: 0,
+						Metadata: message.ColumnMetadata{
+							Keyspace: "test_keyspace",
+							Table:    "test_table",
+							Name:     "age",
+							Type:     datatype.Int,
+							Index:    2,
 						},
 					},
 				},
-			},
+			),
 			expectedCols: map[string]datatype.DataType{
 				"id":   datatype.Uuid,
 				"name": datatype.Varchar,
@@ -2350,11 +2267,9 @@ func TestHandleDescribeTableColumns(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			logger := zap.NewNop()
-			schemaMappingConfig := &schemaMapping.SchemaMappingConfig{
-				Logger:             logger,
-				Tables:             schemaMapping.CreateTableConfig("cf1", tt.mockTableMeta),
-				SystemColumnFamily: "cf",
-			}
+			schemaMappingConfig := schemaMapping.NewSchemaMappingConfig("cf", logger,
+				[]*schemaMapping.TableConfig{tt.mockTableMeta},
+			)
 			proxy := &Proxy{
 				logger:        logger,
 				schemaMapping: schemaMappingConfig,
@@ -2499,33 +2414,36 @@ func TestHandlePostDDLEvent(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			logger := zap.NewNop()
-			mockTableMetadata := map[string]map[string]map[string]*types.Column{
-				"test_keyspace": {
-					"test_table": {
-						"id": {
-							Name:         "id",
-							CQLType:      datatype.Uuid,
-							KeyType:      "partition",
-							IsPrimaryKey: true,
-							ColumnFamily: "cf",
-							PkPrecedence: 0,
-						},
-						"name": {
-							Name:         "name",
-							CQLType:      datatype.Varchar,
-							KeyType:      "clustering",
-							IsPrimaryKey: true,
-							ColumnFamily: "cf",
-							PkPrecedence: 1,
-						},
+			mockTableMetadata := schemaMapping.NewTableConfig(
+				"test_keyspace",
+				"test_table",
+				"cf",
+				[]*types.Column{
+					{
+						Name:         "id",
+						CQLType:      datatype.Uuid,
+						KeyType:      "partition",
+						IsPrimaryKey: true,
+						ColumnFamily: "cf",
+						PkPrecedence: 0,
+					},
+					{
+						Name:         "name",
+						CQLType:      datatype.Varchar,
+						KeyType:      "clustering",
+						IsPrimaryKey: true,
+						ColumnFamily: "cf",
+						PkPrecedence: 1,
 					},
 				},
-			}
-			schemaMappingConfig := &schemaMapping.SchemaMappingConfig{
-				Logger:             logger,
-				Tables:             schemaMapping.CreateTableConfig("cf1", mockTableMetadata),
-				SystemColumnFamily: "cf",
-			}
+			)
+			schemaMappingConfig := schemaMapping.NewSchemaMappingConfig(
+				"cf",
+				logger,
+				[]*schemaMapping.TableConfig{
+					mockTableMetadata,
+				},
+			)
 			proxy := &Proxy{
 				logger:        logger,
 				schemaMapping: schemaMappingConfig,

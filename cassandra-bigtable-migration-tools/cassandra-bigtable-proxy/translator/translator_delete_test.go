@@ -24,6 +24,7 @@ import (
 	types "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/global/types"
 	schemaMapping "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/schema-mapping"
 	cql "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/third_party/cqlparser"
+	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/utilities"
 	"github.com/antlr4-go/antlr/v4"
 	"github.com/datastax/go-cassandra-native-protocol/datatype"
 	"github.com/datastax/go-cassandra-native-protocol/message"
@@ -169,7 +170,7 @@ func TestTranslator_TranslateDeleteQuerytoBigtable(t *testing.T) {
 				queryStr: "DELETE test_keyspace.user_info WHERE name='test' AND age=15",
 			},
 			fields: fields{
-				SchemaMappingConfig: GetSchemaMappingConfig(false),
+				SchemaMappingConfig: GetSchemaMappingConfig(),
 			},
 			want:            nil,
 			wantErr:         true,
@@ -608,26 +609,22 @@ func TestTranslator_BuildDeletePrepareQuery(t *testing.T) {
 	}
 }
 
-// newTestTableConfig returns a minimal SchemaMappingConfig for testing.
-func newTestTableConfig() *schemaMapping.SchemaMappingConfig {
-	tc := &schemaMapping.SchemaMappingConfig{
-		Tables: map[string]map[string]*schemaMapping.TableConfig{
-			"test_keyspace": {"testtable": &schemaMapping.TableConfig{
-				Keyspace: "test_keyspace",
-				Name:     "testtable",
-				Columns: map[string]*types.Column{
-					"col1": {CQLType: datatype.Varchar, IsPrimaryKey: false},
-					"col2": {CQLType: datatype.Int, IsPrimaryKey: false},
-				},
-				PrimaryKeys: []*types.Column{
-					{CQLType: datatype.Varchar, IsPrimaryKey: false, Name: "col1"},
-					{CQLType: datatype.Int, IsPrimaryKey: false, Name: "col2"},
-				},
-			},
-			},
-		},
+// newTestTableConfig returns a minimal SchemaMappingConfig for testing using constructors.
+func newTestTableConfig() *schemaMapping.TableConfig {
+	const systemColumnFamily = "cf1"
+
+	testTableColumns := []*types.Column{
+		{Name: "col1", CQLType: datatype.Varchar, KeyType: utilities.KEY_TYPE_PARTITION},
+		{Name: "col2", CQLType: datatype.Int, KeyType: utilities.KEY_TYPE_CLUSTERING},
 	}
-	return tc
+
+	return schemaMapping.NewTableConfig(
+		"test_keyspace",
+		"testtable",
+		systemColumnFamily,
+		testTableColumns,
+	)
+
 }
 
 // setupDeleteColumnList is used to generate the DeleteColumnList context.
@@ -642,8 +639,6 @@ func setupDeleteColumnList(query string) interface{} {
 
 func TestParseDeleteColumns(t *testing.T) {
 	tc := newTestTableConfig()
-	keyspace := "test_keyspace"
-	table := "testtable"
 
 	tests := []struct {
 		name         string
@@ -730,7 +725,7 @@ func TestParseDeleteColumns(t *testing.T) {
 					t.Fatalf("returned object does not implement IDeleteColumnListContext")
 				}
 			}
-			cols, err := parseDeleteColumns(deleteColumnList, tc.Tables[keyspace][table])
+			cols, err := parseDeleteColumns(deleteColumnList, tc)
 			if (err != nil) != tt.wantErr {
 				t.Fatalf("parseDeleteColumns() error = %v, wantErr %v", err, tt.wantErr)
 			}

@@ -5,7 +5,7 @@
  * use this file except in compliance with the License. You may obtain a copy of
  * the License at
  *
- *   http://www.apache.org/licenses/LICENSE-2.0
+ * http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
@@ -26,6 +26,7 @@ import (
 	types "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/global/types"
 	schemaMapping "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/schema-mapping"
 	cql "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/third_party/cqlparser"
+	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/utilities"
 	"github.com/antlr4-go/antlr/v4"
 	"github.com/datastax/go-cassandra-native-protocol/datatype"
 	"github.com/stretchr/testify/assert"
@@ -41,15 +42,15 @@ func TestTranslator_TranslateSelectQuerytoBigtable(t *testing.T) {
 	}
 
 	inputRawQuery := `select column1, column2, column3 from  test_keyspace.test_table
-	where column1 = 'test' AND column3='true'
-	AND column5 <= '2015-05-03 13:30:54.234' AND column6 >= '123'
-	AND column9 > '-10000000' LIMIT 20000;;`
+ where column1 = 'test' AND column3='true'
+ AND column5 <= '2015-05-03 13:30:54.234' AND column6 >= '123'
+ AND column9 > '-10000000' LIMIT 20000;;`
 	timeStamp, _ := parseTimestamp("2015-05-03 13:30:54.234")
 
 	inputPreparedQuery := `select column1, column2, column3 from  test_keyspace.test_table
-	where column1 = '?' AND column2='?' AND column3='?'
-	AND column5='?' AND column6='?'
-	AND column9='?';`
+ where column1 = '?' AND column2='?' AND column3='?'
+ AND column5='?' AND column6='?'
+ AND column9='?';`
 	tests := []struct {
 		name            string
 		fields          fields
@@ -1206,11 +1207,7 @@ func TestTranslator_TranslateSelectQuerytoBigtable(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			schemaMappingConfig := &schemaMapping.SchemaMappingConfig{
-				Logger:             tt.fields.Logger,
-				Tables:             mockTableConfigs,
-				SystemColumnFamily: "cf1",
-			}
+			schemaMappingConfig := GetSchemaMappingConfig()
 			tr := &Translator{
 				Logger:              tt.fields.Logger,
 				SchemaMappingConfig: schemaMappingConfig,
@@ -1232,11 +1229,7 @@ func TestTranslator_TranslateSelectQuerytoBigtable(t *testing.T) {
 }
 
 func Test_GetBigtableSelectQuery(t *testing.T) {
-	schemaMap := &schemaMapping.SchemaMappingConfig{
-		Logger:             zap.NewNop(),
-		Tables:             mockTableConfigs,
-		SystemColumnFamily: "cf1",
-	}
+	schemaMap := GetSchemaMappingConfig()
 	tr := &Translator{
 		Logger:              zap.NewNop(),
 		SchemaMappingConfig: schemaMap,
@@ -1400,25 +1393,20 @@ func Test_GetBigtableSelectQuery(t *testing.T) {
 			},
 			want:    "SELECT column1,SUM(TO_INT64(cf1['column2'])) as total,column3 FROM test_table WHERE column3 = 10 GROUP BY column1,column3 ORDER BY column3 desc, column1 asc LIMIT 100;",
 			wantErr: false,
-			translator: &Translator{
-				Logger: zap.NewNop(),
-				SchemaMappingConfig: &schemaMapping.SchemaMappingConfig{
-					Tables: map[string]map[string]*schemaMapping.TableConfig{
-						"test_keyspace": {"test_table": &schemaMapping.TableConfig{
-							Keyspace: "test_keyspace",
-							Name:     "test_table",
-							Columns: map[string]*types.Column{
-								"column1": {Name: "column1", CQLType: datatype.Varchar, IsPrimaryKey: true},
-								"column2": {Name: "column2", CQLType: datatype.Bigint},
-								"column3": {Name: "column3", CQLType: datatype.Bigint, IsPrimaryKey: true},
-							},
-							PrimaryKeys: []*types.Column{},
-						},
-						},
-					},
-					SystemColumnFamily: "cf1",
-				},
-			},
+			translator: func() *Translator {
+				// REFACTOR: Use constructor functions
+				cols := []*types.Column{
+					{Name: "column1", CQLType: datatype.Varchar, KeyType: utilities.KEY_TYPE_PARTITION},
+					{Name: "column2", CQLType: datatype.Bigint, KeyType: utilities.KEY_TYPE_REGULAR},
+					{Name: "column3", CQLType: datatype.Bigint, KeyType: utilities.KEY_TYPE_PARTITION},
+				}
+				tableCfg := schemaMapping.NewTableConfig("test_keyspace", "test_table", "cf1", cols)
+				schemaCfg := schemaMapping.NewSchemaMappingConfig("cf1", zap.NewNop(), []*schemaMapping.TableConfig{tableCfg})
+				return &Translator{
+					Logger:              zap.NewNop(),
+					SchemaMappingConfig: schemaCfg,
+				}
+			}(),
 		},
 		{
 			name: "Multiple aggregates with GROUP BY and ORDER BY",
@@ -1446,25 +1434,20 @@ func Test_GetBigtableSelectQuery(t *testing.T) {
 			},
 			want:    "SELECT column1,AVG(TO_INT64(cf1['column2'])) as avg_value,MAX(TO_INT64(cf1['column3'])) as max_value FROM test_table GROUP BY column1 ORDER BY avg_value desc;",
 			wantErr: false,
-			translator: &Translator{
-				Logger: zap.NewNop(),
-				SchemaMappingConfig: &schemaMapping.SchemaMappingConfig{
-					Tables: map[string]map[string]*schemaMapping.TableConfig{
-						"test_keyspace": {"test_table": &schemaMapping.TableConfig{
-							Keyspace: "test_keyspace",
-							Name:     "test_table",
-							Columns: map[string]*types.Column{
-								"column1": {Name: "column1", CQLType: datatype.Varchar, IsPrimaryKey: true},
-								"column2": {Name: "column2", CQLType: datatype.Bigint},
-								"column3": {Name: "column3", CQLType: datatype.Bigint},
-							},
-							PrimaryKeys: []*types.Column{},
-						},
-						},
-					},
-					SystemColumnFamily: "cf1",
-				},
-			},
+			translator: func() *Translator {
+				// REFACTOR: Use constructor functions
+				cols := []*types.Column{
+					{Name: "column1", CQLType: datatype.Varchar, KeyType: utilities.KEY_TYPE_PARTITION},
+					{Name: "column2", CQLType: datatype.Bigint, KeyType: utilities.KEY_TYPE_REGULAR},
+					{Name: "column3", CQLType: datatype.Bigint, KeyType: utilities.KEY_TYPE_REGULAR},
+				}
+				tableCfg := schemaMapping.NewTableConfig("test_keyspace", "test_table", "cf1", cols)
+				schemaCfg := schemaMapping.NewSchemaMappingConfig("cf1", zap.NewNop(), []*schemaMapping.TableConfig{tableCfg})
+				return &Translator{
+					Logger:              zap.NewNop(),
+					SchemaMappingConfig: schemaCfg,
+				}
+			}(),
 		},
 		{
 			name: "COUNT with WHERE and LIMIT",
@@ -1487,23 +1470,18 @@ func Test_GetBigtableSelectQuery(t *testing.T) {
 			},
 			want:    "SELECT count(*) as total_count FROM test_table WHERE column1 > 5 LIMIT 50;",
 			wantErr: false,
-			translator: &Translator{
-				Logger: zap.NewNop(),
-				SchemaMappingConfig: &schemaMapping.SchemaMappingConfig{
-					Tables: map[string]map[string]*schemaMapping.TableConfig{
-						"test_keyspace": {"test_table": &schemaMapping.TableConfig{
-							Keyspace: "test_keyspace",
-							Name:     "test_table",
-							Columns: map[string]*types.Column{
-								"column1": {Name: "column1", CQLType: datatype.Bigint, IsPrimaryKey: true},
-							},
-							PrimaryKeys: []*types.Column{},
-						},
-						},
-					},
-					SystemColumnFamily: "cf1",
-				},
-			},
+			translator: func() *Translator {
+				// REFACTOR: Use constructor functions
+				cols := []*types.Column{
+					{Name: "column1", CQLType: datatype.Bigint, KeyType: utilities.KEY_TYPE_PARTITION},
+				}
+				tableCfg := schemaMapping.NewTableConfig("test_keyspace", "test_table", "cf1", cols)
+				schemaCfg := schemaMapping.NewSchemaMappingConfig("cf1", zap.NewNop(), []*schemaMapping.TableConfig{tableCfg})
+				return &Translator{
+					Logger:              zap.NewNop(),
+					SchemaMappingConfig: schemaCfg,
+				}
+			}(),
 		},
 		{
 			name: "MIN and MAX with WHERE and ORDER BY",
@@ -1532,24 +1510,19 @@ func Test_GetBigtableSelectQuery(t *testing.T) {
 			},
 			want:    "SELECT MIN(TO_INT64(cf1['column2'])) as min_value,MAX(TO_INT64(cf1['column2'])) as max_value FROM test_table WHERE column1 IN UNNEST(@values) ORDER BY min_value asc;",
 			wantErr: false,
-			translator: &Translator{
-				Logger: zap.NewNop(),
-				SchemaMappingConfig: &schemaMapping.SchemaMappingConfig{
-					Tables: map[string]map[string]*schemaMapping.TableConfig{
-						"test_keyspace": {"test_table": &schemaMapping.TableConfig{
-							Keyspace: "test_keyspace",
-							Name:     "test_table",
-							Columns: map[string]*types.Column{
-								"column1": {Name: "column1", CQLType: datatype.Varchar, IsPrimaryKey: true},
-								"column2": {Name: "column2", CQLType: datatype.Bigint},
-							},
-							PrimaryKeys: []*types.Column{},
-						},
-						},
-					},
-					SystemColumnFamily: "cf1",
-				},
-			},
+			translator: func() *Translator {
+				// REFACTOR: Use constructor functions
+				cols := []*types.Column{
+					{Name: "column1", CQLType: datatype.Varchar, KeyType: utilities.KEY_TYPE_PARTITION},
+					{Name: "column2", CQLType: datatype.Bigint, KeyType: utilities.KEY_TYPE_REGULAR},
+				}
+				tableCfg := schemaMapping.NewTableConfig("test_keyspace", "test_table", "cf1", cols)
+				schemaCfg := schemaMapping.NewSchemaMappingConfig("cf1", zap.NewNop(), []*schemaMapping.TableConfig{tableCfg})
+				return &Translator{
+					Logger:              zap.NewNop(),
+					SchemaMappingConfig: schemaCfg,
+				}
+			}(),
 		},
 		{
 			name: "SUM with GROUP BY",
@@ -1570,24 +1543,19 @@ func Test_GetBigtableSelectQuery(t *testing.T) {
 			},
 			want:    "SELECT column1,SUM(TO_INT64(cf1['column2'])) as total_sum FROM test_table GROUP BY column1;",
 			wantErr: false,
-			translator: &Translator{
-				Logger: zap.NewNop(),
-				SchemaMappingConfig: &schemaMapping.SchemaMappingConfig{
-					Tables: map[string]map[string]*schemaMapping.TableConfig{
-						"test_keyspace": {"test_table": &schemaMapping.TableConfig{
-							Keyspace: "test_keyspace",
-							Name:     "test_table",
-							Columns: map[string]*types.Column{
-								"column1": {Name: "column1", CQLType: datatype.Varchar, IsPrimaryKey: true},
-								"column2": {Name: "column2", CQLType: datatype.Bigint},
-							},
-							PrimaryKeys: []*types.Column{},
-						},
-						},
-					},
-					SystemColumnFamily: "cf1",
-				},
-			},
+			translator: func() *Translator {
+				// REFACTOR: Use constructor functions
+				cols := []*types.Column{
+					{Name: "column1", CQLType: datatype.Varchar, KeyType: utilities.KEY_TYPE_PARTITION},
+					{Name: "column2", CQLType: datatype.Bigint, KeyType: utilities.KEY_TYPE_REGULAR},
+				}
+				tableCfg := schemaMapping.NewTableConfig("test_keyspace", "test_table", "cf1", cols)
+				schemaCfg := schemaMapping.NewSchemaMappingConfig("cf1", zap.NewNop(), []*schemaMapping.TableConfig{tableCfg})
+				return &Translator{
+					Logger:              zap.NewNop(),
+					SchemaMappingConfig: schemaCfg,
+				}
+			}(),
 		},
 		{
 			name: "Invalid ORDER BY with non-grouped column",
@@ -1616,25 +1584,20 @@ func Test_GetBigtableSelectQuery(t *testing.T) {
 			},
 			want:    "SELECT name,TO_INT64(cf1['age']),MAX(TO_INT64(cf1['code'])) as max_code FROM test_table GROUP BY name,TO_INT64(cf1['age']) ORDER BY name asc, TO_INT64(cf1['code']) desc;",
 			wantErr: false,
-			translator: &Translator{
-				Logger: zap.NewNop(),
-				SchemaMappingConfig: &schemaMapping.SchemaMappingConfig{
-					Tables: map[string]map[string]*schemaMapping.TableConfig{
-						"test_keyspace": {"test_table": &schemaMapping.TableConfig{
-							Keyspace: "test_keyspace",
-							Name:     "test_table",
-							Columns: map[string]*types.Column{
-								"name": {Name: "name", CQLType: datatype.Varchar, IsPrimaryKey: true},
-								"age":  {Name: "age", CQLType: datatype.Bigint},
-								"code": {Name: "code", CQLType: datatype.Bigint},
-							},
-							PrimaryKeys: []*types.Column{},
-						},
-						},
-					},
-					SystemColumnFamily: "cf1",
-				},
-			},
+			translator: func() *Translator {
+				// REFACTOR: Use constructor functions
+				cols := []*types.Column{
+					{Name: "name", CQLType: datatype.Varchar, KeyType: utilities.KEY_TYPE_PARTITION},
+					{Name: "age", CQLType: datatype.Bigint, KeyType: utilities.KEY_TYPE_REGULAR},
+					{Name: "code", CQLType: datatype.Bigint, KeyType: utilities.KEY_TYPE_REGULAR},
+				}
+				tableCfg := schemaMapping.NewTableConfig("test_keyspace", "test_table", "cf1", cols)
+				schemaCfg := schemaMapping.NewSchemaMappingConfig("cf1", zap.NewNop(), []*schemaMapping.TableConfig{tableCfg})
+				return &Translator{
+					Logger:              zap.NewNop(),
+					SchemaMappingConfig: schemaCfg,
+				}
+			}(),
 		},
 		{
 			name: "Invalid SELECT with non-grouped column",
@@ -1662,25 +1625,20 @@ func Test_GetBigtableSelectQuery(t *testing.T) {
 			},
 			want:    "SELECT name,TO_INT64(cf1['age']),TO_INT64(cf1['code']) FROM test_table GROUP BY name,TO_INT64(cf1['age']) ORDER BY name asc;",
 			wantErr: false,
-			translator: &Translator{
-				Logger: zap.NewNop(),
-				SchemaMappingConfig: &schemaMapping.SchemaMappingConfig{
-					Tables: map[string]map[string]*schemaMapping.TableConfig{
-						"test_keyspace": {"test_table": &schemaMapping.TableConfig{
-							Keyspace: "test_keyspace",
-							Name:     "test_table",
-							Columns: map[string]*types.Column{
-								"name": {Name: "name", CQLType: datatype.Varchar, IsPrimaryKey: true},
-								"age":  {Name: "age", CQLType: datatype.Bigint},
-								"code": {Name: "code", CQLType: datatype.Bigint},
-							},
-							PrimaryKeys: []*types.Column{},
-						},
-						},
-					},
-					SystemColumnFamily: "cf1",
-				},
-			},
+			translator: func() *Translator {
+				// REFACTOR: Use constructor functions
+				cols := []*types.Column{
+					{Name: "name", CQLType: datatype.Varchar, KeyType: utilities.KEY_TYPE_PARTITION},
+					{Name: "age", CQLType: datatype.Bigint, KeyType: utilities.KEY_TYPE_REGULAR},
+					{Name: "code", CQLType: datatype.Bigint, KeyType: utilities.KEY_TYPE_REGULAR},
+				}
+				tableCfg := schemaMapping.NewTableConfig("test_keyspace", "test_table", "cf1", cols)
+				schemaCfg := schemaMapping.NewSchemaMappingConfig("cf1", zap.NewNop(), []*schemaMapping.TableConfig{tableCfg})
+				return &Translator{
+					Logger:              zap.NewNop(),
+					SchemaMappingConfig: schemaCfg,
+				}
+			}(),
 		},
 		{
 			name: "Valid GROUP BY with aggregate and ORDER BY",
@@ -1709,25 +1667,20 @@ func Test_GetBigtableSelectQuery(t *testing.T) {
 			},
 			want:    "SELECT name,TO_INT64(cf1['age']),MAX(TO_INT64(cf1['code'])) as max_code FROM test_table GROUP BY name,TO_INT64(cf1['age']) ORDER BY name asc, max_code desc;",
 			wantErr: false,
-			translator: &Translator{
-				Logger: zap.NewNop(),
-				SchemaMappingConfig: &schemaMapping.SchemaMappingConfig{
-					Tables: map[string]map[string]*schemaMapping.TableConfig{
-						"test_keyspace": {"test_table": &schemaMapping.TableConfig{
-							Keyspace: "test_keyspace",
-							Name:     "test_table",
-							Columns: map[string]*types.Column{
-								"name": {Name: "name", CQLType: datatype.Varchar, IsPrimaryKey: true},
-								"age":  {Name: "age", CQLType: datatype.Bigint},
-								"code": {Name: "code", CQLType: datatype.Bigint},
-							},
-							PrimaryKeys: []*types.Column{},
-						},
-						},
-					},
-					SystemColumnFamily: "cf1",
-				},
-			},
+			translator: func() *Translator {
+				// REFACTOR: Use constructor functions
+				cols := []*types.Column{
+					{Name: "name", CQLType: datatype.Varchar, KeyType: utilities.KEY_TYPE_PARTITION},
+					{Name: "age", CQLType: datatype.Bigint, KeyType: utilities.KEY_TYPE_REGULAR},
+					{Name: "code", CQLType: datatype.Bigint, KeyType: utilities.KEY_TYPE_REGULAR},
+				}
+				tableCfg := schemaMapping.NewTableConfig("test_keyspace", "test_table", "cf1", cols)
+				schemaCfg := schemaMapping.NewSchemaMappingConfig("cf1", zap.NewNop(), []*schemaMapping.TableConfig{tableCfg})
+				return &Translator{
+					Logger:              zap.NewNop(),
+					SchemaMappingConfig: schemaCfg,
+				}
+			}(),
 		},
 	}
 	for _, tt := range tests {
@@ -2123,37 +2076,16 @@ func Test_processFunctionColumn(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			translator := &Translator{
-				SchemaMappingConfig: &schemaMapping.SchemaMappingConfig{
-					Tables: map[string]map[string]*schemaMapping.TableConfig{
-						"test_keyspace": {"user_info": &schemaMapping.TableConfig{
-							Keyspace: "test_keyspace",
-							Name:     "user_info",
-							Columns: map[string]*types.Column{
-								"age": {
-									Name:    "age",
-									CQLType: datatype.Bigint,
-								},
-								"balance": {
-									Name:    "balance",
-									CQLType: datatype.Float,
-								},
-								"name": {
-									Name:    "name",
-									CQLType: datatype.Varchar,
-								},
-								"code": {
-									Name:    "code",
-									CQLType: datatype.Int,
-								},
-							},
-							PrimaryKeys: []*types.Column{},
-						},
-						},
-					},
-					SystemColumnFamily: "cf1",
-				},
+			// REFACTOR: Use constructor functions
+			cols := []*types.Column{
+				{Name: "age", CQLType: datatype.Bigint, KeyType: utilities.KEY_TYPE_REGULAR},
+				{Name: "balance", CQLType: datatype.Float, KeyType: utilities.KEY_TYPE_REGULAR},
+				{Name: "name", CQLType: datatype.Varchar, KeyType: utilities.KEY_TYPE_REGULAR},
+				{Name: "code", CQLType: datatype.Int, KeyType: utilities.KEY_TYPE_REGULAR},
 			}
+			tableCfg := schemaMapping.NewTableConfig("test_keyspace", "user_info", "cf1", cols)
+			schemaCfg := schemaMapping.NewSchemaMappingConfig("cf1", zap.NewNop(), []*schemaMapping.TableConfig{tableCfg})
+			translator := &Translator{SchemaMappingConfig: schemaCfg}
 
 			tc, err := translator.SchemaMappingConfig.GetTableConfig(tt.keySpace, tt.tableName)
 			if err != nil {
@@ -2594,37 +2526,18 @@ func TestProcessSetStrings(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			// REFACTOR: Use constructor functions
+			cols := []*types.Column{
+				{Name: "name", CQLType: datatype.Varchar, KeyType: utilities.KEY_TYPE_REGULAR},
+				{Name: "age", CQLType: datatype.Bigint, KeyType: utilities.KEY_TYPE_REGULAR},
+				{Name: "code", CQLType: datatype.Int, KeyType: utilities.KEY_TYPE_REGULAR},
+				{Name: "map_col", CQLType: datatype.NewMapType(datatype.Varchar, datatype.Varchar), KeyType: utilities.KEY_TYPE_REGULAR},
+			}
+			tableCfg := schemaMapping.NewTableConfig("test_keyspace", "user_info", "cf1", cols)
+			schemaCfg := schemaMapping.NewSchemaMappingConfig("cf1", zap.NewNop(), []*schemaMapping.TableConfig{tableCfg})
 			tr := &Translator{
-				Logger: zap.NewNop(),
-				SchemaMappingConfig: &schemaMapping.SchemaMappingConfig{
-					Tables: map[string]map[string]*schemaMapping.TableConfig{
-						"test_keyspace": {"user_info": &schemaMapping.TableConfig{
-							Keyspace: "test_keyspace",
-							Name:     "user_info",
-							Columns: map[string]*types.Column{
-								"name": {
-									Name:    "name",
-									CQLType: datatype.Varchar,
-								},
-								"age": {
-									Name:    "age",
-									CQLType: datatype.Bigint,
-								},
-								"code": {
-									Name:    "code",
-									CQLType: datatype.Int,
-								},
-								"map_col": {
-									Name:    "map_col",
-									CQLType: datatype.NewMapType(datatype.Varchar, datatype.Varchar),
-								},
-							},
-							PrimaryKeys: []*types.Column{},
-						},
-						},
-					},
-					SystemColumnFamily: "cf1",
-				},
+				Logger:              zap.NewNop(),
+				SchemaMappingConfig: schemaCfg,
 			}
 
 			tc, err := tr.SchemaMappingConfig.GetTableConfig(tt.keySpace, tt.tableName)

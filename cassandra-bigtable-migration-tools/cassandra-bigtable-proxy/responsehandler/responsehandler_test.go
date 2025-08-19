@@ -19,6 +19,7 @@ import (
 	"reflect"
 	"testing"
 
+	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/global/types"
 	schemaMapping "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/schema-mapping"
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/third_party/datastax/proxycore"
 	"github.com/datastax/go-cassandra-native-protocol/datatype"
@@ -91,7 +92,7 @@ func TestExtractUniqueKeys(t *testing.T) {
 				{"key1": 1, "key2": 2},
 			},
 			query: QueryMetadata{
-				SelectedColumns: []schemaMapping.SelectedColumns{
+				SelectedColumns: []types.SelectedColumns{
 					{
 						Name: "key1",
 					},
@@ -105,7 +106,7 @@ func TestExtractUniqueKeys(t *testing.T) {
 				{"key1": 1, "key2": 2},
 			},
 			query: QueryMetadata{
-				SelectedColumns: []schemaMapping.SelectedColumns{
+				SelectedColumns: []types.SelectedColumns{
 					{
 						Name:  "key1",
 						Alias: "key1_alias",
@@ -838,7 +839,7 @@ func TestTypeHandler_BuildMetadata(t *testing.T) {
 					KeyspaceName:        "test_keyspace",
 					IsStar:              false,
 					DefaultColumnFamily: "cf1",
-					SelectedColumns: []schemaMapping.SelectedColumns{
+					SelectedColumns: []types.SelectedColumns{
 						{
 							Name: "name",
 						},
@@ -921,7 +922,7 @@ func TestTypeHandler_BuildResponseRow(t *testing.T) {
 					KeyspaceName:        "test_keyspace",
 					IsStar:              false,
 					DefaultColumnFamily: "cf1",
-					SelectedColumns: []schemaMapping.SelectedColumns{
+					SelectedColumns: []types.SelectedColumns{
 						{
 							Name: "name",
 						},
@@ -957,7 +958,7 @@ func TestTypeHandler_BuildResponseRow(t *testing.T) {
 					KeyspaceName:        "test_keyspace",
 					IsStar:              false,
 					DefaultColumnFamily: "cf1",
-					SelectedColumns: []schemaMapping.SelectedColumns{
+					SelectedColumns: []types.SelectedColumns{
 						{
 							Name: "column8['mapKey']", MapKey: "mapKey", ColumnName: "column8",
 						},
@@ -992,7 +993,7 @@ func TestTypeHandler_BuildResponseRow(t *testing.T) {
 					KeyspaceName:        "test_keyspace",
 					IsStar:              false,
 					DefaultColumnFamily: "cf1",
-					SelectedColumns: []schemaMapping.SelectedColumns{
+					SelectedColumns: []types.SelectedColumns{
 						{
 							Name:     "id",
 							IsFunc:   true,
@@ -1031,7 +1032,7 @@ func TestTypeHandler_BuildResponseRow(t *testing.T) {
 					KeyspaceName:        "test_keyspace",
 					IsStar:              false,
 					DefaultColumnFamily: "cf1",
-					SelectedColumns: []schemaMapping.SelectedColumns{
+					SelectedColumns: []types.SelectedColumns{
 						{
 							Name:     "id",
 							IsFunc:   true,
@@ -1069,7 +1070,7 @@ func TestTypeHandler_BuildResponseRow(t *testing.T) {
 					KeyspaceName:        "test_keyspace",
 					IsStar:              false,
 					DefaultColumnFamily: "cf1",
-					SelectedColumns: []schemaMapping.SelectedColumns{
+					SelectedColumns: []types.SelectedColumns{
 						{
 							Name:     "id",
 							IsFunc:   true,
@@ -1107,7 +1108,7 @@ func TestTypeHandler_BuildResponseRow(t *testing.T) {
 					KeyspaceName:        "test_keyspace",
 					IsStar:              false,
 					DefaultColumnFamily: "cf1",
-					SelectedColumns: []schemaMapping.SelectedColumns{
+					SelectedColumns: []types.SelectedColumns{
 						{
 							Name:              "writetime(column5)",
 							ColumnName:        "column5",
@@ -1147,7 +1148,7 @@ func TestTypeHandler_BuildResponseRow(t *testing.T) {
 					KeyspaceName:        "test_keyspace",
 					IsStar:              false,
 					DefaultColumnFamily: "cf1",
-					SelectedColumns: []schemaMapping.SelectedColumns{
+					SelectedColumns: []types.SelectedColumns{
 						{
 							Name:       "column5",
 							Alias:      "abcd",
@@ -1190,7 +1191,7 @@ func TestTypeHandler_BuildResponseRow(t *testing.T) {
 					KeyspaceName:        "test_keyspace",
 					IsStar:              false,
 					DefaultColumnFamily: "cf1",
-					SelectedColumns: []schemaMapping.SelectedColumns{
+					SelectedColumns: []types.SelectedColumns{
 						{
 							Name: "column11",
 						},
@@ -1230,7 +1231,7 @@ func TestTypeHandler_BuildResponseRow(t *testing.T) {
 					KeyspaceName:        "test_keyspace",
 					IsStar:              false,
 					DefaultColumnFamily: "cf1",
-					SelectedColumns: []schemaMapping.SelectedColumns{
+					SelectedColumns: []types.SelectedColumns{
 						{
 							Name: "column7",
 						},
@@ -1268,7 +1269,7 @@ func TestTypeHandler_BuildResponseRow(t *testing.T) {
 					KeyspaceName:        "test_keyspace",
 					IsStar:              false,
 					DefaultColumnFamily: "cf1",
-					SelectedColumns: []schemaMapping.SelectedColumns{
+					SelectedColumns: []types.SelectedColumns{
 						{
 							Name: "column4",
 						},
@@ -1308,7 +1309,7 @@ func TestTypeHandler_BuildResponseRow(t *testing.T) {
 					KeyspaceName:        "test_keyspace",
 					IsStar:              false,
 					DefaultColumnFamily: "cf1",
-					SelectedColumns: []schemaMapping.SelectedColumns{
+					SelectedColumns: []types.SelectedColumns{
 						{
 							Name: "column4",
 						},
@@ -1350,7 +1351,7 @@ func TestTypeHandler_BuildResponseRow(t *testing.T) {
 
 func TestGetQueryColumn(t *testing.T) {
 	query := QueryMetadata{
-		SelectedColumns: []schemaMapping.SelectedColumns{
+		SelectedColumns: []types.SelectedColumns{
 			{Name: "column1", Alias: "alias1", IsWriteTimeColumn: false},
 			{Name: "column2", Alias: "alias2", IsWriteTimeColumn: true},
 			{Name: "column3", Alias: "alias3", IsWriteTimeColumn: false},
@@ -1362,7 +1363,7 @@ func TestGetQueryColumn(t *testing.T) {
 		query      QueryMetadata
 		index      int
 		key        string
-		expected   schemaMapping.SelectedColumns
+		expected   types.SelectedColumns
 		expectFail bool
 	}{
 		{
@@ -1391,7 +1392,7 @@ func TestGetQueryColumn(t *testing.T) {
 			query:    query,
 			index:    2,
 			key:      "random-name",
-			expected: schemaMapping.SelectedColumns{},
+			expected: types.SelectedColumns{},
 		},
 	}
 	for _, test := range tests {

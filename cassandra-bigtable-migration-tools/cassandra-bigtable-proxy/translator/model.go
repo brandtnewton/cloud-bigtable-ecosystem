@@ -89,7 +89,7 @@ type Limit struct {
 
 type ColumnMeta struct {
 	Star   bool
-	Column []schemaMapping.SelectedColumns
+	Column []types.SelectedColumns
 }
 
 type IfSpec struct {
@@ -162,7 +162,7 @@ type DeleteQueryMapping struct {
 	ReturnMetadata    []*message.ColumnMetadata // Metadata of all columns of that table in Cassandra format
 	TimestampInfo     TimestampInfo
 	IfExists          bool
-	SelectedColumns   []schemaMapping.SelectedColumns
+	SelectedColumns   []types.SelectedColumns
 }
 
 type CreateTableStatementMap struct {

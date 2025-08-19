@@ -710,7 +710,7 @@ func TestTranslator_TranslateSelectQuerytoBigtable(t *testing.T) {
 				Keyspace:        "test_keyspace",
 				ColumnMeta: ColumnMeta{
 					Star:   false,
-					Column: []schemaMapping.SelectedColumns{{Name: "column1"}, {Name: "column2"}, {Name: "column3"}},
+					Column: []types.SelectedColumns{{Name: "column1"}, {Name: "column2"}, {Name: "column3"}},
 				},
 				Limit: Limit{
 					IsLimit: true,
@@ -1144,7 +1144,7 @@ func TestTranslator_TranslateSelectQuerytoBigtable(t *testing.T) {
 				Keyspace:        "test_keyspace",
 				ColumnMeta: ColumnMeta{
 					Star: false,
-					Column: []schemaMapping.SelectedColumns{
+					Column: []types.SelectedColumns{
 						{Name: "column1"},
 						{Name: "count_col2", IsFunc: true, FuncName: "count", ColumnName: "column2", IsAs: true, Alias: "count_col2"},
 					},
@@ -1323,7 +1323,7 @@ func Test_GetBigtableSelectQuery(t *testing.T) {
 					Keyspace:  "test_keyspace",
 					ColumnMeta: ColumnMeta{
 						Star: false,
-						Column: []schemaMapping.SelectedColumns{
+						Column: []types.SelectedColumns{
 							{Name: "column1"},
 							{Name: "column6"},
 						},
@@ -1343,7 +1343,7 @@ func Test_GetBigtableSelectQuery(t *testing.T) {
 					Keyspace:  "test_keyspace",
 					ColumnMeta: ColumnMeta{
 						Star: false,
-						Column: []schemaMapping.SelectedColumns{
+						Column: []types.SelectedColumns{
 							{Name: "column1"},
 							{Name: "map_text_text"},
 						},
@@ -1371,7 +1371,7 @@ func Test_GetBigtableSelectQuery(t *testing.T) {
 					Keyspace:  "test_keyspace",
 					ColumnMeta: ColumnMeta{
 						Star: false,
-						Column: []schemaMapping.SelectedColumns{
+						Column: []types.SelectedColumns{
 							{Name: "column1", ColumnName: "column1"},
 							{Name: "SUM(column2)", IsFunc: true, FuncName: "SUM", ColumnName: "column2", IsAs: true, Alias: "total"},
 							{Name: "column3", ColumnName: "column3"},
@@ -1417,7 +1417,7 @@ func Test_GetBigtableSelectQuery(t *testing.T) {
 					Keyspace:  "test_keyspace",
 					ColumnMeta: ColumnMeta{
 						Star: false,
-						Column: []schemaMapping.SelectedColumns{
+						Column: []types.SelectedColumns{
 							{Name: "column1", ColumnName: "column1"},
 							{Name: "AVG(column2)", IsFunc: true, FuncName: "AVG", ColumnName: "column2", IsAs: true, Alias: "avg_value"},
 							{Name: "MAX(column3)", IsFunc: true, FuncName: "MAX", ColumnName: "column3", IsAs: true, Alias: "max_value"},
@@ -1458,7 +1458,7 @@ func Test_GetBigtableSelectQuery(t *testing.T) {
 					Keyspace:  "test_keyspace",
 					ColumnMeta: ColumnMeta{
 						Star: false,
-						Column: []schemaMapping.SelectedColumns{
+						Column: []types.SelectedColumns{
 							{Name: "COUNT(*)", IsFunc: true, FuncName: "COUNT", ColumnName: "*", IsAs: true, Alias: "total_count"},
 						},
 					},
@@ -1492,7 +1492,7 @@ func Test_GetBigtableSelectQuery(t *testing.T) {
 					Keyspace:  "test_keyspace",
 					ColumnMeta: ColumnMeta{
 						Star: false,
-						Column: []schemaMapping.SelectedColumns{
+						Column: []types.SelectedColumns{
 							{Name: "MIN(column2)", IsFunc: true, FuncName: "MIN", ColumnName: "column2", IsAs: true, Alias: "min_value"},
 							{Name: "MAX(column2)", IsFunc: true, FuncName: "MAX", ColumnName: "column2", IsAs: true, Alias: "max_value"},
 						},
@@ -1533,7 +1533,7 @@ func Test_GetBigtableSelectQuery(t *testing.T) {
 					Keyspace:  "test_keyspace",
 					ColumnMeta: ColumnMeta{
 						Star: false,
-						Column: []schemaMapping.SelectedColumns{
+						Column: []types.SelectedColumns{
 							{Name: "column1", ColumnName: "column1"},
 							{Name: "SUM(column2)", IsFunc: true, FuncName: "SUM", ColumnName: "column2", IsAs: true, Alias: "total_sum"},
 						},
@@ -1566,7 +1566,7 @@ func Test_GetBigtableSelectQuery(t *testing.T) {
 					Keyspace:  "test_keyspace",
 					ColumnMeta: ColumnMeta{
 						Star: false,
-						Column: []schemaMapping.SelectedColumns{
+						Column: []types.SelectedColumns{
 							{Name: "name", ColumnName: "name"},
 							{Name: "age", ColumnName: "age"},
 							{Name: "MAX(code)", IsFunc: true, FuncName: "MAX", ColumnName: "code", IsAs: true, Alias: "max_code"},
@@ -1608,7 +1608,7 @@ func Test_GetBigtableSelectQuery(t *testing.T) {
 					Keyspace:  "test_keyspace",
 					ColumnMeta: ColumnMeta{
 						Star: false,
-						Column: []schemaMapping.SelectedColumns{
+						Column: []types.SelectedColumns{
 							{Name: "name", ColumnName: "name"},
 							{Name: "age", ColumnName: "age"},
 							{Name: "code", ColumnName: "code"},
@@ -1649,7 +1649,7 @@ func Test_GetBigtableSelectQuery(t *testing.T) {
 					Keyspace:  "test_keyspace",
 					ColumnMeta: ColumnMeta{
 						Star: false,
-						Column: []schemaMapping.SelectedColumns{
+						Column: []types.SelectedColumns{
 							{Name: "name", ColumnName: "name"},
 							{Name: "age", ColumnName: "age"},
 							{Name: "MAX(code)", IsFunc: true, FuncName: "MAX", ColumnName: "code", IsAs: true, Alias: "max_code"},
@@ -1918,7 +1918,7 @@ type mockKwDescContext struct {
 func Test_processFunctionColumn(t *testing.T) {
 	tests := []struct {
 		name           string
-		columnMetadata schemaMapping.SelectedColumns
+		columnMetadata types.SelectedColumns
 		tableName      string
 		keySpace       string
 		inputColumns   []string
@@ -1928,7 +1928,7 @@ func Test_processFunctionColumn(t *testing.T) {
 	}{
 		{
 			name: "COUNT(*)",
-			columnMetadata: schemaMapping.SelectedColumns{
+			columnMetadata: types.SelectedColumns{
 				FuncName:   "count",
 				ColumnName: "*",
 				IsFunc:     true,
@@ -1943,7 +1943,7 @@ func Test_processFunctionColumn(t *testing.T) {
 		},
 		{
 			name: "AVG with numeric column",
-			columnMetadata: schemaMapping.SelectedColumns{
+			columnMetadata: types.SelectedColumns{
 				FuncName:   "avg",
 				ColumnName: "age",
 				IsFunc:     true,
@@ -1958,7 +1958,7 @@ func Test_processFunctionColumn(t *testing.T) {
 		},
 		{
 			name: "SUM with alias",
-			columnMetadata: schemaMapping.SelectedColumns{
+			columnMetadata: types.SelectedColumns{
 				FuncName:   "sum",
 				ColumnName: "balance",
 				IsFunc:     true,
@@ -1975,7 +1975,7 @@ func Test_processFunctionColumn(t *testing.T) {
 		},
 		{
 			name: "Invalid function",
-			columnMetadata: schemaMapping.SelectedColumns{
+			columnMetadata: types.SelectedColumns{
 				FuncName:   "invalid_func",
 				ColumnName: "age",
 				IsFunc:     true,
@@ -1988,7 +1988,7 @@ func Test_processFunctionColumn(t *testing.T) {
 		},
 		{
 			name: "Non-numeric column in aggregate",
-			columnMetadata: schemaMapping.SelectedColumns{
+			columnMetadata: types.SelectedColumns{
 				FuncName:   "sum",
 				ColumnName: "name",
 				IsFunc:     true,
@@ -2001,7 +2001,7 @@ func Test_processFunctionColumn(t *testing.T) {
 		},
 		{
 			name: "AVG with float column",
-			columnMetadata: schemaMapping.SelectedColumns{
+			columnMetadata: types.SelectedColumns{
 				FuncName:   "avg",
 				ColumnName: "balance",
 				IsFunc:     true,
@@ -2016,7 +2016,7 @@ func Test_processFunctionColumn(t *testing.T) {
 		},
 		{
 			name: "MIN with int column",
-			columnMetadata: schemaMapping.SelectedColumns{
+			columnMetadata: types.SelectedColumns{
 				FuncName:   "min",
 				ColumnName: "code",
 				IsFunc:     true,
@@ -2031,7 +2031,7 @@ func Test_processFunctionColumn(t *testing.T) {
 		},
 		{
 			name: "MAX with alias",
-			columnMetadata: schemaMapping.SelectedColumns{
+			columnMetadata: types.SelectedColumns{
 				FuncName:   "max",
 				ColumnName: "age",
 				IsFunc:     true,
@@ -2048,7 +2048,7 @@ func Test_processFunctionColumn(t *testing.T) {
 		},
 		{
 			name: "Missing column metadata",
-			columnMetadata: schemaMapping.SelectedColumns{
+			columnMetadata: types.SelectedColumns{
 				FuncName:   "avg",
 				ColumnName: "nonexistent",
 				IsFunc:     true,
@@ -2061,7 +2061,7 @@ func Test_processFunctionColumn(t *testing.T) {
 		},
 		{
 			name: "Empty function name",
-			columnMetadata: schemaMapping.SelectedColumns{
+			columnMetadata: types.SelectedColumns{
 				FuncName:   "",
 				ColumnName: "age",
 				IsFunc:     true,
@@ -2135,7 +2135,7 @@ func Test_parseColumnsFromSelectWithParser(t *testing.T) {
 			name:  "single column",
 			query: "SELECT pk_1_text FROM test_table",
 			want: ColumnMeta{
-				Column: []schemaMapping.SelectedColumns{
+				Column: []types.SelectedColumns{
 					{Name: "pk_1_text", ColumnName: "pk_1_text"},
 				},
 			},
@@ -2145,7 +2145,7 @@ func Test_parseColumnsFromSelectWithParser(t *testing.T) {
 			name:  "multiple columns",
 			query: "SELECT pk_1_text, blob_col, bool_col FROM test_table",
 			want: ColumnMeta{
-				Column: []schemaMapping.SelectedColumns{
+				Column: []types.SelectedColumns{
 					{Name: "pk_1_text", ColumnName: "pk_1_text"},
 					{Name: "blob_col", ColumnName: "blob_col"},
 					{Name: "bool_col", ColumnName: "bool_col"},
@@ -2157,7 +2157,7 @@ func Test_parseColumnsFromSelectWithParser(t *testing.T) {
 			name:  "column with alias",
 			query: "SELECT pk_1_text AS alias1 FROM test_table",
 			want: ColumnMeta{
-				Column: []schemaMapping.SelectedColumns{
+				Column: []types.SelectedColumns{
 					{Name: "pk_1_text", IsAs: true, Alias: "alias1", ColumnName: "pk_1_text"},
 				},
 			},
@@ -2167,7 +2167,7 @@ func Test_parseColumnsFromSelectWithParser(t *testing.T) {
 			name:  "function with star",
 			query: "SELECT COUNT(*) FROM test_table",
 			want: ColumnMeta{
-				Column: []schemaMapping.SelectedColumns{
+				Column: []types.SelectedColumns{
 					{Name: "system.count(*)", IsFunc: true, FuncName: "count", Alias: "", ColumnName: "*"},
 				},
 			},
@@ -2177,7 +2177,7 @@ func Test_parseColumnsFromSelectWithParser(t *testing.T) {
 			name:  "writetime function",
 			query: "SELECT name,WRITETIME(pk_1_text) AS wt FROM test_table",
 			want: ColumnMeta{
-				Column: []schemaMapping.SelectedColumns{
+				Column: []types.SelectedColumns{
 					{Name: "name", ColumnName: "name"},
 					{
 						Name:              "writetime(pk_1_text)",
@@ -2194,7 +2194,7 @@ func Test_parseColumnsFromSelectWithParser(t *testing.T) {
 			name:  "map access",
 			query: "SELECT map_col['key1'] FROM test_table",
 			want: ColumnMeta{
-				Column: []schemaMapping.SelectedColumns{
+				Column: []types.SelectedColumns{
 					{Name: "map_col['key1']", MapKey: "key1", Alias: "", ColumnName: "map_col"},
 				},
 			},
@@ -2424,7 +2424,7 @@ func Test_funcAllowedInAggregate(t *testing.T) {
 func TestProcessSetStrings(t *testing.T) {
 	tests := []struct {
 		name            string
-		selectedColumns []schemaMapping.SelectedColumns
+		selectedColumns []types.SelectedColumns
 		tableName       string
 		keySpace        string
 		isGroupBy       bool
@@ -2433,7 +2433,7 @@ func TestProcessSetStrings(t *testing.T) {
 	}{
 		{
 			name: "Simple column selection",
-			selectedColumns: []schemaMapping.SelectedColumns{
+			selectedColumns: []types.SelectedColumns{
 				{Name: "name"},
 				{Name: "age"},
 			},
@@ -2448,7 +2448,7 @@ func TestProcessSetStrings(t *testing.T) {
 		},
 		{
 			name: "Column with alias",
-			selectedColumns: []schemaMapping.SelectedColumns{
+			selectedColumns: []types.SelectedColumns{
 				{Name: "name", IsAs: true, Alias: "username"},
 				{Name: "age"},
 			},
@@ -2463,7 +2463,7 @@ func TestProcessSetStrings(t *testing.T) {
 		},
 		{
 			name: "Aggregate function",
-			selectedColumns: []schemaMapping.SelectedColumns{
+			selectedColumns: []types.SelectedColumns{
 				{
 					Name:       "count_age",
 					IsFunc:     true,
@@ -2481,7 +2481,7 @@ func TestProcessSetStrings(t *testing.T) {
 		},
 		{
 			name: "Invalid column",
-			selectedColumns: []schemaMapping.SelectedColumns{
+			selectedColumns: []types.SelectedColumns{
 				{Name: "invalid_column"},
 			},
 			tableName: "user_info",
@@ -2491,7 +2491,7 @@ func TestProcessSetStrings(t *testing.T) {
 		},
 		{
 			name: "Regular column with alias",
-			selectedColumns: []schemaMapping.SelectedColumns{
+			selectedColumns: []types.SelectedColumns{
 				{Name: "age", IsAs: true, Alias: "user_age"},
 			},
 			tableName:   "user_info",
@@ -2502,7 +2502,7 @@ func TestProcessSetStrings(t *testing.T) {
 		},
 		{
 			name: "Collection column with alias",
-			selectedColumns: []schemaMapping.SelectedColumns{
+			selectedColumns: []types.SelectedColumns{
 				{Name: "map_col", IsAs: true, Alias: "renamed_map"},
 			},
 			tableName:   "user_info",
@@ -2513,7 +2513,7 @@ func TestProcessSetStrings(t *testing.T) {
 		},
 		{
 			name: "Column with alias in GROUP BY",
-			selectedColumns: []schemaMapping.SelectedColumns{
+			selectedColumns: []types.SelectedColumns{
 				{Name: "age", IsAs: true, Alias: "user_age"},
 			},
 			tableName:   "user_info",
@@ -2564,7 +2564,7 @@ func TestProcessSetStrings(t *testing.T) {
 func Test_processAsColumn(t *testing.T) {
 	tests := []struct {
 		name           string
-		columnMetadata schemaMapping.SelectedColumns
+		columnMetadata types.SelectedColumns
 		tableName      string
 		columnFamily   string
 		colMeta        *types.Column
@@ -2574,7 +2574,7 @@ func Test_processAsColumn(t *testing.T) {
 	}{
 		{
 			name: "Non-collection column with GROUP BY",
-			columnMetadata: schemaMapping.SelectedColumns{
+			columnMetadata: types.SelectedColumns{
 				Name:  "pk_1_text",
 				Alias: "col1",
 			},
@@ -2590,7 +2590,7 @@ func Test_processAsColumn(t *testing.T) {
 		},
 		{
 			name: "Non-collection column without GROUP BY",
-			columnMetadata: schemaMapping.SelectedColumns{
+			columnMetadata: types.SelectedColumns{
 				Name:  "pk_1_text",
 				Alias: "col1",
 			},
@@ -2606,7 +2606,7 @@ func Test_processAsColumn(t *testing.T) {
 		},
 		{
 			name: "Collection column without GROUP BY",
-			columnMetadata: schemaMapping.SelectedColumns{
+			columnMetadata: types.SelectedColumns{
 				Name:  "map_column",
 				Alias: "map1",
 			},
@@ -2621,7 +2621,7 @@ func Test_processAsColumn(t *testing.T) {
 		},
 		{
 			name: "With existing columns",
-			columnMetadata: schemaMapping.SelectedColumns{
+			columnMetadata: types.SelectedColumns{
 				Name:  "pk_1_text",
 				Alias: "col1",
 			},
@@ -2636,7 +2636,7 @@ func Test_processAsColumn(t *testing.T) {
 		},
 		{
 			name: "WriteTime column",
-			columnMetadata: schemaMapping.SelectedColumns{
+			columnMetadata: types.SelectedColumns{
 				Name:              "test_table",
 				Alias:             "wt",
 				IsWriteTimeColumn: true,

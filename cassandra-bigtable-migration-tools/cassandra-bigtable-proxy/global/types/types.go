@@ -37,3 +37,16 @@ type Clause struct {
 	Value        string
 	IsPrimaryKey bool
 }
+
+type SelectedColumns struct {
+	Name              string
+	IsFunc            bool
+	IsAs              bool
+	FuncName          string
+	Alias             string
+	MapKey            string
+	ListIndex         string
+	ColumnName        string //this will be the column name for writetime function,aggregate function and Map key access
+	KeyType           string
+	IsWriteTimeColumn bool
+}

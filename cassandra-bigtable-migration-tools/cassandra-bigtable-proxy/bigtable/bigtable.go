@@ -659,9 +659,9 @@ func (btc *BigtableClient) ReadTableConfigs(ctx context.Context, keyspace, schem
 
 	adminClient, err := btc.getAdminClient(keyspace)
 	if err != nil {
-		errorMessage := fmt.Sprintf("failed to load table state from bigtable for keyspace '%s'", keyspace)
-		btc.Logger.Error(errorMessage, zap.Error(err))
-		return nil, errors.New(errorMessage)
+errorMessage := fmt.Sprintf("failed to load table state from bigtable for keyspace '%s'", keyspace)
+btc.Logger.Error(errorMessage, zap.Error(err))
+return nil, fmt.Errorf("%s: %w", errorMessage, err)
 	}
 	for _, table := range tableConfigs {
 		// if we already know what encoding the table has, just use that, so we don't have to do the extra lookup

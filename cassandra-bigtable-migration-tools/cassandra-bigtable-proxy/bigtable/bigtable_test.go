@@ -977,7 +977,7 @@ func TestCreateTable(t *testing.T) {
 	require.NotNil(t, info)
 }
 
-// note: the bttest instance ignores RowKeySchema, so it will always be nil which breaks GetSchemaMappingConfigs' ability to infer key encoding.
+// note: the bttest instance ignores RowKeySchema, so it will always be nil which breaks ReadTableConfigs() ability to infer key encoding.
 func TestCreateTableWithEncodeIntRowKeysWithBigEndianTrue(t *testing.T) {
 	client, adminClients, ctx, err := getClient(conn)
 	require.NoError(t, err)
@@ -989,7 +989,7 @@ func TestCreateTableWithEncodeIntRowKeysWithBigEndianTrue(t *testing.T) {
 	}, nil, &schemaMapping.SchemaMappingConfig{}, map[string]InstanceConfig{"keyspace": {BigtableInstance: "keyspace"}})
 
 	// force set up the schema mappings table
-	_, err = btClient.GetSchemaMappingConfigs(ctx, "keyspace", "schema-mappings")
+	_, err = btClient.ReadTableConfigs(ctx, "keyspace", "schema-mappings")
 	require.NoError(t, err)
 
 	tableName := "big_endian_table"
@@ -1016,10 +1016,10 @@ func TestCreateTableWithEncodeIntRowKeysWithBigEndianFalse(t *testing.T) {
 	}, nil, &schemaMapping.SchemaMappingConfig{}, map[string]InstanceConfig{"keyspace": {BigtableInstance: "keyspace"}})
 
 	// force set up the schema mappings table
-	_, err = btClient.GetSchemaMappingConfigs(ctx, "keyspace", "schema-mappings")
+	_, err = btClient.ReadTableConfigs(ctx, "keyspace", "schema-mappings")
 	require.NoError(t, err)
 
-	tableName := "big_endian_table"
+	tableName := "ordered_bytes_encoded_table"
 	createTableStmt := testCreateTableStatementMap
 	createTableStmt.Table = tableName
 	err = btClient.CreateTable(ctx, &createTableStmt, "schema-mappings")

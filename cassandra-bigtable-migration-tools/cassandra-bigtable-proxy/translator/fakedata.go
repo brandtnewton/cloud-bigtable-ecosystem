@@ -95,11 +95,11 @@ func GetSchemaMappingConfig(encodeIntRowKeysWithBigEndian bool) *schemaMapping.S
 	}
 
 	allTableConfigs := []*schemaMapping.TableConfig{
-		schemaMapping.NewTableConfig("test_keyspace", "test_table", systemColumnFamily, testTableColumns),
-		schemaMapping.NewTableConfig("test_keyspace", "int_table", systemColumnFamily, intTableColumns),
-		schemaMapping.NewTableConfig("test_keyspace", "user_info", systemColumnFamily, userInfoColumns),
-		schemaMapping.NewTableConfig("test_keyspace", "non_primitive_table", systemColumnFamily, nonPrimitiveTableColumns),
+		schemaMapping.NewTableConfig("test_keyspace", "test_table", systemColumnFamily, encodeIntRowKeysWithBigEndian, testTableColumns),
+		schemaMapping.NewTableConfig("test_keyspace", "int_table", systemColumnFamily, encodeIntRowKeysWithBigEndian, intTableColumns),
+		schemaMapping.NewTableConfig("test_keyspace", "user_info", systemColumnFamily, encodeIntRowKeysWithBigEndian, userInfoColumns),
+		schemaMapping.NewTableConfig("test_keyspace", "non_primitive_table", systemColumnFamily, encodeIntRowKeysWithBigEndian, nonPrimitiveTableColumns),
 	}
 
-	return schemaMapping.NewSchemaMappingConfig(systemColumnFamily, encodeIntRowKeysWithBigEndian, zap.NewNop(), allTableConfigs)
+	return schemaMapping.NewSchemaMappingConfig(systemColumnFamily, zap.NewNop(), allTableConfigs)
 }

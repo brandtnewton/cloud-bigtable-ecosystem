@@ -21,7 +21,7 @@ import (
 	"strings"
 	"testing"
 
-	types "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/global/types"
+	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/global/types"
 	schemaMapping "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/schema-mapping"
 	cql "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/third_party/cqlparser"
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/utilities"
@@ -170,7 +170,7 @@ func TestTranslator_TranslateDeleteQuerytoBigtable(t *testing.T) {
 				queryStr: "DELETE test_keyspace.user_info WHERE name='test' AND age=15",
 			},
 			fields: fields{
-				SchemaMappingConfig: GetSchemaMappingConfig(),
+				SchemaMappingConfig: GetSchemaMappingConfig(false),
 			},
 			want:            nil,
 			wantErr:         true,
@@ -622,6 +622,7 @@ func newTestTableConfig() *schemaMapping.TableConfig {
 		"test_keyspace",
 		"testtable",
 		systemColumnFamily,
+		false,
 		testTableColumns,
 	)
 

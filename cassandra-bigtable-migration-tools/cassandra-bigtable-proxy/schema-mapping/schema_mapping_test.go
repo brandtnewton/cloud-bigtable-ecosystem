@@ -37,6 +37,7 @@ func getSchemaMappingConfig() *SchemaMappingConfig {
 				"keyspace",
 				"table1",
 				"cf1",
+				false,
 				[]*types.Column{
 					{
 						Name:         "column1",
@@ -56,7 +57,7 @@ func getSchemaMappingConfig() *SchemaMappingConfig {
 				"keyspace",
 				"table2",
 				"cf1",
-				[]*types.Column{
+				false, []*types.Column{
 					{
 						Name:         "id",
 						CQLType:      datatype.Int,

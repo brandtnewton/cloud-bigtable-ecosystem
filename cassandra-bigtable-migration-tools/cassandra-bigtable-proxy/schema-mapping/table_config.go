@@ -28,17 +28,19 @@ import (
 )
 
 type TableConfig struct {
-	Keyspace           string
-	Name               string
-	Columns            map[string]*types.Column
-	PrimaryKeys        []*types.Column
-	SystemColumnFamily string
+	Keyspace                      string
+	Name                          string
+	Columns                       map[string]*types.Column
+	PrimaryKeys                   []*types.Column
+	SystemColumnFamily            string
+	EncodeIntRowKeysWithBigEndian bool
 }
 
 func NewTableConfig(
 	keyspace string,
 	name string,
 	systemColumnFamily string,
+	encodeIntRowKeysWithBigEndian bool,
 	columns []*types.Column,
 ) *TableConfig {
 	columnMap := make(map[string]*types.Column)
@@ -62,11 +64,12 @@ func NewTableConfig(
 	sortPrimaryKeys(pmks)
 
 	return &TableConfig{
-		Keyspace:           keyspace,
-		Name:               name,
-		Columns:            columnMap,
-		PrimaryKeys:        pmks,
-		SystemColumnFamily: systemColumnFamily,
+		Keyspace:                      keyspace,
+		Name:                          name,
+		Columns:                       columnMap,
+		PrimaryKeys:                   pmks,
+		SystemColumnFamily:            systemColumnFamily,
+		EncodeIntRowKeysWithBigEndian: encodeIntRowKeysWithBigEndian,
 	}
 }
 

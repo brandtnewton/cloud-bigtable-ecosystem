@@ -52,12 +52,14 @@ func GetSchemaMappingConfig() *schemaMapping.SchemaMappingConfig {
 			"test_keyspace",
 			"test_table",
 			"cf1",
+			false,
 			testTableColumns,
 		),
 		schemaMapping.NewTableConfig(
 			"test_keyspace",
 			"user_info",
 			"cf1",
+			false,
 			userInfoColumns,
 		),
 	}

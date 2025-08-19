@@ -120,7 +120,7 @@ This method uses your Google Cloud user account credentials, which are typically
 ## Setting Up Bigtable Instance and Schema Configuration
 Before starting the `cassandra-to-bigtable-proxy` Adapter, it's essential to set up the necessary infrastructure within Cloud Bigtable. This involves creating a Bigtable instance and configuring the schema using DDL commands.
 
-The `schema_mapping` table acts as a metadata repository, holding the schema configuration for your Cassandra-like tables in Bigtable. It stores details such as column names, data types.SelectedColumns and primary key information.
+The `schema_mapping` table acts as a metadata repository, holding the schema configuration for your Cassandra-like tables in Bigtable. It stores details such as column names, data types, and primary key information.
 
 **Setup Process:**
 

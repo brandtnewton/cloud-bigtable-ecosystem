@@ -440,7 +440,7 @@ func (btc *BigtableClient) updateTableSchema(ctx context.Context, keyspace strin
 		mut.Set(schemaMappingTableColumnFamily, "ColumnName", ts, []byte(col.Name))
 		mut.Set(schemaMappingTableColumnFamily, "ColumnType", ts, []byte(col.Type.String()))
 		isCollection := utilities.IsCollection(col.Type)
-		// todo remove this IsCollection column now that it's redundant and not ever read
+		// todo this is no longer used. We'll remove this later, in a few releases, but we'll keep it for now so users can roll back to earlier versions of the proxy if needed
 		mut.Set(schemaMappingTableColumnFamily, "IsCollection", ts, []byte(strconv.FormatBool(isCollection)))
 		pmkIndex := slices.IndexFunc(pmks, func(c translator.CreateTablePrimaryKeyConfig) bool {
 			return c.Name == col.Name
@@ -651,7 +651,7 @@ func (btc *BigtableClient) ReadTableConfigs(ctx context.Context, keyspace, schem
 		return nil, err
 	}
 
-	var tableConfigs []*schemaMapping.TableConfig = nil
+	tableConfigs := make([]*schemaMapping.TableConfig, 0, len(allColumns))
 	for tableName, tableColumns := range allColumns {
 		tableConfig := schemaMapping.NewTableConfig(keyspace, tableName, btc.BigtableConfig.DefaultColumnFamily, tableColumns)
 		tableConfigs = append(tableConfigs, tableConfig)

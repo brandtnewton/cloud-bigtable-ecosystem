@@ -112,7 +112,7 @@ var ResponseHandler_Input_Query_Selected_Select = QueryMetadata{
 	KeyspaceName:        "xobni_derived",
 	IsStar:              false,
 	DefaultColumnFamily: "cf1",
-	SelectedColumns: []schemaMapping.SelectedColumns{
+	SelectedColumns: []types.SelectedColumns{
 		{
 			Name: "name",
 		},
@@ -125,7 +125,7 @@ var ResponseHandler_Input_Query_Selected_Select_Map = QueryMetadata{
 	KeyspaceName:        "xobni_derived",
 	IsStar:              false,
 	DefaultColumnFamily: "cf1",
-	SelectedColumns: []schemaMapping.SelectedColumns{
+	SelectedColumns: []types.SelectedColumns{
 		{
 			Name: "extra_info",
 		},

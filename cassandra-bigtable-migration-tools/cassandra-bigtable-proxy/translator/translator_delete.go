@@ -399,15 +399,15 @@ func (t *Translator) BuildDeletePrepareQuery(values []*primitive.Value, st *Dele
 }
 
 // Parses the delete columns from a CQL DELETE statement and returns the selected columns with their associated map keys or list indices.
-func parseDeleteColumns(deleteColumns cql.IDeleteColumnListContext, tableConfig *schemaMapping.TableConfig) ([]schemaMapping.SelectedColumns, error) {
+func parseDeleteColumns(deleteColumns cql.IDeleteColumnListContext, tableConfig *schemaMapping.TableConfig) ([]types.SelectedColumns, error) {
 	if deleteColumns == nil {
 		return nil, nil
 	}
 	cols := deleteColumns.AllDeleteColumnItem()
-	var Columns []schemaMapping.SelectedColumns
+	var Columns []types.SelectedColumns
 	var decimalLiteral, stringLiteral string
 	for _, v := range cols {
-		var Column schemaMapping.SelectedColumns
+		var Column types.SelectedColumns
 		Column.Name = v.OBJECT_NAME().GetText()
 		if v.LS_BRACKET() != nil {
 			if v.DecimalLiteral() != nil { // for list index

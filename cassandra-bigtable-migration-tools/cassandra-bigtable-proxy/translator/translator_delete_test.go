@@ -644,7 +644,7 @@ func TestParseDeleteColumns(t *testing.T) {
 		name         string
 		query        string
 		expectNil    bool
-		expectedCols []schemaMapping.SelectedColumns
+		expectedCols []types.SelectedColumns
 		wantErr      bool
 	}{
 		{
@@ -658,7 +658,7 @@ func TestParseDeleteColumns(t *testing.T) {
 			name:      "Single delete column",
 			query:     "DELETE col1 FROM test_keyspace.testtable",
 			expectNil: false,
-			expectedCols: []schemaMapping.SelectedColumns{
+			expectedCols: []types.SelectedColumns{
 				{
 					Name: "col1",
 				},
@@ -669,7 +669,7 @@ func TestParseDeleteColumns(t *testing.T) {
 			name:      "Multiple delete columns",
 			query:     "DELETE col1, col2 FROM test_keyspace.testtable",
 			expectNil: false,
-			expectedCols: []schemaMapping.SelectedColumns{
+			expectedCols: []types.SelectedColumns{
 				{
 					Name: "col1",
 				},
@@ -683,7 +683,7 @@ func TestParseDeleteColumns(t *testing.T) {
 			name:      "Delete column with list index",
 			query:     "DELETE col1[1] FROM test_keyspace.testtable",
 			expectNil: false,
-			expectedCols: []schemaMapping.SelectedColumns{
+			expectedCols: []types.SelectedColumns{
 				{
 					Name:      "col1",
 					ListIndex: "1",
@@ -695,7 +695,7 @@ func TestParseDeleteColumns(t *testing.T) {
 			name:      "Delete column with map key",
 			query:     "DELETE col1['key'] FROM test_keyspace.testtable",
 			expectNil: false,
-			expectedCols: []schemaMapping.SelectedColumns{
+			expectedCols: []types.SelectedColumns{
 				{
 					Name:   "col1",
 					MapKey: "key",

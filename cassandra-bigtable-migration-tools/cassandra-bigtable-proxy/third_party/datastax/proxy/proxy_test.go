@@ -1015,7 +1015,7 @@ func TestPrepareSelectType(t *testing.T) {
 		KeyspaceName:             "test_keyspace",
 		ProtocalV:                0x4,
 		Params:                   map[string]interface{}{"value1": ""},
-		SelectedColumns:          []schemaMapping.SelectedColumns{{Name: "name", ColumnName: "name"}},
+		SelectedColumns:          []types.SelectedColumns{{Name: "name", ColumnName: "name"}},
 		Paramkeys:                nil,
 		ParamValues:              nil,
 		UsingTSCheck:             "",
@@ -1070,7 +1070,7 @@ func TestPrepareSelectTypeWithClauseFunction(t *testing.T) {
 		KeyspaceName:             "test_keyspace",
 		ProtocalV:                0x4,
 		Params:                   map[string]interface{}{"value1": false},
-		SelectedColumns:          []schemaMapping.SelectedColumns{{Name: "column1", ColumnName: "column1"}},
+		SelectedColumns:          []types.SelectedColumns{{Name: "column1", ColumnName: "column1"}},
 		Paramkeys:                nil,
 		ParamValues:              nil,
 		UsingTSCheck:             "",
@@ -1530,7 +1530,7 @@ func TestHandleQueryDelete(t *testing.T) {
 
 	deleteQuery := "DELETE FROM test_keyspace.user_info WHERE name = 'ibrahim';"
 	bigTablemockiface := new(mockbigtable.BigTableClientIface)
-	bigTablemockiface.On("DeleteRowNew", nil, &translator.DeleteQueryMapping{Query: "DELETE FROM test_keyspace.user_info WHERE name = 'ibrahim';", QueryType: "DELETE", Table: "user_info", Keyspace: "test_keyspace", Clauses: []types.Clause{types.Clause{Column: "name", Operator: "=", Value: "ibrahim", IsPrimaryKey: true}}, Params: map[string]interface{}{"value1": []uint8{0x69, 0x62, 0x72, 0x61, 0x68, 0x69, 0x6d}}, ParamKeys: []string{"value1"}, PrimaryKeys: []string{"name"}, RowKey: "ibrahim", ExecuteByMutation: false, VariableMetadata: []*message.ColumnMetadata(nil), ReturnMetadata: []*message.ColumnMetadata(nil), TimestampInfo: translator.TimestampInfo{Timestamp: 0, HasUsingTimestamp: false, Index: 0}, IfExists: false, SelectedColumns: []schemaMapping.SelectedColumns(nil)}).Return(&message.RowsResult{}, nil)
+	bigTablemockiface.On("DeleteRowNew", nil, &translator.DeleteQueryMapping{Query: "DELETE FROM test_keyspace.user_info WHERE name = 'ibrahim';", QueryType: "DELETE", Table: "user_info", Keyspace: "test_keyspace", Clauses: []types.Clause{types.Clause{Column: "name", Operator: "=", Value: "ibrahim", IsPrimaryKey: true}}, Params: map[string]interface{}{"value1": []uint8{0x69, 0x62, 0x72, 0x61, 0x68, 0x69, 0x6d}}, ParamKeys: []string{"value1"}, PrimaryKeys: []string{"name"}, RowKey: "ibrahim", ExecuteByMutation: false, VariableMetadata: []*message.ColumnMetadata(nil), ReturnMetadata: []*message.ColumnMetadata(nil), TimestampInfo: translator.TimestampInfo{Timestamp: 0, HasUsingTimestamp: false, Index: 0}, IfExists: false, SelectedColumns: []types.SelectedColumns(nil)}).Return(&message.RowsResult{}, nil)
 	client := client{
 		ctx:            ctx,
 		preparedQuerys: make(map[[16]byte]interface{}),
@@ -2005,7 +2005,7 @@ func TestHandleQuerySelect(t *testing.T) {
 	mockSender := &mockSender{}
 
 	bigTablemockiface := new(mockbigtable.BigTableClientIface)
-	bigTablemockiface.On("SelectStatement", nil, responsehandler.QueryMetadata{Query: "SELECT * FROM user_info WHERE name = @value1;", QueryType: "", TableName: "user_info", KeyspaceName: "test_keyspace", ProtocalV: 0x4, Params: map[string]interface{}{"value1": "shoaib"}, SelectedColumns: []schemaMapping.SelectedColumns(nil), Paramkeys: []string(nil), ParamValues: []interface{}(nil), UsingTSCheck: "", SelectQueryForDelete: "", PrimaryKeys: []string(nil), ComplexUpdateSelectQuery: "", UpdateSetValues: []translator.UpdateSetValue(nil), MutationKeyRange: []interface{}(nil), DefaultColumnFamily: "cf1", IsStar: true, Limit: translator.Limit{IsLimit: false, Count: ""}, IsGroupBy: false}).Return(&message.RowsResult{}, time.Now(), nil)
+	bigTablemockiface.On("SelectStatement", nil, responsehandler.QueryMetadata{Query: "SELECT * FROM user_info WHERE name = @value1;", QueryType: "", TableName: "user_info", KeyspaceName: "test_keyspace", ProtocalV: 0x4, Params: map[string]interface{}{"value1": "shoaib"}, SelectedColumns: []types.SelectedColumns(nil), Paramkeys: []string(nil), ParamValues: []interface{}(nil), UsingTSCheck: "", SelectQueryForDelete: "", PrimaryKeys: []string(nil), ComplexUpdateSelectQuery: "", UpdateSetValues: []translator.UpdateSetValue(nil), MutationKeyRange: []interface{}(nil), DefaultColumnFamily: "cf1", IsStar: true, Limit: translator.Limit{IsLimit: false, Count: ""}, IsGroupBy: false}).Return(&message.RowsResult{}, time.Now(), nil)
 	client := client{
 		ctx:            ctx,
 		preparedQuerys: make(map[[16]byte]interface{}),

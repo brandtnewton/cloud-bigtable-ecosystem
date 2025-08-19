@@ -686,7 +686,7 @@ func (btc *BigtableClient) ReadTableConfigs(ctx context.Context, keyspace, schem
 		return nil, err
 	}
 
-	var tableConfigs []*schemaMapping.TableConfig = nil
+        tableConfigs := make([]*schemaMapping.TableConfig, 0, len(allColumns))
 	for tableName, tableColumns := range allColumns {
 		tableConfig := schemaMapping.NewTableConfig(keyspace, tableName, btc.BigtableConfig.DefaultColumnFamily, tableColumns)
 		tableConfigs = append(tableConfigs, tableConfig)

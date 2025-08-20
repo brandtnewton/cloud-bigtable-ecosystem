@@ -35,7 +35,7 @@ type TableConfig struct {
 	SystemColumnFamily string
 }
 
-// TODO add comment about ctor
+// NewTableConfig is a constructor for TableConfig. Please use this instead of direct initialization.
 func NewTableConfig(
 	keyspace string,
 	name string,

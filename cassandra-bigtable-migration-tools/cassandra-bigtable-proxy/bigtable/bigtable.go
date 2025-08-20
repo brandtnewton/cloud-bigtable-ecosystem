@@ -663,7 +663,7 @@ func (btc *BigtableClient) ReadTableConfigs(ctx context.Context, keyspace, schem
 		return nil, fmt.Errorf("%s: %w", errorMessage, err)
 	}
 	for _, table := range tableConfigs {
-		// if we already know what encoding the table has, just use that, so we don't have to do the extra lookup
+		// if we already know what encoding the table has, just use that, so we don't have to do the extra network request
 		if existingTable, err := btc.SchemaMappingConfig.GetTableConfig(table.Keyspace, table.Name); err == nil {
 			table.IntRowKeyEncoding = existingTable.IntRowKeyEncoding
 			continue

@@ -1710,6 +1710,21 @@ func TestCreateOrderedCodeKey(t *testing.T) {
 			want:    []byte("user1\x00\x01\x00\xff\x00\xff\x00\xff\x00\xff\x00\xff\x00\xff\x00\xff\x01\x00\x01new york"),
 			wantErr: false,
 		},
+		{
+			name: "unhandled int row key encoding type",
+			tableConfig: schemaMapping.NewTableConfig("keyspace", "table", "cf1", 4 /*unhandled type*/, []*types.Column{
+				{Name: "user_id", CQLType: datatype.Varchar, KeyType: utilities.KEY_TYPE_PARTITION, PkPrecedence: 1},
+				{Name: "team_num", CQLType: datatype.Bigint, KeyType: utilities.KEY_TYPE_CLUSTERING, PkPrecedence: 2},
+				{Name: "city", CQLType: datatype.Varchar, KeyType: utilities.KEY_TYPE_CLUSTERING, PkPrecedence: 3},
+			}),
+			values: map[string]interface{}{
+				"user_id":  "user1",
+				"team_num": int64(1),
+				"city":     "new york",
+			},
+			want:    nil,
+			wantErr: true,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

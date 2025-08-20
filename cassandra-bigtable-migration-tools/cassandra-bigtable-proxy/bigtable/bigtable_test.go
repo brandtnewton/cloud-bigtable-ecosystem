@@ -52,7 +52,7 @@ func setupServer() *bttest.Server {
 		fmt.Printf("Failed to setup server: %v", err)
 		os.Exit(1)
 	}
-	conn, err = grpc.NewClient(btt.Addr, grpc.WithTransportCredentials(insecure.NewCredentials()), grpc.WithUnaryInterceptor(unaryIntercept))
+	conn, err = grpc.NewClient(btt.Addr, grpc.WithTransportCredentials(insecure.NewCredentials()), grpc.WithUnaryInterceptor(interceptCreateTableRequests))
 	if err != nil {
 		fmt.Printf("Failed to setup grpc: %v", err)
 		os.Exit(1)
@@ -61,7 +61,8 @@ func setupServer() *bttest.Server {
 
 }
 
-func unaryIntercept(ctx context.Context, method string, req, reply any, cc *grpc.ClientConn, invoker grpc.UnaryInvoker, opts ...grpc.CallOption) error {
+// interceptCreateTableRequests intercepts create table requests, so we can perform extra assertions on them
+func interceptCreateTableRequests(ctx context.Context, method string, req, reply any, cc *grpc.ClientConn, invoker grpc.UnaryInvoker, opts ...grpc.CallOption) error {
 	if method == "/google.bigtable.admin.v2.BigtableTableAdmin/CreateTable" {
 		ctr, ok := req.(*adminpb.CreateTableRequest)
 		if ok {

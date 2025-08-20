@@ -659,7 +659,7 @@ func (btc *BigtableClient) ReadTableConfigs(ctx context.Context, keyspace, schem
 
 	adminClient, err := btc.getAdminClient(keyspace)
 	if err != nil {
-errorMessage := fmt.Sprintf("failed to load table state from bigtable for keyspace '%s'", keyspace)
+errorMessage := fmt.Sprintf("failed to get admin client for keyspace '%s'", keyspace)
 btc.Logger.Error(errorMessage, zap.Error(err))
 return nil, fmt.Errorf("%s: %w", errorMessage, err)
 	}

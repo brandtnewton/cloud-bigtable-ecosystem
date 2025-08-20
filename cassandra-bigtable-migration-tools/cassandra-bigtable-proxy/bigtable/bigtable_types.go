@@ -19,6 +19,7 @@ package bigtableclient
 import (
 	"cloud.google.com/go/bigtable"
 	btpb "cloud.google.com/go/bigtable/apiv2/bigtablepb"
+	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/global/types"
 	rh "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/responsehandler"
 	schemaMapping "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/schema-mapping"
 	"go.uber.org/zap"
@@ -68,8 +69,9 @@ type BigtableConfig struct {
 	GCPProjectID        string
 	DefaultColumnFamily string
 	// all new tables should set this to false
-	EncodeIntRowKeysWithBigEndian bool
+	DefaultIntRowKeyEncoding types.IntRowKeyEncodingType
 }
+
 type ConnConfig struct {
 	InstancesMap  map[string]InstanceConfig //map of key[cassandra keyspace] toInstance Configuration[bigtable instance]
 	NumOfChannels int

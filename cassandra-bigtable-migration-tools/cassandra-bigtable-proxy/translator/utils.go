@@ -2129,7 +2129,7 @@ func createOrderedCodeKey(tableConfig *schemaMapping.TableConfig, values map[str
 		var err error
 		switch v := value.(type) {
 		case int64:
-			orderEncodedField, err = encodeInt64Key(v, tableConfig.EncodeIntRowKeysWithBigEndian)
+			orderEncodedField, err = encodeInt64Key(v, tableConfig.IntRowKeyEncoding)
 			if err != nil {
 				return nil, err
 			}
@@ -2172,28 +2172,33 @@ func createOrderedCodeKey(tableConfig *schemaMapping.TableConfig, values map[str
 // encodeInt64Key encodes an int64 value for row keys.
 // Converts int64 values to byte representation with validation.
 // Returns error if value is invalid or encoding fails.
-func encodeInt64Key(value int64, encodeIntRowKeysWithBigEndian bool) ([]byte, error) {
-	// override ordered code value with BigEndian
-	if encodeIntRowKeysWithBigEndian {
-		if value < 0 {
-			return nil, errors.New("row keys cannot contain negative integer values until ordered byte encoding is supported")
-		}
+func encodeInt64Key(value int64, intRowKeyEncoding types.IntRowKeyEncodingType) ([]byte, error) {
+	switch intRowKeyEncoding {
+	case types.BigEndianEncoding:
+		return encodeIntRowKeysWithBigEndian(value)
+	case types.OrderedCodeEncoding:
+		return Append(nil, value)
+	}
+	return nil, fmt.Errorf("unhandled int encoding type: %v", intRowKeyEncoding)
+}
 
-		var b bytes.Buffer
-		err := binary.Write(&b, binary.BigEndian, value)
-		if err != nil {
-			return nil, err
-		}
-
-		result, err := Append(nil, b.String())
-		if err != nil {
-			return nil, err
-		}
-
-		return result[:len(result)-2], nil
+func encodeIntRowKeysWithBigEndian(value int64) ([]byte, error) {
+	if value < 0 {
+		return nil, errors.New("row keys cannot contain negative integer values until ordered byte encoding is supported")
 	}
 
-	return Append(nil, value)
+	var b bytes.Buffer
+	err := binary.Write(&b, binary.BigEndian, value)
+	if err != nil {
+		return nil, err
+	}
+
+	result, err := Append(nil, b.String())
+	if err != nil {
+		return nil, err
+	}
+
+	return result[:len(result)-2], nil
 }
 
 // DataConversionInInsertionIfRequired performs data type conversion for insertions.

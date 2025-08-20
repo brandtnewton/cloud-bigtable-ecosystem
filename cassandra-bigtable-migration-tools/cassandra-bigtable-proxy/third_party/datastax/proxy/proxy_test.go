@@ -611,7 +611,7 @@ var mockTableSchemaConfig = schemaMapping.NewSchemaMappingConfig(
 			"keyspace",
 			"test_table",
 			"cf1", // SystemColumnFamily from the original struct
-			false,
+			types.OrderedCodeEncoding,
 			[]*types.Column{
 				{Name: "test_id", CQLType: datatype.Varchar, KeyType: utilities.KEY_TYPE_PARTITION, IsPrimaryKey: true},
 				{Name: "column1", CQLType: datatype.Varchar, KeyType: utilities.KEY_TYPE_CLUSTERING, IsPrimaryKey: true, PkPrecedence: 1},
@@ -625,7 +625,7 @@ var mockTableSchemaConfig = schemaMapping.NewSchemaMappingConfig(
 			"keyspace",
 			"user_info",
 			"cf1", // Assuming a default column family
-			false,
+			types.OrderedCodeEncoding,
 			[]*types.Column{
 				{Name: "name", CQLType: datatype.Varchar, KeyType: utilities.KEY_TYPE_PARTITION, IsPrimaryKey: true, PkPrecedence: 0},
 				{Name: "age", CQLType: datatype.Varchar, KeyType: utilities.KEY_TYPE_REGULAR},
@@ -2045,7 +2045,7 @@ func TestHandleDescribeKeyspaces(t *testing.T) {
 					"custom_keyspace1",
 					"table1",
 					"cf1", // Assuming a default column family
-					false,
+					types.OrderedCodeEncoding,
 					[]*types.Column{
 						{
 							Name:         "column1",
@@ -2059,7 +2059,7 @@ func TestHandleDescribeKeyspaces(t *testing.T) {
 					"custom_keyspace2",
 					"table2",
 					"cf1", // Assuming a default column family
-					false,
+					types.OrderedCodeEncoding,
 					[]*types.Column{
 						{
 							Name:         "column2",
@@ -2213,7 +2213,7 @@ func TestHandleDescribeTableColumns(t *testing.T) {
 				"test_keyspace",
 				"test_table",
 				"cf", // Column family derived from the column definitions
-				false,
+				types.OrderedCodeEncoding,
 				[]*types.Column{
 					{
 						Name:         "id",
@@ -2402,7 +2402,7 @@ func TestHandlePostDDLEvent(t *testing.T) {
 				"test_keyspace",
 				"test_table",
 				"cf",
-				false,
+				types.OrderedCodeEncoding,
 				[]*types.Column{
 					{
 						Name:         "id",

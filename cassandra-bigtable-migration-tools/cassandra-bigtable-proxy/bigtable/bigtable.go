@@ -20,7 +20,6 @@ import (
 	"bytes"
 	"context"
 	"encoding/hex"
-	"errors"
 	"fmt"
 	"slices"
 	"sort"
@@ -352,7 +351,7 @@ func (btc *BigtableClient) CreateTable(ctx context.Context, data *translator.Cre
 		}
 	}
 
-	rowKeySchema, err := createBigtableRowKeySchema(data.PrimaryKeys, data.Columns, btc.BigtableConfig.EncodeIntRowKeysWithBigEndian)
+	rowKeySchema, err := createBigtableRowKeySchema(data.PrimaryKeys, data.Columns, btc.BigtableConfig.DefaultIntRowKeyEncoding)
 
 	columnFamilies := make(map[string]bigtable.Family)
 	for _, col := range data.Columns {
@@ -653,20 +652,20 @@ func (btc *BigtableClient) ReadTableConfigs(ctx context.Context, keyspace, schem
 
 	tableConfigs := make([]*schemaMapping.TableConfig, 0, len(allColumns))
 	for tableName, tableColumns := range allColumns {
-		tableConfig := schemaMapping.NewTableConfig(keyspace, tableName, btc.BigtableConfig.DefaultColumnFamily, btc.BigtableConfig.EncodeIntRowKeysWithBigEndian, tableColumns)
+		tableConfig := schemaMapping.NewTableConfig(keyspace, tableName, btc.BigtableConfig.DefaultColumnFamily, btc.BigtableConfig.DefaultIntRowKeyEncoding, tableColumns)
 		tableConfigs = append(tableConfigs, tableConfig)
 	}
 
 	adminClient, err := btc.getAdminClient(keyspace)
 	if err != nil {
-errorMessage := fmt.Sprintf("failed to get admin client for keyspace '%s'", keyspace)
-btc.Logger.Error(errorMessage, zap.Error(err))
-return nil, fmt.Errorf("%s: %w", errorMessage, err)
+		errorMessage := fmt.Sprintf("failed to get admin client for keyspace '%s'", keyspace)
+		btc.Logger.Error(errorMessage, zap.Error(err))
+		return nil, fmt.Errorf("%s: %w", errorMessage, err)
 	}
 	for _, table := range tableConfigs {
 		// if we already know what encoding the table has, just use that, so we don't have to do the extra lookup
 		if existingTable, err := btc.SchemaMappingConfig.GetTableConfig(table.Keyspace, table.Name); err == nil {
-			table.EncodeIntRowKeysWithBigEndian = existingTable.EncodeIntRowKeysWithBigEndian
+			table.IntRowKeyEncoding = existingTable.IntRowKeyEncoding
 			continue
 		}
 
@@ -675,7 +674,7 @@ return nil, fmt.Errorf("%s: %w", errorMessage, err)
 		if err != nil {
 			return nil, err
 		}
-		table.EncodeIntRowKeysWithBigEndian = isTableRowKeyBigEndianEncoded(tableInfo)
+		table.IntRowKeyEncoding = detectTableEncoding(tableInfo, btc.BigtableConfig.DefaultIntRowKeyEncoding)
 	}
 	otelgo.AddAnnotation(ctx, schemaMappingConfigFetched)
 

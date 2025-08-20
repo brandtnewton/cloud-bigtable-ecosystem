@@ -983,9 +983,9 @@ func TestCreateTableWithEncodeIntRowKeysWithBigEndianTrue(t *testing.T) {
 	require.NoError(t, err)
 
 	btClient := NewBigtableClient(client, adminClients, zap.NewNop(), BigtableConfig{
-		GCPProjectID:                  "project",
-		DefaultColumnFamily:           "cf1",
-		EncodeIntRowKeysWithBigEndian: true,
+		GCPProjectID:             "project",
+		DefaultColumnFamily:      "cf1",
+		DefaultIntRowKeyEncoding: types.BigEndianEncoding,
 	}, nil, &schemaMapping.SchemaMappingConfig{}, map[string]InstanceConfig{"keyspace": {BigtableInstance: "keyspace"}})
 
 	// force set up the schema mappings table
@@ -1010,9 +1010,9 @@ func TestCreateTableWithEncodeIntRowKeysWithBigEndianFalse(t *testing.T) {
 	require.NoError(t, err)
 
 	btClient := NewBigtableClient(client, adminClients, zap.NewNop(), BigtableConfig{
-		GCPProjectID:                  "project",
-		DefaultColumnFamily:           "cf1",
-		EncodeIntRowKeysWithBigEndian: false,
+		GCPProjectID:             "project",
+		DefaultColumnFamily:      "cf1",
+		DefaultIntRowKeyEncoding: types.OrderedCodeEncoding,
 	}, nil, &schemaMapping.SchemaMappingConfig{}, map[string]InstanceConfig{"keyspace": {BigtableInstance: "keyspace"}})
 
 	// force set up the schema mappings table

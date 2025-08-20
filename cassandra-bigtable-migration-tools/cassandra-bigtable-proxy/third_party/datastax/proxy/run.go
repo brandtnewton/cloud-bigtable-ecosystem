@@ -28,6 +28,7 @@ import (
 	"sync"
 
 	bigtableModule "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/bigtable"
+	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/global/types"
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/utilities"
 	"github.com/alecthomas/kong"
 	"github.com/datastax/go-cassandra-native-protocol/primitive"
@@ -294,13 +295,18 @@ func Run(ctx context.Context, args []string) int {
 			}
 		}
 
+		intRowKeyEncoding := types.OrderedCodeEncoding
+		if listener.Bigtable.EncodeIntRowKeysWithBigEndian {
+			intRowKeyEncoding = types.BigEndianEncoding
+		}
+
 		bigtableConfig := bigtableModule.BigtableConfig{
-			NumOfChannels:                 listener.Bigtable.Session.GrpcChannels,
-			SchemaMappingTable:            listener.Bigtable.SchemaMappingTable,
-			InstancesMap:                  InstanceMap,
-			GCPProjectID:                  listener.Bigtable.ProjectID,
-			DefaultColumnFamily:           listener.Bigtable.DefaultColumnFamily,
-			EncodeIntRowKeysWithBigEndian: listener.Bigtable.EncodeIntRowKeysWithBigEndian,
+			NumOfChannels:            listener.Bigtable.Session.GrpcChannels,
+			SchemaMappingTable:       listener.Bigtable.SchemaMappingTable,
+			InstancesMap:             InstanceMap,
+			GCPProjectID:             listener.Bigtable.ProjectID,
+			DefaultColumnFamily:      listener.Bigtable.DefaultColumnFamily,
+			DefaultIntRowKeyEncoding: intRowKeyEncoding,
 		}
 
 		p, err1 := NewProxy(ctx, Config{

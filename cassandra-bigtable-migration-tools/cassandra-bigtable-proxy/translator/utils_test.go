@@ -438,7 +438,7 @@ func Test_processCollectionColumnsForPrepareQueries(t *testing.T) {
 			primaryKeys: []string{},
 			translator: &Translator{
 				Logger:              zap.NewNop(),
-				SchemaMappingConfig: GetSchemaMappingConfig(false),
+				SchemaMappingConfig: GetSchemaMappingConfig(types.OrderedCodeEncoding),
 			},
 			want: []types.Column{
 				{Name: "1633046400000", ColumnFamily: "map_timestamp_float", CQLType: datatype.Float},
@@ -463,7 +463,7 @@ func Test_processCollectionColumnsForPrepareQueries(t *testing.T) {
 			primaryKeys: []string{},
 			translator: &Translator{
 				Logger:              zap.NewNop(),
-				SchemaMappingConfig: GetSchemaMappingConfig(false),
+				SchemaMappingConfig: GetSchemaMappingConfig(types.OrderedCodeEncoding),
 			},
 			want: []types.Column{
 				{Name: "test", ColumnFamily: "map_text_timestamp", CQLType: datatype.Timestamp},
@@ -488,7 +488,7 @@ func Test_processCollectionColumnsForPrepareQueries(t *testing.T) {
 			primaryKeys: []string{},
 			translator: &Translator{
 				Logger:              zap.NewNop(),
-				SchemaMappingConfig: GetSchemaMappingConfig(false),
+				SchemaMappingConfig: GetSchemaMappingConfig(types.OrderedCodeEncoding),
 			},
 			want: []types.Column{
 				{Name: "1633046400000", ColumnFamily: "map_timestamp_text", CQLType: datatype.Varchar},
@@ -513,7 +513,7 @@ func Test_processCollectionColumnsForPrepareQueries(t *testing.T) {
 			primaryKeys: []string{},
 			translator: &Translator{
 				Logger:              zap.NewNop(),
-				SchemaMappingConfig: GetSchemaMappingConfig(false),
+				SchemaMappingConfig: GetSchemaMappingConfig(types.OrderedCodeEncoding),
 			},
 			want: []types.Column{
 				{Name: "1633046400", ColumnFamily: "set_timestamp", CQLType: datatype.Bigint},
@@ -538,7 +538,7 @@ func Test_processCollectionColumnsForPrepareQueries(t *testing.T) {
 			primaryKeys: []string{},
 			translator: &Translator{
 				Logger:              zap.NewNop(),
-				SchemaMappingConfig: GetSchemaMappingConfig(false),
+				SchemaMappingConfig: GetSchemaMappingConfig(types.OrderedCodeEncoding),
 			},
 			want: []types.Column{
 				{Name: "6.283", ColumnFamily: "set_double", CQLType: datatype.Double},
@@ -563,7 +563,7 @@ func Test_processCollectionColumnsForPrepareQueries(t *testing.T) {
 			primaryKeys: []string{},
 			translator: &Translator{
 				Logger:              zap.NewNop(),
-				SchemaMappingConfig: GetSchemaMappingConfig(false),
+				SchemaMappingConfig: GetSchemaMappingConfig(types.OrderedCodeEncoding),
 			},
 			want: []types.Column{
 				{Name: "6.283", ColumnFamily: "set_float", CQLType: datatype.Float},
@@ -588,7 +588,7 @@ func Test_processCollectionColumnsForPrepareQueries(t *testing.T) {
 			primaryKeys: []string{},
 			translator: &Translator{
 				Logger:              zap.NewNop(),
-				SchemaMappingConfig: GetSchemaMappingConfig(false),
+				SchemaMappingConfig: GetSchemaMappingConfig(types.OrderedCodeEncoding),
 			},
 			want: []types.Column{
 				{Name: "test", ColumnFamily: "set_text", CQLType: datatype.Varchar},
@@ -613,7 +613,7 @@ func Test_processCollectionColumnsForPrepareQueries(t *testing.T) {
 			primaryKeys: []string{},
 			translator: &Translator{
 				Logger:              zap.NewNop(),
-				SchemaMappingConfig: GetSchemaMappingConfig(false),
+				SchemaMappingConfig: GetSchemaMappingConfig(types.OrderedCodeEncoding),
 			},
 			want: []types.Column{
 				{Name: "12372432764", ColumnFamily: "set_bigint", CQLType: datatype.Bigint},
@@ -638,7 +638,7 @@ func Test_processCollectionColumnsForPrepareQueries(t *testing.T) {
 			primaryKeys: []string{},
 			translator: &Translator{
 				Logger:              zap.NewNop(),
-				SchemaMappingConfig: GetSchemaMappingConfig(false),
+				SchemaMappingConfig: GetSchemaMappingConfig(types.OrderedCodeEncoding),
 			},
 			want: []types.Column{
 				{Name: "12", ColumnFamily: "set_int", CQLType: datatype.Int},
@@ -663,7 +663,7 @@ func Test_processCollectionColumnsForPrepareQueries(t *testing.T) {
 			primaryKeys: []string{},
 			translator: &Translator{
 				Logger:              zap.NewNop(),
-				SchemaMappingConfig: GetSchemaMappingConfig(false),
+				SchemaMappingConfig: GetSchemaMappingConfig(types.OrderedCodeEncoding),
 			},
 			want: []types.Column{
 				{Name: "1633046400000", ColumnFamily: "map_timestamp_timestamp", CQLType: datatype.Timestamp},
@@ -688,7 +688,7 @@ func Test_processCollectionColumnsForPrepareQueries(t *testing.T) {
 			primaryKeys: []string{},
 			translator: &Translator{
 				Logger:              zap.NewNop(),
-				SchemaMappingConfig: GetSchemaMappingConfig(false),
+				SchemaMappingConfig: GetSchemaMappingConfig(types.OrderedCodeEncoding),
 			},
 			want: []types.Column{
 				{Name: "test", ColumnFamily: "map_text_bigint", CQLType: datatype.Bigint},
@@ -713,7 +713,7 @@ func Test_processCollectionColumnsForPrepareQueries(t *testing.T) {
 			primaryKeys: []string{},
 			translator: &Translator{
 				Logger:              zap.NewNop(),
-				SchemaMappingConfig: GetSchemaMappingConfig(false),
+				SchemaMappingConfig: GetSchemaMappingConfig(types.OrderedCodeEncoding),
 			},
 			want: []types.Column{
 				{Name: "1633046400000", ColumnFamily: "map_timestamp_int", CQLType: datatype.Int},
@@ -738,7 +738,7 @@ func Test_processCollectionColumnsForPrepareQueries(t *testing.T) {
 			primaryKeys: []string{},
 			translator: &Translator{
 				Logger:              zap.NewNop(),
-				SchemaMappingConfig: GetSchemaMappingConfig(false),
+				SchemaMappingConfig: GetSchemaMappingConfig(types.OrderedCodeEncoding),
 			},
 			want: []types.Column{
 				{Name: "1", ColumnFamily: "set_boolean", CQLType: datatype.Boolean},
@@ -763,7 +763,7 @@ func Test_processCollectionColumnsForPrepareQueries(t *testing.T) {
 			primaryKeys: []string{},
 			translator: &Translator{
 				Logger:              zap.NewNop(),
-				SchemaMappingConfig: GetSchemaMappingConfig(false),
+				SchemaMappingConfig: GetSchemaMappingConfig(types.OrderedCodeEncoding),
 			},
 			want: []types.Column{
 				{Name: "test", ColumnFamily: "map_text_boolean", CQLType: datatype.Boolean},
@@ -788,7 +788,7 @@ func Test_processCollectionColumnsForPrepareQueries(t *testing.T) {
 			primaryKeys: []string{},
 			translator: &Translator{
 				Logger:              zap.NewNop(),
-				SchemaMappingConfig: GetSchemaMappingConfig(false),
+				SchemaMappingConfig: GetSchemaMappingConfig(types.OrderedCodeEncoding),
 			},
 			want: []types.Column{
 				{Name: "test", ColumnFamily: "map_text_text", CQLType: datatype.Varchar},
@@ -813,7 +813,7 @@ func Test_processCollectionColumnsForPrepareQueries(t *testing.T) {
 			primaryKeys: []string{},
 			translator: &Translator{
 				Logger:              zap.NewNop(),
-				SchemaMappingConfig: GetSchemaMappingConfig(false),
+				SchemaMappingConfig: GetSchemaMappingConfig(types.OrderedCodeEncoding),
 			},
 			want: []types.Column{
 				{Name: "test", ColumnFamily: "map_text_int", CQLType: datatype.Int},
@@ -838,7 +838,7 @@ func Test_processCollectionColumnsForPrepareQueries(t *testing.T) {
 			primaryKeys: []string{},
 			translator: &Translator{
 				Logger:              zap.NewNop(),
-				SchemaMappingConfig: GetSchemaMappingConfig(false),
+				SchemaMappingConfig: GetSchemaMappingConfig(types.OrderedCodeEncoding),
 			},
 			want: []types.Column{
 				{Name: "test", ColumnFamily: "map_text_float", CQLType: datatype.Float},
@@ -863,7 +863,7 @@ func Test_processCollectionColumnsForPrepareQueries(t *testing.T) {
 			primaryKeys: []string{},
 			translator: &Translator{
 				Logger:              zap.NewNop(),
-				SchemaMappingConfig: GetSchemaMappingConfig(false),
+				SchemaMappingConfig: GetSchemaMappingConfig(types.OrderedCodeEncoding),
 			},
 			want: []types.Column{
 				{Name: "test", ColumnFamily: "map_text_double", CQLType: datatype.Double},
@@ -888,7 +888,7 @@ func Test_processCollectionColumnsForPrepareQueries(t *testing.T) {
 			primaryKeys: []string{},
 			translator: &Translator{
 				Logger:              zap.NewNop(),
-				SchemaMappingConfig: GetSchemaMappingConfig(false),
+				SchemaMappingConfig: GetSchemaMappingConfig(types.OrderedCodeEncoding),
 			},
 			want: []types.Column{
 				{Name: "1633046400000", ColumnFamily: "map_timestamp_boolean", CQLType: datatype.Boolean},
@@ -913,7 +913,7 @@ func Test_processCollectionColumnsForPrepareQueries(t *testing.T) {
 			primaryKeys: []string{},
 			translator: &Translator{
 				Logger:              zap.NewNop(),
-				SchemaMappingConfig: GetSchemaMappingConfig(false),
+				SchemaMappingConfig: GetSchemaMappingConfig(types.OrderedCodeEncoding),
 			},
 			want: []types.Column{
 				{Name: "1633046400000", ColumnFamily: "map_timestamp_double", CQLType: datatype.Double},
@@ -938,7 +938,7 @@ func Test_processCollectionColumnsForPrepareQueries(t *testing.T) {
 			primaryKeys: []string{},
 			translator: &Translator{
 				Logger:              zap.NewNop(),
-				SchemaMappingConfig: GetSchemaMappingConfig(false),
+				SchemaMappingConfig: GetSchemaMappingConfig(types.OrderedCodeEncoding),
 			},
 			want: []types.Column{
 				{Name: "1633046400000", ColumnFamily: "map_timestamp_bigint", CQLType: datatype.Bigint},
@@ -962,7 +962,7 @@ func Test_processCollectionColumnsForPrepareQueries(t *testing.T) {
 			primaryKeys: []string{},
 			translator: &Translator{
 				Logger:              zap.NewNop(),
-				SchemaMappingConfig: GetSchemaMappingConfig(false),
+				SchemaMappingConfig: GetSchemaMappingConfig(types.OrderedCodeEncoding),
 			},
 			want: []types.Column{
 				{Name: time.Now().Format("20060102150405.000"), ColumnFamily: "list_text", CQLType: datatype.Varchar},
@@ -986,7 +986,7 @@ func Test_processCollectionColumnsForPrepareQueries(t *testing.T) {
 			primaryKeys: []string{},
 			translator: &Translator{
 				Logger:              zap.NewNop(),
-				SchemaMappingConfig: GetSchemaMappingConfig(false),
+				SchemaMappingConfig: GetSchemaMappingConfig(types.OrderedCodeEncoding),
 			},
 			want: []types.Column{
 				{Name: time.Now().Format("20060102150405.000"), ColumnFamily: "list_int", CQLType: datatype.Int},
@@ -1010,7 +1010,7 @@ func Test_processCollectionColumnsForPrepareQueries(t *testing.T) {
 			primaryKeys: []string{},
 			translator: &Translator{
 				Logger:              zap.NewNop(),
-				SchemaMappingConfig: GetSchemaMappingConfig(false),
+				SchemaMappingConfig: GetSchemaMappingConfig(types.OrderedCodeEncoding),
 			},
 			want: []types.Column{
 				{Name: time.Now().Format("20060102150405.000"), ColumnFamily: "list_bigint", CQLType: datatype.Bigint},
@@ -1034,7 +1034,7 @@ func Test_processCollectionColumnsForPrepareQueries(t *testing.T) {
 			primaryKeys: []string{},
 			translator: &Translator{
 				Logger:              zap.NewNop(),
-				SchemaMappingConfig: GetSchemaMappingConfig(false),
+				SchemaMappingConfig: GetSchemaMappingConfig(types.OrderedCodeEncoding),
 			},
 			want: []types.Column{
 				{Name: time.Now().Format("20060102150405.000"), ColumnFamily: "list_boolean", CQLType: datatype.Boolean},
@@ -1058,7 +1058,7 @@ func Test_processCollectionColumnsForPrepareQueries(t *testing.T) {
 			primaryKeys: []string{},
 			translator: &Translator{
 				Logger:              zap.NewNop(),
-				SchemaMappingConfig: GetSchemaMappingConfig(false),
+				SchemaMappingConfig: GetSchemaMappingConfig(types.OrderedCodeEncoding),
 			},
 			want: []types.Column{
 				{Name: time.Now().Format("20060102150405.000"), ColumnFamily: "list_float", CQLType: datatype.Float},
@@ -1082,7 +1082,7 @@ func Test_processCollectionColumnsForPrepareQueries(t *testing.T) {
 			primaryKeys: []string{},
 			translator: &Translator{
 				Logger:              zap.NewNop(),
-				SchemaMappingConfig: GetSchemaMappingConfig(false),
+				SchemaMappingConfig: GetSchemaMappingConfig(types.OrderedCodeEncoding),
 			},
 			want: []types.Column{
 				{Name: time.Now().Format("20060102150405.000"), ColumnFamily: "list_double", CQLType: datatype.Double},
@@ -1106,7 +1106,7 @@ func Test_processCollectionColumnsForPrepareQueries(t *testing.T) {
 			primaryKeys: []string{},
 			translator: &Translator{
 				Logger:              zap.NewNop(),
-				SchemaMappingConfig: GetSchemaMappingConfig(false),
+				SchemaMappingConfig: GetSchemaMappingConfig(types.OrderedCodeEncoding),
 			},
 			want: []types.Column{
 				{Name: time.Now().Format("20060102150405.000"), ColumnFamily: "list_timestamp", CQLType: datatype.Bigint},
@@ -1131,7 +1131,7 @@ func Test_processCollectionColumnsForPrepareQueries(t *testing.T) {
 				KeySpace:        "test_keyspace",
 				ComplexMeta:     nil, // Assuming nil for these tests, adjust if needed
 			}
-			tc, err := GetSchemaMappingConfig(false).GetTableConfig(input.KeySpace, input.TableName)
+			tc, err := GetSchemaMappingConfig(types.OrderedCodeEncoding).GetTableConfig(input.KeySpace, input.TableName)
 			if (err != nil) != tt.wantErr {
 				t.Fatalf("error = %v, wantErr %v", err, tt.wantErr)
 			}
@@ -1324,7 +1324,7 @@ func Test_validateRequiredPrimaryKeys(t *testing.T) {
 
 func TestProcessComplexUpdate(t *testing.T) {
 	translator := &Translator{
-		SchemaMappingConfig: GetSchemaMappingConfig(false),
+		SchemaMappingConfig: GetSchemaMappingConfig(types.OrderedCodeEncoding),
 	}
 
 	tests := []struct {
@@ -1610,7 +1610,7 @@ func TestCreateOrderedCodeKey(t *testing.T) {
 	}{
 		{
 			name: "simple string",
-			tableConfig: schemaMapping.NewTableConfig("keyspace", "table", "cf1", false, []*types.Column{
+			tableConfig: schemaMapping.NewTableConfig("keyspace", "table", "cf1", types.OrderedCodeEncoding, []*types.Column{
 				{Name: "user_id", CQLType: datatype.Varchar, KeyType: utilities.KEY_TYPE_PARTITION, PkPrecedence: 1},
 			}),
 			values:  map[string]interface{}{"user_id": "user1"},
@@ -1619,7 +1619,7 @@ func TestCreateOrderedCodeKey(t *testing.T) {
 		},
 		{
 			name: "int nonzero",
-			tableConfig: schemaMapping.NewTableConfig("keyspace", "table", "cf1", false, []*types.Column{
+			tableConfig: schemaMapping.NewTableConfig("keyspace", "table", "cf1", types.OrderedCodeEncoding, []*types.Column{
 				{Name: "user_id", CQLType: datatype.Bigint, KeyType: utilities.KEY_TYPE_PARTITION, PkPrecedence: 1},
 			}),
 			values:  map[string]interface{}{"user_id": int64(1)},
@@ -1628,7 +1628,7 @@ func TestCreateOrderedCodeKey(t *testing.T) {
 		},
 		{
 			name: "int32 nonzero",
-			tableConfig: schemaMapping.NewTableConfig("keyspace", "table", "cf1", false, []*types.Column{
+			tableConfig: schemaMapping.NewTableConfig("keyspace", "table", "cf1", types.OrderedCodeEncoding, []*types.Column{
 				{Name: "user_id", CQLType: datatype.Int, KeyType: utilities.KEY_TYPE_PARTITION, PkPrecedence: 1},
 			}),
 			values:  map[string]interface{}{"user_id": int32(1)},
@@ -1637,7 +1637,7 @@ func TestCreateOrderedCodeKey(t *testing.T) {
 		},
 		{
 			name: "int32 nonzero big endian",
-			tableConfig: schemaMapping.NewTableConfig("keyspace", "table", "cf1", true, []*types.Column{
+			tableConfig: schemaMapping.NewTableConfig("keyspace", "table", "cf1", types.BigEndianEncoding, []*types.Column{
 				{Name: "user_id", CQLType: datatype.Int, KeyType: utilities.KEY_TYPE_PARTITION, PkPrecedence: 1},
 			}),
 			values:  map[string]interface{}{"user_id": int32(1)},
@@ -1646,7 +1646,7 @@ func TestCreateOrderedCodeKey(t *testing.T) {
 		},
 		{
 			name: "int32 max",
-			tableConfig: schemaMapping.NewTableConfig("keyspace", "table", "cf1", true, []*types.Column{
+			tableConfig: schemaMapping.NewTableConfig("keyspace", "table", "cf1", types.BigEndianEncoding, []*types.Column{
 				{Name: "user_id", CQLType: datatype.Int, KeyType: utilities.KEY_TYPE_PARTITION, PkPrecedence: 1},
 			}),
 			values:  map[string]interface{}{"user_id": int32(2147483647)},
@@ -1655,7 +1655,7 @@ func TestCreateOrderedCodeKey(t *testing.T) {
 		},
 		{
 			name: "int64 max",
-			tableConfig: schemaMapping.NewTableConfig("keyspace", "table", "cf1", true, []*types.Column{
+			tableConfig: schemaMapping.NewTableConfig("keyspace", "table", "cf1", types.BigEndianEncoding, []*types.Column{
 				{Name: "user_id", CQLType: datatype.Bigint, KeyType: utilities.KEY_TYPE_PARTITION, PkPrecedence: 1},
 			}),
 			values:  map[string]interface{}{"user_id": int64(9223372036854775807)},
@@ -1664,7 +1664,7 @@ func TestCreateOrderedCodeKey(t *testing.T) {
 		},
 		{
 			name: "negative int",
-			tableConfig: schemaMapping.NewTableConfig("keyspace", "table", "cf1", false, []*types.Column{
+			tableConfig: schemaMapping.NewTableConfig("keyspace", "table", "cf1", types.OrderedCodeEncoding, []*types.Column{
 				{Name: "user_id", CQLType: datatype.Bigint, KeyType: utilities.KEY_TYPE_PARTITION, PkPrecedence: 1},
 			}),
 			values:  map[string]interface{}{"user_id": int64(-1)},
@@ -1673,7 +1673,7 @@ func TestCreateOrderedCodeKey(t *testing.T) {
 		},
 		{
 			name: "negative int big endian fails",
-			tableConfig: schemaMapping.NewTableConfig("keyspace", "table", "cf1", true, []*types.Column{
+			tableConfig: schemaMapping.NewTableConfig("keyspace", "table", "cf1", types.BigEndianEncoding, []*types.Column{
 				{Name: "user_id", CQLType: datatype.Bigint, KeyType: utilities.KEY_TYPE_PARTITION, PkPrecedence: 1},
 			}),
 			values:  map[string]interface{}{"user_id": int64(-1)},
@@ -1682,7 +1682,7 @@ func TestCreateOrderedCodeKey(t *testing.T) {
 		},
 		{
 			name: "compound key",
-			tableConfig: schemaMapping.NewTableConfig("keyspace", "table", "cf1", false, []*types.Column{
+			tableConfig: schemaMapping.NewTableConfig("keyspace", "table", "cf1", types.OrderedCodeEncoding, []*types.Column{
 				{Name: "user_id", CQLType: datatype.Varchar, KeyType: utilities.KEY_TYPE_PARTITION, PkPrecedence: 1},
 				{Name: "team_num", CQLType: datatype.Bigint, KeyType: utilities.KEY_TYPE_CLUSTERING, PkPrecedence: 2},
 				{Name: "city", CQLType: datatype.Varchar, KeyType: utilities.KEY_TYPE_CLUSTERING, PkPrecedence: 3},
@@ -1697,7 +1697,7 @@ func TestCreateOrderedCodeKey(t *testing.T) {
 		},
 		{
 			name: "compound key big endian",
-			tableConfig: schemaMapping.NewTableConfig("keyspace", "table", "cf1", true, []*types.Column{
+			tableConfig: schemaMapping.NewTableConfig("keyspace", "table", "cf1", types.BigEndianEncoding, []*types.Column{
 				{Name: "user_id", CQLType: datatype.Varchar, KeyType: utilities.KEY_TYPE_PARTITION, PkPrecedence: 1},
 				{Name: "team_num", CQLType: datatype.Bigint, KeyType: utilities.KEY_TYPE_CLUSTERING, PkPrecedence: 2},
 				{Name: "city", CQLType: datatype.Varchar, KeyType: utilities.KEY_TYPE_CLUSTERING, PkPrecedence: 3},
@@ -1934,7 +1934,7 @@ func TestEncodeInt(t *testing.T) {
 func TestProcessCollectionColumnsForPrepareQueries_ComplexMetaAndNonCollection(t *testing.T) {
 	translator := &Translator{
 		Logger:              zap.NewNop(),
-		SchemaMappingConfig: GetSchemaMappingConfig(false),
+		SchemaMappingConfig: GetSchemaMappingConfig(types.OrderedCodeEncoding),
 	}
 	protocolV := primitive.ProtocolVersion4
 	tableName := "non_primitive_table"
@@ -2222,7 +2222,7 @@ func TestProcessCollectionColumnsForPrepareQueries_ComplexMetaAndNonCollection(t
 
 func TestProcessComplexUpdate_SuccessfulCases(t *testing.T) {
 	translator := &Translator{
-		SchemaMappingConfig: GetSchemaMappingConfig(false),
+		SchemaMappingConfig: GetSchemaMappingConfig(types.OrderedCodeEncoding),
 	}
 
 	tests := []struct {
@@ -3069,7 +3069,7 @@ func TestProcessCollectionColumnsForRawQueries(t *testing.T) {
 		PrependColumns: []string{"mylist"},
 		Translator: &Translator{
 			Logger:              zap.NewExample(), // or zap.NewNop() for silent logs
-			SchemaMappingConfig: GetSchemaMappingConfig(false),
+			SchemaMappingConfig: GetSchemaMappingConfig(types.OrderedCodeEncoding),
 		},
 	}
 

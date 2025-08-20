@@ -29,12 +29,12 @@ import (
 
 // TableConfig contains all schema information about a single table
 type TableConfig struct {
-	Keyspace                      string
-	Name                          string
-	Columns                       map[string]*types.Column
-	PrimaryKeys                   []*types.Column
-	SystemColumnFamily            string
-	EncodeIntRowKeysWithBigEndian bool
+	Keyspace           string
+	Name               string
+	Columns            map[string]*types.Column
+	PrimaryKeys        []*types.Column
+	SystemColumnFamily string
+	IntRowKeyEncoding  types.IntRowKeyEncodingType
 }
 
 // NewTableConfig is a constructor for TableConfig. Please use this instead of direct initialization.
@@ -42,7 +42,7 @@ func NewTableConfig(
 	keyspace string,
 	name string,
 	systemColumnFamily string,
-	encodeIntRowKeysWithBigEndian bool,
+	intRowKeyEncoding types.IntRowKeyEncodingType,
 	columns []*types.Column,
 ) *TableConfig {
 	columnMap := make(map[string]*types.Column)
@@ -66,12 +66,12 @@ func NewTableConfig(
 	sortPrimaryKeys(pmks)
 
 	return &TableConfig{
-		Keyspace:                      keyspace,
-		Name:                          name,
-		Columns:                       columnMap,
-		PrimaryKeys:                   pmks,
-		SystemColumnFamily:            systemColumnFamily,
-		EncodeIntRowKeysWithBigEndian: encodeIntRowKeysWithBigEndian,
+		Keyspace:           keyspace,
+		Name:               name,
+		Columns:            columnMap,
+		PrimaryKeys:        pmks,
+		SystemColumnFamily: systemColumnFamily,
+		IntRowKeyEncoding:  intRowKeyEncoding,
 	}
 }
 

@@ -399,7 +399,7 @@ func ExtractUniqueKeys(rowMap []map[string]interface{}, query QueryMetadata) []s
 //
 // Returns:
 // - types: The column object that matches the key, or an empty object if no match is found.
-func GetQueryColumn(query QueryMetadata, index int, key string) types.SelectedColumns {
+func GetQueryColumn(query QueryMetadata, index int, key string) types.SelectedColumn {
 
 	if len(query.SelectedColumns) > 0 {
 		selectedColumn := query.SelectedColumns[index]
@@ -414,7 +414,7 @@ func GetQueryColumn(query QueryMetadata, index int, key string) types.SelectedCo
 		}
 	}
 
-	return types.SelectedColumns{}
+	return types.SelectedColumn{}
 }
 
 // BuildResponseForSystemQueries function to encode rows - [][]interface{} to cassandra supported response formate [][][]bytes

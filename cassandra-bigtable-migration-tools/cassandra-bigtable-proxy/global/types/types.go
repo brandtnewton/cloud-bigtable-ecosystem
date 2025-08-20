@@ -38,15 +38,22 @@ type Clause struct {
 	IsPrimaryKey bool
 }
 
-type SelectedColumns struct {
-	Name              string
-	IsFunc            bool
-	IsAs              bool
-	FuncName          string
-	Alias             string
-	MapKey            string
-	ListIndex         string
-	ColumnName        string //this will be the column name for writetime function,aggregate function and Map key access
+// SelectedColumn describes a column that was selected as part of a query. It's
+// an output of query translating, and is also used for response construction.
+type SelectedColumn struct {
+	// Name is the original value of the selected column, including functions. It
+	// does not include the alias. e.g. "region" or "count(*)"
+	Name   string
+	IsFunc bool
+	// IsAs is true if an alias is used
+	IsAs      bool
+	FuncName  string
+	Alias     string
+	MapKey    string
+	ListIndex string
+	// ColumnName is the name of the underlying column in a function, or map key
+	// access. e.g. the column name of "max(price)" is "price"
+	ColumnName        string
 	KeyType           string
 	IsWriteTimeColumn bool
 }

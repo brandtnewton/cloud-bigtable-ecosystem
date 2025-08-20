@@ -28,6 +28,8 @@ const (
 	LimitValue = "limitValue"
 )
 
+// SchemaMappingConfig contains the schema information for all tables, across
+// all Bigtable instances, managed by this proxy.
 type SchemaMappingConfig struct {
 	Logger             *zap.Logger
 	mu                 sync.RWMutex
@@ -35,6 +37,7 @@ type SchemaMappingConfig struct {
 	SystemColumnFamily string
 }
 
+// NewSchemaMappingConfig is a constructor for SchemaMappingConfig. Please use this instead of direct initialization.
 func NewSchemaMappingConfig(systemColumnFamily string, logger *zap.Logger, tableConfigs []*TableConfig) *SchemaMappingConfig {
 	tablesMap := make(map[string]map[string]*TableConfig)
 	for _, tableConfig := range tableConfigs {

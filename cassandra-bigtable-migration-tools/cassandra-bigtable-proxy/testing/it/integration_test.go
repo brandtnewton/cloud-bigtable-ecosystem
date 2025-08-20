@@ -96,7 +96,6 @@ func TestSelectSingleMapValue(t *testing.T) {
 	err = session.Query("insert into bigtabledevinstance.map_test (id, zips) values (?, ?)", id, map[string]int64{"chelsea": 10011, "burlington": 5401}).Exec()
 	assert.NoError(t, err)
 
-	// todo get single map key with alias
 	itr := session.Query("select id, zips['chelsea'] from bigtabledevinstance.map_test where id=?", id).Iter()
 
 	scanner := itr.Scanner()

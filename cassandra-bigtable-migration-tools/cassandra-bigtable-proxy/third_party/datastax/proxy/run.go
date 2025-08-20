@@ -92,14 +92,15 @@ type InstancesMap struct {
 	AppProfileID     string `yaml:"appProfileID"`
 }
 type Bigtable struct {
-	ProjectID           string         `yaml:"projectId"`
-	Instances           []InstancesMap `yaml:"instances"`
-	InstanceIDs         string         `yaml:"instanceIds"`
-	SchemaMappingTable  string         `yaml:"schemaMappingTable"`
-	Session             Session        `yaml:"Session"`
-	DefaultColumnFamily string         `yaml:"defaultColumnFamily"`
+	ProjectID                     string         `yaml:"projectId"`
+	Instances                     []InstancesMap `yaml:"instances"`
+	InstanceIDs                   string         `yaml:"instanceIds"`
+	SchemaMappingTable            string         `yaml:"schemaMappingTable"`
+	Session                       Session        `yaml:"Session"`
+	DefaultColumnFamily           string         `yaml:"defaultColumnFamily"`
 	CounterColumnFamily string         `yaml:"counterColumnFamily"`
-	AppProfileID        string         `yaml:"appProfileID"`
+	AppProfileID                  string         `yaml:"appProfileID"`
+	EncodeIntRowKeysWithBigEndian bool           `yaml:"encodeIntRowKeysWithBigEndian"`
 }
 
 // Session describes the settings for Bigtable sessions
@@ -295,14 +296,13 @@ func Run(ctx context.Context, args []string) int {
 		}
 
 		bigtableConfig := bigtableModule.BigtableConfig{
-			NumOfChannels:       listener.Bigtable.Session.GrpcChannels,
-			SchemaMappingTable:  listener.Bigtable.SchemaMappingTable,
-			InstancesMap:        InstanceMap,
-			GCPProjectID:        listener.Bigtable.ProjectID,
-			DefaultColumnFamily: listener.Bigtable.DefaultColumnFamily,
+			NumOfChannels:                 listener.Bigtable.Session.GrpcChannels,
+			SchemaMappingTable:            listener.Bigtable.SchemaMappingTable,
+			InstancesMap:                  InstanceMap,
+			GCPProjectID:                  listener.Bigtable.ProjectID,
+			DefaultColumnFamily:           listener.Bigtable.DefaultColumnFamily,
 			CounterColumnFamily: listener.Bigtable.CounterColumnFamily,
-			// todo remove once we support ordered code ints
-			EncodeIntValuesWithBigEndian: encodeIntValuesWithBigEndian,
+			EncodeIntRowKeysWithBigEndian: listener.Bigtable.EncodeIntRowKeysWithBigEndian,
 		}
 
 		p, err1 := NewProxy(ctx, Config{

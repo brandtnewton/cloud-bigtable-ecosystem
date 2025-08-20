@@ -114,7 +114,11 @@ func (btc *BigtableClient) ExecutePreparedStatement(ctx context.Context, query r
 	}
 
 	if len(allRowMaps) == 0 && len(columnMetadata) == 0 {
-		columnMetadata, err = btc.SchemaMappingConfig.GetMetadataForSelectedColumns(query.TableName, query.SelectedColumns, query.KeyspaceName)
+		tableConfig, err := btc.SchemaMappingConfig.GetTableConfig(query.KeyspaceName, query.TableName)
+		if err != nil {
+			return nil, bigtableEnd, err
+		}
+		columnMetadata, err = tableConfig.GetMetadataForSelectedColumns(query.SelectedColumns)
 		if err != nil {
 			btc.Logger.Error("Error while fetching columnMetadata from config for empty result", zap.Error(err))
 			columnMetadata = []*message.ColumnMetadata{}

@@ -27,10 +27,8 @@ import (
 )
 
 type Translator struct {
-	Logger *zap.Logger
-	// todo remove once we support ordered code ints
-	EncodeIntValuesWithBigEndian bool
-	SchemaMappingConfig          *schemaMapping.SchemaMappingConfig
+	Logger              *zap.Logger
+	SchemaMappingConfig *schemaMapping.SchemaMappingConfig
 }
 
 // SelectQueryMap represents the mapping of a select query along with its translation details.
@@ -89,7 +87,7 @@ type Limit struct {
 
 type ColumnMeta struct {
 	Star   bool
-	Column []schemaMapping.SelectedColumns
+	Column []types.SelectedColumns
 }
 
 type IfSpec struct {
@@ -173,7 +171,7 @@ type DeleteQueryMapping struct {
 	ReturnMetadata    []*message.ColumnMetadata // Metadata of all columns of that table in Cassandra format
 	TimestampInfo     TimestampInfo
 	IfExists          bool
-	SelectedColumns   []schemaMapping.SelectedColumns
+	SelectedColumns   []types.SelectedColumns
 }
 
 type CreateTableStatementMap struct {

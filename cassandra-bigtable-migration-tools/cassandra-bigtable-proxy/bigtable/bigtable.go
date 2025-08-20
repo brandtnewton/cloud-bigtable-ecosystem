@@ -21,7 +21,6 @@ import (
 	"context"
 	"encoding/hex"
 	"fmt"
-	"reflect"
 	"slices"
 	"sort"
 	"strconv"
@@ -72,7 +71,7 @@ type BigTableClientIface interface {
 	ApplyBulkMutation(context.Context, string, []MutationData, string) (BulkOperationResponse, error)
 	Close()
 	DeleteRowNew(context.Context, *translator.DeleteQueryMapping) (*message.RowsResult, error)
-	GetSchemaMappingConfigs(context.Context, string, string) (map[string]map[string]*types.Column, map[string][]types.Column, error)
+	ReadTableConfigs(context.Context, string, string) ([]*schemaMapping.TableConfig, error)
 	InsertRow(context.Context, *translator.InsertQueryMapping) (*message.RowsResult, error)
 	SelectStatement(context.Context, rh.QueryMetadata) (*message.RowsResult, time.Time, error)
 	AlterTable(ctx context.Context, data *translator.AlterTableStatementMap, schemaMappingTableName string) error
@@ -113,21 +112,11 @@ var NewBigtableClient = func(client map[string]*bigtable.Client, adminClients ma
 }
 
 func (btc *BigtableClient) reloadSchemaMappings(ctx context.Context, keyspace, schemaMappingTableName string) error {
-	tbData, pkData, err := btc.GetSchemaMappingConfigs(ctx, keyspace, schemaMappingTableName)
+	tableConfigs, err := btc.ReadTableConfigs(ctx, keyspace, schemaMappingTableName)
 	if err != nil {
 		return fmt.Errorf("error when reloading schema mappings for %s.%s: %w", keyspace, schemaMappingTableName, err)
 	}
-
-	if btc.SchemaMappingConfig.TablesMetaData == nil {
-		btc.SchemaMappingConfig.TablesMetaData = make(map[string]map[string]map[string]*types.Column)
-	}
-	btc.SchemaMappingConfig.TablesMetaData[keyspace] = tbData
-
-	if btc.SchemaMappingConfig.PkMetadataCache == nil {
-		btc.SchemaMappingConfig.PkMetadataCache = make(map[string]map[string][]types.Column)
-	}
-	btc.SchemaMappingConfig.PkMetadataCache[keyspace] = pkData
-
+	btc.SchemaMappingConfig.UpdateTables(tableConfigs)
 	return nil
 }
 
@@ -427,14 +416,7 @@ func (btc *BigtableClient) CreateTable(ctx context.Context, data *translator.Cre
 		return err
 	}
 
-	var rowKeySchemaFields []bigtable.StructField
-	for _, key := range data.PrimaryKeys {
-		part, err := createBigtableRowKeyField(key.Name, data.Columns, btc.BigtableConfig.EncodeIntValuesWithBigEndian)
-		if err != nil {
-			return err
-		}
-		rowKeySchemaFields = append(rowKeySchemaFields, part)
-	}
+	rowKeySchema, err := createBigtableRowKeySchema(data.PrimaryKeys, data.Columns, btc.BigtableConfig.EncodeIntRowKeysWithBigEndian)
 
 	columnFamilies, err := btc.addColumnFamilies(data.Columns)
 
@@ -447,10 +429,7 @@ func (btc *BigtableClient) CreateTable(ctx context.Context, data *translator.Cre
 	err = adminClient.CreateTableFromConf(ctx, &bigtable.TableConf{
 		TableID:        data.Table,
 		ColumnFamilies: columnFamilies,
-		RowKeySchema: &bigtable.StructType{
-			Fields:   rowKeySchemaFields,
-			Encoding: bigtable.StructOrderedCodeBytesEncoding{},
-		},
+		RowKeySchema:   rowKeySchema,
 	})
 	// ignore already exists errors - the schema mapping table is the SoT
 	if status.Code(err) == codes.AlreadyExists {
@@ -475,35 +454,17 @@ func (btc *BigtableClient) CreateTable(ctx context.Context, data *translator.Cre
 	return nil
 }
 
-func createBigtableRowKeyField(key string, cols []message.ColumnMetadata, encodeIntValuesWithBigEndian bool) (bigtable.StructField, error) {
-	for _, column := range cols {
-		if column.Name != key {
-			continue
-		}
-
-		switch column.Type {
-		case datatype.Varchar:
-			return bigtable.StructField{FieldName: key, FieldType: bigtable.StringType{Encoding: bigtable.StringUtf8BytesEncoding{}}}, nil
-		case datatype.Int, datatype.Bigint, datatype.Timestamp:
-			// todo remove once ordered byte encoding is supported for ints
-			if encodeIntValuesWithBigEndian {
-				return bigtable.StructField{FieldName: key, FieldType: bigtable.Int64Type{Encoding: bigtable.BigEndianBytesEncoding{}}}, nil
-			}
-			return bigtable.StructField{FieldName: key, FieldType: bigtable.Int64Type{Encoding: bigtable.Int64OrderedCodeBytesEncoding{}}}, nil
-		default:
-			return bigtable.StructField{}, fmt.Errorf("unhandled row key type %s", column.Type)
-		}
-	}
-
-	// this should never happen given where this is called
-	return bigtable.StructField{}, fmt.Errorf("missing primary key `%s` from columns definition", key)
-}
-
 func (btc *BigtableClient) AlterTable(ctx context.Context, data *translator.AlterTableStatementMap, schemaMappingTableName string) error {
 	adminClient, err := btc.getAdminClient(data.Keyspace)
 	if err != nil {
 		return err
 	}
+
+	tableConfig, err := btc.SchemaMappingConfig.GetTableConfig(data.Keyspace, data.Table)
+	if err != nil {
+		return err
+	}
+
 	// passing nil in as pmks because we don't have access to them here and because primary keys can't be altered
 	err = btc.updateTableSchema(ctx, data.Keyspace, schemaMappingTableName, data.Table, nil, data.AddColumns, data.DropColumns)
 	if err != nil {
@@ -546,10 +507,10 @@ func (btc *BigtableClient) maybeAddCounterColumnFamily(ctx context.Context, admi
 		return nil
 	}
 
-	existingColumns, foundExistingColumns := btc.SchemaMappingConfig.GetAllColumns(keyspace, tableName)
-	// foundExistingColumns will be false if the we're just creating the table now because metadata hasn't been refreshed yet.
-	if foundExistingColumns {
-		alreadyHasCounterColumn := slices.ContainsFunc(existingColumns, func(c *types.Column) bool {
+	tableConfig, err := btc.SchemaMappingConfig.GetTableConfig(keyspace, tableName)
+	// we expect an error to be returned, when this function is called from CreateTable, because
+	if err != nil {
+		alreadyHasCounterColumn := slices.ContainsFunc(tableConfig.GetAllColumns(), func(c *types.Column) bool {
 			return c.CQLType == datatype.Counter
 		})
 		// the table already has a counter column, so it's safe to assume the column family exists
@@ -559,7 +520,7 @@ func (btc *BigtableClient) maybeAddCounterColumnFamily(ctx context.Context, admi
 	}
 
 	btc.Logger.Info(fmt.Sprintf("adding a counter column family `%s` to table `%s.%s`", btc.SchemaMappingConfig.CounterColumnFamily, keyspace, tableName))
-	err := adminClient.CreateColumnFamilyWithConfig(ctx, tableName, btc.SchemaMappingConfig.CounterColumnFamily, bigtable.Family{
+	err = adminClient.CreateColumnFamilyWithConfig(ctx, tableName, btc.SchemaMappingConfig.CounterColumnFamily, bigtable.Family{
 		GCPolicy: bigtable.NoGcPolicy(),
 		ValueType: bigtable.AggregateType{
 			Input:      bigtable.Int64Type{},
@@ -612,7 +573,8 @@ func (btc *BigtableClient) updateTableSchema(ctx context.Context, keyspace strin
 		mut := bigtable.NewMutation()
 		mut.Set(schemaMappingTableColumnFamily, "ColumnName", ts, []byte(col.Name))
 		mut.Set(schemaMappingTableColumnFamily, "ColumnType", ts, []byte(col.Type.String()))
-		isCollection := utilities.IsCollectionDataType(col.Type)
+		isCollection := utilities.IsCollection(col.Type)
+		// todo this is no longer used. We'll remove this later, in a few releases, but we'll keep it for now so users can roll back to earlier versions of the proxy if needed
 		mut.Set(schemaMappingTableColumnFamily, "IsCollection", ts, []byte(strconv.FormatBool(isCollection)))
 		pmkIndex := slices.IndexFunc(pmks, func(c translator.CreateTablePrimaryKeyConfig) bool {
 			return c.Name == col.Name
@@ -737,7 +699,7 @@ func (btc *BigtableClient) DeleteRowNew(ctx context.Context, deleteQueryData *tr
 	return &response, nil
 }
 
-// GetSchemaMappingConfigs - Retrieves schema mapping configurations from the specified config table.
+// ReadTableConfigs - Retrieves schema mapping configurations from the specified config table.
 //
 // Parameters:
 //   - ctx: Context for the operation, used for cancellation and deadlines.
@@ -747,33 +709,31 @@ func (btc *BigtableClient) DeleteRowNew(ctx context.Context, deleteQueryData *tr
 //   - map[string]map[string]*Column: Table metadata.
 //   - map[string][]Column: Primary key metadata.
 //   - error: Error if the retrieval fails.
-func (btc *BigtableClient) GetSchemaMappingConfigs(ctx context.Context, keyspace, schemaMappingTable string) (map[string]map[string]*types.Column, map[string][]types.Column, error) {
+func (btc *BigtableClient) ReadTableConfigs(ctx context.Context, keyspace, schemaMappingTable string) ([]*schemaMapping.TableConfig, error) {
 	// if this is the first time we're getting table configs, ensure the schema mapping table exists
-	if btc.SchemaMappingConfig == nil || len(btc.SchemaMappingConfig.TablesMetaData) == 0 {
+	if btc.SchemaMappingConfig == nil || btc.SchemaMappingConfig.CountTables() == 0 {
 		err := btc.createSchemaMappingTableMaybe(ctx, keyspace, schemaMappingTable)
 		if err != nil {
-			return nil, nil, err
+			return nil, err
 		}
 	}
 
 	otelgo.AddAnnotation(ctx, fetchingSchemaMappingConfig)
 	client, err := btc.getClient(keyspace)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 
 	table := client.Open(schemaMappingTable)
 	filter := bigtable.LatestNFilter(1)
 
-	tableMetadata := make(map[string]map[string]*types.Column)
-	pkMetadata := make(map[string][]types.Column)
-	metaIndex := 0
+	allColumns := make(map[string][]*types.Column)
 
 	var readErr error
 	err = table.ReadRows(ctx, bigtable.InfiniteRange(""), func(row bigtable.Row) bool {
 		// Extract the row key and column values
 		var tableName, columnName, columnType, KeyType string
-		var isPrimaryKey, isCollection bool
+		var isPrimaryKey bool
 		var pkPrecedence int
 		// Extract column values
 		for _, item := range row[schemaMappingTableColumnFamily] {
@@ -791,8 +751,6 @@ func (btc *BigtableClient) GetSchemaMappingConfigs(ctx context.Context, keyspace
 				if readErr != nil {
 					return false
 				}
-			case schemaMappingTableColumnFamily + ":IsCollection":
-				isCollection = string(item.Value) == "true"
 			case schemaMappingTableColumnFamily + ":KeyType":
 				KeyType = string(item.Value)
 			}
@@ -802,41 +760,17 @@ func (btc *BigtableClient) GetSchemaMappingConfigs(ctx context.Context, keyspace
 			readErr = err
 			return false
 		}
-		columnMetadata := message.ColumnMetadata{
-			Keyspace: keyspace,
-			Table:    tableName,
-			Name:     columnName,
-			Type:     cqlType,
-			Index:    int32(metaIndex),
-		}
-		metaIndex++
 
 		// Create a new column struct
-		column := types.Column{
-			ColumnName:   columnName,
+		column := &types.Column{
+			Name:         columnName,
 			CQLType:      cqlType,
 			IsPrimaryKey: isPrimaryKey,
 			PkPrecedence: pkPrecedence,
-			IsCollection: isCollection,
-			Metadata:     columnMetadata,
 			KeyType:      KeyType,
 		}
 
-		if _, exists := tableMetadata[tableName]; !exists {
-			tableMetadata[tableName] = make(map[string]*types.Column)
-		}
-
-		if _, exists := pkMetadata[tableName]; !exists {
-			var pkSlice []types.Column
-			pkMetadata[tableName] = pkSlice
-		}
-
-		tableMetadata[tableName][column.ColumnName] = &column
-		if column.IsPrimaryKey {
-			pkSlice := pkMetadata[tableName]
-			pkSlice = append(pkSlice, column)
-			pkMetadata[tableName] = pkSlice
-		}
+		allColumns[tableName] = append(allColumns[tableName], column)
 
 		return true
 	}, bigtable.RowFilter(filter))
@@ -848,11 +782,38 @@ func (btc *BigtableClient) GetSchemaMappingConfigs(ctx context.Context, keyspace
 
 	if err != nil {
 		btc.Logger.Error("Failed to read rows from Bigtable - possible issue with schema_mapping table:", zap.Error(err))
-		return nil, nil, err
+		return nil, err
 	}
 
+	tableConfigs := make([]*schemaMapping.TableConfig, 0, len(allColumns))
+	for tableName, tableColumns := range allColumns {
+		tableConfig := schemaMapping.NewTableConfig(keyspace, tableName, btc.BigtableConfig.DefaultColumnFamily, btc.BigtableConfig.EncodeIntRowKeysWithBigEndian, tableColumns)
+		tableConfigs = append(tableConfigs, tableConfig)
+	}
+
+	adminClient, err := btc.getAdminClient(keyspace)
+	if err != nil {
+		errorMessage := fmt.Sprintf("failed to load table state from bigtable for keyspace '%s'", keyspace)
+		btc.Logger.Error(errorMessage, zap.Error(err))
+		return nil, fmt.Errorf("%s: %w", errorMessage, err)
+	}
+	for _, table := range tableConfigs {
+		// if we already know what encoding the table has, just use that, so we don't have to do the extra lookup
+		if existingTable, err := btc.SchemaMappingConfig.GetTableConfig(table.Keyspace, table.Name); err == nil {
+			table.EncodeIntRowKeysWithBigEndian = existingTable.EncodeIntRowKeysWithBigEndian
+			continue
+		}
+
+		btc.Logger.Info(fmt.Sprintf("loading table info for table %s.%s", keyspace, table.Name))
+		tableInfo, err := adminClient.TableInfo(ctx, table.Name)
+		if err != nil {
+			return nil, err
+		}
+		table.EncodeIntRowKeysWithBigEndian = isTableRowKeyBigEndianEncoded(tableInfo)
+	}
 	otelgo.AddAnnotation(ctx, schemaMappingConfigFetched)
-	return tableMetadata, sortPkData(pkMetadata), nil
+
+	return tableConfigs, nil
 }
 
 // ApplyBulkMutation - Applies bulk mutations to the specified Bigtable table.
@@ -1088,43 +1049,6 @@ func (btc *BigtableClient) PrepareStatement(ctx context.Context, query rh.QueryM
 	}
 
 	return preparedStatement, nil
-}
-
-// inferSQLType attempts to infer the Bigtable SQLType from a Go interface{} value.
-// This is a basic implementation and might need enhancement based on actual data types and schema.
-func inferSQLType(value interface{}) (bigtable.SQLType, error) {
-	switch value.(type) {
-	case string:
-		return bigtable.StringSQLType{}, nil
-	case []byte:
-		return bigtable.BytesSQLType{}, nil
-	case int, int8, int16, int32, int64:
-		return bigtable.Int64SQLType{}, nil
-	case float32:
-		return bigtable.Float32SQLType{}, nil
-	case float64:
-		return bigtable.Float64SQLType{}, nil
-	case bool:
-		return bigtable.Int64SQLType{}, nil
-	case []interface{}:
-		return bigtable.ArraySQLType{}, nil
-	default:
-		v := reflect.ValueOf(value)
-		if v.Kind() != reflect.Slice && v.Kind() != reflect.Array {
-			return nil, fmt.Errorf("unsupported type for SQL parameter inference: %T", value)
-		}
-		elemType := v.Type().Elem()
-		if elemType.Kind() == reflect.Interface {
-			return nil, fmt.Errorf("cannot infer element type for empty interface slice")
-		}
-		zeroValue := reflect.Zero(elemType).Interface()
-		elemSQLType, err := inferSQLType(zeroValue)
-		if err != nil {
-			return nil, fmt.Errorf("cannot infer type for array element: %w", err)
-		}
-		return bigtable.ArraySQLType{ElemType: elemSQLType}, nil
-
-	}
 }
 
 // getClient retrieves a Bigtable client for a given keyspace.

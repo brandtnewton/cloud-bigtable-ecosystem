@@ -1681,6 +1681,24 @@ func TestCreateOrderedCodeKey(t *testing.T) {
 			wantErr: true,
 		},
 		{
+			name: "int zero",
+			tableConfig: schemaMapping.NewTableConfig("keyspace", "table", "cf1", types.OrderedCodeEncoding, []*types.Column{
+				{Name: "user_id", CQLType: datatype.Bigint, KeyType: utilities.KEY_TYPE_PARTITION, PkPrecedence: 1},
+			}),
+			values:  map[string]interface{}{"user_id": int64(0)},
+			want:    []byte("\x80"),
+			wantErr: false,
+		},
+		{
+			name: "int zero big endian",
+			tableConfig: schemaMapping.NewTableConfig("keyspace", "table", "cf1", types.BigEndianEncoding, []*types.Column{
+				{Name: "user_id", CQLType: datatype.Bigint, KeyType: utilities.KEY_TYPE_PARTITION, PkPrecedence: 1},
+			}),
+			values:  map[string]interface{}{"user_id": int64(0)},
+			want:    []byte("\x00\xff\x00\xff\x00\xff\x00\xff\x00\xff\x00\xff\x00\xff\x00\xff"),
+			wantErr: false,
+		},
+		{
 			name: "compound key",
 			tableConfig: schemaMapping.NewTableConfig("keyspace", "table", "cf1", types.OrderedCodeEncoding, []*types.Column{
 				{Name: "user_id", CQLType: datatype.Varchar, KeyType: utilities.KEY_TYPE_PARTITION, PkPrecedence: 1},
@@ -1724,6 +1742,161 @@ func TestCreateOrderedCodeKey(t *testing.T) {
 			},
 			want:    nil,
 			wantErr: true,
+		},
+		{
+			name: "compound key with trailing empty",
+			tableConfig: schemaMapping.NewTableConfig("keyspace", "table", "cf1", types.OrderedCodeEncoding, []*types.Column{
+				{Name: "user_id", CQLType: datatype.Varchar, KeyType: utilities.KEY_TYPE_PARTITION, PkPrecedence: 1},
+				{Name: "team_num", CQLType: datatype.Bigint, KeyType: utilities.KEY_TYPE_CLUSTERING, PkPrecedence: 2},
+				{Name: "city", CQLType: datatype.Varchar, KeyType: utilities.KEY_TYPE_CLUSTERING, PkPrecedence: 3},
+				{Name: "borough", CQLType: datatype.Varchar, KeyType: utilities.KEY_TYPE_CLUSTERING, PkPrecedence: 4},
+			}),
+			values: map[string]interface{}{
+				"user_id":  "user3",
+				"team_num": int64(3),
+				"city":     "",
+				"borough":  "",
+			},
+			want:    []byte("user3\x00\x01\x83"),
+			wantErr: false,
+		},
+		{
+			name: "compound key with trailing empty big endian",
+			tableConfig: schemaMapping.NewTableConfig("keyspace", "table", "cf1", types.BigEndianEncoding, []*types.Column{
+				{Name: "user_id", CQLType: datatype.Varchar, KeyType: utilities.KEY_TYPE_PARTITION, PkPrecedence: 1},
+				{Name: "team_num", CQLType: datatype.Bigint, KeyType: utilities.KEY_TYPE_CLUSTERING, PkPrecedence: 2},
+				{Name: "city", CQLType: datatype.Varchar, KeyType: utilities.KEY_TYPE_CLUSTERING, PkPrecedence: 3},
+				{Name: "borough", CQLType: datatype.Varchar, KeyType: utilities.KEY_TYPE_CLUSTERING, PkPrecedence: 4},
+			}),
+			values: map[string]interface{}{
+				"user_id":  "user3",
+				"team_num": int64(3),
+				"city":     "",
+				"borough":  "",
+			},
+			want:    []byte("user3\x00\x01\x00\xff\x00\xff\x00\xff\x00\xff\x00\xff\x00\xff\x00\xff\x03"),
+			wantErr: false,
+		},
+		{
+			name: "compound key with empty middle",
+			tableConfig: schemaMapping.NewTableConfig("keyspace", "table", "cf1", types.OrderedCodeEncoding, []*types.Column{
+				{Name: "user_id", CQLType: datatype.Blob, KeyType: utilities.KEY_TYPE_PARTITION, PkPrecedence: 1},
+				{Name: "team_id", CQLType: datatype.Blob, KeyType: utilities.KEY_TYPE_CLUSTERING, PkPrecedence: 2},
+				{Name: "city", CQLType: datatype.Blob, KeyType: utilities.KEY_TYPE_CLUSTERING, PkPrecedence: 3},
+			}),
+			values: map[string]interface{}{
+				"user_id": "\xa2",
+				"team_id": "",
+				"city":    "\xb7",
+			},
+			want:    []byte("\xa2\x00\x01\x00\x00\x00\x01\xb7"),
+			wantErr: false,
+		},
+		{
+			name: "bytes with delimiter",
+			tableConfig: schemaMapping.NewTableConfig("keyspace", "table", "cf1", types.OrderedCodeEncoding, []*types.Column{
+				{Name: "user_id", CQLType: datatype.Blob, KeyType: utilities.KEY_TYPE_PARTITION, PkPrecedence: 1},
+			}),
+			values: map[string]interface{}{
+				"user_id": "\x80\x00\x01\x81",
+			},
+			want:    []byte("\x80\x00\xff\x01\x81"),
+			wantErr: false,
+		},
+		{
+			name: "compound key with 2 empty middle fields",
+			tableConfig: schemaMapping.NewTableConfig("keyspace", "table", "cf1", types.OrderedCodeEncoding, []*types.Column{
+				{Name: "user_id", CQLType: datatype.Blob, KeyType: utilities.KEY_TYPE_PARTITION, PkPrecedence: 1},
+				{Name: "team_num", CQLType: datatype.Blob, KeyType: utilities.KEY_TYPE_CLUSTERING, PkPrecedence: 2},
+				{Name: "city", CQLType: datatype.Blob, KeyType: utilities.KEY_TYPE_CLUSTERING, PkPrecedence: 3},
+				{Name: "borough", CQLType: datatype.Blob, KeyType: utilities.KEY_TYPE_CLUSTERING, PkPrecedence: 4},
+			}),
+			values: map[string]interface{}{
+				"user_id":  "\xa2",
+				"team_num": "",
+				"city":     "",
+				"borough":  "\xb7",
+			},
+			want:    []byte("\xa2\x00\x01\x00\x00\x00\x01\x00\x00\x00\x01\xb7"),
+			wantErr: false,
+		},
+		{
+			name: "byte strings",
+			tableConfig: schemaMapping.NewTableConfig("keyspace", "table", "cf1", types.OrderedCodeEncoding, []*types.Column{
+				{Name: "user_id", CQLType: datatype.Blob, KeyType: utilities.KEY_TYPE_PARTITION, PkPrecedence: 1},
+				{Name: "city", CQLType: datatype.Blob, KeyType: utilities.KEY_TYPE_CLUSTERING, PkPrecedence: 2},
+			}),
+			values: map[string]interface{}{
+				"user_id": "\xa5",
+				"city":    "\x90",
+			},
+			want:    []byte("\xa5\x00\x01\x90"),
+			wantErr: false,
+		},
+		{
+			name: "empty first value",
+			tableConfig: schemaMapping.NewTableConfig("keyspace", "table", "cf1", types.OrderedCodeEncoding, []*types.Column{
+				{Name: "user_id", CQLType: datatype.Varchar, KeyType: utilities.KEY_TYPE_PARTITION, PkPrecedence: 1},
+				{Name: "city", CQLType: datatype.Blob, KeyType: utilities.KEY_TYPE_CLUSTERING, PkPrecedence: 2},
+			}),
+			values: map[string]interface{}{
+				"user_id": "",
+				"city":    "\xaa",
+			},
+			want:    []byte("\x00\x00\x00\x01\xaa"),
+			wantErr: false,
+		},
+		{
+			name: "null escaped",
+			tableConfig: schemaMapping.NewTableConfig("keyspace", "table", "cf1", types.OrderedCodeEncoding, []*types.Column{
+				{Name: "user_id", CQLType: datatype.Varchar, KeyType: utilities.KEY_TYPE_PARTITION, PkPrecedence: 1},
+				{Name: "city", CQLType: datatype.Varchar, KeyType: utilities.KEY_TYPE_CLUSTERING, PkPrecedence: 2},
+				{Name: "borough", CQLType: datatype.Varchar, KeyType: utilities.KEY_TYPE_CLUSTERING, PkPrecedence: 3},
+			}),
+			values: map[string]interface{}{
+				"user_id": "nn",
+				"city":    "t\x00t",
+				"borough": "end",
+			},
+			want:    []byte("nn\x00\x01t\x00\xfft\x00\x01end"),
+			wantErr: false,
+		},
+		{
+			name: "null escaped (big endian)",
+			tableConfig: schemaMapping.NewTableConfig("keyspace", "table", "cf1", types.BigEndianEncoding, []*types.Column{
+				{Name: "user_id", CQLType: datatype.Varchar, KeyType: utilities.KEY_TYPE_PARTITION, PkPrecedence: 1},
+				{Name: "team_num", CQLType: datatype.Bigint, KeyType: utilities.KEY_TYPE_CLUSTERING, PkPrecedence: 2},
+				{Name: "city", CQLType: datatype.Varchar, KeyType: utilities.KEY_TYPE_CLUSTERING, PkPrecedence: 3},
+			}),
+			values: map[string]interface{}{
+				"user_id":  "abcd",
+				"team_num": int64(45),
+				"city":     "name",
+			},
+			want:    []byte("abcd\x00\x01\x00\xff\x00\xff\x00\xff\x00\xff\x00\xff\x00\xff\x00\xff\x2d\x00\x01name"),
+			wantErr: false,
+		},
+		{
+			name: "invalid utf8 varchar returns error",
+			tableConfig: schemaMapping.NewTableConfig("keyspace", "table", "cf1", types.OrderedCodeEncoding, []*types.Column{
+				{Name: "user_id", CQLType: datatype.Varchar, KeyType: utilities.KEY_TYPE_PARTITION, PkPrecedence: 1},
+			}),
+			values: map[string]interface{}{
+				"user_id": string([]uint8{182}),
+			},
+			want:    nil,
+			wantErr: true,
+		},
+		{
+			name: "null char",
+			tableConfig: schemaMapping.NewTableConfig("keyspace", "table", "cf1", types.OrderedCodeEncoding, []*types.Column{
+				{Name: "user_id", CQLType: datatype.Varchar, KeyType: utilities.KEY_TYPE_PARTITION, PkPrecedence: 1},
+			}),
+			values: map[string]interface{}{
+				"user_id": "\x00\x01",
+			},
+			want:    []byte("\x00\xff\x01"),
+			wantErr: false,
 		},
 	}
 	for _, tt := range tests {

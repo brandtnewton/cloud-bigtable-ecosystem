@@ -27,6 +27,7 @@ import (
 	"github.com/datastax/go-cassandra-native-protocol/primitive"
 )
 
+// TableConfig contains all schema information about a single table
 type TableConfig struct {
 	Keyspace           string
 	Name               string

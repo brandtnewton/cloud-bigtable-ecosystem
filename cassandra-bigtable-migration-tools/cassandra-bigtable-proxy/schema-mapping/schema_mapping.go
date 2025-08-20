@@ -28,6 +28,8 @@ const (
 	LimitValue = "limitValue"
 )
 
+// SchemaMappingConfig contains the schema information for all tables, across
+// all Bigtable instances, managed by this proxy.
 type SchemaMappingConfig struct {
 	Logger             *zap.Logger
 	mu                 sync.RWMutex

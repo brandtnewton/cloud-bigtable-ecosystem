@@ -22,14 +22,13 @@ import (
 
 type Column struct {
 	Name         string
+	ColumnFamily string
 	CQLType      datatype.DataType
-	ColumnName   string
+	// todo remove this field because it's redundant - you can use PkPrecedence or KeyType to infer this
 	IsPrimaryKey bool
 	PkPrecedence int
-	IsCollection bool
 	KeyType      string
 	Metadata     message.ColumnMetadata
-	ColumnFamily string
 }
 
 type Clause struct {
@@ -37,4 +36,24 @@ type Clause struct {
 	Operator     string
 	Value        string
 	IsPrimaryKey bool
+}
+
+// SelectedColumn describes a column that was selected as part of a query. It's
+// an output of query translating, and is also used for response construction.
+type SelectedColumn struct {
+	// Name is the original value of the selected column, including functions. It
+	// does not include the alias. e.g. "region" or "count(*)"
+	Name   string
+	IsFunc bool
+	// IsAs is true if an alias is used
+	IsAs      bool
+	FuncName  string
+	Alias     string
+	MapKey    string
+	ListIndex string
+	// ColumnName is the name of the underlying column in a function, or map key
+	// access. e.g. the column name of "max(price)" is "price"
+	ColumnName        string
+	KeyType           string
+	IsWriteTimeColumn bool
 }

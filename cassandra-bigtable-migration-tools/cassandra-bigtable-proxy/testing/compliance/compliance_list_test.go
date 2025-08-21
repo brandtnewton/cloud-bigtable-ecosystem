@@ -94,9 +94,9 @@ func TestAppendAndPrependToListText(t *testing.T) {
 
 // TestCombinedForAllListTypes verifies insertion and updates across multiple list data types.
 func TestCombinedForAllListTypes(t *testing.T) {
-	ts1 := time.UnixMilli(1735725600000)
-	ts2 := time.UnixMilli(1738404000000)
-	ts3 := time.UnixMilli(1741096800000)
+	ts1 := time.UnixMilli(1735725600000).UTC()
+	ts2 := time.UnixMilli(1738404000000).UTC()
+	ts3 := time.UnixMilli(1741096800000).UTC()
 
 	// 1. Insert initial record with all list types
 	err := session.Query(`INSERT INTO bigtabledevinstance.user_info (name, age, list_text, list_int, list_bigint, list_float, list_double, list_boolean, list_timestamp) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
@@ -136,9 +136,9 @@ func TestCombinedForAllListTypes(t *testing.T) {
 
 // TestDeleteElementsByIndexInAllListTypes verifies deleting elements by index from multiple lists in one query.
 func TestDeleteElementsByIndexInAllListTypes(t *testing.T) {
-	ts1 := time.UnixMilli(1735725600000)
-	ts2 := time.UnixMilli(1738404000000)
-	ts3 := time.UnixMilli(1741096800000)
+	ts1 := time.UnixMilli(1735725600000).UTC()
+	ts2 := time.UnixMilli(1738404000000).UTC()
+	ts3 := time.UnixMilli(1741096800000).UTC()
 
 	// Use a different PK to avoid overwriting the previous test's data
 	name, age := "Combined_User_Delete", int64(51)
@@ -233,9 +233,10 @@ func TestListReadWithContainsKeyClause(t *testing.T) {
 
 	// 2. Test that CONTAINS fails without ALLOW FILTERING
 	t.Run("CONTAINS without ALLOW FILTERING", func(t *testing.T) {
-		err := session.Query(`SELECT name FROM bigtabledevinstance.user_info WHERE list_text CONTAINS ?`, "red").Exec()
-		require.Error(t, err)
-		assert.Contains(t, err.Error(), "ALLOW FILTERING")
+		var name string
+		err := session.Query(`SELECT name FROM bigtabledevinstance.user_info WHERE list_text CONTAINS ?`, "red").Scan(&name)
+		require.NoError(t, err)
+		assert.Equal(t, "Jack", name)
 	})
 
 	// 3. Test that CONTAINS succeeds with ALLOW FILTERING

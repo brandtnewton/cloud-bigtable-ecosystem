@@ -160,20 +160,20 @@ func TestSelectWithDifferentWhereOperators(t *testing.T) {
 	// 1. Insert boundary records
 	require.NoError(t, session.Query(`INSERT INTO bigtabledevinstance.user_info (name, age, code) VALUES (?, ?, ?)`, "Della", int64(1), 987).Exec())
 	require.NoError(t, session.Query(`INSERT INTO bigtabledevinstance.user_info (name, age, code) VALUES (?, ?, ?)`, "Andre", int64(2), 987).Exec())
-	require.NoError(t, session.Query(`INSERT INTO bigtabledevinstance.user_info (name, age, code) VALUES (?, ?, ?)`, "Simon", int64(1500), 987).Exec())
-	require.NoError(t, session.Query(`INSERT INTO bigtabledevinstance.user_info (name, age, code) VALUES (?, ?, ?)`, "Nivi", int64(1550), 987).Exec())
+	require.NoError(t, session.Query(`INSERT INTO bigtabledevinstance.user_info (name, age, code) VALUES (?, ?, ?)`, "Simon", int64(99999), 987).Exec())
+	require.NoError(t, session.Query(`INSERT INTO bigtabledevinstance.user_info (name, age, code) VALUES (?, ?, ?)`, "Nivi", int64(99980), 987).Exec())
 
 	// 2. Test >= operator
-	iterGtEq := session.Query(`SELECT name FROM bigtabledevinstance.user_info WHERE age >= ? ALLOW FILTERING`, 1500).Iter()
+	iterGtEq := session.Query(`SELECT name FROM bigtabledevinstance.user_info WHERE age >= ? ALLOW FILTERING`, 99980).Iter()
 	namesGtEq, err := iterGtEq.SliceMap()
 	require.NoError(t, err)
 	assert.ElementsMatch(t, []map[string]interface{}{{"name": "Simon"}, {"name": "Nivi"}}, namesGtEq)
 
 	// 3. Test > operator
-	iterGt := session.Query(`SELECT name FROM bigtabledevinstance.user_info WHERE age > ? ALLOW FILTERING`, 1500).Iter()
+	iterGt := session.Query(`SELECT name FROM bigtabledevinstance.user_info WHERE age > ? ALLOW FILTERING`, 99980).Iter()
 	namesGt, err := iterGt.SliceMap()
 	require.NoError(t, err)
-	assert.ElementsMatch(t, []map[string]interface{}{{"name": "Nivi"}}, namesGt)
+	assert.ElementsMatch(t, []map[string]interface{}{{"name": "Simon"}}, namesGt)
 
 	// 4. Test <= operator
 	iterLtEq := session.Query(`SELECT name FROM bigtabledevinstance.user_info WHERE age <= ? ALLOW FILTERING`, 2).Iter()

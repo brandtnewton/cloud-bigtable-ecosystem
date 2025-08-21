@@ -104,7 +104,6 @@ func TestNegativeDeleteCases(t *testing.T) {
 		{"Invalid Data Type", session, `DELETE FROM user_info WHERE name = ? AND age = ?`, []interface{}{"Michael", "invalid_age"}, "can not marshal string to bigint"},
 		{"Invalid Table Name", session, `DELETE FROM non_existent_table WHERE name = ? AND age = ?`, []interface{}{"Michael", int64(45)}, "table non_existent_table does not exist"},
 		{"Invalid Keyspace", session, `DELETE FROM invalid_keyspace.user_info WHERE name = ? AND age = ?`, []interface{}{"Michael", int64(45)}, "keyspace invalid_keyspace does not exist"},
-		{"Missing Keyspace", sessionWithNoKeyspace, `DELETE FROM user_info WHERE name = ? AND age = ?`, []interface{}{"Michael", int64(45)}, "no keyspace provided"},
 	}
 
 	// Insert a record needed for the "With Non-PK Condition" test

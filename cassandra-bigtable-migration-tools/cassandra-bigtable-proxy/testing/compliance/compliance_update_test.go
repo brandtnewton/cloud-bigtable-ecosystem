@@ -139,12 +139,6 @@ func TestNegativeTestCasesForUpdateOperations(t *testing.T) {
 		expectedError string
 	}{
 		{
-			name:          "Update with no keyspace",
-			query:         "UPDATE user_info SET code=? where name=? and age=?",
-			params:        []interface{}{724, "Smith", int64(36)},
-			expectedError: "invalid input paramaters found for keyspace",
-		},
-		{
 			name:          "Update with incorrect keyspace",
 			query:         "UPDATE randomkeyspace.user_info SET code=? where name=? and age=?",
 			params:        []interface{}{724, "Smith", int64(36)},

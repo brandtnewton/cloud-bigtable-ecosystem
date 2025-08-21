@@ -162,7 +162,6 @@ PRIMARY KEY (category, item_id)
 }
 
 func createSession(keyspace string) (*gocql.Session, error) {
-	// --- Setup ---
 	cluster := gocql.NewCluster("127.0.0.1") // Assumes Cassandra is running locally
 	cluster.Timeout = 20 * time.Second
 	if keyspace != "" {

@@ -28,7 +28,7 @@ func parseTime(t *testing.T, ts string) time.Time {
 	t.Helper()
 	parsedTime, err := time.Parse(time.RFC3339, ts)
 	require.NoError(t, err, "Failed to parse timestamp string")
-	return parsedTime
+	return parsedTime.UTC()
 }
 
 // Helper to parse "YYYY-MM-DD HH:MM:SS" timestamp strings used in the tests.
@@ -36,5 +36,5 @@ func parseSimpleTime(t *testing.T, ts string) time.Time {
 	t.Helper()
 	parsedTime, err := time.Parse("2006-01-02 15:04:05", ts)
 	require.NoError(t, err, "Failed to parse timestamp string")
-	return parsedTime
+	return parsedTime.UTC()
 }

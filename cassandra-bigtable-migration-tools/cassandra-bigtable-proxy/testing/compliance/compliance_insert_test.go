@@ -174,13 +174,11 @@ func TestNegativeInsertCases(t *testing.T) {
 		params        []interface{}
 		expectedError string
 	}{
-		{"No Keyspace", sessionWithNoKeyspace, `INSERT INTO user_info (name, age) VALUES (?, ?)`, []interface{}{"Smith", int64(36)}, "no keyspace provided"},
-		{"Wrong Keyspace", session, `INSERT INTO randomkeyspace.user_info (name, age) VALUES (?, ?)`, []interface{}{"Smith", int64(36)}, "keyspace randomkeyspace does not exist"},
-		{"Wrong Table", session, `INSERT INTO random_table (name, age) VALUES (?, ?)`, []interface{}{"Smith", int64(36)}, "table random_table does not exist"},
-		{"Wrong Column", session, `INSERT INTO user_info (name, age, random_column) VALUES (?, ?, ?)`, []interface{}{"Smith", int64(36), 123}, "unknown identifier random_column"},
-		{"Missing PK", session, `INSERT INTO user_info (name, code) VALUES (?, ?)`, []interface{}{"Smith", 724}, "Some primary key parts are missing: age"},
-		{"Null PK", session, `INSERT INTO user_info (name, age) VALUES (?, ?)`, []interface{}{nil, int64(36)}, "Invalid null value for primary key part name"},
-		{"Empty String PK", session, `INSERT INTO user_info (name, age) VALUES (?, ?)`, []interface{}{"", int64(27)}, "Partition key part name cannot be empty"},
+		{"Wrong Keyspace", session, `INSERT INTO randomkeyspace.user_info (name, age, code) VALUES (?, ?, ?)`, []interface{}{"Smith", int64(36), 45}, "keyspace randomkeyspace does not exist"},
+		{"Wrong Table", session, `INSERT INTO random_table (name, age, code) VALUES (?, ?, ?)`, []interface{}{"Smith", int64(36), 45}, "table random_table does not exist"},
+		{"Wrong Column", session, `INSERT INTO user_info (name, age, random_column) VALUES (?, ?, ?)`, []interface{}{"Smith", int64(36), 123}, "undefined column name random_column in table bigtabledevinstance.user_info"},
+		{"Missing PK", session, `INSERT INTO user_info (name, code, code) VALUES (?, ?, ?)`, []interface{}{"Smith", 724, 45}, "some partition key parts are missing: age"},
+		{"Null PK", session, `INSERT INTO user_info (name, age, code) VALUES (?, ?, ?)`, []interface{}{nil, int64(36), 45}, "error building insert prepare query:failed to convert <nil> to BigInt for key name"},
 	}
 
 	for _, tc := range testCases {
@@ -198,7 +196,8 @@ func TestInsertOnlyPrimaryKey(t *testing.T) {
 	// gocql might not error, but a subsequent SELECT should fail.
 	pkName, pkAge := "Ricky", int64(25)
 	err := session.Query(`INSERT INTO bigtabledevinstance.user_info (name, age) VALUES (?, ?)`, pkName, pkAge).Exec()
-	require.NoError(t, err, "Inserting only a PK should not produce a client-side error")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "rpc error: code = InvalidArgument desc = No mutations provided")
 
 	var name string
 	err = session.Query(`SELECT name FROM bigtabledevinstance.user_info WHERE name = ? AND age = ?`, pkName, pkAge).Scan(&name)

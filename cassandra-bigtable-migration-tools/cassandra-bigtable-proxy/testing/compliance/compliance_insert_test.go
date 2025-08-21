@@ -169,17 +169,18 @@ func TestInsertWithSpecialCharacters(t *testing.T) {
 func TestNegativeInsertCases(t *testing.T) {
 	testCases := []struct {
 		name          string
+		session       *gocql.Session
 		query         string
 		params        []interface{}
 		expectedError string
 	}{
-		{"No Keyspace", `INSERT INTO bigtabledevinstance.user_info (name, age) VALUES (?, ?)`, []interface{}{"Smith", int64(36)}, "no keyspace provided"},
-		{"Wrong Keyspace", `INSERT INTO randomkeyspace.user_info (name, age) VALUES (?, ?)`, []interface{}{"Smith", int64(36)}, "keyspace randomkeyspace does not exist"},
-		{"Wrong Table", `INSERT INTO bigtabledevinstance.random_table (name, age) VALUES (?, ?)`, []interface{}{"Smith", int64(36)}, "table random_table does not exist"},
-		{"Wrong Column", `INSERT INTO bigtabledevinstance.user_info (name, age, random_column) VALUES (?, ?, ?)`, []interface{}{"Smith", int64(36), 123}, "unknown identifier random_column"},
-		{"Missing PK", `INSERT INTO bigtabledevinstance.user_info (name, code) VALUES (?, ?)`, []interface{}{"Smith", 724}, "Some primary key parts are missing: age"},
-		{"Null PK", `INSERT INTO bigtabledevinstance.user_info (name, age) VALUES (?, ?)`, []interface{}{nil, int64(36)}, "Invalid null value for primary key part name"},
-		{"Empty String PK", `INSERT INTO bigtabledevinstance.user_info (name, age) VALUES (?, ?)`, []interface{}{"", int64(27)}, "Partition key part name cannot be empty"},
+		{"No Keyspace", sessionWithNoKeyspace, `INSERT INTO user_info (name, age) VALUES (?, ?)`, []interface{}{"Smith", int64(36)}, "no keyspace provided"},
+		{"Wrong Keyspace", session, `INSERT INTO randomkeyspace.user_info (name, age) VALUES (?, ?)`, []interface{}{"Smith", int64(36)}, "keyspace randomkeyspace does not exist"},
+		{"Wrong Table", session, `INSERT INTO random_table (name, age) VALUES (?, ?)`, []interface{}{"Smith", int64(36)}, "table random_table does not exist"},
+		{"Wrong Column", session, `INSERT INTO user_info (name, age, random_column) VALUES (?, ?, ?)`, []interface{}{"Smith", int64(36), 123}, "unknown identifier random_column"},
+		{"Missing PK", session, `INSERT INTO user_info (name, code) VALUES (?, ?)`, []interface{}{"Smith", 724}, "Some primary key parts are missing: age"},
+		{"Null PK", session, `INSERT INTO user_info (name, age) VALUES (?, ?)`, []interface{}{nil, int64(36)}, "Invalid null value for primary key part name"},
+		{"Empty String PK", session, `INSERT INTO user_info (name, age) VALUES (?, ?)`, []interface{}{"", int64(27)}, "Partition key part name cannot be empty"},
 	}
 
 	for _, tc := range testCases {

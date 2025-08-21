@@ -46,6 +46,9 @@ func (target TestTarget) String() string {
 // session is a global variable to hold the database session.
 var session *gocql.Session
 
+// sessionWithNoKeyspace has no default keyspace
+var sessionWithNoKeyspace *gocql.Session
+
 var testTarget = TestTargetProxy
 
 var createTableStatements = []string{
@@ -103,7 +106,7 @@ revenue_bigint bigint,
 PRIMARY KEY (category, item_id)
 );`,
 
-	`CREATE TABLE IF NOT EXISTS cassandrakeyspace.user_info (
+	`CREATE TABLE IF NOT EXISTS user_info (
 name text,
 age bigint,
 code int,
@@ -142,10 +145,10 @@ list_boolean list<boolean>,
 list_timestamp list<timestamp>,
 PRIMARY KEY (age, name)
 );`,
-	`CREATE TABLE IF NOT EXISTS cassandrakeyspace.orders (user_id varchar, order_num int, name varchar, PRIMARY KEY (user_id, order_num));`,
+	`CREATE TABLE IF NOT EXISTS orders (user_id varchar, order_num int, name varchar, PRIMARY KEY (user_id, order_num));`,
 
 	`
-CREATE TABLE IF NOT EXISTS cassandrakeyspace.aggregation_grouping_test (
+CREATE TABLE IF NOT EXISTS aggregation_grouping_test (
 region text,
 category varchar,
 item_id int,
@@ -158,23 +161,29 @@ PRIMARY KEY (category, item_id)
 );`,
 }
 
-// TestMain sets up the database connection and schema before running tests,
-// and tears it down afterward.
-func TestMain(m *testing.M) {
+func createSession(keyspace string) (*gocql.Session, error) {
 	// --- Setup ---
 	cluster := gocql.NewCluster("127.0.0.1") // Assumes Cassandra is running locally
 	cluster.Timeout = 20 * time.Second
-
-	var err error
-	// Connect to the cluster to create the keyspace
-	session, err = cluster.CreateSession()
-	if err != nil {
-		log.Fatalf("could not connect to cassandra: %v", err)
+	if keyspace != "" {
+		cluster.Keyspace = keyspace
 	}
 
-	session, err = cluster.CreateSession()
+	return cluster.CreateSession()
+}
+
+// TestMain sets up the database connection and schema before running tests,
+// and tears it down afterward.
+func TestMain(m *testing.M) {
+	var err error
+	session, err = createSession("bigtabledevinstance")
 	if err != nil {
-		log.Fatalf("could not connect to keyspace bigtabledevinstance: %v", err)
+		log.Fatalf("could not connect to the session: %v", err)
+	}
+
+	sessionWithNoKeyspace, err = createSession("")
+	if err != nil {
+		log.Fatalf("could not connect to the session: %v", err)
 	}
 
 	log.Println("Creating test tables...")

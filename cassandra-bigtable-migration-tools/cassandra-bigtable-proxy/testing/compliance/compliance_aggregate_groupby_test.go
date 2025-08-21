@@ -10,7 +10,6 @@ import (
 
 // TestComprehensiveGroupByAndAggregateFunctions validates GROUP BY queries with various aggregate functions.
 func TestComprehensiveGroupByAndAggregateFunctions(t *testing.T) {
-	// 1. Insert test data into the new table
 	require.NoError(t, session.Query(`INSERT INTO aggregation_grouping_test (region, category, item_id, sale_timestamp, quantity, price, discount, revenue_bigint) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
 		"North", "Electronics", 101, time.UnixMicro(1736899200000), 5, float32(1200.50), 0.1, int64(6002)).Exec())
 	require.NoError(t, session.Query(`INSERT INTO aggregation_grouping_test (region, category, item_id, sale_timestamp, quantity, price, discount, revenue_bigint) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
@@ -22,18 +21,52 @@ func TestComprehensiveGroupByAndAggregateFunctions(t *testing.T) {
 
 	// 2. Run validation queries
 	t.Run("GROUP BY category with SUM and AVG", func(t *testing.T) {
-		// NOTE: Standard Cassandra requires GROUP BY on all partition key columns.
-		// This query would fail in Cassandra. We test for the expected error from the target system.
-		err := session.Query(`SELECT category, SUM(quantity) AS total_items, AVG(price) AS avg_price FROM aggregation_grouping_test GROUP BY category`).Exec()
-		require.Error(t, err)
-		assert.Contains(t, err.Error(), "GROUP BY clause must contain all partition key columns")
+		iter := session.Query(`SELECT category, SUM(quantity) AS total_items, AVG(price) AS avg_price FROM aggregation_grouping_test GROUP BY category`).Iter()
+		results, err := iter.SliceMap()
+		if testTarget == TestTargetCassandra {
+			require.Error(t, err)
+			assert.Contains(t, err.Error(), "GROUP BY clause must contain all partition key columns")
+		} else {
+			require.NoError(t, err)
+			assert.ElementsMatch(t, []map[string]interface{}{
+				{
+					"category":    "Apparel",
+					"avg_price":   float32(38.245003),
+					"total_items": 25,
+				},
+				{
+					"category":    "Electronics",
+					"avg_price":   float32(1025.25),
+					"total_items": 7,
+				},
+			}, results)
+		}
 	})
 
 	t.Run("GROUP BY region with COUNT, MIN, MAX", func(t *testing.T) {
 		// As above, this query is invalid in standard Cassandra, and we test for the expected error.
-		err := session.Query(`SELECT region, COUNT(*) AS item_count, MIN(price) AS min_price, MAX(price) AS max_price FROM aggregation_grouping_test GROUP BY region`).Exec()
-		require.Error(t, err)
-		assert.Contains(t, err.Error(), "GROUP BY clause must contain all partition key columns")
+		iter := session.Query(`SELECT region, COUNT(*) AS item_count, MIN(price) AS min_price, MAX(price) AS max_price FROM aggregation_grouping_test GROUP BY region`).Iter()
+		results, err := iter.SliceMap()
+		if testTarget == TestTargetCassandra {
+			require.Error(t, err)
+			assert.Contains(t, err.Error(), "GROUP BY clause must contain all partition key columns")
+		} else {
+			require.NoError(t, err)
+			assert.ElementsMatch(t, []map[string]interface{}{
+				{
+					"region":     "North",
+					"min_price":  float32(30.50),
+					"max_price":  float32(1200.50),
+					"item_count": int64(3),
+				},
+				{
+					"region":     "South",
+					"min_price":  float32(45.99),
+					"max_price":  float32(45.99),
+					"item_count": int64(1),
+				},
+			}, results)
+		}
 	})
 
 	t.Run("GROUP BY multiple columns", func(t *testing.T) {
@@ -69,9 +102,26 @@ func TestComprehensiveGroupByAndAggregateFunctions(t *testing.T) {
 	})
 
 	t.Run("GROUP BY without aliases", func(t *testing.T) {
-		// Again, this is an invalid query in standard Cassandra.
-		err := session.Query(`SELECT category, SUM(quantity), AVG(price) FROM aggregation_grouping_test GROUP BY category`).Exec()
-		require.Error(t, err)
-		assert.Contains(t, err.Error(), "GROUP BY clause must contain all partition key columns")
+		iter := session.Query(`SELECT category, SUM(quantity), AVG(price) FROM aggregation_grouping_test GROUP BY category`).Iter()
+		results, err := iter.SliceMap()
+
+		if testTarget == TestTargetCassandra {
+			require.Error(t, err)
+			assert.Contains(t, err.Error(), "GROUP BY clause must contain all partition key columns")
+		} else {
+			require.NoError(t, err)
+			assert.ElementsMatch(t, []map[string]interface{}{
+				{
+					"category":             "Apparel",
+					"system.avg(price)":    float32(38.245003),
+					"system.sum(quantity)": 25,
+				},
+				{
+					"category":             "Electronics",
+					"system.avg(price)":    float32(1025.25),
+					"system.sum(quantity)": 7,
+				},
+			}, results)
+		}
 	})
 }

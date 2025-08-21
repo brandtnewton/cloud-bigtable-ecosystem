@@ -118,30 +118,101 @@ func TestComprehensiveGroupByAndOrderBy(t *testing.T) {
 	require.NoError(t, session.Query(`INSERT INTO bigtabledevinstance.user_info (name, age, code, credited, balance) VALUES (?, ?, ?, ?, ?)`, "CompreTwo", int64(81), 200, 2000.0, float32(1000.0)).Exec())
 	require.NoError(t, session.Query(`INSERT INTO bigtabledevinstance.user_info (name, age, code, credited, balance) VALUES (?, ?, ?, ?, ?)`, "CompreThree", int64(81), 300, 3000.0, float32(1500.0)).Exec())
 
-	t.Run("ORDER BY aggregate alias fails", func(t *testing.T) {
-		// Cassandra cannot ORDER BY an alias of an aggregate function.
-		query := `SELECT age, name, SUM(code) AS total_code FROM bigtabledevinstance.user_info WHERE name = ? AND age = ? GROUP BY name, age ORDER BY total_code DESC`
-		err := session.Query(query, "CompreOne", int64(81)).Exec()
+	t.Run("ORDER BY aggregate alias", func(t *testing.T) {
+		query := `SELECT age, name, SUM(code) AS total_code, AVG(balance) FROM bigtabledevinstance.user_info WHERE age = ? GROUP BY age, name ORDER BY name ASC,total_code DESC LIMIT 2`
+		iter := session.Query(query, int64(81)).Iter()
+		results, err := iter.SliceMap()
 		if testTarget == TestTargetCassandra {
 			require.Error(t, err)
-			assert.Contains(t, err.Error(), "ORDER BY is only supported on declared columns")
+			assert.Contains(t, err.Error(), "Undefined column name total_code in table bigtabledevinstance.user_info")
 		} else {
 			require.NoError(t, err)
-			// todo assert results
+			assert.ElementsMatch(t, []map[string]interface{}{
+				{
+					"age":                 int64(81),
+					"name":                "CompreOne",
+					"total_code":          100,
+					"system.avg(balance)": float32(500.0),
+				},
+				{
+					"age":                 int64(81),
+					"name":                "CompreThree",
+					"total_code":          300,
+					"system.avg(balance)": float32(1500.0),
+				},
+			}, results)
 		}
 	})
 
-	t.Run("GROUP BY partition key with filter on clustering key fails", func(t *testing.T) {
-		// Cannot filter by clustering key and group by partition key.
-		query := `SELECT age, name, COUNT(*) FROM bigtabledevinstance.user_info WHERE age = ? GROUP BY name, age`
-		err := session.Query(query, int64(81)).Exec()
-
+	t.Run("Complex order by, group by and limit with aliases", func(t *testing.T) {
+		query := `SELECT age AS age, name, SUM(code) AS total_code FROM bigtabledevinstance.user_info WHERE age = ? GROUP BY age, name ORDER BY age ASC, total_code DESC LIMIT 2`
+		iter := session.Query(query, int64(81)).Iter()
+		results, err := iter.SliceMap()
 		if testTarget == TestTargetCassandra {
 			require.Error(t, err)
-			assert.Contains(t, err.Error(), "GROUP BY clause cannot contain partition key")
+			assert.Contains(t, err.Error(), "Undefined column name total_code in table bigtabledevinstance.user_info")
 		} else {
 			require.NoError(t, err)
-			// todo assert results
+			assert.ElementsMatch(t, []map[string]interface{}{
+				{
+					"age":        int64(81),
+					"name":       "CompreThree",
+					"total_code": 300,
+				},
+				{
+					"age":        int64(81),
+					"name":       "CompreTwo",
+					"total_code": 200,
+				},
+			}, results)
+		}
+	})
+	t.Run("Group by age, name; order by name alias and aggregate alias; limit 2", func(t *testing.T) {
+		query := `SELECT age, name AS username, SUM(code) AS total_code, MAX(balance) AS max_balance FROM bigtabledevinstance.user_info WHERE age = ? GROUP BY age, name ORDER BY username ASC, max_balance DESC LIMIT 2`
+		iter := session.Query(query, int64(81)).Iter()
+		results, err := iter.SliceMap()
+		if testTarget == TestTargetCassandra {
+			require.Error(t, err)
+			assert.Contains(t, err.Error(), "Undefined column name username in table bigtabledevinstance.user_info")
+		} else {
+			require.NoError(t, err)
+			assert.ElementsMatch(t, []map[string]interface{}{
+				{
+					"age":         int64(81),
+					"username":    "CompreOne",
+					"total_code":  100,
+					"max_balance": float32(500),
+				},
+				{
+					"age":         int64(81),
+					"username":    "CompreThree",
+					"total_code":  300,
+					"max_balance": float32(1500.0),
+				},
+			}, results)
+		}
+	})
+	t.Run("Group by age, name; order by age asc, name desc; limit 2; count aggregate without AS", func(t *testing.T) {
+		query := `SELECT age, name, COUNT(*) FROM bigtabledevinstance.user_info WHERE age = ? GROUP BY age, name ORDER BY age ASC, name DESC LIMIT 2`
+		iter := session.Query(query, int64(81)).Iter()
+		results, err := iter.SliceMap()
+		if testTarget == TestTargetCassandra {
+			require.Error(t, err)
+			assert.Contains(t, err.Error(), "Order by is currently only supported on the clustered columns of the PRIMARY KEY, got age")
+		} else {
+			require.NoError(t, err)
+			assert.ElementsMatch(t, []map[string]interface{}{
+				{
+					"age":             int64(81),
+					"name":            "CompreThree",
+					"system.count(*)": int64(1),
+				},
+				{
+					"age":             int64(81),
+					"name":            "CompreTwo",
+					"system.count(*)": int64(1),
+				},
+			}, results)
 		}
 	})
 }

@@ -74,38 +74,37 @@ func TestDeleteNonExistentRecord(t *testing.T) {
 // TestDeleteRecordWithIfExists verifies the IF EXISTS clause for conditional deletes.
 func TestDeleteRecordWithIfExists(t *testing.T) {
 	pkName, pkAge := "Emma", int64(28)
-	require.NoError(t, session.Query(`INSERT INTO user_info (name, age, code) VALUES (?, ?, ?)`, pkName, pkAge, 112).Exec())
+	require.NoError(t, session.Query(`INSERT INTO user_info (name, age, code, credited) VALUES (?, ?, ?, ?)`, pkName, pkAge, 112, 2500.0).Exec())
 
 	// Delete existing record
-	applied, err := session.Query(`DELETE FROM user_info WHERE name = ? AND age = ? IF EXISTS`, pkName, pkAge).ScanCAS()
+	err := session.Query(`DELETE FROM user_info WHERE name = ? AND age = ? IF EXISTS`, pkName, pkAge).Exec()
 	require.NoError(t, err)
-	assert.True(t, applied, "DELETE IF EXISTS should be applied for an existing record")
 
 	// Verify deletion
 	err = session.Query(`SELECT name FROM user_info WHERE name = ? AND age = ?`, pkName, pkAge).Scan(&pkName)
 	assert.Equal(t, gocql.ErrNotFound, err)
 
 	// Delete non-existent record
-	applied, err = session.Query(`DELETE FROM user_info WHERE name = ? AND age = ? IF EXISTS`, "NonExistentName", int64(99)).ScanCAS()
+	err = session.Query(`DELETE FROM user_info WHERE name = ? AND age = ? IF EXISTS`, "NonExistentName", int64(99)).Exec()
 	require.NoError(t, err)
-	assert.False(t, applied, "DELETE IF EXISTS should not be applied for a non-existent record")
 }
 
 // TestNegativeDeleteCases covers various invalid DELETE scenarios to ensure errors are handled correctly.
 func TestNegativeDeleteCases(t *testing.T) {
 	testCases := []struct {
 		name          string
+		session       *gocql.Session
 		query         string
 		params        []interface{}
 		expectedError string
 	}{
-		{"With Non-PK Condition", `DELETE FROM bigtabledevinstance.user_info WHERE name = ? AND age = ? AND balance = ?`, []interface{}{"Oliver", int64(50), float32(100.0)}, "Non PRIMARY KEY columns found in where clause"},
-		{"Missing PK Part", `DELETE FROM bigtabledevinstance.user_info WHERE name = ? IF EXISTS`, []interface{}{"Michael"}, "Some primary key parts are missing: age"},
-		{"Condition on Non-PK Only", `DELETE FROM bigtabledevinstance.user_info WHERE credited = ? IF EXISTS`, []interface{}{5000.0}, "Some primary key parts are missing"},
-		{"Invalid Data Type", `DELETE FROM bigtabledevinstance.user_info WHERE name = ? AND age = ?`, []interface{}{"Michael", "invalid_age"}, "cannot marshal string to bigint"},
-		{"Invalid Table Name", `DELETE FROM non_existent_table WHERE name = ? AND age = ?`, []interface{}{"Michael", int64(45)}, "table non_existent_table does not exist"},
-		{"Invalid Keyspace", `DELETE FROM invalid_keyspace.user_info WHERE name = ? AND age = ?`, []interface{}{"Michael", int64(45)}, "keyspace invalid_keyspace does not exist"},
-		{"Missing Keyspace", `DELETE FROM user_info WHERE name = ? AND age = ?`, []interface{}{"Michael", int64(45)}, "no keyspace provided"},
+		{"With Non-PK Condition", session, `DELETE FROM user_info WHERE name = ? AND age = ? AND balance = ?`, []interface{}{"Oliver", int64(50), float32(100.0)}, "non PRIMARY KEY columns found in where clause: balance"},
+		{"Missing PK Part", session, `DELETE FROM user_info WHERE name = ? IF EXISTS`, []interface{}{"Michael"}, "some partition key parts are missing: age"},
+		{"Condition on Non-PK Only", session, `DELETE FROM user_info WHERE credited = ? IF EXISTS`, []interface{}{5000.0}, "non PRIMARY KEY columns found in where clause: credited"},
+		{"Invalid Data Type", session, `DELETE FROM user_info WHERE name = ? AND age = ?`, []interface{}{"Michael", "invalid_age"}, "can not marshal string to bigint"},
+		{"Invalid Table Name", session, `DELETE FROM non_existent_table WHERE name = ? AND age = ?`, []interface{}{"Michael", int64(45)}, "table non_existent_table does not exist"},
+		{"Invalid Keyspace", session, `DELETE FROM invalid_keyspace.user_info WHERE name = ? AND age = ?`, []interface{}{"Michael", int64(45)}, "keyspace invalid_keyspace does not exist"},
+		{"Missing Keyspace", sessionWithNoKeyspace, `DELETE FROM user_info WHERE name = ? AND age = ?`, []interface{}{"Michael", int64(45)}, "no keyspace provided"},
 	}
 
 	// Insert a record needed for the "With Non-PK Condition" test

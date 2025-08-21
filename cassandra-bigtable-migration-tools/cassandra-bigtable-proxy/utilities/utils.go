@@ -183,6 +183,12 @@ func decodeNonPrimitive(choice datatype.PrimitiveType, b []byte) (any, error) {
 				return nil, err
 			}
 			return decodedList, err
+		case primitive.DataTypeCodeInt:
+			decodedList, err := collectiondecoder.DecodeCollection(ListOfInt, primitive.ProtocolVersion4, b)
+			if err != nil {
+				return nil, err
+			}
+			return decodedList, err
 		case primitive.DataTypeCodeBigint:
 			decodedList, err := collectiondecoder.DecodeCollection(ListOfBigInt, primitive.ProtocolVersion4, b)
 			if err != nil {

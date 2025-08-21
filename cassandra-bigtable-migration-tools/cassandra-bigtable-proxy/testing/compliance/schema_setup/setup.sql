@@ -40,6 +40,8 @@ CREATE TABLE IF NOT EXISTS bigtabledevinstance.user_info (
 
 CREATE TABLE IF NOT EXISTS bigtabledevinstance.orders (user_id varchar, order_num int, name varchar, PRIMARY KEY (user_id, order_num));
 
+CREATE TABLE IF NOT EXISTS bigtabledevinstance.orders_big_endian_encoded (user_id varchar, order_num int, name varchar, PRIMARY KEY (user_id, order_num)) WITH int_row_key_encoding='big_endian';
+
 CREATE TABLE IF NOT EXISTS bigtabledevinstance.aggregation_grouping_test (
     region text,
     category varchar,

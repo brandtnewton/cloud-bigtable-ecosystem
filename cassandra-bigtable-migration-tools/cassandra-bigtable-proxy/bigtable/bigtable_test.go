@@ -843,10 +843,11 @@ func TestComplexUpdateOutOfBoundsIndex(t *testing.T) {
 }
 
 var testCreateTableStatementMap = translator.CreateTableStatementMap{
-	QueryType:   "create",
-	Keyspace:    "keyspace",
-	Table:       "create_table_test",
-	IfNotExists: false,
+	QueryType:         "create",
+	Keyspace:          "keyspace",
+	Table:             "create_table_test",
+	IfNotExists:       false,
+	IntRowKeyEncoding: types.OrderedCodeEncoding,
 	Columns: []message.ColumnMetadata{
 		{
 			Keyspace: "keyspace",
@@ -984,9 +985,8 @@ func TestCreateTableWithEncodeIntRowKeysWithBigEndianTrue(t *testing.T) {
 	require.NoError(t, err)
 
 	btClient := NewBigtableClient(client, adminClients, zap.NewNop(), BigtableConfig{
-		GCPProjectID:             "project",
-		DefaultColumnFamily:      "cf1",
-		DefaultIntRowKeyEncoding: types.BigEndianEncoding,
+		GCPProjectID:        "project",
+		DefaultColumnFamily: "cf1",
 	}, nil, &schemaMapping.SchemaMappingConfig{}, map[string]InstanceConfig{"keyspace": {BigtableInstance: "keyspace"}})
 
 	// force set up the schema mappings table
@@ -996,6 +996,7 @@ func TestCreateTableWithEncodeIntRowKeysWithBigEndianTrue(t *testing.T) {
 	tableName := "big_endian_table"
 	createTableStmt := testCreateTableStatementMap
 	createTableStmt.Table = tableName
+	createTableStmt.IntRowKeyEncoding = types.BigEndianEncoding
 	err = btClient.CreateTable(ctx, &createTableStmt, "schema-mappings")
 	require.NoError(t, err)
 
@@ -1011,9 +1012,8 @@ func TestCreateTableWithEncodeIntRowKeysWithBigEndianFalse(t *testing.T) {
 	require.NoError(t, err)
 
 	btClient := NewBigtableClient(client, adminClients, zap.NewNop(), BigtableConfig{
-		GCPProjectID:             "project",
-		DefaultColumnFamily:      "cf1",
-		DefaultIntRowKeyEncoding: types.OrderedCodeEncoding,
+		GCPProjectID:        "project",
+		DefaultColumnFamily: "cf1",
 	}, nil, &schemaMapping.SchemaMappingConfig{}, map[string]InstanceConfig{"keyspace": {BigtableInstance: "keyspace"}})
 
 	// force set up the schema mappings table
@@ -1023,6 +1023,7 @@ func TestCreateTableWithEncodeIntRowKeysWithBigEndianFalse(t *testing.T) {
 	tableName := "ordered_bytes_encoded_table"
 	createTableStmt := testCreateTableStatementMap
 	createTableStmt.Table = tableName
+	createTableStmt.IntRowKeyEncoding = types.OrderedCodeEncoding
 	err = btClient.CreateTable(ctx, &createTableStmt, "schema-mappings")
 	require.NoError(t, err)
 

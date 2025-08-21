@@ -56,10 +56,6 @@ type BigtableClient struct {
 	ResponseHandler     rh.ResponseHandlerIface
 	SchemaMappingConfig *schemaMapping.SchemaMappingConfig
 	InstancesMap        map[string]InstanceConfig
-
-	// Cache for prepared statements // commenting it out to improve/implement in future
-	// preparedStatementCache map[string]*bigtable.PreparedStatement
-	// preparedStatementMutex sync.RWMutex
 }
 
 type BigtableConfig struct {

@@ -351,7 +351,7 @@ func (btc *BigtableClient) CreateTable(ctx context.Context, data *translator.Cre
 		}
 	}
 
-	rowKeySchema, err := createBigtableRowKeySchema(data.PrimaryKeys, data.Columns, btc.BigtableConfig.DefaultIntRowKeyEncoding)
+	rowKeySchema, err := createBigtableRowKeySchema(data.PrimaryKeys, data.Columns, data.IntRowKeyEncoding)
 
 	columnFamilies := make(map[string]bigtable.Family)
 	for _, col := range data.Columns {
@@ -650,32 +650,32 @@ func (btc *BigtableClient) ReadTableConfigs(ctx context.Context, keyspace, schem
 		return nil, err
 	}
 
-	tableConfigs := make([]*schemaMapping.TableConfig, 0, len(allColumns))
-	for tableName, tableColumns := range allColumns {
-		tableConfig := schemaMapping.NewTableConfig(keyspace, tableName, btc.BigtableConfig.DefaultColumnFamily, btc.BigtableConfig.DefaultIntRowKeyEncoding, tableColumns)
-		tableConfigs = append(tableConfigs, tableConfig)
-	}
-
 	adminClient, err := btc.getAdminClient(keyspace)
 	if err != nil {
 		errorMessage := fmt.Sprintf("failed to get admin client for keyspace '%s'", keyspace)
 		btc.Logger.Error(errorMessage, zap.Error(err))
 		return nil, fmt.Errorf("%s: %w", errorMessage, err)
 	}
-	for _, table := range tableConfigs {
+
+	tableConfigs := make([]*schemaMapping.TableConfig, 0, len(allColumns))
+	for tableName, tableColumns := range allColumns {
+		var intRowKeyEncoding types.IntRowKeyEncodingType
 		// if we already know what encoding the table has, just use that, so we don't have to do the extra network request
-		if existingTable, err := btc.SchemaMappingConfig.GetTableConfig(table.Keyspace, table.Name); err == nil {
-			table.IntRowKeyEncoding = existingTable.IntRowKeyEncoding
-			continue
+		if existingTable, err := btc.SchemaMappingConfig.GetTableConfig(keyspace, tableName); err == nil {
+			intRowKeyEncoding = existingTable.IntRowKeyEncoding
+		} else {
+			btc.Logger.Info(fmt.Sprintf("loading table info for table %s.%s", keyspace, tableName))
+			tableInfo, err := adminClient.TableInfo(ctx, tableName)
+			if err != nil {
+				return nil, err
+			}
+			intRowKeyEncoding = detectTableEncoding(tableInfo, types.OrderedCodeEncoding)
 		}
 
-		btc.Logger.Info(fmt.Sprintf("loading table info for table %s.%s", keyspace, table.Name))
-		tableInfo, err := adminClient.TableInfo(ctx, table.Name)
-		if err != nil {
-			return nil, err
-		}
-		table.IntRowKeyEncoding = detectTableEncoding(tableInfo, btc.BigtableConfig.DefaultIntRowKeyEncoding)
+		tableConfig := schemaMapping.NewTableConfig(keyspace, tableName, btc.BigtableConfig.DefaultColumnFamily, intRowKeyEncoding, tableColumns)
+		tableConfigs = append(tableConfigs, tableConfig)
 	}
+
 	otelgo.AddAnnotation(ctx, schemaMappingConfigFetched)
 
 	return tableConfigs, nil

@@ -288,7 +288,7 @@ func Run(ctx context.Context, args []string) int {
 				if v.AppProfileID != "" {
 					AppProfileId = v.AppProfileID
 				}
-				InstanceMap[v.Keyspace] = bigtableModule.InstanceConfig{
+				InstanceMap[strings.TrimSpace(v.Keyspace)] = bigtableModule.InstanceConfig{
 					BigtableInstance: v.BigtableInstance,
 					AppProfileId:     AppProfileId,
 				}

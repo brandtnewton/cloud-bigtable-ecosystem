@@ -72,6 +72,10 @@ func (t *Translator) TranslateCreateTableToBigtable(query, sessionKeyspace strin
 			return nil, err
 		}
 
+		if !utilities.IsSupportedColumnType(dt) {
+			return nil, fmt.Errorf("column type '%s' is not supported", dt.String())
+		}
+
 		columns = append(columns, message.ColumnMetadata{
 			Table:    tableName,
 			Keyspace: keyspaceName,
@@ -148,6 +152,10 @@ func (t *Translator) TranslateCreateTableToBigtable(query, sessionKeyspace strin
 		})
 		if colIndex == -1 {
 			return nil, fmt.Errorf("primary key '%s' has no column definition in create table statement", pmk.Name)
+		}
+		col := columns[colIndex]
+		if !utilities.IsSupportedPrimaryKeyType(col.Type) {
+			return nil, fmt.Errorf("primary key cannot be of type %s", col.Type.String())
 		}
 	}
 

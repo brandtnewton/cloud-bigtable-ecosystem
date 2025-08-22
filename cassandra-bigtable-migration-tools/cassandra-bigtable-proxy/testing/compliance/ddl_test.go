@@ -53,7 +53,7 @@ func TestCreateIfNotExist(t *testing.T) {
 	assert.NoError(t, err)
 }
 
-func TestDeleteIfExist(t *testing.T) {
+func TestDropTableIfExist(t *testing.T) {
 	// dropping a random table that definitely doesn't exist should be ok
 	id := strings.ReplaceAll(uuid.New().String(), "-", "_")
 	err := session.Query(fmt.Sprintf("DROP TABLE IF EXISTS no_such_table_%s", id)).Exec()
@@ -85,6 +85,16 @@ func TestNegativeTestCasesForCreateTable(t *testing.T) {
 			name:          "Create table no column definition for pmk",
 			query:         "CREATE TABLE fail_missing_pmk_col (num INT, big_num BIGINT, PRIMARY KEY (foo))",
 			expectedError: "primary key 'foo' has no column definition in create table statement",
+		},
+		{
+			name:          "Create table with invalid key type",
+			query:         "CREATE TABLE fail_invalid_pmk_type (k boolean, big_num BIGINT, PRIMARY KEY (k))",
+			expectedError: "primary key cannot be of type boolean",
+		},
+		{
+			name:          "Create table with invalid column type",
+			query:         "CREATE TABLE fail_invalid_col_type (num INT, big_num UUID, PRIMARY KEY (num))",
+			expectedError: "column type 'uuid' is not supported",
 		},
 	}
 

@@ -22,6 +22,7 @@ import (
 
 	methods "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/global/methods"
 	cql "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/third_party/cqlparser"
+	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/utilities"
 	"github.com/antlr4-go/antlr/v4"
 	"github.com/datastax/go-cassandra-native-protocol/message"
 )
@@ -95,6 +96,9 @@ func (t *Translator) TranslateAlterTableToBigtable(query, sessionKeyspace string
 		}
 	}
 	for _, addColumn := range addColumns {
+		if !utilities.IsSupportedColumnType(addColumn.Type) {
+			return nil, fmt.Errorf("column type '%s' is not supported", addColumn.Type)
+		}
 		if tableConfig.HasColumn(addColumn.Name) {
 			return nil, fmt.Errorf("column '%s' already exists in table", addColumn.Name)
 		}

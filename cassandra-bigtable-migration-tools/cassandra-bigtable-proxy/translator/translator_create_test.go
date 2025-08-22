@@ -122,7 +122,7 @@ func TestTranslateCreateTableToBigtable(t *testing.T) {
 		},
 		{
 			name:  "single inline primary key",
-			query: "CREATE TABLE cycling.cyclist_name (id UUID PRIMARY KEY, lastname varchar, firstname varchar);",
+			query: "CREATE TABLE cycling.cyclist_name (id varchar PRIMARY KEY, lastname varchar, firstname varchar);",
 			want: &CreateTableStatementMap{
 				Table:       "cyclist_name",
 				Keyspace:    "cycling",
@@ -134,7 +134,7 @@ func TestTranslateCreateTableToBigtable(t *testing.T) {
 						Table:    "cyclist_name",
 						Name:     "id",
 						Index:    0,
-						Type:     datatype.Uuid,
+						Type:     datatype.Varchar,
 					},
 					{
 						Keyspace: "cycling",
@@ -313,8 +313,36 @@ func TestTranslateCreateTableToBigtable(t *testing.T) {
 			defaultKeyspace: "test_keyspace",
 		},
 		{
+			name:            "parser returns error when invalid key type is used inline",
+			query:           "CREATE TABLE test_keyspace.table (column1 boolean PRIMARY KEY, column10 int, column11 int)",
+			want:            nil,
+			error:           "primary key cannot be of type boolean",
+			defaultKeyspace: "test_keyspace",
+		},
+		{
+			name:            "parser returns error when invalid key type is used in clause",
+			query:           "CREATE TABLE test_keyspace.table (column1 boolean, column10 int, column11 int, PRIMARY KEY (column1))",
+			want:            nil,
+			error:           "primary key cannot be of type boolean",
+			defaultKeyspace: "test_keyspace",
+		},
+		{
+			name:            "parser returns error when invalid column type is used",
+			query:           "CREATE TABLE test_keyspace.table (column1 int, column10 UUID, column11 int, PRIMARY KEY (column1))",
+			want:            nil,
+			error:           "column type 'uuid' is not supported",
+			defaultKeyspace: "test_keyspace",
+		},
+		{
 			name:            "parser returns error empty pmks",
 			query:           "CREATE TABLE test_keyspace.table ()",
+			want:            nil,
+			error:           "malformed create table statement",
+			defaultKeyspace: "test_keyspace",
+		},
+		{
+			name:            "parser returns error empty pmks",
+			query:           "CREATE TABLE test_keyspace.table",
 			want:            nil,
 			error:           "malformed create table statement",
 			defaultKeyspace: "test_keyspace",
@@ -341,7 +369,7 @@ func TestTranslateCreateTableToBigtable(t *testing.T) {
 				assert.Equal(t, tt.error, err.Error())
 				assert.Nil(t, got)
 			} else {
-				assert.NoError(t, err)
+				require.NoError(t, err)
 				assert.Equal(t, tt.want, got)
 			}
 		})

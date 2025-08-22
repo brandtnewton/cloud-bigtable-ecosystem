@@ -165,20 +165,18 @@ func TestInsertWithSpecialCharacters(t *testing.T) {
 	})
 }
 
-// TestNegativeInsertCases covers various invalid INSERT scenarios to ensure errors are handled correctly.
 func TestNegativeInsertCases(t *testing.T) {
 	testCases := []struct {
 		name          string
-		session       *gocql.Session
 		query         string
 		params        []interface{}
 		expectedError string
 	}{
-		{"Wrong Keyspace", session, `INSERT INTO randomkeyspace.user_info (name, age, code) VALUES (?, ?, ?)`, []interface{}{"Smith", int64(36), 45}, "keyspace randomkeyspace does not exist"},
-		{"Wrong Table", session, `INSERT INTO random_table (name, age, code) VALUES (?, ?, ?)`, []interface{}{"Smith", int64(36), 45}, "table random_table does not exist"},
-		{"Wrong Column", session, `INSERT INTO user_info (name, age, random_column) VALUES (?, ?, ?)`, []interface{}{"Smith", int64(36), 123}, "undefined column name random_column in table bigtabledevinstance.user_info"},
-		{"Missing PK", session, `INSERT INTO user_info (name, code, code) VALUES (?, ?, ?)`, []interface{}{"Smith", 724, 45}, "some partition key parts are missing: age"},
-		{"Null PK", session, `INSERT INTO user_info (name, age, code) VALUES (?, ?, ?)`, []interface{}{nil, int64(36), 45}, "error building insert prepare query:failed to convert <nil> to BigInt for key name"},
+		{"Wrong Keyspace", `INSERT INTO randomkeyspace.user_info (name, age, code) VALUES (?, ?, ?)`, []interface{}{"Smith", int64(36), 45}, "keyspace randomkeyspace does not exist"},
+		{"Wrong Table", `INSERT INTO random_table (name, age, code) VALUES (?, ?, ?)`, []interface{}{"Smith", int64(36), 45}, "table random_table does not exist"},
+		{"Wrong Column", `INSERT INTO user_info (name, age, random_column) VALUES (?, ?, ?)`, []interface{}{"Smith", int64(36), 123}, "undefined column name random_column in table bigtabledevinstance.user_info"},
+		{"Missing PK", `INSERT INTO user_info (name, code, code) VALUES (?, ?, ?)`, []interface{}{"Smith", 724, 45}, "some partition key parts are missing: age"},
+		{"Null PK", `INSERT INTO user_info (name, age, code) VALUES (?, ?, ?)`, []interface{}{nil, int64(36), 45}, "error building insert prepare query:failed to convert <nil> to BigInt for key name"},
 	}
 
 	for _, tc := range testCases {

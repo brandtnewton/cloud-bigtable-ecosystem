@@ -24,6 +24,7 @@ import (
 	"time"
 
 	"github.com/gocql/gocql"
+	"github.com/stretchr/testify/assert"
 )
 
 type TestTarget int
@@ -201,4 +202,9 @@ func TestMain(m *testing.M) {
 	session.Close()
 
 	os.Exit(exitCode)
+}
+
+func cleanupTable(t *testing.T, table string) {
+	err := session.Query(fmt.Sprintf("DROP TABLE IF EXISTS %s;", table)).Exec()
+	assert.NoError(t, err, "testing cleanup of table %s failed", table)
 }

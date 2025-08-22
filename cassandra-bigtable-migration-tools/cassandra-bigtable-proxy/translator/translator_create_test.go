@@ -19,9 +19,11 @@ package translator
 import (
 	"testing"
 
+	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/utilities"
 	"github.com/datastax/go-cassandra-native-protocol/datatype"
 	"github.com/datastax/go-cassandra-native-protocol/message"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestTranslateCreateTableToBigtable(t *testing.T) {
@@ -29,7 +31,7 @@ func TestTranslateCreateTableToBigtable(t *testing.T) {
 		name            string
 		query           string
 		want            *CreateTableStatementMap
-		hasError        bool
+		error           string
 		defaultKeyspace string
 	}{
 		{
@@ -74,7 +76,7 @@ func TestTranslateCreateTableToBigtable(t *testing.T) {
 					},
 				},
 			},
-			hasError:        false,
+			error:           "",
 			defaultKeyspace: "my_keyspace",
 		},
 		{
@@ -115,7 +117,7 @@ func TestTranslateCreateTableToBigtable(t *testing.T) {
 					},
 				},
 			},
-			hasError:        false,
+			error:           "",
 			defaultKeyspace: "my_keyspace",
 		},
 		{
@@ -152,11 +154,11 @@ func TestTranslateCreateTableToBigtable(t *testing.T) {
 				PrimaryKeys: []CreateTablePrimaryKeyConfig{
 					{
 						Name:    "id",
-						KeyType: "regular",
+						KeyType: utilities.KEY_TYPE_PARTITION,
 					},
 				},
 			},
-			hasError:        false,
+			error:           "",
 			defaultKeyspace: "cycling",
 		},
 		{
@@ -205,7 +207,7 @@ func TestTranslateCreateTableToBigtable(t *testing.T) {
 					},
 				},
 			},
-			hasError:        false,
+			error:           "",
 			defaultKeyspace: "cycling",
 		},
 		{
@@ -225,7 +227,7 @@ func TestTranslateCreateTableToBigtable(t *testing.T) {
 					{Name: "column10", KeyType: "clustering"},
 				},
 			},
-			hasError:        false,
+			error:           "",
 			defaultKeyspace: "test_keyspace",
 		},
 		{
@@ -245,7 +247,7 @@ func TestTranslateCreateTableToBigtable(t *testing.T) {
 					{Name: "column10", KeyType: "clustering"},
 				},
 			},
-			hasError:        false,
+			error:           "",
 			defaultKeyspace: "test_keyspace",
 		},
 		{
@@ -265,21 +267,63 @@ func TestTranslateCreateTableToBigtable(t *testing.T) {
 					{Name: "column10", KeyType: "clustering"},
 				},
 			},
-			hasError:        false,
+			error:           "",
 			defaultKeyspace: "my_keyspace",
 		},
 		{
 			name:            "without keyspace in query, without default keyspace (should error)",
 			query:           "CREATE TABLE test_table (column1 varchar, column10 int, PRIMARY KEY (column1, column10))",
 			want:            nil,
-			hasError:        true,
+			error:           "missing keyspace. keyspace is required",
 			defaultKeyspace: "",
 		},
 		{
 			name:            "parser returns empty table (should error)",
 			query:           "CREATE TABLE test_keyspace. (column1 varchar, column10 int, PRIMARY KEY (column1, column10))",
 			want:            nil,
-			hasError:        true,
+			error:           "invalid table name parsed from query",
+			defaultKeyspace: "test_keyspace",
+		},
+		{
+			name:            "parser returns error when primary key has no column definition",
+			query:           "CREATE TABLE test_keyspace.table (column1 varchar, column10 int, PRIMARY KEY (column1, column99999))",
+			want:            nil,
+			error:           "primary key 'column99999' has no column definition in create table statement",
+			defaultKeyspace: "test_keyspace",
+		},
+		{
+			name:            "parser returns error when inline pmk conflicts",
+			query:           "CREATE TABLE test_keyspace.table (column1 varchar PRIMARY KEY, column10 int, PRIMARY KEY (column1, column10))",
+			want:            nil,
+			error:           "cannot specify both primary key clause and inline primary key",
+			defaultKeyspace: "test_keyspace",
+		},
+		{
+			name:            "parser returns error when multiple inline pmks",
+			query:           "CREATE TABLE test_keyspace.table (column1 varchar PRIMARY KEY, column10 int PRIMARY KEY, column11 int)",
+			want:            nil,
+			error:           "multiple inline primary key columns not allowed",
+			defaultKeyspace: "test_keyspace",
+		},
+		{
+			name:            "parser returns error empty pmks",
+			query:           "CREATE TABLE test_keyspace.table (column1 varchar, column10 int, PRIMARY KEY ())",
+			want:            nil,
+			error:           "no primary key found in create table statement",
+			defaultKeyspace: "test_keyspace",
+		},
+		{
+			name:            "parser returns error empty pmks",
+			query:           "CREATE TABLE test_keyspace.table ()",
+			want:            nil,
+			error:           "malformed create table statement",
+			defaultKeyspace: "test_keyspace",
+		},
+		{
+			name:            "parser returns error empty pmks",
+			query:           "CREATE TABLE test_keyspace.table",
+			want:            nil,
+			error:           "malformed create table statement",
 			defaultKeyspace: "test_keyspace",
 		},
 	}
@@ -292,8 +336,9 @@ func TestTranslateCreateTableToBigtable(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			got, err := tr.TranslateCreateTableToBigtable(tt.query, tt.defaultKeyspace)
-			if tt.hasError {
-				assert.Error(t, err)
+			if tt.error != "" {
+				require.Error(t, err)
+				assert.Equal(t, tt.error, err.Error())
 				assert.Nil(t, got)
 			} else {
 				assert.NoError(t, err)

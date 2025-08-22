@@ -191,7 +191,6 @@ func TestNegativeInsertCases(t *testing.T) {
 // TestInsertOnlyPrimaryKey validates that inserting a record with no data other than the primary key fails.
 func TestInsertOnlyPrimaryKey(t *testing.T) {
 	// In Cassandra, an INSERT with only PK values is a no-op and does not create a row.
-	// gocql might not error, but a subsequent SELECT should fail.
 	pkName, pkAge := "Ricky", int64(25)
 	err := session.Query(`INSERT INTO bigtabledevinstance.user_info (name, age) VALUES (?, ?)`, pkName, pkAge).Exec()
 	require.NoError(t, err)

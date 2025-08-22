@@ -235,8 +235,13 @@ func TestListReadWithContainsKeyClause(t *testing.T) {
 	t.Run("CONTAINS without ALLOW FILTERING", func(t *testing.T) {
 		var name string
 		err := session.Query(`SELECT name FROM bigtabledevinstance.user_info WHERE list_text CONTAINS ?`, "red").Scan(&name)
-		require.NoError(t, err)
-		assert.Equal(t, "Jack", name)
+		if testTarget == TestTargetCassandra {
+			require.Error(t, err, "Expected an error for CONTAINS on a non-indexed column without ALLOW FILTERING")
+			assert.Contains(t, err.Error(), "ALLOW FILTERING")
+		} else {
+			require.NoError(t, err)
+			assert.Equal(t, "Jack", name)
+		}
 	})
 
 	// 3. Test that CONTAINS succeeds with ALLOW FILTERING

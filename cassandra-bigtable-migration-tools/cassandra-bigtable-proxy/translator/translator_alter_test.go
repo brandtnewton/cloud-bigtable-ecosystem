@@ -234,6 +234,14 @@ func TestTranslateAlterTableToBigtable(t *testing.T) {
 			error:           "column 'age' already exists in table",
 			defaultKeyspace: "",
 		},
+		{
+			name:            "Drop primary key",
+			query:           "ALTER TABLE test_keyspace.user_info DROP name",
+			tableConfig:     userInfoTable,
+			want:            nil,
+			error:           "cannot drop primary key column: 'name'",
+			defaultKeyspace: "",
+		},
 	}
 
 	for _, tt := range tests {

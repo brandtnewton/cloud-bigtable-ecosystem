@@ -101,7 +101,7 @@ func (tableConfig *TableConfig) HasColumn(columnName string) bool {
 func (tableConfig *TableConfig) GetColumn(columnName string) (*types.Column, error) {
 	col, ok := tableConfig.Columns[columnName]
 	if !ok {
-		return nil, fmt.Errorf("undefined column name %s in table %s.%s", columnName, tableConfig.Keyspace, tableConfig.Name)
+		return nil, fmt.Errorf("unknown column '%s' in table %s.%s", columnName, tableConfig.Keyspace, tableConfig.Name)
 	}
 	return col, nil
 }

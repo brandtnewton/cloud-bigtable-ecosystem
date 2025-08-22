@@ -91,8 +91,12 @@ func (t *Translator) TranslateAlterTableToBigtable(query, sessionKeyspace string
 	}
 
 	for _, dropColumn := range dropColumns {
-		if !tableConfig.HasColumn(dropColumn) {
-			return nil, fmt.Errorf("cannot drop unknown column '%s'", dropColumn)
+		column, err := tableConfig.GetColumn(dropColumn)
+		if err != nil {
+			return nil, fmt.Errorf("cannot drop column: %w", err)
+		}
+		if column.IsPrimaryKey {
+			return nil, fmt.Errorf("cannot drop primary key column: '%s'", column.Name)
 		}
 	}
 	for _, addColumn := range addColumns {

@@ -324,7 +324,7 @@ alterTableAlterColumnTypeList
    ;
 
 alterTableAlterColumnType
-   : column kwTo dataType
+   : column kwType dataType
    ;
 
 alterTableAdd

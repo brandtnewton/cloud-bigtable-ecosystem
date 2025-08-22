@@ -766,7 +766,7 @@ func cqlparserParserInit() {
 		1139, 1140, 3, 108, 54, 0, 1140, 1142, 1, 0, 0, 0, 1141, 1138, 1, 0, 0,
 		0, 1142, 1145, 1, 0, 0, 0, 1143, 1141, 1, 0, 0, 0, 1143, 1144, 1, 0, 0,
 		0, 1144, 107, 1, 0, 0, 0, 1145, 1143, 1, 0, 0, 0, 1146, 1147, 3, 322, 161,
-		0, 1147, 1148, 3, 522, 261, 0, 1148, 1149, 3, 324, 162, 0, 1149, 109, 1,
+		0, 1147, 1148, 3, 530, 265, 0, 1148, 1149, 3, 324, 162, 0, 1149, 109, 1,
 		0, 0, 0, 1150, 1151, 3, 358, 179, 0, 1151, 1152, 3, 112, 56, 0, 1152, 111,
 		1, 0, 0, 0, 1153, 1154, 3, 322, 161, 0, 1154, 1161, 3, 324, 162, 0, 1155,
 		1156, 3, 570, 285, 0, 1156, 1157, 3, 322, 161, 0, 1157, 1158, 3, 324, 162,
@@ -14645,7 +14645,7 @@ type IAlterTableAlterColumnTypeContext interface {
 
 	// Getter signatures
 	Column() IColumnContext
-	KwTo() IKwToContext
+	KwType() IKwTypeContext
 	DataType() IDataTypeContext
 
 	// IsAlterTableAlterColumnTypeContext differentiates from other interfaces.
@@ -14700,10 +14700,10 @@ func (s *AlterTableAlterColumnTypeContext) Column() IColumnContext {
 	return t.(IColumnContext)
 }
 
-func (s *AlterTableAlterColumnTypeContext) KwTo() IKwToContext {
+func (s *AlterTableAlterColumnTypeContext) KwType() IKwTypeContext {
 	var t antlr.RuleContext
 	for _, ctx := range s.GetChildren() {
-		if _, ok := ctx.(IKwToContext); ok {
+		if _, ok := ctx.(IKwTypeContext); ok {
 			t = ctx.(antlr.RuleContext)
 			break
 		}
@@ -14713,7 +14713,7 @@ func (s *AlterTableAlterColumnTypeContext) KwTo() IKwToContext {
 		return nil
 	}
 
-	return t.(IKwToContext)
+	return t.(IKwTypeContext)
 }
 
 func (s *AlterTableAlterColumnTypeContext) DataType() IDataTypeContext {
@@ -14762,7 +14762,7 @@ func (p *CqlParser) AlterTableAlterColumnType() (localctx IAlterTableAlterColumn
 	}
 	{
 		p.SetState(1147)
-		p.KwTo()
+		p.KwType()
 	}
 	{
 		p.SetState(1148)

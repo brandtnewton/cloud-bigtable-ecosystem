@@ -98,7 +98,7 @@ func TestNegativeTestCasesForAlterTable(t *testing.T) {
 		{
 			name:          "Alter a column to an incompatible type",
 			query:         "ALTER TABLE alter_test_table ALTER regular_col TYPE int",
-			expectedError: "error while parsing alter statement",
+			expectedError: "alter column type operations are not supported",
 		},
 	}
 

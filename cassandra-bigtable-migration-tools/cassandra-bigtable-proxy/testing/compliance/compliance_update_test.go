@@ -17,7 +17,6 @@
 package compliance
 
 import (
-	"strings"
 	"testing"
 	"time"
 
@@ -154,7 +153,7 @@ func TestNegativeTestCasesForUpdateOperations(t *testing.T) {
 			name:          "Update with incorrect column name",
 			query:         "UPDATE bigtabledevinstance.user_info SET random_column=? where name=? and age=?",
 			params:        []interface{}{724, "Smith", int64(36)},
-			expectedError: "undefined column name random_column in table bigtabledevinstance.user_info",
+			expectedError: "unknown column 'random_column' in table",
 		},
 		{
 			name:          "Update with missing primary key parts",
@@ -168,7 +167,7 @@ func TestNegativeTestCasesForUpdateOperations(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			err := session.Query(tc.query, tc.params...).Exec()
 			require.Error(t, err, "Expected an error but got none")
-			assert.True(t, strings.Contains(err.Error(), tc.expectedError), "Error message mismatch.\nExpected to contain: %s\nGot: %s", tc.expectedError, err.Error())
+			assert.Contains(t, err.Error(), tc.expectedError)
 		})
 	}
 }

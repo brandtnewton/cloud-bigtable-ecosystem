@@ -169,9 +169,11 @@ func (btc *BigtableClient) mutateRow(ctx context.Context, tableName, rowKey stri
 		timestamp = bigtable.Timestamp(bigtable.Now().Time().UnixMicro())
 	}
 
+	var mutationCount = 0
 	// Delete column families
 	for _, cf := range deleteColumnFamilies {
 		mut.DeleteCellsInFamily(cf)
+		mutationCount++
 	}
 
 	// Handle complex updates
@@ -186,23 +188,27 @@ func (btc *BigtableClient) mutateRow(ctx context.Context, tableName, rowKey stri
 				return nil, err
 			}
 			mut.Set(cf, reqTimestamp, timestamp, meta.Value)
+			mutationCount++
 		}
 		if meta.ListDelete {
 			if err := btc.setMutationforListDelete(ctx, tableName, rowKey, cf, keyspace, meta.ListDeleteValues, mut); err != nil {
 				return nil, err
 			}
+			mutationCount++
 		}
 	}
 
 	// Delete specific column qualifiers
 	for _, q := range deleteQualifiers {
 		mut.DeleteCellsInColumn(q.ColumnFamily, q.Name)
+		mutationCount++
 	}
 
 	// Set values for columns
 	for i, column := range columns {
 		if bv, ok := values[i].([]byte); ok {
 			mut.Set(column.ColumnFamily, column.Name, timestamp, bv)
+			mutationCount++
 		} else {
 			btc.Logger.Error("Value is not of type []byte", zap.String("column", column.Name), zap.Any("value", values[i]))
 			return nil, fmt.Errorf("value for column %s is not of type []byte", column.Name)
@@ -224,6 +230,15 @@ func (btc *BigtableClient) mutateRow(ctx context.Context, tableName, rowKey stri
 		}
 
 		return GenerateAppliedRowsResult(keyspace, tableName, ifSpec.IfExists == matched), nil
+	}
+
+	// no-op just return
+	if mutationCount == 0 {
+		return &message.RowsResult{
+			Metadata: &message.RowsMetadata{
+				LastContinuousPage: true,
+			},
+		}, nil
 	}
 
 	// If no conditions, apply the mutation directly

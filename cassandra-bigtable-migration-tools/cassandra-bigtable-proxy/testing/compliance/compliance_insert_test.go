@@ -194,8 +194,7 @@ func TestInsertOnlyPrimaryKey(t *testing.T) {
 	// gocql might not error, but a subsequent SELECT should fail.
 	pkName, pkAge := "Ricky", int64(25)
 	err := session.Query(`INSERT INTO bigtabledevinstance.user_info (name, age) VALUES (?, ?)`, pkName, pkAge).Exec()
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "rpc error: code = InvalidArgument desc = No mutations provided")
+	require.NoError(t, err)
 
 	var name string
 	err = session.Query(`SELECT name FROM bigtabledevinstance.user_info WHERE name = ? AND age = ?`, pkName, pkAge).Scan(&name)

@@ -48,21 +48,34 @@ func TestComplexOperationMapTextText(t *testing.T) {
 
 func TestComplexOperationMapTextInt(t *testing.T) {
 	pkName, pkAge := "Bobby Brown", int64(25)
+	var currentMap map[string]int
 
 	initialMap := map[string]int{"key1": 1, "key2": 2}
 	require.NoError(t, session.Query(`INSERT INTO user_info(name, age, map_text_int) VALUES (?, ?, ?);`, pkName, pkAge, initialMap).Exec())
+	require.NoError(t, session.Query(`SELECT map_text_int FROM user_info WHERE name = ? AND age = ?`, pkName, pkAge).Scan(&currentMap))
+	assert.Equal(t, initialMap, currentMap)
 
 	overwriteMap := map[string]int{"key1": 3, "key2": 4}
 	require.NoError(t, session.Query(`UPDATE user_info SET map_text_int = ? WHERE name = ? AND age = ?`, overwriteMap, pkName, pkAge).Exec())
+	require.NoError(t, session.Query(`SELECT map_text_int FROM user_info WHERE name = ? AND age = ?`, pkName, pkAge).Scan(&currentMap))
+	assert.Equal(t, overwriteMap, currentMap)
 
 	addMap := map[string]int{"key3": 5, "key4": 6}
 	require.NoError(t, session.Query(`UPDATE user_info SET map_text_int = map_text_int + ? WHERE name = ? AND age = ?`, addMap, pkName, pkAge).Exec())
+	require.NoError(t, session.Query(`SELECT map_text_int FROM user_info WHERE name = ? AND age = ?`, pkName, pkAge).Scan(&currentMap))
+	assert.Equal(t, map[string]int{"key1": 3, "key2": 4, "key3": 5, "key4": 6}, currentMap)
 
 	require.NoError(t, session.Query(`UPDATE user_info SET map_text_int = map_text_int - ? WHERE name = ? AND age = ?`, []string{"key3"}, pkName, pkAge).Exec())
+	require.NoError(t, session.Query(`SELECT map_text_int FROM user_info WHERE name = ? AND age = ?`, pkName, pkAge).Scan(&currentMap))
+	assert.Equal(t, map[string]int{"key1": 3, "key2": 4, "key4": 6}, currentMap)
 
 	require.NoError(t, session.Query(`UPDATE user_info SET map_text_int['key1'] = ? WHERE name = ? AND age = ?`, 10, pkName, pkAge).Exec())
+	require.NoError(t, session.Query(`SELECT map_text_int FROM user_info WHERE name = ? AND age = ?`, pkName, pkAge).Scan(&currentMap))
+	assert.Equal(t, map[string]int{"key1": 10, "key2": 4, "key4": 6}, currentMap)
 
 	require.NoError(t, session.Query(`UPDATE user_info SET map_text_int['key5'] = ? WHERE name = ? AND age = ?`, 5, pkName, pkAge).Exec())
+	require.NoError(t, session.Query(`SELECT map_text_int FROM user_info WHERE name = ? AND age = ?`, pkName, pkAge).Scan(&currentMap))
+	assert.Equal(t, map[string]int{"key1": 10, "key2": 4, "key4": 6, "key5": 5}, currentMap)
 
 	var finalMap map[string]int
 	require.NoError(t, session.Query(`SELECT map_text_int FROM user_info WHERE name = ? AND age = ?`, pkName, pkAge).Scan(&finalMap))
@@ -171,7 +184,12 @@ func TestComplexOperationMapTimestampValueTypes(t *testing.T) {
 	require.NoError(t, session.Query(`UPDATE user_info SET ts_boolean_map = ts_boolean_map + ? WHERE name = ? AND age = ?`, addMapBool, pkNameBool, pkAgeBool).Exec())
 	var finalMapBool map[time.Time]bool
 	require.NoError(t, session.Query(`SELECT ts_boolean_map FROM user_info WHERE name = ? AND age = ?`, pkNameBool, pkAgeBool).Scan(&finalMapBool))
-	assert.Len(t, finalMapBool, 3, "Expected 3 items in boolean map")
+	expectedMapBool := map[time.Time]bool{
+		parseSimpleTime(t, "2023-01-01 12:00:00"): true,
+		parseSimpleTime(t, "2023-01-02 13:00:00"): false,
+		parseSimpleTime(t, "2023-01-05 16:00:00"): true,
+	}
+	assert.Equal(t, expectedMapBool, finalMapBool, "Boolean map content mismatch")
 
 	// Map<Timestamp, Text>
 	pkNameText, pkAgeText := "Tom Smith", int64(40)

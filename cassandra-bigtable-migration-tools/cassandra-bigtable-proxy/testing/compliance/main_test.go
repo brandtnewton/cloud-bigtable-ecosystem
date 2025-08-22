@@ -47,120 +47,7 @@ func (target TestTarget) String() string {
 // session is a global variable to hold the database session.
 var session *gocql.Session
 
-// sessionWithNoKeyspace has no default keyspace
-var sessionWithNoKeyspace *gocql.Session
-
 var testTarget = TestTargetProxy
-
-var createTableStatements = []string{
-	`CREATE TABLE IF NOT EXISTS bigtabledevinstance.user_info (
-name text,
-age bigint,
-code int,
-credited double,
-balance float,
-is_active boolean,
-birth_date timestamp,
-zip_code bigint,
-extra_info map<text,text>,
-map_text_int map<text,int>,
-map_text_bigint map<text,bigint>,
-map_text_boolean map<text,boolean>,
-map_text_ts map<text,timestamp>,
-map_text_float map<text,float>,
-map_text_double map<text,double>,
-ts_text_map map<timestamp,text>,
-ts_boolean_map map<timestamp,boolean>,
-ts_float_map map<timestamp,float>,
-ts_double_map map<timestamp,double>,
-ts_bigint_map map<timestamp,bigint>,
-ts_ts_map map<timestamp,timestamp>,
-ts_int_map map<timestamp,int>,
-tags set<text>,
-set_boolean set<boolean>,
-set_int set<int>,
-set_bigint set<bigint>,
-set_float set<float>,
-set_double set<double>,
-set_timestamp set<timestamp>,
-list_text list<text>,
-list_int list<int>,
-list_bigint list<bigint>,
-list_float list<float>,
-list_double list<double>,
-list_boolean list<boolean>,
-list_timestamp list<timestamp>,
-PRIMARY KEY (age, name)
-);`,
-
-	`CREATE TABLE IF NOT EXISTS bigtabledevinstance.orders (user_id varchar, order_num int, name varchar, PRIMARY KEY (user_id, order_num));`,
-
-	`CREATE TABLE IF NOT EXISTS bigtabledevinstance.aggregation_grouping_test (
-region text,
-category varchar,
-item_id int,
-sale_timestamp timestamp,
-quantity int,
-price float,
-discount double,
-revenue_bigint bigint,
-PRIMARY KEY (category, item_id)
-);`,
-
-	`CREATE TABLE IF NOT EXISTS user_info (
-name text,
-age bigint,
-code int,
-credited double,
-balance float,
-is_active boolean,
-birth_date timestamp,
-zip_code bigint,
-extra_info map<text,text>,
-map_text_int map<text,int>,
-map_text_bigint map<text,bigint>,
-map_text_boolean map<text,boolean>,
-map_text_ts map<text,timestamp>,
-map_text_float map<text,float>,
-map_text_double map<text,double>,
-ts_text_map map<timestamp,text>,
-ts_boolean_map map<timestamp,boolean>,
-ts_float_map map<timestamp,float>,
-ts_double_map map<timestamp,double>,
-ts_bigint_map map<timestamp,bigint>,
-ts_ts_map map<timestamp,timestamp>,
-ts_int_map map<timestamp,int>,
-tags set<text>,
-set_boolean set<boolean>,
-set_int set<int>,
-set_bigint set<bigint>,
-set_float set<float>,
-set_double set<double>,
-set_timestamp set<timestamp>,
-list_text list<text>,
-list_int list<int>,
-list_bigint list<bigint>,
-list_float list<float>,
-list_double list<double>,
-list_boolean list<boolean>,
-list_timestamp list<timestamp>,
-PRIMARY KEY (age, name)
-);`,
-	`CREATE TABLE IF NOT EXISTS orders (user_id varchar, order_num int, name varchar, PRIMARY KEY (user_id, order_num));`,
-
-	`
-CREATE TABLE IF NOT EXISTS aggregation_grouping_test (
-region text,
-category varchar,
-item_id int,
-sale_timestamp timestamp,
-quantity int,
-price float,
-discount double,
-revenue_bigint bigint,
-PRIMARY KEY (category, item_id)
-);`,
-}
 
 func createSession(keyspace string) (*gocql.Session, error) {
 	cluster := gocql.NewCluster("127.0.0.1") // Assumes Cassandra is running locally
@@ -181,14 +68,9 @@ func TestMain(m *testing.M) {
 		log.Fatalf("could not connect to the session: %v", err)
 	}
 
-	sessionWithNoKeyspace, err = createSession("")
-	if err != nil {
-		log.Fatalf("could not connect to the session: %v", err)
-	}
-
 	log.Println("Creating test tables...")
-	for _, stmt := range createTableStatements {
-		log.Println(fmt.Sprintf("Running create table statement: '%s'...", stmt))
+	for i, stmt := range getCreateTableDDL() {
+		log.Println(fmt.Sprintf("Running create table statement: '%d'...", i))
 		err = session.Query(stmt).Exec()
 		if err != nil {
 			log.Fatalf("could not create table: %v", err)

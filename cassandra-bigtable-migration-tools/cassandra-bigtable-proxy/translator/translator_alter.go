@@ -18,6 +18,7 @@ package translator
 
 import (
 	"errors"
+	"fmt"
 
 	methods "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/global/methods"
 	cql "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/third_party/cqlparser"
@@ -55,6 +56,11 @@ func (t *Translator) TranslateAlterTableToBigtable(query, sessionKeyspace string
 		return nil, errors.New("missing keyspace. keyspace is required")
 	}
 
+	tableConfig, err := t.SchemaMappingConfig.GetTableConfig(keyspaceName, tableName)
+	if err != nil {
+		return nil, err
+	}
+
 	var dropColumns []string
 	if alterTable.AlterTableOperation().AlterTableDropColumns() != nil {
 		for _, dropColumn := range alterTable.AlterTableOperation().AlterTableDropColumns().AlterTableDropColumnList().AllColumn() {
@@ -81,6 +87,17 @@ func (t *Translator) TranslateAlterTableToBigtable(query, sessionKeyspace string
 
 	if alterTable.AlterTableOperation().AlterTableRename() != nil && len(alterTable.AlterTableOperation().AlterTableRename().AllColumn()) != 0 {
 		return nil, errors.New("rename operation in alter table command not supported")
+	}
+
+	for _, dropColumn := range dropColumns {
+		if !tableConfig.HasColumn(dropColumn) {
+			return nil, fmt.Errorf("cannot drop unknown column '%s'", dropColumn)
+		}
+	}
+	for _, addColumn := range addColumns {
+		if tableConfig.HasColumn(addColumn.Name) {
+			return nil, fmt.Errorf("column '%s' already exists in table", addColumn.Name)
+		}
 	}
 
 	var stmt = AlterTableStatementMap{

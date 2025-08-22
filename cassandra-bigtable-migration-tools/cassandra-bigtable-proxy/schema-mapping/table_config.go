@@ -93,6 +93,11 @@ func (tableConfig *TableConfig) GetColumnFamily(columnName string) string {
 	return tableConfig.SystemColumnFamily
 }
 
+func (tableConfig *TableConfig) HasColumn(columnName string) bool {
+	_, ok := tableConfig.Columns[columnName]
+	return ok
+}
+
 func (tableConfig *TableConfig) GetColumn(columnName string) (*types.Column, error) {
 	col, ok := tableConfig.Columns[columnName]
 	if !ok {

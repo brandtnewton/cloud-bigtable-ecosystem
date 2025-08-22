@@ -9,20 +9,21 @@ import (
 )
 
 func TestInt64RowKeyMaxValue(t *testing.T) {
-	require.NoError(t, session.Query("insert into bigtabledevinstance.user_info (name, age, code) values (?, ?, ?)", "id", int64(math.MaxInt64), 1).Exec())
+	err := session.Query("insert into bigtabledevinstance.multiple_int_keys (user_id, order_num, name) values (?, ?, ?)", int64(math.MaxInt64), int32(math.MaxInt32), "maxValue").Exec()
+	require.NoError(t, err)
 
+	var userId int64
+	var orderNum int32
 	var name string
-	var age int64
-	var code int32
-	require.NoError(t, session.Query("select name, age, code from bigtabledevinstance.user_info where name=? and age=?", "id", int64(math.MaxInt64)).Scan(&name, &age, &code))
+	require.NoError(t, session.Query("select user_id, order_num, name from bigtabledevinstance.multiple_int_keys where user_id=? and order_num=?", int64(math.MaxInt64), int32(math.MaxInt32)).Scan(&userId, &orderNum, &name))
 
-	assert.Equal(t, "id", name)
-	assert.Equal(t, int64(math.MaxInt64), age)
-	assert.Equal(t, int32(1), code)
+	assert.Equal(t, "maxValue", name)
+	assert.Equal(t, int64(math.MaxInt64), userId)
+	assert.Equal(t, int32(math.MaxInt32), orderNum)
 }
 
 func TestInt64RowKeyMinValue(t *testing.T) {
-	err := session.Query("insert into bigtabledevinstance.user_info (name, age, code) values (?, ?, ?)", "id", int64(math.MinInt64), -1).Exec()
+	err := session.Query("insert into bigtabledevinstance.multiple_int_keys (user_id, order_num, name) values (?, ?, ?)", int64(math.MinInt64), int32(math.MinInt32), "minValue").Exec()
 	// note: this test will need to be updated when ordered byte encoding becomes the default
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "row keys cannot contain negative integer values until ordered byte encoding is supported")

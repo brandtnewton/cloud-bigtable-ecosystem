@@ -113,7 +113,7 @@ func (btc *BigtableClient) reloadSchemaMappings(ctx context.Context, keyspace, s
 	if err != nil {
 		return fmt.Errorf("error when reloading schema mappings for %s.%s: %w", keyspace, schemaMappingTableName, err)
 	}
-	btc.SchemaMappingConfig.UpdateTables(tableConfigs)
+	btc.SchemaMappingConfig.ReplaceTables(tableConfigs)
 	return nil
 }
 

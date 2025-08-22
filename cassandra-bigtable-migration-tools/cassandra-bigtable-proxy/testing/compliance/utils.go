@@ -17,9 +17,11 @@
 package compliance
 
 import (
+	"strings"
 	"testing"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
 )
 
@@ -37,6 +39,14 @@ func parseSimpleTime(t *testing.T, ts string) time.Time {
 	parsedTime, err := time.Parse("2006-01-02 15:04:05", ts)
 	require.NoError(t, err, "Failed to parse timestamp string")
 	return parsedTime.UTC()
+}
+
+func uniqueTableName(prefix string) string {
+	// add an underscore separator
+	if len(prefix) != 0 && prefix[len(prefix)-1] != '_' {
+		prefix = prefix + "_"
+	}
+	return prefix + strings.ReplaceAll(uuid.New().String(), "-", "_")
 }
 
 func getCreateTableDDL() []string {

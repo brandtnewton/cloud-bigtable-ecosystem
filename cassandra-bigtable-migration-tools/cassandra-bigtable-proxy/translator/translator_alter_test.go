@@ -242,6 +242,22 @@ func TestTranslateAlterTableToBigtable(t *testing.T) {
 			error:           "cannot drop primary key column: 'name'",
 			defaultKeyspace: "",
 		},
+		{
+			name:            "Alter type not supported",
+			query:           "ALTER TABLE test_keyspace.user_info ALTER name int",
+			tableConfig:     userInfoTable,
+			want:            nil,
+			error:           "alter column type operations are not supported",
+			defaultKeyspace: "",
+		},
+		{
+			name:            "Alter table properties not supported",
+			query:           "ALTER TABLE test_keyspace.user_info WITH comment = 'bigtable was here'",
+			tableConfig:     userInfoTable,
+			want:            nil,
+			error:           "table property operations are not supported",
+			defaultKeyspace: "",
+		},
 	}
 
 	for _, tt := range tests {

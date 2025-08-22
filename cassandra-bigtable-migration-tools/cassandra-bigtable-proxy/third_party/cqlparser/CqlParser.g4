@@ -290,6 +290,7 @@ alterTableOperation
    : alterTableAdd
    | alterTableDropColumns
    | alterTableDropCompactStorage
+   | alterTableAlterColumnTypes
    | alterTableRename
    | alterTableWith
    ;
@@ -312,6 +313,18 @@ alterTableDropColumns
 
 alterTableDropColumnList
    : column (syntaxComma column)*
+   ;
+
+alterTableAlterColumnTypes
+   : kwAlter alterTableAlterColumnTypeList
+   ;
+
+alterTableAlterColumnTypeList
+   : alterTableAlterColumnType (syntaxComma alterTableAlterColumnType)*
+   ;
+
+alterTableAlterColumnType
+   : column kwTo dataType
    ;
 
 alterTableAdd

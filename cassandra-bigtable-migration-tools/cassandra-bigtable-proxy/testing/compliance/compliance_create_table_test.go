@@ -22,15 +22,6 @@ func TestCreateIfNotExist(t *testing.T) {
 	assert.NoError(t, err)
 }
 
-func TestDropTableIfExist(t *testing.T) {
-	// dropping a random table that definitely doesn't exist should be ok
-	id := strings.ReplaceAll(uuid.New().String(), "-", "_")
-	err := session.Query(fmt.Sprintf("DROP TABLE IF EXISTS no_such_table_%s", id)).Exec()
-	assert.NoError(t, err)
-}
-
-// todo test writing to a table right after it's been dropped
-
 func TestNegativeTestCasesForCreateTable(t *testing.T) {
 	testCases := []struct {
 		name          string

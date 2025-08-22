@@ -62,6 +62,14 @@ func (t *Translator) TranslateAlterTableToBigtable(query, sessionKeyspace string
 		return nil, err
 	}
 
+	if alterTable.AlterTableOperation().AlterTableAlterColumnTypes() != nil {
+		return nil, errors.New("alter column type operations are not supported")
+	}
+
+	if alterTable.AlterTableOperation().AlterTableWith() != nil {
+		return nil, errors.New("table property operations are not supported")
+	}
+
 	var dropColumns []string
 	if alterTable.AlterTableOperation().AlterTableDropColumns() != nil {
 		for _, dropColumn := range alterTable.AlterTableOperation().AlterTableDropColumns().AlterTableDropColumnList().AllColumn() {

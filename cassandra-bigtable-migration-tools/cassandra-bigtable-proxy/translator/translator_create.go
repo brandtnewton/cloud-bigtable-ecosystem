@@ -47,7 +47,7 @@ func (t *Translator) TranslateCreateTableToBigtable(query, sessionKeyspace strin
 			return nil, errors.New("invalid table name parsed from query")
 		}
 	} else {
-		return nil, errors.New("invalid input parameters found for table")
+return nil, errors.New("invalid input parameters found for table")
 	}
 
 	if createTableObj != nil && createTableObj.Keyspace() != nil && createTableObj.Keyspace().GetText() != "" {

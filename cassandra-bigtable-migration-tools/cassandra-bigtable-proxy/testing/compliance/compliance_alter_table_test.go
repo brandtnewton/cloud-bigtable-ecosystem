@@ -11,6 +11,7 @@ import (
 )
 
 func TestAlterTable(t *testing.T) {
+	t.Parallel()
 	table := "ddl_table_" + strings.ReplaceAll(uuid.New().String(), "-", "_")
 	t.Logf("running test %s with random table name %s", t.Name(), table)
 	err := session.Query(fmt.Sprintf("CREATE TABLE %s (id TEXT PRIMARY KEY, name TEXT)", table)).Exec()
@@ -42,6 +43,7 @@ func TestAlterTable(t *testing.T) {
 }
 
 func TestNegativeTestCasesForAlterTable(t *testing.T) {
+	t.Parallel()
 	// This assumes a `session *gocql.Session` is available from a TestMain setup.
 	// We also need a base table to run ALTER commands against.
 	setupQuery := `

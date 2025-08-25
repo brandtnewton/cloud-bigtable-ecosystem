@@ -8,6 +8,7 @@ import (
 )
 
 func TestSelectWithInClause(t *testing.T) {
+	t.Parallel()
 	// 1. Insert a large number of records to create a diverse dataset.
 	// We use require.NoError to stop the test immediately if data setup fails.
 	require.NoError(t, session.Query(`INSERT INTO bigtabledevinstance.user_info (name, age, code, credited, balance, is_active) VALUES (?, ?, ?, ?, ?, ?)`, "Ram", int64(45), 123, 12.14127, float32(12.1), true).Exec())
@@ -28,6 +29,7 @@ func TestSelectWithInClause(t *testing.T) {
 
 	// 2. Run validation queries.
 	t.Run("IN on clustering key with single value", func(t *testing.T) {
+		t.Parallel()
 		// IN on a clustering key is efficient if the partition key is also provided.
 		// For this test, we assume a full table scan is acceptable and use ALLOW FILTERING.
 		var name string
@@ -39,6 +41,7 @@ func TestSelectWithInClause(t *testing.T) {
 	})
 
 	t.Run("IN on clustering key with multiple values", func(t *testing.T) {
+		t.Parallel()
 		iter := session.Query(`SELECT name, age FROM bigtabledevinstance.user_info WHERE age IN ? ALLOW FILTERING`, []int64{298, 82}).Iter()
 		results, err := iter.SliceMap()
 		require.NoError(t, err)
@@ -51,6 +54,7 @@ func TestSelectWithInClause(t *testing.T) {
 	})
 
 	t.Run("IN on partition key", func(t *testing.T) {
+		t.Parallel()
 		// IN on a partition key is a valid and efficient query.
 		iter := session.Query(`SELECT name, age FROM bigtabledevinstance.user_info WHERE name IN ?`, []string{"Vishnu"}).Iter()
 		results, err := iter.SliceMap()
@@ -67,6 +71,7 @@ func TestSelectWithInClause(t *testing.T) {
 	})
 
 	t.Run("IN on non-key column requires ALLOW FILTERING", func(t *testing.T) {
+		t.Parallel()
 		// This query on a non-key 'code' column should fail without ALLOW FILTERING.
 		iter := session.Query(`SELECT name, age FROM bigtabledevinstance.user_info WHERE code IN ?`, []int{11}).Iter()
 		results, err := iter.SliceMap()
@@ -82,6 +87,7 @@ func TestSelectWithInClause(t *testing.T) {
 	})
 
 	t.Run("IN on non-key double column requires ALLOW FILTERING", func(t *testing.T) {
+		t.Parallel()
 		iter := session.Query(`SELECT name, age FROM bigtabledevinstance.user_info WHERE credited IN ?`, []float64{12.14127}).Iter()
 		results, err := iter.SliceMap()
 		if testTarget == TestTargetCassandra {

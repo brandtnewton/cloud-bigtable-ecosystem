@@ -11,6 +11,7 @@ import (
 )
 
 func TestCreateIfNotExist(t *testing.T) {
+	t.Parallel()
 	// dropping a random table that definitely doesn't exist should be ok
 	table := "create_" + strings.ReplaceAll(uuid.New().String(), "-", "_")
 	defer cleanupTable(t, table)
@@ -23,6 +24,7 @@ func TestCreateIfNotExist(t *testing.T) {
 }
 
 func TestNegativeTestCasesForCreateTable(t *testing.T) {
+	t.Parallel()
 	testCases := []struct {
 		name          string
 		query         string
@@ -68,6 +70,7 @@ func TestNegativeTestCasesForCreateTable(t *testing.T) {
 			continue
 		}
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			err := session.Query(tc.query).Exec()
 			if testTarget == TestTargetCassandra {
 				// we don't care about validating the cassandra error message, just that we got an error

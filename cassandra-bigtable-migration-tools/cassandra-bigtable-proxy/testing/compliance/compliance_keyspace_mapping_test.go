@@ -9,6 +9,7 @@ import (
 )
 
 func TestBasicInsertUpdateDeleteAndValidation(t *testing.T) {
+	t.Parallel()
 	// 1. INSERT a new record
 	err := session.Query(`INSERT INTO bigtabledevinstance.user_info (name, age, code) VALUES (?, ?, ?)`,
 		"John Doe", int64(30), 123).Exec()

@@ -10,6 +10,7 @@ import (
 )
 
 func TestDeleteOperationWithRecordValidation(t *testing.T) {
+	t.Parallel()
 	pkName, pkAge := "Michael", int64(45)
 
 	err := session.Query(`INSERT INTO user_info (name, age, code, credited) VALUES (?, ?, ?, ?)`,
@@ -34,6 +35,7 @@ func TestDeleteOperationWithRecordValidation(t *testing.T) {
 
 // Note: This test will need to be updated once the proxy supports this operation.
 func TestDeleteOperationWithTimestampFails(t *testing.T) {
+	t.Parallel()
 	pkName, pkAge := "Jhon", int64(33)
 	require.NoError(t, session.Query(`INSERT INTO user_info (name, age, code) VALUES (?, ?, ?)`, pkName, pkAge, 123).Exec())
 
@@ -51,6 +53,7 @@ func TestDeleteOperationWithTimestampFails(t *testing.T) {
 }
 
 func TestDeleteSpecificRecordByPrimaryKey(t *testing.T) {
+	t.Parallel()
 	pkName, pkAge := "John", int64(30)
 	require.NoError(t, session.Query(`INSERT INTO user_info (name, age, code) VALUES (?, ?, ?)`, pkName, pkAge, 123).Exec())
 
@@ -63,12 +66,14 @@ func TestDeleteSpecificRecordByPrimaryKey(t *testing.T) {
 }
 
 func TestDeleteNonExistentRecord(t *testing.T) {
+	t.Parallel()
 	pkName, pkAge := "NonExistent", int64(99)
 	err := session.Query(`DELETE FROM user_info WHERE name = ? AND age = ?`, pkName, pkAge).Exec()
 	require.NoError(t, err, "Deleting a non-existent record should not produce an error")
 }
 
 func TestDeleteRecordWithIfExists(t *testing.T) {
+	t.Parallel()
 	pkName, pkAge := "Emma", int64(28)
 	require.NoError(t, session.Query(`INSERT INTO user_info (name, age, code, credited) VALUES (?, ?, ?, ?)`, pkName, pkAge, 112, 2500.0).Exec())
 
@@ -86,6 +91,7 @@ func TestDeleteRecordWithIfExists(t *testing.T) {
 }
 
 func TestNegativeDeleteCases(t *testing.T) {
+	t.Parallel()
 	testCases := []struct {
 		name          string
 		query         string

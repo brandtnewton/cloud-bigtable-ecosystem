@@ -9,6 +9,7 @@ import (
 )
 
 func TestInsertAndValidationListText(t *testing.T) {
+	t.Parallel()
 	err := session.Query(`INSERT INTO bigtabledevinstance.user_info (name, age, list_text) VALUES (?, ?, ?)`,
 		"Alice", int64(25), []string{"apple", "banana", "cherry"}).Exec()
 	require.NoError(t, err, "Failed to insert record with list<text>")
@@ -20,6 +21,7 @@ func TestInsertAndValidationListText(t *testing.T) {
 }
 
 func TestAppendElementsToListText(t *testing.T) {
+	t.Parallel()
 	err := session.Query(`INSERT INTO bigtabledevinstance.user_info (name, age, list_text) VALUES (?, ?, ?)`,
 		"User_List1", int64(25), []string{"apple"}).Exec()
 	require.NoError(t, err)
@@ -35,6 +37,7 @@ func TestAppendElementsToListText(t *testing.T) {
 }
 
 func TestReplaceElementInListIntByIndex(t *testing.T) {
+	t.Parallel()
 	err := session.Query(`INSERT INTO bigtabledevinstance.user_info (name, age, list_int) VALUES (?, ?, ?)`,
 		"User_List2", int64(30), []int{100, 200, 300, 400, 500, 600}).Exec()
 	require.NoError(t, err)
@@ -50,6 +53,7 @@ func TestReplaceElementInListIntByIndex(t *testing.T) {
 }
 
 func TestRemoveElementsByValueFromListInt(t *testing.T) {
+	t.Parallel()
 	// Note: The user name/age combination is duplicated from the previous test, but Cassandra will
 	// simply overwrite the record since the primary key is the same.
 	err := session.Query(`INSERT INTO bigtabledevinstance.user_info (name, age, list_int) VALUES (?, ?, ?)`,
@@ -67,6 +71,7 @@ func TestRemoveElementsByValueFromListInt(t *testing.T) {
 }
 
 func TestAppendAndPrependToListText(t *testing.T) {
+	t.Parallel()
 	err := session.Query(`INSERT INTO bigtabledevinstance.user_info (name, age, list_text) VALUES (?, ?, ?)`,
 		"User_List3", int64(35), []string{"banana"}).Exec()
 	require.NoError(t, err)
@@ -88,6 +93,7 @@ func TestAppendAndPrependToListText(t *testing.T) {
 }
 
 func TestCombinedForAllListTypes(t *testing.T) {
+	t.Parallel()
 	ts1 := time.UnixMilli(1735725600000).UTC()
 	ts2 := time.UnixMilli(1738404000000).UTC()
 	ts3 := time.UnixMilli(1741096800000).UTC()
@@ -129,6 +135,7 @@ func TestCombinedForAllListTypes(t *testing.T) {
 }
 
 func TestDeleteElementsByIndexInAllListTypes(t *testing.T) {
+	t.Parallel()
 	ts1 := time.UnixMilli(1735725600000).UTC()
 	ts2 := time.UnixMilli(1738404000000).UTC()
 	ts3 := time.UnixMilli(1741096800000).UTC()
@@ -169,6 +176,7 @@ func TestDeleteElementsByIndexInAllListTypes(t *testing.T) {
 }
 
 func TestInsertLargeListInt(t *testing.T) {
+	t.Parallel()
 	// 1. Prepare a large list of integers
 	largeList := make([]int, 101)
 	for i := 0; i <= 100; i++ {
@@ -193,6 +201,7 @@ func TestInsertLargeListInt(t *testing.T) {
 }
 
 func TestListReads(t *testing.T) {
+	t.Parallel()
 	err := session.Query(`INSERT INTO bigtabledevinstance.user_info (name, age, list_int) VALUES (?, ?, ?)`,
 		"list_reads", int64(55), []int{33, 56, 55}).Exec()
 	require.NoError(t, err)
@@ -215,6 +224,7 @@ func TestListReads(t *testing.T) {
 }
 
 func TestListReadWithContainsKeyClause(t *testing.T) {
+	t.Parallel()
 	// 1. Insert record
 	err := session.Query(`INSERT INTO bigtabledevinstance.user_info (name, age, list_int, list_text) VALUES (?, ?, ?, ?)`,
 		"Jack", int64(55), []int{100, 200, 300}, []string{"red", "blue", "green"}).Exec()
@@ -222,6 +232,7 @@ func TestListReadWithContainsKeyClause(t *testing.T) {
 
 	// 2. Test that CONTAINS fails without ALLOW FILTERING
 	t.Run("CONTAINS without ALLOW FILTERING", func(t *testing.T) {
+		t.Parallel()
 		var name string
 		err := session.Query(`SELECT name FROM bigtabledevinstance.user_info WHERE list_text CONTAINS ?`, "red").Scan(&name)
 		if testTarget == TestTargetCassandra {
@@ -235,6 +246,7 @@ func TestListReadWithContainsKeyClause(t *testing.T) {
 
 	// 3. Test that CONTAINS succeeds with ALLOW FILTERING
 	t.Run("CONTAINS with ALLOW FILTERING", func(t *testing.T) {
+		t.Parallel()
 		var name string
 		var listInt []int
 		err := session.Query(`SELECT name, list_int FROM bigtabledevinstance.user_info WHERE list_text CONTAINS ? ALLOW FILTERING`, "red").Scan(&name, &listInt)
@@ -245,6 +257,7 @@ func TestListReadWithContainsKeyClause(t *testing.T) {
 
 	// 4. Test CONTAINS for a non-existent value
 	t.Run("CONTAINS for non-existent value", func(t *testing.T) {
+		t.Parallel()
 		iter := session.Query(`SELECT name FROM bigtabledevinstance.user_info WHERE list_text CONTAINS ? ALLOW FILTERING`, "brown").Iter()
 		assert.Equal(t, 0, iter.NumRows())
 		require.NoError(t, iter.Close())

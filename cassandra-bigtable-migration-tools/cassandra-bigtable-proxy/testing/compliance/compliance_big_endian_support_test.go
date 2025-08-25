@@ -13,6 +13,7 @@ func TestBigEndianDataSuccessCase(t *testing.T) {
 		t.Skip()
 		return
 	}
+	t.Parallel()
 	err := session.Query(`INSERT INTO orders_big_endian_encoded (user_id, order_num, name) VALUES (?, ?, ?)`, "valid_int", int64(30), "foo").Exec()
 	require.NoError(t, err)
 
@@ -31,7 +32,7 @@ func TestBigEndianDataFailsOnNegativeIntKeys(t *testing.T) {
 		t.Skip()
 		return
 	}
-
+	t.Parallel()
 	err := session.Query(`INSERT INTO orders_big_endian_encoded (user_id, order_num, name) VALUES (?, ?, ?)`, "invalid_int", int64(-1), "bad").Exec()
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "row keys with big endian encoding cannot contain negative integer values")

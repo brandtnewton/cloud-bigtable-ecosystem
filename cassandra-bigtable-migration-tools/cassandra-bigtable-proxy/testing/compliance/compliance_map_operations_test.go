@@ -25,6 +25,7 @@ import (
 )
 
 func TestMapOperationAdditionTextText(t *testing.T) {
+	t.Parallel()
 	// 1. Initialize with an empty map
 	err := session.Query(`INSERT INTO bigtabledevinstance.user_info (name, age, extra_info) VALUES (?, ?, ?)`,
 		"User_Map_Add1", int64(25), map[string]string{}).Exec()
@@ -43,6 +44,7 @@ func TestMapOperationAdditionTextText(t *testing.T) {
 }
 
 func TestMapOperationAdditionTimestampText(t *testing.T) {
+	t.Parallel()
 	// 1. Initialize with an empty map
 	err := session.Query(`INSERT INTO bigtabledevinstance.user_info (name, age, ts_text_map) VALUES (?, ?, ?)`,
 		"User_Map_TS_Add1", int64(25), map[time.Time]string{}).Exec()
@@ -65,6 +67,7 @@ func TestMapOperationAdditionTimestampText(t *testing.T) {
 }
 
 func TestMapOperationSubtraction(t *testing.T) {
+	t.Parallel()
 	// 1. Initialize with a populated map
 	initialMap := map[string]string{"key1": "value1", "key2": "value2", "key3": "value3"}
 	err := session.Query(`INSERT INTO bigtabledevinstance.user_info (name, age, extra_info) VALUES (?, ?, ?)`,
@@ -85,6 +88,7 @@ func TestMapOperationSubtraction(t *testing.T) {
 }
 
 func TestMapOperationUpdate(t *testing.T) {
+	t.Parallel()
 	// 1. Initialize with a populated map
 	initialMap := map[string]int{"score1": 100, "score2": 200}
 	err := session.Query(`INSERT INTO bigtabledevinstance.user_info (name, age, map_text_int) VALUES (?, ?, ?)`,
@@ -104,6 +108,7 @@ func TestMapOperationUpdate(t *testing.T) {
 }
 
 func TestMapOperationDelete(t *testing.T) {
+	t.Parallel()
 	// 1. Initialize with a populated map
 	initialMap := map[string]time.Time{
 		"event1": parseTime(t, "2023-01-01T00:00:00Z"),
@@ -126,6 +131,7 @@ func TestMapOperationDelete(t *testing.T) {
 }
 
 func TestComplexUpdateMapTextText(t *testing.T) {
+	t.Parallel()
 	// NOTE: The '+' operator in a CQL UPDATE on a map merges the maps. It overwrites existing keys and adds new ones.
 	// It does NOT remove keys. This test validates the actual Cassandra behavior.
 
@@ -149,6 +155,7 @@ func TestComplexUpdateMapTextText(t *testing.T) {
 }
 
 func TestComplexUpdateMapTextInt(t *testing.T) {
+	t.Parallel()
 	// NOTE: The '+' operator in a CQL UPDATE on a map merges the maps. It does NOT remove keys.
 	// This test validates the actual Cassandra behavior.
 
@@ -173,6 +180,7 @@ func TestComplexUpdateMapTextInt(t *testing.T) {
 }
 
 func TestMapReads(t *testing.T) {
+	t.Parallel()
 	// 1. Initialize map
 	initialMap := map[string]string{"keyA": "valueA", "keyB": "valueB", "keyC": "valueC", "keyD": "valueD"}
 	err := session.Query(`INSERT INTO bigtabledevinstance.user_info (name, age, extra_info) VALUES (?, ?, ?)`,
@@ -205,6 +213,7 @@ func TestMapReads(t *testing.T) {
 }
 
 func TestComplexMapKeysSelection(t *testing.T) {
+	t.Parallel()
 	// 1. Initialize map
 	initialMap := map[string]string{"info_key_one": "data_one", "info_key_two": "data_two", "info_key_three": "data_three"}
 	err := session.Query(`INSERT INTO bigtabledevinstance.user_info (name, age, extra_info) VALUES (?, ?, ?)`,
@@ -233,6 +242,7 @@ func TestComplexMapKeysSelection(t *testing.T) {
 }
 
 func TestMapOperationWithContainsKeyClause(t *testing.T) {
+	t.Parallel()
 	// 1. Initialize record
 	err := session.Query(`INSERT INTO bigtabledevinstance.user_info (name, age, map_text_int, extra_info) VALUES (?, ?,?, ?)`,
 		"Johnatan", int64(71),
@@ -245,6 +255,7 @@ func TestMapOperationWithContainsKeyClause(t *testing.T) {
 
 	// 2. Test that CONTAINS KEY fails without ALLOW FILTERING
 	t.Run("CONTAINS KEY without ALLOW FILTERING", func(t *testing.T) {
+		t.Parallel()
 		var extraInfo map[string]string
 		err := session.Query(`SELECT extra_info FROM bigtabledevinstance.user_info WHERE extra_info CONTAINS KEY ?`, "info_key_contains_one").Scan(&extraInfo)
 		if testTarget == TestTargetCassandra {
@@ -260,6 +271,7 @@ func TestMapOperationWithContainsKeyClause(t *testing.T) {
 	})
 
 	t.Run("CONTAINS KEY without ALLOW FILTERING", func(t *testing.T) {
+		t.Parallel()
 		var map_test_int map[string]int32
 		err := session.Query(`SELECT map_text_int FROM bigtabledevinstance.user_info WHERE map_text_int CONTAINS KEY ?`, "test-key-one").Scan(&map_test_int)
 		if testTarget == TestTargetCassandra {
@@ -275,6 +287,7 @@ func TestMapOperationWithContainsKeyClause(t *testing.T) {
 
 	// 3. Test that CONTAINS KEY succeeds with ALLOW FILTERING
 	t.Run("CONTAINS KEY with ALLOW FILTERING", func(t *testing.T) {
+		t.Parallel()
 		var extraInfo map[string]string
 		err := session.Query(`SELECT extra_info FROM bigtabledevinstance.user_info WHERE extra_info CONTAINS KEY ? ALLOW FILTERING`, "info_key_contains_one").Scan(&extraInfo)
 		require.NoError(t, err)
@@ -287,6 +300,7 @@ func TestMapOperationWithContainsKeyClause(t *testing.T) {
 
 	// 4. Test that a query for a non-existent key returns no rows
 	t.Run("CONTAINS KEY for non-existent key", func(t *testing.T) {
+		t.Parallel()
 		iter := session.Query(`SELECT extra_info FROM bigtabledevinstance.user_info WHERE extra_info CONTAINS KEY ? ALLOW FILTERING`, "non_existent_key").Iter()
 		rowCount := iter.NumRows()
 		require.NoError(t, iter.Close())

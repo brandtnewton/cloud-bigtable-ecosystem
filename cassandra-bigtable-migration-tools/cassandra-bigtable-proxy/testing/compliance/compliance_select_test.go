@@ -25,6 +25,7 @@ import (
 )
 
 func TestUnsupportedFunctionInSelectQuery(t *testing.T) {
+	t.Parallel()
 	query := `SELECT xxxx(name) FROM bigtabledevinstance.user_info WHERE name = ? AND age = ?`
 	err := session.Query(query, "Carls", int64(45)).Exec()
 
@@ -35,6 +36,7 @@ func TestUnsupportedFunctionInSelectQuery(t *testing.T) {
 }
 
 func TestSelectAndValidateDataFromTestTable(t *testing.T) {
+	t.Parallel()
 	// 1. Insert a record with various data types
 	birthDate := time.UnixMicro(915148800000) // Corrected timestamp value
 	err := session.Query(`INSERT INTO bigtabledevinstance.user_info (name, age, code, credited, balance, is_active, birth_date, zip_code, extra_info, tags) 
@@ -55,6 +57,7 @@ func TestSelectAndValidateDataFromTestTable(t *testing.T) {
 }
 
 func TestSelectAllRowsWithoutWhereClause(t *testing.T) {
+	t.Parallel()
 	// 1. Insert a record to ensure the table is not empty
 	err := session.Query(`INSERT INTO bigtabledevinstance.user_info (name, age, code) VALUES (?, ?, ?)`,
 		"Arena", int64(30), 999).Exec()
@@ -70,6 +73,7 @@ func TestSelectAllRowsWithoutWhereClause(t *testing.T) {
 }
 
 func TestValidatingWritetimeFunctionality(t *testing.T) {
+	t.Parallel()
 	// 1. Insert records with specific timestamps
 	tsAlice := int64(1734516831000000)
 	tsBob := int64(2683260983500000)
@@ -84,6 +88,7 @@ func TestValidatingWritetimeFunctionality(t *testing.T) {
 
 	// 2. Validate WRITETIME without an alias
 	t.Run("writetime without alias", func(t *testing.T) {
+		t.Parallel()
 		var name string
 		var age int64
 		var code int
@@ -97,6 +102,7 @@ func TestValidatingWritetimeFunctionality(t *testing.T) {
 
 	// 3. Validate WRITETIME with an alias
 	t.Run("writetime with alias", func(t *testing.T) {
+		t.Parallel()
 		var name string
 		var age int64
 		var code int
@@ -110,6 +116,7 @@ func TestValidatingWritetimeFunctionality(t *testing.T) {
 }
 
 func TestSelectStarWithAllDatatypes(t *testing.T) {
+	t.Parallel()
 	// 1. Prepare complex data for insertion
 	birthDate := time.UnixMicro(1672531200000)
 	ts1 := time.UnixMicro(1672531200000).UTC()
@@ -153,6 +160,7 @@ func TestSelectStarWithAllDatatypes(t *testing.T) {
 
 // These tests require ALLOW FILTERING as they don't operate on a primary key.
 func TestSelectWithDifferentWhereOperators(t *testing.T) {
+	t.Parallel()
 	// 1. Insert boundary records
 	require.NoError(t, session.Query(`INSERT INTO bigtabledevinstance.user_info (name, age, code) VALUES (?, ?, ?)`, "Della", int64(1), 987).Exec())
 	require.NoError(t, session.Query(`INSERT INTO bigtabledevinstance.user_info (name, age, code) VALUES (?, ?, ?)`, "Andre", int64(2), 987).Exec())
@@ -185,6 +193,7 @@ func TestSelectWithDifferentWhereOperators(t *testing.T) {
 }
 
 func TestSelectWithBetweenOperator(t *testing.T) {
+	t.Parallel()
 	require.NoError(t, session.Query(`INSERT INTO bigtabledevinstance.user_info (name, age, code) VALUES (?, ?, ?)`, "Bob", int64(41220), 987).Exec())
 	require.NoError(t, session.Query(`INSERT INTO bigtabledevinstance.user_info (name, age, code) VALUES (?, ?, ?)`, "Jack", int64(41230), 987).Exec())
 	iter := session.Query(`SELECT name FROM bigtabledevinstance.user_info WHERE age BETWEEN ? AND ?`, int64(41225), int64(41235)).Iter()
@@ -198,6 +207,7 @@ func TestSelectWithBetweenOperator(t *testing.T) {
 }
 
 func TestSelectWithLikeOperator(t *testing.T) {
+	t.Parallel()
 	// 1. Insert test data
 	require.NoError(t, session.Query(`INSERT INTO bigtabledevinstance.user_info (name, age, code) VALUES (?, ?, ?)`, "Silver Hunter", int64(1300), 987).Exec())
 

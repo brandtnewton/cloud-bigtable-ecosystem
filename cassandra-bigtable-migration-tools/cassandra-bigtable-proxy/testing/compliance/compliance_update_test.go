@@ -25,6 +25,7 @@ import (
 )
 
 func TestInsertUpdateAndValidateRecord(t *testing.T) {
+	t.Parallel()
 	// 1. Insert a new record
 	err := session.Query(`INSERT INTO bigtabledevinstance.user_info (name, age, code, credited) VALUES (?, ?, ?, ?)`,
 		"Liam", int64(44), 678, 8888.0).Exec()
@@ -49,6 +50,7 @@ func TestInsertUpdateAndValidateRecord(t *testing.T) {
 }
 
 func TestInsertAndUpdateWithFutureTimestampValidation(t *testing.T) {
+	t.Parallel()
 	// Cassandra uses microsecond timestamps
 	nowMicros := time.Now().UnixNano() / 1000
 	futureMicros := nowMicros + 1000000 // 1 second in the future
@@ -77,6 +79,7 @@ func TestInsertAndUpdateWithFutureTimestampValidation(t *testing.T) {
 }
 
 func TestInsertAndUpdateWithPastTimestampValidation(t *testing.T) {
+	t.Parallel()
 	// Cassandra uses microsecond timestamps
 	nowMicros := time.Now().UnixNano() / 1000
 	pastMicros := nowMicros - 1000000 // 1 second in the past
@@ -105,6 +108,7 @@ func TestInsertAndUpdateWithPastTimestampValidation(t *testing.T) {
 }
 
 func TestDataHandlingInsertUpdateAndValidateInUserInformation(t *testing.T) {
+	t.Parallel()
 	// 1. Insert initial record
 	err := session.Query(`INSERT INTO bigtabledevinstance.user_info (name, age, code) VALUES (?, ?, ?)`,
 		"Adam", int64(50), 713).Exec()
@@ -131,6 +135,7 @@ func TestDataHandlingInsertUpdateAndValidateInUserInformation(t *testing.T) {
 }
 
 func TestNegativeTestCasesForUpdateOperations(t *testing.T) {
+	t.Parallel()
 	testCases := []struct {
 		name          string
 		query         string
@@ -165,6 +170,7 @@ func TestNegativeTestCasesForUpdateOperations(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			err := session.Query(tc.query, tc.params...).Exec()
 			require.Error(t, err, "Expected an error but got none")
 			// we don't care about validating the cassandra error message, just that we got an error

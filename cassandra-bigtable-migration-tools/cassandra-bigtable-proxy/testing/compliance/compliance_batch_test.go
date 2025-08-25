@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/gocql/gocql"
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -106,6 +107,7 @@ func TestBatchInsertAndUpdateOnSameKey(t *testing.T) {
 }
 
 func TestBatchInsertAndDeleteOnSameKey(t *testing.T) {
+	t.Parallel()
 	pkName, pkAge := "Hazzlewood", int64(32)
 
 	batch := session.NewBatch(gocql.LoggedBatch)
@@ -122,6 +124,7 @@ func TestBatchInsertAndDeleteOnSameKey(t *testing.T) {
 }
 
 func TestBatchMixedDataTypeInsert(t *testing.T) {
+	t.Parallel()
 	pkName, pkAge := "Alice", int64(30)
 	birthDate := time.UnixMicro(1736541455000)
 	extraInfo := map[string]string{"key1": "value1", "key2": "value2"}
@@ -148,7 +151,8 @@ func TestBatchMixedDataTypeInsert(t *testing.T) {
 }
 
 func TestBatchMixedDataTypeOperations(t *testing.T) {
-	pkName, pkAge := "Alice", int64(30)
+	t.Parallel()
+	pkName, pkAge := uuid.New().String(), int64(30)
 	birthDate, err := time.Parse("2006-01-02 15:04:05", "1995-05-15 10:30:00")
 	require.NoError(t, err)
 
@@ -185,6 +189,7 @@ func TestBatchMixedDataTypeOperations(t *testing.T) {
 }
 
 func TestBatchPartialUpdate(t *testing.T) {
+	t.Parallel()
 	pkName, pkAge := "Eve", int64(35)
 
 	batch := session.NewBatch(gocql.LoggedBatch)

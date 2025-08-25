@@ -9,6 +9,7 @@ import (
 )
 
 func TestComplexOperationMapTextText(t *testing.T) {
+	t.Parallel()
 	pkName, pkAge := "Walker White", int64(25)
 
 	// 1. Insert and Validate
@@ -47,6 +48,7 @@ func TestComplexOperationMapTextText(t *testing.T) {
 }
 
 func TestComplexOperationMapTextInt(t *testing.T) {
+	t.Parallel()
 	pkName, pkAge := "Bobby Brown", int64(25)
 	var currentMap map[string]int
 
@@ -83,6 +85,7 @@ func TestComplexOperationMapTextInt(t *testing.T) {
 }
 
 func TestComplexOperationMapTextBigInt(t *testing.T) {
+	t.Parallel()
 	pkName, pkAge := "Charlie Davis", int64(30)
 
 	initialMap := map[string]int64{"key1": 1000000000, "key2": 2000000000}
@@ -106,6 +109,7 @@ func TestComplexOperationMapTextBigInt(t *testing.T) {
 }
 
 func TestComplexOperationMapTextBooleanAndFloat(t *testing.T) {
+	t.Parallel()
 	// Boolean Map Test
 	pkNameBool, pkAgeBool := "Diana Evans", int64(35)
 	require.NoError(t, session.Query(`INSERT INTO user_info(name, age, map_text_boolean) VALUES (?, ?, ?);`, pkNameBool, pkAgeBool, map[string]bool{"key1": true, "key2": false}).Exec())
@@ -132,6 +136,7 @@ func TestComplexOperationMapTextBooleanAndFloat(t *testing.T) {
 }
 
 func TestComplexOperationMapTextDouble(t *testing.T) {
+	t.Parallel()
 	pkName, pkAge := "Grace Harrison", int64(45)
 	require.NoError(t, session.Query(`INSERT INTO user_info(name, age, map_text_double) VALUES (?, ?, ?);`, pkName, pkAge, map[string]float64{"key1": 1.123, "key2": 2.987}).Exec())
 	require.NoError(t, session.Query(`UPDATE user_info SET map_text_double = ? WHERE name = ? AND age = ?`, map[string]float64{"key1": 3.141, "key2": 4.271}, pkName, pkAge).Exec())
@@ -146,6 +151,7 @@ func TestComplexOperationMapTextDouble(t *testing.T) {
 }
 
 func TestComplexOperationMapTextTimestamp(t *testing.T) {
+	t.Parallel()
 	pkName, pkAge := "Ivy Johnson", int64(50)
 
 	initialMap := map[string]time.Time{"key1": parseSimpleTime(t, "2023-01-01 12:00:00"), "key2": parseSimpleTime(t, "2023-01-02 13:00:00")}
@@ -176,6 +182,7 @@ func TestComplexOperationMapTextTimestamp(t *testing.T) {
 }
 
 func TestComplexOperationMapTimestampValueTypes(t *testing.T) {
+	t.Parallel()
 	// Map<Timestamp, Boolean>
 	pkNameBool, pkAgeBool := "Mia Smith", int64(30)
 	initialMapBool := map[time.Time]bool{parseSimpleTime(t, "2023-01-01 12:00:00"): true, parseSimpleTime(t, "2023-01-02 13:00:00"): false}
@@ -248,6 +255,7 @@ func TestComplexOperationMapTimestampValueTypes(t *testing.T) {
 }
 
 func TestComplexOperationListTypes(t *testing.T) {
+	t.Parallel()
 	// LIST<TIMESTAMP>
 	pkNameTs, pkAgeTs := "Riley Martinez", int64(36)
 	initialListTs := []time.Time{parseSimpleTime(t, "2023-07-01 12:00:00"), parseSimpleTime(t, "2023-07-02 13:00:00")}

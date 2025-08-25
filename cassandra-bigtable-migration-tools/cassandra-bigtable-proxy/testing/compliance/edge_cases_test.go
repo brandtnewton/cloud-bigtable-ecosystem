@@ -9,6 +9,7 @@ import (
 )
 
 func TestInt64RowKeyMaxValue(t *testing.T) {
+	t.Parallel()
 	err := session.Query("insert into bigtabledevinstance.multiple_int_keys (user_id, order_num, name) values (?, ?, ?)", int64(math.MaxInt64), int32(math.MaxInt32), "maxValue").Exec()
 	require.NoError(t, err)
 
@@ -23,6 +24,7 @@ func TestInt64RowKeyMaxValue(t *testing.T) {
 }
 
 func TestInt64RowKeyMinValue(t *testing.T) {
+	t.Parallel()
 	err := session.Query("insert into bigtabledevinstance.multiple_int_keys (user_id, order_num, name) values (?, ?, ?)", int64(math.MinInt64), int32(math.MinInt32), "minValue").Exec()
 
 	// we don't care about validating the cassandra error message, just that we got an error

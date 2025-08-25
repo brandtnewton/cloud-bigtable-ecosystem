@@ -9,6 +9,7 @@ import (
 )
 
 func TestDropTableIfExist(t *testing.T) {
+	t.Parallel()
 	// dropping a random table that definitely doesn't exist should be ok
 	table := uniqueTableName("no_such_table")
 	err := session.Query(fmt.Sprintf("DROP TABLE IF EXISTS %s", table)).Exec()
@@ -16,6 +17,7 @@ func TestDropTableIfExist(t *testing.T) {
 }
 
 func TestDropTableThatDoesntExist(t *testing.T) {
+	t.Parallel()
 	table := uniqueTableName("no_such_table")
 	err := session.Query(fmt.Sprintf("DROP TABLE %s", table)).Exec()
 	if testTarget == TestTargetCassandra {
@@ -28,6 +30,7 @@ func TestDropTableThatDoesntExist(t *testing.T) {
 }
 
 func TestDroppedTableWriteFails(t *testing.T) {
+	t.Parallel()
 	table := uniqueTableName("drop_table_")
 
 	// 1. create a table

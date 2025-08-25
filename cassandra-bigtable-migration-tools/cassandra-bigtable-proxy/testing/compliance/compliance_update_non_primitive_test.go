@@ -8,6 +8,7 @@ import (
 )
 
 func TestManipulationOfSetAndMapDataTypes(t *testing.T) {
+	t.Parallel()
 	// 1. Insert a record with a set and a map
 	err := session.Query(`INSERT INTO bigtabledevinstance.user_info (name, age, code, tags, extra_info) VALUES (?, ?, ?, ?, ?)`,
 		"Lilly",

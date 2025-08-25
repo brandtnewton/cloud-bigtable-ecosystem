@@ -77,6 +77,25 @@ func createSession(keyspace string) (*gocql.Session, error) {
 // TestMain sets up the database connection and schema before running tests,
 // and tears it down afterward.
 func TestMain(m *testing.M) {
+
+	fmt.Printf("running against test target '%s'\n", testTarget.String())
+
+	setUpTests()
+
+	// --- Run Tests ---
+	exitCode := m.Run()
+
+	cleanUpTests()
+
+	os.Exit(exitCode)
+}
+
+// note: we don't destroy any tables here because recreating every table, for every test would cause Bigtable to rate limit us.
+func cleanUpTests() {
+	session.Close()
+}
+
+func setUpTests() {
 	var err error
 	session, err = createSession("bigtabledevinstance")
 	if err != nil {
@@ -84,7 +103,7 @@ func TestMain(m *testing.M) {
 	}
 
 	log.Println("Creating test tables...")
-	for i, stmt := range getCreateTableDDL() {
+	for i, stmt := range getSchemas() {
 		log.Println(fmt.Sprintf("Running create table statement: '%d'...", i))
 		err = session.Query(stmt).Exec()
 		if err != nil {
@@ -92,13 +111,6 @@ func TestMain(m *testing.M) {
 		}
 	}
 	log.Println("All test tables successfully created!")
-
-	// --- Run Tests ---
-	exitCode := m.Run()
-
-	session.Close()
-
-	os.Exit(exitCode)
 }
 
 func cleanupTable(t *testing.T, table string) {

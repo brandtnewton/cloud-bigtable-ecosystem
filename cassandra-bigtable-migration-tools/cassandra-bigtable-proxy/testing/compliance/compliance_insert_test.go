@@ -5,40 +5,44 @@ import (
 	"time"
 
 	"github.com/gocql/gocql"
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
 func TestBasicInsertUpdateDeleteValidation(t *testing.T) {
-	err := session.Query(`INSERT INTO bigtabledevinstance.user_info (name, age, code) VALUES (?, ?, ?)`, "John Doe", int64(30), 123).Exec()
+	t.Parallel()
+	rowName := uuid.New().String()
+	err := session.Query(`INSERT INTO bigtabledevinstance.user_info (name, age, code) VALUES (?, ?, ?)`, rowName, int64(30), 123).Exec()
 	require.NoError(t, err, "Failed to insert record")
 
 	var name string
 	var age int64
 	var code int
-	err = session.Query(`SELECT name, age, code FROM bigtabledevinstance.user_info WHERE name = ? AND age = ?`, "John Doe", int64(30)).Scan(&name, &age, &code)
+	err = session.Query(`SELECT name, age, code FROM bigtabledevinstance.user_info WHERE name = ? AND age = ?`, rowName, int64(30)).Scan(&name, &age, &code)
 	require.NoError(t, err, "Failed to select newly inserted record")
-	assert.Equal(t, "John Doe", name)
+	assert.Equal(t, rowName, name)
 	assert.Equal(t, int64(30), age)
 	assert.Equal(t, 123, code)
 
-	err = session.Query(`UPDATE bigtabledevinstance.user_info SET code = ? WHERE name = ? AND age = ?`, 456, "John Doe", int64(30)).Exec()
+	err = session.Query(`UPDATE bigtabledevinstance.user_info SET code = ? WHERE name = ? AND age = ?`, 456, rowName, int64(30)).Exec()
 	require.NoError(t, err, "Failed to update record")
 
-	err = session.Query(`SELECT code FROM bigtabledevinstance.user_info WHERE name = ? AND age = ?`, "John Doe", int64(30)).Scan(&code)
+	err = session.Query(`SELECT code FROM bigtabledevinstance.user_info WHERE name = ? AND age = ?`, rowName, int64(30)).Scan(&code)
 	require.NoError(t, err, "Failed to select updated record")
 	assert.Equal(t, 456, code)
 
-	err = session.Query(`DELETE FROM bigtabledevinstance.user_info WHERE name = ? AND age = ?`, "John Doe", int64(30)).Exec()
+	err = session.Query(`DELETE FROM bigtabledevinstance.user_info WHERE name = ? AND age = ?`, rowName, int64(30)).Exec()
 	require.NoError(t, err, "Failed to delete record")
 
-	err = session.Query(`SELECT name FROM bigtabledevinstance.user_info WHERE name = ? AND age = ?`, "John Doe", int64(30)).Scan(&name)
+	err = session.Query(`SELECT name FROM bigtabledevinstance.user_info WHERE name = ? AND age = ?`, rowName, int64(30)).Scan(&name)
 	require.Error(t, err, "Expected an error when selecting a deleted record")
 	assert.Equal(t, gocql.ErrNotFound, err, "Expected error to be 'not found' after deletion")
 }
 
 func TestUpsertOperation(t *testing.T) {
-	pkName, pkAge := "Lorem", int64(33)
+	t.Parallel()
+	pkName, pkAge := uuid.New().String(), int64(33)
 	err := session.Query(`INSERT INTO bigtabledevinstance.user_info (name, age, code) VALUES (?, ?, ?)`, pkName, pkAge, 123).Exec()
 	require.NoError(t, err, "Failed initial insert")
 
@@ -52,7 +56,8 @@ func TestUpsertOperation(t *testing.T) {
 }
 
 func TestInsertAndValidateCollectionData(t *testing.T) {
-	pkName, pkAge := "Lilly", int64(25)
+	t.Parallel()
+	pkName, pkAge := uuid.New().String(), int64(25)
 	tags := []string{"tag1", "tag2"}
 	extraInfo := map[string]string{"info_key": "info_value"}
 
@@ -70,9 +75,11 @@ func TestInsertAndValidateCollectionData(t *testing.T) {
 
 // TestInsertWithTimestamps verifies INSERTs using the USING TIMESTAMP clause.
 func TestInsertWithTimestamps(t *testing.T) {
+	t.Parallel()
 	nowMicro := time.Now().UnixMicro()
 
 	t.Run("Future Timestamp", func(t *testing.T) {
+		t.Parallel()
 		pkName, pkAge := "Danial", int64(55)
 		err := session.Query(`INSERT INTO bigtabledevinstance.user_info (name, age, code) VALUES (?, ?, ?) USING TIMESTAMP ?`,
 			pkName, pkAge, 678, nowMicro+1000000).Exec() // 1 second in the future
@@ -84,7 +91,8 @@ func TestInsertWithTimestamps(t *testing.T) {
 	})
 
 	t.Run("Past Timestamp", func(t *testing.T) {
-		pkName, pkAge := "Vitory", int64(34)
+		t.Parallel()
+		pkName, pkAge := uuid.New().String(), int64(34)
 		err := session.Query(`INSERT INTO bigtabledevinstance.user_info (name, age, code) VALUES (?, ?, ?) USING TIMESTAMP ?`,
 			pkName, pkAge, 678, nowMicro-1000000).Exec() // 1 second in the past
 		require.NoError(t, err)
@@ -96,7 +104,8 @@ func TestInsertWithTimestamps(t *testing.T) {
 }
 
 func TestInsertWithAllSupportedDatatypes(t *testing.T) {
-	pkName, pkAge := "James", int64(56)
+	t.Parallel()
+	pkName, pkAge := uuid.New().String(), int64(56)
 	birthDate := time.UnixMilli(1734516444000)
 
 	err := session.Query(`INSERT INTO bigtabledevinstance.user_info (name, age, code, credited, balance, is_active, birth_date, zip_code) 
@@ -113,7 +122,8 @@ func TestInsertWithAllSupportedDatatypes(t *testing.T) {
 }
 
 func TestInsertWithIfNotExists(t *testing.T) {
-	pkName, pkAge := "Jaiswal", int64(56)
+	t.Parallel()
+	pkName, pkAge := uuid.New().String(), int64(56)
 
 	// ensure row doesn't exist
 	err := session.Query("DELETE FROM bigtabledevinstance.user_info WHERE name=? AND age=?", pkName, pkAge).Exec()
@@ -137,7 +147,9 @@ func TestInsertWithIfNotExists(t *testing.T) {
 }
 
 func TestInsertWithSpecialCharacters(t *testing.T) {
+	t.Parallel()
 	t.Run("Special Chars", func(t *testing.T) {
+		t.Parallel()
 		pkName, pkAge := "@John#Doe!", int64(40)
 		err := session.Query(`INSERT INTO bigtabledevinstance.user_info (name, age, code) VALUES (?, ?, ?)`, pkName, pkAge, 505).Exec()
 		require.NoError(t, err)
@@ -147,6 +159,7 @@ func TestInsertWithSpecialCharacters(t *testing.T) {
 		assert.Equal(t, pkName, name)
 	})
 	t.Run("Question Mark", func(t *testing.T) {
+		t.Parallel()
 		pkName, pkAge := "James?", int64(60)
 		err := session.Query(`INSERT INTO bigtabledevinstance.user_info (name, age, code) VALUES (?, ?, ?)`, pkName, pkAge, 30).Exec()
 		require.NoError(t, err)
@@ -158,6 +171,7 @@ func TestInsertWithSpecialCharacters(t *testing.T) {
 }
 
 func TestNegativeInsertCases(t *testing.T) {
+	t.Parallel()
 	testCases := []struct {
 		name          string
 		query         string
@@ -173,6 +187,7 @@ func TestNegativeInsertCases(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			err := session.Query(tc.query, tc.params...).Exec()
 			require.Error(t, err, "Expected query to fail")
 			// we don't care about validating the cassandra error message, just that we got an error

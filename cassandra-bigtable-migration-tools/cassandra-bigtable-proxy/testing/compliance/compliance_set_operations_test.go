@@ -8,6 +8,7 @@ import (
 )
 
 func TestSetOperationAdditionSetText(t *testing.T) {
+	t.Parallel()
 	// 1. Initialize a user with a starting set
 	err := session.Query(`INSERT INTO bigtabledevinstance.user_info (name, age, tags) VALUES (?, ?, ?)`,
 		"User_Set_Add1", int64(25), []string{"tag0"}).Exec()
@@ -28,6 +29,7 @@ func TestSetOperationAdditionSetText(t *testing.T) {
 }
 
 func TestSetOperationSubtractionSetInt(t *testing.T) {
+	t.Parallel()
 	// 1. Initialize a user with a set of integers
 	err := session.Query(`INSERT INTO bigtabledevinstance.user_info (name, age, set_int) VALUES (?, ?, ?)`,
 		"User_Set_Sub1", int64(25), []int{10, 20, 30}).Exec()
@@ -48,6 +50,7 @@ func TestSetOperationSubtractionSetInt(t *testing.T) {
 }
 
 func TestInsertElementsIntoSetText(t *testing.T) {
+	t.Parallel()
 	// 1. Initialize user with a set
 	err := session.Query(`INSERT INTO bigtabledevinstance.user_info (name, age, tags) VALUES (?, ?, ?)`,
 		"User_Set1", int64(25), []string{"tag0"}).Exec()
@@ -68,6 +71,7 @@ func TestInsertElementsIntoSetText(t *testing.T) {
 }
 
 func TestValidateUniqueConstraintInSetInt(t *testing.T) {
+	t.Parallel()
 	// 1. Initialize user with a set containing a single integer
 	err := session.Query(`INSERT INTO bigtabledevinstance.user_info (name, age, set_int) VALUES (?, ?, ?)`,
 		"User_Set2", int64(30), []int{42}).Exec()
@@ -88,6 +92,7 @@ func TestValidateUniqueConstraintInSetInt(t *testing.T) {
 }
 
 func TestValidateSetReads(t *testing.T) {
+	t.Parallel()
 	// 1. Initialize user with a set of integers
 	err := session.Query(`INSERT INTO bigtabledevinstance.user_info (name, age, set_int) VALUES (?, ?, ?)`,
 		"set_reads", int64(900), []int{28, 56, 2}).Exec()
@@ -113,6 +118,7 @@ func TestValidateSetReads(t *testing.T) {
 }
 
 func TestValidateSetOperationsWithContainsClause(t *testing.T) {
+	t.Parallel()
 	// 1. Initialize user with a set of integers and a set of text
 	err := session.Query(`INSERT INTO bigtabledevinstance.user_info (name, age, set_int, tags) VALUES (?, ?, ?, ?)`,
 		"Jassie", int64(23), []int{1221, 1222}, []string{"earth", "moon", "sun"}).Exec()
@@ -120,6 +126,7 @@ func TestValidateSetOperationsWithContainsClause(t *testing.T) {
 
 	// 2. Verify that querying with CONTAINS fails without ALLOW FILTERING
 	t.Run("CONTAINS on existing element", func(t *testing.T) {
+		t.Parallel()
 		var tags []string
 		err := session.Query(`SELECT tags FROM bigtabledevinstance.user_info WHERE tags CONTAINS ?`, "earth").Scan(&tags)
 		if testTarget == TestTargetCassandra {
@@ -132,6 +139,7 @@ func TestValidateSetOperationsWithContainsClause(t *testing.T) {
 
 	// 3. Verify that a query for a non-existent element also fails in the same way
 	t.Run("CONTAINS on non-existent element", func(t *testing.T) {
+		t.Parallel()
 		var tags []string
 		err := session.Query(`SELECT tags FROM bigtabledevinstance.user_info WHERE tags CONTAINS ?`, "jupiter").Scan(&tags)
 		if testTarget == TestTargetCassandra {
@@ -143,6 +151,7 @@ func TestValidateSetOperationsWithContainsClause(t *testing.T) {
 	})
 
 	t.Run("CONTAINS with ALLOW FILTERING", func(t *testing.T) {
+		t.Parallel()
 		var tags []string
 		err := session.Query(`SELECT tags FROM bigtabledevinstance.user_info WHERE tags CONTAINS ? ALLOW FILTERING`, "moon").Scan(&tags)
 		require.NoError(t, err)

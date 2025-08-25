@@ -9,6 +9,7 @@ import (
 )
 
 func TestComprehensiveGroupByAndAggregateFunctions(t *testing.T) {
+	t.Parallel()
 	require.NoError(t, session.Query(`INSERT INTO aggregation_grouping_test (region, category, item_id, sale_timestamp, quantity, price, discount, revenue_bigint) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
 		"North", "Electronics", 101, time.UnixMicro(1736899200000), 5, float32(1200.50), 0.1, int64(6002)).Exec())
 	require.NoError(t, session.Query(`INSERT INTO aggregation_grouping_test (region, category, item_id, sale_timestamp, quantity, price, discount, revenue_bigint) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
@@ -20,6 +21,7 @@ func TestComprehensiveGroupByAndAggregateFunctions(t *testing.T) {
 
 	// 2. Run validation queries
 	t.Run("GROUP BY category with SUM and AVG", func(t *testing.T) {
+		t.Parallel()
 		iter := session.Query(`SELECT category, SUM(quantity) AS total_items, AVG(price) AS avg_price FROM aggregation_grouping_test GROUP BY category`).Iter()
 		results, err := iter.SliceMap()
 		require.NoError(t, err)
@@ -38,6 +40,7 @@ func TestComprehensiveGroupByAndAggregateFunctions(t *testing.T) {
 	})
 
 	t.Run("GROUP BY region with COUNT, MIN, MAX", func(t *testing.T) {
+		t.Parallel()
 		// As above, this query is invalid in standard Cassandra, and we test for the expected error.
 		iter := session.Query(`SELECT region, COUNT(*) AS item_count, MIN(price) AS min_price, MAX(price) AS max_price FROM aggregation_grouping_test GROUP BY region`).Iter()
 		results, err := iter.SliceMap()
@@ -64,6 +67,7 @@ func TestComprehensiveGroupByAndAggregateFunctions(t *testing.T) {
 	})
 
 	t.Run("GROUP BY multiple columns", func(t *testing.T) {
+		t.Parallel()
 		// This query is VALID in standard Cassandra because it groups by the full partition key.
 		iter := session.Query(`SELECT region, category, SUM(revenue_bigint) AS total_revenue, AVG(discount) AS avg_discount FROM aggregation_grouping_test GROUP BY region, category ALLOW FILTERING`).Iter()
 		results, err := iter.SliceMap()
@@ -103,6 +107,7 @@ func TestComprehensiveGroupByAndAggregateFunctions(t *testing.T) {
 	})
 
 	t.Run("GROUP BY without aliases", func(t *testing.T) {
+		t.Parallel()
 		iter := session.Query(`SELECT category, SUM(quantity), AVG(price) FROM aggregation_grouping_test GROUP BY category`).Iter()
 		results, err := iter.SliceMap()
 		require.NoError(t, err)

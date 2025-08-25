@@ -19,6 +19,7 @@ package translator
 import (
 	"errors"
 	"fmt"
+	"slices"
 	"strings"
 
 	methods "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/global/methods"
@@ -54,7 +55,7 @@ func (t *Translator) TranslateCreateTableToBigtable(query, sessionKeyspace strin
 			return nil, errors.New("invalid table name parsed from query")
 		}
 	} else {
-		return nil, errors.New("invalid input paramaters found for table")
+		return nil, errors.New("invalid input parameters found for table")
 	}
 
 	if createTableObj != nil && createTableObj.Keyspace() != nil && createTableObj.Keyspace().GetText() != "" {
@@ -67,11 +68,20 @@ func (t *Translator) TranslateCreateTableToBigtable(query, sessionKeyspace strin
 
 	var pmks []CreateTablePrimaryKeyConfig
 	var columns []message.ColumnMetadata
+
+	if createTableObj.ColumnDefinitionList().GetText() == "" {
+		return nil, errors.New("malformed create table statement")
+	}
+
 	for i, col := range createTableObj.ColumnDefinitionList().AllColumnDefinition() {
 		dt, err := methods.GetCassandraColumnType(col.DataType().GetText())
 
 		if err != nil {
 			return nil, err
+		}
+
+		if !utilities.IsSupportedColumnType(dt) {
+			return nil, fmt.Errorf("column type '%s' is not supported", dt.String())
 		}
 
 		columns = append(columns, message.ColumnMetadata{
@@ -85,9 +95,13 @@ func (t *Translator) TranslateCreateTableToBigtable(query, sessionKeyspace strin
 		if col.PrimaryKeyColumn() != nil {
 			pmks = append(pmks, CreateTablePrimaryKeyConfig{
 				Name:    col.Column().GetText(),
-				KeyType: utilities.KEY_TYPE_REGULAR,
+				KeyType: utilities.KEY_TYPE_PARTITION,
 			})
 		}
+	}
+
+	if len(pmks) > 1 {
+		return nil, errors.New("multiple inline primary key columns not allowed")
 	}
 
 	if len(columns) == 0 {
@@ -114,6 +128,9 @@ func (t *Translator) TranslateCreateTableToBigtable(query, sessionKeyspace strin
 
 	// nil if inline primary key definition used
 	if createTableObj.ColumnDefinitionList().PrimaryKeyElement() != nil {
+		if len(pmks) > 0 {
+			return nil, errors.New("cannot specify both primary key clause and inline primary key")
+		}
 		singleKey := createTableObj.ColumnDefinitionList().PrimaryKeyElement().PrimaryKeyDefinition().SinglePrimaryKey()
 		compoundKey := createTableObj.ColumnDefinitionList().PrimaryKeyElement().PrimaryKeyDefinition().CompoundKey()
 		compositeKey := createTableObj.ColumnDefinitionList().PrimaryKeyElement().PrimaryKeyDefinition().CompositeKey()
@@ -148,14 +165,24 @@ func (t *Translator) TranslateCreateTableToBigtable(query, sessionKeyspace strin
 					KeyType: utilities.KEY_TYPE_CLUSTERING,
 				})
 			}
-		} else {
-			// this should never happen
-			return nil, errors.New("unknown key type for table")
 		}
 	}
 
 	if len(pmks) == 0 {
 		return nil, errors.New("no primary key found in create table statement")
+	}
+
+	for _, pmk := range pmks {
+		colIndex := slices.IndexFunc(columns, func(col message.ColumnMetadata) bool {
+			return col.Name == pmk.Name
+		})
+		if colIndex == -1 {
+			return nil, fmt.Errorf("primary key '%s' has no column definition in create table statement", pmk.Name)
+		}
+		col := columns[colIndex]
+		if !utilities.IsSupportedPrimaryKeyType(col.Type) {
+			return nil, fmt.Errorf("primary key cannot be of type %s", col.Type.String())
+		}
 	}
 
 	var stmt = CreateTableStatementMap{

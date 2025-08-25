@@ -1,7 +1,6 @@
 // Code generated from CqlParser.g4 by ANTLR 4.13.2. DO NOT EDIT.
 
 package parser // CqlParser
-
 import "github.com/antlr4-go/antlr/v4"
 
 // CqlParserListener is a complete listener for a parse tree produced by CqlParser.
@@ -163,6 +162,15 @@ type CqlParserListener interface {
 
 	// EnterAlterTableDropColumnList is called when entering the alterTableDropColumnList production.
 	EnterAlterTableDropColumnList(c *AlterTableDropColumnListContext)
+
+	// EnterAlterTableAlterColumnTypes is called when entering the alterTableAlterColumnTypes production.
+	EnterAlterTableAlterColumnTypes(c *AlterTableAlterColumnTypesContext)
+
+	// EnterAlterTableAlterColumnTypeList is called when entering the alterTableAlterColumnTypeList production.
+	EnterAlterTableAlterColumnTypeList(c *AlterTableAlterColumnTypeListContext)
+
+	// EnterAlterTableAlterColumnType is called when entering the alterTableAlterColumnType production.
+	EnterAlterTableAlterColumnType(c *AlterTableAlterColumnTypeContext)
 
 	// EnterAlterTableAdd is called when entering the alterTableAdd production.
 	EnterAlterTableAdd(c *AlterTableAddContext)
@@ -1021,6 +1029,15 @@ type CqlParserListener interface {
 
 	// ExitAlterTableDropColumnList is called when exiting the alterTableDropColumnList production.
 	ExitAlterTableDropColumnList(c *AlterTableDropColumnListContext)
+
+	// ExitAlterTableAlterColumnTypes is called when exiting the alterTableAlterColumnTypes production.
+	ExitAlterTableAlterColumnTypes(c *AlterTableAlterColumnTypesContext)
+
+	// ExitAlterTableAlterColumnTypeList is called when exiting the alterTableAlterColumnTypeList production.
+	ExitAlterTableAlterColumnTypeList(c *AlterTableAlterColumnTypeListContext)
+
+	// ExitAlterTableAlterColumnType is called when exiting the alterTableAlterColumnType production.
+	ExitAlterTableAlterColumnType(c *AlterTableAlterColumnTypeContext)
 
 	// ExitAlterTableAdd is called when exiting the alterTableAdd production.
 	ExitAlterTableAdd(c *AlterTableAddContext)

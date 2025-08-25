@@ -73,6 +73,21 @@ func (c *SchemaMappingConfig) GetAllTables() map[string]map[string]*TableConfig 
 	return tablesCopy
 }
 
+func (c *SchemaMappingConfig) ReplaceTables(tableConfigs []*TableConfig) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	// clear the existing tables
+	c.tables = make(map[string]map[string]*TableConfig)
+
+	for _, tableConfig := range tableConfigs {
+		if _, exists := c.tables[tableConfig.Keyspace]; !exists {
+			c.tables[tableConfig.Keyspace] = make(map[string]*TableConfig)
+		}
+		c.tables[tableConfig.Keyspace][tableConfig.Name] = tableConfig
+	}
+}
+
 func (c *SchemaMappingConfig) UpdateTables(tableConfigs []*TableConfig) {
 	c.mu.Lock()
 	defer c.mu.Unlock()

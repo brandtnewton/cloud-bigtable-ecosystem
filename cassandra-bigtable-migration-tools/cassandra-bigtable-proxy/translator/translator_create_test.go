@@ -21,10 +21,12 @@ import (
 
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/global/types"
 	schemaMapping "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/schema-mapping"
+	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/utilities"
 	"github.com/datastax/go-cassandra-native-protocol/datatype"
 	"github.com/datastax/go-cassandra-native-protocol/message"
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/zap"
+	"github.com/stretchr/testify/require"
 )
 
 func TestTranslateCreateTableToBigtable(t *testing.T) {
@@ -128,7 +130,7 @@ func TestTranslateCreateTableToBigtable(t *testing.T) {
 		},
 		{
 			name:                     "single inline primary key",
-			query:                    "CREATE TABLE cycling.cyclist_name (id UUID PRIMARY KEY, lastname varchar, firstname varchar);",
+			query:                    "CREATE TABLE cycling.cyclist_name (id varchar PRIMARY KEY, lastname varchar, firstname varchar);",
 			defaultIntRowKeyEncoding: types.OrderedCodeEncoding,
 			want: &CreateTableStatementMap{
 				Table:             "cyclist_name",
@@ -142,7 +144,7 @@ func TestTranslateCreateTableToBigtable(t *testing.T) {
 						Table:    "cyclist_name",
 						Name:     "id",
 						Index:    0,
-						Type:     datatype.Uuid,
+						Type:     datatype.Varchar,
 					},
 					{
 						Keyspace: "cycling",
@@ -162,7 +164,7 @@ func TestTranslateCreateTableToBigtable(t *testing.T) {
 				PrimaryKeys: []CreateTablePrimaryKeyConfig{
 					{
 						Name:    "id",
-						KeyType: "regular",
+						KeyType: utilities.KEY_TYPE_PARTITION,
 					},
 				},
 			},
@@ -370,6 +372,76 @@ func TestTranslateCreateTableToBigtable(t *testing.T) {
 			defaultKeyspace: "test_keyspace",
 		},
 		{
+			name:            "parser returns error when primary key has no column definition",
+			query:           "CREATE TABLE test_keyspace.table (column1 varchar, column10 int, PRIMARY KEY (column1, column99999))",
+			want:            nil,
+			error:           "primary key 'column99999' has no column definition in create table statement",
+			defaultKeyspace: "test_keyspace",
+		},
+		{
+			name:            "parser returns error when inline pmk conflicts",
+			query:           "CREATE TABLE test_keyspace.table (column1 varchar PRIMARY KEY, column10 int, PRIMARY KEY (column1, column10))",
+			want:            nil,
+			error:           "cannot specify both primary key clause and inline primary key",
+			defaultKeyspace: "test_keyspace",
+		},
+		{
+			name:            "parser returns error when multiple inline pmks",
+			query:           "CREATE TABLE test_keyspace.table (column1 varchar PRIMARY KEY, column10 int PRIMARY KEY, column11 int)",
+			want:            nil,
+			error:           "multiple inline primary key columns not allowed",
+			defaultKeyspace: "test_keyspace",
+		},
+		{
+			name:            "parser returns error empty pmks",
+			query:           "CREATE TABLE test_keyspace.table (column1 varchar, column10 int, PRIMARY KEY ())",
+			want:            nil,
+			error:           "no primary key found in create table statement",
+			defaultKeyspace: "test_keyspace",
+		},
+		{
+			name:            "parser returns error when invalid key type is used inline",
+			query:           "CREATE TABLE test_keyspace.table (column1 boolean PRIMARY KEY, column10 int, column11 int)",
+			want:            nil,
+			error:           "primary key cannot be of type boolean",
+			defaultKeyspace: "test_keyspace",
+		},
+		{
+			name:            "parser returns error when invalid key type is used in clause",
+			query:           "CREATE TABLE test_keyspace.table (column1 boolean, column10 int, column11 int, PRIMARY KEY (column1))",
+			want:            nil,
+			error:           "primary key cannot be of type boolean",
+			defaultKeyspace: "test_keyspace",
+		},
+		{
+			name:            "parser returns error when invalid column type is used",
+			query:           "CREATE TABLE test_keyspace.table (column1 int, column10 UUID, column11 int, PRIMARY KEY (column1))",
+			want:            nil,
+			error:           "column type 'uuid' is not supported",
+			defaultKeyspace: "test_keyspace",
+		},
+		{
+			name:            "parser returns error empty pmks",
+			query:           "CREATE TABLE test_keyspace.table ()",
+			want:            nil,
+			error:           "malformed create table statement",
+			defaultKeyspace: "test_keyspace",
+		},
+		{
+			name:            "parser returns error empty pmks",
+			query:           "CREATE TABLE test_keyspace.table",
+			want:            nil,
+			error:           "malformed create table statement",
+			defaultKeyspace: "test_keyspace",
+		},
+		{
+			name:            "parser returns error empty pmks",
+			query:           "CREATE TABLE test_keyspace.table",
+			want:            nil,
+			error:           "malformed create table statement",
+			defaultKeyspace: "test_keyspace",
+		},
+		{
 			name:            "unsupported table options",
 			query:           "CREATE TABLE test_keyspace.table (column1 varchar, column10 int, PRIMARY KEY (column1, column10)) WITH option_foo='bar'",
 			want:            nil,
@@ -387,11 +459,11 @@ func TestTranslateCreateTableToBigtable(t *testing.T) {
 			}
 			got, err := tr.TranslateCreateTableToBigtable(tt.query, tt.defaultKeyspace)
 			if tt.error != "" {
-				assert.Error(t, err)
+				require.Error(t, err)
 				assert.Equal(t, tt.error, err.Error())
 				assert.Nil(t, got)
 			} else {
-				assert.NoError(t, err)
+				require.NoError(t, err)
 				assert.Equal(t, tt.want, got)
 			}
 		})

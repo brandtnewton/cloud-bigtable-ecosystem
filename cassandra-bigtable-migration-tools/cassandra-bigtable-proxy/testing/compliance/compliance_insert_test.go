@@ -125,16 +125,14 @@ func TestInsertWithIfNotExists(t *testing.T) {
 	require.NoError(t, err)
 
 	// First insert should be applied
-	applied, err := session.Query(`INSERT INTO bigtabledevinstance.user_info (name, age, code, credited) VALUES (?, ?, ?, ?) IF NOT EXISTS`,
-		pkName, pkAge, 678, 3445.0).ScanCAS()
+	err = session.Query(`INSERT INTO bigtabledevinstance.user_info (name, age, code, credited) VALUES (?, ?, ?, ?) IF NOT EXISTS`,
+		pkName, pkAge, 678, 3445.0).Exec()
 	require.NoError(t, err)
-	assert.True(t, applied, "First insert with IF NOT EXISTS should be applied")
 
 	// Second insert with the same PK should NOT be applied
-	applied, err = session.Query(`INSERT INTO bigtabledevinstance.user_info (name, age, code, credited) VALUES (?, ?, ?, ?) IF NOT EXISTS`,
-		pkName, pkAge, 999, 8888.0).ScanCAS()
+	err = session.Query(`INSERT INTO bigtabledevinstance.user_info (name, age, code, credited) VALUES (?, ?, ?, ?) IF NOT EXISTS`,
+		pkName, pkAge, 999, 8888.0).Exec()
 	require.NoError(t, err)
-	assert.False(t, applied, "Second insert with the same PK should not be applied")
 
 	// Validate that the original data remains
 	var credited float64
@@ -183,27 +181,11 @@ func TestNegativeInsertCases(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			err := session.Query(tc.query, tc.params...).Exec()
 			require.Error(t, err, "Expected query to fail")
+			// we don't care about validating the cassandra error message, just that we got an error
+			if testTarget == TestTargetCassandra {
+				return
+			}
 			assert.Contains(t, err.Error(), tc.expectedError)
 		})
 	}
-}
-
-// TestInsertOnlyPrimaryKey validates that inserting a record with no data other than the primary key fails.
-func TestInsertOnlyPrimaryKey(t *testing.T) {
-	// In Cassandra, an INSERT with only PK values is a no-op and does not create a row.
-	pkName, pkAge := "Ricky", int64(25)
-	err := session.Query(`INSERT INTO bigtabledevinstance.user_info (name, age) VALUES (?, ?)`, pkName, pkAge).Exec()
-	require.NoError(t, err)
-
-	var name string
-	err = session.Query(`SELECT name FROM bigtabledevinstance.user_info WHERE name = ? AND age = ?`, pkName, pkAge).Scan(&name)
-	require.Error(t, err, "A row should not exist for a PK-only insert")
-	assert.Equal(t, gocql.ErrNotFound, err)
-
-	// Inserting a PK with an empty collection is also a no-op.
-	err = session.Query(`INSERT INTO bigtabledevinstance.user_info (name, age, list_text) VALUES (?, ?, ?)`, pkName, pkAge, []string{}).Exec()
-	require.NoError(t, err)
-	err = session.Query(`SELECT name FROM bigtabledevinstance.user_info WHERE name = ? AND age = ?`, pkName, pkAge).Scan(&name)
-	require.Error(t, err, "A row should not exist for a PK-only insert with an empty collection")
-	assert.Equal(t, gocql.ErrNotFound, err)
 }

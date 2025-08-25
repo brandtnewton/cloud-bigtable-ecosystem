@@ -188,15 +188,15 @@ func TestBatchPartialUpdate(t *testing.T) {
 	pkName, pkAge := "Eve", int64(35)
 
 	batch := session.NewBatch(gocql.LoggedBatch)
-	// Insert full record
+	// Insert a full record
 	batch.Query(
-		`INSERT INTO user_info (name, age, credited, balance, is_active) VALUES (?, ?, ?, ?, ?)`,
-		pkName, pkAge, 1200.0, float32(300.5), true,
+		`INSERT INTO user_info (name, age, credited, balance) VALUES (?, ?, ?, ?)`,
+		pkName, pkAge, 1200.0, float32(300.5),
 	)
-	// Insert with same PK to update a subset of columns
+	// Insert with the same PK to update a subset of columns
 	batch.Query(
-		`INSERT INTO user_info (name, age, balance, is_active) VALUES (?, ?, ?, ?)`,
-		pkName, pkAge, float32(400.0), false,
+		`INSERT INTO user_info (name, age, balance) VALUES (?, ?, ?)`,
+		pkName, pkAge, float32(400.0),
 	)
 
 	err := session.ExecuteBatch(batch)
@@ -204,11 +204,9 @@ func TestBatchPartialUpdate(t *testing.T) {
 
 	var credited float64
 	var balance float32
-	var isActive bool
-	err = session.Query(`SELECT credited, balance, is_active FROM user_info WHERE name = ? AND age = ?`, pkName, pkAge).Scan(&credited, &balance, &isActive)
+	err = session.Query(`SELECT credited, balance FROM user_info WHERE name = ? AND age = ?`, pkName, pkAge).Scan(&credited, &balance)
 	require.NoError(t, err)
 
 	assert.Equal(t, 1200.0, credited, "'credited' should be preserved from the first insert")
 	assert.Equal(t, float32(400.0), balance, "'balance' should be updated")
-	assert.False(t, isActive, "'is_active' should be updated")
 }

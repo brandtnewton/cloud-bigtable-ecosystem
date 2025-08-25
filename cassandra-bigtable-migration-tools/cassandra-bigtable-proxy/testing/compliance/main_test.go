@@ -47,7 +47,22 @@ func (target TestTarget) String() string {
 // session is a global variable to hold the database session.
 var session *gocql.Session
 
-var testTarget = TestTargetProxy
+func getTestTarget() TestTarget {
+	testTarget := os.Getenv("COMPLIANCE_TEST_TARGET")
+	switch testTarget {
+	case "":
+		println("no test target specified, defaulting to proxy")
+		return TestTargetProxy
+	case "proxy":
+		return TestTargetProxy
+	case "cassandra":
+		return TestTargetCassandra
+	default:
+		panic(fmt.Sprintf("unrecognized test target: %s", testTarget))
+	}
+}
+
+var testTarget = getTestTarget()
 
 func createSession(keyspace string) (*gocql.Session, error) {
 	cluster := gocql.NewCluster("127.0.0.1") // Assumes Cassandra is running locally

@@ -18,8 +18,13 @@ func TestDropTableIfExist(t *testing.T) {
 func TestDropTableThatDoesntExist(t *testing.T) {
 	table := uniqueTableName("no_such_table")
 	err := session.Query(fmt.Sprintf("DROP TABLE %s", table)).Exec()
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "because it does not exist")
+	if testTarget == TestTargetCassandra {
+		// we don't care about validating the cassandra error message, just that we got an error
+		require.Error(t, err)
+	} else {
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "because it does not exist")
+	}
 }
 
 func TestDroppedTableWriteFails(t *testing.T) {

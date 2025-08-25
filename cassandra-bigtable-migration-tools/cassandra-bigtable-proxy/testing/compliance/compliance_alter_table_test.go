@@ -59,6 +59,7 @@ func TestNegativeTestCasesForAlterTable(t *testing.T) {
 		name          string
 		query         string
 		expectedError string
+		skipCassandra bool
 	}{
 		{
 			name:          "Add a column that already exists",
@@ -79,6 +80,7 @@ func TestNegativeTestCasesForAlterTable(t *testing.T) {
 			name:          "Rename a primary key column",
 			query:         "ALTER TABLE alter_test_table RENAME pk_part_two TO new_pk_name",
 			expectedError: "rename operation in alter table command not supported",
+			skipCassandra: true,
 		},
 		{
 			name:          "Alter a table that does not exist",
@@ -94,17 +96,28 @@ func TestNegativeTestCasesForAlterTable(t *testing.T) {
 			name:          "Add a column with an unsupported data type",
 			query:         "ALTER TABLE alter_test_table ADD new_col uuid",
 			expectedError: "column type 'uuid' is not supported",
+			skipCassandra: true,
 		},
 		{
-			name:          "Alter a column to an incompatible type",
+			name:          "Alter columns are not supported by proxy",
 			query:         "ALTER TABLE alter_test_table ALTER regular_col TYPE int",
 			expectedError: "alter column type operations are not supported",
+			skipCassandra: true,
 		},
 	}
 
 	for _, tc := range testCases {
+		if tc.skipCassandra && testTarget == TestTargetCassandra {
+			continue
+		}
 		t.Run(tc.name, func(t *testing.T) {
 			err := session.Query(tc.query).Exec()
+			if testTarget == TestTargetCassandra {
+				require.Error(t, err, "Expected an error but got none")
+				// we don't care about validating the cassandra error message, just that we got an error
+				require.Error(t, err)
+				return
+			}
 			require.Error(t, err, "Expected an error but got none")
 			assert.Contains(t, err.Error(), tc.expectedError, "Error message mismatch")
 		})

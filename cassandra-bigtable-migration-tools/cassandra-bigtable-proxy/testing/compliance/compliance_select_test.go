@@ -30,7 +30,9 @@ func TestUnsupportedFunctionInSelectQuery(t *testing.T) {
 	err := session.Query(query, "Carls", int64(45)).Exec()
 
 	require.Error(t, err, "Expected an error for an unsupported function, but got none")
-	assert.Contains(t, err.Error(), "unknown function 'xxxx'", "Error message did not match expected output")
+	if testTarget != TestTargetCassandra {
+		assert.Contains(t, err.Error(), "unknown function 'xxxx'", "Error message did not match expected output")
+	}
 }
 
 // TestSelectAndValidateDataFromTestTable verifies a standard INSERT and SELECT operation.
@@ -197,10 +199,9 @@ func TestSelectWithBetweenOperator(t *testing.T) {
 
 	if testTarget == TestTargetCassandra {
 		require.Error(t, err, "Expected an error for BETWEEN operator, but got none")
-		assert.Contains(t, err.Error(), "line 1:62 no viable alternative at input 'BETWEEN' (...age FROM bigtabledevinstance.user_info WHERE [age] BETWEEN...)")
-	} else {
-		assert.ElementsMatch(t, []map[string]interface{}{{"name": "Jack"}}, namesGtEq)
+		return
 	}
+	assert.ElementsMatch(t, []map[string]interface{}{{"name": "Jack"}}, namesGtEq)
 }
 
 // TestSelectWithLikeOperator validates that the LIKE operator fails correctly on non-indexed columns.

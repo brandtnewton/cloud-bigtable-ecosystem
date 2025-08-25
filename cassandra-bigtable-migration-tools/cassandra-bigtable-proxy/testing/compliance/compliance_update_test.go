@@ -167,6 +167,10 @@ func TestNegativeTestCasesForUpdateOperations(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			err := session.Query(tc.query, tc.params...).Exec()
 			require.Error(t, err, "Expected an error but got none")
+			// we don't care about validating the cassandra error message, just that we got an error
+			if testTarget == TestTargetCassandra {
+				return
+			}
 			assert.Contains(t, err.Error(), tc.expectedError)
 		})
 	}

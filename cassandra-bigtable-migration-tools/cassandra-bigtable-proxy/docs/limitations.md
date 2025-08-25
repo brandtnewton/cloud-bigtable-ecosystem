@@ -193,3 +193,6 @@ We only support limited ***system Queries***
 
 ## 14. Reconnect to proxy after DDL
 It is necessary to reconnect or restart the session after performing DDL (Create, Alter, Drop) in order to refresh the schema at the client (i.e., the schema metadata information at CQLSH); otherwise, there is a possibility that some queries might fail.
+
+## 15. Inserting "empty rows"
+In Cassandra, it is possible to insert "empty rows" (rows without any columns) using a command like `INSERT INTO table_name (primary_key_column) VALUES (value);`. However, this behavior is not supported in Bigtable, which requires at least one column to be present in a row. As a result, attempting to insert an empty row through the proxy will lead to an error. To work around this limitation, you can insert a placeholder column with a default value when creating a new row.

@@ -46,6 +46,13 @@ func TestLimitAndOrderByOperations(t *testing.T) {
 	t.Run("ORDER BY clustering key ASC with LIMIT", func(t *testing.T) {
 		iter := session.Query(`SELECT name, age FROM user_info WHERE name = ? ORDER BY age LIMIT ?`, "Ram", 4).Iter()
 		results, err := iter.SliceMap()
+
+		// we don't care about validating the cassandra error message, just that we got an error
+		if testTarget == TestTargetCassandra {
+			require.Error(t, err)
+			return
+		}
+
 		require.NoError(t, err)
 		// Expect the 4 smallest ages for "Ram"
 		expected := []map[string]interface{}{
@@ -60,6 +67,10 @@ func TestLimitAndOrderByOperations(t *testing.T) {
 	t.Run("ORDER BY clustering key DESC with LIMIT", func(t *testing.T) {
 		iter := session.Query(`SELECT name, age FROM user_info WHERE name = ? ORDER BY age DESC LIMIT ?`, "Ram", 4).Iter()
 		results, err := iter.SliceMap()
+		if testTarget == TestTargetCassandra {
+			require.Error(t, err)
+			return
+		}
 		require.NoError(t, err)
 		// Expect the 4 largest ages for "Ram"
 		expected := []map[string]interface{}{
@@ -123,7 +134,6 @@ func TestComprehensiveGroupByAndOrderBy(t *testing.T) {
 		results, err := iter.SliceMap()
 		if testTarget == TestTargetCassandra {
 			require.Error(t, err)
-			assert.Contains(t, err.Error(), "Undefined column name total_code in table user_info")
 		} else {
 			require.NoError(t, err)
 			assert.ElementsMatch(t, []map[string]interface{}{
@@ -149,7 +159,6 @@ func TestComprehensiveGroupByAndOrderBy(t *testing.T) {
 		results, err := iter.SliceMap()
 		if testTarget == TestTargetCassandra {
 			require.Error(t, err)
-			assert.Contains(t, err.Error(), "Undefined column name total_code in table user_info")
 		} else {
 			require.NoError(t, err)
 			assert.ElementsMatch(t, []map[string]interface{}{
@@ -172,7 +181,6 @@ func TestComprehensiveGroupByAndOrderBy(t *testing.T) {
 		results, err := iter.SliceMap()
 		if testTarget == TestTargetCassandra {
 			require.Error(t, err)
-			assert.Contains(t, err.Error(), "Undefined column name username in table user_info")
 		} else {
 			require.NoError(t, err)
 			assert.ElementsMatch(t, []map[string]interface{}{

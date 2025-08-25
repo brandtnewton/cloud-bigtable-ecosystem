@@ -34,7 +34,7 @@ func TestDeleteOperationWithRecordValidation(t *testing.T) {
 }
 
 // TestDeleteOperationWithTimestampFails verifies that DELETE with USING TIMESTAMP fails as expected.
-// Note: This test assumes the target system (e.g., a proxy) rejects this, as it's valid in standard Cassandra.
+// Note: This test will need to be updated once the proxy supports this operation.
 func TestDeleteOperationWithTimestampFails(t *testing.T) {
 	pkName, pkAge := "Jhon", int64(33)
 	require.NoError(t, session.Query(`INSERT INTO user_info (name, age, code) VALUES (?, ?, ?)`, pkName, pkAge, 123).Exec())
@@ -43,9 +43,10 @@ func TestDeleteOperationWithTimestampFails(t *testing.T) {
 	err := session.Query(`DELETE FROM user_info USING TIMESTAMP ? WHERE name = ? AND age = ?`,
 		nowMicro, pkName, pkAge).Exec()
 
-	// This test is based on the JSON expectation of an error.
-	// In standard Cassandra, this query would succeed.
-	// require.NoError(t, err)
+	if testTarget == TestTargetCassandra {
+		require.NoError(t, err)
+		return
+	}
 
 	require.Error(t, err, "Expected an error for DELETE USING TIMESTAMP")
 	assert.Contains(t, err.Error(), "delete using timestamp is not allowed")
@@ -112,6 +113,10 @@ func TestNegativeDeleteCases(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			err := session.Query(tc.query, tc.params...).Exec()
 			require.Error(t, err, "Expected query to fail")
+			// we don't care about validating the cassandra error message, just that we got an error
+			if testTarget == TestTargetCassandra {
+				return
+			}
 			assert.Contains(t, err.Error(), tc.expectedError)
 		})
 	}

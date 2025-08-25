@@ -27,6 +27,7 @@ func TestNegativeTestCasesForCreateTable(t *testing.T) {
 		name          string
 		query         string
 		expectedError string
+		skipCassandra bool
 	}{
 		{
 			name:          "Create table with no primary key",
@@ -52,17 +53,27 @@ func TestNegativeTestCasesForCreateTable(t *testing.T) {
 			name:          "Create table with invalid key type",
 			query:         "CREATE TABLE fail_invalid_pmk_type (k boolean, big_num BIGINT, PRIMARY KEY (k))",
 			expectedError: "primary key cannot be of type boolean",
+			skipCassandra: true,
 		},
 		{
 			name:          "Create table with invalid column type",
 			query:         "CREATE TABLE fail_invalid_col_type (num INT, big_num UUID, PRIMARY KEY (num))",
 			expectedError: "column type 'uuid' is not supported",
+			skipCassandra: true,
 		},
 	}
 
 	for _, tc := range testCases {
+		if tc.skipCassandra && testTarget == TestTargetCassandra {
+			continue
+		}
 		t.Run(tc.name, func(t *testing.T) {
 			err := session.Query(tc.query).Exec()
+			if testTarget == TestTargetCassandra {
+				// we don't care about validating the cassandra error message, just that we got an error
+				require.Error(t, err)
+				return
+			}
 			require.Error(t, err, "Expected an error but got none")
 			assert.True(t, strings.Contains(err.Error(), tc.expectedError), "Error message mismatch.\nExpected to contain: %s\nGot: %s", tc.expectedError, err.Error())
 		})

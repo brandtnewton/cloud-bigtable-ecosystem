@@ -24,7 +24,6 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// TestUnsupportedFunctionInSelectQuery validates that using a function that doesn't exist fails as expected.
 func TestUnsupportedFunctionInSelectQuery(t *testing.T) {
 	query := `SELECT xxxx(name) FROM bigtabledevinstance.user_info WHERE name = ? AND age = ?`
 	err := session.Query(query, "Carls", int64(45)).Exec()
@@ -35,7 +34,6 @@ func TestUnsupportedFunctionInSelectQuery(t *testing.T) {
 	}
 }
 
-// TestSelectAndValidateDataFromTestTable verifies a standard INSERT and SELECT operation.
 func TestSelectAndValidateDataFromTestTable(t *testing.T) {
 	// 1. Insert a record with various data types
 	birthDate := time.UnixMicro(915148800000) // Corrected timestamp value
@@ -56,7 +54,6 @@ func TestSelectAndValidateDataFromTestTable(t *testing.T) {
 	assert.Equal(t, int64(45), age)
 }
 
-// TestSelectAllRowsWithoutWhereClause checks that a SELECT without a WHERE clause returns results.
 func TestSelectAllRowsWithoutWhereClause(t *testing.T) {
 	// 1. Insert a record to ensure the table is not empty
 	err := session.Query(`INSERT INTO bigtabledevinstance.user_info (name, age, code) VALUES (?, ?, ?)`,
@@ -72,7 +69,6 @@ func TestSelectAllRowsWithoutWhereClause(t *testing.T) {
 	assert.GreaterOrEqual(t, rowCount, 1, "Expected to retrieve at least one row")
 }
 
-// TestValidatingWritetimeFunctionality checks the WRITETIME function with and without an alias.
 func TestValidatingWritetimeFunctionality(t *testing.T) {
 	// 1. Insert records with specific timestamps
 	tsAlice := int64(1734516831000000)
@@ -113,7 +109,6 @@ func TestValidatingWritetimeFunctionality(t *testing.T) {
 	})
 }
 
-// TestSelectStarWithAllDatatypes inserts a record with a wide variety of data types and validates them using SELECT *.
 func TestSelectStarWithAllDatatypes(t *testing.T) {
 	// 1. Prepare complex data for insertion
 	birthDate := time.UnixMicro(1672531200000)
@@ -156,7 +151,6 @@ func TestSelectStarWithAllDatatypes(t *testing.T) {
 	assert.Equal(t, map[time.Time]string{ts1: "value1"}, resultMap["ts_text_map"])
 }
 
-// TestSelectWithDifferentWhereOperators validates operators like <, >, <=, >=.
 // These tests require ALLOW FILTERING as they don't operate on a primary key.
 func TestSelectWithDifferentWhereOperators(t *testing.T) {
 	// 1. Insert boundary records
@@ -190,7 +184,6 @@ func TestSelectWithDifferentWhereOperators(t *testing.T) {
 	assert.ElementsMatch(t, []map[string]interface{}{{"name": "Della"}}, namesLt)
 }
 
-// TestSelectWithBetweenOperator validates that the BETWEEN operator is not supported and fails correctly.
 func TestSelectWithBetweenOperator(t *testing.T) {
 	require.NoError(t, session.Query(`INSERT INTO bigtabledevinstance.user_info (name, age, code) VALUES (?, ?, ?)`, "Bob", int64(41220), 987).Exec())
 	require.NoError(t, session.Query(`INSERT INTO bigtabledevinstance.user_info (name, age, code) VALUES (?, ?, ?)`, "Jack", int64(41230), 987).Exec())
@@ -204,7 +197,6 @@ func TestSelectWithBetweenOperator(t *testing.T) {
 	assert.ElementsMatch(t, []map[string]interface{}{{"name": "Jack"}}, namesGtEq)
 }
 
-// TestSelectWithLikeOperator validates that the LIKE operator fails correctly on non-indexed columns.
 func TestSelectWithLikeOperator(t *testing.T) {
 	// 1. Insert test data
 	require.NoError(t, session.Query(`INSERT INTO bigtabledevinstance.user_info (name, age, code) VALUES (?, ?, ?)`, "Silver Hunter", int64(1300), 987).Exec())

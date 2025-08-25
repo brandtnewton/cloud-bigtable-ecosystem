@@ -7,7 +7,6 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// TestManipulationOfSetAndMapDataTypes validates INSERT and UPDATE operations on collection data types.
 func TestManipulationOfSetAndMapDataTypes(t *testing.T) {
 	// 1. Insert a record with a set and a map
 	err := session.Query(`INSERT INTO bigtabledevinstance.user_info (name, age, code, tags, extra_info) VALUES (?, ?, ?, ?, ?)`,

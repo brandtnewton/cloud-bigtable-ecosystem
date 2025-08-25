@@ -8,7 +8,6 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// TestBasicInsertUpdateDeleteAndValidation verifies a full create, read, update, and delete lifecycle.
 func TestBasicInsertUpdateDeleteAndValidation(t *testing.T) {
 	// 1. INSERT a new record
 	err := session.Query(`INSERT INTO bigtabledevinstance.user_info (name, age, code) VALUES (?, ?, ?)`,

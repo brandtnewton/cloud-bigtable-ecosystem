@@ -8,7 +8,6 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// TestComprehensiveGroupByAndAggregateFunctions validates GROUP BY queries with various aggregate functions.
 func TestComprehensiveGroupByAndAggregateFunctions(t *testing.T) {
 	require.NoError(t, session.Query(`INSERT INTO aggregation_grouping_test (region, category, item_id, sale_timestamp, quantity, price, discount, revenue_bigint) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
 		"North", "Electronics", 101, time.UnixMicro(1736899200000), 5, float32(1200.50), 0.1, int64(6002)).Exec())

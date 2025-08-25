@@ -23,7 +23,6 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// TestLimitAndOrderByOperations validates the behavior of LIMIT and ORDER BY clauses.
 func TestLimitAndOrderByOperations(t *testing.T) {
 	// 1. Insert a large number of records to create a diverse dataset.
 	require.NoError(t, session.Query(`INSERT INTO user_info (name, age, code) VALUES (?, ?, ?)`, "Ram", int64(45), 123).Exec())
@@ -121,7 +120,6 @@ func TestLimitAndOrderByOperations(t *testing.T) {
 	})
 }
 
-// TestComprehensiveGroupByAndOrderBy validates that complex, unsupported aggregate queries fail as expected.
 func TestComprehensiveGroupByAndOrderBy(t *testing.T) {
 	// 1. Insert test data
 	require.NoError(t, session.Query(`INSERT INTO user_info (name, age, code, credited, balance) VALUES (?, ?, ?, ?, ?)`, "CompreOne", int64(81), 100, 1000.0, float32(500.0)).Exec())

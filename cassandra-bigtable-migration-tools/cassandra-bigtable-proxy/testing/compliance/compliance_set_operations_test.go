@@ -7,7 +7,6 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// TestSetOperationAdditionSetText verifies adding elements to a SET<TEXT> using the '+' operator.
 func TestSetOperationAdditionSetText(t *testing.T) {
 	// 1. Initialize a user with a starting set
 	err := session.Query(`INSERT INTO bigtabledevinstance.user_info (name, age, tags) VALUES (?, ?, ?)`,
@@ -28,7 +27,6 @@ func TestSetOperationAdditionSetText(t *testing.T) {
 	assert.ElementsMatch(t, []string{"tag0", "tag1", "tag2"}, tags, "The set did not contain all expected elements")
 }
 
-// TestSetOperationSubtractionSetInt verifies removing elements from a SET<INT> using the '-' operator.
 func TestSetOperationSubtractionSetInt(t *testing.T) {
 	// 1. Initialize a user with a set of integers
 	err := session.Query(`INSERT INTO bigtabledevinstance.user_info (name, age, set_int) VALUES (?, ?, ?)`,
@@ -49,7 +47,6 @@ func TestSetOperationSubtractionSetInt(t *testing.T) {
 	assert.Equal(t, []int{20}, setInt, "The set did not contain the correct remaining element")
 }
 
-// TestInsertElementsIntoSetText validates adding elements to a text set.
 func TestInsertElementsIntoSetText(t *testing.T) {
 	// 1. Initialize user with a set
 	err := session.Query(`INSERT INTO bigtabledevinstance.user_info (name, age, tags) VALUES (?, ?, ?)`,
@@ -70,7 +67,6 @@ func TestInsertElementsIntoSetText(t *testing.T) {
 	assert.ElementsMatch(t, []string{"tag0", "tag1", "tag2"}, tags, "The set did not contain all expected tags")
 }
 
-// TestValidateUniqueConstraintInSetInt ensures that adding duplicate elements to a set has no effect.
 func TestValidateUniqueConstraintInSetInt(t *testing.T) {
 	// 1. Initialize user with a set containing a single integer
 	err := session.Query(`INSERT INTO bigtabledevinstance.user_info (name, age, set_int) VALUES (?, ?, ?)`,
@@ -91,7 +87,6 @@ func TestValidateUniqueConstraintInSetInt(t *testing.T) {
 	assert.Equal(t, []int{42}, setInt, "The set should enforce uniqueness and contain only one instance of 42")
 }
 
-// TestValidateSetReads performs various read operations on a set, including with aliases.
 func TestValidateSetReads(t *testing.T) {
 	// 1. Initialize user with a set of integers
 	err := session.Query(`INSERT INTO bigtabledevinstance.user_info (name, age, set_int) VALUES (?, ?, ?)`,
@@ -117,7 +112,6 @@ func TestValidateSetReads(t *testing.T) {
 	assert.ElementsMatch(t, []int{2, 28, 56}, s)
 }
 
-// TestValidateSetOperationsWithContainsClause verifies the behavior of the CONTAINS clause on a set.
 func TestValidateSetOperationsWithContainsClause(t *testing.T) {
 	// 1. Initialize user with a set of integers and a set of text
 	err := session.Query(`INSERT INTO bigtabledevinstance.user_info (name, age, set_int, tags) VALUES (?, ?, ?, ?)`,

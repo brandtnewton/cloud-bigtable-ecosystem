@@ -7,7 +7,6 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// TestSelectWithInClause validates the behavior of the IN operator on various columns.
 func TestSelectWithInClause(t *testing.T) {
 	// 1. Insert a large number of records to create a diverse dataset.
 	// We use require.NoError to stop the test immediately if data setup fails.

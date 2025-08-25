@@ -24,7 +24,6 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// TestMapOperationAdditionTextText verifies adding elements to a MAP<TEXT, TEXT> using the '+' operator.
 func TestMapOperationAdditionTextText(t *testing.T) {
 	// 1. Initialize with an empty map
 	err := session.Query(`INSERT INTO bigtabledevinstance.user_info (name, age, extra_info) VALUES (?, ?, ?)`,
@@ -43,7 +42,6 @@ func TestMapOperationAdditionTextText(t *testing.T) {
 	assert.Equal(t, map[string]string{"key1": "value1", "key2": "value2"}, extraInfo)
 }
 
-// TestMapOperationAdditionTimestampText verifies adding elements to a MAP<TIMESTAMP, TEXT>.
 func TestMapOperationAdditionTimestampText(t *testing.T) {
 	// 1. Initialize with an empty map
 	err := session.Query(`INSERT INTO bigtabledevinstance.user_info (name, age, ts_text_map) VALUES (?, ?, ?)`,
@@ -66,7 +64,6 @@ func TestMapOperationAdditionTimestampText(t *testing.T) {
 	assert.Equal(t, newEvents, tsTextMap)
 }
 
-// TestMapOperationSubtraction verifies removing keys from a MAP<TEXT, TEXT> using the '-' operator.
 func TestMapOperationSubtraction(t *testing.T) {
 	// 1. Initialize with a populated map
 	initialMap := map[string]string{"key1": "value1", "key2": "value2", "key3": "value3"}
@@ -87,7 +84,6 @@ func TestMapOperationSubtraction(t *testing.T) {
 	assert.Equal(t, map[string]string{"key2": "value2"}, extraInfo)
 }
 
-// TestMapOperationUpdate verifies updating a single value in a map using map[key] syntax.
 func TestMapOperationUpdate(t *testing.T) {
 	// 1. Initialize with a populated map
 	initialMap := map[string]int{"score1": 100, "score2": 200}
@@ -107,7 +103,6 @@ func TestMapOperationUpdate(t *testing.T) {
 	assert.Equal(t, map[string]int{"score1": 150, "score2": 200}, mapTextInt)
 }
 
-// TestMapOperationDelete verifies deleting a key from a map using the DELETE keyword.
 func TestMapOperationDelete(t *testing.T) {
 	// 1. Initialize with a populated map
 	initialMap := map[string]time.Time{
@@ -130,7 +125,6 @@ func TestMapOperationDelete(t *testing.T) {
 	assert.Equal(t, map[string]time.Time{"event2": parseTime(t, "2023-02-01T00:00:00Z")}, mapTextTs)
 }
 
-// TestComplexUpdateMapTextText validates map merging behavior.
 func TestComplexUpdateMapTextText(t *testing.T) {
 	// NOTE: The '+' operator in a CQL UPDATE on a map merges the maps. It overwrites existing keys and adds new ones.
 	// It does NOT remove keys. This test validates the actual Cassandra behavior.
@@ -154,7 +148,6 @@ func TestComplexUpdateMapTextText(t *testing.T) {
 	assert.Equal(t, expectedMap, extraInfo, "Map merge did not produce the correct result")
 }
 
-// TestComplexUpdateMapTextInt validates map merging behavior with integer values.
 func TestComplexUpdateMapTextInt(t *testing.T) {
 	// NOTE: The '+' operator in a CQL UPDATE on a map merges the maps. It does NOT remove keys.
 	// This test validates the actual Cassandra behavior.
@@ -179,7 +172,6 @@ func TestComplexUpdateMapTextInt(t *testing.T) {
 	assert.Equal(t, expectedMap, mapTextInt, "Map merge did not produce the correct result")
 }
 
-// TestMapReads performs various read operations on a map, including aliases and specific key selection.
 func TestMapReads(t *testing.T) {
 	// 1. Initialize map
 	initialMap := map[string]string{"keyA": "valueA", "keyB": "valueB", "keyC": "valueC", "keyD": "valueD"}
@@ -212,7 +204,6 @@ func TestMapReads(t *testing.T) {
 	assert.Equal(t, "", missingValue)
 }
 
-// TestComplexMapKeysSelection validates selecting multiple specific keys from a map.
 func TestComplexMapKeysSelection(t *testing.T) {
 	// 1. Initialize map
 	initialMap := map[string]string{"info_key_one": "data_one", "info_key_two": "data_two", "info_key_three": "data_three"}
@@ -241,7 +232,6 @@ func TestComplexMapKeysSelection(t *testing.T) {
 	assert.Equal(t, "data_one", existingData)
 }
 
-// TestMapOperationWithContainsKeyClause validates the behavior of the CONTAINS KEY clause.
 func TestMapOperationWithContainsKeyClause(t *testing.T) {
 	// 1. Initialize record
 	err := session.Query(`INSERT INTO bigtabledevinstance.user_info (name, age, map_text_int, extra_info) VALUES (?, ?,?, ?)`,

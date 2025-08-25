@@ -9,7 +9,6 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// TestDeleteOperationWithRecordValidation verifies the full lifecycle of inserting, validating, deleting, and re-validating a record.
 func TestDeleteOperationWithRecordValidation(t *testing.T) {
 	pkName, pkAge := "Michael", int64(45)
 
@@ -33,7 +32,6 @@ func TestDeleteOperationWithRecordValidation(t *testing.T) {
 	assert.Equal(t, gocql.ErrNotFound, err, "Expected error to be 'not found' after deletion")
 }
 
-// TestDeleteOperationWithTimestampFails verifies that DELETE with USING TIMESTAMP fails as expected.
 // Note: This test will need to be updated once the proxy supports this operation.
 func TestDeleteOperationWithTimestampFails(t *testing.T) {
 	pkName, pkAge := "Jhon", int64(33)
@@ -52,7 +50,6 @@ func TestDeleteOperationWithTimestampFails(t *testing.T) {
 	assert.Contains(t, err.Error(), "delete using timestamp is not allowed")
 }
 
-// TestDeleteSpecificRecordByPrimaryKey confirms a targeted delete works correctly.
 func TestDeleteSpecificRecordByPrimaryKey(t *testing.T) {
 	pkName, pkAge := "John", int64(30)
 	require.NoError(t, session.Query(`INSERT INTO user_info (name, age, code) VALUES (?, ?, ?)`, pkName, pkAge, 123).Exec())
@@ -65,14 +62,12 @@ func TestDeleteSpecificRecordByPrimaryKey(t *testing.T) {
 	assert.Equal(t, gocql.ErrNotFound, err)
 }
 
-// TestDeleteNonExistentRecord ensures deleting a record that doesn't exist completes without error.
 func TestDeleteNonExistentRecord(t *testing.T) {
 	pkName, pkAge := "NonExistent", int64(99)
 	err := session.Query(`DELETE FROM user_info WHERE name = ? AND age = ?`, pkName, pkAge).Exec()
 	require.NoError(t, err, "Deleting a non-existent record should not produce an error")
 }
 
-// TestDeleteRecordWithIfExists verifies the IF EXISTS clause for conditional deletes.
 func TestDeleteRecordWithIfExists(t *testing.T) {
 	pkName, pkAge := "Emma", int64(28)
 	require.NoError(t, session.Query(`INSERT INTO user_info (name, age, code, credited) VALUES (?, ?, ?, ?)`, pkName, pkAge, 112, 2500.0).Exec())
@@ -90,7 +85,6 @@ func TestDeleteRecordWithIfExists(t *testing.T) {
 	require.NoError(t, err)
 }
 
-// TestNegativeDeleteCases covers various invalid DELETE scenarios to ensure errors are handled correctly.
 func TestNegativeDeleteCases(t *testing.T) {
 	testCases := []struct {
 		name          string

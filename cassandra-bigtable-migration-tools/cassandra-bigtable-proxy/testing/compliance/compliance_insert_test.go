@@ -9,7 +9,6 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// TestBasicInsertUpdateDeleteValidation verifies a full create, read, update, and delete lifecycle.
 func TestBasicInsertUpdateDeleteValidation(t *testing.T) {
 	err := session.Query(`INSERT INTO bigtabledevinstance.user_info (name, age, code) VALUES (?, ?, ?)`, "John Doe", int64(30), 123).Exec()
 	require.NoError(t, err, "Failed to insert record")
@@ -38,7 +37,6 @@ func TestBasicInsertUpdateDeleteValidation(t *testing.T) {
 	assert.Equal(t, gocql.ErrNotFound, err, "Expected error to be 'not found' after deletion")
 }
 
-// TestUpsertOperation verifies that a second INSERT with the same primary key overwrites the original data.
 func TestUpsertOperation(t *testing.T) {
 	pkName, pkAge := "Lorem", int64(33)
 	err := session.Query(`INSERT INTO bigtabledevinstance.user_info (name, age, code) VALUES (?, ?, ?)`, pkName, pkAge, 123).Exec()
@@ -53,7 +51,6 @@ func TestUpsertOperation(t *testing.T) {
 	assert.Equal(t, 456, code, "The code should be updated to the value from the second insert")
 }
 
-// TestInsertAndValidateCollectionData verifies insertion and retrieval of SET and MAP types.
 func TestInsertAndValidateCollectionData(t *testing.T) {
 	pkName, pkAge := "Lilly", int64(25)
 	tags := []string{"tag1", "tag2"}
@@ -98,7 +95,6 @@ func TestInsertWithTimestamps(t *testing.T) {
 	})
 }
 
-// TestInsertWithAllSupportedDatatypes verifies insertion of a record with many different data types.
 func TestInsertWithAllSupportedDatatypes(t *testing.T) {
 	pkName, pkAge := "James", int64(56)
 	birthDate := time.UnixMilli(1734516444000)
@@ -116,7 +112,6 @@ func TestInsertWithAllSupportedDatatypes(t *testing.T) {
 	assert.Equal(t, 555.67, credited)
 }
 
-// TestInsertWithIfNotExists verifies the IF NOT EXISTS clause for conditional inserts.
 func TestInsertWithIfNotExists(t *testing.T) {
 	pkName, pkAge := "Jaiswal", int64(56)
 
@@ -141,7 +136,6 @@ func TestInsertWithIfNotExists(t *testing.T) {
 	assert.Equal(t, 3445.0, credited, "Data from the first insert should be preserved")
 }
 
-// TestInsertWithSpecialCharacters verifies that text fields handle non-alphanumeric characters.
 func TestInsertWithSpecialCharacters(t *testing.T) {
 	t.Run("Special Chars", func(t *testing.T) {
 		pkName, pkAge := "@John#Doe!", int64(40)

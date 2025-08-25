@@ -8,7 +8,6 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// TestInsertAndValidationListText verifies a simple insert and select for a LIST<TEXT>.
 func TestInsertAndValidationListText(t *testing.T) {
 	err := session.Query(`INSERT INTO bigtabledevinstance.user_info (name, age, list_text) VALUES (?, ?, ?)`,
 		"Alice", int64(25), []string{"apple", "banana", "cherry"}).Exec()
@@ -20,7 +19,6 @@ func TestInsertAndValidationListText(t *testing.T) {
 	assert.Equal(t, []string{"apple", "banana", "cherry"}, listText)
 }
 
-// TestAppendElementsToListText verifies appending elements to a list.
 func TestAppendElementsToListText(t *testing.T) {
 	err := session.Query(`INSERT INTO bigtabledevinstance.user_info (name, age, list_text) VALUES (?, ?, ?)`,
 		"User_List1", int64(25), []string{"apple"}).Exec()
@@ -36,7 +34,6 @@ func TestAppendElementsToListText(t *testing.T) {
 	assert.Equal(t, []string{"apple", "banana", "cherry"}, listText, "List order or content after append is incorrect")
 }
 
-// TestReplaceElementInListIntByIndex verifies replacing a list element at a specific index.
 func TestReplaceElementInListIntByIndex(t *testing.T) {
 	err := session.Query(`INSERT INTO bigtabledevinstance.user_info (name, age, list_int) VALUES (?, ?, ?)`,
 		"User_List2", int64(30), []int{100, 200, 300, 400, 500, 600}).Exec()
@@ -52,7 +49,6 @@ func TestReplaceElementInListIntByIndex(t *testing.T) {
 	assert.Equal(t, []int{100, 200, 300, 400, 999, 600}, listInt, "List element was not replaced correctly")
 }
 
-// TestRemoveElementsByValueFromListInt verifies removing all occurrences of specified values from a list.
 func TestRemoveElementsByValueFromListInt(t *testing.T) {
 	// Note: The user name/age combination is duplicated from the previous test, but Cassandra will
 	// simply overwrite the record since the primary key is the same.
@@ -70,7 +66,6 @@ func TestRemoveElementsByValueFromListInt(t *testing.T) {
 	assert.Equal(t, []int{20, 30}, listInt, "Removing elements by value failed")
 }
 
-// TestAppendAndPrependToListText verifies both append and prepend operations on a list.
 func TestAppendAndPrependToListText(t *testing.T) {
 	err := session.Query(`INSERT INTO bigtabledevinstance.user_info (name, age, list_text) VALUES (?, ?, ?)`,
 		"User_List3", int64(35), []string{"banana"}).Exec()
@@ -92,7 +87,6 @@ func TestAppendAndPrependToListText(t *testing.T) {
 	assert.Equal(t, []string{"apple", "banana", "cherry"}, listText, "List order after prepend and append is incorrect")
 }
 
-// TestCombinedForAllListTypes verifies insertion and updates across multiple list data types.
 func TestCombinedForAllListTypes(t *testing.T) {
 	ts1 := time.UnixMilli(1735725600000).UTC()
 	ts2 := time.UnixMilli(1738404000000).UTC()
@@ -134,7 +128,6 @@ func TestCombinedForAllListTypes(t *testing.T) {
 	assert.Equal(t, []time.Time{ts3, ts2}, listTimestamp)
 }
 
-// TestDeleteElementsByIndexInAllListTypes verifies deleting elements by index from multiple lists in one query.
 func TestDeleteElementsByIndexInAllListTypes(t *testing.T) {
 	ts1 := time.UnixMilli(1735725600000).UTC()
 	ts2 := time.UnixMilli(1738404000000).UTC()
@@ -175,7 +168,6 @@ func TestDeleteElementsByIndexInAllListTypes(t *testing.T) {
 	assert.Equal(t, []time.Time{ts1, ts3}, listTimestamp)
 }
 
-// TestInsertLargeListInt verifies inserting and retrieving a list with over 100 elements.
 func TestInsertLargeListInt(t *testing.T) {
 	// 1. Prepare a large list of integers
 	largeList := make([]int, 101)
@@ -200,7 +192,6 @@ func TestInsertLargeListInt(t *testing.T) {
 	assert.Equal(t, largeList, listInt)
 }
 
-// TestListReads verifies basic list reads with and without aliases.
 func TestListReads(t *testing.T) {
 	err := session.Query(`INSERT INTO bigtabledevinstance.user_info (name, age, list_int) VALUES (?, ?, ?)`,
 		"list_reads", int64(55), []int{33, 56, 55}).Exec()
@@ -223,8 +214,6 @@ func TestListReads(t *testing.T) {
 	assert.Equal(t, []int{33, 56, 55}, l)
 }
 
-// TestListReadWithContainsKeyClause verifies the behavior of the CONTAINS clause on a list.
-// NOTE: The JSON uses "CONTAINS KEY", but for lists, the correct syntax is "CONTAINS".
 func TestListReadWithContainsKeyClause(t *testing.T) {
 	// 1. Insert record
 	err := session.Query(`INSERT INTO bigtabledevinstance.user_info (name, age, list_int, list_text) VALUES (?, ?, ?, ?)`,

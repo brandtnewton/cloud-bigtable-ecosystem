@@ -399,7 +399,7 @@ func (btc *BigtableClient) CreateTable(ctx context.Context, data *translator.Cre
 	}
 
 	if exists && !data.IfNotExists {
-		return fmt.Errorf("cannot create table %s becauase it already exists", data.Table)
+		return fmt.Errorf("cannot create table %s because it already exists", data.Table)
 	}
 
 	// only reload schema mappings if we actually changed the schema mapping table

@@ -122,6 +122,7 @@ func (t *Translator) TranslateCreateTableToBigtable(query, sessionKeyspace strin
 				return nil, fmt.Errorf("unsupported encoding '%s' for option '%s'", optionValue, optionName)
 			}
 		default:
+			// fail fast, so the user know we don't support the option rather than silently ignoring it.
 			return nil, fmt.Errorf("unsupported table option: '%s'", optionName)
 		}
 	}

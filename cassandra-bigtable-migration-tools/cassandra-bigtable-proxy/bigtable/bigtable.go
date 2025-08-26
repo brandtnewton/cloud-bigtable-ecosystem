@@ -515,7 +515,7 @@ func (btc *BigtableClient) maybeAddCounterColumnFamily(ctx context.Context, admi
 
 	tableConfig, err := btc.SchemaMappingConfig.GetTableConfig(keyspace, tableName)
 	// we expect an error to be returned, when this function is called from CreateTable, because
-	if err != nil {
+	if err == nil {
 		alreadyHasCounterColumn := slices.ContainsFunc(tableConfig.GetAllColumns(), func(c *types.Column) bool {
 			return c.CQLType == datatype.Counter
 		})

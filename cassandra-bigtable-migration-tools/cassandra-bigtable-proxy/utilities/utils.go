@@ -528,7 +528,7 @@ func isSupportedCollectionElementType(dt datatype.DataType) bool {
 
 func IsSupportedColumnType(dt datatype.DataType) bool {
 	switch dt.GetDataTypeCode() {
-	case primitive.DataTypeCodeInt, primitive.DataTypeCodeBigint, primitive.DataTypeCodeBlob, primitive.DataTypeCodeBoolean, primitive.DataTypeCodeDouble, primitive.DataTypeCodeFloat, primitive.DataTypeCodeTimestamp, primitive.DataTypeCodeText, primitive.DataTypeCodeVarchar:
+	case primitive.DataTypeCodeInt, primitive.DataTypeCodeBigint, primitive.DataTypeCodeBlob, primitive.DataTypeCodeBoolean, primitive.DataTypeCodeDouble, primitive.DataTypeCodeFloat, primitive.DataTypeCodeTimestamp, primitive.DataTypeCodeText, primitive.DataTypeCodeVarchar, primitive.DataTypeCodeCounter:
 		return true
 	case primitive.DataTypeCodeMap:
 		mapType := dt.(datatype.MapType)

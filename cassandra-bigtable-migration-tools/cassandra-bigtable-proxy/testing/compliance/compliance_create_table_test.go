@@ -63,6 +63,12 @@ func TestNegativeTestCasesForCreateTable(t *testing.T) {
 			expectedError: "column type 'uuid' is not supported",
 			skipCassandra: true,
 		},
+		{
+			name:          "Create table ending with a comma",
+			query:         "CREATE TABLE eof_table (num INT, big_num UUID, PRIMARY KEY (num)),",
+			expectedError: "column type 'uuid' is not supported",
+			skipCassandra: true,
+		},
 	}
 
 	for _, tc := range testCases {

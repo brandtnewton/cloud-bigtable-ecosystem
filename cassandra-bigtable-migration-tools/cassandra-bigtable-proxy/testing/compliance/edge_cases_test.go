@@ -1,10 +1,12 @@
 package compliance
 
 import (
+	"context"
 	"fmt"
 	"math"
 	"testing"
 
+	"cloud.google.com/go/bigtable"
 	"github.com/gocql/gocql"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
@@ -90,4 +92,70 @@ func TestIntRowKeys(t *testing.T) {
 			assert.Equal(t, gocql.ErrNotFound, err, "The record should be deleted")
 		})
 	}
+}
+
+func TestLexicographicOrder(t *testing.T) {
+	require.NoError(t, session.Query("CREATE TABLE IF NOT EXISTS lex_test_ordered_code_int32 (org BIGINT, id INT, username TEXT, row_index INT, PRIMARY KEY (org, id, username)").Exec())
+	ctx := context.Background()
+	admin, err := bigtable.NewAdminClient(ctx, gcpProjectId, "bigtabledevinstance")
+	require.NoError(t, err)
+
+	err = admin.DropAllRows(ctx, "lex_test_ordered_code_int32")
+	require.NoError(t, err)
+
+	values := []struct {
+		org      int64
+		id       int32
+		username string
+	}{
+		// int64 order
+		{org: math.MinInt64, id: 1, username: "x"},
+		{org: math.MinInt64 + 1, id: 1, username: "x"},
+		{org: -1000, id: 1, username: "x"},
+		{org: -1, id: 1, username: "x"},
+		{org: 0, id: 1, username: "x"},
+		{org: 1, id: 1, username: "x"},
+		{org: 1000, id: 1, username: "x"},
+		{org: 99999, id: 1, username: "x"},
+		{org: math.MaxInt64 - 1, id: 1, username: "x"},
+		{org: math.MaxInt64, id: 1, username: "x"},
+		// int32 order
+		{org: math.MaxInt64, id: math.MinInt32, username: "x"},
+		{org: math.MaxInt64, id: math.MinInt32 + 1, username: "x"},
+		{org: math.MaxInt64, id: -1000, username: "x"},
+		{org: math.MaxInt64, id: -1, username: "x"},
+		{org: math.MaxInt64, id: 0, username: "x"},
+		{org: math.MaxInt64, id: 1, username: "x"},
+		{org: math.MaxInt64, id: 1000, username: "x"},
+		{org: math.MaxInt64, id: 99999, username: "x"},
+		{org: math.MaxInt64, id: math.MaxInt32 - 1, username: "x"},
+		{org: math.MaxInt64, id: math.MaxInt32, username: "x"},
+		// string order
+		{org: math.MaxInt64, id: math.MaxInt32, username: ""},
+		{org: math.MaxInt64, id: math.MaxInt32, username: "a"},
+		{org: math.MaxInt64, id: math.MaxInt32, username: "b"},
+		{org: math.MaxInt64, id: math.MaxInt32, username: "c"},
+		{org: math.MaxInt64, id: math.MaxInt32, username: "d"},
+		{org: math.MaxInt64, id: math.MaxInt32, username: "defghi"},
+		{org: math.MaxInt64, id: math.MaxInt32, username: "dz"},
+		{org: math.MaxInt64, id: math.MaxInt32, username: "y"},
+		{org: math.MaxInt64, id: math.MaxInt32, username: "z"},
+		{org: math.MaxInt64, id: math.MaxInt32, username: "10a"},
+	}
+
+	for i, v := range values {
+		require.NoError(t, session.Query("INSERT INTO lex_test_ordered_code (org, id, username, row_index) VALUES (?, ?, ?, ?)", v.org, v.id, v.username, int32(i)).Exec())
+	}
+
+	client, err := bigtable.NewClient(ctx, gcpProjectId, "bigtabledevinstance")
+	require.NoError(t, err)
+
+	table := client.Open("lex_test_ordered_code")
+	index := 0
+	err = table.ReadRows(ctx, bigtable.InfiniteRange(""), func(row bigtable.Row) bool {
+		assert.Equal(t, index, row["cf1"], fmt.Sprintf("out of order row: %s", row.Key()))
+		return true
+	}, bigtable.LimitRows(1))
+
+	require.NoError(t, err)
 }

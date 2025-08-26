@@ -95,7 +95,14 @@ func cleanUpTests() {
 	session.Close()
 }
 
+var gcpProjectId = ""
+
 func setUpTests() {
+	gcpProjectId = os.Getenv("GCP_PROJECT_ID")
+	if gcpProjectId == "" {
+		log.Fatalf("missing env var 'GCP_PROJECT_ID'")
+	}
+
 	var err error
 	session, err = createSession("bigtabledevinstance")
 	if err != nil {

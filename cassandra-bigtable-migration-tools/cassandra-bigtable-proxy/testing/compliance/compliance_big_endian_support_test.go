@@ -17,13 +17,13 @@ func TestBigEndianDataSuccessCase(t *testing.T) {
 	err := session.Query(`INSERT INTO orders_big_endian_encoded (user_id, order_num, name) VALUES (?, ?, ?)`, "valid_int", int64(30), "foo").Exec()
 	require.NoError(t, err)
 
-	var user_id string
-	var order_num int64
+	var userId string
+	var orderNum int64
 	var name string
-	err = session.Query(`SELECT user_id, order_num, name FROM orders_big_endian_encoded WHERE user_id = ? AND order_num = ?`, "valid_int", int64(30)).Scan(&user_id, &order_num, &name)
+	err = session.Query(`SELECT user_id, order_num, name FROM orders_big_endian_encoded WHERE user_id = ? AND order_num = ?`, "valid_int", int64(30)).Scan(&userId, &orderNum, &name)
 	require.NoError(t, err, "Failed to select newly inserted record")
-	assert.Equal(t, "valid_int", user_id)
-	assert.Equal(t, int64(30), order_num)
+	assert.Equal(t, "valid_int", userId)
+	assert.Equal(t, int64(30), orderNum)
 	assert.Equal(t, "foo", name)
 }
 

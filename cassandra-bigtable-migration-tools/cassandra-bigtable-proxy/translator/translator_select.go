@@ -449,7 +449,7 @@ func processNonFunctionColumn(t *Translator, tableConfig *schemaMapping.TableCon
 	if columnMetadata.IsWriteTimeColumn {
 		columns = processWriteTimeColumn(tableConfig, columnMetadata, columnFamily, columns)
 	} else if columnMetadata.IsAs {
-		columns = processAsColumn(columnMetadata, columnFamily, t.SchemaMappingConfig.CounterColumnFamily, colMeta, columns, isGroupBy)
+		columns = processAsColumn(columnMetadata, t.SchemaMappingConfig.CounterColumnFamily, columnFamily, colMeta, columns, isGroupBy)
 	} else {
 		columns = processRegularColumn(columnMetadata, tableConfig.Name, t.SchemaMappingConfig.CounterColumnFamily, columnFamily, colMeta, columns, isGroupBy)
 	}

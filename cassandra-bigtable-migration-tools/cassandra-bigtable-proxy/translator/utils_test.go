@@ -18,6 +18,7 @@ package translator
 
 import (
 	"fmt"
+	"math"
 	"reflect"
 	"sort"
 	"strings"
@@ -1687,6 +1688,54 @@ func TestCreateOrderedCodeKey(t *testing.T) {
 			}),
 			values:  map[string]interface{}{"user_id": int64(0)},
 			want:    []byte("\x80"),
+			wantErr: false,
+		},
+		{
+			name: "int64 minvalue",
+			tableConfig: schemaMapping.NewTableConfig("keyspace", "table", "cf1", types.OrderedCodeEncoding, []*types.Column{
+				{Name: "user_id", CQLType: datatype.Bigint, KeyType: utilities.KEY_TYPE_PARTITION, PkPrecedence: 1},
+			}),
+			values:  map[string]interface{}{"user_id": int64(math.MinInt64)},
+			want:    []byte("\x00\xff\x3f\x80\x00\xff\x00\xff\x00\xff\x00\xff\x00\xff\x00\xff\x00\xff"),
+			wantErr: false,
+		},
+		{
+			name: "int64 negative value with leading null byte",
+			tableConfig: schemaMapping.NewTableConfig("keyspace", "table", "cf1", types.OrderedCodeEncoding, []*types.Column{
+				{Name: "user_id", CQLType: datatype.Bigint, KeyType: utilities.KEY_TYPE_PARTITION, PkPrecedence: 1},
+			}),
+			values:  map[string]interface{}{"user_id": int64(-922337203685473)},
+			want:    []byte("\x00\xff\xfc\xb9\x23\xa2\x9c\x77\x9f"),
+			wantErr: false,
+		},
+		{
+			name: "int32 minvalue",
+			tableConfig: schemaMapping.NewTableConfig("keyspace", "table", "cf1", types.OrderedCodeEncoding, []*types.Column{
+				{Name: "user_id", CQLType: datatype.Int, KeyType: utilities.KEY_TYPE_PARTITION, PkPrecedence: 1},
+			}),
+			values:  map[string]interface{}{"user_id": int64(math.MinInt32)},
+			want:    []byte("\x07\x80\x00\xff\x00\xff\x00\xff"),
+			wantErr: false,
+		},
+		{
+			name: "int minvalue combined",
+			tableConfig: schemaMapping.NewTableConfig("keyspace", "table", "cf1", types.OrderedCodeEncoding, []*types.Column{
+				{Name: "user_id", CQLType: datatype.Bigint, KeyType: utilities.KEY_TYPE_PARTITION, PkPrecedence: 1},
+				{Name: "other_id", CQLType: datatype.Int, KeyType: utilities.KEY_TYPE_PARTITION, PkPrecedence: 2},
+				{Name: "yet_another_id", CQLType: datatype.Varchar, KeyType: utilities.KEY_TYPE_PARTITION, PkPrecedence: 3},
+			}),
+			values:  map[string]interface{}{"user_id": int64(math.MinInt64), "other_id": int64(math.MinInt32), "yet_another_id": "id123"},
+			want:    []byte("\x00\xff\x3f\x80\x00\xff\x00\xff\x00\xff\x00\xff\x00\xff\x00\xff\x00\xff\x00\x01\x07\x80\x00\xff\x00\xff\x00\xff\x00\x01\x69\x64\x31\x32\x33"),
+			wantErr: false,
+		},
+		{
+			name: "int mixed",
+			tableConfig: schemaMapping.NewTableConfig("keyspace", "table", "cf1", types.OrderedCodeEncoding, []*types.Column{
+				{Name: "user_id", CQLType: datatype.Bigint, KeyType: utilities.KEY_TYPE_PARTITION, PkPrecedence: 1},
+				{Name: "other_id", CQLType: datatype.Int, KeyType: utilities.KEY_TYPE_PARTITION, PkPrecedence: 2},
+			}),
+			values:  map[string]interface{}{"user_id": int64(-43232545), "other_id": int64(-12451)},
+			want:    []byte("\x0d\x6c\x52\xdf\x00\x01\x1f\xcf\x5d"),
 			wantErr: false,
 		},
 		{

@@ -399,10 +399,13 @@ func (btc *BigtableClient) CreateTable(ctx context.Context, data *translator.Cre
 		return fmt.Errorf("cannot create table %s becauase it already exists", data.Table)
 	}
 
-	btc.Logger.Info("reloading schema mappings")
-	err = btc.reloadSchemaMappings(ctx, data.Keyspace, schemaMappingTableName)
-	if err != nil {
-		return err
+	// only reload schema mappings if we actually changed the schema mapping table
+	if !exists {
+		btc.Logger.Info("reloading schema mappings")
+		err = btc.reloadSchemaMappings(ctx, data.Keyspace, schemaMappingTableName)
+		if err != nil {
+			return err
+		}
 	}
 
 	return nil

@@ -77,6 +77,12 @@ CREATE TABLE IF NOT EXISTS bigtabledevinstance.multiple_int_keys (
 	PRIMARY KEY (user_id, order_num)
 );
 `,
+		`
+CREATE TABLE IF NOT EXISTS bigtabledevinstance.test_int_key (
+	user_id bigint PRIMARY KEY,
+	name varchar
+);
+`,
 	}
 
 	if testTarget == TestTargetProxy {

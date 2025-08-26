@@ -198,6 +198,12 @@ const (
 )
 
 func appendString(s []byte, x string) []byte {
+	s = escapeNullByte(s, x)
+	s = append(s, term...)
+	return s
+}
+
+func escapeNullByte(s []byte, x string) []byte {
 	last := 0
 	for i := 0; i < len(x); i++ {
 		switch x[i] {
@@ -208,7 +214,6 @@ func appendString(s []byte, x string) []byte {
 		}
 	}
 	s = append(s, x[last:]...)
-	s = append(s, term...)
 	return s
 }
 
@@ -243,10 +248,10 @@ func appendFloat64(s []byte, x float64) []byte {
 //     This is the inverse of the encoding of 0x10e.
 // There are many more examples in orderedcode_test.go.
 
-func appendInt64(s []byte, x int64) []byte {
+func encodeInt64(x int64) []byte {
 	// Fast-path those values of x that encode to a single byte.
 	if x >= -64 && x < 64 {
-		return append(s, uint8(x)^0x80)
+		return []byte{uint8(x) ^ 0x80}
 	}
 	// If x is negative, invert it, and correct for this at the end.
 	neg := x < 0
@@ -289,7 +294,11 @@ func appendInt64(s []byte, x int64) []byte {
 	if neg {
 		invert(buf[i:])
 	}
-	return append(s, buf[i:]...)
+	return buf[i:]
+}
+
+func appendInt64(buff []byte, x int64) []byte {
+	return escapeNullByte(buff, string(encodeInt64(x)))
 }
 
 // msb[i] is a byte whose first i bits (in most significant bit order) are 1

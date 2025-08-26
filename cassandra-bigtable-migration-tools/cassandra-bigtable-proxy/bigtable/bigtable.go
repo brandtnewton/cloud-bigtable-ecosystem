@@ -303,12 +303,14 @@ func (btc *BigtableClient) DropTable(ctx context.Context, data *translator.DropT
 		return fmt.Errorf("cannot delete table %s because it does not exist", data.Table)
 	}
 
-	btc.Logger.Info("reloading schema mappings")
-	err = btc.reloadSchemaMappings(ctx, data.Keyspace, schemaMappingTableName)
-	if err != nil {
-		return err
+	// only reload schema mapping table if this operation changed it
+	if exists {
+		btc.Logger.Info("reloading schema mappings")
+		err = btc.reloadSchemaMappings(ctx, data.Keyspace, schemaMappingTableName)
+		if err != nil {
+			return err
+		}
 	}
-
 	return nil
 }
 

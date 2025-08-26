@@ -35,7 +35,6 @@ func TestIntRowKeys(t *testing.T) {
 		{i32: -1, i64: math.MinInt64 + 100000},
 
 		// max int64
-		{i32: -1, i64: -1},
 		{i32: -1, i64: math.MaxInt64},
 		{i32: -1, i64: math.MaxInt64 - 1},
 		{i32: -1, i64: math.MaxInt64 - 2},

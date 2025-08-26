@@ -35,21 +35,11 @@ func invert(b []byte) {
 	}
 }
 
-type decr struct {
-	val interface{}
-}
-
 // Append appends the encoded representations of items to buf. Items can have
 // different underlying types, but each item must have type T or be the value
 // Decr(somethingOfTypeT), for T in the set: string or int64.
 func Append(buf []byte, items ...interface{}) ([]byte, error) {
 	for _, item := range items {
-		n := len(buf)
-		d, dOK := item.(decr)
-		if dOK {
-			item = d.val
-		}
-
 		switch x := item.(type) {
 		case string:
 			buf = appendString(buf, x)
@@ -57,10 +47,6 @@ func Append(buf []byte, items ...interface{}) ([]byte, error) {
 			buf = appendInt64(buf, x)
 		default:
 			return nil, fmt.Errorf("orderedcode: cannot append an item of type %T", item)
-		}
-
-		if dOK {
-			invert(buf[n:])
 		}
 	}
 	return buf, nil
@@ -172,11 +158,3 @@ func appendInt64(buff []byte, x int64) []byte {
 var msb = [8]byte{
 	0x00, 0x80, 0xc0, 0xe0, 0xf0, 0xf8, 0xfc, 0xfe,
 }
-
-// For decreasing order, the encoded bytes are the bitwise-not of the regular
-// encoding. Bitwise-not of a byte is equivalent to bitwise-xor with 0xff, and
-// bitwise-xor with 0x00 is a no-op.
-const (
-	increasing byte = 0x00
-	decreasing byte = 0xff
-)

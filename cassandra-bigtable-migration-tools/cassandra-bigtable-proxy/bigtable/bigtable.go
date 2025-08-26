@@ -304,7 +304,7 @@ func (btc *BigtableClient) DropTable(ctx context.Context, data *translator.DropT
 	}
 
 	// only reload schema mapping table if this operation changed it
-	if exists {
+	if len(rowKeysToDelete) > 0 {
 		btc.Logger.Info("reloading schema mappings")
 		err = btc.reloadSchemaMappings(ctx, data.Keyspace, schemaMappingTableName)
 		if err != nil {
@@ -355,19 +355,6 @@ func (btc *BigtableClient) CreateTable(ctx context.Context, data *translator.Cre
 		return err
 	}
 
-	exists, err := btc.tableSchemaExists(ctx, client, schemaMappingTableName, data.Table)
-	if err != nil {
-		return err
-	}
-
-	if !exists {
-		btc.Logger.Info("updating table schema")
-		err = btc.updateTableSchema(ctx, data.Keyspace, schemaMappingTableName, data.Table, data.PrimaryKeys, data.Columns, nil)
-		if err != nil {
-			return err
-		}
-	}
-
 	rowKeySchema, err := createBigtableRowKeySchema(data.PrimaryKeys, data.Columns, data.IntRowKeyEncoding)
 
 	columnFamilies := make(map[string]bigtable.Family)
@@ -382,6 +369,7 @@ func (btc *BigtableClient) CreateTable(ctx context.Context, data *translator.Cre
 		GCPolicy: bigtable.MaxVersionsPolicy(1),
 	}
 
+	// create the table conf first, here because it should exist before any reference to it in the schema mapping table is added, otherwise another concurrent request could try to load it and fail.
 	btc.Logger.Info("creating bigtable table")
 	err = adminClient.CreateTableFromConf(ctx, &bigtable.TableConf{
 		TableID:        data.Table,
@@ -395,6 +383,19 @@ func (btc *BigtableClient) CreateTable(ctx context.Context, data *translator.Cre
 	if err != nil {
 		btc.Logger.Error("failed to create bigtable table", zap.Error(err))
 		return err
+	}
+
+	exists, err := btc.tableSchemaExists(ctx, client, schemaMappingTableName, data.Table)
+	if err != nil {
+		return err
+	}
+
+	if !exists {
+		btc.Logger.Info("updating table schema")
+		err = btc.updateTableSchema(ctx, data.Keyspace, schemaMappingTableName, data.Table, data.PrimaryKeys, data.Columns, nil)
+		if err != nil {
+			return err
+		}
 	}
 
 	if exists && !data.IfNotExists {

@@ -19,215 +19,262 @@ package translator
 import (
 	"testing"
 
+	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/global/types"
+	schemaMapping "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/schema-mapping"
+	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/utilities"
 	"github.com/datastax/go-cassandra-native-protocol/datatype"
 	"github.com/datastax/go-cassandra-native-protocol/message"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+	"go.uber.org/zap"
 )
 
 func TestTranslateAlterTableToBigtable(t *testing.T) {
+
+	userInfoTable := schemaMapping.NewTableConfig("test_keyspace", "user_info", "cf1", types.OrderedCodeEncoding, []*types.Column{
+		{Name: "name", CQLType: datatype.Varchar, KeyType: utilities.KEY_TYPE_PARTITION, PkPrecedence: 1},
+		{Name: "age", CQLType: datatype.Int, KeyType: utilities.KEY_TYPE_CLUSTERING, PkPrecedence: 2},
+		{Name: "email", CQLType: datatype.Varchar, KeyType: utilities.KEY_TYPE_REGULAR, PkPrecedence: 0},
+		{Name: "username", CQLType: datatype.Varchar, KeyType: utilities.KEY_TYPE_REGULAR, PkPrecedence: 0},
+	})
+
 	var tests = []struct {
 		name            string
 		query           string
 		want            *AlterTableStatementMap
-		hasError        bool
+		tableConfig     *schemaMapping.TableConfig
+		error           string
 		defaultKeyspace string
 	}{
-		// Add column with explicit keyspace
 		{
-			name:  "Add column with explicit keyspace",
-			query: "ALTER TABLE my_keyspace.my_table ADD firstname text",
+			name:        "Add column with explicit keyspace",
+			query:       "ALTER TABLE test_keyspace.user_info ADD firstname text",
+			tableConfig: userInfoTable,
 			want: &AlterTableStatementMap{
-				Table:     "my_table",
-				Keyspace:  "my_keyspace",
-				QueryType: "alter",
-				AddColumns: []message.ColumnMetadata{{
-					Keyspace: "my_keyspace",
-					Table:    "my_table",
-					Name:     "firstname",
-					Index:    0,
-					Type:     datatype.Varchar,
-				}},
-			},
-			hasError:        false,
-			defaultKeyspace: "",
-		},
-		// Add column with default keyspace
-		{
-			name:  "Add column with default keyspace",
-			query: "ALTER TABLE my_table ADD firstname text",
-			want: &AlterTableStatementMap{
-				Table:     "my_table",
+				Table:     "user_info",
 				Keyspace:  "test_keyspace",
 				QueryType: "alter",
 				AddColumns: []message.ColumnMetadata{{
 					Keyspace: "test_keyspace",
-					Table:    "my_table",
+					Table:    "user_info",
 					Name:     "firstname",
 					Index:    0,
 					Type:     datatype.Varchar,
 				}},
 			},
-			hasError:        false,
-			defaultKeyspace: "test_keyspace",
-		},
-		// Add column without keyspace and no default keyspace
-		{
-			name:            "Add column without keyspace and no default keyspace (should error)",
-			query:           "ALTER TABLE my_table ADD firstname text",
-			want:            nil,
-			hasError:        true,
+			error:           "",
 			defaultKeyspace: "",
 		},
-		// Add column with empty table name
+		{
+			name:        "Add column with default keyspace",
+			query:       "ALTER TABLE user_info ADD firstname text",
+			tableConfig: userInfoTable,
+			want: &AlterTableStatementMap{
+				Table:     "user_info",
+				Keyspace:  "test_keyspace",
+				QueryType: "alter",
+				AddColumns: []message.ColumnMetadata{{
+					Keyspace: "test_keyspace",
+					Table:    "user_info",
+					Name:     "firstname",
+					Index:    0,
+					Type:     datatype.Varchar,
+				}},
+			},
+			error:           "",
+			defaultKeyspace: "test_keyspace",
+		},
+		{
+			name:            "Add column without keyspace and no default keyspace (should error)",
+			query:           "ALTER TABLE user_info ADD firstname text",
+			tableConfig:     userInfoTable,
+			want:            nil,
+			error:           "missing keyspace. keyspace is required",
+			defaultKeyspace: "",
+		},
 		{
 			name:            "Add column with empty table name (should error)",
 			query:           "ALTER TABLE . ADD firstname text",
+			tableConfig:     userInfoTable,
 			want:            nil,
-			hasError:        true,
+			error:           "error while parsing alter statement",
 			defaultKeyspace: "test_keyspace",
 		},
-		// Add multiple columns with explicit keyspace
 		{
-			name:  "Add multiple columns with explicit keyspace",
-			query: "ALTER TABLE my_keyspace.my_table ADD firstname text, age int",
+			name:        "Add multiple columns with explicit keyspace",
+			query:       "ALTER TABLE test_keyspace.user_info ADD firstname text, number_of_cats int",
+			tableConfig: userInfoTable,
 			want: &AlterTableStatementMap{
-				Table:     "my_table",
-				Keyspace:  "my_keyspace",
-				QueryType: "alter",
-				AddColumns: []message.ColumnMetadata{{
-					Keyspace: "my_keyspace",
-					Table:    "my_table",
-					Name:     "firstname",
-					Index:    0,
-					Type:     datatype.Varchar,
-				}, {
-					Keyspace: "my_keyspace",
-					Table:    "my_table",
-					Name:     "age",
-					Index:    1,
-					Type:     datatype.Int,
-				}},
-			},
-			hasError:        false,
-			defaultKeyspace: "",
-		},
-		// Add multiple columns with default keyspace
-		{
-			name:  "Add multiple columns with default keyspace",
-			query: "ALTER TABLE my_table ADD firstname text, age int",
-			want: &AlterTableStatementMap{
-				Table:     "my_table",
+				Table:     "user_info",
 				Keyspace:  "test_keyspace",
 				QueryType: "alter",
 				AddColumns: []message.ColumnMetadata{{
 					Keyspace: "test_keyspace",
-					Table:    "my_table",
+					Table:    "user_info",
 					Name:     "firstname",
 					Index:    0,
 					Type:     datatype.Varchar,
 				}, {
 					Keyspace: "test_keyspace",
-					Table:    "my_table",
-					Name:     "age",
+					Table:    "user_info",
+					Name:     "number_of_cats",
 					Index:    1,
 					Type:     datatype.Int,
 				}},
 			},
-			hasError:        false,
-			defaultKeyspace: "test_keyspace",
-		},
-		// Drop column with explicit keyspace
-		{
-			name:  "Drop column with explicit keyspace",
-			query: "ALTER TABLE my_keyspace.my_table DROP firstname",
-			want: &AlterTableStatementMap{
-				Table:       "my_table",
-				Keyspace:    "my_keyspace",
-				QueryType:   "alter",
-				DropColumns: []string{"firstname"},
-			},
-			hasError:        false,
+			error:           "",
 			defaultKeyspace: "",
 		},
-		// Drop column with default keyspace
 		{
-			name:  "Drop column with default keyspace",
-			query: "ALTER TABLE my_table DROP firstname",
+			name:        "Add multiple columns with default keyspace",
+			query:       "ALTER TABLE user_info ADD firstname text, number_of_toes int",
+			tableConfig: userInfoTable,
 			want: &AlterTableStatementMap{
-				Table:       "my_table",
-				Keyspace:    "test_keyspace",
-				QueryType:   "alter",
-				DropColumns: []string{"firstname"},
+				Table:     "user_info",
+				Keyspace:  "test_keyspace",
+				QueryType: "alter",
+				AddColumns: []message.ColumnMetadata{{
+					Keyspace: "test_keyspace",
+					Table:    "user_info",
+					Name:     "firstname",
+					Index:    0,
+					Type:     datatype.Varchar,
+				}, {
+					Keyspace: "test_keyspace",
+					Table:    "user_info",
+					Name:     "number_of_toes",
+					Index:    1,
+					Type:     datatype.Int,
+				}},
 			},
-			hasError:        false,
+			error:           "",
 			defaultKeyspace: "test_keyspace",
 		},
-		// Drop column without keyspace and no default keyspace
+		{
+			name:        "Drop column with explicit keyspace",
+			query:       "ALTER TABLE test_keyspace.user_info DROP email",
+			tableConfig: userInfoTable,
+			want: &AlterTableStatementMap{
+				Table:       "user_info",
+				Keyspace:    "test_keyspace",
+				QueryType:   "alter",
+				DropColumns: []string{"email"},
+			},
+			error:           "",
+			defaultKeyspace: "",
+		},
+		{
+			name:        "Drop column with default keyspace",
+			query:       "ALTER TABLE user_info DROP email",
+			tableConfig: userInfoTable,
+			want: &AlterTableStatementMap{
+				Table:       "user_info",
+				Keyspace:    "test_keyspace",
+				QueryType:   "alter",
+				DropColumns: []string{"email"},
+			},
+			error:           "",
+			defaultKeyspace: "test_keyspace",
+		},
 		{
 			name:            "Drop column without keyspace and no default keyspace (should error)",
-			query:           "ALTER TABLE my_table DROP firstname",
+			query:           "ALTER TABLE user_info DROP email",
+			tableConfig:     userInfoTable,
 			want:            nil,
-			hasError:        true,
+			error:           "missing keyspace. keyspace is required",
 			defaultKeyspace: "",
 		},
-		// Drop multiple columns with explicit keyspace
 		{
-			name:  "Drop multiple columns with explicit keyspace",
-			query: "ALTER TABLE my_keyspace.my_table DROP firstname, lastname",
+			name:        "Drop multiple columns with explicit keyspace",
+			query:       "ALTER TABLE test_keyspace.user_info DROP email, username",
+			tableConfig: userInfoTable,
 			want: &AlterTableStatementMap{
-				Table:       "my_table",
-				Keyspace:    "my_keyspace",
-				QueryType:   "alter",
-				DropColumns: []string{"firstname", "lastname"},
-			},
-			hasError:        false,
-			defaultKeyspace: "",
-		},
-		// Drop multiple columns with default keyspace
-		{
-			name:  "Drop multiple columns with default keyspace",
-			query: "ALTER TABLE my_table DROP firstname, lastname",
-			want: &AlterTableStatementMap{
-				Table:       "my_table",
+				Table:       "user_info",
 				Keyspace:    "test_keyspace",
 				QueryType:   "alter",
-				DropColumns: []string{"firstname", "lastname"},
+				DropColumns: []string{"email", "username"},
 			},
-			hasError:        false,
+			error:           "",
+			defaultKeyspace: "",
+		},
+		{
+			name:        "Drop multiple columns with default keyspace",
+			query:       "ALTER TABLE user_info DROP email, username",
+			tableConfig: userInfoTable,
+			want: &AlterTableStatementMap{
+				Table:       "user_info",
+				Keyspace:    "test_keyspace",
+				QueryType:   "alter",
+				DropColumns: []string{"email", "username"},
+			},
+			error:           "",
 			defaultKeyspace: "test_keyspace",
 		},
-		// Drop multiple columns without keyspace and no default keyspace
 		{
 			name:            "Drop multiple columns without keyspace and no default keyspace (should error)",
-			query:           "ALTER TABLE my_table DROP firstname, lastname",
+			query:           "ALTER TABLE user_info DROP firstname, lastname",
+			tableConfig:     userInfoTable,
 			want:            nil,
-			hasError:        true,
+			error:           "missing keyspace. keyspace is required",
 			defaultKeyspace: "",
 		},
-		// Rename column (not supported)
 		{
 			name:            "Rename column (not supported)",
-			query:           "ALTER TABLE my_keyspace.my_table RENAME col1 TO col2",
+			query:           "ALTER TABLE test_keyspace.user_info RENAME col1 TO col2",
+			tableConfig:     userInfoTable,
 			want:            nil,
-			hasError:        true,
+			error:           "rename operation in alter table command not supported",
 			defaultKeyspace: "",
 		},
-	}
-
-	tr := &Translator{
-		Logger:              nil,
-		SchemaMappingConfig: nil,
+		{
+			name:            "Add multiple columns but one already exists",
+			query:           "ALTER TABLE test_keyspace.user_info ADD firstname text, age int",
+			tableConfig:     userInfoTable,
+			want:            nil,
+			error:           "column 'age' already exists in table",
+			defaultKeyspace: "",
+		},
+		{
+			name:            "Drop primary key",
+			query:           "ALTER TABLE test_keyspace.user_info DROP name",
+			tableConfig:     userInfoTable,
+			want:            nil,
+			error:           "cannot drop primary key column: 'name'",
+			defaultKeyspace: "",
+		},
+		{
+			name:            "Alter type not supported",
+			query:           "ALTER TABLE test_keyspace.user_info ALTER name int",
+			tableConfig:     userInfoTable,
+			want:            nil,
+			error:           "alter column type operations are not supported",
+			defaultKeyspace: "",
+		},
+		{
+			name:            "Alter table properties not supported",
+			query:           "ALTER TABLE test_keyspace.user_info WITH comment = 'bigtable was here'",
+			tableConfig:     userInfoTable,
+			want:            nil,
+			error:           "table property operations are not supported",
+			defaultKeyspace: "",
+		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := tr.TranslateAlterTableToBigtable(tt.query, tt.defaultKeyspace)
-			if tt.hasError {
-				assert.Error(t, err)
-			} else {
-				assert.NoError(t, err)
+			require.NotNil(t, tt.tableConfig, "tests must define a table config")
+			smc := schemaMapping.NewSchemaMappingConfig("cf1", "ctrf", zap.NewNop(), []*schemaMapping.TableConfig{tt.tableConfig})
+			tr := &Translator{
+				Logger:              nil,
+				SchemaMappingConfig: smc,
 			}
-			assert.True(t, (err != nil) == tt.hasError, tt.hasError)
+			got, err := tr.TranslateAlterTableToBigtable(tt.query, tt.defaultKeyspace)
+			if tt.error != "" {
+				require.Error(t, err)
+				assert.Equal(t, tt.error, err.Error())
+			} else {
+				require.NoError(t, err)
+			}
 			assert.Equal(t, tt.want, got)
 		})
 	}

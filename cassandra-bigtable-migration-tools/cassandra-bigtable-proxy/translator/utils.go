@@ -1393,7 +1393,7 @@ func processSet[V any](
 // It iterates over the clauses and constructs the WHERE clause by combining the column name, operator, and value of each clause.
 // If the operator is "IN", the value is wrapped with the UNNEST function.
 // The constructed WHERE clause is returned as a string.
-func buildWhereClause(clauses []types.Clause, tableConfig *schemaMapping.TableConfig, tableName string, keySpace string) (string, error) {
+func buildWhereClause(clauses []types.Clause, tableConfig *schemaMapping.TableConfig, counterColumnFamily string) (string, error) {
 	whereClause := ""
 	columnFamily := tableConfig.SystemColumnFamily
 	for _, val := range clauses {
@@ -1403,7 +1403,7 @@ func buildWhereClause(clauses []types.Clause, tableConfig *schemaMapping.TableCo
 			// Check if the column is a primitive type and prepend the column family
 			if !utilities.IsCollectionColumn(colMeta) {
 				var castErr error
-				column, castErr = castColumns(colMeta, columnFamily, t.SchemaMappingConfig.CounterColumnFamily)
+				column, castErr = castColumns(colMeta, columnFamily, counterColumnFamily)
 				if castErr != nil {
 					return "", castErr
 				}
@@ -1460,7 +1460,7 @@ func castColumns(colMeta *types.Column, columnFamily string, counterColumnFamily
 	case datatype.Timestamp:
 		nc = fmt.Sprintf("TO_TIME(%s['%s'])", columnFamily, colMeta.Name)
 	case datatype.Counter:
-		nc = fmt.Sprintf("%s['%s']", counterColumnFamily, colMeta.ColumnName)
+		nc = fmt.Sprintf("%s['%s']", counterColumnFamily, colMeta.Name)
 	case datatype.Blob:
 		nc = fmt.Sprintf("TO_BLOB(%s['%s'])", columnFamily, colMeta.Name)
 	case datatype.Varchar:
@@ -2181,7 +2181,7 @@ func createOrderedCodeKey(tableConfig *schemaMapping.TableConfig, values map[str
 		var err error
 		switch v := value.(type) {
 		case int64:
-			orderEncodedField, err = encodeInt64Key(v, tableConfig.EncodeIntRowKeysWithBigEndian)
+			orderEncodedField, err = encodeInt64Key(v, tableConfig.IntRowKeyEncoding)
 			if err != nil {
 				return nil, err
 			}
@@ -2224,28 +2224,33 @@ func createOrderedCodeKey(tableConfig *schemaMapping.TableConfig, values map[str
 // encodeInt64Key encodes an int64 value for row keys.
 // Converts int64 values to byte representation with validation.
 // Returns error if value is invalid or encoding fails.
-func encodeInt64Key(value int64, encodeIntRowKeysWithBigEndian bool) ([]byte, error) {
-	// override ordered code value with BigEndian
-	if encodeIntRowKeysWithBigEndian {
-		if value < 0 {
-			return nil, errors.New("row keys cannot contain negative integer values until ordered byte encoding is supported")
-		}
+func encodeInt64Key(value int64, intRowKeyEncoding types.IntRowKeyEncodingType) ([]byte, error) {
+	switch intRowKeyEncoding {
+	case types.BigEndianEncoding:
+		return encodeIntRowKeysWithBigEndian(value)
+	case types.OrderedCodeEncoding:
+		return Append(nil, value)
+	}
+	return nil, fmt.Errorf("unhandled int encoding type: %v", intRowKeyEncoding)
+}
 
-		var b bytes.Buffer
-		err := binary.Write(&b, binary.BigEndian, value)
-		if err != nil {
-			return nil, err
-		}
-
-		result, err := Append(nil, b.String())
-		if err != nil {
-			return nil, err
-		}
-
-		return result[:len(result)-2], nil
+func encodeIntRowKeysWithBigEndian(value int64) ([]byte, error) {
+	if value < 0 {
+		return nil, errors.New("row keys with big endian encoding cannot contain negative integer values")
 	}
 
-	return Append(nil, value)
+	var b bytes.Buffer
+	err := binary.Write(&b, binary.BigEndian, value)
+	if err != nil {
+		return nil, err
+	}
+
+	result, err := Append(nil, b.String())
+	if err != nil {
+		return nil, err
+	}
+
+	return result[:len(result)-2], nil
 }
 
 // DataConversionInInsertionIfRequired performs data type conversion for insertions.

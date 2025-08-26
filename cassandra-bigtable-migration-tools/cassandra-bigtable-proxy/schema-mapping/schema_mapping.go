@@ -28,6 +28,8 @@ const (
 	LimitValue = "limitValue"
 )
 
+// SchemaMappingConfig contains the schema information for all tables, across
+// all Bigtable instances, managed by this proxy.
 type SchemaMappingConfig struct {
 	Logger              *zap.Logger
 	mu                  sync.RWMutex
@@ -36,6 +38,7 @@ type SchemaMappingConfig struct {
 	CounterColumnFamily string
 }
 
+// NewSchemaMappingConfig is a constructor for SchemaMappingConfig. Please use this instead of direct initialization.
 func NewSchemaMappingConfig(systemColumnFamily string, counterColumnFamily string, logger *zap.Logger, tableConfigs []*TableConfig) *SchemaMappingConfig {
 	tablesMap := make(map[string]map[string]*TableConfig)
 	for _, tableConfig := range tableConfigs {
@@ -70,6 +73,21 @@ func (c *SchemaMappingConfig) GetAllTables() map[string]map[string]*TableConfig 
 	}
 
 	return tablesCopy
+}
+
+func (c *SchemaMappingConfig) ReplaceTables(tableConfigs []*TableConfig) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	// clear the existing tables
+	c.tables = make(map[string]map[string]*TableConfig)
+
+	for _, tableConfig := range tableConfigs {
+		if _, exists := c.tables[tableConfig.Keyspace]; !exists {
+			c.tables[tableConfig.Keyspace] = make(map[string]*TableConfig)
+		}
+		c.tables[tableConfig.Keyspace][tableConfig.Name] = tableConfig
+	}
 }
 
 func (c *SchemaMappingConfig) UpdateTables(tableConfigs []*TableConfig) {

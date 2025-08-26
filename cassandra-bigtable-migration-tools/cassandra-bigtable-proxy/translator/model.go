@@ -29,6 +29,8 @@ import (
 type Translator struct {
 	Logger              *zap.Logger
 	SchemaMappingConfig *schemaMapping.SchemaMappingConfig
+	// determines the encoding for int row keys in all new tables
+	DefaultIntRowKeyEncoding types.IntRowKeyEncodingType
 }
 
 // SelectQueryMap represents the mapping of a select query along with its translation details.
@@ -87,7 +89,7 @@ type Limit struct {
 
 type ColumnMeta struct {
 	Star   bool
-	Column []types.SelectedColumns
+	Column []types.SelectedColumn
 }
 
 type IfSpec struct {
@@ -171,16 +173,17 @@ type DeleteQueryMapping struct {
 	ReturnMetadata    []*message.ColumnMetadata // Metadata of all columns of that table in Cassandra format
 	TimestampInfo     TimestampInfo
 	IfExists          bool
-	SelectedColumns   []types.SelectedColumns
+	SelectedColumns   []types.SelectedColumn
 }
 
 type CreateTableStatementMap struct {
-	QueryType   string
-	Keyspace    string
-	Table       string
-	IfNotExists bool
-	Columns     []message.ColumnMetadata
-	PrimaryKeys []CreateTablePrimaryKeyConfig
+	QueryType         string
+	Keyspace          string
+	Table             string
+	IfNotExists       bool
+	Columns           []message.ColumnMetadata
+	PrimaryKeys       []CreateTablePrimaryKeyConfig
+	IntRowKeyEncoding types.IntRowKeyEncodingType
 }
 
 type CreateTablePrimaryKeyConfig struct {

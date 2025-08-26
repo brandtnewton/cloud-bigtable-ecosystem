@@ -710,7 +710,7 @@ func TestTranslator_TranslateSelectQuerytoBigtable(t *testing.T) {
 				Keyspace:        "test_keyspace",
 				ColumnMeta: ColumnMeta{
 					Star:   false,
-					Column: []types.SelectedColumns{{Name: "column1"}, {Name: "column2"}, {Name: "column3"}},
+					Column: []types.SelectedColumn{{Name: "column1"}, {Name: "column2"}, {Name: "column3"}},
 				},
 				Limit: Limit{
 					IsLimit: true,
@@ -1144,7 +1144,7 @@ func TestTranslator_TranslateSelectQuerytoBigtable(t *testing.T) {
 				Keyspace:        "test_keyspace",
 				ColumnMeta: ColumnMeta{
 					Star: false,
-					Column: []types.SelectedColumns{
+					Column: []types.SelectedColumn{
 						{Name: "column1"},
 						{Name: "count_col2", IsFunc: true, FuncName: "count", ColumnName: "column2", IsAs: true, Alias: "count_col2"},
 					},
@@ -1207,7 +1207,7 @@ func TestTranslator_TranslateSelectQuerytoBigtable(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			schemaMappingConfig := GetSchemaMappingConfig(false)
+			schemaMappingConfig := GetSchemaMappingConfig(types.OrderedCodeEncoding)
 			tr := &Translator{
 				Logger:              tt.fields.Logger,
 				SchemaMappingConfig: schemaMappingConfig,
@@ -1229,7 +1229,7 @@ func TestTranslator_TranslateSelectQuerytoBigtable(t *testing.T) {
 }
 
 func Test_GetBigtableSelectQuery(t *testing.T) {
-	schemaMap := GetSchemaMappingConfig(false)
+	schemaMap := GetSchemaMappingConfig(types.OrderedCodeEncoding)
 	tr := &Translator{
 		Logger:              zap.NewNop(),
 		SchemaMappingConfig: schemaMap,
@@ -1323,7 +1323,7 @@ func Test_GetBigtableSelectQuery(t *testing.T) {
 					Keyspace:  "test_keyspace",
 					ColumnMeta: ColumnMeta{
 						Star: false,
-						Column: []types.SelectedColumns{
+						Column: []types.SelectedColumn{
 							{Name: "column1"},
 							{Name: "column6"},
 						},
@@ -1343,7 +1343,7 @@ func Test_GetBigtableSelectQuery(t *testing.T) {
 					Keyspace:  "test_keyspace",
 					ColumnMeta: ColumnMeta{
 						Star: false,
-						Column: []types.SelectedColumns{
+						Column: []types.SelectedColumn{
 							{Name: "column1"},
 							{Name: "map_text_text"},
 						},
@@ -1371,7 +1371,7 @@ func Test_GetBigtableSelectQuery(t *testing.T) {
 					Keyspace:  "test_keyspace",
 					ColumnMeta: ColumnMeta{
 						Star: false,
-						Column: []types.SelectedColumns{
+						Column: []types.SelectedColumn{
 							{Name: "column1", ColumnName: "column1"},
 							{Name: "SUM(column2)", IsFunc: true, FuncName: "SUM", ColumnName: "column2", IsAs: true, Alias: "total"},
 							{Name: "column3", ColumnName: "column3"},
@@ -1400,8 +1400,8 @@ func Test_GetBigtableSelectQuery(t *testing.T) {
 					{Name: "column2", CQLType: datatype.Bigint, KeyType: utilities.KEY_TYPE_REGULAR},
 					{Name: "column3", CQLType: datatype.Bigint, KeyType: utilities.KEY_TYPE_PARTITION},
 				}
-				tableCfg := schemaMapping.NewTableConfig("test_keyspace", "test_table", "cf1", false, cols)
-				schemaCfg := schemaMapping.NewSchemaMappingConfig("cf1", zap.NewNop(), []*schemaMapping.TableConfig{tableCfg})
+				tableCfg := schemaMapping.NewTableConfig("test_keyspace", "test_table", "cf1", types.OrderedCodeEncoding, cols)
+				schemaCfg := schemaMapping.NewSchemaMappingConfig("cf1", "ctrf", zap.NewNop(), []*schemaMapping.TableConfig{tableCfg})
 				return &Translator{
 					Logger:              zap.NewNop(),
 					SchemaMappingConfig: schemaCfg,
@@ -1417,7 +1417,7 @@ func Test_GetBigtableSelectQuery(t *testing.T) {
 					Keyspace:  "test_keyspace",
 					ColumnMeta: ColumnMeta{
 						Star: false,
-						Column: []types.SelectedColumns{
+						Column: []types.SelectedColumn{
 							{Name: "column1", ColumnName: "column1"},
 							{Name: "AVG(column2)", IsFunc: true, FuncName: "AVG", ColumnName: "column2", IsAs: true, Alias: "avg_value"},
 							{Name: "MAX(column3)", IsFunc: true, FuncName: "MAX", ColumnName: "column3", IsAs: true, Alias: "max_value"},
@@ -1441,8 +1441,8 @@ func Test_GetBigtableSelectQuery(t *testing.T) {
 					{Name: "column2", CQLType: datatype.Bigint, KeyType: utilities.KEY_TYPE_REGULAR},
 					{Name: "column3", CQLType: datatype.Bigint, KeyType: utilities.KEY_TYPE_REGULAR},
 				}
-				tableCfg := schemaMapping.NewTableConfig("test_keyspace", "test_table", "cf1", false, cols)
-				schemaCfg := schemaMapping.NewSchemaMappingConfig("cf1", zap.NewNop(), []*schemaMapping.TableConfig{tableCfg})
+				tableCfg := schemaMapping.NewTableConfig("test_keyspace", "test_table", "cf1", types.OrderedCodeEncoding, cols)
+				schemaCfg := schemaMapping.NewSchemaMappingConfig("cf1", "ctrf", zap.NewNop(), []*schemaMapping.TableConfig{tableCfg})
 				return &Translator{
 					Logger:              zap.NewNop(),
 					SchemaMappingConfig: schemaCfg,
@@ -1458,7 +1458,7 @@ func Test_GetBigtableSelectQuery(t *testing.T) {
 					Keyspace:  "test_keyspace",
 					ColumnMeta: ColumnMeta{
 						Star: false,
-						Column: []types.SelectedColumns{
+						Column: []types.SelectedColumn{
 							{Name: "COUNT(*)", IsFunc: true, FuncName: "COUNT", ColumnName: "*", IsAs: true, Alias: "total_count"},
 						},
 					},
@@ -1475,8 +1475,8 @@ func Test_GetBigtableSelectQuery(t *testing.T) {
 				cols := []*types.Column{
 					{Name: "column1", CQLType: datatype.Bigint, KeyType: utilities.KEY_TYPE_PARTITION},
 				}
-				tableCfg := schemaMapping.NewTableConfig("test_keyspace", "test_table", "cf1", false, cols)
-				schemaCfg := schemaMapping.NewSchemaMappingConfig("cf1", zap.NewNop(), []*schemaMapping.TableConfig{tableCfg})
+				tableCfg := schemaMapping.NewTableConfig("test_keyspace", "test_table", "cf1", types.OrderedCodeEncoding, cols)
+				schemaCfg := schemaMapping.NewSchemaMappingConfig("cf1", "ctrf", zap.NewNop(), []*schemaMapping.TableConfig{tableCfg})
 				return &Translator{
 					Logger:              zap.NewNop(),
 					SchemaMappingConfig: schemaCfg,
@@ -1492,7 +1492,7 @@ func Test_GetBigtableSelectQuery(t *testing.T) {
 					Keyspace:  "test_keyspace",
 					ColumnMeta: ColumnMeta{
 						Star: false,
-						Column: []types.SelectedColumns{
+						Column: []types.SelectedColumn{
 							{Name: "MIN(column2)", IsFunc: true, FuncName: "MIN", ColumnName: "column2", IsAs: true, Alias: "min_value"},
 							{Name: "MAX(column2)", IsFunc: true, FuncName: "MAX", ColumnName: "column2", IsAs: true, Alias: "max_value"},
 						},
@@ -1516,8 +1516,8 @@ func Test_GetBigtableSelectQuery(t *testing.T) {
 					{Name: "column1", CQLType: datatype.Varchar, KeyType: utilities.KEY_TYPE_PARTITION},
 					{Name: "column2", CQLType: datatype.Bigint, KeyType: utilities.KEY_TYPE_REGULAR},
 				}
-				tableCfg := schemaMapping.NewTableConfig("test_keyspace", "test_table", "cf1", false, cols)
-				schemaCfg := schemaMapping.NewSchemaMappingConfig("cf1", zap.NewNop(), []*schemaMapping.TableConfig{tableCfg})
+				tableCfg := schemaMapping.NewTableConfig("test_keyspace", "test_table", "cf1", types.OrderedCodeEncoding, cols)
+				schemaCfg := schemaMapping.NewSchemaMappingConfig("cf1", "ctrf", zap.NewNop(), []*schemaMapping.TableConfig{tableCfg})
 				return &Translator{
 					Logger:              zap.NewNop(),
 					SchemaMappingConfig: schemaCfg,
@@ -1533,7 +1533,7 @@ func Test_GetBigtableSelectQuery(t *testing.T) {
 					Keyspace:  "test_keyspace",
 					ColumnMeta: ColumnMeta{
 						Star: false,
-						Column: []types.SelectedColumns{
+						Column: []types.SelectedColumn{
 							{Name: "column1", ColumnName: "column1"},
 							{Name: "SUM(column2)", IsFunc: true, FuncName: "SUM", ColumnName: "column2", IsAs: true, Alias: "total_sum"},
 						},
@@ -1549,8 +1549,8 @@ func Test_GetBigtableSelectQuery(t *testing.T) {
 					{Name: "column1", CQLType: datatype.Varchar, KeyType: utilities.KEY_TYPE_PARTITION},
 					{Name: "column2", CQLType: datatype.Bigint, KeyType: utilities.KEY_TYPE_REGULAR},
 				}
-				tableCfg := schemaMapping.NewTableConfig("test_keyspace", "test_table", "cf1", false, cols)
-				schemaCfg := schemaMapping.NewSchemaMappingConfig("cf1", zap.NewNop(), []*schemaMapping.TableConfig{tableCfg})
+				tableCfg := schemaMapping.NewTableConfig("test_keyspace", "test_table", "cf1", types.OrderedCodeEncoding, cols)
+				schemaCfg := schemaMapping.NewSchemaMappingConfig("cf1", "ctrf", zap.NewNop(), []*schemaMapping.TableConfig{tableCfg})
 				return &Translator{
 					Logger:              zap.NewNop(),
 					SchemaMappingConfig: schemaCfg,
@@ -1566,7 +1566,7 @@ func Test_GetBigtableSelectQuery(t *testing.T) {
 					Keyspace:  "test_keyspace",
 					ColumnMeta: ColumnMeta{
 						Star: false,
-						Column: []types.SelectedColumns{
+						Column: []types.SelectedColumn{
 							{Name: "name", ColumnName: "name"},
 							{Name: "age", ColumnName: "age"},
 							{Name: "MAX(code)", IsFunc: true, FuncName: "MAX", ColumnName: "code", IsAs: true, Alias: "max_code"},
@@ -1591,8 +1591,8 @@ func Test_GetBigtableSelectQuery(t *testing.T) {
 					{Name: "age", CQLType: datatype.Bigint, KeyType: utilities.KEY_TYPE_REGULAR},
 					{Name: "code", CQLType: datatype.Bigint, KeyType: utilities.KEY_TYPE_REGULAR},
 				}
-				tableCfg := schemaMapping.NewTableConfig("test_keyspace", "test_table", "cf1", false, cols)
-				schemaCfg := schemaMapping.NewSchemaMappingConfig("cf1", zap.NewNop(), []*schemaMapping.TableConfig{tableCfg})
+				tableCfg := schemaMapping.NewTableConfig("test_keyspace", "test_table", "cf1", types.OrderedCodeEncoding, cols)
+				schemaCfg := schemaMapping.NewSchemaMappingConfig("cf1", "ctrf", zap.NewNop(), []*schemaMapping.TableConfig{tableCfg})
 				return &Translator{
 					Logger:              zap.NewNop(),
 					SchemaMappingConfig: schemaCfg,
@@ -1608,7 +1608,7 @@ func Test_GetBigtableSelectQuery(t *testing.T) {
 					Keyspace:  "test_keyspace",
 					ColumnMeta: ColumnMeta{
 						Star: false,
-						Column: []types.SelectedColumns{
+						Column: []types.SelectedColumn{
 							{Name: "name", ColumnName: "name"},
 							{Name: "age", ColumnName: "age"},
 							{Name: "code", ColumnName: "code"},
@@ -1632,8 +1632,8 @@ func Test_GetBigtableSelectQuery(t *testing.T) {
 					{Name: "age", CQLType: datatype.Bigint, KeyType: utilities.KEY_TYPE_REGULAR},
 					{Name: "code", CQLType: datatype.Bigint, KeyType: utilities.KEY_TYPE_REGULAR},
 				}
-				tableCfg := schemaMapping.NewTableConfig("test_keyspace", "test_table", "cf1", false, cols)
-				schemaCfg := schemaMapping.NewSchemaMappingConfig("cf1", zap.NewNop(), []*schemaMapping.TableConfig{tableCfg})
+				tableCfg := schemaMapping.NewTableConfig("test_keyspace", "test_table", "cf1", types.OrderedCodeEncoding, cols)
+				schemaCfg := schemaMapping.NewSchemaMappingConfig("cf1", "ctrf", zap.NewNop(), []*schemaMapping.TableConfig{tableCfg})
 				return &Translator{
 					Logger:              zap.NewNop(),
 					SchemaMappingConfig: schemaCfg,
@@ -1649,7 +1649,7 @@ func Test_GetBigtableSelectQuery(t *testing.T) {
 					Keyspace:  "test_keyspace",
 					ColumnMeta: ColumnMeta{
 						Star: false,
-						Column: []types.SelectedColumns{
+						Column: []types.SelectedColumn{
 							{Name: "name", ColumnName: "name"},
 							{Name: "age", ColumnName: "age"},
 							{Name: "MAX(code)", IsFunc: true, FuncName: "MAX", ColumnName: "code", IsAs: true, Alias: "max_code"},
@@ -1674,8 +1674,8 @@ func Test_GetBigtableSelectQuery(t *testing.T) {
 					{Name: "age", CQLType: datatype.Bigint, KeyType: utilities.KEY_TYPE_REGULAR},
 					{Name: "code", CQLType: datatype.Bigint, KeyType: utilities.KEY_TYPE_REGULAR},
 				}
-				tableCfg := schemaMapping.NewTableConfig("test_keyspace", "test_table", "cf1", false, cols)
-				schemaCfg := schemaMapping.NewSchemaMappingConfig("cf1", zap.NewNop(), []*schemaMapping.TableConfig{tableCfg})
+				tableCfg := schemaMapping.NewTableConfig("test_keyspace", "test_table", "cf1", types.OrderedCodeEncoding, cols)
+				schemaCfg := schemaMapping.NewSchemaMappingConfig("cf1", "ctrf", zap.NewNop(), []*schemaMapping.TableConfig{tableCfg})
 				return &Translator{
 					Logger:              zap.NewNop(),
 					SchemaMappingConfig: schemaCfg,
@@ -1918,7 +1918,7 @@ type mockKwDescContext struct {
 func Test_processFunctionColumn(t *testing.T) {
 	tests := []struct {
 		name           string
-		columnMetadata types.SelectedColumns
+		columnMetadata types.SelectedColumn
 		tableName      string
 		keySpace       string
 		inputColumns   []string
@@ -1928,7 +1928,7 @@ func Test_processFunctionColumn(t *testing.T) {
 	}{
 		{
 			name: "COUNT(*)",
-			columnMetadata: types.SelectedColumns{
+			columnMetadata: types.SelectedColumn{
 				FuncName:   "count",
 				ColumnName: "*",
 				IsFunc:     true,
@@ -1943,7 +1943,7 @@ func Test_processFunctionColumn(t *testing.T) {
 		},
 		{
 			name: "AVG with numeric column",
-			columnMetadata: types.SelectedColumns{
+			columnMetadata: types.SelectedColumn{
 				FuncName:   "avg",
 				ColumnName: "age",
 				IsFunc:     true,
@@ -1958,7 +1958,7 @@ func Test_processFunctionColumn(t *testing.T) {
 		},
 		{
 			name: "SUM with alias",
-			columnMetadata: types.SelectedColumns{
+			columnMetadata: types.SelectedColumn{
 				FuncName:   "sum",
 				ColumnName: "balance",
 				IsFunc:     true,
@@ -1975,7 +1975,7 @@ func Test_processFunctionColumn(t *testing.T) {
 		},
 		{
 			name: "Invalid function",
-			columnMetadata: types.SelectedColumns{
+			columnMetadata: types.SelectedColumn{
 				FuncName:   "invalid_func",
 				ColumnName: "age",
 				IsFunc:     true,
@@ -1988,7 +1988,7 @@ func Test_processFunctionColumn(t *testing.T) {
 		},
 		{
 			name: "Non-numeric column in aggregate",
-			columnMetadata: types.SelectedColumns{
+			columnMetadata: types.SelectedColumn{
 				FuncName:   "sum",
 				ColumnName: "name",
 				IsFunc:     true,
@@ -2001,7 +2001,7 @@ func Test_processFunctionColumn(t *testing.T) {
 		},
 		{
 			name: "AVG with float column",
-			columnMetadata: types.SelectedColumns{
+			columnMetadata: types.SelectedColumn{
 				FuncName:   "avg",
 				ColumnName: "balance",
 				IsFunc:     true,
@@ -2016,7 +2016,7 @@ func Test_processFunctionColumn(t *testing.T) {
 		},
 		{
 			name: "MIN with int column",
-			columnMetadata: types.SelectedColumns{
+			columnMetadata: types.SelectedColumn{
 				FuncName:   "min",
 				ColumnName: "code",
 				IsFunc:     true,
@@ -2031,7 +2031,7 @@ func Test_processFunctionColumn(t *testing.T) {
 		},
 		{
 			name: "MAX with alias",
-			columnMetadata: types.SelectedColumns{
+			columnMetadata: types.SelectedColumn{
 				FuncName:   "max",
 				ColumnName: "age",
 				IsFunc:     true,
@@ -2048,7 +2048,7 @@ func Test_processFunctionColumn(t *testing.T) {
 		},
 		{
 			name: "Missing column metadata",
-			columnMetadata: types.SelectedColumns{
+			columnMetadata: types.SelectedColumn{
 				FuncName:   "avg",
 				ColumnName: "nonexistent",
 				IsFunc:     true,
@@ -2061,7 +2061,7 @@ func Test_processFunctionColumn(t *testing.T) {
 		},
 		{
 			name: "Empty function name",
-			columnMetadata: types.SelectedColumns{
+			columnMetadata: types.SelectedColumn{
 				FuncName:   "",
 				ColumnName: "age",
 				IsFunc:     true,
@@ -2083,8 +2083,8 @@ func Test_processFunctionColumn(t *testing.T) {
 				{Name: "name", CQLType: datatype.Varchar, KeyType: utilities.KEY_TYPE_REGULAR},
 				{Name: "code", CQLType: datatype.Int, KeyType: utilities.KEY_TYPE_REGULAR},
 			}
-			tableCfg := schemaMapping.NewTableConfig("test_keyspace", "user_info", "cf1", false, cols)
-			schemaCfg := schemaMapping.NewSchemaMappingConfig("cf1", zap.NewNop(), []*schemaMapping.TableConfig{tableCfg})
+			tableCfg := schemaMapping.NewTableConfig("test_keyspace", "user_info", "cf1", types.OrderedCodeEncoding, cols)
+			schemaCfg := schemaMapping.NewSchemaMappingConfig("cf1", "ctrf", zap.NewNop(), []*schemaMapping.TableConfig{tableCfg})
 			translator := &Translator{SchemaMappingConfig: schemaCfg}
 
 			tc, err := translator.SchemaMappingConfig.GetTableConfig(tt.keySpace, tt.tableName)
@@ -2135,7 +2135,7 @@ func Test_parseColumnsFromSelectWithParser(t *testing.T) {
 			name:  "single column",
 			query: "SELECT pk_1_text FROM test_table",
 			want: ColumnMeta{
-				Column: []types.SelectedColumns{
+				Column: []types.SelectedColumn{
 					{Name: "pk_1_text", ColumnName: "pk_1_text"},
 				},
 			},
@@ -2145,7 +2145,7 @@ func Test_parseColumnsFromSelectWithParser(t *testing.T) {
 			name:  "multiple columns",
 			query: "SELECT pk_1_text, blob_col, bool_col FROM test_table",
 			want: ColumnMeta{
-				Column: []types.SelectedColumns{
+				Column: []types.SelectedColumn{
 					{Name: "pk_1_text", ColumnName: "pk_1_text"},
 					{Name: "blob_col", ColumnName: "blob_col"},
 					{Name: "bool_col", ColumnName: "bool_col"},
@@ -2157,7 +2157,7 @@ func Test_parseColumnsFromSelectWithParser(t *testing.T) {
 			name:  "column with alias",
 			query: "SELECT pk_1_text AS alias1 FROM test_table",
 			want: ColumnMeta{
-				Column: []types.SelectedColumns{
+				Column: []types.SelectedColumn{
 					{Name: "pk_1_text", IsAs: true, Alias: "alias1", ColumnName: "pk_1_text"},
 				},
 			},
@@ -2167,7 +2167,7 @@ func Test_parseColumnsFromSelectWithParser(t *testing.T) {
 			name:  "function with star",
 			query: "SELECT COUNT(*) FROM test_table",
 			want: ColumnMeta{
-				Column: []types.SelectedColumns{
+				Column: []types.SelectedColumn{
 					{Name: "system.count(*)", IsFunc: true, FuncName: "count", Alias: "", ColumnName: "*"},
 				},
 			},
@@ -2177,7 +2177,7 @@ func Test_parseColumnsFromSelectWithParser(t *testing.T) {
 			name:  "writetime function",
 			query: "SELECT name,WRITETIME(pk_1_text) AS wt FROM test_table",
 			want: ColumnMeta{
-				Column: []types.SelectedColumns{
+				Column: []types.SelectedColumn{
 					{Name: "name", ColumnName: "name"},
 					{
 						Name:              "writetime(pk_1_text)",
@@ -2194,7 +2194,7 @@ func Test_parseColumnsFromSelectWithParser(t *testing.T) {
 			name:  "map access",
 			query: "SELECT map_col['key1'] FROM test_table",
 			want: ColumnMeta{
-				Column: []types.SelectedColumns{
+				Column: []types.SelectedColumn{
 					{Name: "map_col['key1']", MapKey: "key1", Alias: "", ColumnName: "map_col"},
 				},
 			},
@@ -2424,7 +2424,7 @@ func Test_funcAllowedInAggregate(t *testing.T) {
 func TestProcessSetStrings(t *testing.T) {
 	tests := []struct {
 		name            string
-		selectedColumns []types.SelectedColumns
+		selectedColumns []types.SelectedColumn
 		tableName       string
 		keySpace        string
 		isGroupBy       bool
@@ -2433,7 +2433,7 @@ func TestProcessSetStrings(t *testing.T) {
 	}{
 		{
 			name: "Simple column selection",
-			selectedColumns: []types.SelectedColumns{
+			selectedColumns: []types.SelectedColumn{
 				{Name: "name"},
 				{Name: "age"},
 			},
@@ -2448,7 +2448,7 @@ func TestProcessSetStrings(t *testing.T) {
 		},
 		{
 			name: "Column with alias",
-			selectedColumns: []types.SelectedColumns{
+			selectedColumns: []types.SelectedColumn{
 				{Name: "name", IsAs: true, Alias: "username"},
 				{Name: "age"},
 			},
@@ -2463,7 +2463,7 @@ func TestProcessSetStrings(t *testing.T) {
 		},
 		{
 			name: "Aggregate function",
-			selectedColumns: []types.SelectedColumns{
+			selectedColumns: []types.SelectedColumn{
 				{
 					Name:       "count_age",
 					IsFunc:     true,
@@ -2481,7 +2481,7 @@ func TestProcessSetStrings(t *testing.T) {
 		},
 		{
 			name: "Invalid column",
-			selectedColumns: []types.SelectedColumns{
+			selectedColumns: []types.SelectedColumn{
 				{Name: "invalid_column"},
 			},
 			tableName: "user_info",
@@ -2491,7 +2491,7 @@ func TestProcessSetStrings(t *testing.T) {
 		},
 		{
 			name: "Regular column with alias",
-			selectedColumns: []types.SelectedColumns{
+			selectedColumns: []types.SelectedColumn{
 				{Name: "age", IsAs: true, Alias: "user_age"},
 			},
 			tableName:   "user_info",
@@ -2502,7 +2502,7 @@ func TestProcessSetStrings(t *testing.T) {
 		},
 		{
 			name: "Collection column with alias",
-			selectedColumns: []types.SelectedColumns{
+			selectedColumns: []types.SelectedColumn{
 				{Name: "map_col", IsAs: true, Alias: "renamed_map"},
 			},
 			tableName:   "user_info",
@@ -2513,7 +2513,7 @@ func TestProcessSetStrings(t *testing.T) {
 		},
 		{
 			name: "Column with alias in GROUP BY",
-			selectedColumns: []types.SelectedColumns{
+			selectedColumns: []types.SelectedColumn{
 				{Name: "age", IsAs: true, Alias: "user_age"},
 			},
 			tableName:   "user_info",
@@ -2533,8 +2533,8 @@ func TestProcessSetStrings(t *testing.T) {
 				{Name: "code", CQLType: datatype.Int, KeyType: utilities.KEY_TYPE_REGULAR},
 				{Name: "map_col", CQLType: datatype.NewMapType(datatype.Varchar, datatype.Varchar), KeyType: utilities.KEY_TYPE_REGULAR},
 			}
-			tableCfg := schemaMapping.NewTableConfig("test_keyspace", "user_info", "cf1", false, cols)
-			schemaCfg := schemaMapping.NewSchemaMappingConfig("cf1", zap.NewNop(), []*schemaMapping.TableConfig{tableCfg})
+			tableCfg := schemaMapping.NewTableConfig("test_keyspace", "user_info", "cf1", types.OrderedCodeEncoding, cols)
+			schemaCfg := schemaMapping.NewSchemaMappingConfig("cf1", "ctrf", zap.NewNop(), []*schemaMapping.TableConfig{tableCfg})
 			tr := &Translator{
 				Logger:              zap.NewNop(),
 				SchemaMappingConfig: schemaCfg,
@@ -2564,7 +2564,7 @@ func TestProcessSetStrings(t *testing.T) {
 func Test_processAsColumn(t *testing.T) {
 	tests := []struct {
 		name                string
-		columnMetadata      types.SelectedColumns
+		columnMetadata      types.SelectedColumn
 		tableName           string
 		columnFamily        string
 		counterColumnFamily string
@@ -2575,7 +2575,7 @@ func Test_processAsColumn(t *testing.T) {
 	}{
 		{
 			name: "Non-collection column with GROUP BY",
-			columnMetadata: types.SelectedColumns{
+			columnMetadata: types.SelectedColumn{
 				Name:  "pk_1_text",
 				Alias: "col1",
 			},
@@ -2592,7 +2592,7 @@ func Test_processAsColumn(t *testing.T) {
 		},
 		{
 			name: "Non-collection column without GROUP BY",
-			columnMetadata: types.SelectedColumns{
+			columnMetadata: types.SelectedColumn{
 				Name:  "pk_1_text",
 				Alias: "col1",
 			},
@@ -2609,7 +2609,7 @@ func Test_processAsColumn(t *testing.T) {
 		},
 		{
 			name: "counter column",
-			columnMetadata: schemaMapping.SelectedColumns{
+			columnMetadata: types.SelectedColumn{
 				Name:  "likes",
 				Alias: "l",
 			},
@@ -2617,9 +2617,8 @@ func Test_processAsColumn(t *testing.T) {
 			columnFamily:        "cf1",
 			counterColumnFamily: "ctrf",
 			colMeta: &types.Column{
-				ColumnName:   "likes",
-				CQLType:      datatype.Counter,
-				IsCollection: false,
+				Name:    "likes",
+				CQLType: datatype.Counter,
 			},
 			columns:   []string{},
 			isGroupBy: false,
@@ -2627,7 +2626,7 @@ func Test_processAsColumn(t *testing.T) {
 		},
 		{
 			name: "Collection column without GROUP BY",
-			columnMetadata: types.SelectedColumns{
+			columnMetadata: types.SelectedColumn{
 				Name:  "map_column",
 				Alias: "map1",
 			},
@@ -2643,7 +2642,7 @@ func Test_processAsColumn(t *testing.T) {
 		},
 		{
 			name: "With existing columns",
-			columnMetadata: types.SelectedColumns{
+			columnMetadata: types.SelectedColumn{
 				Name:  "pk_1_text",
 				Alias: "col1",
 			},
@@ -2659,7 +2658,7 @@ func Test_processAsColumn(t *testing.T) {
 		},
 		{
 			name: "WriteTime column",
-			columnMetadata: types.SelectedColumns{
+			columnMetadata: types.SelectedColumn{
 				Name:              "test_table",
 				Alias:             "wt",
 				IsWriteTimeColumn: true,

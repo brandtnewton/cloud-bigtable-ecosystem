@@ -52,14 +52,14 @@ func GetSchemaMappingConfig() *schemaMapping.SchemaMappingConfig {
 			"test_keyspace",
 			"test_table",
 			"cf1",
-			false,
+			types.OrderedCodeEncoding,
 			testTableColumns,
 		),
 		schemaMapping.NewTableConfig(
 			"test_keyspace",
 			"user_info",
 			"cf1",
-			false,
+			types.OrderedCodeEncoding,
 			userInfoColumns,
 		),
 	}
@@ -115,7 +115,7 @@ var ResponseHandler_Input_Query_Selected_Select = QueryMetadata{
 	KeyspaceName:        "xobni_derived",
 	IsStar:              false,
 	DefaultColumnFamily: "cf1",
-	SelectedColumns: []types.SelectedColumns{
+	SelectedColumns: []types.SelectedColumn{
 		{
 			Name: "name",
 		},
@@ -128,7 +128,7 @@ var ResponseHandler_Input_Query_Selected_Select_Map = QueryMetadata{
 	KeyspaceName:        "xobni_derived",
 	IsStar:              false,
 	DefaultColumnFamily: "cf1",
-	SelectedColumns: []types.SelectedColumns{
+	SelectedColumns: []types.SelectedColumn{
 		{
 			Name: "extra_info",
 		},

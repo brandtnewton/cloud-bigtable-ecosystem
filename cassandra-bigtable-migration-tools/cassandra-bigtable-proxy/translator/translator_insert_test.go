@@ -83,7 +83,7 @@ func Test_setParamsFromValues(t *testing.T) {
 						CQLType:      datatype.Varchar,
 					},
 				},
-				schemaMapping:   GetSchemaMappingConfig(false),
+				schemaMapping:   GetSchemaMappingConfig(types.OrderedCodeEncoding),
 				protocolV:       protocalV,
 				isPreparedQuery: false,
 			},
@@ -103,7 +103,7 @@ func Test_setParamsFromValues(t *testing.T) {
 						CQLType:      datatype.Varchar,
 					},
 				},
-				schemaMapping:   GetSchemaMappingConfig(false),
+				schemaMapping:   GetSchemaMappingConfig(types.OrderedCodeEncoding),
 				protocolV:       protocalV,
 				isPreparedQuery: false,
 			},
@@ -123,7 +123,7 @@ func Test_setParamsFromValues(t *testing.T) {
 						CQLType:      datatype.Varchar,
 					},
 				},
-				schemaMapping:   GetSchemaMappingConfig(false),
+				schemaMapping:   GetSchemaMappingConfig(types.OrderedCodeEncoding),
 				protocolV:       protocalV,
 				isPreparedQuery: true,
 			},
@@ -143,7 +143,7 @@ func Test_setParamsFromValues(t *testing.T) {
 						CQLType:      datatype.Varchar,
 					},
 				},
-				schemaMapping:   GetSchemaMappingConfig(false),
+				schemaMapping:   GetSchemaMappingConfig(types.OrderedCodeEncoding),
 				protocolV:       protocalV,
 				isPreparedQuery: false,
 			},
@@ -163,7 +163,7 @@ func Test_setParamsFromValues(t *testing.T) {
 						CQLType:      datatype.Varchar,
 					},
 				},
-				schemaMapping:   GetSchemaMappingConfig(false),
+				schemaMapping:   GetSchemaMappingConfig(types.OrderedCodeEncoding),
 				protocolV:       protocalV,
 				isPreparedQuery: false,
 			},
@@ -177,7 +177,7 @@ func Test_setParamsFromValues(t *testing.T) {
 			args: args{
 				input:           parseInsertQuery("INSERT INTO xobani_derived.user_info ( name ) VALUES").InsertValuesSpec(),
 				columns:         nil,
-				schemaMapping:   GetSchemaMappingConfig(false),
+				schemaMapping:   GetSchemaMappingConfig(types.OrderedCodeEncoding),
 				protocolV:       protocalV,
 				isPreparedQuery: false,
 			},
@@ -276,7 +276,7 @@ func TestTranslator_TranslateInsertQuerytoBigtable(t *testing.T) {
 			isPreparedQuery: true,
 		},
 		fields: fields{
-			SchemaMappingConfig: GetSchemaMappingConfig(false),
+			SchemaMappingConfig: GetSchemaMappingConfig(types.OrderedCodeEncoding),
 		},
 		want: &InsertQueryMapping{
 			Query:     preparedQueryWithTimestamp,
@@ -312,7 +312,7 @@ func TestTranslator_TranslateInsertQuerytoBigtable(t *testing.T) {
 				isPreparedQuery: true,
 			},
 			fields: fields{
-				SchemaMappingConfig: GetSchemaMappingConfig(false),
+				SchemaMappingConfig: GetSchemaMappingConfig(types.OrderedCodeEncoding),
 			},
 			want: &InsertQueryMapping{
 				Query:     preparedQuery,
@@ -344,7 +344,7 @@ func TestTranslator_TranslateInsertQuerytoBigtable(t *testing.T) {
 				isPreparedQuery: false,
 			},
 			fields: fields{
-				SchemaMappingConfig: GetSchemaMappingConfig(false),
+				SchemaMappingConfig: GetSchemaMappingConfig(types.OrderedCodeEncoding),
 			},
 			want: &InsertQueryMapping{
 				Query:     query,
@@ -374,7 +374,7 @@ func TestTranslator_TranslateInsertQuerytoBigtable(t *testing.T) {
 				isPreparedQuery: false,
 			},
 			fields: fields{
-				SchemaMappingConfig: GetSchemaMappingConfig(false),
+				SchemaMappingConfig: GetSchemaMappingConfig(types.OrderedCodeEncoding),
 			},
 			want: &InsertQueryMapping{
 				Query:     "INSERT INTO test_keyspace.test_table (column1, column10) VALUES ('abc', 'pkval')",
@@ -398,7 +398,7 @@ func TestTranslator_TranslateInsertQuerytoBigtable(t *testing.T) {
 				isPreparedQuery: false,
 			},
 			fields: fields{
-				SchemaMappingConfig: GetSchemaMappingConfig(false),
+				SchemaMappingConfig: GetSchemaMappingConfig(types.OrderedCodeEncoding),
 			},
 			want: &InsertQueryMapping{
 				Query:     "INSERT INTO test_keyspace.test_table (column1, column10) VALUES ('abc', 'pkval')",
@@ -422,7 +422,7 @@ func TestTranslator_TranslateInsertQuerytoBigtable(t *testing.T) {
 				isPreparedQuery: false,
 			},
 			fields: fields{
-				SchemaMappingConfig: GetSchemaMappingConfig(false),
+				SchemaMappingConfig: GetSchemaMappingConfig(types.OrderedCodeEncoding),
 			},
 			want: &InsertQueryMapping{
 				Query:     "INSERT INTO test_table (column1, column10) VALUES ('abc', 'pkval')",
@@ -446,7 +446,7 @@ func TestTranslator_TranslateInsertQuerytoBigtable(t *testing.T) {
 				isPreparedQuery: false,
 			},
 			fields: fields{
-				SchemaMappingConfig: GetSchemaMappingConfig(false),
+				SchemaMappingConfig: GetSchemaMappingConfig(types.OrderedCodeEncoding),
 			},
 			want:    nil,
 			wantErr: true,
@@ -459,7 +459,7 @@ func TestTranslator_TranslateInsertQuerytoBigtable(t *testing.T) {
 				isPreparedQuery: false,
 			},
 			fields: fields{
-				SchemaMappingConfig: GetSchemaMappingConfig(false),
+				SchemaMappingConfig: GetSchemaMappingConfig(types.OrderedCodeEncoding),
 			},
 			want:    nil,
 			wantErr: true,
@@ -472,7 +472,7 @@ func TestTranslator_TranslateInsertQuerytoBigtable(t *testing.T) {
 				isPreparedQuery: false,
 			},
 			fields: fields{
-				SchemaMappingConfig: GetSchemaMappingConfig(false),
+				SchemaMappingConfig: GetSchemaMappingConfig(types.OrderedCodeEncoding),
 			},
 			want:    nil,
 			wantErr: true,
@@ -485,7 +485,7 @@ func TestTranslator_TranslateInsertQuerytoBigtable(t *testing.T) {
 				isPreparedQuery: false,
 			},
 			fields: fields{
-				SchemaMappingConfig: GetSchemaMappingConfig(false),
+				SchemaMappingConfig: GetSchemaMappingConfig(types.OrderedCodeEncoding),
 			},
 			want:    nil,
 			wantErr: true,
@@ -498,7 +498,7 @@ func TestTranslator_TranslateInsertQuerytoBigtable(t *testing.T) {
 				isPreparedQuery: false,
 			},
 			fields: fields{
-				SchemaMappingConfig: GetSchemaMappingConfig(false),
+				SchemaMappingConfig: GetSchemaMappingConfig(types.OrderedCodeEncoding),
 			},
 			want:    nil,
 			wantErr: true,
@@ -511,7 +511,7 @@ func TestTranslator_TranslateInsertQuerytoBigtable(t *testing.T) {
 				isPreparedQuery: false,
 			},
 			fields: fields{
-				SchemaMappingConfig: GetSchemaMappingConfig(false),
+				SchemaMappingConfig: GetSchemaMappingConfig(types.OrderedCodeEncoding),
 			},
 			want:    nil,
 			wantErr: true,
@@ -524,7 +524,7 @@ func TestTranslator_TranslateInsertQuerytoBigtable(t *testing.T) {
 				isPreparedQuery: false,
 			},
 			fields: fields{
-				SchemaMappingConfig: GetSchemaMappingConfig(false),
+				SchemaMappingConfig: GetSchemaMappingConfig(types.OrderedCodeEncoding),
 			},
 			want:    nil,
 			wantErr: true,
@@ -588,7 +588,7 @@ func TestTranslator_BuildInsertPrepareQuery(t *testing.T) {
 			name: "Valid Input",
 			fields: fields{
 				Logger:              zap.NewNop(),
-				SchemaMappingConfig: GetSchemaMappingConfig(false),
+				SchemaMappingConfig: GetSchemaMappingConfig(types.OrderedCodeEncoding),
 			},
 			args: args{
 				columnsResponse: []types.Column{

@@ -164,21 +164,21 @@ func TestConstructSystemMetadataRows(t *testing.T) {
 	}{
 		{
 			name:          "Empty Metadata - Should Return Empty Cache",
-			metadata:      schemaMapping.NewSchemaMappingConfig("cf", zap.NewNop(), nil),
+			metadata:      schemaMapping.NewSchemaMappingConfig("cf", "ctrf", zap.NewNop(), nil),
 			expectedEmpty: true,
 			expectedError: false,
 		},
 		{
 			name: "Valid Metadata - Should Return Populated Cache",
 			metadata: schemaMapping.NewSchemaMappingConfig(
-				"cf",
+				"cf", "ctrf",
 				zap.NewNop(),
 				[]*schemaMapping.TableConfig{
 					schemaMapping.NewTableConfig(
 						"test_keyspace",
 						"test_table",
 						"cf",
-						false,
+						types.OrderedCodeEncoding,
 						[]*types.Column{
 							{
 								Name:         "id",
@@ -255,7 +255,7 @@ func TestGetKeyspaceMetadata(t *testing.T) {
 		{
 			name: "Single Keyspace",
 			tableConfigs: []*schemaMapping.TableConfig{
-				schemaMapping.NewTableConfig("test_keyspace", "test_table", "cf1", false, []*types.Column{
+				schemaMapping.NewTableConfig("test_keyspace", "test_table", "cf1", types.OrderedCodeEncoding, []*types.Column{
 					{Name: "id", CQLType: datatype.Uuid, KeyType: utilities.KEY_TYPE_REGULAR},
 				}),
 			},
@@ -265,13 +265,13 @@ func TestGetKeyspaceMetadata(t *testing.T) {
 		{
 			name: "Multiple Keyspaces",
 			tableConfigs: []*schemaMapping.TableConfig{
-				schemaMapping.NewTableConfig("keyspace1", "table1", "cf1", false, []*types.Column{
+				schemaMapping.NewTableConfig("keyspace1", "table1", "cf1", types.OrderedCodeEncoding, []*types.Column{
 					{Name: "col1", CQLType: datatype.Varchar, KeyType: utilities.KEY_TYPE_REGULAR},
 				}),
-				schemaMapping.NewTableConfig("keyspace1", "table2", "cf1", false, []*types.Column{
+				schemaMapping.NewTableConfig("keyspace1", "table2", "cf1", types.OrderedCodeEncoding, []*types.Column{
 					{Name: "col2", CQLType: datatype.Int, KeyType: utilities.KEY_TYPE_REGULAR},
 				}),
-				schemaMapping.NewTableConfig("keyspace2", "table2", "cf1", false, []*types.Column{
+				schemaMapping.NewTableConfig("keyspace2", "table2", "cf1", types.OrderedCodeEncoding, []*types.Column{
 					{Name: "col2", CQLType: datatype.Int, KeyType: utilities.KEY_TYPE_REGULAR},
 				}),
 			},
@@ -282,7 +282,7 @@ func TestGetKeyspaceMetadata(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			schemaConfig := schemaMapping.NewSchemaMappingConfig("cf1", zap.NewNop(), tt.tableConfigs)
+			schemaConfig := schemaMapping.NewSchemaMappingConfig("cf1", "ctrf", zap.NewNop(), tt.tableConfigs)
 			result := getKeyspaceMetadata(schemaConfig.GetAllTables())
 
 			assert.Equal(t, tt.expectedCount, len(result), "Expected %d keyspaces, got %d", tt.expectedCount, len(result))
@@ -314,7 +314,7 @@ func TestGetTableMetadata(t *testing.T) {
 		{
 			name: "Single Table",
 			tableConfigs: []*schemaMapping.TableConfig{
-				schemaMapping.NewTableConfig("test_keyspace", "test_table", "cf1", false, []*types.Column{
+				schemaMapping.NewTableConfig("test_keyspace", "test_table", "cf1", types.OrderedCodeEncoding, []*types.Column{
 					{Name: "id", CQLType: datatype.Uuid, KeyType: utilities.KEY_TYPE_REGULAR},
 				}),
 			},
@@ -326,10 +326,10 @@ func TestGetTableMetadata(t *testing.T) {
 		{
 			name: "Multiple tables",
 			tableConfigs: []*schemaMapping.TableConfig{
-				schemaMapping.NewTableConfig("keyspace1", "table1", "cf1", false, []*types.Column{
+				schemaMapping.NewTableConfig("keyspace1", "table1", "cf1", types.OrderedCodeEncoding, []*types.Column{
 					{Name: "col1", CQLType: datatype.Varchar, KeyType: utilities.KEY_TYPE_REGULAR},
 				}),
-				schemaMapping.NewTableConfig("keyspace1", "table2", "cf1", false, []*types.Column{
+				schemaMapping.NewTableConfig("keyspace1", "table2", "cf1", types.OrderedCodeEncoding, []*types.Column{
 					{Name: "col2", CQLType: datatype.Int, KeyType: utilities.KEY_TYPE_REGULAR},
 				}),
 			},
@@ -343,7 +343,7 @@ func TestGetTableMetadata(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			schemaConfig := schemaMapping.NewSchemaMappingConfig("cf1", zap.NewNop(), tt.tableConfigs)
+			schemaConfig := schemaMapping.NewSchemaMappingConfig("cf1", "ctrf", zap.NewNop(), tt.tableConfigs)
 			result := getTableMetadata(schemaConfig.GetAllTables())
 
 			assert.Equal(t, tt.expectedCount, len(result), "Expected %d tables, got %d", tt.expectedCount, len(result))
@@ -379,7 +379,7 @@ func TestGetColumnMetadata(t *testing.T) {
 		{
 			name: "Single Column",
 			tableConfigs: []*schemaMapping.TableConfig{
-				schemaMapping.NewTableConfig("test_keyspace", "test_table", "cf1", false, []*types.Column{
+				schemaMapping.NewTableConfig("test_keyspace", "test_table", "cf1", types.OrderedCodeEncoding, []*types.Column{
 					{Name: "id", CQLType: datatype.Uuid, IsPrimaryKey: true, KeyType: "partition"},
 				}),
 			},
@@ -391,7 +391,7 @@ func TestGetColumnMetadata(t *testing.T) {
 		{
 			name: "Multiple Columns",
 			tableConfigs: []*schemaMapping.TableConfig{
-				schemaMapping.NewTableConfig("keyspace1", "table1", "cf1", false, []*types.Column{
+				schemaMapping.NewTableConfig("keyspace1", "table1", "cf1", types.OrderedCodeEncoding, []*types.Column{
 					{Name: "id", CQLType: datatype.Uuid, IsPrimaryKey: true, KeyType: "partition"},
 					{Name: "name", CQLType: datatype.Varchar, IsPrimaryKey: true, KeyType: "clustering"},
 					{Name: "age", CQLType: datatype.Int, IsPrimaryKey: false, KeyType: "regular"},
@@ -408,7 +408,7 @@ func TestGetColumnMetadata(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			schemaConfig := schemaMapping.NewSchemaMappingConfig("cf1", zap.NewNop(), tt.tableConfigs)
+			schemaConfig := schemaMapping.NewSchemaMappingConfig("cf1", "ctrf", zap.NewNop(), tt.tableConfigs)
 			result := getColumnMetadata(schemaConfig.GetAllTables())
 
 			assert.Equal(t, tt.expectedCount, len(result), "Expected %d columns, got %d", tt.expectedCount, len(result))

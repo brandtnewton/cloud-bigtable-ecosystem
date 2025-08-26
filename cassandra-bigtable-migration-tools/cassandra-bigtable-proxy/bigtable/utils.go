@@ -22,6 +22,7 @@ import (
 	"slices"
 
 	"cloud.google.com/go/bigtable"
+	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/global/types"
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/translator"
 	"github.com/datastax/go-cassandra-native-protocol/datatype"
 	"github.com/datastax/go-cassandra-native-protocol/message"
@@ -81,24 +82,28 @@ func decodeBase64(k string) (string, error) {
 	return string(decoded), nil
 }
 
-func isTableRowKeyBigEndianEncoded(tableInfo *bigtable.TableInfo) bool {
-	// row key schema is nil if no row key schema is set
+func detectTableEncoding(tableInfo *bigtable.TableInfo, defaultEncoding types.IntRowKeyEncodingType) types.IntRowKeyEncodingType {
+	// row key schema is nil if no row key schema is set. This can also happen in
+	// unit tests because they bigtable test instance doesn't use row key schemas
 	if tableInfo.RowKeySchema == nil {
-		return false
+		return defaultEncoding
 	}
 	for _, field := range tableInfo.RowKeySchema.Fields {
+		// assumes all int fields are encoded the same - which should be true if the tables are managed by this application
 		switch v := field.FieldType.(type) {
 		case bigtable.Int64Type:
 			switch v.Encoding.(type) {
 			case bigtable.BigEndianBytesEncoding:
-				return true
+				return types.BigEndianEncoding
+			case bigtable.Int64OrderedCodeBytesEncoding:
+				return types.OrderedCodeEncoding
 			}
 		}
 	}
-	return false
+	return defaultEncoding
 }
 
-func createBigtableRowKeySchema(pmks []translator.CreateTablePrimaryKeyConfig, cols []message.ColumnMetadata, encodeIntRowKeysWithBigEndian bool) (*bigtable.StructType, error) {
+func createBigtableRowKeySchema(pmks []translator.CreateTablePrimaryKeyConfig, cols []message.ColumnMetadata, intRowKeyEncoding types.IntRowKeyEncodingType) (*bigtable.StructType, error) {
 	var rowKeySchemaFields []bigtable.StructField
 	for _, key := range pmks {
 		pmkIndex := slices.IndexFunc(cols, func(c message.ColumnMetadata) bool {
@@ -107,7 +112,7 @@ func createBigtableRowKeySchema(pmks []translator.CreateTablePrimaryKeyConfig, c
 		if pmkIndex == -1 {
 			return nil, fmt.Errorf("missing primary key `%s` from columns definition", key)
 		}
-		part, err := createBigtableRowKeyField(cols[pmkIndex], encodeIntRowKeysWithBigEndian)
+		part, err := createBigtableRowKeyField(cols[pmkIndex], intRowKeyEncoding)
 		if err != nil {
 			return nil, err
 		}
@@ -119,15 +124,18 @@ func createBigtableRowKeySchema(pmks []translator.CreateTablePrimaryKeyConfig, c
 	}, nil
 }
 
-func createBigtableRowKeyField(col message.ColumnMetadata, encodeIntRowKeysWithBigEndian bool) (bigtable.StructField, error) {
+func createBigtableRowKeyField(col message.ColumnMetadata, intRowKeyEncoding types.IntRowKeyEncodingType) (bigtable.StructField, error) {
 	switch col.Type {
 	case datatype.Varchar:
 		return bigtable.StructField{FieldName: col.Name, FieldType: bigtable.StringType{Encoding: bigtable.StringUtf8BytesEncoding{}}}, nil
 	case datatype.Int, datatype.Bigint, datatype.Timestamp:
-		if encodeIntRowKeysWithBigEndian {
+		switch intRowKeyEncoding {
+		case types.OrderedCodeEncoding:
+			return bigtable.StructField{FieldName: col.Name, FieldType: bigtable.Int64Type{Encoding: bigtable.Int64OrderedCodeBytesEncoding{}}}, nil
+		case types.BigEndianEncoding:
 			return bigtable.StructField{FieldName: col.Name, FieldType: bigtable.Int64Type{Encoding: bigtable.BigEndianBytesEncoding{}}}, nil
 		}
-		return bigtable.StructField{FieldName: col.Name, FieldType: bigtable.Int64Type{Encoding: bigtable.Int64OrderedCodeBytesEncoding{}}}, nil
+		return bigtable.StructField{}, fmt.Errorf("unhandled int row key encoding %v", intRowKeyEncoding)
 	default:
 		return bigtable.StructField{}, fmt.Errorf("unhandled row key type %s", col.Type)
 	}

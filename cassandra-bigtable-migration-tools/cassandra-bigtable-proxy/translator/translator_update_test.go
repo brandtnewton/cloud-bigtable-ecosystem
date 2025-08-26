@@ -472,7 +472,7 @@ func TestTranslator_TranslateUpdateQuerytoBigtable(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			schemaMappingConfig := GetSchemaMappingConfig(false)
+			schemaMappingConfig := GetSchemaMappingConfig(types.OrderedCodeEncoding)
 
 			tr := &Translator{
 				Logger:              tt.fields.Logger,
@@ -517,7 +517,7 @@ func TestTranslator_BuildUpdatePrepareQuery(t *testing.T) {
 			name: "Valid Input",
 			fields: fields{
 				Logger:              zap.NewNop(),
-				SchemaMappingConfig: GetSchemaMappingConfig(false),
+				SchemaMappingConfig: GetSchemaMappingConfig(types.OrderedCodeEncoding),
 			},
 			args: args{
 				values: []*primitive.Value{

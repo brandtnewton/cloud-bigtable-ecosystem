@@ -52,7 +52,7 @@ func setupServer() *bttest.Server {
 		fmt.Printf("Failed to setup server: %v", err)
 		os.Exit(1)
 	}
-	conn, err = grpc.NewClient(btt.Addr, grpc.WithTransportCredentials(insecure.NewCredentials()), grpc.WithUnaryInterceptor(unaryIntercept))
+	conn, err = grpc.NewClient(btt.Addr, grpc.WithTransportCredentials(insecure.NewCredentials()), grpc.WithUnaryInterceptor(interceptCreateTableRequests))
 	if err != nil {
 		fmt.Printf("Failed to setup grpc: %v", err)
 		os.Exit(1)
@@ -61,7 +61,8 @@ func setupServer() *bttest.Server {
 
 }
 
-func unaryIntercept(ctx context.Context, method string, req, reply any, cc *grpc.ClientConn, invoker grpc.UnaryInvoker, opts ...grpc.CallOption) error {
+// interceptCreateTableRequests intercepts create table requests, so we can perform extra assertions on them
+func interceptCreateTableRequests(ctx context.Context, method string, req, reply any, cc *grpc.ClientConn, invoker grpc.UnaryInvoker, opts ...grpc.CallOption) error {
 	if method == "/google.bigtable.admin.v2.BigtableTableAdmin/CreateTable" {
 		ctr, ok := req.(*adminpb.CreateTableRequest)
 		if ok {
@@ -842,10 +843,11 @@ func TestComplexUpdateOutOfBoundsIndex(t *testing.T) {
 }
 
 var testCreateTableStatementMap = translator.CreateTableStatementMap{
-	QueryType:   "create",
-	Keyspace:    "keyspace",
-	Table:       "create_table_test",
-	IfNotExists: false,
+	QueryType:         "create",
+	Keyspace:          "keyspace",
+	Table:             "create_table_test",
+	IfNotExists:       false,
+	IntRowKeyEncoding: types.OrderedCodeEncoding,
 	Columns: []message.ColumnMetadata{
 		{
 			Keyspace: "keyspace",
@@ -984,9 +986,8 @@ func TestCreateTableWithEncodeIntRowKeysWithBigEndianTrue(t *testing.T) {
 	require.NoError(t, err)
 
 	btClient := NewBigtableClient(client, adminClients, zap.NewNop(), BigtableConfig{
-		GCPProjectID:                  "project",
-		DefaultColumnFamily:           "cf1",
-		EncodeIntRowKeysWithBigEndian: true,
+		GCPProjectID:        "project",
+		DefaultColumnFamily: "cf1",
 	}, nil, &schemaMapping.SchemaMappingConfig{}, map[string]InstanceConfig{"keyspace": {BigtableInstance: "keyspace"}})
 
 	// force set up the schema mappings table
@@ -996,6 +997,7 @@ func TestCreateTableWithEncodeIntRowKeysWithBigEndianTrue(t *testing.T) {
 	tableName := "big_endian_table"
 	createTableStmt := testCreateTableStatementMap
 	createTableStmt.Table = tableName
+	createTableStmt.IntRowKeyEncoding = types.BigEndianEncoding
 	err = btClient.CreateTable(ctx, &createTableStmt, "schema-mappings")
 	require.NoError(t, err)
 
@@ -1011,9 +1013,8 @@ func TestCreateTableWithEncodeIntRowKeysWithBigEndianFalse(t *testing.T) {
 	require.NoError(t, err)
 
 	btClient := NewBigtableClient(client, adminClients, zap.NewNop(), BigtableConfig{
-		GCPProjectID:                  "project",
-		DefaultColumnFamily:           "cf1",
-		EncodeIntRowKeysWithBigEndian: false,
+		GCPProjectID:        "project",
+		DefaultColumnFamily: "cf1",
 	}, nil, &schemaMapping.SchemaMappingConfig{}, map[string]InstanceConfig{"keyspace": {BigtableInstance: "keyspace"}})
 
 	// force set up the schema mappings table
@@ -1023,6 +1024,7 @@ func TestCreateTableWithEncodeIntRowKeysWithBigEndianFalse(t *testing.T) {
 	tableName := "ordered_bytes_encoded_table"
 	createTableStmt := testCreateTableStatementMap
 	createTableStmt.Table = tableName
+	createTableStmt.IntRowKeyEncoding = types.OrderedCodeEncoding
 	err = btClient.CreateTable(ctx, &createTableStmt, "schema-mappings")
 	require.NoError(t, err)
 

@@ -30,14 +30,14 @@ import (
 
 func getSchemaMappingConfig() *SchemaMappingConfig {
 	return NewSchemaMappingConfig(
-		"cf1",
+		"cf1", "ctrf",
 		zap.NewNop(),
 		[]*TableConfig{
 			NewTableConfig(
 				"keyspace",
 				"table1",
 				"cf1",
-				false,
+				types.OrderedCodeEncoding,
 				[]*types.Column{
 					{
 						Name:         "column1",
@@ -57,7 +57,8 @@ func getSchemaMappingConfig() *SchemaMappingConfig {
 				"keyspace",
 				"table2",
 				"cf1",
-				false, []*types.Column{
+				types.OrderedCodeEncoding,
+				[]*types.Column{
 					{
 						Name:         "id",
 						CQLType:      datatype.Int,
@@ -316,7 +317,7 @@ func Test_GetMetadataForSelectedColumns(t *testing.T) {
 		fields *SchemaMappingConfig
 		args   struct {
 			tableName   string
-			columnNames []types.SelectedColumns
+			columnNames []types.SelectedColumn
 			keySpace    string
 		}
 		want    []*message.ColumnMetadata
@@ -327,11 +328,11 @@ func Test_GetMetadataForSelectedColumns(t *testing.T) {
 			fields: getSchemaMappingConfig(),
 			args: struct {
 				tableName   string
-				columnNames []types.SelectedColumns
+				columnNames []types.SelectedColumn
 				keySpace    string
 			}{
 				tableName:   "table1",
-				columnNames: []types.SelectedColumns{{Name: "column1"}},
+				columnNames: []types.SelectedColumn{{Name: "column1"}},
 				keySpace:    "keyspace",
 			},
 			want:    expectedResponse,
@@ -342,11 +343,11 @@ func Test_GetMetadataForSelectedColumns(t *testing.T) {
 			fields: getSchemaMappingConfig(),
 			args: struct {
 				tableName   string
-				columnNames []types.SelectedColumns
+				columnNames []types.SelectedColumn
 				keySpace    string
 			}{
 				tableName:   "table1",
-				columnNames: []types.SelectedColumns{},
+				columnNames: []types.SelectedColumn{},
 				keySpace:    "keyspace",
 			},
 			want: []*message.ColumnMetadata{
@@ -360,11 +361,11 @@ func Test_GetMetadataForSelectedColumns(t *testing.T) {
 			fields: getSchemaMappingConfig(),
 			args: struct {
 				tableName   string
-				columnNames []types.SelectedColumns
+				columnNames []types.SelectedColumn
 				keySpace    string
 			}{
 				tableName:   "table1",
-				columnNames: []types.SelectedColumns{{Name: "nonexistent_column"}},
+				columnNames: []types.SelectedColumn{{Name: "nonexistent_column"}},
 				keySpace:    "keyspace",
 			},
 			want:    nil,
@@ -613,7 +614,7 @@ func Test_GetSpecificColumnsMetadataForSelectedColumns(t *testing.T) {
 		name          string
 		fields        *SchemaMappingConfig
 		columnsMap    map[string]*types.Column
-		selectedCols  []types.SelectedColumns
+		selectedCols  []types.SelectedColumn
 		tableName     string
 		expectedMeta  []*message.ColumnMetadata
 		expectedError error
@@ -632,7 +633,7 @@ func Test_GetSpecificColumnsMetadataForSelectedColumns(t *testing.T) {
 					},
 				},
 			},
-			selectedCols: []types.SelectedColumns{
+			selectedCols: []types.SelectedColumn{
 				{
 					Name: "column1",
 				},
@@ -663,7 +664,7 @@ func Test_GetSpecificColumnsMetadataForSelectedColumns(t *testing.T) {
 					},
 				},
 			},
-			selectedCols: []types.SelectedColumns{
+			selectedCols: []types.SelectedColumn{
 				{
 					Name:              "writetime_column",
 					IsWriteTimeColumn: true,
@@ -696,7 +697,7 @@ func Test_GetSpecificColumnsMetadataForSelectedColumns(t *testing.T) {
 					},
 				},
 			},
-			selectedCols: []types.SelectedColumns{
+			selectedCols: []types.SelectedColumn{
 				{
 					Name: LimitValue,
 				},
@@ -727,7 +728,7 @@ func Test_GetSpecificColumnsMetadataForSelectedColumns(t *testing.T) {
 					},
 				},
 			},
-			selectedCols: []types.SelectedColumns{
+			selectedCols: []types.SelectedColumn{
 				{
 					Name:   "column1",
 					IsFunc: true,
@@ -751,7 +752,7 @@ func Test_GetSpecificColumnsMetadataForSelectedColumns(t *testing.T) {
 					},
 				},
 			},
-			selectedCols: []types.SelectedColumns{
+			selectedCols: []types.SelectedColumn{
 				{
 					Name: "nonexistent_column",
 				},
@@ -774,7 +775,7 @@ func Test_GetSpecificColumnsMetadataForSelectedColumns(t *testing.T) {
 					},
 				},
 			},
-			selectedCols: []types.SelectedColumns{
+			selectedCols: []types.SelectedColumn{
 				{
 					Name: "invalid_special_column",
 				},
@@ -787,7 +788,7 @@ func Test_GetSpecificColumnsMetadataForSelectedColumns(t *testing.T) {
 			name:       "Error - Empty columns map",
 			fields:     getSchemaMappingConfig(),
 			columnsMap: map[string]*types.Column{},
-			selectedCols: []types.SelectedColumns{
+			selectedCols: []types.SelectedColumn{
 				{
 					Name: "column1",
 				},
@@ -800,7 +801,7 @@ func Test_GetSpecificColumnsMetadataForSelectedColumns(t *testing.T) {
 			name:       "Error - Write time column not found",
 			fields:     getSchemaMappingConfig(),
 			columnsMap: map[string]*types.Column{},
-			selectedCols: []types.SelectedColumns{
+			selectedCols: []types.SelectedColumn{
 				{
 					Name:              "no_write_time_column",
 					IsWriteTimeColumn: true,
@@ -815,7 +816,7 @@ func Test_GetSpecificColumnsMetadataForSelectedColumns(t *testing.T) {
 			name:       "Error - Special column handling error",
 			fields:     getSchemaMappingConfig(),
 			columnsMap: map[string]*types.Column{},
-			selectedCols: []types.SelectedColumns{
+			selectedCols: []types.SelectedColumn{
 				{
 					Name: LimitValue,
 				},
@@ -1404,7 +1405,7 @@ func Test_HandleSpecialSelectedColumn(t *testing.T) {
 		name           string
 		fields         *SchemaMappingConfig
 		columnsMap     map[string]*types.Column
-		columnSelected types.SelectedColumns
+		columnSelected types.SelectedColumn
 		index          int32
 		tableName      string
 		keySpace       string
@@ -1415,7 +1416,7 @@ func Test_HandleSpecialSelectedColumn(t *testing.T) {
 			name:       "Success - Count function",
 			fields:     getSchemaMappingConfig(),
 			columnsMap: map[string]*types.Column{},
-			columnSelected: types.SelectedColumns{
+			columnSelected: types.SelectedColumn{
 				Name:     "count_col",
 				FuncName: "count",
 			},
@@ -1435,7 +1436,7 @@ func Test_HandleSpecialSelectedColumn(t *testing.T) {
 			name:       "Success - Write time column",
 			fields:     getSchemaMappingConfig(),
 			columnsMap: map[string]*types.Column{},
-			columnSelected: types.SelectedColumns{
+			columnSelected: types.SelectedColumn{
 				Name:              "wt_col",
 				IsWriteTimeColumn: true,
 			},
@@ -1461,7 +1462,7 @@ func Test_HandleSpecialSelectedColumn(t *testing.T) {
 					},
 				},
 			},
-			columnSelected: types.SelectedColumns{
+			columnSelected: types.SelectedColumn{
 				Name:       "alias_col",
 				Alias:      "alias_col",
 				ColumnName: "original_col",
@@ -1488,7 +1489,7 @@ func Test_HandleSpecialSelectedColumn(t *testing.T) {
 					},
 				},
 			},
-			columnSelected: types.SelectedColumns{
+			columnSelected: types.SelectedColumn{
 				Name:       "map_value",
 				ColumnName: "map_col",
 				MapKey:     "key1",
@@ -1509,7 +1510,7 @@ func Test_HandleSpecialSelectedColumn(t *testing.T) {
 			name:       "Error - types.Column not found",
 			fields:     getSchemaMappingConfig(),
 			columnsMap: map[string]*types.Column{},
-			columnSelected: types.SelectedColumns{
+			columnSelected: types.SelectedColumn{
 				Name:       "nonexistent",
 				ColumnName: "nonexistent",
 			},
@@ -1529,7 +1530,7 @@ func Test_HandleSpecialSelectedColumn(t *testing.T) {
 					},
 				},
 			},
-			columnSelected: types.SelectedColumns{
+			columnSelected: types.SelectedColumn{
 				Name:       "func_result",
 				IsFunc:     true,
 				ColumnName: "func_col",

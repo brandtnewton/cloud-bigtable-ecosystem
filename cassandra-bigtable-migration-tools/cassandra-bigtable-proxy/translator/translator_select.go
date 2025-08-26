@@ -58,7 +58,7 @@ func parseColumnsFromSelect(input cql.ISelectElementsContext) (ColumnMeta, error
 			return response, errors.New("no column parameters found in the query")
 		}
 		for _, val := range columns {
-			var selectedColumns types.SelectedColumns
+			var selectedColumns types.SelectedColumn
 			if val == nil {
 				return response, errors.New("error while parsing the values")
 			}
@@ -314,7 +314,7 @@ func parseGroupByColumn(input cql.IGroupSpecContext) []string {
 // Returns:
 //   - []string column containing formatted selected columns for bigtable query
 //   - error if any
-func processSetStrings(t *Translator, tableConfig *schemaMapping.TableConfig, selectedColumns []types.SelectedColumns, isGroupBy bool) ([]string, error) {
+func processSetStrings(t *Translator, tableConfig *schemaMapping.TableConfig, selectedColumns []types.SelectedColumn, isGroupBy bool) ([]string, error) {
 	var columns = make([]string, 0)
 	columnFamily := t.SchemaMappingConfig.SystemColumnFamily
 	var err error
@@ -359,7 +359,7 @@ func processSetStrings(t *Translator, tableConfig *schemaMapping.TableConfig, se
 //  4. Validates if the aggregate function is supported
 //  5. Applies any necessary type casting (converting cql select columns to respective bigtable columns)
 //  6. Formats the column expression with function and alias if specified
-func processFunctionColumn(t *Translator, columnMetadata types.SelectedColumns, tableConfig *schemaMapping.TableConfig, columns []string) ([]string, error) {
+func processFunctionColumn(t *Translator, columnMetadata types.SelectedColumn, tableConfig *schemaMapping.TableConfig, columns []string) ([]string, error) {
 
 	if columnMetadata.ColumnName == STAR && strings.ToLower(columnMetadata.FuncName) == "count" {
 		if columnMetadata.Alias != "" {
@@ -434,7 +434,7 @@ func funcAllowedInAggregate(s string) bool {
 	return allowedFunctions[s]
 }
 
-func processNonFunctionColumn(t *Translator, tableConfig *schemaMapping.TableConfig, columnMetadata types.SelectedColumns, columnFamily string, columns []string, isGroupBy bool) ([]string, error) {
+func processNonFunctionColumn(t *Translator, tableConfig *schemaMapping.TableConfig, columnMetadata types.SelectedColumn, columnFamily string, columns []string, isGroupBy bool) ([]string, error) {
 	colName := columnMetadata.Name
 	if columnMetadata.IsWriteTimeColumn || columnMetadata.MapKey != "" {
 		colName = columnMetadata.ColumnName
@@ -449,14 +449,14 @@ func processNonFunctionColumn(t *Translator, tableConfig *schemaMapping.TableCon
 	if columnMetadata.IsWriteTimeColumn {
 		columns = processWriteTimeColumn(tableConfig, columnMetadata, columnFamily, columns)
 	} else if columnMetadata.IsAs {
-		columns = processAsColumn(columnMetadata, columnFamily,t.SchemaMappingConfig.CounterColumnFamily, colMeta, columns, isGroupBy)
+		columns = processAsColumn(columnMetadata, columnFamily, t.SchemaMappingConfig.CounterColumnFamily, colMeta, columns, isGroupBy)
 	} else {
 		columns = processRegularColumn(columnMetadata, tableConfig.Name, t.SchemaMappingConfig.CounterColumnFamily, columnFamily, colMeta, columns, isGroupBy)
 	}
 	return columns, nil
 }
 
-func processWriteTimeColumn(tableConfig *schemaMapping.TableConfig, columnMetadata types.SelectedColumns, columnFamily string, columns []string) []string {
+func processWriteTimeColumn(tableConfig *schemaMapping.TableConfig, columnMetadata types.SelectedColumn, columnFamily string, columns []string) []string {
 	colFamily := tableConfig.GetColumnFamily(columnMetadata.ColumnName)
 	aliasColumnName := customWriteTime + columnMetadata.ColumnName + ""
 	wtColumn := ""
@@ -471,7 +471,7 @@ func processWriteTimeColumn(tableConfig *schemaMapping.TableConfig, columnMetada
 	return columns
 }
 
-func processAsColumn(columnMetadata types.SelectedColumns, counterColumnFamily string, columnFamily string, colMeta *types.Column, columns []string, isGroupBy bool) []string {
+func processAsColumn(columnMetadata types.SelectedColumn, counterColumnFamily string, columnFamily string, colMeta *types.Column, columns []string, isGroupBy bool) []string {
 	var columnSelected string
 	if !utilities.IsCollection(colMeta.CQLType) {
 		var columnName = columnMetadata.Name
@@ -521,7 +521,7 @@ Returns:
 
 	An updated slice of strings with the new formatted column reference appended.
 */
-func processRegularColumn(columnMetadata types.SelectedColumns, tableName string, counterColumnFamily string, columnFamily string, colMeta *types.Column, columns []string, isGroupBy bool) []string {
+func processRegularColumn(columnMetadata types.SelectedColumn, tableName string, counterColumnFamily string, columnFamily string, colMeta *types.Column, columns []string, isGroupBy bool) []string {
 	if !utilities.IsCollection(colMeta.CQLType) {
 		var columnName = columnMetadata.Name
 		if colMeta.CQLType == datatype.Counter {
@@ -601,7 +601,7 @@ func getBigtableSelectQuery(t *Translator, data *SelectQueryMap) (string, error)
 		return "", errors.New("could not prepare the select query due to incomplete information")
 	}
 	btQuery := fmt.Sprintf("SELECT %s FROM %s", column, data.Table)
-	whereCondition, err := buildWhereClause(data.Clauses, tableConfig, data.Table, data.Keyspace)
+	whereCondition, err := buildWhereClause(data.Clauses, tableConfig, t.SchemaMappingConfig.CounterColumnFamily)
 	if err != nil {
 		return "nil", err
 	}

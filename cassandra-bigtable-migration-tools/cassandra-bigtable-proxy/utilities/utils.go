@@ -184,6 +184,12 @@ func decodeNonPrimitive(choice datatype.PrimitiveType, b []byte) (any, error) {
 				return nil, err
 			}
 			return decodedList, err
+		case primitive.DataTypeCodeInt:
+			decodedList, err := collectiondecoder.DecodeCollection(ListOfInt, primitive.ProtocolVersion4, b)
+			if err != nil {
+				return nil, err
+			}
+			return decodedList, err
 		case primitive.DataTypeCodeBigint:
 			decodedList, err := collectiondecoder.DecodeCollection(ListOfBigInt, primitive.ProtocolVersion4, b)
 			if err != nil {
@@ -500,4 +506,40 @@ func GetClauseByColumn(clause []types.Clause, column string) (types.Clause, erro
 		}
 	}
 	return types.Clause{}, fmt.Errorf("clause not found")
+}
+
+func IsSupportedPrimaryKeyType(dt datatype.DataType) bool {
+	switch dt {
+	case datatype.Int, datatype.Bigint, datatype.Varchar:
+		return true
+	default:
+		return false
+	}
+}
+
+func isSupportedCollectionElementType(dt datatype.DataType) bool {
+	switch dt {
+	case datatype.Int, datatype.Bigint, datatype.Varchar, datatype.Float, datatype.Double, datatype.Timestamp, datatype.Boolean:
+		return true
+	default:
+		return false
+	}
+}
+
+func IsSupportedColumnType(dt datatype.DataType) bool {
+	switch dt.GetDataTypeCode() {
+	case primitive.DataTypeCodeInt, primitive.DataTypeCodeBigint, primitive.DataTypeCodeBlob, primitive.DataTypeCodeBoolean, primitive.DataTypeCodeDouble, primitive.DataTypeCodeFloat, primitive.DataTypeCodeTimestamp, primitive.DataTypeCodeText, primitive.DataTypeCodeVarchar:
+		return true
+	case primitive.DataTypeCodeMap:
+		mapType := dt.(datatype.MapType)
+		return isSupportedCollectionElementType(mapType.GetKeyType()) && isSupportedCollectionElementType(mapType.GetValueType())
+	case primitive.DataTypeCodeSet:
+		setType := dt.(datatype.SetType)
+		return isSupportedCollectionElementType(setType.GetElementType())
+	case primitive.DataTypeCodeList:
+		listType := dt.(datatype.ListType)
+		return isSupportedCollectionElementType(listType.GetElementType())
+	default:
+		return false
+	}
 }

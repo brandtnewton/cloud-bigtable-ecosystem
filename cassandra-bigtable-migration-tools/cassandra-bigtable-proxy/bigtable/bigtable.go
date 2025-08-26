@@ -116,7 +116,7 @@ func (btc *BigtableClient) reloadSchemaMappings(ctx context.Context, keyspace, s
 	if err != nil {
 		return fmt.Errorf("error when reloading schema mappings for %s.%s: %w", keyspace, schemaMappingTableName, err)
 	}
-	btc.SchemaMappingConfig.UpdateTables(tableConfigs)
+	btc.SchemaMappingConfig.ReplaceTables(tableConfigs)
 	return nil
 }
 
@@ -172,9 +172,11 @@ func (btc *BigtableClient) mutateRow(ctx context.Context, tableName, rowKey stri
 		timestamp = bigtable.Timestamp(bigtable.Now().Time().UnixMicro())
 	}
 
+	var mutationCount = 0
 	// Delete column families
 	for _, cf := range deleteColumnFamilies {
 		mut.DeleteCellsInFamily(cf)
+		mutationCount++
 	}
 
 	// Handle complex updates
@@ -197,23 +199,27 @@ func (btc *BigtableClient) mutateRow(ctx context.Context, tableName, rowKey stri
 				return nil, err
 			}
 			mut.Set(col, reqTimestamp, timestamp, meta.Value)
+			mutationCount++
 		}
 		if meta.ListDelete {
 			if err := btc.setMutationforListDelete(ctx, tableName, rowKey, col, keyspace, meta.ListDeleteValues, mut); err != nil {
 				return nil, err
 			}
+			mutationCount++
 		}
 	}
 
 	// Delete specific column qualifiers
 	for _, q := range deleteQualifiers {
 		mut.DeleteCellsInColumn(q.ColumnFamily, q.Name)
+		mutationCount++
 	}
 
 	// Set values for columns
 	for i, column := range columns {
 		if bv, ok := values[i].([]byte); ok {
 			mut.Set(column.ColumnFamily, column.Name, timestamp, bv)
+			mutationCount++
 		} else {
 			btc.Logger.Error("Value is not of type []byte", zap.String("column", column.Name), zap.Any("value", values[i]))
 			return nil, fmt.Errorf("value for column %s is not of type []byte", column.Name)
@@ -235,6 +241,15 @@ func (btc *BigtableClient) mutateRow(ctx context.Context, tableName, rowKey stri
 		}
 
 		return GenerateAppliedRowsResult(keyspace, tableName, ifSpec.IfExists == matched), nil
+	}
+
+	// no-op just return
+	if mutationCount == 0 {
+		return &message.RowsResult{
+			Metadata: &message.RowsMetadata{
+				LastContinuousPage: true,
+			},
+		}, nil
 	}
 
 	// If no conditions, apply the mutation directly
@@ -346,12 +361,14 @@ func (btc *BigtableClient) DropTable(ctx context.Context, data *translator.DropT
 		return fmt.Errorf("cannot delete table %s because it does not exist", data.Table)
 	}
 
-	btc.Logger.Info("reloading schema mappings")
-	err = btc.reloadSchemaMappings(ctx, data.Keyspace, schemaMappingTableName)
-	if err != nil {
-		return err
+	// only reload schema mapping table if this operation changed it
+	if len(rowKeysToDelete) > 0 {
+		btc.Logger.Info("reloading schema mappings")
+		err = btc.reloadSchemaMappings(ctx, data.Keyspace, schemaMappingTableName)
+		if err != nil {
+			return err
+		}
 	}
-
 	return nil
 }
 
@@ -398,25 +415,7 @@ func (btc *BigtableClient) CreateTable(ctx context.Context, data *translator.Cre
 		return err
 	}
 
-	exists, err := btc.tableSchemaExists(ctx, client, schemaMappingTableName, data.Table)
-	if err != nil {
-		return err
-	}
-
-	if exists && data.IfNotExists {
-		// already exists - nothing to do.
-		return nil
-	} else if exists && !data.IfNotExists {
-		return fmt.Errorf("cannot create table %s becauase it already exists", data.Table)
-	}
-
-	btc.Logger.Info("updating table schema")
-	err = btc.updateTableSchema(ctx, data.Keyspace, schemaMappingTableName, data.Table, data.PrimaryKeys, data.Columns, nil)
-	if err != nil {
-		return err
-	}
-
-	rowKeySchema, err := createBigtableRowKeySchema(data.PrimaryKeys, data.Columns, btc.BigtableConfig.EncodeIntRowKeysWithBigEndian)
+	rowKeySchema, err := createBigtableRowKeySchema(data.PrimaryKeys, data.Columns, data.IntRowKeyEncoding)
 
 	columnFamilies, err := btc.addColumnFamilies(data.Columns)
 
@@ -425,6 +424,7 @@ func (btc *BigtableClient) CreateTable(ctx context.Context, data *translator.Cre
 		GCPolicy: bigtable.MaxVersionsPolicy(1),
 	}
 
+	// create the table conf first, here because it should exist before any reference to it in the schema mapping table is added, otherwise another concurrent request could try to load it and fail.
 	btc.Logger.Info("creating bigtable table")
 	err = adminClient.CreateTableFromConf(ctx, &bigtable.TableConf{
 		TableID:        data.Table,
@@ -440,15 +440,26 @@ func (btc *BigtableClient) CreateTable(ctx context.Context, data *translator.Cre
 		return err
 	}
 
+	exists, err := btc.tableSchemaExists(ctx, client, schemaMappingTableName, data.Table)
+	if err != nil {
+		return err
+	}
+
 	err = btc.maybeAddCounterColumnFamily(ctx, adminClient, data.Keyspace, data.Table, data.Columns)
 	if err != nil {
 		return err
 	}
 
-	btc.Logger.Info("reloading schema mappings")
-	err = btc.reloadSchemaMappings(ctx, data.Keyspace, schemaMappingTableName)
-	if err != nil {
-		return err
+	if exists && !data.IfNotExists {
+		return fmt.Errorf("cannot create table %s becauase it already exists", data.Table)
+	}
+
+	if !exists {
+		btc.Logger.Info("updating table schema")
+		err = btc.updateTableSchema(ctx, data.Keyspace, schemaMappingTableName, data.Table, data.PrimaryKeys, data.Columns, nil)
+		if err != nil {
+			return err
+		}
 	}
 
 	return nil
@@ -456,11 +467,6 @@ func (btc *BigtableClient) CreateTable(ctx context.Context, data *translator.Cre
 
 func (btc *BigtableClient) AlterTable(ctx context.Context, data *translator.AlterTableStatementMap, schemaMappingTableName string) error {
 	adminClient, err := btc.getAdminClient(data.Keyspace)
-	if err != nil {
-		return err
-	}
-
-	tableConfig, err := btc.SchemaMappingConfig.GetTableConfig(data.Keyspace, data.Table)
 	if err != nil {
 		return err
 	}
@@ -543,7 +549,7 @@ func (btc *BigtableClient) maybeAddCounterColumnFamily(ctx context.Context, admi
 func (btc *BigtableClient) addColumnFamilies(columns []message.ColumnMetadata) (map[string]bigtable.Family, error) {
 	columnFamilies := make(map[string]bigtable.Family)
 	for _, col := range columns {
-		if utilities.IsCollectionDataType(col.Type) {
+		if utilities.IsCollection(col.Type) {
 			if col.Name == btc.BigtableConfig.DefaultColumnFamily {
 				return nil, fmt.Errorf("collection type columns cannot be named '%s' because it's reserved as the default column family", btc.BigtableConfig.DefaultColumnFamily)
 			} else if col.Name == btc.BigtableConfig.CounterColumnFamily {
@@ -785,32 +791,32 @@ func (btc *BigtableClient) ReadTableConfigs(ctx context.Context, keyspace, schem
 		return nil, err
 	}
 
-	tableConfigs := make([]*schemaMapping.TableConfig, 0, len(allColumns))
-	for tableName, tableColumns := range allColumns {
-		tableConfig := schemaMapping.NewTableConfig(keyspace, tableName, btc.BigtableConfig.DefaultColumnFamily, btc.BigtableConfig.EncodeIntRowKeysWithBigEndian, tableColumns)
-		tableConfigs = append(tableConfigs, tableConfig)
-	}
-
 	adminClient, err := btc.getAdminClient(keyspace)
 	if err != nil {
-		errorMessage := fmt.Sprintf("failed to load table state from bigtable for keyspace '%s'", keyspace)
+		errorMessage := fmt.Sprintf("failed to get admin client for keyspace '%s'", keyspace)
 		btc.Logger.Error(errorMessage, zap.Error(err))
 		return nil, fmt.Errorf("%s: %w", errorMessage, err)
 	}
-	for _, table := range tableConfigs {
-		// if we already know what encoding the table has, just use that, so we don't have to do the extra lookup
-		if existingTable, err := btc.SchemaMappingConfig.GetTableConfig(table.Keyspace, table.Name); err == nil {
-			table.EncodeIntRowKeysWithBigEndian = existingTable.EncodeIntRowKeysWithBigEndian
-			continue
+
+	tableConfigs := make([]*schemaMapping.TableConfig, 0, len(allColumns))
+	for tableName, tableColumns := range allColumns {
+		var intRowKeyEncoding types.IntRowKeyEncodingType
+		// if we already know what encoding the table has, just use that, so we don't have to do the extra network request
+		if existingTable, err := btc.SchemaMappingConfig.GetTableConfig(keyspace, tableName); err == nil {
+			intRowKeyEncoding = existingTable.IntRowKeyEncoding
+		} else {
+			btc.Logger.Info(fmt.Sprintf("loading table info for table %s.%s", keyspace, tableName))
+			tableInfo, err := adminClient.TableInfo(ctx, tableName)
+			if err != nil {
+				return nil, err
+			}
+			intRowKeyEncoding = detectTableEncoding(tableInfo, types.OrderedCodeEncoding)
 		}
 
-		btc.Logger.Info(fmt.Sprintf("loading table info for table %s.%s", keyspace, table.Name))
-		tableInfo, err := adminClient.TableInfo(ctx, table.Name)
-		if err != nil {
-			return nil, err
-		}
-		table.EncodeIntRowKeysWithBigEndian = isTableRowKeyBigEndianEncoded(tableInfo)
+		tableConfig := schemaMapping.NewTableConfig(keyspace, tableName, btc.BigtableConfig.DefaultColumnFamily, intRowKeyEncoding, tableColumns)
+		tableConfigs = append(tableConfigs, tableConfig)
 	}
+
 	otelgo.AddAnnotation(ctx, schemaMappingConfigFetched)
 
 	return tableConfigs, nil

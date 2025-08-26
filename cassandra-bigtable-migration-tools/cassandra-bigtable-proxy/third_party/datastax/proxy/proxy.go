@@ -207,32 +207,25 @@ func NewProxy(ctx context.Context, config Config) (*Proxy, error) {
 		return nil, err
 	}
 	logger := proxycore.GetOrCreateNopLogger(config.Logger)
-	var allTables []*schemaMapping.TableConfig = nil
-	bigtableCl := bigtableModule.NewBigtableClient(bigtableClients, adminClients, logger, config.BigtableConfig, &responsehandler.TypeHandler{}, &schemaMapping.SchemaMappingConfig{}, config.BigtableConfig.InstancesMap)
-	for k, _ := range config.BigtableConfig.InstancesMap {
-		tableConfigs, err := bigtableCl.ReadTableConfigs(ctx, strings.TrimSpace(k), config.BigtableConfig.SchemaMappingTable)
+	smc := schemaMapping.NewSchemaMappingConfig(config.BigtableConfig.DefaultColumnFamily,  config.BigtableConfig.CounterColumnFamily,logger, nil)
+	bigtableCl := bigtableModule.NewBigtableClient(bigtableClients, adminClients, logger, config.BigtableConfig, &responsehandler.TypeHandler{}, smc, config.BigtableConfig.InstancesMap)
+	for k := range config.BigtableConfig.InstancesMap {
+		tableConfigs, err := bigtableCl.ReadTableConfigs(ctx, k, config.BigtableConfig.SchemaMappingTable)
 		if err != nil {
 			return nil, err
 		}
-		allTables = append(allTables, tableConfigs...)
+		smc.UpdateTables(tableConfigs)
 	}
-	schemaMappingConfig := &schemaMapping.SchemaMappingConfig{
-		Logger:              config.Logger,
-		TablesMetaData:      tableMetadata,
-		PkMetadataCache:     pkMetadata,
-		SystemColumnFamily:  config.BigtableConfig.DefaultColumnFamily,
-		CounterColumnFamily: config.BigtableConfig.CounterColumnFamily,
-	}
-	schemaMappingConfig := schemaMapping.NewSchemaMappingConfig(config.BigtableConfig.DefaultColumnFamily, config.Logger, allTables)
 	responseHandler := &responsehandler.TypeHandler{
 		Logger:              config.Logger,
-		SchemaMappingConfig: schemaMappingConfig,
+		SchemaMappingConfig: smc,
 	}
 
-	bigtableCl.LoadConfigs(responseHandler, schemaMappingConfig)
+	bigtableCl.LoadConfigs(responseHandler, smc)
 	proxyTranslator := &translator.Translator{
-		Logger:              config.Logger,
-		SchemaMappingConfig: schemaMappingConfig,
+		Logger:                   config.Logger,
+		SchemaMappingConfig:      smc,
+		DefaultIntRowKeyEncoding: config.BigtableConfig.DefaultIntRowKeyEncoding,
 	}
 
 	// Enable OpenTelemetry traces by setting environment variable GOOGLE_API_GO_EXPERIMENTAL_TELEMETRY_PLATFORM_TRACING to the case-insensitive value "opentelemetry" before loading the client library.
@@ -260,7 +253,7 @@ func NewProxy(ctx context.Context, config Config) (*Proxy, error) {
 		config.Logger.Error("Failed to enable the OTEL: " + err.Error())
 		return nil, err
 	}
-	systemQueryMetadataCache, err := ConstructSystemMetadataRows(schemaMappingConfig.GetAllTables())
+	systemQueryMetadataCache, err := ConstructSystemMetadataRows(smc.GetAllTables())
 	if err != nil {
 		return nil, err
 	}
@@ -274,7 +267,7 @@ func NewProxy(ctx context.Context, config Config) (*Proxy, error) {
 		closed:                   make(chan struct{}),
 		bClient:                  bigtableCl,
 		translator:               proxyTranslator,
-		schemaMapping:            schemaMappingConfig,
+		schemaMapping:            smc,
 		systemQueryMetadataCache: systemQueryMetadataCache,
 		otelInst:                 otelInst,
 		otelShutdown:             shutdownOTel,

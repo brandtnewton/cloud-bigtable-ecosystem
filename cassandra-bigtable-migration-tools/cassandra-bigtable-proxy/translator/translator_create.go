@@ -215,7 +215,5 @@ func createOptionsMap(withElement cql.IWithElementContext) map[string]string {
 }
 
 func trimQuotes(s string) string {
-	s, _ = strings.CutSuffix(s, "'")
-	s, _ = strings.CutPrefix(s, "'")
-	return s
+	return strings.Trim(s, "'")
 }

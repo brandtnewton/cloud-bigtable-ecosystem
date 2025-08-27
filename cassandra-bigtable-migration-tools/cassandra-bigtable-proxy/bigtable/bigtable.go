@@ -188,6 +188,7 @@ func (btc *BigtableClient) mutateRow(ctx context.Context, tableName, rowKey stri
 			}
 			// note: all counters are stored in a single column family dedicated to counter columns
 			mut.AddIntToCell(btc.BigtableConfig.CounterColumnFamily, col, counterTimestamp, incrementValue)
+			mutationCount++
 		}
 		if meta.UpdateListIndex != "" {
 			index, err := strconv.Atoi(meta.UpdateListIndex)
@@ -444,8 +445,7 @@ func (btc *BigtableClient) CreateTable(ctx context.Context, data *translator.Cre
 	// ignore already exists errors - the schema mapping table is the SoT
 	if status.Code(err) == codes.AlreadyExists {
 		err = nil
-	}
-	if err != nil {
+	} else if err != nil {
 		btc.Logger.Error("failed to create bigtable table", zap.Error(err))
 		return err
 	}
@@ -467,6 +467,10 @@ func (btc *BigtableClient) CreateTable(ctx context.Context, data *translator.Cre
 	if !exists {
 		btc.Logger.Info("updating table schema")
 		err = btc.updateTableSchema(ctx, data.Keyspace, schemaMappingTableName, data.Table, data.PrimaryKeys, data.Columns, nil)
+		if err != nil {
+			return err
+		}
+		err = btc.reloadSchemaMappings(ctx, data.Keyspace, schemaMappingTableName)
 		if err != nil {
 			return err
 		}

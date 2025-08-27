@@ -125,10 +125,12 @@ func setUpTests() {
 		"bigtabledevinstance.multiple_int_keys",
 		"bigtabledevinstance.test_int_key",
 		"bigtabledevinstance.orders_big_endian_encoded",
+		"bigtabledevinstance.social_posts",
 	}
 
 	// truncate all tables
 	for _, table := range tableNames {
+		log.Println(fmt.Sprintf("truncating table: '%s'...", table))
 		err = session.Query(fmt.Sprintf("TRUNCATE TABLE %s", table)).Exec()
 		if err != nil {
 			log.Fatalf("could not create table: %v", err)

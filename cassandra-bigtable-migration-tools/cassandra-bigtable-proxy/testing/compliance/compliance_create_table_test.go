@@ -1,11 +1,12 @@
 package compliance
 
 import (
+	"context"
 	"fmt"
 	"strings"
 	"testing"
 
-	"github.com/google/uuid"
+	"cloud.google.com/go/bigtable"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -13,7 +14,7 @@ import (
 func TestCreateIfNotExist(t *testing.T) {
 	t.Parallel()
 	// dropping a random table that definitely doesn't exist should be ok
-	table := "create_" + strings.ReplaceAll(uuid.New().String(), "-", "_")
+	table := uniqueTableName("create_table_")
 	defer cleanupTable(t, table)
 	err := session.Query(fmt.Sprintf("CREATE TABLE %s (id TEXT PRIMARY KEY, name TEXT)", table)).Exec()
 	assert.NoError(t, err)
@@ -21,6 +22,43 @@ func TestCreateIfNotExist(t *testing.T) {
 	assert.Error(t, err)
 	err = session.Query(fmt.Sprintf("CREATE TABLE IF NOT EXISTS %s (id TEXT PRIMARY KEY, name TEXT)", table)).Exec()
 	assert.NoError(t, err)
+}
+
+func TestCreateWhereBigtableTableExists(t *testing.T) {
+	t.Parallel()
+	table := uniqueTableName("create_table_")
+	defer cleanupTable(t, table)
+
+	ctx := context.Background()
+	adminClient, err := bigtable.NewAdminClient(ctx, gcpProjectId, "bigtabledevinstance")
+	require.NoError(t, err)
+
+	err = adminClient.CreateTableFromConf(ctx, &bigtable.TableConf{
+		TableID: table,
+		ColumnFamilies: map[string]bigtable.Family{
+			"cf1": {
+				GCPolicy: bigtable.MaxVersionsPolicy(1),
+			},
+		},
+		RowKeySchema: &bigtable.StructType{
+			Fields:   []bigtable.StructField{{FieldName: "id", FieldType: bigtable.Int64Type{Encoding: bigtable.Int64OrderedCodeBytesEncoding{}}}},
+			Encoding: bigtable.StructOrderedCodeBytesEncoding{},
+		},
+	})
+	require.NoError(t, err)
+
+	// table should still be creatable given that it's compatible
+	err = session.Query(fmt.Sprintf("CREATE TABLE %s (id int PRIMARY KEY, name TEXT)", table)).Exec()
+	require.NoError(t, err)
+
+	// confirm it's usable
+	require.NoError(t, session.Query(fmt.Sprintf("INSERT INTO %s (id, name) VALUES (?, ?)", table), 13, "foo").Exec())
+
+	var id int32
+	var name string
+	require.NoError(t, session.Query(fmt.Sprintf("SELECT id, name FROM %s where id=?", table), int32(13)).Scan(&id, &name))
+	assert.Equal(t, int32(13), id)
+	assert.Equal(t, "foo", name)
 }
 
 func TestNegativeTestCasesForCreateTable(t *testing.T) {

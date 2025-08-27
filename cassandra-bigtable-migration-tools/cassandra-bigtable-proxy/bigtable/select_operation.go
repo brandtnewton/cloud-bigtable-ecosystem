@@ -161,15 +161,10 @@ func (btc *BigtableClient) convertResultRowToMap(resultRow bigtable.ResultRow, q
 		case []byte:
 			rowMap[colName] = v
 		case map[string]*int64:
-			// flatten out the counter column family - we only get here when 'select *' is used
-			if colName == btc.SchemaMappingConfig.CounterColumnFamily {
-				for key, value := range v {
-					decodedKey, err := decodeBase64(key)
-					if err != nil {
-						return nil, err
-					}
-					rowMap[decodedKey] = *value
-				}
+			// counters are always a column family with a single column
+			for _, value := range v {
+				rowMap[colName] = *value
+				break
 			}
 		case map[string][]uint8: //specific case of select * column in select
 			if colName == query.DefaultColumnFamily { // default column family e.g cf1

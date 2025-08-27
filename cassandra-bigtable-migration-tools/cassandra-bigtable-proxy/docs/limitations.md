@@ -13,20 +13,20 @@ simply because certain features haven't been fully implemented yet in the proxy.
 
 ## 1. Supported data types
 
-| CQL Type         | Supported | Cloud Bigtable Mapping                                                             |
-|------------------|-----------|------------------------------------------------------------------------------------|
-| text             | ✓         | RAW BYTES                                                                          |
-| blob             | ✓         | RAW BYTES                                                                          |
-| timestamp        | ✓         | RAW BYTES                                                                          |
-| int              | ✓         | RAW BYTES                                                                          |
-| bigint           | ✓         | RAW BYTES                                                                          |
-| float            | ✓         | RAW BYTES                                                                          |
-| double           | ✓         | RAW BYTES                                                                          |
-| boolean          | ✓         | RAW BYTES                                                                          |
-| counter          | ✓         | Stored in a dedicated counter column family (`ctrf` by default).                   |
-| map<key, value>  | ✓         | Col name as col family, MAP key as column qualifier, value as value                |
-| set&lt;item&gt;  | ✓         | Col name as col family, SET item as column qualifier, value remain empty           |
-| list&lt;item&gt; | ✓         | Col name as col family, current timestamp as column qualifier, list items as value |
+| CQL Type              | Supported | Cloud Bigtable Mapping                                                             |
+|-----------------------|-----------|------------------------------------------------------------------------------------|
+| text                  | ✓         | RAW BYTES                                                                          |
+| blob                  | ✓         | RAW BYTES                                                                          |
+| timestamp             | ✓         | RAW BYTES                                                                          |
+| int                   | ✓         | RAW BYTES                                                                          |
+| bigint                | ✓         | RAW BYTES                                                                          |
+| float                 | ✓         | RAW BYTES                                                                          |
+| double                | ✓         | RAW BYTES                                                                          |
+| boolean               | ✓         | RAW BYTES                                                                          |
+| counter               | ✓         | Col name as col family, values stored in a 'v' column.                             |
+| map&lt;key, value&gt; | ✓         | Col name as col family, MAP key as column qualifier, value as value                |
+| set&lt;item&gt;       | ✓         | Col name as col family, SET item as column qualifier, value remain empty           |
+| list&lt;item&gt;      | ✓         | Col name as col family, current timestamp as column qualifier, list items as value |
 
 All list types follow the same storage pattern:  
 **Col name as col family, current timestamp (with nanosecond precision) as

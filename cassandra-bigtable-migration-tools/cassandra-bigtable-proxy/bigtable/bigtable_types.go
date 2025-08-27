@@ -64,7 +64,7 @@ type BigtableConfig struct {
 	InstancesMap        map[string]InstanceConfig //map of key[cassandra keyspace] to Instance Configuration[bigtable instance]
 	GCPProjectID        string
 	DefaultColumnFamily string
-	CounterColumnFamily string
+	CounterColumnName   string
 	// all new tables should set this to false
 	DefaultIntRowKeyEncoding types.IntRowKeyEncodingType
 }

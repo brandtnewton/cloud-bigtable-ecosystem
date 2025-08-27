@@ -1393,7 +1393,7 @@ func processSet[V any](
 // It iterates over the clauses and constructs the WHERE clause by combining the column name, operator, and value of each clause.
 // If the operator is "IN", the value is wrapped with the UNNEST function.
 // The constructed WHERE clause is returned as a string.
-func buildWhereClause(clauses []types.Clause, tableConfig *schemaMapping.TableConfig, counterColumnFamily string) (string, error) {
+func buildWhereClause(clauses []types.Clause, tableConfig *schemaMapping.TableConfig, CounterColumnName string) (string, error) {
 	whereClause := ""
 	columnFamily := tableConfig.SystemColumnFamily
 	for _, val := range clauses {
@@ -1403,7 +1403,7 @@ func buildWhereClause(clauses []types.Clause, tableConfig *schemaMapping.TableCo
 			// Check if the column is a primitive type and prepend the column family
 			if !utilities.IsCollectionColumn(colMeta) {
 				var castErr error
-				column, castErr = castColumns(colMeta, columnFamily, counterColumnFamily)
+				column, castErr = castColumns(colMeta, columnFamily, CounterColumnName)
 				if castErr != nil {
 					return "", castErr
 				}
@@ -1436,7 +1436,7 @@ func buildWhereClause(clauses []types.Clause, tableConfig *schemaMapping.TableCo
 // castColumns handles column type casting in queries.
 // Manages type conversion for column values with validation.
 // Returns error if column type is invalid or conversion fails.
-func castColumns(colMeta *types.Column, columnFamily string, counterColumnFamily string) (string, error) {
+func castColumns(colMeta *types.Column, columnFamily string, counterColumnName string) (string, error) {
 	var nc string
 	switch colMeta.CQLType {
 	case datatype.Int:
@@ -1460,7 +1460,7 @@ func castColumns(colMeta *types.Column, columnFamily string, counterColumnFamily
 	case datatype.Timestamp:
 		nc = fmt.Sprintf("TO_TIME(%s['%s'])", columnFamily, colMeta.Name)
 	case datatype.Counter:
-		nc = fmt.Sprintf("%s['%s']", counterColumnFamily, colMeta.Name)
+		nc = fmt.Sprintf("%s['%s']", colMeta.Name, counterColumnName)
 	case datatype.Blob:
 		nc = fmt.Sprintf("TO_BLOB(%s['%s'])", columnFamily, colMeta.Name)
 	case datatype.Varchar:

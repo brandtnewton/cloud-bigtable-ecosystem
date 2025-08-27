@@ -35,5 +35,5 @@ func GetSchemaMappingConfig() *schemaMapping.SchemaMappingConfig {
 		schemaMapping.NewTableConfig("test_keyspace", "user_info", systemColumnFamily, types.OrderedCodeEncoding, userInfoColumns),
 	}
 
-	return schemaMapping.NewSchemaMappingConfig(systemColumnFamily, "ctrf", zap.NewNop(), allTableConfigs)
+	return schemaMapping.NewSchemaMappingConfig(systemColumnFamily, "v", zap.NewNop(), allTableConfigs)
 }

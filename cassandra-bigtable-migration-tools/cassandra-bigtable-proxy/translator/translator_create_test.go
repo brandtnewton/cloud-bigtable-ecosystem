@@ -454,7 +454,7 @@ func TestTranslateCreateTableToBigtable(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			tr := &Translator{
 				Logger:                   nil,
-				SchemaMappingConfig:      schemaMapping.NewSchemaMappingConfig("cf1", "ctrf", zap.NewNop(), nil),
+				SchemaMappingConfig:      schemaMapping.NewSchemaMappingConfig("cf1", "v", zap.NewNop(), nil),
 				DefaultIntRowKeyEncoding: tt.defaultIntRowKeyEncoding,
 			}
 			got, err := tr.TranslateCreateTableToBigtable(tt.query, tt.defaultKeyspace)

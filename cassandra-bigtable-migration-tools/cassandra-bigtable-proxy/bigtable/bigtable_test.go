@@ -897,7 +897,7 @@ func TestCreateTable(t *testing.T) {
 	btClient := NewBigtableClient(client, adminClients, zap.NewNop(), BigtableConfig{
 		GCPProjectID:        "project",
 		DefaultColumnFamily: "cf1",
-		CounterColumnFamily: "ctrf",
+		CounterColumnName:   "v",
 	}, nil, &schemaMapping.SchemaMappingConfig{}, map[string]InstanceConfig{"keyspace": {BigtableInstance: "keyspace"}})
 
 	// force set up the schema mappings table

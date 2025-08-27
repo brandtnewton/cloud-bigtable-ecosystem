@@ -31,15 +31,15 @@ const (
 // SchemaMappingConfig contains the schema information for all tables, across
 // all Bigtable instances, managed by this proxy.
 type SchemaMappingConfig struct {
-	Logger              *zap.Logger
-	mu                  sync.RWMutex
-	tables              map[string]map[string]*TableConfig
-	SystemColumnFamily  string
-	CounterColumnFamily string
+	Logger             *zap.Logger
+	mu                 sync.RWMutex
+	tables             map[string]map[string]*TableConfig
+	SystemColumnFamily string
+	CounterColumnName  string
 }
 
 // NewSchemaMappingConfig is a constructor for SchemaMappingConfig. Please use this instead of direct initialization.
-func NewSchemaMappingConfig(systemColumnFamily string, counterColumnFamily string, logger *zap.Logger, tableConfigs []*TableConfig) *SchemaMappingConfig {
+func NewSchemaMappingConfig(systemColumnFamily string, counterColumnName string, logger *zap.Logger, tableConfigs []*TableConfig) *SchemaMappingConfig {
 	tablesMap := make(map[string]map[string]*TableConfig)
 	for _, tableConfig := range tableConfigs {
 		if keyspace, exists := tablesMap[tableConfig.Keyspace]; !exists {
@@ -49,10 +49,10 @@ func NewSchemaMappingConfig(systemColumnFamily string, counterColumnFamily strin
 		tablesMap[tableConfig.Keyspace][tableConfig.Name] = tableConfig
 	}
 	return &SchemaMappingConfig{
-		Logger:              logger,
-		SystemColumnFamily:  systemColumnFamily,
-		CounterColumnFamily: counterColumnFamily,
-		tables:              tablesMap,
+		Logger:             logger,
+		SystemColumnFamily: systemColumnFamily,
+		CounterColumnName:  counterColumnName,
+		tables:             tablesMap,
 	}
 }
 

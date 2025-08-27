@@ -57,8 +57,8 @@ listeners:
     #[Required] Default column family for primitive data types is "cf1"
     defaultColumnFamily: DEFAULT_COLUMN_FAMILY
 
-    # [Optional] The column family used to store counter columns. The default is "ctrf".
-    #counterColumnFamily: ctrf
+    # [Optional] The column family used to store counter columns. The default is "v".
+    #counterColumnFamily: v
 
     # [Optional] Nearly all users should keep this set to false. When undefined
     # or false, Ordered Code Bytes Encoding is used for int keys on all new

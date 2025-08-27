@@ -98,9 +98,9 @@ func cleanUpTests() {
 var gcpProjectId = ""
 
 func setUpTests() {
-	gcpProjectId = os.Getenv("GCP_PROJECT_ID")
+	gcpProjectId = os.Getenv("PROJECT_ID")
 	if gcpProjectId == "" {
-		log.Fatalf("missing env var 'GCP_PROJECT_ID'")
+		log.Fatalf("missing env var 'PROJECT_ID'")
 	}
 
 	var err error

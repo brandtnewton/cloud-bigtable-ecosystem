@@ -296,6 +296,11 @@ func isCounterColumnFamilyType(info bigtable.FamilyInfo) bool {
 }
 
 func (btc *BigtableClient) DropAllRows(ctx context.Context, data *translator.TruncateTableStatementMap) error {
+	_, err := btc.SchemaMappingConfig.GetTableConfig(data.Keyspace, data.Table)
+	if err != nil {
+		return err
+	}
+
 	adminClient, err := btc.getAdminClient(data.Keyspace)
 	if err != nil {
 		return err
@@ -312,6 +317,11 @@ func (btc *BigtableClient) DropAllRows(ctx context.Context, data *translator.Tru
 }
 
 func (btc *BigtableClient) DropTable(ctx context.Context, data *translator.DropTableStatementMap, schemaMappingTableName string) error {
+	_, err := btc.SchemaMappingConfig.GetTableConfig(data.Keyspace, data.Table)
+	if err != nil && !data.IfExists {
+		return err
+	}
+
 	client, err := btc.getClient(data.Keyspace)
 	if err != nil {
 		return err

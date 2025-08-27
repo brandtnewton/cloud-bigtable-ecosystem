@@ -451,7 +451,7 @@ func (btc *BigtableClient) CreateTable(ctx context.Context, data *translator.Cre
 	}
 
 	if exists && !data.IfNotExists {
-		return fmt.Errorf("cannot create table %s becauase it already exists", data.Table)
+		return fmt.Errorf("cannot create table %s because it already exists", data.Table)
 	}
 
 	if !exists {

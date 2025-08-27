@@ -1,10 +1,12 @@
 package compliance
 
 import (
+	"context"
 	"fmt"
 	"math"
 	"testing"
 
+	"cloud.google.com/go/bigtable"
 	"github.com/gocql/gocql"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
@@ -90,4 +92,56 @@ func TestIntRowKeys(t *testing.T) {
 			assert.Equal(t, gocql.ErrNotFound, err, "The record should be deleted")
 		})
 	}
+}
+
+func TestLexicographicOrder(t *testing.T) {
+	require.NoError(t, session.Query("CREATE TABLE IF NOT EXISTS lex_test_ordered_code (org BIGINT, id INT, username TEXT, row_index INT, PRIMARY KEY (org, id, username))").Exec())
+	ctx := context.Background()
+	admin, err := bigtable.NewAdminClient(ctx, gcpProjectId, "bigtabledevinstance")
+	require.NoError(t, err)
+
+	err = admin.DropAllRows(ctx, "lex_test_ordered_code")
+	require.NoError(t, err)
+
+	orderedValues := []map[string]interface{}{
+		{"org": math.MinInt64, "id": math.MinInt32, "username": ""},
+		{"org": math.MinInt64, "id": math.MinInt32 + 1, "username": ""},
+		{"org": math.MinInt64, "id": math.MinInt32 + 1, "username": "a"},
+		{"org": math.MinInt64, "id": math.MinInt32 + 1, "username": "b"},
+		{"org": math.MinInt64 + 1, "id": math.MinInt32, "username": ""},
+		{"org": -1000, "id": math.MinInt32, "username": ""},
+		{"org": -1, "id": math.MinInt32, "username": ""},
+		{"org": 0, "id": math.MinInt32, "username": ""},
+		{"org": 1, "id": math.MinInt32, "username": ""},
+		{"org": 1000, "id": math.MinInt32, "username": ""},
+		{"org": 99999, "id": math.MinInt32, "username": ""},
+		{"org": math.MaxInt64 - 1, "id": math.MinInt32, "username": ""},
+		{"org": math.MaxInt64, "id": math.MinInt32, "username": ""},
+		{"org": math.MaxInt64, "id": math.MinInt32 + 1, "username": ""},
+		{"org": math.MaxInt64, "id": -1000, "username": ""},
+		{"org": math.MaxInt64, "id": -1, "username": ""},
+		{"org": math.MaxInt64, "id": 0, "username": ""},
+		{"org": math.MaxInt64, "id": 0, "username": "D"},
+		{"org": math.MaxInt64, "id": 0, "username": "a"},
+		{"org": math.MaxInt64, "id": 0, "username": "b"},
+		{"org": math.MaxInt64, "id": 1, "username": ""},
+		{"org": math.MaxInt64, "id": 1000, "username": ""},
+		{"org": math.MaxInt64, "id": 99999, "username": ""},
+		{"org": math.MaxInt64, "id": math.MaxInt32 - 1, "username": ""},
+		{"org": math.MaxInt64, "id": math.MaxInt32, "username": ""},
+		{"org": math.MaxInt64, "id": math.MaxInt32, "username": "10a"},
+		{"org": math.MaxInt64, "id": math.MaxInt32, "username": "A"},
+		{"org": math.MaxInt64, "id": math.MaxInt32, "username": "Aa"},
+		{"org": math.MaxInt64, "id": math.MaxInt32, "username": "Z"},
+		{"org": math.MaxInt64, "id": math.MaxInt32, "username": "a"},
+		{"org": math.MaxInt64, "id": math.MaxInt32, "username": "b"},
+		{"org": math.MaxInt64, "id": math.MaxInt32, "username": "c"},
+		{"org": math.MaxInt64, "id": math.MaxInt32, "username": "d"},
+		{"org": math.MaxInt64, "id": math.MaxInt32, "username": "defghi"},
+		{"org": math.MaxInt64, "id": math.MaxInt32, "username": "dz"},
+		{"org": math.MaxInt64, "id": math.MaxInt32, "username": "y"},
+		{"org": math.MaxInt64, "id": math.MaxInt32, "username": "z"},
+	}
+
+	testLexOrder(t, orderedValues, "lex_test_ordered_code")
 }

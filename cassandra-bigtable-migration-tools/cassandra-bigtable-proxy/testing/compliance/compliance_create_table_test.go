@@ -77,7 +77,7 @@ func TestNegativeTestCasesForCreateTable(t *testing.T) {
 		{
 			name:          "Create table with same name as schema mapping table",
 			query:         "CREATE TABLE schema_mapping (num INT PRIMARY KEY, big_num BIGINT)",
-			expectedError: "cannot create a table with the configured schema mapping table name 'schema_mappings'",
+			expectedError: "cannot create a table with the configured schema mapping table name 'schema_mapping'",
 		},
 		{
 			name:          "multiple inline primary keys",

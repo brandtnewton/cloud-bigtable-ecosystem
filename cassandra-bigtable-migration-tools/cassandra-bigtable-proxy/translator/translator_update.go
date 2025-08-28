@@ -80,9 +80,6 @@ func getNodeValue(node antlr.Tree, parent antlr.ParserRuleContext) interface{} {
 	case cql.IAssignmentMapContext:
 		val, _ := parseCqlValue(ctx)
 		return val
-	case cql.IDecimalLiteralContext:
-		// todo error handling??
-		return ctx.GetText()
 	case antlr.TerminalNode:
 		return ctx.GetText()
 	default:
@@ -246,7 +243,7 @@ func parseAssignments(assignments []cql.IAssignmentElementContext, tableConfig *
 			return nil, fmt.Errorf("primary key not allowed to assignments")
 		}
 		if !isPreparedQuery {
-			if utilities.IsCollectionColumn(column) || column.CQLType == datatype.Counter  {
+			if utilities.IsCollectionColumn(column) || column.CQLType == datatype.Counter {
 				val = value
 			} else {
 				val, err = formatValues(fmt.Sprintf("%v", value), column.CQLType, 4)

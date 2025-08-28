@@ -26,3 +26,7 @@ func TestCqlshDesc(t *testing.T) {
 
 	assert.ElementsMatch(t, []string{"bigtabledevinstance", "cassandrakeyspace"}, got)
 }
+
+// todo 'describe tables'
+// todo 'describe keyspace.table'
+// todo 'describe keyspace'

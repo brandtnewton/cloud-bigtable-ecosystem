@@ -354,7 +354,7 @@ func (btc *BigtableClient) DropTable(ctx context.Context, data *translator.DropT
 }
 
 func (btc *BigtableClient) createSchemaMappingTableMaybe(ctx context.Context, keyspace, schemaMappingTableName string) error {
-_btc.Logger.Info("ensuring schema mapping table exists for keyspace", zap.String("schema_mapping_table", schemaMappingTableName), zap.String("keyspace", keyspace))
+	btc.Logger.Info("ensuring schema mapping table exists for keyspace", zap.String("schema_mapping_table", schemaMappingTableName), zap.String("keyspace", keyspace))
 	adminClient, err := btc.getAdminClient(keyspace)
 	if err != nil {
 		return err

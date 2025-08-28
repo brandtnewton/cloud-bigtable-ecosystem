@@ -103,21 +103,17 @@ func testLexOrder(t *testing.T, input []map[string]interface{}, table string) {
 var plusMinusRegex = regexp.MustCompile(`^[-+]*$`)
 var rowsRegex = regexp.MustCompile(`^\(\d+ rows\)$`)
 
-// executeCQLQuery runs a query using cqlsh and returns the result as a slice of maps.
-// Each map represents a row, with keys being the column headers.
-func executeCQLQuery(query string) ([]map[string]string, error) {
+func executeCQLSHQuery(query string) (string, error) {
 	cmd := exec.Command("cqlsh", "-e", query)
 
 	// Run the command and capture its combined stdout and stderr.
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		// If the command fails, the error message from cqlsh is in the output.
-		return nil, fmt.Errorf("cqlsh command failed: %w\nOutput: %s", err, string(output))
+		return "", fmt.Errorf("cqlsh command failed: %w\nOutput: %s", err, string(output))
 	}
 
 	raw := string(output)
-	//println("output:")
-	//println(raw)
 	var fixed []string = nil
 	for _, s := range strings.Split(raw, "\n") {
 		if strings.TrimSpace(s) == "" {
@@ -137,11 +133,35 @@ func executeCQLQuery(query string) ([]map[string]string, error) {
 
 		fixed = append(fixed, s)
 	}
-	//println("fixed:")
-	//println(strings.Join(fixed, "\n"))
-	//println("fixed EOF")
+	return strings.Join(fixed, "\n"), nil
+}
+
+func runCQLSHDescribe(query string) ([]string, error) {
+	output, err := executeCQLSHQuery(query)
+	if err != nil {
+		return nil, err
+	}
+	var results []string = nil
+	for _, s := range strings.Split(output, " ") {
+		trimmed := strings.TrimSpace(s)
+		if trimmed == "" {
+			continue
+		}
+		results = append(results, trimmed)
+	}
+	return results, nil
+}
+
+// executeCQLQuery runs a query using cqlsh and returns the result as a slice of maps.
+// Each map represents a row, with keys being the column headers.
+func scanCQLSHQuery(query string) ([]map[string]string, error) {
+	output, err := executeCQLSHQuery(query)
+	if err != nil {
+		return nil, err
+	}
+
 	// Create a new CSV reader from the command's output string.
-	reader := csv.NewReader(strings.NewReader(strings.Join(fixed, "\n")))
+	reader := csv.NewReader(strings.NewReader(output))
 	reader.Comma = '|'
 
 	// Read all the CSV records.

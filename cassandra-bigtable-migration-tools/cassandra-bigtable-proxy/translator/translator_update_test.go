@@ -293,6 +293,13 @@ func TestTranslator_TranslateUpdateQuerytoBigtable(t *testing.T) {
 			},
 		},
 		{
+			name: "counter operation with invalid operator",
+			args: args{
+				query: "UPDATE test_keyspace.test_table SET counter_col = counter_col * 1 WHERE column1 = 'testText' AND column10 = 'column10';",
+			},
+			wantErr: true,
+		},
+		{
 			name: "counter operation decrement",
 			args: args{
 				query: "UPDATE test_keyspace.test_table SET counter_col = counter_col - 9 WHERE column1 = 'testText' AND column10 = 'column10';",

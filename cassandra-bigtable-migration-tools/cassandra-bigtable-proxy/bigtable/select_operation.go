@@ -18,6 +18,7 @@ package bigtableclient
 
 import (
 	"context"
+	"encoding/base64"
 	"fmt"
 	"slices"
 	"strings"
@@ -161,10 +162,11 @@ func (btc *BigtableClient) convertResultRowToMap(resultRow bigtable.ResultRow, q
 		case []byte:
 			rowMap[colName] = v
 		case map[string]*int64:
-			// counters are always a column family with a single column
-			for _, value := range v {
-				rowMap[colName] = *value
-				break
+			// counters are always a column family with a single column of "v" or whatever CounterColumnName is set to
+			base64ColName := base64.StdEncoding.EncodeToString([]byte(btc.SchemaMappingConfig.CounterColumnName))
+			counterValue, ok := v[base64ColName]
+			if ok {
+				rowMap[colName] = *counterValue
 			}
 		case map[string][]uint8: //specific case of select * column in select
 			if colName == query.DefaultColumnFamily { // default column family e.g cf1

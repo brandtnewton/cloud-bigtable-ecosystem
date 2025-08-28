@@ -850,7 +850,6 @@ func processCollectionColumnsForPrepareQueries(tableConfig *schemaMapping.TableC
 					return nil, err
 				}
 				continue
-
 			default:
 				return nil, fmt.Errorf("column %s is not a collection type", column.Name)
 			}
@@ -869,6 +868,7 @@ func processCollectionColumnsForPrepareQueries(tableConfig *schemaMapping.TableC
 				return nil, fmt.Errorf("unexpected state: no existing operation for counter param")
 			}
 
+			// yucky side effect, but necessary with the current code structure
 			meta.IncrementValue = intVal
 		} else {
 			valInInterface, err := DataConversionInInsertionIfRequired(input.Values[i].Contents, input.ProtocolV, column.CQLType, "byte")

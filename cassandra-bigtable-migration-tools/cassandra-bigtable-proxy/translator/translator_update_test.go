@@ -472,10 +472,7 @@ func TestTranslator_TranslateUpdateQuerytoBigtable(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			schemaMappingConfig := &schemaMapping.SchemaMappingConfig{
-				Logger: tt.fields.Logger,
-				Tables: mockTableConfigs,
-			}
+			schemaMappingConfig := GetSchemaMappingConfig()
 
 			tr := &Translator{
 				Logger:              tt.fields.Logger,

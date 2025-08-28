@@ -972,3 +972,95 @@ func TestGetClauseByColumn(t *testing.T) {
 		})
 	}
 }
+
+func TestIsSupportedPrimaryKeyType(t *testing.T) {
+	testCases := []struct {
+		name     string
+		input    datatype.DataType
+		expected bool
+	}{
+		{"Supported Type - Int", datatype.Int, true},
+		{"Supported Type - Bigint", datatype.Bigint, true},
+		{"Supported Type - Varchar", datatype.Varchar, true},
+		{"Unsupported Type - Boolean", datatype.Boolean, false},
+		{"Unsupported Type - Float", datatype.Float, false},
+		{"Unsupported Type - Blob", datatype.Blob, false},
+		{"Unsupported Type - List", datatype.NewListType(datatype.Int), false},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			got := IsSupportedPrimaryKeyType(tc.input)
+			assert.Equal(t, tc.expected, got)
+		})
+	}
+}
+
+func TestIsSupportedCollectionElementType(t *testing.T) {
+	testCases := []struct {
+		name     string
+		input    datatype.DataType
+		expected bool
+	}{
+		{"Supported Type - Int", datatype.Int, true},
+		{"Supported Type - Bigint", datatype.Bigint, true},
+		{"Supported Type - Varchar", datatype.Varchar, true},
+		{"Supported Type - Float", datatype.Float, true},
+		{"Supported Type - Double", datatype.Double, true},
+		{"Supported Type - Timestamp", datatype.Timestamp, true},
+		{"Supported Type - Boolean", datatype.Boolean, true},
+		{"Unsupported Type - Blob", datatype.Blob, false},
+		{"Unsupported Type - UUID", datatype.Uuid, false},
+		{"Unsupported Type - Map", datatype.NewMapType(datatype.Varchar, datatype.Int), false},
+		{"Unsupported Type - Set", datatype.NewSetType(datatype.Varchar), false},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			got := isSupportedCollectionElementType(tc.input)
+			assert.Equal(t, tc.expected, got)
+		})
+	}
+}
+
+func TestIsSupportedColumnType(t *testing.T) {
+	testCases := []struct {
+		name     string
+		input    datatype.DataType
+		expected bool
+	}{
+		// --- Positive Cases: Primitive Types ---
+		{"Supported Primitive - Int", datatype.Int, true},
+		{"Supported Primitive - Bigint", datatype.Bigint, true},
+		{"Supported Primitive - Blob", datatype.Blob, true},
+		{"Supported Primitive - Boolean", datatype.Boolean, true},
+		{"Supported Primitive - Double", datatype.Double, true},
+		{"Supported Primitive - Float", datatype.Float, true},
+		{"Supported Primitive - Timestamp", datatype.Timestamp, true},
+		{"Supported Primitive - Varchar", datatype.Varchar, true},
+
+		// --- Positive Cases: Collection Types ---
+		{"Supported List", datatype.NewListType(datatype.Int), true},
+		{"Supported Set", datatype.NewSetType(datatype.Varchar), true},
+		{"Supported Map", datatype.NewMapType(datatype.Timestamp, datatype.Float), true},
+		{"Supported Map with Text Key", datatype.NewMapType(datatype.Varchar, datatype.Bigint), true},
+
+		// --- Negative Cases: Primitive Types ---
+		{"Unsupported Primitive - UUID", datatype.Uuid, false},
+		{"Unsupported Primitive - TimeUUID", datatype.Timeuuid, false},
+
+		// --- Negative Cases: Collection Types ---
+		{"Unsupported List Element", datatype.NewListType(datatype.Uuid), false},
+		{"Unsupported Set Element", datatype.NewSetType(datatype.Blob), false},
+		{"Unsupported Map Key", datatype.NewMapType(datatype.Blob, datatype.Varchar), false},
+		{"Unsupported Map Value", datatype.NewMapType(datatype.Varchar, datatype.Uuid), false},
+		{"Nested Collection - List of Maps", datatype.NewListType(datatype.NewMapType(datatype.Varchar, datatype.Int)), false},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			got := IsSupportedColumnType(tc.input)
+			assert.Equal(t, tc.expected, got)
+		})
+	}
+}

@@ -20,7 +20,7 @@ import (
 	"fmt"
 	"sort"
 
-	schemaMapping "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/schema-mapping"
+	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/global/types"
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/third_party/datastax/proxycore"
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/utilities"
 	"github.com/datastax/go-cassandra-native-protocol/datatype"
@@ -398,8 +398,8 @@ func ExtractUniqueKeys(rowMap []map[string]interface{}, query QueryMetadata) []s
 // - key (string): The key to match against the column's Alias or Name.
 //
 // Returns:
-// - schemaMapping.SelectedColumns: The column object that matches the key, or an empty object if no match is found.
-func GetQueryColumn(query QueryMetadata, index int, key string) schemaMapping.SelectedColumns {
+// - types: The column object that matches the key, or an empty object if no match is found.
+func GetQueryColumn(query QueryMetadata, index int, key string) types.SelectedColumn {
 
 	if len(query.SelectedColumns) > 0 {
 		selectedColumn := query.SelectedColumns[index]
@@ -414,10 +414,10 @@ func GetQueryColumn(query QueryMetadata, index int, key string) schemaMapping.Se
 		}
 	}
 
-	return schemaMapping.SelectedColumns{}
+	return types.SelectedColumn{}
 }
 
-// function to encode rows - [][]interface{} to cassandra supported response formate [][][]bytes
+// BuildResponseForSystemQueries function to encode rows - [][]interface{} to cassandra supported response formate [][][]bytes
 func BuildResponseForSystemQueries(rows [][]interface{}, protocalV primitive.ProtocolVersion) ([]message.Row, error) {
 	var allRows []message.Row
 	for _, row := range rows {

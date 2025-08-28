@@ -208,22 +208,16 @@ func NewProxy(ctx context.Context, config Config) (*Proxy, error) {
 		return nil, err
 	}
 	logger := proxycore.GetOrCreateNopLogger(config.Logger)
-	tableMetadata := make(map[string]map[string]*schemaMapping.TableConfig)
+	var allTables []*schemaMapping.TableConfig = nil
 	bigtableCl := bigtableModule.NewBigtableClient(bigtableClients, adminClients, logger, config.BigtableConfig, &responsehandler.TypeHandler{}, &schemaMapping.SchemaMappingConfig{}, config.BigtableConfig.InstancesMap)
 	for k, _ := range config.BigtableConfig.InstancesMap {
-		instanceID := strings.TrimSpace(k)
-
-		tableConfigs, err := bigtableCl.GetSchemaMappingConfigs(ctx, instanceID, config.BigtableConfig.SchemaMappingTable)
+		tableConfigs, err := bigtableCl.ReadTableConfigs(ctx, strings.TrimSpace(k), config.BigtableConfig.SchemaMappingTable)
 		if err != nil {
 			return nil, err
 		}
-		tableMetadata[instanceID] = tableConfigs
+		allTables = append(allTables, tableConfigs...)
 	}
-	schemaMappingConfig := &schemaMapping.SchemaMappingConfig{
-		Logger:             config.Logger,
-		Tables:             tableMetadata,
-		SystemColumnFamily: config.BigtableConfig.DefaultColumnFamily,
-	}
+	schemaMappingConfig := schemaMapping.NewSchemaMappingConfig(config.BigtableConfig.DefaultColumnFamily, config.Logger, allTables)
 	responseHandler := &responsehandler.TypeHandler{
 		Logger:              config.Logger,
 		SchemaMappingConfig: schemaMappingConfig,
@@ -262,7 +256,7 @@ func NewProxy(ctx context.Context, config Config) (*Proxy, error) {
 		config.Logger.Error("Failed to enable the OTEL: " + err.Error())
 		return nil, err
 	}
-	systemQueryMetadataCache, err := ConstructSystemMetadataRows(tableMetadata)
+	systemQueryMetadataCache, err := ConstructSystemMetadataRows(schemaMappingConfig.GetAllTables())
 	if err != nil {
 		return nil, err
 	}
@@ -2035,10 +2029,10 @@ func detectEmptyPrimaryKey(query *translator.InsertQueryMapping) string {
 // handleDescribeKeyspaces handles the DESCRIBE KEYSPACES command
 func (c *client) handleDescribeKeyspaces(hdr *frame.Header) {
 	// Get all keyspaces from the schema mapping
-	keyspaces := make([]string, 0, len(c.proxy.schemaMapping.Tables))
+	keyspaces := make([]string, 0, len(c.proxy.schemaMapping.GetAllTables()))
 
 	// Add custom keyspaces from schema mapping
-	for keyspace := range c.proxy.schemaMapping.Tables {
+	for keyspace := range c.proxy.schemaMapping.GetAllTables() {
 		keyspaces = append(keyspaces, keyspace)
 	}
 
@@ -2169,7 +2163,7 @@ func (c *client) handleDescribeKeyspace(hdr *frame.Header, keyspaceName string) 
 	createStmts := []string{}
 
 	// 2. CREATE TABLE statements for each table in the keyspace
-	tablesMap, ok := c.proxy.schemaMapping.Tables[keyspaceName]
+	tablesMap, ok := c.proxy.schemaMapping.GetAllTables()[keyspaceName]
 	if ok {
 		for tableName, tableConfig := range tablesMap {
 			var colDefs []string
@@ -2253,7 +2247,7 @@ func (c *client) handleEvent(event proxycore.Event) {
 // handlePostDDLEvent handles common operations after DDL statements (CREATE, ALTER, DROP)
 func (c *client) handlePostDDLEvent(hdr *frame.Header, changeType primitive.SchemaChangeType, keyspace, table string) {
 	// Refresh system metadata cache
-	cache, err := ConstructSystemMetadataRows(c.proxy.schemaMapping.Tables)
+	cache, err := ConstructSystemMetadataRows(c.proxy.schemaMapping.GetAllTables())
 	if err != nil {
 		c.proxy.logger.Error("Failed to refresh system metadata cache", zap.Error(err))
 		_, span := c.proxy.otelInst.StartSpan(c.proxy.ctx, "handlePostDDLEvent", nil)

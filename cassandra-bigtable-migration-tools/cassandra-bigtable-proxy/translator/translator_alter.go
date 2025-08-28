@@ -18,9 +18,11 @@ package translator
 
 import (
 	"errors"
+	"fmt"
 
 	methods "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/global/methods"
 	cql "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/third_party/cqlparser"
+	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/utilities"
 	"github.com/antlr4-go/antlr/v4"
 	"github.com/datastax/go-cassandra-native-protocol/message"
 )
@@ -55,6 +57,19 @@ func (t *Translator) TranslateAlterTableToBigtable(query, sessionKeyspace string
 		return nil, errors.New("missing keyspace. keyspace is required")
 	}
 
+	tableConfig, err := t.SchemaMappingConfig.GetTableConfig(keyspaceName, tableName)
+	if err != nil {
+		return nil, err
+	}
+
+	if alterTable.AlterTableOperation().AlterTableAlterColumnTypes() != nil {
+		return nil, errors.New("alter column type operations are not supported")
+	}
+
+	if alterTable.AlterTableOperation().AlterTableWith() != nil {
+		return nil, errors.New("table property operations are not supported")
+	}
+
 	var dropColumns []string
 	if alterTable.AlterTableOperation().AlterTableDropColumns() != nil {
 		for _, dropColumn := range alterTable.AlterTableOperation().AlterTableDropColumns().AlterTableDropColumnList().AllColumn() {
@@ -81,6 +96,24 @@ func (t *Translator) TranslateAlterTableToBigtable(query, sessionKeyspace string
 
 	if alterTable.AlterTableOperation().AlterTableRename() != nil && len(alterTable.AlterTableOperation().AlterTableRename().AllColumn()) != 0 {
 		return nil, errors.New("rename operation in alter table command not supported")
+	}
+
+	for _, dropColumn := range dropColumns {
+		column, err := tableConfig.GetColumn(dropColumn)
+		if err != nil {
+			return nil, fmt.Errorf("cannot drop column: %w", err)
+		}
+		if column.IsPrimaryKey {
+			return nil, fmt.Errorf("cannot drop primary key column: '%s'", column.Name)
+		}
+	}
+	for _, addColumn := range addColumns {
+		if !utilities.IsSupportedColumnType(addColumn.Type) {
+			return nil, fmt.Errorf("column type '%s' is not supported", addColumn.Type)
+		}
+		if tableConfig.HasColumn(addColumn.Name) {
+			return nil, fmt.Errorf("column '%s' already exists in table", addColumn.Name)
+		}
 	}
 
 	var stmt = AlterTableStatementMap{

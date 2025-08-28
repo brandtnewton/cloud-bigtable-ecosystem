@@ -674,11 +674,17 @@ func handleCounterOperation(val interface{}, column types.Column, input ProcessR
 	case ComplexAssignment:
 		switch v.Operation {
 		case "+", "-":
-			str, ok := v.Right.(string)
-			if !ok {
-				return fmt.Errorf("expected string for counter operation, got %T", val)
+			var valueStr string
+			// Check for `col = col + val` or `col = val + col`
+			if rStr, ok := v.Right.(string); ok && v.Left.(string) == column.Name {
+				valueStr = rStr
+			} else if lStr, ok := v.Left.(string); ok && v.Right.(string) == column.Name {
+				valueStr = lStr
+			} else {
+				return fmt.Errorf("invalid counter operation structure for column %s", column.Name)
 			}
-			intVal, err := strconv.ParseInt(str, 10, 64)
+
+			intVal, err := strconv.ParseInt(valueStr, 10, 64)
 			if err != nil {
 				return err
 			}
@@ -1071,14 +1077,14 @@ func handleMapProcessing(val *primitive.Value, column types.Column, colFamily st
 // Manages map operations with type-specific handling map(timestamp,varchar) or map(varchar,timestamp)
 // Returns error if value type doesn't match map key/value types or encoding fails.
 func processMap[V any](
-	val *primitive.Value,
-	column types.Column,
-	colFamily string,
-	valueDatatype datatype.DataType,
-	protocolV primitive.ProtocolVersion,
-	output *ProcessPrepareCollectionsOutput,
-	keyType datatype.DataType,
-	valueType datatype.DataType,
+		val *primitive.Value,
+		column types.Column,
+		colFamily string,
+		valueDatatype datatype.DataType,
+		protocolV primitive.ProtocolVersion,
+		output *ProcessPrepareCollectionsOutput,
+		keyType datatype.DataType,
+		valueType datatype.DataType,
 ) error {
 	mapValDatatype := column.CQLType
 	if keyType == datatype.Varchar && valueDatatype == datatype.Timestamp {
@@ -1173,12 +1179,12 @@ func processTimestampMap[V any](valueDatatype, mapValDatatype datatype.DataType,
 // Processes deletion of map entries and set elements with type validation.
 // Returns error if value type doesn't match collection element type or deletion fails.
 func processDeleteOperationForMapAndSet(
-	column types.Column,
-	meta *ComplexOperation,
-	input ProcessPrepareCollectionsInput,
-	val *primitive.Value,
-	output *ProcessPrepareCollectionsOutput,
-	expectedDt datatype.DataType,
+		column types.Column,
+		meta *ComplexOperation,
+		input ProcessPrepareCollectionsInput,
+		val *primitive.Value,
+		output *ProcessPrepareCollectionsOutput,
+		expectedDt datatype.DataType,
 ) error {
 	var err error
 
@@ -1223,13 +1229,13 @@ func convertToInterfaceSlice(decodedValue interface{}) ([]interface{}, error) {
 // Processes updation at index and simple assignment.
 // Returns error if key/value types don't match map types or encoding fails.
 func processMapKeyAppend(
-	column types.Column,
-	meta *ComplexOperation,
-	input ProcessPrepareCollectionsInput,
-	val *primitive.Value,
-	output *ProcessPrepareCollectionsOutput,
-	valueDatatype datatype.DataType,
-	keyType datatype.DataType,
+		column types.Column,
+		meta *ComplexOperation,
+		input ProcessPrepareCollectionsInput,
+		val *primitive.Value,
+		output *ProcessPrepareCollectionsOutput,
+		valueDatatype datatype.DataType,
+		keyType datatype.DataType,
 ) error {
 	expectedDT := meta.ExpectedDatatype
 	//if expected datatype is timestamp, convert it to bigint
@@ -1308,11 +1314,11 @@ func handlePrepareSetOperation(val *primitive.Value, column types.Column, colFam
 // Handles set operations for append, delete, and update at index and simple assignment.
 // Returns error if value type doesn't match set element type or encoding fails.
 func handleSetProcessing(
-	val *primitive.Value,
-	column types.Column,
-	colFamily string,
-	protocolV primitive.ProtocolVersion,
-	output *ProcessPrepareCollectionsOutput,
+		val *primitive.Value,
+		column types.Column,
+		colFamily string,
+		protocolV primitive.ProtocolVersion,
+		output *ProcessPrepareCollectionsOutput,
 ) error {
 	setType, ok := column.CQLType.(datatype.SetType)
 	if !ok {
@@ -1345,13 +1351,13 @@ func handleSetProcessing(
 // Manages set operations with type-specific handling and protocol version encoding.
 // Returns error if value type doesn't match set element type or encoding fails.
 func processSet[V any](
-	val *primitive.Value,
-	column types.Column,
-	colFamily string,
-	protocolV primitive.ProtocolVersion,
-	setType datatype.DataType,
-	valueDataType datatype.DataType,
-	output *ProcessPrepareCollectionsOutput,
+		val *primitive.Value,
+		column types.Column,
+		colFamily string,
+		protocolV primitive.ProtocolVersion,
+		setType datatype.DataType,
+		valueDataType datatype.DataType,
+		output *ProcessPrepareCollectionsOutput,
 
 ) error {
 

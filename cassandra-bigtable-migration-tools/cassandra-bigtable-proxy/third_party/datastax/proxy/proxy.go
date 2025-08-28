@@ -207,10 +207,10 @@ func NewProxy(ctx context.Context, config Config) (*Proxy, error) {
 		return nil, err
 	}
 	logger := proxycore.GetOrCreateNopLogger(config.Logger)
-	smc := schemaMapping.NewSchemaMappingConfig(config.BigtableConfig.DefaultColumnFamily, config.BigtableConfig.CounterColumnName, logger, nil)
+	smc := schemaMapping.NewSchemaMappingConfig(config.BigtableConfig.SchemaMappingTable, config.BigtableConfig.DefaultColumnFamily, config.BigtableConfig.CounterColumnName, logger, nil)
 	bigtableCl := bigtableModule.NewBigtableClient(bigtableClients, adminClients, logger, config.BigtableConfig, &responsehandler.TypeHandler{}, smc, config.BigtableConfig.InstancesMap)
 	for k := range config.BigtableConfig.InstancesMap {
-		tableConfigs, err := bigtableCl.ReadTableConfigs(ctx, k, config.BigtableConfig.SchemaMappingTable)
+		tableConfigs, err := bigtableCl.ReadTableConfigs(ctx, k)
 		if err != nil {
 			return nil, err
 		}
@@ -1652,7 +1652,7 @@ func (c *client) handleQuery(raw *frame.RawFrame, msg *partialQuery) {
 			}
 
 			otelgo.AddAnnotation(otelCtx, executingBigtableRequestEvent)
-			err = c.proxy.bClient.DropTable(c.proxy.ctx, queryMetadata, c.proxy.config.BigtableConfig.SchemaMappingTable)
+			err = c.proxy.bClient.DropTable(c.proxy.ctx, queryMetadata)
 			otelgo.AddAnnotation(otelCtx, bigtableExecutionDoneEvent)
 
 			if err != nil {
@@ -1678,7 +1678,7 @@ func (c *client) handleQuery(raw *frame.RawFrame, msg *partialQuery) {
 			}
 
 			otelgo.AddAnnotation(otelCtx, executingBigtableRequestEvent)
-			err = c.proxy.bClient.CreateTable(c.proxy.ctx, queryMetadata, c.proxy.config.BigtableConfig.SchemaMappingTable)
+			err = c.proxy.bClient.CreateTable(c.proxy.ctx, queryMetadata)
 			otelgo.AddAnnotation(otelCtx, bigtableExecutionDoneEvent)
 
 			if err != nil {
@@ -1728,7 +1728,7 @@ func (c *client) handleQuery(raw *frame.RawFrame, msg *partialQuery) {
 			}
 
 			otelgo.AddAnnotation(otelCtx, executingBigtableRequestEvent)
-			err = c.proxy.bClient.AlterTable(c.proxy.ctx, queryMetadata, c.proxy.config.BigtableConfig.SchemaMappingTable)
+			err = c.proxy.bClient.AlterTable(c.proxy.ctx, queryMetadata)
 			otelgo.AddAnnotation(otelCtx, bigtableExecutionDoneEvent)
 
 			if err != nil {

@@ -41,8 +41,10 @@ func TestIncrementAndDecrementCounter(t *testing.T) {
 
 	// Sequence of updates
 	require.NoError(t, session.Query(`UPDATE social_posts SET likes = likes + ? WHERE user_id = ? AND id = ?`, 2, pkUser, pkId).Exec())
-	require.NoError(t, session.Query(`UPDATE social_posts SET likes = likes + ? WHERE user_id = ? AND id = ?`, 3, pkUser, pkId).Exec())
-	require.NoError(t, session.Query(`UPDATE social_posts SET likes = likes - ? WHERE user_id = ? AND id = ?`, 1, pkUser, pkId).Exec())
+	// subtract a negative should increase
+	require.NoError(t, session.Query(`UPDATE social_posts SET likes = likes - ? WHERE user_id = ? AND id = ?`, -3, pkUser, pkId).Exec())
+	// add a negative should decrease
+	require.NoError(t, session.Query(`UPDATE social_posts SET likes = likes + ? WHERE user_id = ? AND id = ?`, -1, pkUser, pkId).Exec())
 	require.NoError(t, session.Query(`UPDATE social_posts SET views = views - ? WHERE user_id = ? AND id = ?`, 10, pkUser, pkId).Exec())
 
 	// Validate after initial updates

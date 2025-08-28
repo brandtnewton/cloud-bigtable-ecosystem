@@ -1401,7 +1401,7 @@ func Test_GetBigtableSelectQuery(t *testing.T) {
 					{Name: "column3", CQLType: datatype.Bigint, KeyType: utilities.KEY_TYPE_PARTITION},
 				}
 				tableCfg := schemaMapping.NewTableConfig("test_keyspace", "test_table", "cf1", types.OrderedCodeEncoding, cols)
-				schemaCfg := schemaMapping.NewSchemaMappingConfig("cf1", "v", zap.NewNop(), []*schemaMapping.TableConfig{tableCfg})
+				schemaCfg := schemaMapping.NewSchemaMappingConfig("schema_mappings", "cf1", "v", zap.NewNop(), []*schemaMapping.TableConfig{tableCfg})
 				return &Translator{
 					Logger:              zap.NewNop(),
 					SchemaMappingConfig: schemaCfg,
@@ -1442,7 +1442,7 @@ func Test_GetBigtableSelectQuery(t *testing.T) {
 					{Name: "column3", CQLType: datatype.Bigint, KeyType: utilities.KEY_TYPE_REGULAR},
 				}
 				tableCfg := schemaMapping.NewTableConfig("test_keyspace", "test_table", "cf1", types.OrderedCodeEncoding, cols)
-				schemaCfg := schemaMapping.NewSchemaMappingConfig("cf1", "v", zap.NewNop(), []*schemaMapping.TableConfig{tableCfg})
+				schemaCfg := schemaMapping.NewSchemaMappingConfig("schema_mappings", "cf1", "v", zap.NewNop(), []*schemaMapping.TableConfig{tableCfg})
 				return &Translator{
 					Logger:              zap.NewNop(),
 					SchemaMappingConfig: schemaCfg,
@@ -1476,7 +1476,7 @@ func Test_GetBigtableSelectQuery(t *testing.T) {
 					{Name: "column1", CQLType: datatype.Bigint, KeyType: utilities.KEY_TYPE_PARTITION},
 				}
 				tableCfg := schemaMapping.NewTableConfig("test_keyspace", "test_table", "cf1", types.OrderedCodeEncoding, cols)
-				schemaCfg := schemaMapping.NewSchemaMappingConfig("cf1", "v", zap.NewNop(), []*schemaMapping.TableConfig{tableCfg})
+				schemaCfg := schemaMapping.NewSchemaMappingConfig("schema_mappings", "cf1", "v", zap.NewNop(), []*schemaMapping.TableConfig{tableCfg})
 				return &Translator{
 					Logger:              zap.NewNop(),
 					SchemaMappingConfig: schemaCfg,
@@ -1517,7 +1517,7 @@ func Test_GetBigtableSelectQuery(t *testing.T) {
 					{Name: "column2", CQLType: datatype.Bigint, KeyType: utilities.KEY_TYPE_REGULAR},
 				}
 				tableCfg := schemaMapping.NewTableConfig("test_keyspace", "test_table", "cf1", types.OrderedCodeEncoding, cols)
-				schemaCfg := schemaMapping.NewSchemaMappingConfig("cf1", "v", zap.NewNop(), []*schemaMapping.TableConfig{tableCfg})
+				schemaCfg := schemaMapping.NewSchemaMappingConfig("schema_mappings", "cf1", "v", zap.NewNop(), []*schemaMapping.TableConfig{tableCfg})
 				return &Translator{
 					Logger:              zap.NewNop(),
 					SchemaMappingConfig: schemaCfg,
@@ -1550,7 +1550,7 @@ func Test_GetBigtableSelectQuery(t *testing.T) {
 					{Name: "column2", CQLType: datatype.Bigint, KeyType: utilities.KEY_TYPE_REGULAR},
 				}
 				tableCfg := schemaMapping.NewTableConfig("test_keyspace", "test_table", "cf1", types.OrderedCodeEncoding, cols)
-				schemaCfg := schemaMapping.NewSchemaMappingConfig("cf1", "v", zap.NewNop(), []*schemaMapping.TableConfig{tableCfg})
+				schemaCfg := schemaMapping.NewSchemaMappingConfig("schema_mappings", "cf1", "v", zap.NewNop(), []*schemaMapping.TableConfig{tableCfg})
 				return &Translator{
 					Logger:              zap.NewNop(),
 					SchemaMappingConfig: schemaCfg,
@@ -1592,7 +1592,7 @@ func Test_GetBigtableSelectQuery(t *testing.T) {
 					{Name: "code", CQLType: datatype.Bigint, KeyType: utilities.KEY_TYPE_REGULAR},
 				}
 				tableCfg := schemaMapping.NewTableConfig("test_keyspace", "test_table", "cf1", types.OrderedCodeEncoding, cols)
-				schemaCfg := schemaMapping.NewSchemaMappingConfig("cf1", "v", zap.NewNop(), []*schemaMapping.TableConfig{tableCfg})
+				schemaCfg := schemaMapping.NewSchemaMappingConfig("schema_mappings", "cf1", "v", zap.NewNop(), []*schemaMapping.TableConfig{tableCfg})
 				return &Translator{
 					Logger:              zap.NewNop(),
 					SchemaMappingConfig: schemaCfg,
@@ -1633,7 +1633,7 @@ func Test_GetBigtableSelectQuery(t *testing.T) {
 					{Name: "code", CQLType: datatype.Bigint, KeyType: utilities.KEY_TYPE_REGULAR},
 				}
 				tableCfg := schemaMapping.NewTableConfig("test_keyspace", "test_table", "cf1", types.OrderedCodeEncoding, cols)
-				schemaCfg := schemaMapping.NewSchemaMappingConfig("cf1", "v", zap.NewNop(), []*schemaMapping.TableConfig{tableCfg})
+				schemaCfg := schemaMapping.NewSchemaMappingConfig("schema_mappings", "cf1", "v", zap.NewNop(), []*schemaMapping.TableConfig{tableCfg})
 				return &Translator{
 					Logger:              zap.NewNop(),
 					SchemaMappingConfig: schemaCfg,
@@ -1675,7 +1675,7 @@ func Test_GetBigtableSelectQuery(t *testing.T) {
 					{Name: "code", CQLType: datatype.Bigint, KeyType: utilities.KEY_TYPE_REGULAR},
 				}
 				tableCfg := schemaMapping.NewTableConfig("test_keyspace", "test_table", "cf1", types.OrderedCodeEncoding, cols)
-				schemaCfg := schemaMapping.NewSchemaMappingConfig("cf1", "v", zap.NewNop(), []*schemaMapping.TableConfig{tableCfg})
+				schemaCfg := schemaMapping.NewSchemaMappingConfig("schema_mappings", "cf1", "v", zap.NewNop(), []*schemaMapping.TableConfig{tableCfg})
 				return &Translator{
 					Logger:              zap.NewNop(),
 					SchemaMappingConfig: schemaCfg,
@@ -2084,7 +2084,7 @@ func Test_processFunctionColumn(t *testing.T) {
 				{Name: "code", CQLType: datatype.Int, KeyType: utilities.KEY_TYPE_REGULAR},
 			}
 			tableCfg := schemaMapping.NewTableConfig("test_keyspace", "user_info", "cf1", types.OrderedCodeEncoding, cols)
-			schemaCfg := schemaMapping.NewSchemaMappingConfig("cf1", "v", zap.NewNop(), []*schemaMapping.TableConfig{tableCfg})
+			schemaCfg := schemaMapping.NewSchemaMappingConfig("schema_mappings", "cf1", "v", zap.NewNop(), []*schemaMapping.TableConfig{tableCfg})
 			translator := &Translator{SchemaMappingConfig: schemaCfg}
 
 			tc, err := translator.SchemaMappingConfig.GetTableConfig(tt.keySpace, tt.tableName)
@@ -2534,7 +2534,7 @@ func TestProcessSetStrings(t *testing.T) {
 				{Name: "map_col", CQLType: datatype.NewMapType(datatype.Varchar, datatype.Varchar), KeyType: utilities.KEY_TYPE_REGULAR},
 			}
 			tableCfg := schemaMapping.NewTableConfig("test_keyspace", "user_info", "cf1", types.OrderedCodeEncoding, cols)
-			schemaCfg := schemaMapping.NewSchemaMappingConfig("cf1", "v", zap.NewNop(), []*schemaMapping.TableConfig{tableCfg})
+			schemaCfg := schemaMapping.NewSchemaMappingConfig("schema_mappings", "cf1", "v", zap.NewNop(), []*schemaMapping.TableConfig{tableCfg})
 			tr := &Translator{
 				Logger:              zap.NewNop(),
 				SchemaMappingConfig: schemaCfg,

@@ -31,17 +31,17 @@ func (_m *BigTableClientIface) DropAllRows(ctx context.Context, data *translator
 	panic("implement me")
 }
 
-// AlterTable provides a mock function with given fields: ctx, data, schemaMappingTableName
-func (_m *BigTableClientIface) AlterTable(ctx context.Context, data *translator.AlterTableStatementMap, schemaMappingTableName string) error {
-	ret := _m.Called(ctx, data, schemaMappingTableName)
+// AlterTable provides a mock function with given fields: ctx, data
+func (_m *BigTableClientIface) AlterTable(ctx context.Context, data *translator.AlterTableStatementMap) error {
+	ret := _m.Called(ctx, data)
 
 	if len(ret) == 0 {
 		panic("no return value specified for AlterTable")
 	}
 
 	var r0 error
-	if rf, ok := ret.Get(0).(func(context.Context, *translator.AlterTableStatementMap, string) error); ok {
-		r0 = rf(ctx, data, schemaMappingTableName)
+	if rf, ok := ret.Get(0).(func(context.Context, *translator.AlterTableStatementMap) error); ok {
+		r0 = rf(ctx, data)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -82,17 +82,17 @@ func (_m *BigTableClientIface) Close() {
 	_m.Called()
 }
 
-// CreateTable provides a mock function with given fields: ctx, data, schemaMappingTableName
-func (_m *BigTableClientIface) CreateTable(ctx context.Context, data *translator.CreateTableStatementMap, schemaMappingTableName string) error {
-	ret := _m.Called(ctx, data, schemaMappingTableName)
+// CreateTable provides a mock function with given fields: ctx, data
+func (_m *BigTableClientIface) CreateTable(ctx context.Context, data *translator.CreateTableStatementMap) error {
+	ret := _m.Called(ctx, data)
 
 	if len(ret) == 0 {
 		panic("no return value specified for CreateTable")
 	}
 
 	var r0 error
-	if rf, ok := ret.Get(0).(func(context.Context, *translator.CreateTableStatementMap, string) error); ok {
-		r0 = rf(ctx, data, schemaMappingTableName)
+	if rf, ok := ret.Get(0).(func(context.Context, *translator.CreateTableStatementMap) error); ok {
+		r0 = rf(ctx, data)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -130,17 +130,17 @@ func (_m *BigTableClientIface) DeleteRowNew(_a0 context.Context, _a1 *translator
 	return r0, r1
 }
 
-// DropTable provides a mock function with given fields: ctx, data, schemaMappingTableName
-func (_m *BigTableClientIface) DropTable(ctx context.Context, data *translator.DropTableStatementMap, schemaMappingTableName string) error {
-	ret := _m.Called(ctx, data, schemaMappingTableName)
+// DropTable provides a mock function with given fields: ctx, data
+func (_m *BigTableClientIface) DropTable(ctx context.Context, data *translator.DropTableStatementMap) error {
+	ret := _m.Called(ctx, data)
 
 	if len(ret) == 0 {
 		panic("no return value specified for DropTable")
 	}
 
 	var r0 error
-	if rf, ok := ret.Get(0).(func(context.Context, *translator.DropTableStatementMap, string) error); ok {
-		r0 = rf(ctx, data, schemaMappingTableName)
+	if rf, ok := ret.Get(0).(func(context.Context, *translator.DropTableStatementMap) error); ok {
+		r0 = rf(ctx, data)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -186,8 +186,8 @@ func (_m *BigTableClientIface) ExecutePreparedStatement(ctx context.Context, que
 }
 
 // ReadTableConfigs provides a mock function with given fields: _a0, _a1, _a2
-func (_m *BigTableClientIface) ReadTableConfigs(_a0 context.Context, _a1 string, _a2 string) ([]*schemaMapping.TableConfig, error) {
-	ret := _m.Called(_a0, _a1, _a2)
+func (_m *BigTableClientIface) ReadTableConfigs(_a0 context.Context, _a1 string) ([]*schemaMapping.TableConfig, error) {
+	ret := _m.Called(_a0, _a1)
 
 	if len(ret) == 0 {
 		panic("no return value specified for ReadTableConfigs")
@@ -195,18 +195,18 @@ func (_m *BigTableClientIface) ReadTableConfigs(_a0 context.Context, _a1 string,
 
 	var r0 []*schemaMapping.TableConfig
 	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, string, string) ([]*schemaMapping.TableConfig, error)); ok {
-		return rf(_a0, _a1, _a2)
+	if rf, ok := ret.Get(0).(func(context.Context, string) ([]*schemaMapping.TableConfig, error)); ok {
+		return rf(_a0, _a1)
 	}
-	if rf, ok := ret.Get(0).(func(context.Context, string, string) []*schemaMapping.TableConfig); ok {
-		r0 = rf(_a0, _a1, _a2)
+	if rf, ok := ret.Get(0).(func(context.Context, string) []*schemaMapping.TableConfig); ok {
+		r0 = rf(_a0, _a1)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).([]*schemaMapping.TableConfig)
 		}
 	}
-	if rf, ok := ret.Get(1).(func(context.Context, string, string) error); ok {
-		r1 = rf(_a0, _a1, _a2)
+	if rf, ok := ret.Get(1).(func(context.Context, string) error); ok {
+		r1 = rf(_a0, _a1)
 	} else {
 		r1 = ret.Error(1)
 	}

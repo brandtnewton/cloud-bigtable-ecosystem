@@ -75,6 +75,11 @@ func TestNegativeTestCasesForCreateTable(t *testing.T) {
 			expectedError: "no primary key found in create table statement",
 		},
 		{
+			name:          "Create table with same name as schema mapping table",
+			query:         "CREATE TABLE schema_mapping (num INT PRIMARY KEY, big_num BIGINT)",
+			expectedError: "cannot create a table with the configured schema mapping table name 'schema_mappings'",
+		},
+		{
 			name:          "multiple inline primary keys",
 			query:         "CREATE TABLE fail_multiple_inline_pmk (num INT PRIMARY KEY, big_num BIGINT, PRIMARY KEY (num, big_num))",
 			expectedError: "cannot specify both primary key clause and inline primary key",

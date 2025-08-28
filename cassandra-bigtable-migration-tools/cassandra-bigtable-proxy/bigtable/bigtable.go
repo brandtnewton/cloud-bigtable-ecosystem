@@ -186,7 +186,6 @@ func (btc *BigtableClient) mutateRow(ctx context.Context, tableName, rowKey stri
 			if meta.IncrementType == translator.Decrement {
 				incrementValue *= -1
 			}
-			// note: all counters are stored in a single column family dedicated to counter columns
 			mut.AddIntToCell(cf, btc.BigtableConfig.CounterColumnName, counterTimestamp, incrementValue)
 			mutationCount++
 		}

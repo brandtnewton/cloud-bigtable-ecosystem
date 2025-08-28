@@ -34,8 +34,8 @@ column qualifier, list items as column value.**
 
 ### Non-supported data types
 
-The proxy currently doesn't support the following data types: US-ASCII, blob,
-counter, date, decimal, duration, inet, smallint, time, timeuuid, tinyint, uuid,
+The proxy currently doesn't support the following data types: US-ASCII, blob, 
+date, decimal, duration, inet, smallint, time, timeuuid, tinyint, uuid,
 varint, frozen and user-defined types (UDT).
 
 ## 2. Supported Functions

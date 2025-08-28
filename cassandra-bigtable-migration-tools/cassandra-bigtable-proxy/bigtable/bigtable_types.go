@@ -64,7 +64,8 @@ type BigtableConfig struct {
 	InstancesMap        map[string]InstanceConfig //map of key[cassandra keyspace] to Instance Configuration[bigtable instance]
 	GCPProjectID        string
 	DefaultColumnFamily string
-	CounterColumnName   string
+	// CounterColumnName is the column qualifier used for all counter columns. Counter column names are stored in the column family name.
+	CounterColumnName string
 	// all new tables should set this to false
 	DefaultIntRowKeyEncoding types.IntRowKeyEncodingType
 }

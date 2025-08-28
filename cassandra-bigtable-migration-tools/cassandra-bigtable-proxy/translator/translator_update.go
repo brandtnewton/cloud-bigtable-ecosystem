@@ -80,6 +80,8 @@ func getNodeValue(node antlr.Tree, parent antlr.ParserRuleContext) interface{} {
 	case cql.IAssignmentMapContext:
 		val, _ := parseCqlValue(ctx)
 		return val
+	case cql.IDecimalLiteralContext:
+		return ctx.GetText()
 	case antlr.TerminalNode:
 		return ctx.GetText()
 	default:

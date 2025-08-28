@@ -49,6 +49,7 @@ func GetSchemaMappingConfig(intRowKeyEncoding types.IntRowKeyEncodingType) *sche
 		{Name: "double_col", CQLType: datatype.Double, KeyType: utilities.KEY_TYPE_REGULAR},
 		{Name: "map_text_text", CQLType: datatype.NewMapType(datatype.Varchar, datatype.Varchar), KeyType: utilities.KEY_TYPE_REGULAR},
 		{Name: "list_text", CQLType: datatype.NewListType(datatype.Varchar), KeyType: utilities.KEY_TYPE_REGULAR},
+		{Name: "counter_col", CQLType: datatype.Counter, KeyType: utilities.KEY_TYPE_REGULAR},
 	}
 
 	intTableColumns := []*types.Column{

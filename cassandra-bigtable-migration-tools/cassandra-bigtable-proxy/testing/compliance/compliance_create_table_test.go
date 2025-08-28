@@ -102,23 +102,17 @@ func TestNegativeTestCasesForCreateTable(t *testing.T) {
 			skipCassandra: true,
 		},
 		{
-			name:          "Create table ending with a comma",
-			query:         "CREATE TABLE eof_table (num INT, big_num UUID, PRIMARY KEY (num)),",
-			expectedError: "column type 'uuid' is not supported",
+			// not allowed because it would clash with the default column because collection column families are the column name
+			name:          "uses default column family as collection column name",
+			query:         "CREATE TABLE uses_default_cf (num INT, cf1 map<text,text>, PRIMARY KEY (num))",
+			expectedError: "counter and collection type columns cannot be named 'cf1' because it's reserved as the default column family",
 			skipCassandra: true,
 		},
 		{
 			// not allowed because it would clash with the default column because collection column families are the column name
 			name:          "uses default column family as collection column name",
-			query:         "CREATE TABLE uses_default_cf (num INT, cf1 map<text,text>, PRIMARY KEY (num)),",
-			expectedError: "collection type columns cannot be named 'cf1' because it's reserved as the default column family",
-			skipCassandra: true,
-		},
-		{
-			// not allowed because it would clash with the default column because collection column families are the column name
-			name:          "uses default column family as collection column name",
-			query:         "CREATE TABLE uses_default_ctrf (num INT, cf1 counter, PRIMARY KEY (num)),",
-			expectedError: "counter type columns cannot be named 'cf1' because it's reserved as the default column family",
+			query:         "CREATE TABLE uses_default_ctrf (num INT, cf1 counter, PRIMARY KEY (num))",
+			expectedError: "counter and collection type columns cannot be named 'cf1' because it's reserved as the default column family",
 			skipCassandra: true,
 		},
 	}

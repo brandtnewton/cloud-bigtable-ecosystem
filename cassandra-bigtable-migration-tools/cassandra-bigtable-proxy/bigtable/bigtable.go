@@ -486,17 +486,19 @@ func (btc *BigtableClient) AlterTable(ctx context.Context, data *translator.Alte
 func (btc *BigtableClient) addColumnFamilies(columns []message.ColumnMetadata) (map[string]bigtable.Family, error) {
 	columnFamilies := make(map[string]bigtable.Family)
 	for _, col := range columns {
+		if !utilities.IsCollection(col.Type) && col.Type != datatype.Counter {
+			continue
+		}
+
+		if col.Name == btc.BigtableConfig.DefaultColumnFamily {
+			return nil, fmt.Errorf("counter and collection type columns cannot be named '%s' because it's reserved as the default column family", btc.BigtableConfig.DefaultColumnFamily)
+		}
+
 		if utilities.IsCollection(col.Type) {
-			if col.Name == btc.BigtableConfig.DefaultColumnFamily {
-				return nil, fmt.Errorf("collection type columns cannot be named '%s' because it's reserved as the default column family", btc.BigtableConfig.DefaultColumnFamily)
-			}
 			columnFamilies[col.Name] = bigtable.Family{
 				GCPolicy: bigtable.MaxVersionsPolicy(1),
 			}
 		} else if col.Type == datatype.Counter {
-			if col.Name == btc.BigtableConfig.DefaultColumnFamily {
-				return nil, fmt.Errorf("counter type columns cannot be named '%s' because it's reserved as the default column family", btc.BigtableConfig.DefaultColumnFamily)
-			}
 			columnFamilies[col.Name] = bigtable.Family{
 				GCPolicy: bigtable.NoGcPolicy(),
 				ValueType: bigtable.AggregateType{

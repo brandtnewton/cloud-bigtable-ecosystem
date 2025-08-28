@@ -17,7 +17,10 @@
 package compliance
 
 import (
+	"encoding/csv"
 	"fmt"
+	"os/exec"
+	"regexp"
 	"strings"
 	"testing"
 	"time"
@@ -95,4 +98,79 @@ func testLexOrder(t *testing.T, input []map[string]interface{}, table string) {
 		require.True(t, int(result) >= 0 && int(result) < len(input), fmt.Sprintf("unexpected result index: %d your environment is probably not clean", result))
 		assert.Equal(t, int32(i), result, fmt.Sprintf("out of order result: expected %v but got %v", input[i], input[result]))
 	}
+}
+
+var plusMinusRegex = regexp.MustCompile(`^[-+]*$`)
+var rowsRegex = regexp.MustCompile(`^\(\d+ rows\)$`)
+
+// executeCQLQuery runs a query using cqlsh and returns the result as a slice of maps.
+// Each map represents a row, with keys being the column headers.
+func executeCQLQuery(query string) ([]map[string]string, error) {
+	cmd := exec.Command("cqlsh", "-e", query)
+
+	// Run the command and capture its combined stdout and stderr.
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		// If the command fails, the error message from cqlsh is in the output.
+		return nil, fmt.Errorf("cqlsh command failed: %w\nOutput: %s", err, string(output))
+	}
+
+	raw := string(output)
+	//println("output:")
+	//println(raw)
+	var fixed []string = nil
+	for _, s := range strings.Split(raw, "\n") {
+		if strings.TrimSpace(s) == "" {
+			continue
+		}
+		if strings.HasPrefix(s, "WARNING: cqlsh was built against ") {
+			continue
+		}
+		// skip the table header line
+		if plusMinusRegex.MatchString(s) {
+			continue
+		}
+		// skip row count line
+		if rowsRegex.MatchString(s) {
+			continue
+		}
+
+		fixed = append(fixed, s)
+	}
+	//println("fixed:")
+	//println(strings.Join(fixed, "\n"))
+	//println("fixed EOF")
+	// Create a new CSV reader from the command's output string.
+	reader := csv.NewReader(strings.NewReader(strings.Join(fixed, "\n")))
+	reader.Comma = '|'
+
+	// Read all the CSV records.
+	records, err := reader.ReadAll()
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse CSV output: %w", err)
+	}
+
+	// Check if we have at least a header row.
+	if len(records) < 1 {
+		return []map[string]string{}, nil // No data, just return an empty slice.
+	}
+
+	// The first record is the header.
+	header := records[0]
+	dataRows := records[1:]
+
+	var results []map[string]string
+	for _, row := range dataRows {
+		// Create a map for the current row.
+		rowData := make(map[string]string)
+		for i, value := range row {
+			// Check if the row has the same number of columns as the header.
+			if i < len(header) {
+				rowData[strings.TrimSpace(header[i])] = strings.TrimSpace(value)
+			}
+		}
+		results = append(results, rowData)
+	}
+
+	return results, nil
 }

@@ -36,7 +36,7 @@ func (t *Translator) TranslateTruncateTableToBigtable(query, sessionKeyspace str
 
 	var tableName, keyspaceName string
 
-	if truncateTableObj != nil && truncateTableObj.Table() != nil && truncateTableObj.Table().GetText() != "" {
+	if truncateTableObj.Table() != nil && truncateTableObj.Table().GetText() != "" {
 		tableName = truncateTableObj.Table().GetText()
 		if !validTableName.MatchString(tableName) {
 			return nil, errors.New("invalid table name parsed from query")
@@ -45,7 +45,7 @@ func (t *Translator) TranslateTruncateTableToBigtable(query, sessionKeyspace str
 		return nil, errors.New("invalid truncate table query: table missing")
 	}
 
-	if truncateTableObj != nil && truncateTableObj.Keyspace() != nil && truncateTableObj.Keyspace().GetText() != "" {
+	if truncateTableObj.Keyspace() != nil && truncateTableObj.Keyspace().GetText() != "" {
 		keyspaceName = truncateTableObj.Keyspace().GetText()
 	} else if sessionKeyspace != "" {
 		keyspaceName = sessionKeyspace

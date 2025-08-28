@@ -109,7 +109,7 @@ func TestGroupByAndOrderByCounters(t *testing.T) {
 	require.NoError(t, session.Query(`UPDATE social_posts SET likes = likes + ? WHERE user_id = ? AND id = ?`, 2, pkUser, 3).Exec())
 	require.NoError(t, session.Query(`UPDATE social_posts SET likes = likes + ? WHERE user_id = ? AND id = ?`, 5, pkUser, 4).Exec())
 
-	t.Run("ORDER BY on counter fails", func(t *testing.T) {
+	t.Run("ORDER BY on counter", func(t *testing.T) {
 		scanner := session.Query(`SELECT likes FROM social_posts WHERE user_id = ? ORDER BY likes`, pkUser).Iter().Scanner()
 		var results []int32 = nil
 		for scanner.Next() {
@@ -123,7 +123,7 @@ func TestGroupByAndOrderByCounters(t *testing.T) {
 		assert.ElementsMatch(t, []int32{2, 2, 3, 5}, results)
 	})
 
-	t.Run("ORDER BY on alias fails", func(t *testing.T) {
+	t.Run("ORDER BY on alias of counter", func(t *testing.T) {
 		scanner := session.Query(`SELECT likes as l FROM social_posts WHERE user_id = ? ORDER BY l desc`, pkUser).Iter().Scanner()
 		var results []int32 = nil
 		for scanner.Next() {
@@ -137,7 +137,7 @@ func TestGroupByAndOrderByCounters(t *testing.T) {
 		assert.ElementsMatch(t, []int32{5, 3, 2, 2}, results)
 	})
 
-	t.Run("GROUP BY on counter fails", func(t *testing.T) {
+	t.Run("GROUP BY on counter", func(t *testing.T) {
 		scanner := session.Query(`SELECT likes FROM social_posts WHERE user_id = ? GROUP BY likes`, pkUser).Iter().Scanner()
 		var results []int32 = nil
 		for scanner.Next() {

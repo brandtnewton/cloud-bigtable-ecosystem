@@ -368,7 +368,9 @@ func (btc *BigtableClient) createSchemaMappingTableMaybe(ctx context.Context, ke
 	if !exists {
 		btc.Logger.Info("schema mapping table not found. Automatically creating it...")
 		err = adminClient.CreateTable(ctx, schemaMappingTableName)
-		if err != nil {
+		if status.Code(err) == codes.AlreadyExists {
+			// continue - maybe another Proxy instance raced, and created it instead
+		} else if err != nil {
 			btc.Logger.Error("failed to create schema mapping table", zap.Error(err))
 			return err
 		}

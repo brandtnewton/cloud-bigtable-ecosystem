@@ -56,6 +56,11 @@ func TestNegativeTruncateCases(t *testing.T) {
 			query:         "TRUNCATE TABLE ",
 			expectedError: "error while parsing truncate query",
 		},
+		{
+			name:          "truncate schema_mapping table",
+			query:         "TRUNCATE TABLE schema_mapping",
+			expectedError: "cannot truncate the configured schema mapping table name 'schema_mapping'",
+		},
 	}
 
 	for _, tc := range testCases {
@@ -63,15 +68,15 @@ func TestNegativeTruncateCases(t *testing.T) {
 			continue
 		}
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			err := session.Query(tc.query).Exec()
 			if testTarget == TestTargetCassandra {
-				require.Error(t, err, "Expected an error but got none")
 				// we don't care about validating the cassandra error message, just that we got an error
 				require.Error(t, err)
 				return
 			}
-			require.Error(t, err, "Expected an error but got none")
-			assert.Contains(t, err.Error(), tc.expectedError, "Error message mismatch")
+			require.Error(t, err)
+			assert.Contains(t, err.Error(), tc.expectedError)
 		})
 	}
 }

@@ -46,3 +46,10 @@ func TestDroppedTableWriteFails(t *testing.T) {
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "does not exist")
 }
+
+func TestDroppedSchemaMappingTableFails(t *testing.T) {
+	t.Parallel()
+	err := session.Query("DROP TABLE schema_mapping").Exec()
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "cannot drop the configured schema mapping table name 'schema_mapping'")
+}

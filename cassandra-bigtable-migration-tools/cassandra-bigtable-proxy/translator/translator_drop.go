@@ -66,6 +66,10 @@ func (t *Translator) TranslateDropTableToBigtable(query string, sessionKeyspace 
 		return nil, fmt.Errorf("invalid input paramaters found for table")
 	}
 
+	if tableName == t.SchemaMappingConfig.SchemaMappingTableName {
+		return nil, fmt.Errorf("cannot drop the configured schema mapping table name '%s'", tableName)
+	}
+
 	if dropTableObj != nil && dropTableObj.Keyspace() != nil && dropTableObj.Keyspace().GetText() != "" {
 		keyspaceName = dropTableObj.Keyspace().GetText()
 	} else if sessionKeyspace != "" {

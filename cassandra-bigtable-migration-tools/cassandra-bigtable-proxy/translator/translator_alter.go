@@ -49,6 +49,10 @@ func (t *Translator) TranslateAlterTableToBigtable(query, sessionKeyspace string
 		return nil, errors.New("invalid input paramaters found for table")
 	}
 
+	if tableName == t.SchemaMappingConfig.SchemaMappingTableName {
+		return nil, fmt.Errorf("cannot alter schema mapping table with configured name '%s'", tableName)
+	}
+
 	if alterTable != nil && alterTable.Keyspace() != nil && alterTable.Keyspace().GetText() != "" {
 		keyspaceName = alterTable.Keyspace().GetText()
 	} else if sessionKeyspace != "" {

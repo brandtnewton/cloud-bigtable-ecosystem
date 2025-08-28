@@ -112,6 +112,12 @@ func TestNegativeTestCasesForAlterTable(t *testing.T) {
 			expectedError: "table property operations are not supported",
 			skipCassandra: true,
 		},
+		{
+			name:          "Alter schema_mapping table not allowed",
+			query:         "ALTER TABLE schema_mapping DROP all_your_data",
+			expectedError: "cannot alter schema mapping table with configured name 'schema_mapping'",
+			skipCassandra: true,
+		},
 	}
 
 	for _, tc := range testCases {
@@ -119,6 +125,7 @@ func TestNegativeTestCasesForAlterTable(t *testing.T) {
 			continue
 		}
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			err := session.Query(tc.query).Exec()
 			if testTarget == TestTargetCassandra {
 				require.Error(t, err, "Expected an error but got none")

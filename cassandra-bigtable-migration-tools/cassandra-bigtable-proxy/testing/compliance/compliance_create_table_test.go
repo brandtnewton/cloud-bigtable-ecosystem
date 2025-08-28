@@ -115,7 +115,7 @@ func TestNegativeTestCasesForCreateTable(t *testing.T) {
 		},
 		{
 			// not allowed because it would clash with the default column because collection column families are the column name
-			name:          "uses default column family as collection column name",
+			name:          "uses default column family as counter column name",
 			query:         "CREATE TABLE uses_default_ctrf (num INT, cf1 counter, PRIMARY KEY (num))",
 			expectedError: "counter and collection type columns cannot be named 'cf1' because it's reserved as the default column family",
 			skipCassandra: true,

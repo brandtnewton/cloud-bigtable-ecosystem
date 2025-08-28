@@ -25,6 +25,7 @@ import (
 	"github.com/datastax/go-cassandra-native-protocol/datatype"
 	"github.com/datastax/go-cassandra-native-protocol/message"
 	"github.com/datastax/go-cassandra-native-protocol/primitive"
+	"github.com/stretchr/testify/assert"
 	"go.uber.org/zap"
 )
 
@@ -65,14 +66,6 @@ func TestTranslator_TranslateUpdateQuerytoBigtable(t *testing.T) {
 		t.Errorf("formatValues() error = %v", err)
 	}
 
-	setSetText := "[item1,item2]"
-
-	valueMapTextBool := "{key1:true,key2:false}"
-
-	// Define value1 and value2 as text for WHERE clause
-	value1 := "testText"
-	value2 := "column10"
-
 	tests := []struct {
 		name    string
 		fields  fields
@@ -90,11 +83,12 @@ func TestTranslator_TranslateUpdateQuerytoBigtable(t *testing.T) {
 				ParamKeys: []string{"set1", "value1", "value2"},
 				Params: map[string]interface{}{
 					"set1":   setBlob,
-					"value1": value1,
-					"value2": value2,
+					"value1": "testText",
+					"value2": "column10",
 				},
-				RowKey:   "testText\x00\x01column10",
-				Keyspace: "test_keyspace",
+				RowKey:           "testText\x00\x01column10",
+				Keyspace:         "test_keyspace",
+				ComplexOperation: map[string]*ComplexOperation{},
 			},
 		},
 		{
@@ -107,11 +101,12 @@ func TestTranslator_TranslateUpdateQuerytoBigtable(t *testing.T) {
 				ParamKeys: []string{"set1", "value1", "value2"},
 				Params: map[string]interface{}{
 					"set1":   setTrueBool,
-					"value1": value1,
-					"value2": value2,
+					"value1": "testText",
+					"value2": "column10",
 				},
-				RowKey:   "testText\x00\x01column10",
-				Keyspace: "test_keyspace",
+				RowKey:           "testText\x00\x01column10",
+				Keyspace:         "test_keyspace",
+				ComplexOperation: map[string]*ComplexOperation{},
 			},
 		},
 		{
@@ -124,11 +119,12 @@ func TestTranslator_TranslateUpdateQuerytoBigtable(t *testing.T) {
 				ParamKeys: []string{"set1", "value1", "value2"},
 				Params: map[string]interface{}{
 					"set1":   setTimestamp,
-					"value1": value1,
-					"value2": value2,
+					"value1": "testText",
+					"value2": "column10",
 				},
-				RowKey:   "testText\x00\x01column10",
-				Keyspace: "test_keyspace",
+				RowKey:           "testText\x00\x01column10",
+				Keyspace:         "test_keyspace",
+				ComplexOperation: map[string]*ComplexOperation{},
 			},
 		},
 		{
@@ -141,11 +137,12 @@ func TestTranslator_TranslateUpdateQuerytoBigtable(t *testing.T) {
 				ParamKeys: []string{"set1", "value1", "value2"},
 				Params: map[string]interface{}{
 					"set1":   setInt,
-					"value1": value1,
-					"value2": value2,
+					"value1": "testText",
+					"value2": "column10",
 				},
-				RowKey:   "testText\x00\x01column10",
-				Keyspace: "test_keyspace",
+				RowKey:           "testText\x00\x01column10",
+				Keyspace:         "test_keyspace",
+				ComplexOperation: map[string]*ComplexOperation{},
 			},
 		},
 		{
@@ -157,12 +154,13 @@ func TestTranslator_TranslateUpdateQuerytoBigtable(t *testing.T) {
 			want: &UpdateQueryMapping{
 				ParamKeys: []string{"set1", "value1", "value2"},
 				Params: map[string]interface{}{
-					"set1":   setSetText,
-					"value1": value1,
-					"value2": value2,
+					"set1":   []string{"item1", "item2"},
+					"value1": "testText",
+					"value2": "column10",
 				},
-				RowKey:   "testText\x00\x01column10",
-				Keyspace: "test_keyspace",
+				RowKey:           "testText\x00\x01column10",
+				Keyspace:         "test_keyspace",
+				ComplexOperation: map[string]*ComplexOperation{},
 			},
 		},
 		{
@@ -174,12 +172,13 @@ func TestTranslator_TranslateUpdateQuerytoBigtable(t *testing.T) {
 			want: &UpdateQueryMapping{
 				ParamKeys: []string{"set1", "value1", "value2"},
 				Params: map[string]interface{}{
-					"set1":   valueMapTextBool,
-					"value1": value1,
-					"value2": value2,
+					"set1":   map[string]string{"key1": "true", "key2": "false"},
+					"value1": "testText",
+					"value2": "column10",
 				},
-				RowKey:   "testText\x00\x01column10",
-				Keyspace: "test_keyspace",
+				RowKey:           "testText\x00\x01column10",
+				Keyspace:         "test_keyspace",
+				ComplexOperation: map[string]*ComplexOperation{},
 			},
 		},
 		{
@@ -192,11 +191,12 @@ func TestTranslator_TranslateUpdateQuerytoBigtable(t *testing.T) {
 				ParamKeys: []string{"set1", "value1", "value2"},
 				Params: map[string]interface{}{
 					"set1":   setBigInt,
-					"value1": value1,
-					"value2": value2,
+					"value1": "testText",
+					"value2": "column10",
 				},
-				RowKey:   "testText\x00\x01column10",
-				Keyspace: "test_keyspace",
+				RowKey:           "testText\x00\x01column10",
+				Keyspace:         "test_keyspace",
+				ComplexOperation: map[string]*ComplexOperation{},
 			},
 		},
 		{
@@ -213,8 +213,9 @@ func TestTranslator_TranslateUpdateQuerytoBigtable(t *testing.T) {
 					"value1": "pkval",
 					"value2": "abc",
 				},
-				RowKey:   "abc\x00\x01pkval",
-				Keyspace: "test_keyspace",
+				RowKey:           "abc\x00\x01pkval",
+				Keyspace:         "test_keyspace",
+				ComplexOperation: map[string]*ComplexOperation{},
 			},
 		},
 		{
@@ -232,11 +233,12 @@ func TestTranslator_TranslateUpdateQuerytoBigtable(t *testing.T) {
 						Left:      "column7",
 						Right:     []string{"item3"},
 					},
-					"value1": value1,
-					"value2": value2,
+					"value1": "testText",
+					"value2": "column10",
 				},
-				RowKey:   "testText\x00\x01column10",
-				Keyspace: "test_keyspace",
+				RowKey:           "testText\x00\x01column10",
+				Keyspace:         "test_keyspace",
+				ComplexOperation: map[string]*ComplexOperation{},
 			},
 		},
 		{
@@ -254,14 +256,98 @@ func TestTranslator_TranslateUpdateQuerytoBigtable(t *testing.T) {
 						Left:      "column7",
 						Right:     []string{"item2"},
 					},
-					"value1": value1,
-					"value2": value2,
+					"value1": "testText",
+					"value2": "column10",
+				},
+				RowKey:           "testText\x00\x01column10",
+				Keyspace:         "test_keyspace",
+				ComplexOperation: map[string]*ComplexOperation{},
+			},
+		},
+		{
+			name: "counter operation",
+			args: args{
+				query: "UPDATE test_keyspace.test_table SET counter_col = counter_col + 1 WHERE column1 = 'testText' AND column10 = 'column10';",
+			},
+			wantErr: false,
+			want: &UpdateQueryMapping{
+				ParamKeys: []string{"set1", "value1", "value2"},
+				Params: map[string]interface{}{
+					"set1": ComplexAssignment{
+						Column:    "counter_col",
+						Operation: "+",
+						Left:      "counter_col",
+						Right:     "1",
+					},
+					"value1": "testText",
+					"value2": "column10",
+				},
+				ComplexOperation: map[string]*ComplexOperation{
+					"counter_col": {
+						IncrementType:  Increment,
+						IncrementValue: 1,
+					},
 				},
 				RowKey:   "testText\x00\x01column10",
 				Keyspace: "test_keyspace",
 			},
 		},
-
+		{
+			name: "counter operation decrement",
+			args: args{
+				query: "UPDATE test_keyspace.test_table SET counter_col = counter_col - 9 WHERE column1 = 'testText' AND column10 = 'column10';",
+			},
+			wantErr: false,
+			want: &UpdateQueryMapping{
+				ParamKeys: []string{"set1", "value1", "value2"},
+				Params: map[string]interface{}{
+					"set1": ComplexAssignment{
+						Column:    "counter_col",
+						Operation: "-",
+						Left:      "counter_col",
+						Right:     "9",
+					},
+					"value1": "testText",
+					"value2": "column10",
+				},
+				ComplexOperation: map[string]*ComplexOperation{
+					"counter_col": {
+						IncrementType:  Decrement,
+						IncrementValue: 9,
+					},
+				},
+				RowKey:   "testText\x00\x01column10",
+				Keyspace: "test_keyspace",
+			},
+		},
+		{
+			name: "counter operation increment a negative value",
+			args: args{
+				query: "UPDATE test_keyspace.test_table SET counter_col = counter_col + -9 WHERE column1 = 'testText' AND column10 = 'column10';",
+			},
+			wantErr: false,
+			want: &UpdateQueryMapping{
+				ParamKeys: []string{"set1", "value1", "value2"},
+				Params: map[string]interface{}{
+					"set1": ComplexAssignment{
+						Column:    "counter_col",
+						Operation: "+",
+						Left:      "counter_col",
+						Right:     "-9",
+					},
+					"value1": "testText",
+					"value2": "column10",
+				},
+				ComplexOperation: map[string]*ComplexOperation{
+					"counter_col": {
+						IncrementType:  Increment,
+						IncrementValue: -9,
+					},
+				},
+				RowKey:   "testText\x00\x01column10",
+				Keyspace: "test_keyspace",
+			},
+		},
 		{
 			name: "with keyspace in query, with default keyspace",
 			args: args{
@@ -276,8 +362,9 @@ func TestTranslator_TranslateUpdateQuerytoBigtable(t *testing.T) {
 					"value1": "pkval",
 					"value2": "abc",
 				},
-				RowKey:   "abc\x00\x01pkval",
-				Keyspace: "test_keyspace",
+				RowKey:           "abc\x00\x01pkval",
+				Keyspace:         "test_keyspace",
+				ComplexOperation: map[string]*ComplexOperation{},
 			},
 		},
 		{
@@ -289,12 +376,13 @@ func TestTranslator_TranslateUpdateQuerytoBigtable(t *testing.T) {
 			want: &UpdateQueryMapping{
 				ParamKeys: []string{"set1", "value1", "value2"},
 				Params: map[string]interface{}{
-					"set1":   []string{},
-					"value1": value1,
-					"value2": value2,
+					"set1":   []string(nil),
+					"value1": "testText",
+					"value2": "column10",
 				},
-				RowKey:   "testText\x00\x01column10",
-				Keyspace: "test_keyspace",
+				RowKey:           "testText\x00\x01column10",
+				Keyspace:         "test_keyspace",
+				ComplexOperation: map[string]*ComplexOperation{},
 			},
 		},
 		{
@@ -307,11 +395,12 @@ func TestTranslator_TranslateUpdateQuerytoBigtable(t *testing.T) {
 				ParamKeys: []string{"set1", "value1", "value2"},
 				Params: map[string]interface{}{
 					"set1":   []string{"item1", "item2"},
-					"value1": value1,
-					"value2": value2,
+					"value1": "testText",
+					"value2": "column10",
 				},
-				RowKey:   "testText\x00\x01column10",
-				Keyspace: "test_keyspace",
+				RowKey:           "testText\x00\x01column10",
+				Keyspace:         "test_keyspace",
+				ComplexOperation: map[string]*ComplexOperation{},
 			},
 		},
 		{
@@ -323,12 +412,13 @@ func TestTranslator_TranslateUpdateQuerytoBigtable(t *testing.T) {
 			want: &UpdateQueryMapping{
 				ParamKeys: []string{"set1", "value1", "value2"},
 				Params: map[string]interface{}{
-					"set1":   map[string]bool{"key1": true, "key2": false},
-					"value1": value1,
-					"value2": value2,
+					"set1":   map[string]string{"key1": "true", "key2": "false"},
+					"value1": "testText",
+					"value2": "column10",
 				},
-				RowKey:   "testText\x00\x01column10",
-				Keyspace: "test_keyspace",
+				RowKey:           "testText\x00\x01column10",
+				Keyspace:         "test_keyspace",
+				ComplexOperation: map[string]*ComplexOperation{},
 			},
 		},
 		{
@@ -341,11 +431,12 @@ func TestTranslator_TranslateUpdateQuerytoBigtable(t *testing.T) {
 				ParamKeys: []string{"set1", "value1", "value2"},
 				Params: map[string]interface{}{
 					"set1":   []string{"item1", "item2"},
-					"value1": value1,
-					"value2": value2,
+					"value1": "testText",
+					"value2": "column10",
 				},
-				RowKey:   "testText\x00\x01column10",
-				Keyspace: "test_keyspace",
+				RowKey:           "testText\x00\x01column10",
+				Keyspace:         "test_keyspace",
+				ComplexOperation: map[string]*ComplexOperation{},
 			},
 		},
 		{
@@ -384,8 +475,9 @@ func TestTranslator_TranslateUpdateQuerytoBigtable(t *testing.T) {
 					"value1": "pkval",
 					"value2": "abc",
 				},
-				RowKey:   "abc\x00\x01pkval",
-				Keyspace: "test_keyspace",
+				RowKey:           "abc\x00\x01pkval",
+				Keyspace:         "test_keyspace",
+				ComplexOperation: map[string]*ComplexOperation{},
 			},
 		},
 		{
@@ -472,15 +564,15 @@ func TestTranslator_TranslateUpdateQuerytoBigtable(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			schemaMappingConfig := GetSchemaMappingConfig()
+			schemaMappingConfig := GetSchemaMappingConfig(types.OrderedCodeEncoding)
 
 			tr := &Translator{
 				Logger:              tt.fields.Logger,
 				SchemaMappingConfig: schemaMappingConfig,
 			}
 			got, err := tr.TranslateUpdateQuerytoBigtable(tt.args.query, false, "test_keyspace")
-			if (err != nil) != tt.wantErr {
-				t.Errorf("Translator.TranslateUpdateQuerytoBigtable() error = %v, wantErr %v", err, tt.wantErr)
+			if tt.wantErr {
+				assert.Error(t, err)
 				return
 			}
 			if got != nil && len(got.RowKey) > 0 && !reflect.DeepEqual(got.RowKey, tt.want.RowKey) {
@@ -491,6 +583,8 @@ func TestTranslator_TranslateUpdateQuerytoBigtable(t *testing.T) {
 				t.Errorf("Translator.TranslateUpdateQuerytoBigtable() = %v, want %v", got.Keyspace, tt.want.Keyspace)
 			}
 
+			assert.Equal(t, tt.want.ComplexOperation, got.ComplexOperation)
+			assert.Equal(t, tt.want.Params, got.Params)
 		})
 	}
 }
@@ -517,7 +611,7 @@ func TestTranslator_BuildUpdatePrepareQuery(t *testing.T) {
 			name: "Valid Input",
 			fields: fields{
 				Logger:              zap.NewNop(),
-				SchemaMappingConfig: GetSchemaMappingConfig(),
+				SchemaMappingConfig: GetSchemaMappingConfig(types.OrderedCodeEncoding),
 			},
 			args: args{
 				values: []*primitive.Value{
@@ -532,9 +626,9 @@ func TestTranslator_BuildUpdatePrepareQuery(t *testing.T) {
 					},
 				},
 				st: &UpdateQueryMapping{
-					Query:       "Update blob_col=? FROM test_table where pk_1_text=?",
+					Query:       "Update blob_col=? FROM non_primitive_table where pk_1_text=?",
 					QueryType:   "Update",
-					Table:       "test_table",
+					Table:       "non_primitive_table",
 					Keyspace:    "test_keyspace",
 					PrimaryKeys: []string{"pk_1_text"},
 					RowKey:      "pk_1_text_value", // Example RowKey based on pk_1_text
@@ -559,12 +653,12 @@ func TestTranslator_BuildUpdatePrepareQuery(t *testing.T) {
 				},
 			},
 			want: &UpdateQueryMapping{
-				Query:       "Update blob_col=? FROM test_table where pk_1_text=?",
+				Query:       "Update blob_col=? FROM non_primitive_table where pk_1_text=?",
 				QueryType:   "Update",
 				Keyspace:    "test_keyspace",
 				PrimaryKeys: []string{"pk_1_text"},
 				RowKey:      "",
-				Table:       "test_table",
+				Table:       "non_primitive_table",
 				Clauses: []types.Clause{
 					{
 						Column:       "pk_1_text",

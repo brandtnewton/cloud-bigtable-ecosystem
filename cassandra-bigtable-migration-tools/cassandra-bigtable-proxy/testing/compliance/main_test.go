@@ -95,9 +95,21 @@ func cleanUpTests() {
 	session.Close()
 }
 
+var gcpProjectId = ""
+var instanceId = ""
+
 func setUpTests() {
+	gcpProjectId = os.Getenv("PROJECT_ID")
+	if gcpProjectId == "" {
+		log.Fatalf("missing env var 'PROJECT_ID'")
+	}
+	instanceId = os.Getenv("INSTANCE_ID")
+	if instanceId == "" {
+		log.Fatalf("missing env var 'INSTANCE_ID'")
+	}
+
 	var err error
-	session, err = createSession("bigtabledevinstance")
+	session, err = createSession(instanceId)
 	if err != nil {
 		log.Fatalf("could not connect to the session: %v", err)
 	}
@@ -110,6 +122,26 @@ func setUpTests() {
 			log.Fatalf("could not create table: %v", err)
 		}
 	}
+
+	tableNames := []string{
+		"bigtabledevinstance.user_info",
+		"bigtabledevinstance.orders",
+		"bigtabledevinstance.aggregation_grouping_test",
+		"bigtabledevinstance.multiple_int_keys",
+		"bigtabledevinstance.test_int_key",
+		"bigtabledevinstance.orders_big_endian_encoded",
+		"bigtabledevinstance.social_posts",
+	}
+
+	// truncate all tables
+	for _, table := range tableNames {
+		log.Println(fmt.Sprintf("truncating table: '%s'...", table))
+		err = session.Query(fmt.Sprintf("TRUNCATE TABLE %s", table)).Exec()
+		if err != nil {
+			log.Fatalf("could not create table: %v", err)
+		}
+	}
+
 	log.Println("All test tables successfully created!")
 }
 

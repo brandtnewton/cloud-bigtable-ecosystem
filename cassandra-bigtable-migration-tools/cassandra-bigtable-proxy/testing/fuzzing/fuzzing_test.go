@@ -27,6 +27,7 @@ import (
 	"github.com/gocql/gocql"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"golang.org/x/exp/rand"
 )
 
@@ -46,6 +47,19 @@ func TestMain(m *testing.M) {
 	}
 
 	defer session.Close()
+
+	var tablesSql = []string{
+		// this table schema is to fuzz test all row key types. There are 2 varchar types because 1 is random (not fuzz generated) to ensure that fuzz workers don't collide row keys)
+		"CREATE TABLE IF NOT EXISTS bigtabledevinstance.fuzztestkeys (id varchar, str_key varchar, int_key int, bigint_key bigint, name varchar, PRIMARY KEY (id, str_key, int_key, bigint_key));",
+		"CREATE TABLE IF NOT EXISTS bigtabledevinstance.fuzztestcolumns (id text PRIMARY KEY, name text, code int, credited double, balance float, is_active boolean, birth_date timestamp, zip_code bigint, extra_info map<text,text>, map_text_int map<text,int>, map_text_bigint map<text,bigint>, map_text_boolean map<text,boolean>, map_text_ts map<text,timestamp>, map_text_float map<text,float>, map_text_double map<text,double>, ts_text_map map<timestamp,text>, ts_boolean_map map<timestamp,boolean>, ts_float_map map<timestamp,float>, ts_double_map map<timestamp,double>, ts_bigint_map map<timestamp,bigint>, ts_ts_map map<timestamp,timestamp>, ts_int_map map<timestamp,int>, tags set<text>, set_boolean set<boolean>, set_int set<int>, set_bigint set<bigint>, set_float set<float>, set_double set<double>, set_timestamp set<timestamp>, list_text list<text>, list_int list<int>, list_bigint list<bigint>, list_float list<float>, list_double list<double>, list_boolean list<boolean>, list_timestamp list<timestamp>);",
+	}
+
+	for i, tableSql := range tablesSql {
+		err = session.Query(tableSql).Exec()
+		if err != nil {
+			panic(fmt.Errorf("error applying create table sql %d: %w", i, err))
+		}
+	}
 
 	code := m.Run()
 
@@ -289,14 +303,13 @@ func FuzzRowKeys(f *testing.F) {
 		name := fmt.Sprintf("name%d", rand.Int63())
 		err := session.Query("insert into bigtabledevinstance.fuzztestkeys (id, str_key, int_key, bigint_key, name) values (?, ?, ?, ?, ?)", id, strKey, intKey, bigIntKey, name).Exec()
 
-		// negative values should cause an error because we currently use big-endian encoding. non-utf8 strings should also cause an error because varchar enforces it
-		if intKey < 0 || bigIntKey < 0 || !utf8.Valid([]byte(strKey)) {
-			assert.Error(t, err)
+		// non-utf8 strings should also cause an error because varchar enforces it
+		if !utf8.Valid([]byte(strKey)) {
+			require.Error(t, err)
 			return
 		}
 
-		assert.NoError(t, err)
-		scanner := session.Query("select id, str_key, int_key, bigint_key, name from bigtabledevinstance.fuzztestkeys where id=? AND str_key=? AND int_key=? AND bigint_key=?", id, strKey, intKey, bigIntKey).Iter().Scanner()
+		require.NoError(t, err)
 
 		var (
 			gotId        string
@@ -304,17 +317,12 @@ func FuzzRowKeys(f *testing.F) {
 			gotIntKey    int32
 			gotBigIntKey int64
 			gotName      string
-			scanCount    int
 		)
-		for scanner.Next() {
-			scanCount++
-			err = scanner.Scan(&gotId, &gotStrKey, &gotIntKey, &gotBigIntKey, &gotName)
-			assert.NoError(t, err)
-		}
-		err = scanner.Err()
+		query := session.Query("select id, str_key, int_key, bigint_key, name from bigtabledevinstance.fuzztestkeys where id=? AND str_key=? AND int_key=? AND bigint_key=?", id, strKey, intKey, bigIntKey)
+		err = query.Scan(&gotId, &gotStrKey, &gotIntKey, &gotBigIntKey, &gotName)
+		require.NoError(t, err)
 
 		assert.NoError(t, err)
-		assert.Equal(t, 1, scanCount)
 		assert.Equal(t, id, gotId)
 		assert.Equal(t, strKey, gotStrKey)
 		assert.Equal(t, intKey, gotIntKey)
@@ -322,40 +330,23 @@ func FuzzRowKeys(f *testing.F) {
 		assert.Equal(t, name, gotName)
 
 		assert.NoError(t, err)
-		name2 := fmt.Sprintf("name2%d", rand.Int63())
-		err = session.Query("update bigtabledevinstance.fuzztestkeys set name=? where id=? AND str_key=? AND int_key=? AND bigint_key=?", name2, id, strKey, intKey, bigIntKey).Exec()
+		name2 := name + "2"
+		require.NoError(t, session.Query("update bigtabledevinstance.fuzztestkeys set name=? where id=? AND str_key=? AND int_key=? AND bigint_key=?", name2, id, strKey, intKey, bigIntKey).Exec())
 		assert.NoError(t, err)
 
-		scanner = session.Query("select id, str_key, int_key, bigint_key, name from bigtabledevinstance.fuzztestkeys where id=? AND str_key=? AND int_key=? AND bigint_key=?", id, strKey, intKey, bigIntKey).Iter().Scanner()
-		scanCount = 0
-		for scanner.Next() {
-			scanCount++
-			err = scanner.Scan(&gotId, &gotStrKey, &gotIntKey, &gotBigIntKey, &gotName)
-			assert.NoError(t, err)
-		}
-		err = scanner.Err()
+		err = query.Scan(&gotId, &gotStrKey, &gotIntKey, &gotBigIntKey, &gotName)
+		assert.NoError(t, err)
 
 		assert.NoError(t, err)
-		assert.Equal(t, 1, scanCount)
 		assert.Equal(t, id, gotId)
 		assert.Equal(t, strKey, gotStrKey)
 		assert.Equal(t, intKey, gotIntKey)
 		assert.Equal(t, bigIntKey, gotBigIntKey)
 		assert.Equal(t, name2, gotName)
 
-		err = session.Query("delete from bigtabledevinstance.fuzztestkeys where id=? AND str_key=? AND int_key=? AND bigint_key=?", id, strKey, intKey, bigIntKey).Exec()
-		assert.NoError(t, err)
+		require.NoError(t, session.Query("delete from bigtabledevinstance.fuzztestkeys where id=? AND str_key=? AND int_key=? AND bigint_key=?", id, strKey, intKey, bigIntKey).Exec())
 
-		scanner = session.Query("select id, str_key, int_key, bigint_key, name from bigtabledevinstance.fuzztestkeys where id=? AND str_key=? AND int_key=? AND bigint_key=?", id, strKey, intKey, bigIntKey).Iter().Scanner()
-		scanCount = 0
-		for scanner.Next() {
-			scanCount++
-			err = scanner.Scan(&gotId, &gotStrKey, &gotIntKey, &gotBigIntKey, &gotName)
-			assert.NoError(t, err)
-		}
-		err = scanner.Err()
-		assert.NoError(t, err)
-		assert.Equal(t, 0, scanCount)
-
+		err = query.Scan()
+		assert.Equal(t, gocql.ErrNotFound, err, "The record should be deleted")
 	})
 }

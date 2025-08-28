@@ -95,6 +95,7 @@ const (
 	CassandraTypeUuid      = "uuid"
 	CassandraTypeFloat     = "float"
 	CassandraTypeDouble    = "double"
+	CassandraTypeCounter   = "counter"
 )
 const (
 	Info  = "info"
@@ -134,7 +135,7 @@ func DecodeBytesToCassandraColumnType(b []byte, choice datatype.PrimitiveType, p
 		return proxycore.DecodeType(datatype.Double, protocolVersion, b)
 	case primitive.DataTypeCodeFloat:
 		return proxycore.DecodeType(datatype.Float, protocolVersion, b)
-	case primitive.DataTypeCodeBigint:
+	case primitive.DataTypeCodeBigint, primitive.DataTypeCodeCounter:
 		return proxycore.DecodeType(datatype.Bigint, protocolVersion, b)
 	case primitive.DataTypeCodeTimestamp:
 		return proxycore.DecodeType(datatype.Timestamp, protocolVersion, b)
@@ -527,7 +528,7 @@ func isSupportedCollectionElementType(dt datatype.DataType) bool {
 
 func IsSupportedColumnType(dt datatype.DataType) bool {
 	switch dt.GetDataTypeCode() {
-	case primitive.DataTypeCodeInt, primitive.DataTypeCodeBigint, primitive.DataTypeCodeBlob, primitive.DataTypeCodeBoolean, primitive.DataTypeCodeDouble, primitive.DataTypeCodeFloat, primitive.DataTypeCodeTimestamp, primitive.DataTypeCodeText, primitive.DataTypeCodeVarchar:
+	case primitive.DataTypeCodeInt, primitive.DataTypeCodeBigint, primitive.DataTypeCodeBlob, primitive.DataTypeCodeBoolean, primitive.DataTypeCodeDouble, primitive.DataTypeCodeFloat, primitive.DataTypeCodeTimestamp, primitive.DataTypeCodeText, primitive.DataTypeCodeVarchar, primitive.DataTypeCodeCounter:
 		return true
 	case primitive.DataTypeCodeMap:
 		mapType := dt.(datatype.MapType)

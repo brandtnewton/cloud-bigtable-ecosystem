@@ -229,6 +229,7 @@ func TestLoadConfig(t *testing.T) {
 							Instances:           []InstancesMap{{BigtableInstance: "prod-instance-001", Keyspace: "prodinstance001"}},
 							SchemaMappingTable:  "prod_table_config",
 							DefaultColumnFamily: "cf_default",
+							CounterColumnName:   "v",
 							AppProfileID:        "prod-profile-123",
 							Session: Session{
 								GrpcChannels: 3,
@@ -285,7 +286,7 @@ func TestRun(t *testing.T) {
 	t.Setenv("CONFIG_FILE", "../fakedata/testConfigFile.yaml")
 	var tbData []*schemaMapping.TableConfig = nil
 	bgtmockface := new(mockbigtable.BigTableClientIface)
-	bgtmockface.On("ReadTableConfigs", ctx, "bigtabledevinstancetest", "schema_mapping_test").Return(tbData, nil)
+	bgtmockface.On("ReadTableConfigs", ctx, "bigtabledevinstancetest").Return(tbData, nil)
 	bgtmockface.On("LoadConfigs", mock.AnythingOfType("*responsehandler.TypeHandler"), mock.AnythingOfType("*schemaMapping.SchemaMappingConfig")).Return(tbData, nil)
 
 	bgtmockface.On("Close").Return()

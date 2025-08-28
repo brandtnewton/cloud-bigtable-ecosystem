@@ -16,6 +16,7 @@
 package utilities
 
 import (
+	"math"
 	"reflect"
 	"testing"
 	"time"
@@ -102,6 +103,17 @@ func TestDecodeBytesToCassandraColumnType(t *testing.T) {
 			expectError:     false,
 		},
 		{
+			name: "Decode min bigint",
+			input: func() []byte {
+				b, _ := proxycore.EncodeType(datatype.Bigint, primitive.ProtocolVersion4, int64(math.MinInt64))
+				return b
+			}(),
+			dataType:        datatype.Bigint,
+			protocolVersion: primitive.ProtocolVersion4,
+			expected:        int64(math.MinInt64),
+			expectError:     false,
+		},
+		{
 			name: "Decode int",
 			input: func() []byte {
 				b, _ := proxycore.EncodeType(datatype.Int, primitive.ProtocolVersion4, int32(12345))
@@ -110,6 +122,17 @@ func TestDecodeBytesToCassandraColumnType(t *testing.T) {
 			dataType:        datatype.Int,
 			protocolVersion: primitive.ProtocolVersion4,
 			expected:        int64(12345), // Note: int32 is converted to int64
+			expectError:     false,
+		},
+		{
+			name: "Decode min int",
+			input: func() []byte {
+				b, _ := proxycore.EncodeType(datatype.Int, primitive.ProtocolVersion4, int32(math.MinInt32))
+				return b
+			}(),
+			dataType:        datatype.Int,
+			protocolVersion: primitive.ProtocolVersion4,
+			expected:        int64(math.MinInt32), // Note: int32 is converted to int64
 			expectError:     false,
 		},
 		{

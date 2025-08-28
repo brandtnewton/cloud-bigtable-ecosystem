@@ -58,7 +58,6 @@ const (
 	maxNanos           = int32(9999)
 	referenceTime      = int64(1262304000000)
 	ifExists           = "ifexists"
-	rowKeyJoinString   = "#"
 )
 
 var (
@@ -304,7 +303,7 @@ func stringToPrimitives(value string, cqlType datatype.DataType) (interface{}, e
 		}
 		iv = int32(val)
 
-	case datatype.Bigint:
+	case datatype.Bigint, datatype.Counter:
 		val, err := strconv.ParseInt(value, 10, 64)
 		if err != nil {
 			return nil, fmt.Errorf("error converting string to int64: %w", err)
@@ -432,6 +431,10 @@ func processCollectionColumnsForRawQueries(tableConfig *schemaMapping.TableConfi
 				}
 			default:
 				return nil, fmt.Errorf("column %s is not a collection type", column.Name)
+			}
+		} else if column.CQLType == datatype.Counter {
+			if err := handleCounterOperation(val, column, input, output); err != nil {
+				return nil, err
 			}
 		} else {
 			output.NewColumns = append(output.NewColumns, column)
@@ -666,6 +669,42 @@ func removeSetElements(keys []string, colFamily string, column types.Column, out
 	return nil
 }
 
+func handleCounterOperation(val interface{}, column types.Column, input ProcessRawCollectionsInput, output *ProcessRawCollectionsOutput) error {
+	switch v := val.(type) {
+	case ComplexAssignment:
+		switch v.Operation {
+		case "+", "-":
+			var valueStr string
+			// Check for `col = col + val` or `col = val + col`
+			if rStr, ok := v.Right.(string); ok && v.Left.(string) == column.Name {
+				valueStr = rStr
+			} else if lStr, ok := v.Left.(string); ok && v.Right.(string) == column.Name {
+				valueStr = lStr
+			} else {
+				return fmt.Errorf("invalid counter operation structure for column %s", column.Name)
+			}
+
+			intVal, err := strconv.ParseInt(valueStr, 10, 64)
+			if err != nil {
+				return err
+			}
+			var op = Increment
+			if v.Operation == "-" {
+				op = Decrement
+			}
+			output.ComplexMeta[column.Name] = &ComplexOperation{
+				IncrementType:  op,
+				IncrementValue: intVal,
+			}
+			return nil
+		default:
+			return fmt.Errorf("unsupported counter operation: %s", v.Operation)
+		}
+	default:
+		return fmt.Errorf("unsupported counter operation")
+	}
+}
+
 // handleMapOperation processes map operations in raw queries.
 // Manages simple assignment/replace complete map, add, remove, and update at index operations on map columns.
 // Returns error if operation type is invalid or value type doesn't match map key/value types.
@@ -815,6 +854,22 @@ func processCollectionColumnsForPrepareQueries(tableConfig *schemaMapping.TableC
 			default:
 				return nil, fmt.Errorf("column %s is not a collection type", column.Name)
 			}
+		} else if column.CQLType == datatype.Counter {
+			decodedValue, err := proxycore.DecodeType(datatype.Counter, input.ProtocolV, input.Values[i].Contents)
+			if err != nil {
+				return nil, err
+			}
+			intVal, ok := decodedValue.(int64)
+			if !ok {
+				return nil, fmt.Errorf("failed to convert counter param")
+			}
+
+			meta, ok := input.ComplexMeta[column.Name]
+			if !ok {
+				return nil, fmt.Errorf("unexpected state: no existing operation for counter param")
+			}
+
+			meta.IncrementValue = intVal
 		} else {
 			valInInterface, err := DataConversionInInsertionIfRequired(input.Values[i].Contents, input.ProtocolV, column.CQLType, "byte")
 			if err != nil {
@@ -1343,7 +1398,7 @@ func processSet[V any](
 // It iterates over the clauses and constructs the WHERE clause by combining the column name, operator, and value of each clause.
 // If the operator is "IN", the value is wrapped with the UNNEST function.
 // The constructed WHERE clause is returned as a string.
-func buildWhereClause(clauses []types.Clause, tableConfig *schemaMapping.TableConfig, tableName string, keySpace string) (string, error) {
+func buildWhereClause(clauses []types.Clause, tableConfig *schemaMapping.TableConfig, CounterColumnName string) (string, error) {
 	whereClause := ""
 	columnFamily := tableConfig.SystemColumnFamily
 	for _, val := range clauses {
@@ -1353,7 +1408,7 @@ func buildWhereClause(clauses []types.Clause, tableConfig *schemaMapping.TableCo
 			// Check if the column is a primitive type and prepend the column family
 			if !utilities.IsCollectionColumn(colMeta) {
 				var castErr error
-				column, castErr = castColumns(colMeta, columnFamily)
+				column, castErr = castColumns(colMeta, columnFamily, CounterColumnName)
 				if castErr != nil {
 					return "", castErr
 				}
@@ -1386,7 +1441,7 @@ func buildWhereClause(clauses []types.Clause, tableConfig *schemaMapping.TableCo
 // castColumns handles column type casting in queries.
 // Manages type conversion for column values with validation.
 // Returns error if column type is invalid or conversion fails.
-func castColumns(colMeta *types.Column, columnFamily string) (string, error) {
+func castColumns(colMeta *types.Column, columnFamily string, counterColumnName string) (string, error) {
 	var nc string
 	switch colMeta.CQLType {
 	case datatype.Int:
@@ -1409,6 +1464,8 @@ func castColumns(colMeta *types.Column, columnFamily string) (string, error) {
 		nc = fmt.Sprintf("TO_INT64(%s['%s'])", columnFamily, colMeta.Name)
 	case datatype.Timestamp:
 		nc = fmt.Sprintf("TO_TIME(%s['%s'])", columnFamily, colMeta.Name)
+	case datatype.Counter:
+		nc = fmt.Sprintf("%s['%s']", colMeta.Name, counterColumnName)
 	case datatype.Blob:
 		nc = fmt.Sprintf("TO_BLOB(%s['%s'])", columnFamily, colMeta.Name)
 	case datatype.Varchar:
@@ -2108,15 +2165,15 @@ var kOrderedCodeDelimiter = []byte("\x00\x01")
 // createOrderedCodeKey creates an ordered row key.
 // Generates a byte-encoded row key from primary key values with validation.
 // Returns error if key type is invalid or encoding fails.
-func createOrderedCodeKey(primaryKeys []*types.Column, values map[string]interface{}, encodeIntValuesWithBigEndian bool) ([]byte, error) {
-	fixedValues, err := convertAllValuesToRowKeyType(primaryKeys, values)
+func createOrderedCodeKey(tableConfig *schemaMapping.TableConfig, values map[string]interface{}) ([]byte, error) {
+	fixedValues, err := convertAllValuesToRowKeyType(tableConfig.PrimaryKeys, values)
 	if err != nil {
 		return nil, err
 	}
 
 	var result []byte
 	var trailingEmptyFields []byte
-	for i, pmk := range primaryKeys {
+	for i, pmk := range tableConfig.PrimaryKeys {
 		if i != pmk.PkPrecedence-1 {
 			return nil, fmt.Errorf("wrong order for primary keys")
 		}
@@ -2129,7 +2186,7 @@ func createOrderedCodeKey(primaryKeys []*types.Column, values map[string]interfa
 		var err error
 		switch v := value.(type) {
 		case int64:
-			orderEncodedField, err = encodeInt64Key(v, encodeIntValuesWithBigEndian)
+			orderEncodedField, err = encodeInt64Key(v, tableConfig.IntRowKeyEncoding)
 			if err != nil {
 				return nil, err
 			}
@@ -2172,29 +2229,33 @@ func createOrderedCodeKey(primaryKeys []*types.Column, values map[string]interfa
 // encodeInt64Key encodes an int64 value for row keys.
 // Converts int64 values to byte representation with validation.
 // Returns error if value is invalid or encoding fails.
-func encodeInt64Key(value int64, encodeIntValuesWithBigEndian bool) ([]byte, error) {
-	// todo remove once ordered byte encoding is supported for ints
-	// override ordered code value with BigEndian
-	if encodeIntValuesWithBigEndian {
-		if value < 0 {
-			return nil, errors.New("row keys cannot contain negative integer values until ordered byte encoding is supported")
-		}
+func encodeInt64Key(value int64, intRowKeyEncoding types.IntRowKeyEncodingType) ([]byte, error) {
+	switch intRowKeyEncoding {
+	case types.BigEndianEncoding:
+		return encodeIntRowKeysWithBigEndian(value)
+	case types.OrderedCodeEncoding:
+		return Append(nil, value)
+	}
+	return nil, fmt.Errorf("unhandled int encoding type: %v", intRowKeyEncoding)
+}
 
-		var b bytes.Buffer
-		err := binary.Write(&b, binary.BigEndian, value)
-		if err != nil {
-			return nil, err
-		}
-
-		result, err := Append(nil, b.String())
-		if err != nil {
-			return nil, err
-		}
-
-		return result[:len(result)-2], nil
+func encodeIntRowKeysWithBigEndian(value int64) ([]byte, error) {
+	if value < 0 {
+		return nil, errors.New("row keys with big endian encoding cannot contain negative integer values")
 	}
 
-	return Append(nil, value)
+	var b bytes.Buffer
+	err := binary.Write(&b, binary.BigEndian, value)
+	if err != nil {
+		return nil, err
+	}
+
+	result, err := Append(nil, b.String())
+	if err != nil {
+		return nil, err
+	}
+
+	return result[:len(result)-2], nil
 }
 
 // DataConversionInInsertionIfRequired performs data type conversion for insertions.
@@ -2443,6 +2504,18 @@ func (t *Translator) ProcessComplexUpdate(columns []types.Column, values []inter
 				meta.Delete = true
 			}
 			complexMeta[column.Name] = meta
+		case primitive.DataTypeCodeCounter:
+			if ca.Operation == "+" || ca.Operation == "-" {
+				var op = Increment
+				if ca.Operation == "-" {
+					op = Decrement
+				}
+				meta.IncrementType = op
+				meta.ExpectedDatatype = datatype.Bigint
+				complexMeta[column.Name] = meta
+			} else {
+				return nil, fmt.Errorf("unsupported counter operation: `%s`", ca.Operation)
+			}
 		default:
 			return nil, fmt.Errorf("column %s is not a collection type", column.Name)
 		}

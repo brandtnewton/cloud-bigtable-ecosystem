@@ -25,7 +25,7 @@ func TestDropTableThatDoesntExist(t *testing.T) {
 		require.Error(t, err)
 	} else {
 		require.Error(t, err)
-		assert.Contains(t, err.Error(), "because it does not exist")
+		assert.Contains(t, err.Error(), "does not exist")
 	}
 }
 

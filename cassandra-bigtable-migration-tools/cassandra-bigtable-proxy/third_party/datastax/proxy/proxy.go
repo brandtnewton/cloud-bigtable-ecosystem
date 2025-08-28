@@ -68,6 +68,7 @@ const updateType = "update"
 const insertType = "insert"
 const deleteType = "delete"
 const createType = "create"
+const truncateType = "truncate"
 const dropType = "drop"
 
 const ts_column = "last_commit_ts"
@@ -109,8 +110,6 @@ const (
 	bigtableExecutionDoneEvent          = "bigtable Execution Done"
 	gotBulkApplyResp                    = "Got the response for bulk apply"
 	sendingBulkApplyMutation            = "Sending Mutation For Bulk Apply"
-	// todo remove once we support ordered code ints
-	encodeIntValuesWithBigEndian = true
 )
 
 type Config struct {
@@ -208,27 +207,25 @@ func NewProxy(ctx context.Context, config Config) (*Proxy, error) {
 		return nil, err
 	}
 	logger := proxycore.GetOrCreateNopLogger(config.Logger)
-	var allTables []*schemaMapping.TableConfig = nil
-	bigtableCl := bigtableModule.NewBigtableClient(bigtableClients, adminClients, logger, config.BigtableConfig, &responsehandler.TypeHandler{}, &schemaMapping.SchemaMappingConfig{}, config.BigtableConfig.InstancesMap)
-	for k, _ := range config.BigtableConfig.InstancesMap {
-		tableConfigs, err := bigtableCl.ReadTableConfigs(ctx, strings.TrimSpace(k), config.BigtableConfig.SchemaMappingTable)
+	smc := schemaMapping.NewSchemaMappingConfig(config.BigtableConfig.SchemaMappingTable, config.BigtableConfig.DefaultColumnFamily, config.BigtableConfig.CounterColumnName, logger, nil)
+	bigtableCl := bigtableModule.NewBigtableClient(bigtableClients, adminClients, logger, config.BigtableConfig, &responsehandler.TypeHandler{}, smc, config.BigtableConfig.InstancesMap)
+	for k := range config.BigtableConfig.InstancesMap {
+		tableConfigs, err := bigtableCl.ReadTableConfigs(ctx, k)
 		if err != nil {
 			return nil, err
 		}
-		allTables = append(allTables, tableConfigs...)
+		smc.UpdateTables(tableConfigs)
 	}
-	schemaMappingConfig := schemaMapping.NewSchemaMappingConfig(config.BigtableConfig.DefaultColumnFamily, config.Logger, allTables)
 	responseHandler := &responsehandler.TypeHandler{
 		Logger:              config.Logger,
-		SchemaMappingConfig: schemaMappingConfig,
+		SchemaMappingConfig: smc,
 	}
 
-	bigtableCl.LoadConfigs(responseHandler, schemaMappingConfig)
+	bigtableCl.LoadConfigs(responseHandler, smc)
 	proxyTranslator := &translator.Translator{
-		Logger: config.Logger,
-		// todo remove once we support ordered code ints
-		EncodeIntValuesWithBigEndian: encodeIntValuesWithBigEndian,
-		SchemaMappingConfig:          schemaMappingConfig,
+		Logger:                   config.Logger,
+		SchemaMappingConfig:      smc,
+		DefaultIntRowKeyEncoding: config.BigtableConfig.DefaultIntRowKeyEncoding,
 	}
 
 	// Enable OpenTelemetry traces by setting environment variable GOOGLE_API_GO_EXPERIMENTAL_TELEMETRY_PLATFORM_TRACING to the case-insensitive value "opentelemetry" before loading the client library.
@@ -256,7 +253,7 @@ func NewProxy(ctx context.Context, config Config) (*Proxy, error) {
 		config.Logger.Error("Failed to enable the OTEL: " + err.Error())
 		return nil, err
 	}
-	systemQueryMetadataCache, err := ConstructSystemMetadataRows(schemaMappingConfig.GetAllTables())
+	systemQueryMetadataCache, err := ConstructSystemMetadataRows(smc.GetAllTables())
 	if err != nil {
 		return nil, err
 	}
@@ -270,7 +267,7 @@ func NewProxy(ctx context.Context, config Config) (*Proxy, error) {
 		closed:                   make(chan struct{}),
 		bClient:                  bigtableCl,
 		translator:               proxyTranslator,
-		schemaMapping:            schemaMappingConfig,
+		schemaMapping:            smc,
 		systemQueryMetadataCache: systemQueryMetadataCache,
 		otelInst:                 otelInst,
 		otelShutdown:             shutdownOTel,
@@ -1655,7 +1652,7 @@ func (c *client) handleQuery(raw *frame.RawFrame, msg *partialQuery) {
 			}
 
 			otelgo.AddAnnotation(otelCtx, executingBigtableRequestEvent)
-			err = c.proxy.bClient.DropTable(c.proxy.ctx, queryMetadata, c.proxy.config.BigtableConfig.SchemaMappingTable)
+			err = c.proxy.bClient.DropTable(c.proxy.ctx, queryMetadata)
 			otelgo.AddAnnotation(otelCtx, bigtableExecutionDoneEvent)
 
 			if err != nil {
@@ -1681,7 +1678,7 @@ func (c *client) handleQuery(raw *frame.RawFrame, msg *partialQuery) {
 			}
 
 			otelgo.AddAnnotation(otelCtx, executingBigtableRequestEvent)
-			err = c.proxy.bClient.CreateTable(c.proxy.ctx, queryMetadata, c.proxy.config.BigtableConfig.SchemaMappingTable)
+			err = c.proxy.bClient.CreateTable(c.proxy.ctx, queryMetadata)
 			otelgo.AddAnnotation(otelCtx, bigtableExecutionDoneEvent)
 
 			if err != nil {
@@ -1692,6 +1689,29 @@ func (c *client) handleQuery(raw *frame.RawFrame, msg *partialQuery) {
 				return
 			} else {
 				c.handlePostDDLEvent(raw.Header, primitive.SchemaChangeTypeCreated, queryMetadata.Keyspace, queryMetadata.Table)
+				c.sender.Send(raw.Header, &message.VoidResult{})
+				return
+			}
+
+		case truncateType:
+			queryMetadata, err := c.proxy.translator.TranslateTruncateTableToBigtable(msg.query, c.keyspace)
+			if err != nil {
+				c.proxy.logger.Error(translatorErrorMessage, zap.String(Query, msg.query), zap.Error(err))
+				otelErr = err
+				c.proxy.otelInst.RecordError(span, otelErr)
+				c.sender.Send(raw.Header, &message.Invalid{ErrorMessage: err.Error()})
+				return
+			}
+
+			otelgo.AddAnnotation(otelCtx, bigtableExecutionDoneEvent)
+			err = c.proxy.bClient.DropAllRows(c.proxy.ctx, queryMetadata)
+			if err != nil {
+				c.proxy.logger.Error(errorAtBigtable, zap.String(Query, msg.query), zap.Error(err))
+				otelErr = err
+				c.proxy.otelInst.RecordError(span, otelErr)
+				c.sender.Send(raw.Header, &message.Invalid{ErrorMessage: err.Error()})
+				return
+			} else {
 				c.sender.Send(raw.Header, &message.VoidResult{})
 				return
 			}
@@ -1708,7 +1728,7 @@ func (c *client) handleQuery(raw *frame.RawFrame, msg *partialQuery) {
 			}
 
 			otelgo.AddAnnotation(otelCtx, executingBigtableRequestEvent)
-			err = c.proxy.bClient.AlterTable(c.proxy.ctx, queryMetadata, c.proxy.config.BigtableConfig.SchemaMappingTable)
+			err = c.proxy.bClient.AlterTable(c.proxy.ctx, queryMetadata)
 			otelgo.AddAnnotation(otelCtx, bigtableExecutionDoneEvent)
 
 			if err != nil {

@@ -181,136 +181,193 @@ func TestComplexOperationMapTextTimestamp(t *testing.T) {
 	assert.Equal(t, expectedMap, finalMap)
 }
 
-func TestComplexOperationMapTimestampValueTypes(t *testing.T) {
+func TestComplexOperationMapTimestampBooleanValue(t *testing.T) {
 	t.Parallel()
-	// Map<Timestamp, Boolean>
-	pkNameBool, pkAgeBool := "Mia Smith", int64(30)
-	initialMapBool := map[time.Time]bool{parseSimpleTime(t, "2023-01-01 12:00:00"): true, parseSimpleTime(t, "2023-01-02 13:00:00"): false}
-	require.NoError(t, session.Query(`INSERT INTO user_info(name, age, ts_boolean_map) VALUES (?, ?, ?);`, pkNameBool, pkAgeBool, initialMapBool).Exec())
-	addMapBool := map[time.Time]bool{parseSimpleTime(t, "2023-01-05 16:00:00"): true}
-	require.NoError(t, session.Query(`UPDATE user_info SET ts_boolean_map = ts_boolean_map + ? WHERE name = ? AND age = ?`, addMapBool, pkNameBool, pkAgeBool).Exec())
-	var finalMapBool map[time.Time]bool
-	require.NoError(t, session.Query(`SELECT ts_boolean_map FROM user_info WHERE name = ? AND age = ?`, pkNameBool, pkAgeBool).Scan(&finalMapBool))
-	expectedMapBool := map[time.Time]bool{
+	pkName, pkAge := "Mia Smith", int64(30)
+	initialMap := map[time.Time]bool{
+		parseSimpleTime(t, "2023-01-01 12:00:00"): true,
+		parseSimpleTime(t, "2023-01-02 13:00:00"): false,
+	}
+	require.NoError(t, session.Query(`INSERT INTO user_info(name, age, ts_boolean_map) VALUES (?, ?, ?);`, pkName, pkAge, initialMap).Exec())
+
+	addMap := map[time.Time]bool{parseSimpleTime(t, "2023-01-05 16:00:00"): true}
+	require.NoError(t, session.Query(`UPDATE user_info SET ts_boolean_map = ts_boolean_map + ? WHERE name = ? AND age = ?`, addMap, pkName, pkAge).Exec())
+
+	var finalMap map[time.Time]bool
+	require.NoError(t, session.Query(`SELECT ts_boolean_map FROM user_info WHERE name = ? AND age = ?`, pkName, pkAge).Scan(&finalMap))
+
+	expectedMap := map[time.Time]bool{
 		parseSimpleTime(t, "2023-01-01 12:00:00"): true,
 		parseSimpleTime(t, "2023-01-02 13:00:00"): false,
 		parseSimpleTime(t, "2023-01-05 16:00:00"): true,
 	}
-	assert.Equal(t, expectedMapBool, finalMapBool, "Boolean map content mismatch")
-
-	// Map<Timestamp, Text>
-	pkNameText, pkAgeText := "Tom Smith", int64(40)
-	initialMapText := map[time.Time]string{parseSimpleTime(t, "2023-01-01 12:00:00"): "value1"}
-	require.NoError(t, session.Query(`INSERT INTO user_info(name, age, ts_text_map) VALUES (?, ?, ?);`, pkNameText, pkAgeText, initialMapText).Exec())
-	addMapText := map[time.Time]string{parseSimpleTime(t, "2023-01-05 16:00:00"): "value5"}
-	require.NoError(t, session.Query(`UPDATE user_info SET ts_text_map = ts_text_map + ? WHERE name = ? AND age = ?`, addMapText, pkNameText, pkAgeText).Exec())
-	var finalMapText map[time.Time]string
-	require.NoError(t, session.Query(`SELECT ts_text_map FROM user_info WHERE name = ? AND age = ?`, pkNameText, pkAgeText).Scan(&finalMapText))
-	assert.Len(t, finalMapText, 2, "Expected 2 items in text map")
-
-	// Map<Timestamp, Float>
-	pkNameFloat, pkAgeFloat := "Noah Wilson", int64(32)
-	initialMapFloat := map[time.Time]float32{parseSimpleTime(t, "2023-02-01 12:00:00"): 1.5}
-	require.NoError(t, session.Query(`INSERT INTO user_info(name, age, ts_float_map) VALUES (?, ?, ?);`, pkNameFloat, pkAgeFloat, initialMapFloat).Exec())
-	require.NoError(t, session.Query(`UPDATE user_info SET ts_float_map['2023-02-07 18:00:00'] = ? WHERE name = ? AND age = ?`, float32(7.75), pkNameFloat, pkAgeFloat).Exec())
-	var finalMapFloat map[time.Time]float32
-	require.NoError(t, session.Query(`SELECT ts_float_map FROM user_info WHERE name = ? AND age = ?`, pkNameFloat, pkAgeFloat).Scan(&finalMapFloat))
-	assert.Len(t, finalMapFloat, 2, "Expected 2 items in float map")
-
-	// Map<Timestamp, Double>
-	pkNameDouble, pkAgeDouble := "Olivia Jackson", int64(33)
-	initialMapDouble := map[time.Time]float64{parseSimpleTime(t, "2023-03-01 12:00:00"): 1.123}
-	require.NoError(t, session.Query(`INSERT INTO user_info(name, age, ts_double_map) VALUES (?, ?, ?);`, pkNameDouble, pkAgeDouble, initialMapDouble).Exec())
-	require.NoError(t, session.Query(`UPDATE user_info SET ts_double_map['2023-03-07 18:00:00'] = ? WHERE name = ? AND age = ?`, 7.777, pkNameDouble, pkAgeDouble).Exec())
-	var finalMapDouble map[time.Time]float64
-	require.NoError(t, session.Query(`SELECT ts_double_map FROM user_info WHERE name = ? AND age = ?`, pkNameDouble, pkAgeDouble).Scan(&finalMapDouble))
-	assert.Len(t, finalMapDouble, 2, "Expected 2 items in double map")
-
-	// Map<Timestamp, BigInt>
-	pkNameBigInt, pkAgeBigInt := "Parker King", int64(34)
-	initialMapBigInt := map[time.Time]int64{parseSimpleTime(t, "2023-04-01 12:00:00"): 1000000000}
-	require.NoError(t, session.Query(`INSERT INTO user_info(name, age, ts_bigint_map) VALUES (?, ?, ?);`, pkNameBigInt, pkAgeBigInt, initialMapBigInt).Exec())
-	require.NoError(t, session.Query(`UPDATE user_info SET ts_bigint_map['2023-04-07 18:00:00'] = ? WHERE name = ? AND age = ?`, int64(8000000000), pkNameBigInt, pkAgeBigInt).Exec())
-	var finalMapBigInt map[time.Time]int64
-	require.NoError(t, session.Query(`SELECT ts_bigint_map FROM user_info WHERE name = ? AND age = ?`, pkNameBigInt, pkAgeBigInt).Scan(&finalMapBigInt))
-	assert.Len(t, finalMapBigInt, 2, "Expected 2 items in bigint map")
-
-	// Map<Timestamp, Timestamp>
-	pkNameTs, pkAgeTs := "Quinn Lewis", int64(35)
-	initialMapTs := map[time.Time]time.Time{parseSimpleTime(t, "2023-05-01 12:00:00"): parseSimpleTime(t, "2023-06-01 08:00:00")}
-	require.NoError(t, session.Query(`INSERT INTO user_info(name, age, ts_ts_map) VALUES (?, ?, ?);`, pkNameTs, pkAgeTs, initialMapTs).Exec())
-	require.NoError(t, session.Query(`UPDATE user_info SET ts_ts_map['2023-05-07 18:00:00'] = ? WHERE name = ? AND age = ?`, parseSimpleTime(t, "2023-06-08 15:00:00"), pkNameTs, pkAgeTs).Exec())
-	var finalMapTs map[time.Time]time.Time
-	require.NoError(t, session.Query(`SELECT ts_ts_map FROM user_info WHERE name = ? AND age = ?`, pkNameTs, pkAgeTs).Scan(&finalMapTs))
-	assert.Len(t, finalMapTs, 2, "Expected 2 items in timestamp map")
-
-	// Map<Timestamp, Int>
-	pkNameInt, pkAgeInt := "Riley Martinez", int64(36)
-	initialMapInt := map[time.Time]int{parseSimpleTime(t, "2023-07-01 12:00:00"): 100}
-	require.NoError(t, session.Query(`INSERT INTO user_info(name, age, ts_int_map) VALUES (?, ?, ?);`, pkNameInt, pkAgeInt, initialMapInt).Exec())
-	require.NoError(t, session.Query(`UPDATE user_info SET ts_int_map['2023-07-07 18:00:00'] = ? WHERE name = ? AND age = ?`, 700, pkNameInt, pkAgeInt).Exec())
-	var finalMapInt map[time.Time]int
-	require.NoError(t, session.Query(`SELECT ts_int_map FROM user_info WHERE name = ? AND age = ?`, pkNameInt, pkAgeInt).Scan(&finalMapInt))
-	assert.Len(t, finalMapInt, 2, "Expected 2 items in int map")
+	assert.Equal(t, expectedMap, finalMap, "Boolean map content mismatch")
 }
 
-func TestComplexOperationListTypes(t *testing.T) {
+func TestComplexOperationMapTimestampTextValue(t *testing.T) {
 	t.Parallel()
-	// LIST<TIMESTAMP>
-	pkNameTs, pkAgeTs := "Riley Martinez", int64(36)
-	initialListTs := []time.Time{parseSimpleTime(t, "2023-07-01 12:00:00"), parseSimpleTime(t, "2023-07-02 13:00:00")}
-	require.NoError(t, session.Query(`INSERT INTO user_info(name, age, list_timestamp) VALUES (?, ?, ?);`, pkNameTs, pkAgeTs, initialListTs).Exec())
-	require.NoError(t, session.Query(`UPDATE user_info SET list_timestamp = list_timestamp + ? WHERE name = ? AND age = ?`, []time.Time{parseSimpleTime(t, "2023-07-03 14:00:00")}, pkNameTs, pkAgeTs).Exec())
-	require.NoError(t, session.Query(`UPDATE user_info SET list_timestamp = list_timestamp - ? WHERE name = ? AND age = ?`, []time.Time{parseSimpleTime(t, "2023-07-01 12:00:00")}, pkNameTs, pkAgeTs).Exec())
-	var finalListTs []time.Time
-	require.NoError(t, session.Query(`SELECT list_timestamp FROM user_info WHERE name = ? AND age = ?`, pkNameTs, pkAgeTs).Scan(&finalListTs))
-	assert.Equal(t, []time.Time{parseSimpleTime(t, "2023-07-02 13:00:00"), parseSimpleTime(t, "2023-07-03 14:00:00")}, finalListTs)
+	pkName, pkAge := "Tom Smith", int64(40)
+	initialMap := map[time.Time]string{parseSimpleTime(t, "2023-01-01 12:00:00"): "value1"}
+	require.NoError(t, session.Query(`INSERT INTO user_info(name, age, ts_text_map) VALUES (?, ?, ?);`, pkName, pkAge, initialMap).Exec())
 
-	// LIST<TEXT>
-	pkNameText, pkAgeText := "Sophia Taylor", int64(28)
-	require.NoError(t, session.Query(`INSERT INTO user_info(name, age, list_text) VALUES (?, ?, ?);`, pkNameText, pkAgeText, []string{"apple", "banana"}).Exec())
-	require.NoError(t, session.Query(`UPDATE user_info SET list_text = list_text + ? WHERE name = ? AND age = ?`, []string{"orange"}, pkNameText, pkAgeText).Exec())
-	var finalListString []string
-	require.NoError(t, session.Query(`SELECT list_text FROM user_info WHERE name = ? AND age = ?`, pkNameText, pkAgeText).Scan(&finalListString))
-	assert.Equal(t, []string{"apple", "banana", "orange"}, finalListString)
+	addMap := map[time.Time]string{parseSimpleTime(t, "2023-01-05 16:00:00"): "value5"}
+	require.NoError(t, session.Query(`UPDATE user_info SET ts_text_map = ts_text_map + ? WHERE name = ? AND age = ?`, addMap, pkName, pkAge).Exec())
 
-	// LIST<INT>
-	pkNameInt, pkAgeInt := "Thomas Walker", int64(29)
-	require.NoError(t, session.Query(`INSERT INTO user_info(name, age, list_int) VALUES (?, ?, ?);`, pkNameInt, pkAgeInt, []int{10, 20}).Exec())
-	require.NoError(t, session.Query(`UPDATE user_info SET list_int = list_int - ? WHERE name = ? AND age = ?`, []int{10}, pkNameInt, pkAgeInt).Exec())
-	var finalLintInt []int
-	require.NoError(t, session.Query(`SELECT list_int FROM user_info WHERE name = ? AND age = ?`, pkNameInt, pkAgeInt).Scan(&finalLintInt))
-	assert.Equal(t, []int{20}, finalLintInt)
+	var finalMap map[time.Time]string
+	require.NoError(t, session.Query(`SELECT ts_text_map FROM user_info WHERE name = ? AND age = ?`, pkName, pkAge).Scan(&finalMap))
+	assert.Len(t, finalMap, 2, "Expected 2 items in text map")
+}
 
-	// LIST<BIGINT>
-	pkNameBigInt, pkAgeBigInt := "Ursula Garcia", int64(30)
-	require.NoError(t, session.Query(`INSERT INTO user_info(name, age, list_bigint) VALUES (?, ?, ?);`, pkNameBigInt, pkAgeBigInt, []int64{1000000000, 2000000000}).Exec())
-	require.NoError(t, session.Query(`UPDATE user_info SET list_bigint = list_bigint + ? WHERE name = ? AND age = ?`, []int64{3000000000}, pkNameBigInt, pkAgeBigInt).Exec())
-	var finalListBigInt []int64
-	require.NoError(t, session.Query(`SELECT list_bigint FROM user_info WHERE name = ? AND age = ?`, pkNameBigInt, pkAgeBigInt).Scan(&finalListBigInt))
-	assert.Equal(t, []int64{1000000000, 2000000000, 3000000000}, finalListBigInt)
+func TestComplexOperationMapTimestampFloatValue(t *testing.T) {
+	t.Parallel()
+	pkName, pkAge := "Noah Wilson", int64(32)
+	initialMap := map[time.Time]float32{parseSimpleTime(t, "2023-02-01 12:00:00"): 1.5}
+	require.NoError(t, session.Query(`INSERT INTO user_info(name, age, ts_float_map) VALUES (?, ?, ?);`, pkName, pkAge, initialMap).Exec())
+	require.NoError(t, session.Query(`UPDATE user_info SET ts_float_map['2023-02-07 18:00:00'] = ? WHERE name = ? AND age = ?`, float32(7.75), pkName, pkAge).Exec())
 
-	// LIST<FLOAT>
-	pkNameFloat, pkAgeFloat := "Victoria Nelson", int64(31)
-	require.NoError(t, session.Query(`INSERT INTO user_info(name, age, list_float) VALUES (?, ?, ?);`, pkNameFloat, pkAgeFloat, []float32{1.5, 2.75}).Exec())
-	require.NoError(t, session.Query(`UPDATE user_info SET list_float = list_float + ? WHERE name = ? AND age = ?`, []float32{3.25}, pkNameFloat, pkAgeFloat).Exec())
-	var finalListFloat []float32
-	require.NoError(t, session.Query(`SELECT list_float FROM user_info WHERE name = ? AND age = ?`, pkNameFloat, pkAgeFloat).Scan(&finalListFloat))
-	assert.Equal(t, []float32{1.5, 2.75, 3.25}, finalListFloat)
+	var finalMap map[time.Time]float32
+	require.NoError(t, session.Query(`SELECT ts_float_map FROM user_info WHERE name = ? AND age = ?`, pkName, pkAge).Scan(&finalMap))
+	assert.Len(t, finalMap, 2, "Expected 2 items in float map")
+}
 
-	// LIST<DOUBLE>
-	pkNameDouble, pkAgeDouble := "William Davis", int64(32)
-	require.NoError(t, session.Query(`INSERT INTO user_info(name, age, list_double) VALUES (?, ?, ?);`, pkNameDouble, pkAgeDouble, []float64{1.123, 2.987}).Exec())
-	require.NoError(t, session.Query(`UPDATE user_info SET list_double = list_double - ? WHERE name = ? AND age = ?`, []float64{1.123}, pkNameDouble, pkAgeDouble).Exec())
-	var finalListDouble []float64
-	require.NoError(t, session.Query(`SELECT list_double FROM user_info WHERE name = ? AND age = ?`, pkNameDouble, pkAgeDouble).Scan(&finalListDouble))
-	assert.Equal(t, []float64{2.987}, finalListDouble)
+func TestComplexOperationMapTimestampDoubleValue(t *testing.T) {
+	t.Parallel()
+	pkName, pkAge := "Olivia Jackson", int64(33)
+	initialMap := map[time.Time]float64{parseSimpleTime(t, "2023-03-01 12:00:00"): 1.123}
+	require.NoError(t, session.Query(`INSERT INTO user_info(name, age, ts_double_map) VALUES (?, ?, ?);`, pkName, pkAge, initialMap).Exec())
+	require.NoError(t, session.Query(`UPDATE user_info SET ts_double_map['2023-03-07 18:00:00'] = ? WHERE name = ? AND age = ?`, 7.777, pkName, pkAge).Exec())
 
-	// LIST<BOOLEAN>
-	pkNameBool, pkAgeBool := "Xavier Thompson", int64(33)
-	require.NoError(t, session.Query(`INSERT INTO user_info(name, age, list_boolean) VALUES (?, ?, ?);`, pkNameBool, pkAgeBool, []bool{true, false}).Exec())
-	require.NoError(t, session.Query(`UPDATE user_info SET list_boolean = list_boolean + ? WHERE name = ? AND age = ?`, []bool{true}, pkNameBool, pkAgeBool).Exec())
-	var finalListBool []bool
-	require.NoError(t, session.Query(`SELECT list_boolean FROM user_info WHERE name = ? AND age = ?`, pkNameBool, pkAgeBool).Scan(&finalListBool))
-	assert.Equal(t, []bool{true, false, true}, finalListBool)
+	var finalMap map[time.Time]float64
+	require.NoError(t, session.Query(`SELECT ts_double_map FROM user_info WHERE name = ? AND age = ?`, pkName, pkAge).Scan(&finalMap))
+	assert.Len(t, finalMap, 2, "Expected 2 items in double map")
+}
+
+func TestComplexOperationMapTimestampBigIntValue(t *testing.T) {
+	t.Parallel()
+	pkName, pkAge := "Parker King", int64(34)
+	initialMap := map[time.Time]int64{parseSimpleTime(t, "2023-04-01 12:00:00"): 1000000000}
+	require.NoError(t, session.Query(`INSERT INTO user_info(name, age, ts_bigint_map) VALUES (?, ?, ?);`, pkName, pkAge, initialMap).Exec())
+	require.NoError(t, session.Query(`UPDATE user_info SET ts_bigint_map['2023-04-07 18:00:00'] = ? WHERE name = ? AND age = ?`, int64(8000000000), pkName, pkAge).Exec())
+
+	var finalMap map[time.Time]int64
+	require.NoError(t, session.Query(`SELECT ts_bigint_map FROM user_info WHERE name = ? AND age = ?`, pkName, pkAge).Scan(&finalMap))
+	assert.Len(t, finalMap, 2, "Expected 2 items in bigint map")
+}
+
+func TestComplexOperationMapTimestampTimestampValue(t *testing.T) {
+	t.Parallel()
+	pkName, pkAge := "Quinn Lewis", int64(35)
+	initialMap := map[time.Time]time.Time{parseSimpleTime(t, "2023-05-01 12:00:00"): parseSimpleTime(t, "2023-06-01 08:00:00")}
+	require.NoError(t, session.Query(`INSERT INTO user_info(name, age, ts_ts_map) VALUES (?, ?, ?);`, pkName, pkAge, initialMap).Exec())
+	require.NoError(t, session.Query(`UPDATE user_info SET ts_ts_map['2023-05-07 18:00:00'] = ? WHERE name = ? AND age = ?`, parseSimpleTime(t, "2023-06-08 15:00:00"), pkName, pkAge).Exec())
+
+	var finalMap map[time.Time]time.Time
+	require.NoError(t, session.Query(`SELECT ts_ts_map FROM user_info WHERE name = ? AND age = ?`, pkName, pkAge).Scan(&finalMap))
+	assert.Len(t, finalMap, 2, "Expected 2 items in timestamp map")
+}
+
+func TestComplexOperationMapTimestampIntValue(t *testing.T) {
+	t.Parallel()
+	pkName, pkAge := "Riley Martinez", int64(36)
+	initialMap := map[time.Time]int{parseSimpleTime(t, "2023-07-01 12:00:00"): 100}
+	require.NoError(t, session.Query(`INSERT INTO user_info(name, age, ts_int_map) VALUES (?, ?, ?);`, pkName, pkAge, initialMap).Exec())
+	require.NoError(t, session.Query(`UPDATE user_info SET ts_int_map['2023-07-07 18:00:00'] = ? WHERE name = ? AND age = ?`, 700, pkName, pkAge).Exec())
+
+	var finalMap map[time.Time]int
+	require.NoError(t, session.Query(`SELECT ts_int_map FROM user_info WHERE name = ? AND age = ?`, pkName, pkAge).Scan(&finalMap))
+	assert.Len(t, finalMap, 2, "Expected 2 items in int map")
+}
+
+func TestComplexOperationListTimestamp(t *testing.T) {
+	t.Parallel()
+	pkName, pkAge := "ts_list_test_person", int64(36)
+	initialList := []time.Time{parseSimpleTime(t, "2023-07-01 12:00:00"), parseSimpleTime(t, "2023-07-02 13:00:00")}
+	require.NoError(t, session.Query(`INSERT INTO user_info(name, age, list_timestamp) VALUES (?, ?, ?);`, pkName, pkAge, initialList).Exec())
+
+	// Append an element
+	require.NoError(t, session.Query(`UPDATE user_info SET list_timestamp = list_timestamp + ? WHERE name = ? AND age = ?`, []time.Time{parseSimpleTime(t, "2023-07-03 14:00:00")}, pkName, pkAge).Exec())
+
+	var resultsList []time.Time
+	require.NoError(t, session.Query(`SELECT list_timestamp FROM user_info WHERE name = ? AND age = ?`, pkName, pkAge).Scan(&resultsList))
+	assert.Equal(t, []time.Time{parseSimpleTime(t, "2023-07-01 12:00:00"), parseSimpleTime(t, "2023-07-02 13:00:00"), parseSimpleTime(t, "2023-07-03 14:00:00")}, resultsList)
+
+	// Remove an element
+	require.NoError(t, session.Query(`UPDATE user_info SET list_timestamp = list_timestamp - ? WHERE name = ? AND age = ?`, []time.Time{parseSimpleTime(t, "2023-07-01 12:00:00")}, pkName, pkAge).Exec())
+
+	require.NoError(t, session.Query(`SELECT list_timestamp FROM user_info WHERE name = ? AND age = ?`, pkName, pkAge).Scan(&resultsList))
+
+	expectedList := []time.Time{parseSimpleTime(t, "2023-07-02 13:00:00"), parseSimpleTime(t, "2023-07-03 14:00:00")}
+	assert.Equal(t, expectedList, resultsList)
+}
+
+func TestComplexOperationListText(t *testing.T) {
+	t.Parallel()
+	pkName, pkAge := "text_list_test_person", int64(28)
+	require.NoError(t, session.Query(`INSERT INTO user_info(name, age, list_text) VALUES (?, ?, ?);`, pkName, pkAge, []string{"apple", "banana"}).Exec())
+
+	require.NoError(t, session.Query(`UPDATE user_info SET list_text = list_text + ? WHERE name = ? AND age = ?`, []string{"orange"}, pkName, pkAge).Exec())
+
+	var finalList []string
+	require.NoError(t, session.Query(`SELECT list_text FROM user_info WHERE name = ? AND age = ?`, pkName, pkAge).Scan(&finalList))
+	assert.Equal(t, []string{"apple", "banana", "orange"}, finalList)
+}
+
+func TestComplexOperationListInt(t *testing.T) {
+	t.Parallel()
+	pkName, pkAge := "int_list_test_person", int64(29)
+	require.NoError(t, session.Query(`INSERT INTO user_info(name, age, list_int) VALUES (?, ?, ?);`, pkName, pkAge, []int{10, 20}).Exec())
+
+	require.NoError(t, session.Query(`UPDATE user_info SET list_int = list_int - ? WHERE name = ? AND age = ?`, []int{10}, pkName, pkAge).Exec())
+
+	var finalList []int
+	require.NoError(t, session.Query(`SELECT list_int FROM user_info WHERE name = ? AND age = ?`, pkName, pkAge).Scan(&finalList))
+	assert.Equal(t, []int{20}, finalList)
+}
+
+func TestComplexOperationListBigInt(t *testing.T) {
+	t.Parallel()
+	pkName, pkAge := "bigint_list_test_person", int64(30)
+	require.NoError(t, session.Query(`INSERT INTO user_info(name, age, list_bigint) VALUES (?, ?, ?);`, pkName, pkAge, []int64{1000000000, 2000000000}).Exec())
+
+	require.NoError(t, session.Query(`UPDATE user_info SET list_bigint = list_bigint + ? WHERE name = ? AND age = ?`, []int64{3000000000}, pkName, pkAge).Exec())
+
+	var finalList []int64
+	require.NoError(t, session.Query(`SELECT list_bigint FROM user_info WHERE name = ? AND age = ?`, pkName, pkAge).Scan(&finalList))
+	assert.Equal(t, []int64{1000000000, 2000000000, 3000000000}, finalList)
+}
+
+func TestComplexOperationListFloat(t *testing.T) {
+	t.Parallel()
+	pkName, pkAge := "float_list_test_person", int64(31)
+	require.NoError(t, session.Query(`INSERT INTO user_info(name, age, list_float) VALUES (?, ?, ?);`, pkName, pkAge, []float32{1.5, 2.75}).Exec())
+
+	require.NoError(t, session.Query(`UPDATE user_info SET list_float = list_float + ? WHERE name = ? AND age = ?`, []float32{3.25}, pkName, pkAge).Exec())
+
+	var finalList []float32
+	require.NoError(t, session.Query(`SELECT list_float FROM user_info WHERE name = ? AND age = ?`, pkName, pkAge).Scan(&finalList))
+	assert.Equal(t, []float32{1.5, 2.75, 3.25}, finalList)
+}
+
+func TestComplexOperationListDouble(t *testing.T) {
+	t.Parallel()
+	pkName, pkAge := "double_list_test_person", int64(32)
+	require.NoError(t, session.Query(`INSERT INTO user_info(name, age, list_double) VALUES (?, ?, ?);`, pkName, pkAge, []float64{1.123, 2.987}).Exec())
+
+	require.NoError(t, session.Query(`UPDATE user_info SET list_double = list_double - ? WHERE name = ? AND age = ?`, []float64{1.123}, pkName, pkAge).Exec())
+
+	var finalList []float64
+	require.NoError(t, session.Query(`SELECT list_double FROM user_info WHERE name = ? AND age = ?`, pkName, pkAge).Scan(&finalList))
+	assert.Equal(t, []float64{2.987}, finalList)
+}
+
+func TestComplexOperationListBoolean(t *testing.T) {
+	t.Parallel()
+	pkName, pkAge := "bool_list_test_person", int64(33)
+	require.NoError(t, session.Query(`INSERT INTO user_info(name, age, list_boolean) VALUES (?, ?, ?);`, pkName, pkAge, []bool{true, false}).Exec())
+
+	require.NoError(t, session.Query(`UPDATE user_info SET list_boolean = list_boolean + ? WHERE name = ? AND age = ?`, []bool{true}, pkName, pkAge).Exec())
+
+	var finalList []bool
+	require.NoError(t, session.Query(`SELECT list_boolean FROM user_info WHERE name = ? AND age = ?`, pkName, pkAge).Scan(&finalList))
+	assert.Equal(t, []bool{true, false, true}, finalList)
 }

@@ -31,7 +31,7 @@ import (
 
 func TestTranslateAlterTableToBigtable(t *testing.T) {
 
-	userInfoTable := schemaMapping.NewTableConfig("test_keyspace", "user_info", "cf1", []*types.Column{
+	userInfoTable := schemaMapping.NewTableConfig("test_keyspace", "user_info", "cf1", types.OrderedCodeEncoding, []*types.Column{
 		{Name: "name", CQLType: datatype.Varchar, KeyType: utilities.KEY_TYPE_PARTITION, PkPrecedence: 1},
 		{Name: "age", CQLType: datatype.Int, KeyType: utilities.KEY_TYPE_CLUSTERING, PkPrecedence: 2},
 		{Name: "email", CQLType: datatype.Varchar, KeyType: utilities.KEY_TYPE_REGULAR, PkPrecedence: 0},
@@ -263,7 +263,7 @@ func TestTranslateAlterTableToBigtable(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			require.NotNil(t, tt.tableConfig, "tests must define a table config")
-			smc := schemaMapping.NewSchemaMappingConfig("cf1", zap.NewNop(), []*schemaMapping.TableConfig{tt.tableConfig})
+			smc := schemaMapping.NewSchemaMappingConfig("schema_mappings", "cf1", "v", zap.NewNop(), []*schemaMapping.TableConfig{tt.tableConfig})
 			tr := &Translator{
 				Logger:              nil,
 				SchemaMappingConfig: smc,

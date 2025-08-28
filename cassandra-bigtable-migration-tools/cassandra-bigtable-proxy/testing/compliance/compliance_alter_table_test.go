@@ -106,6 +106,12 @@ func TestNegativeTestCasesForAlterTable(t *testing.T) {
 			expectedError: "alter column type operations are not supported",
 			skipCassandra: true,
 		},
+		{
+			name:          "Alter property not supported by proxy",
+			query:         "ALTER TABLE alter_test_table WITH int_row_key_encoding='big_endian'",
+			expectedError: "table property operations are not supported",
+			skipCassandra: true,
+		},
 	}
 
 	for _, tc := range testCases {

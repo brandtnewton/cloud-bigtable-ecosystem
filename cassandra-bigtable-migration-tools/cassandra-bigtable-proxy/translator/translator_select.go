@@ -27,6 +27,7 @@ import (
 	schemaMapping "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/schema-mapping"
 	cql "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/third_party/cqlparser"
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/utilities"
+	"github.com/datastax/go-cassandra-native-protocol/datatype"
 	"github.com/datastax/go-cassandra-native-protocol/primitive"
 )
 
@@ -389,7 +390,7 @@ func processFunctionColumn(t *Translator, columnMetadata types.SelectedColumn, t
 			return nil, fmt.Errorf("column not supported for aggregate")
 		}
 	}
-	castValue, castErr := castColumns(colMeta, colFamily)
+	castValue, castErr := castColumns(colMeta, colFamily, t.SchemaMappingConfig.CounterColumnName)
 	if castErr != nil {
 		return nil, castErr
 	}
@@ -407,10 +408,11 @@ func processFunctionColumn(t *Translator, columnMetadata types.SelectedColumn, t
 // ensuring that only appropriate types are used for aggregate operations.
 func dtAllowedInAggregate(dataType string) bool {
 	allowedDataTypes := map[string]bool{
-		"int":    true,
-		"bigint": true,
-		"float":  true,
-		"double": true,
+		"int":     true,
+		"bigint":  true,
+		"float":   true,
+		"double":  true,
+		"counter": true,
 	}
 	return allowedDataTypes[dataType]
 }
@@ -447,9 +449,9 @@ func processNonFunctionColumn(t *Translator, tableConfig *schemaMapping.TableCon
 	if columnMetadata.IsWriteTimeColumn {
 		columns = processWriteTimeColumn(tableConfig, columnMetadata, columnFamily, columns)
 	} else if columnMetadata.IsAs {
-		columns = processAsColumn(columnMetadata, columnFamily, colMeta, columns, isGroupBy)
+		columns = processAsColumn(columnMetadata, t.SchemaMappingConfig.CounterColumnName, columnFamily, colMeta, columns, isGroupBy)
 	} else {
-		columns = processRegularColumn(columnMetadata, tableConfig.Name, columnFamily, colMeta, columns, isGroupBy)
+		columns = processRegularColumn(columnMetadata, tableConfig.Name, t.SchemaMappingConfig.CounterColumnName, columnFamily, colMeta, columns, isGroupBy)
 	}
 	return columns, nil
 }
@@ -469,16 +471,22 @@ func processWriteTimeColumn(tableConfig *schemaMapping.TableConfig, columnMetada
 	return columns
 }
 
-func processAsColumn(columnMetadata types.SelectedColumn, columnFamily string, colMeta *types.Column, columns []string, isGroupBy bool) []string {
+func processAsColumn(columnMetadata types.SelectedColumn, counterColumnName string, columnFamily string, colMeta *types.Column, columns []string, isGroupBy bool) []string {
 	var columnSelected string
 	if !utilities.IsCollection(colMeta.CQLType) {
+		var columnName = columnMetadata.Name
+		if colMeta.CQLType == datatype.Counter {
+			// counters are stored as counter_col['v']
+			columnFamily = columnMetadata.Name
+			columnName = counterColumnName
+		}
 		if isGroupBy {
-			castedCol, _ := castColumns(colMeta, columnFamily)
+			castedCol, _ := castColumns(colMeta, columnFamily, counterColumnName)
 			columnSelected = castedCol + " as " + columnMetadata.Alias
 		} else if colMeta.IsPrimaryKey {
-			columnSelected = fmt.Sprintf("%s as %s", columnMetadata.Name, columnMetadata.Alias)
+			columnSelected = fmt.Sprintf("%s as %s", columnName, columnMetadata.Alias)
 		} else {
-			columnSelected = fmt.Sprintf("%s['%s'] as %s", columnFamily, columnMetadata.Name, columnMetadata.Alias)
+			columnSelected = fmt.Sprintf("%s['%s'] as %s", columnFamily, columnName, columnMetadata.Alias)
 		}
 	} else {
 		if colMeta.CQLType.GetDataTypeCode() == primitive.DataTypeCodeList {
@@ -514,15 +522,20 @@ Returns:
 
 	An updated slice of strings with the new formatted column reference appended.
 */
-func processRegularColumn(columnMetadata types.SelectedColumn, tableName string, columnFamily string, colMeta *types.Column, columns []string, isGroupBy bool) []string {
+func processRegularColumn(columnMetadata types.SelectedColumn, tableName string, counterColumnName string, columnFamily string, colMeta *types.Column, columns []string, isGroupBy bool) []string {
 	if !utilities.IsCollection(colMeta.CQLType) {
+		var columnName = columnMetadata.Name
+		if colMeta.CQLType == datatype.Counter {
+			columnFamily = columnName
+			columnName = counterColumnName
+		}
 		if isGroupBy {
-			castedCol, _ := castColumns(colMeta, columnFamily)
+			castedCol, _ := castColumns(colMeta, columnFamily, counterColumnName)
 			columns = append(columns, castedCol)
 		} else if colMeta.IsPrimaryKey {
-			columns = append(columns, columnMetadata.Name)
+			columns = append(columns, columnName)
 		} else {
-			columns = append(columns, fmt.Sprintf("%s['%s']", columnFamily, columnMetadata.Name))
+			columns = append(columns, fmt.Sprintf("%s['%s']", columnFamily, columnName))
 		}
 	} else {
 		var collectionColumn string
@@ -589,7 +602,7 @@ func getBigtableSelectQuery(t *Translator, data *SelectQueryMap) (string, error)
 		return "", errors.New("could not prepare the select query due to incomplete information")
 	}
 	btQuery := fmt.Sprintf("SELECT %s FROM %s", column, data.Table)
-	whereCondition, err := buildWhereClause(data.Clauses, tableConfig, data.Table, data.Keyspace)
+	whereCondition, err := buildWhereClause(data.Clauses, tableConfig, t.SchemaMappingConfig.CounterColumnName)
 	if err != nil {
 		return "nil", err
 	}
@@ -616,7 +629,7 @@ func getBigtableSelectQuery(t *Translator, data *SelectQueryMap) (string, error)
 			} else {
 				if colMeta, ok := tableConfig.Columns[lookupCol]; ok {
 					if !utilities.IsCollection(colMeta.CQLType) {
-						col, err := castColumns(colMeta, t.SchemaMappingConfig.SystemColumnFamily)
+						col, err := castColumns(colMeta, t.SchemaMappingConfig.SystemColumnFamily, t.SchemaMappingConfig.CounterColumnName)
 						if err != nil {
 							return "", err
 						}
@@ -641,7 +654,7 @@ func getBigtableSelectQuery(t *Translator, data *SelectQueryMap) (string, error)
 					if colMeta.IsPrimaryKey {
 						orderByClauses = append(orderByClauses, orderByCol.Column+" "+string(orderByCol.Operation))
 					} else if !utilities.IsCollection(colMeta.CQLType) {
-						orderByKey, err := castColumns(colMeta, t.SchemaMappingConfig.SystemColumnFamily)
+						orderByKey, err := castColumns(colMeta, t.SchemaMappingConfig.SystemColumnFamily, t.SchemaMappingConfig.CounterColumnName)
 						if err != nil {
 							return "", err
 						}

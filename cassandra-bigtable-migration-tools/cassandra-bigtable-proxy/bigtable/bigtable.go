@@ -471,6 +471,11 @@ func (btc *BigtableClient) AlterTable(ctx context.Context, data *translator.Alte
 
 	for family, config := range columnFamilies {
 		err = adminClient.CreateColumnFamilyWithConfig(ctx, data.Table, family, config)
+		if status.Code(err) == codes.AlreadyExists {
+			// This can happen if the ALTER TABLE statement is run more than once.
+			continue
+		}
+
 		if err != nil {
 			return err
 		}

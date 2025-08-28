@@ -11,7 +11,7 @@ import (
 func TestTruncate(t *testing.T) {
 	t.Parallel()
 
-	require.NoError(t, session.Query("CREATE TABLE IF NOT EXISTS truncate_test (id INT PRIMARY KEY, name TEXT").Exec())
+	require.NoError(t, session.Query("CREATE TABLE IF NOT EXISTS truncate_test (id INT PRIMARY KEY, name TEXT)").Exec())
 
 	// add some data to truncate
 	require.NoError(t, session.Query("INSERT INTO truncate_test (id, name) VALUES (?, ?)", 1, "foo").Exec())

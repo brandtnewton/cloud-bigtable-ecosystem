@@ -96,15 +96,20 @@ func cleanUpTests() {
 }
 
 var gcpProjectId = ""
+var instanceId = ""
 
 func setUpTests() {
 	gcpProjectId = os.Getenv("PROJECT_ID")
 	if gcpProjectId == "" {
 		log.Fatalf("missing env var 'PROJECT_ID'")
 	}
+	instanceId = os.Getenv("INSTANCE_ID")
+	if instanceId == "" {
+		log.Fatalf("missing env var 'INSTANCE_ID'")
+	}
 
 	var err error
-	session, err = createSession("bigtabledevinstance")
+	session, err = createSession(instanceId)
 	if err != nil {
 		log.Fatalf("could not connect to the session: %v", err)
 	}

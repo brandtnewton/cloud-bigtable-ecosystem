@@ -30,7 +30,7 @@ func TestCreateWhereBigtableTableExists(t *testing.T) {
 	defer cleanupTable(t, table)
 
 	ctx := context.Background()
-	adminClient, err := bigtable.NewAdminClient(ctx, gcpProjectId, "bigtabledevinstance")
+	adminClient, err := bigtable.NewAdminClient(ctx, gcpProjectId, instanceId)
 	require.NoError(t, err)
 
 	err = adminClient.CreateTableFromConf(ctx, &bigtable.TableConf{

@@ -278,11 +278,16 @@ func (btc *BigtableClient) DropAllRows(ctx context.Context, data *translator.Tru
 	}
 
 	btc.Logger.Info("truncate table: dropping all bigtable rows")
-	err = adminClient.DropAllRows(ctx, data.Table)
-	if err != nil {
-		btc.Logger.Error("truncate table: failed", zap.Error(err))
-		return err
-	}
+err = adminClient.DropAllRows(ctx, data.Table)
+if status.Code(err) == codes.NotFound {
+	// Table doesn't exist in Bigtable, which is fine for a truncate.
+	btc.Logger.Info("truncate table: table not found in Bigtable, nothing to drop", zap.String("table", data.Table))
+	return nil
+}
+if err != nil {
+	btc.Logger.Error("truncate table: failed", zap.Error(err))
+	return err
+}
 	btc.Logger.Info("truncate table: complete")
 	return nil
 }

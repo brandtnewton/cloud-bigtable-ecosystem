@@ -97,6 +97,12 @@ func TestAggregateQueriesOnCounters(t *testing.T) {
 }
 
 func TestGroupByAndOrderByCounters(t *testing.T) {
+	// cassandra doesn't support grouping or ordering by a counter
+	if testTarget == TestTargetCassandra {
+		t.Skip()
+		return
+	}
+
 	pkUser := "gbob" // group by order by
 	require.NoError(t, session.Query(`UPDATE social_posts SET likes = likes + ? WHERE user_id = ? AND id = ?`, 2, pkUser, 1).Exec())
 	require.NoError(t, session.Query(`UPDATE social_posts SET likes = likes + ? WHERE user_id = ? AND id = ?`, 3, pkUser, 2).Exec())

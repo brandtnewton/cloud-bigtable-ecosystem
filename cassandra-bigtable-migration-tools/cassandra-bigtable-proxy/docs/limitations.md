@@ -16,7 +16,6 @@ simply because certain features haven't been fully implemented yet in the proxy.
 | CQL Type              | Supported | Cloud Bigtable Mapping                                                             |
 |-----------------------|-----------|------------------------------------------------------------------------------------|
 | text                  | ✓         | RAW BYTES                                                                          |
-| blob                  | ✓         | RAW BYTES                                                                          |
 | timestamp             | ✓         | RAW BYTES                                                                          |
 | int                   | ✓         | RAW BYTES                                                                          |
 | bigint                | ✓         | RAW BYTES                                                                          |

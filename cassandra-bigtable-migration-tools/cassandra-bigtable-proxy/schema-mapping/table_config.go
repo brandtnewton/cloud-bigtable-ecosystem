@@ -75,13 +75,6 @@ func NewTableConfig(
 	}
 }
 
-func (tableConfig *TableConfig) GetAllColumns() []*types.Column {
-	var result []*types.Column
-	for _, col := range tableConfig.Columns {
-		result = append(result, col)
-	}
-	return result
-}
 func (tableConfig *TableConfig) GetPkByTableNameWithFilter(filterPrimaryKeys []string) []*types.Column {
 	var result []*types.Column
 	for _, pmk := range tableConfig.PrimaryKeys {

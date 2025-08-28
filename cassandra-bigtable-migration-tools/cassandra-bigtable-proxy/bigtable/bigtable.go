@@ -266,35 +266,6 @@ func (btc *BigtableClient) mutateRow(ctx context.Context, tableName, rowKey stri
 	}, nil
 }
 
-// validateCounterColumn - ensures that the counter column family, if it exists, is correctly configured.
-func (btc *BigtableClient) validateCounterColumn(ctx context.Context, keyspace, tableName, columnFamily string) error {
-	adminClient, err := btc.getAdminClient(keyspace)
-	if err != nil {
-		return err
-	}
-
-	tableInfo, err := adminClient.TableInfo(ctx, tableName)
-	if err != nil {
-		return err
-	}
-
-	for _, info := range tableInfo.FamilyInfos {
-		if info.Name == columnFamily && !isCounterColumnType(info) {
-			return fmt.Errorf("counter column family `%s` in table `%s.%s` is not configured with required sum aggregate", btc.SchemaMappingConfig.CounterColumnName, keyspace, tableName)
-		}
-	}
-	return nil
-}
-
-func isCounterColumnType(info bigtable.FamilyInfo) bool {
-	switch vt := info.ValueType.(type) {
-	case bigtable.AggregateType:
-		return vt.Aggregator == bigtable.SumAggregator{} && vt.Input == bigtable.Int64Type{}
-	default:
-		return false
-	}
-}
-
 func (btc *BigtableClient) DropAllRows(ctx context.Context, data *translator.TruncateTableStatementMap) error {
 	_, err := btc.SchemaMappingConfig.GetTableConfig(data.Keyspace, data.Table)
 	if err != nil {
@@ -426,8 +397,14 @@ func (btc *BigtableClient) CreateTable(ctx context.Context, data *translator.Cre
 	}
 
 	rowKeySchema, err := createBigtableRowKeySchema(data.PrimaryKeys, data.Columns, data.IntRowKeyEncoding)
+	if err != nil {
+		return err
+	}
 
 	columnFamilies, err := btc.addColumnFamilies(data.Columns)
+	if err != nil {
+		return err
+	}
 
 	// add default column family
 	columnFamilies[btc.BigtableConfig.DefaultColumnFamily] = bigtable.Family{

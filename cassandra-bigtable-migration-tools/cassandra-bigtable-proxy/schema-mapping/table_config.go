@@ -141,17 +141,14 @@ func (tableConfig *TableConfig) Describe() string {
 
 	// Build primary key clause
 	pkClause := ""
-	if len(pkCols) == 1 && len(clusteringCols) == 1 {
-		// if only 1 of each key type are specified, it's a compound key which only uses one set of parenthesis
-		pkClause = fmt.Sprintf("PRIMARY KEY (%s, %s)", pkCols[0], clusteringCols[0])
+	if len(pkCols) == 1 && len(clusteringCols) == 0 {
+		pkClause = fmt.Sprintf("PRIMARY KEY (%s)", pkCols[0])
+	} else if len(pkCols) == 1 && len(clusteringCols) > 0 {
+		pkClause = fmt.Sprintf("PRIMARY KEY (%s, %s)", pkCols[0], strings.Join(clusteringCols, ", "))
 	} else {
-		if len(clusteringCols) > 0 {
-			pkClause = fmt.Sprintf("PRIMARY KEY ((%s), %s)",
-				strings.Join(pkCols, ", "),
-				strings.Join(clusteringCols, ", "))
-		} else {
-			pkClause = fmt.Sprintf("PRIMARY KEY (%s)", strings.Join(pkCols, ", "))
-		}
+		pkClause = fmt.Sprintf("PRIMARY KEY ((%s), %s)",
+			strings.Join(pkCols, ", "),
+			strings.Join(clusteringCols, ", "))
 	}
 
 	createTableStmt := fmt.Sprintf("CREATE TABLE %s.%s (\n    %s,\n    %s\n);",

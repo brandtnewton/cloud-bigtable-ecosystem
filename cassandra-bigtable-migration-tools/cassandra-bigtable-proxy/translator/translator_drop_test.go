@@ -144,7 +144,7 @@ func TestTranslateDropTableToBigtable(t *testing.T) {
 
 	tr := &Translator{
 		Logger:              nil,
-		SchemaMappingConfig: schemaMapping.NewSchemaMappingConfig("schema_mapping", "cf1", "v", zap.NewNop(), []*schemaMapping.TableConfig{}),
+		SchemaMappingConfig: schemaMapping.NewSchemaMappingConfig("schema_mapping", "cf1", zap.NewNop(), []*schemaMapping.TableConfig{}),
 	}
 
 	for _, tt := range tests {

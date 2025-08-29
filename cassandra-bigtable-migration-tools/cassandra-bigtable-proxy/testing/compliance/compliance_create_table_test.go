@@ -25,6 +25,7 @@ func TestCreateIfNotExist(t *testing.T) {
 }
 
 func TestCreateWhereBigtableTableExists(t *testing.T) {
+	// skip this test because it's testing the behavior of the Proxy when the backing Bigtable table still exists - not relevant for Cassandra
 	if testTarget == TestTargetCassandra {
 		t.Skip()
 		return

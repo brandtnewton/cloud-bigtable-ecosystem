@@ -1401,7 +1401,7 @@ func Test_GetBigtableSelectQuery(t *testing.T) {
 					{Name: "column3", CQLType: datatype.Bigint, KeyType: utilities.KEY_TYPE_PARTITION},
 				}
 				tableCfg := schemaMapping.NewTableConfig("test_keyspace", "test_table", "cf1", types.OrderedCodeEncoding, cols)
-				schemaCfg := schemaMapping.NewSchemaMappingConfig("schema_mappings", "cf1", "v", zap.NewNop(), []*schemaMapping.TableConfig{tableCfg})
+				schemaCfg := schemaMapping.NewSchemaMappingConfig("schema_mappings", "cf1", zap.NewNop(), []*schemaMapping.TableConfig{tableCfg})
 				return &Translator{
 					Logger:              zap.NewNop(),
 					SchemaMappingConfig: schemaCfg,
@@ -1442,7 +1442,7 @@ func Test_GetBigtableSelectQuery(t *testing.T) {
 					{Name: "column3", CQLType: datatype.Bigint, KeyType: utilities.KEY_TYPE_REGULAR},
 				}
 				tableCfg := schemaMapping.NewTableConfig("test_keyspace", "test_table", "cf1", types.OrderedCodeEncoding, cols)
-				schemaCfg := schemaMapping.NewSchemaMappingConfig("schema_mappings", "cf1", "v", zap.NewNop(), []*schemaMapping.TableConfig{tableCfg})
+				schemaCfg := schemaMapping.NewSchemaMappingConfig("schema_mappings", "cf1", zap.NewNop(), []*schemaMapping.TableConfig{tableCfg})
 				return &Translator{
 					Logger:              zap.NewNop(),
 					SchemaMappingConfig: schemaCfg,
@@ -1476,7 +1476,7 @@ func Test_GetBigtableSelectQuery(t *testing.T) {
 					{Name: "column1", CQLType: datatype.Bigint, KeyType: utilities.KEY_TYPE_PARTITION},
 				}
 				tableCfg := schemaMapping.NewTableConfig("test_keyspace", "test_table", "cf1", types.OrderedCodeEncoding, cols)
-				schemaCfg := schemaMapping.NewSchemaMappingConfig("schema_mappings", "cf1", "v", zap.NewNop(), []*schemaMapping.TableConfig{tableCfg})
+				schemaCfg := schemaMapping.NewSchemaMappingConfig("schema_mappings", "cf1", zap.NewNop(), []*schemaMapping.TableConfig{tableCfg})
 				return &Translator{
 					Logger:              zap.NewNop(),
 					SchemaMappingConfig: schemaCfg,
@@ -1517,7 +1517,7 @@ func Test_GetBigtableSelectQuery(t *testing.T) {
 					{Name: "column2", CQLType: datatype.Bigint, KeyType: utilities.KEY_TYPE_REGULAR},
 				}
 				tableCfg := schemaMapping.NewTableConfig("test_keyspace", "test_table", "cf1", types.OrderedCodeEncoding, cols)
-				schemaCfg := schemaMapping.NewSchemaMappingConfig("schema_mappings", "cf1", "v", zap.NewNop(), []*schemaMapping.TableConfig{tableCfg})
+				schemaCfg := schemaMapping.NewSchemaMappingConfig("schema_mappings", "cf1", zap.NewNop(), []*schemaMapping.TableConfig{tableCfg})
 				return &Translator{
 					Logger:              zap.NewNop(),
 					SchemaMappingConfig: schemaCfg,
@@ -1550,7 +1550,7 @@ func Test_GetBigtableSelectQuery(t *testing.T) {
 					{Name: "column2", CQLType: datatype.Bigint, KeyType: utilities.KEY_TYPE_REGULAR},
 				}
 				tableCfg := schemaMapping.NewTableConfig("test_keyspace", "test_table", "cf1", types.OrderedCodeEncoding, cols)
-				schemaCfg := schemaMapping.NewSchemaMappingConfig("schema_mappings", "cf1", "v", zap.NewNop(), []*schemaMapping.TableConfig{tableCfg})
+				schemaCfg := schemaMapping.NewSchemaMappingConfig("schema_mappings", "cf1", zap.NewNop(), []*schemaMapping.TableConfig{tableCfg})
 				return &Translator{
 					Logger:              zap.NewNop(),
 					SchemaMappingConfig: schemaCfg,
@@ -1592,7 +1592,7 @@ func Test_GetBigtableSelectQuery(t *testing.T) {
 					{Name: "code", CQLType: datatype.Bigint, KeyType: utilities.KEY_TYPE_REGULAR},
 				}
 				tableCfg := schemaMapping.NewTableConfig("test_keyspace", "test_table", "cf1", types.OrderedCodeEncoding, cols)
-				schemaCfg := schemaMapping.NewSchemaMappingConfig("schema_mappings", "cf1", "v", zap.NewNop(), []*schemaMapping.TableConfig{tableCfg})
+				schemaCfg := schemaMapping.NewSchemaMappingConfig("schema_mappings", "cf1", zap.NewNop(), []*schemaMapping.TableConfig{tableCfg})
 				return &Translator{
 					Logger:              zap.NewNop(),
 					SchemaMappingConfig: schemaCfg,
@@ -1633,7 +1633,7 @@ func Test_GetBigtableSelectQuery(t *testing.T) {
 					{Name: "code", CQLType: datatype.Bigint, KeyType: utilities.KEY_TYPE_REGULAR},
 				}
 				tableCfg := schemaMapping.NewTableConfig("test_keyspace", "test_table", "cf1", types.OrderedCodeEncoding, cols)
-				schemaCfg := schemaMapping.NewSchemaMappingConfig("schema_mappings", "cf1", "v", zap.NewNop(), []*schemaMapping.TableConfig{tableCfg})
+				schemaCfg := schemaMapping.NewSchemaMappingConfig("schema_mappings", "cf1", zap.NewNop(), []*schemaMapping.TableConfig{tableCfg})
 				return &Translator{
 					Logger:              zap.NewNop(),
 					SchemaMappingConfig: schemaCfg,
@@ -1675,7 +1675,7 @@ func Test_GetBigtableSelectQuery(t *testing.T) {
 					{Name: "code", CQLType: datatype.Bigint, KeyType: utilities.KEY_TYPE_REGULAR},
 				}
 				tableCfg := schemaMapping.NewTableConfig("test_keyspace", "test_table", "cf1", types.OrderedCodeEncoding, cols)
-				schemaCfg := schemaMapping.NewSchemaMappingConfig("schema_mappings", "cf1", "v", zap.NewNop(), []*schemaMapping.TableConfig{tableCfg})
+				schemaCfg := schemaMapping.NewSchemaMappingConfig("schema_mappings", "cf1", zap.NewNop(), []*schemaMapping.TableConfig{tableCfg})
 				return &Translator{
 					Logger:              zap.NewNop(),
 					SchemaMappingConfig: schemaCfg,
@@ -2084,7 +2084,7 @@ func Test_processFunctionColumn(t *testing.T) {
 				{Name: "code", CQLType: datatype.Int, KeyType: utilities.KEY_TYPE_REGULAR},
 			}
 			tableCfg := schemaMapping.NewTableConfig("test_keyspace", "user_info", "cf1", types.OrderedCodeEncoding, cols)
-			schemaCfg := schemaMapping.NewSchemaMappingConfig("schema_mappings", "cf1", "v", zap.NewNop(), []*schemaMapping.TableConfig{tableCfg})
+			schemaCfg := schemaMapping.NewSchemaMappingConfig("schema_mappings", "cf1", zap.NewNop(), []*schemaMapping.TableConfig{tableCfg})
 			translator := &Translator{SchemaMappingConfig: schemaCfg}
 
 			tc, err := translator.SchemaMappingConfig.GetTableConfig(tt.keySpace, tt.tableName)
@@ -2534,7 +2534,7 @@ func TestProcessSetStrings(t *testing.T) {
 				{Name: "map_col", CQLType: datatype.NewMapType(datatype.Varchar, datatype.Varchar), KeyType: utilities.KEY_TYPE_REGULAR},
 			}
 			tableCfg := schemaMapping.NewTableConfig("test_keyspace", "user_info", "cf1", types.OrderedCodeEncoding, cols)
-			schemaCfg := schemaMapping.NewSchemaMappingConfig("schema_mappings", "cf1", "v", zap.NewNop(), []*schemaMapping.TableConfig{tableCfg})
+			schemaCfg := schemaMapping.NewSchemaMappingConfig("schema_mappings", "cf1", zap.NewNop(), []*schemaMapping.TableConfig{tableCfg})
 			tr := &Translator{
 				Logger:              zap.NewNop(),
 				SchemaMappingConfig: schemaCfg,
@@ -2563,15 +2563,14 @@ func TestProcessSetStrings(t *testing.T) {
 
 func Test_processAsColumn(t *testing.T) {
 	tests := []struct {
-		name              string
-		columnMetadata    types.SelectedColumn
-		tableName         string
-		columnFamily      string
-		CounterColumnName string
-		colMeta           *types.Column
-		columns           []string
-		isGroupBy         bool
-		want              []string
+		name           string
+		columnMetadata types.SelectedColumn
+		tableName      string
+		columnFamily   string
+		colMeta        *types.Column
+		columns        []string
+		isGroupBy      bool
+		want           []string
 	}{
 		{
 			name: "Non-collection column with GROUP BY",
@@ -2579,9 +2578,8 @@ func Test_processAsColumn(t *testing.T) {
 				Name:  "pk_1_text",
 				Alias: "col1",
 			},
-			tableName:         "test_table",
-			columnFamily:      "cf1",
-			CounterColumnName: "v",
+			tableName:    "test_table",
+			columnFamily: "cf1",
 			colMeta: &types.Column{
 				Name:    "pk_1_text",
 				CQLType: datatype.Varchar,
@@ -2596,9 +2594,8 @@ func Test_processAsColumn(t *testing.T) {
 				Name:  "pk_1_text",
 				Alias: "col1",
 			},
-			tableName:         "test_table",
-			columnFamily:      "cf1",
-			CounterColumnName: "v",
+			tableName:    "test_table",
+			columnFamily: "cf1",
 			colMeta: &types.Column{
 				Name:    "pk_1_text",
 				CQLType: datatype.Varchar,
@@ -2613,16 +2610,15 @@ func Test_processAsColumn(t *testing.T) {
 				Name:  "likes",
 				Alias: "l",
 			},
-			tableName:         "test_table",
-			columnFamily:      "cf1",
-			CounterColumnName: "v",
+			tableName:    "test_table",
+			columnFamily: "cf1",
 			colMeta: &types.Column{
 				Name:    "likes",
 				CQLType: datatype.Counter,
 			},
 			columns:   []string{},
 			isGroupBy: false,
-			want:      []string{"likes['v'] as l"},
+			want:      []string{"likes[''] as l"},
 		},
 		{
 			name: "Collection column without GROUP BY",
@@ -2630,9 +2626,8 @@ func Test_processAsColumn(t *testing.T) {
 				Name:  "map_column",
 				Alias: "map1",
 			},
-			tableName:         "test_table",
-			columnFamily:      "cf1",
-			CounterColumnName: "v",
+			tableName:    "test_table",
+			columnFamily: "cf1",
 			colMeta: &types.Column{
 				CQLType: datatype.NewMapType(datatype.Varchar, datatype.Varchar),
 			},
@@ -2646,9 +2641,8 @@ func Test_processAsColumn(t *testing.T) {
 				Name:  "pk_1_text",
 				Alias: "col1",
 			},
-			tableName:         "test_table",
-			columnFamily:      "cf1",
-			CounterColumnName: "v",
+			tableName:    "test_table",
+			columnFamily: "cf1",
 			colMeta: &types.Column{
 				CQLType: datatype.Varchar,
 			},
@@ -2663,9 +2657,8 @@ func Test_processAsColumn(t *testing.T) {
 				Alias:             "wt",
 				IsWriteTimeColumn: true,
 			},
-			tableName:         "test_table",
-			columnFamily:      "cf1",
-			CounterColumnName: "v",
+			tableName:    "test_table",
+			columnFamily: "cf1",
 			colMeta: &types.Column{
 				CQLType: datatype.Varchar,
 			},
@@ -2677,7 +2670,7 @@ func Test_processAsColumn(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := processAsColumn(tt.columnMetadata, tt.CounterColumnName, tt.columnFamily, tt.colMeta, tt.columns, tt.isGroupBy)
+			got := processAsColumn(tt.columnMetadata, tt.columnFamily, tt.colMeta, tt.columns, tt.isGroupBy)
 			if !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("processAsColumn() = %v, want %v", got, tt.want)
 			}

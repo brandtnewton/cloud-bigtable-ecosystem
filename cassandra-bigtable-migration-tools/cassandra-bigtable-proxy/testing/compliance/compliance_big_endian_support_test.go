@@ -1,11 +1,9 @@
 package compliance
 
 import (
-	"context"
 	"math"
 	"testing"
 
-	"cloud.google.com/go/bigtable"
 	"github.com/gocql/gocql"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -47,12 +45,7 @@ func TestBigEndianDataFailsOnNegativeIntKeys(t *testing.T) {
 
 func TestLexicographicOrderBigEndian(t *testing.T) {
 	require.NoError(t, session.Query("CREATE TABLE IF NOT EXISTS lex_test_ordered_code_big_endian (org BIGINT, id INT, row_index INT, PRIMARY KEY (org, id)) WITH int_row_key_encoding='big_endian'").Exec())
-	ctx := context.Background()
-	admin, err := bigtable.NewAdminClient(ctx, gcpProjectId, "bigtabledevinstance")
-	require.NoError(t, err)
-
-	err = admin.DropAllRows(ctx, "lex_test_ordered_code_big_endian")
-	require.NoError(t, err)
+	require.NoError(t, session.Query("TRUNCATE TABLE lex_test_ordered_code_big_endian").Exec())
 
 	values := []map[string]interface{}{
 		{"org": int64(0), "id": int32(0)},

@@ -80,7 +80,7 @@ func (btc *BigtableClient) ExecutePreparedStatement(ctx context.Context, query r
 		rowMap, convertErr := btc.convertResultRowToMap(resultRow, query) // Call the implemented helper
 		if convertErr != nil {
 			// Log the error and stop processing
-			btc.Logger.Error("Failed to convert result row", zap.Error(convertErr))
+			btc.Logger.Error("Failed to convert result row", zap.Error(convertErr), zap.String("btql", query.Query))
 			processingErr = convertErr // Capture the error
 			return false               // Stop execution
 		}
@@ -160,6 +160,12 @@ func (btc *BigtableClient) convertResultRowToMap(resultRow bigtable.ResultRow, q
 			rowMap[colName] = []byte(v)
 		case []byte:
 			rowMap[colName] = v
+		case map[string]*int64:
+			// counters are always a column family with a single column with an empty qualifier
+			counterValue, ok := v[""]
+			if ok {
+				rowMap[colName] = *counterValue
+			}
 		case map[string][]uint8: //specific case of select * column in select
 			if colName == query.DefaultColumnFamily { // default column family e.g cf1
 				for k, val := range v {
@@ -208,7 +214,7 @@ func (btc *BigtableClient) convertResultRowToMap(resultRow bigtable.ResultRow, q
 		case nil:
 			rowMap[colName] = nil
 		default:
-			convertErr = fmt.Errorf("unsupported Bigtable SQL type  %v for column %s", v, colName)
+			convertErr = fmt.Errorf("unsupported Bigtable SQL type  %T for column %s", v, colName)
 		}
 		if convertErr != nil {
 			return nil, convertErr // Return error if conversion failed

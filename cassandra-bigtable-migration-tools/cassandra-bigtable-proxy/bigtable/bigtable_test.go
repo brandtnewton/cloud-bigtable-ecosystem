@@ -897,10 +897,10 @@ func TestCreateTable(t *testing.T) {
 	btClient := NewBigtableClient(client, adminClients, zap.NewNop(), BigtableConfig{
 		GCPProjectID:        "project",
 		DefaultColumnFamily: "cf1",
-	}, nil, &schemaMapping.SchemaMappingConfig{}, map[string]InstanceConfig{"keyspace": {BigtableInstance: "keyspace"}})
+	}, nil, &schemaMapping.SchemaMappingConfig{SchemaMappingTableName: "schema_mappings"}, map[string]InstanceConfig{"keyspace": {BigtableInstance: "keyspace"}})
 
 	// force set up the schema mappings table
-	_, err = btClient.ReadTableConfigs(ctx, "keyspace", "schema-mappings")
+	_, err = btClient.ReadTableConfigs(ctx, "keyspace")
 	require.NoError(t, err)
 
 	// table should not exist yet
@@ -909,10 +909,10 @@ func TestCreateTable(t *testing.T) {
 	require.Equal(t, codes.NotFound, status.Code(err))
 	require.Nil(t, info)
 
-	err = btClient.CreateTable(ctx, &testCreateTableStatementMap, "schema-mappings")
+	err = btClient.CreateTable(ctx, &testCreateTableStatementMap)
 	require.NoError(t, err)
 
-	tables, err := btClient.ReadTableConfigs(ctx, "keyspace", "schema-mappings")
+	tables, err := btClient.ReadTableConfigs(ctx, "keyspace")
 	require.NoError(t, err)
 	tableMap := schemaMapping.CreateTableMap(tables)
 
@@ -987,17 +987,17 @@ func TestCreateTableWithEncodeIntRowKeysWithBigEndianTrue(t *testing.T) {
 	btClient := NewBigtableClient(client, adminClients, zap.NewNop(), BigtableConfig{
 		GCPProjectID:        "project",
 		DefaultColumnFamily: "cf1",
-	}, nil, &schemaMapping.SchemaMappingConfig{}, map[string]InstanceConfig{"keyspace": {BigtableInstance: "keyspace"}})
+	}, nil, &schemaMapping.SchemaMappingConfig{SchemaMappingTableName: "schema_mappings"}, map[string]InstanceConfig{"keyspace": {BigtableInstance: "keyspace"}})
 
 	// force set up the schema mappings table
-	_, err = btClient.ReadTableConfigs(ctx, "keyspace", "schema-mappings")
+	_, err = btClient.ReadTableConfigs(ctx, "keyspace")
 	require.NoError(t, err)
 
 	tableName := "big_endian_table"
 	createTableStmt := testCreateTableStatementMap
 	createTableStmt.Table = tableName
 	createTableStmt.IntRowKeyEncoding = types.BigEndianEncoding
-	err = btClient.CreateTable(ctx, &createTableStmt, "schema-mappings")
+	err = btClient.CreateTable(ctx, &createTableStmt)
 	require.NoError(t, err)
 
 	assert.NotNil(t, lastCreateTableReq)
@@ -1014,17 +1014,17 @@ func TestCreateTableWithEncodeIntRowKeysWithBigEndianFalse(t *testing.T) {
 	btClient := NewBigtableClient(client, adminClients, zap.NewNop(), BigtableConfig{
 		GCPProjectID:        "project",
 		DefaultColumnFamily: "cf1",
-	}, nil, &schemaMapping.SchemaMappingConfig{}, map[string]InstanceConfig{"keyspace": {BigtableInstance: "keyspace"}})
+	}, nil, &schemaMapping.SchemaMappingConfig{SchemaMappingTableName: "schema_mappings"}, map[string]InstanceConfig{"keyspace": {BigtableInstance: "keyspace"}})
 
 	// force set up the schema mappings table
-	_, err = btClient.ReadTableConfigs(ctx, "keyspace", "schema-mappings")
+	_, err = btClient.ReadTableConfigs(ctx, "keyspace")
 	require.NoError(t, err)
 
 	tableName := "ordered_bytes_encoded_table"
 	createTableStmt := testCreateTableStatementMap
 	createTableStmt.Table = tableName
 	createTableStmt.IntRowKeyEncoding = types.OrderedCodeEncoding
-	err = btClient.CreateTable(ctx, &createTableStmt, "schema-mappings")
+	err = btClient.CreateTable(ctx, &createTableStmt)
 	require.NoError(t, err)
 
 	assert.NotNil(t, lastCreateTableReq)
@@ -1040,10 +1040,10 @@ func TestAlterTable(t *testing.T) {
 
 	btClient := NewBigtableClient(client, adminClients, zap.NewNop(), BigtableConfig{
 		GCPProjectID: "project",
-	}, nil, &schemaMapping.SchemaMappingConfig{}, map[string]InstanceConfig{"keyspace": {BigtableInstance: "keyspace"}})
+	}, nil, &schemaMapping.SchemaMappingConfig{SchemaMappingTableName: "schema_mappings"}, map[string]InstanceConfig{"keyspace": {BigtableInstance: "keyspace"}})
 
 	// force set up the schema mappings table
-	_, err = btClient.ReadTableConfigs(ctx, "keyspace", "schema-mappings")
+	_, err = btClient.ReadTableConfigs(ctx, "keyspace")
 	require.NoError(t, err)
 
 	// table should not exist yet
@@ -1054,7 +1054,7 @@ func TestAlterTable(t *testing.T) {
 
 	createTable := testCreateTableStatementMap
 	createTable.Table = "alter_table_test"
-	err = btClient.CreateTable(ctx, &createTable, "schema-mappings")
+	err = btClient.CreateTable(ctx, &createTable)
 	require.NoError(t, err)
 
 	err = btClient.AlterTable(ctx, &translator.AlterTableStatementMap{
@@ -1073,10 +1073,10 @@ func TestAlterTable(t *testing.T) {
 		DropColumns: []string{
 			"zipcode",
 		},
-	}, "schema-mappings")
+	})
 	require.NoError(t, err)
 
-	tables, err := btClient.ReadTableConfigs(ctx, "keyspace", "schema-mappings")
+	tables, err := btClient.ReadTableConfigs(ctx, "keyspace")
 	require.NoError(t, err)
 	tableMap := schemaMapping.CreateTableMap(tables)
 
@@ -1146,10 +1146,10 @@ func TestDropTable(t *testing.T) {
 
 	btClient := NewBigtableClient(client, adminClients, zap.NewNop(), BigtableConfig{
 		GCPProjectID: "project",
-	}, nil, &schemaMapping.SchemaMappingConfig{}, map[string]InstanceConfig{"keyspace": {BigtableInstance: "keyspace"}})
+	}, nil, &schemaMapping.SchemaMappingConfig{SchemaMappingTableName: "schema_mappings"}, map[string]InstanceConfig{"keyspace": {BigtableInstance: "keyspace"}})
 
 	// force set up the schema mappings table
-	_, err = btClient.ReadTableConfigs(ctx, "keyspace", "schema-mappings")
+	_, err = btClient.ReadTableConfigs(ctx, "keyspace")
 	require.NoError(t, err)
 
 	// table should not exist yet
@@ -1160,10 +1160,10 @@ func TestDropTable(t *testing.T) {
 
 	createTable := testCreateTableStatementMap
 	createTable.Table = "drop_table_test"
-	err = btClient.CreateTable(ctx, &createTable, "schema-mappings")
+	err = btClient.CreateTable(ctx, &createTable)
 	require.NoError(t, err)
 
-	tables, err := btClient.ReadTableConfigs(ctx, "keyspace", "schema-mappings")
+	tables, err := btClient.ReadTableConfigs(ctx, "keyspace")
 	require.NoError(t, err)
 	tableMap := schemaMapping.CreateTableMap(tables)
 	require.NotNil(t, tableMap["drop_table_test"])
@@ -1173,10 +1173,10 @@ func TestDropTable(t *testing.T) {
 		Keyspace:  "keyspace",
 		Table:     "drop_table_test",
 		IfExists:  false,
-	}, "schema-mappings")
+	})
 	require.NoError(t, err)
 
-	tables, err = btClient.ReadTableConfigs(ctx, "keyspace", "schema-mappings")
+	tables, err = btClient.ReadTableConfigs(ctx, "keyspace")
 	require.NoError(t, err)
 	tableMap = schemaMapping.CreateTableMap(tables)
 	require.Nil(t, tableMap["drop_table_test"])

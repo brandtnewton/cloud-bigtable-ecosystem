@@ -58,7 +58,6 @@ const (
 	maxNanos           = int32(9999)
 	referenceTime      = int64(1262304000000)
 	ifExists           = "ifexists"
-	rowKeyJoinString   = "#"
 )
 
 var (
@@ -304,7 +303,7 @@ func stringToPrimitives(value string, cqlType datatype.DataType) (interface{}, e
 		}
 		iv = int32(val)
 
-	case datatype.Bigint:
+	case datatype.Bigint, datatype.Counter:
 		val, err := strconv.ParseInt(value, 10, 64)
 		if err != nil {
 			return nil, fmt.Errorf("error converting string to int64: %w", err)
@@ -432,6 +431,10 @@ func processCollectionColumnsForRawQueries(tableConfig *schemaMapping.TableConfi
 				}
 			default:
 				return nil, fmt.Errorf("column %s is not a collection type", column.Name)
+			}
+		} else if column.CQLType == datatype.Counter {
+			if err := handleCounterOperation(val, column, input, output); err != nil {
+				return nil, err
 			}
 		} else {
 			output.NewColumns = append(output.NewColumns, column)
@@ -666,6 +669,42 @@ func removeSetElements(keys []string, colFamily string, column types.Column, out
 	return nil
 }
 
+func handleCounterOperation(val interface{}, column types.Column, input ProcessRawCollectionsInput, output *ProcessRawCollectionsOutput) error {
+	switch v := val.(type) {
+	case ComplexAssignment:
+		switch v.Operation {
+		case "+", "-":
+			var valueStr string
+			// Check for `col = col + val` or `col = val + col`
+			if rStr, ok := v.Right.(string); ok && v.Left.(string) == column.Name {
+				valueStr = rStr
+			} else if lStr, ok := v.Left.(string); ok && v.Right.(string) == column.Name {
+				valueStr = lStr
+			} else {
+				return fmt.Errorf("invalid counter operation structure for column %s", column.Name)
+			}
+
+			intVal, err := strconv.ParseInt(valueStr, 10, 64)
+			if err != nil {
+				return err
+			}
+			var op = Increment
+			if v.Operation == "-" {
+				op = Decrement
+			}
+			output.ComplexMeta[column.Name] = &ComplexOperation{
+				IncrementType:  op,
+				IncrementValue: intVal,
+			}
+			return nil
+		default:
+			return fmt.Errorf("unsupported counter operation: %s", v.Operation)
+		}
+	default:
+		return fmt.Errorf("unsupported counter operation")
+	}
+}
+
 // handleMapOperation processes map operations in raw queries.
 // Manages simple assignment/replace complete map, add, remove, and update at index operations on map columns.
 // Returns error if operation type is invalid or value type doesn't match map key/value types.
@@ -811,10 +850,26 @@ func processCollectionColumnsForPrepareQueries(tableConfig *schemaMapping.TableC
 					return nil, err
 				}
 				continue
-
 			default:
 				return nil, fmt.Errorf("column %s is not a collection type", column.Name)
 			}
+		} else if column.CQLType == datatype.Counter {
+			decodedValue, err := proxycore.DecodeType(datatype.Counter, input.ProtocolV, input.Values[i].Contents)
+			if err != nil {
+				return nil, err
+			}
+			intVal, ok := decodedValue.(int64)
+			if !ok {
+				return nil, fmt.Errorf("failed to convert counter param")
+			}
+
+			meta, ok := input.ComplexMeta[column.Name]
+			if !ok {
+				return nil, fmt.Errorf("unexpected state: no existing operation for counter param")
+			}
+
+			// The increment value is part of the prepared statement, so we update the existing ComplexOperation meta with the value provided at execution time.
+			meta.IncrementValue = intVal
 		} else {
 			valInInterface, err := DataConversionInInsertionIfRequired(input.Values[i].Contents, input.ProtocolV, column.CQLType, "byte")
 			if err != nil {
@@ -1343,7 +1398,7 @@ func processSet[V any](
 // It iterates over the clauses and constructs the WHERE clause by combining the column name, operator, and value of each clause.
 // If the operator is "IN", the value is wrapped with the UNNEST function.
 // The constructed WHERE clause is returned as a string.
-func buildWhereClause(clauses []types.Clause, tableConfig *schemaMapping.TableConfig, tableName string, keySpace string) (string, error) {
+func buildWhereClause(clauses []types.Clause, tableConfig *schemaMapping.TableConfig) (string, error) {
 	whereClause := ""
 	columnFamily := tableConfig.SystemColumnFamily
 	for _, val := range clauses {
@@ -1409,6 +1464,8 @@ func castColumns(colMeta *types.Column, columnFamily string) (string, error) {
 		nc = fmt.Sprintf("TO_INT64(%s['%s'])", columnFamily, colMeta.Name)
 	case datatype.Timestamp:
 		nc = fmt.Sprintf("TO_TIME(%s['%s'])", columnFamily, colMeta.Name)
+	case datatype.Counter:
+		nc = fmt.Sprintf("%s['']", colMeta.Name)
 	case datatype.Blob:
 		nc = fmt.Sprintf("TO_BLOB(%s['%s'])", columnFamily, colMeta.Name)
 	case datatype.Varchar:
@@ -2447,6 +2504,18 @@ func (t *Translator) ProcessComplexUpdate(columns []types.Column, values []inter
 				meta.Delete = true
 			}
 			complexMeta[column.Name] = meta
+		case primitive.DataTypeCodeCounter:
+			if ca.Operation == "+" || ca.Operation == "-" {
+				var op = Increment
+				if ca.Operation == "-" {
+					op = Decrement
+				}
+				meta.IncrementType = op
+				meta.ExpectedDatatype = datatype.Bigint
+				complexMeta[column.Name] = meta
+			} else {
+				return nil, fmt.Errorf("unsupported counter operation: `%s`", ca.Operation)
+			}
 		default:
 			return nil, fmt.Errorf("column %s is not a collection type", column.Name)
 		}

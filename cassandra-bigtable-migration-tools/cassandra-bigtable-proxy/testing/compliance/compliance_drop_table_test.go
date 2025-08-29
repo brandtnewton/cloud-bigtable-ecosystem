@@ -25,7 +25,7 @@ func TestDropTableThatDoesntExist(t *testing.T) {
 		require.Error(t, err)
 	} else {
 		require.Error(t, err)
-		assert.Contains(t, err.Error(), "because it does not exist")
+		assert.Contains(t, err.Error(), "does not exist")
 	}
 }
 
@@ -36,7 +36,7 @@ func TestDroppedTableWriteFails(t *testing.T) {
 	// 1. create a table
 	err := session.Query(fmt.Sprintf("CREATE TABLE %s (id int PRIMARY KEY, name text)", table)).Exec()
 	require.NoError(t, err)
-	
+
 	// 2. drop it
 	err = session.Query(fmt.Sprintf("DROP TABLE %s", table)).Exec()
 	require.NoError(t, err)

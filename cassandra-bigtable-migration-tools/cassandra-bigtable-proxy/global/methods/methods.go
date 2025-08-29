@@ -25,7 +25,6 @@ import (
 	"strings"
 
 	"github.com/datastax/go-cassandra-native-protocol/datatype"
-	"github.com/datastax/go-cassandra-native-protocol/primitive"
 )
 
 const (
@@ -40,6 +39,7 @@ const (
 	CassandraTypeUuid      = "uuid"
 	CassandraTypeFloat     = "float"
 	CassandraTypeDouble    = "double"
+	CassandraTypeCounter   = "counter"
 )
 
 // GetCassandraColumnType() converts a string representation of a Cassandra data type into
@@ -113,6 +113,8 @@ func GetCassandraColumnType(c string) (datatype.DataType, error) {
 		return datatype.Float, nil
 	case CassandraTypeDouble:
 		return datatype.Double, nil
+	case CassandraTypeCounter:
+		return datatype.Counter, nil
 	default:
 		return nil, fmt.Errorf("unsupported column type: %s", choice)
 	}
@@ -122,90 +124,5 @@ func ConvertCQLDataTypeToString(cqlType datatype.DataType) (string, error) {
 	if cqlType == nil {
 		return "", fmt.Errorf("datatype is nil")
 	}
-
-	switch cqlType {
-	case datatype.Varchar:
-		return "varchar", nil
-	case datatype.Blob:
-		return "blob", nil
-	case datatype.Timestamp:
-		return "timestamp", nil
-	case datatype.Int:
-		return "int", nil
-	case datatype.Bigint:
-		return "bigint", nil
-	case datatype.Boolean:
-		return "boolean", nil
-	case datatype.Uuid:
-		return "uuid", nil
-	case datatype.Float:
-		return "float", nil
-	case datatype.Double:
-		return "double", nil
-	default:
-		typeCode := cqlType.GetDataTypeCode()
-
-		// Check for specific type code value (0x0022 = 34 = Set) primitive.DataTypeCodeSet
-		if typeCode == primitive.DataTypeCodeSet {
-			setType, ok := cqlType.(datatype.SetType)
-			if !ok {
-				return "", fmt.Errorf("failed to assert set type for %v", cqlType)
-			}
-			elemTypeStr, elemErr := ConvertCQLDataTypeToString(setType.GetElementType())
-			if elemErr != nil {
-				return "", elemErr
-			}
-			return fmt.Sprintf("set<%s>", elemTypeStr), nil
-		} else if typeCode == primitive.DataTypeCode(0x0020) { // List = 0x0020 = 32
-			listType, ok := cqlType.(datatype.ListType)
-			if !ok {
-				return "", fmt.Errorf("failed to assert list type for %v", cqlType)
-			}
-			elemTypeStr, elemErr := ConvertCQLDataTypeToString(listType.GetElementType())
-			if elemErr != nil {
-				return "", elemErr
-			}
-			return fmt.Sprintf("list<%s>", elemTypeStr), nil
-		} else if typeCode == primitive.DataTypeCode(0x0021) { // Map = 0x0021 = 33
-			mapType, ok := cqlType.(datatype.MapType)
-			if !ok {
-				return "", fmt.Errorf("failed to assert map type for %v", cqlType)
-			}
-			keyTypeStr, keyErr := ConvertCQLDataTypeToString(mapType.GetKeyType())
-			if keyErr != nil {
-				return "", keyErr
-			}
-			valueTypeStr, valueErr := ConvertCQLDataTypeToString(mapType.GetValueType())
-			if valueErr != nil {
-				return "", valueErr
-			}
-			return fmt.Sprintf("map<%s,%s>", keyTypeStr, valueTypeStr), nil
-		} else {
-			// Fallback to type assertion (legacy approach)
-			if mapType, ok := cqlType.(datatype.MapType); ok {
-				keyTypeStr, keyErr := ConvertCQLDataTypeToString(mapType.GetKeyType())
-				if keyErr != nil {
-					return "", keyErr
-				}
-				valueTypeStr, valueErr := ConvertCQLDataTypeToString(mapType.GetValueType())
-				if valueErr != nil {
-					return "", valueErr
-				}
-				return fmt.Sprintf("map<%s,%s>", keyTypeStr, valueTypeStr), nil
-			} else if listType, ok := cqlType.(datatype.ListType); ok {
-				elemTypeStr, elemErr := ConvertCQLDataTypeToString(listType.GetElementType())
-				if elemErr != nil {
-					return "", elemErr
-				}
-				return fmt.Sprintf("list<%s>", elemTypeStr), nil
-			} else if setType, ok := cqlType.(datatype.SetType); ok {
-				elemTypeStr, elemErr := ConvertCQLDataTypeToString(setType.GetElementType())
-				if elemErr != nil {
-					return "", elemErr
-				}
-				return fmt.Sprintf("set<%s>", elemTypeStr), nil
-			}
-			return "", fmt.Errorf("unsupported data type: %v", cqlType)
-		}
-	}
+	return cqlType.String(), nil
 }

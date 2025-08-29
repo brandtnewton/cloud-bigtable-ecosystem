@@ -68,6 +68,7 @@ const updateType = "update"
 const insertType = "insert"
 const deleteType = "delete"
 const createType = "create"
+const truncateType = "truncate"
 const dropType = "drop"
 
 const ts_column = "last_commit_ts"
@@ -206,10 +207,10 @@ func NewProxy(ctx context.Context, config Config) (*Proxy, error) {
 		return nil, err
 	}
 	logger := proxycore.GetOrCreateNopLogger(config.Logger)
-	smc := schemaMapping.NewSchemaMappingConfig(config.BigtableConfig.DefaultColumnFamily, logger, nil)
+	smc := schemaMapping.NewSchemaMappingConfig(config.BigtableConfig.SchemaMappingTable, config.BigtableConfig.DefaultColumnFamily, logger, nil)
 	bigtableCl := bigtableModule.NewBigtableClient(bigtableClients, adminClients, logger, config.BigtableConfig, &responsehandler.TypeHandler{}, smc, config.BigtableConfig.InstancesMap)
 	for k := range config.BigtableConfig.InstancesMap {
-		tableConfigs, err := bigtableCl.ReadTableConfigs(ctx, k, config.BigtableConfig.SchemaMappingTable)
+		tableConfigs, err := bigtableCl.ReadTableConfigs(ctx, k)
 		if err != nil {
 			return nil, err
 		}
@@ -1651,7 +1652,7 @@ func (c *client) handleQuery(raw *frame.RawFrame, msg *partialQuery) {
 			}
 
 			otelgo.AddAnnotation(otelCtx, executingBigtableRequestEvent)
-			err = c.proxy.bClient.DropTable(c.proxy.ctx, queryMetadata, c.proxy.config.BigtableConfig.SchemaMappingTable)
+			err = c.proxy.bClient.DropTable(c.proxy.ctx, queryMetadata)
 			otelgo.AddAnnotation(otelCtx, bigtableExecutionDoneEvent)
 
 			if err != nil {
@@ -1677,7 +1678,7 @@ func (c *client) handleQuery(raw *frame.RawFrame, msg *partialQuery) {
 			}
 
 			otelgo.AddAnnotation(otelCtx, executingBigtableRequestEvent)
-			err = c.proxy.bClient.CreateTable(c.proxy.ctx, queryMetadata, c.proxy.config.BigtableConfig.SchemaMappingTable)
+			err = c.proxy.bClient.CreateTable(c.proxy.ctx, queryMetadata)
 			otelgo.AddAnnotation(otelCtx, bigtableExecutionDoneEvent)
 
 			if err != nil {
@@ -1688,6 +1689,29 @@ func (c *client) handleQuery(raw *frame.RawFrame, msg *partialQuery) {
 				return
 			} else {
 				c.handlePostDDLEvent(raw.Header, primitive.SchemaChangeTypeCreated, queryMetadata.Keyspace, queryMetadata.Table)
+				c.sender.Send(raw.Header, &message.VoidResult{})
+				return
+			}
+
+		case truncateType:
+			queryMetadata, err := c.proxy.translator.TranslateTruncateTableToBigtable(msg.query, c.keyspace)
+			if err != nil {
+				c.proxy.logger.Error(translatorErrorMessage, zap.String(Query, msg.query), zap.Error(err))
+				otelErr = err
+				c.proxy.otelInst.RecordError(span, otelErr)
+				c.sender.Send(raw.Header, &message.Invalid{ErrorMessage: err.Error()})
+				return
+			}
+
+			otelgo.AddAnnotation(otelCtx, bigtableExecutionDoneEvent)
+			err = c.proxy.bClient.DropAllRows(c.proxy.ctx, queryMetadata)
+			if err != nil {
+				c.proxy.logger.Error(errorAtBigtable, zap.String(Query, msg.query), zap.Error(err))
+				otelErr = err
+				c.proxy.otelInst.RecordError(span, otelErr)
+				c.sender.Send(raw.Header, &message.Invalid{ErrorMessage: err.Error()})
+				return
+			} else {
 				c.sender.Send(raw.Header, &message.VoidResult{})
 				return
 			}
@@ -1704,7 +1728,7 @@ func (c *client) handleQuery(raw *frame.RawFrame, msg *partialQuery) {
 			}
 
 			otelgo.AddAnnotation(otelCtx, executingBigtableRequestEvent)
-			err = c.proxy.bClient.AlterTable(c.proxy.ctx, queryMetadata, c.proxy.config.BigtableConfig.SchemaMappingTable)
+			err = c.proxy.bClient.AlterTable(c.proxy.ctx, queryMetadata)
 			otelgo.AddAnnotation(otelCtx, bigtableExecutionDoneEvent)
 
 			if err != nil {

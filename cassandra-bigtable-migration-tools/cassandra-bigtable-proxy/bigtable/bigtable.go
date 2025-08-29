@@ -28,6 +28,7 @@ import (
 	"time"
 
 	"cloud.google.com/go/bigtable"
+	"github.com/datastax/go-cassandra-native-protocol/datatype"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
@@ -61,18 +62,22 @@ const (
 	mutationTypeDeleteColumnFamily = "DeleteColumnFamilies"
 	mutationTypeUpdate             = "Update"
 	schemaMappingTableColumnFamily = "cf"
+	// Cassandra doesn't have a time dimension to their counters, so we need to
+	// use the same time for all counters
+	counterTimestamp = 0
 )
 
 type BigTableClientIface interface {
 	ApplyBulkMutation(context.Context, string, []MutationData, string) (BulkOperationResponse, error)
 	Close()
 	DeleteRowNew(context.Context, *translator.DeleteQueryMapping) (*message.RowsResult, error)
-	ReadTableConfigs(context.Context, string, string) ([]*schemaMapping.TableConfig, error)
+	ReadTableConfigs(context.Context, string) ([]*schemaMapping.TableConfig, error)
 	InsertRow(context.Context, *translator.InsertQueryMapping) (*message.RowsResult, error)
 	SelectStatement(context.Context, rh.QueryMetadata) (*message.RowsResult, time.Time, error)
-	AlterTable(ctx context.Context, data *translator.AlterTableStatementMap, schemaMappingTableName string) error
-	CreateTable(ctx context.Context, data *translator.CreateTableStatementMap, schemaMappingTableName string) error
-	DropTable(ctx context.Context, data *translator.DropTableStatementMap, schemaMappingTableName string) error
+	AlterTable(ctx context.Context, data *translator.AlterTableStatementMap) error
+	CreateTable(ctx context.Context, data *translator.CreateTableStatementMap) error
+	DropAllRows(ctx context.Context, data *translator.TruncateTableStatementMap) error
+	DropTable(ctx context.Context, data *translator.DropTableStatementMap) error
 	UpdateRow(context.Context, *translator.UpdateQueryMapping) (*message.RowsResult, error)
 	PrepareStatement(ctx context.Context, query rh.QueryMetadata) (*bigtable.PreparedStatement, error)
 	ExecutePreparedStatement(ctx context.Context, query rh.QueryMetadata, preparedStmt *bigtable.PreparedStatement) (*message.RowsResult, time.Time, error)
@@ -106,18 +111,18 @@ var NewBigtableClient = func(client map[string]*bigtable.Client, adminClients ma
 	}
 }
 
-func (btc *BigtableClient) reloadSchemaMappings(ctx context.Context, keyspace, schemaMappingTableName string) error {
-	tableConfigs, err := btc.ReadTableConfigs(ctx, keyspace, schemaMappingTableName)
+func (btc *BigtableClient) reloadSchemaMappings(ctx context.Context, keyspace string) error {
+	tableConfigs, err := btc.ReadTableConfigs(ctx, keyspace)
 	if err != nil {
-		return fmt.Errorf("error when reloading schema mappings for %s.%s: %w", keyspace, schemaMappingTableName, err)
+		return fmt.Errorf("error when reloading schema mappings for %s.%s: %w", keyspace, btc.SchemaMappingConfig.SchemaMappingTableName, err)
 	}
 	btc.SchemaMappingConfig.ReplaceTables(tableConfigs)
 	return nil
 }
 
 // scan the schema mapping table to determine if the table exists
-func (btc *BigtableClient) tableSchemaExists(ctx context.Context, client *bigtable.Client, schemaMappingTableName string, tableName string) (bool, error) {
-	table := client.Open(schemaMappingTableName)
+func (btc *BigtableClient) tableSchemaExists(ctx context.Context, client *bigtable.Client, tableName string) (bool, error) {
+	table := client.Open(btc.SchemaMappingConfig.SchemaMappingTableName)
 	exists := false
 	err := table.ReadRows(ctx, bigtable.PrefixRange(tableName+"#"), func(row bigtable.Row) bool {
 		exists = true
@@ -176,6 +181,14 @@ func (btc *BigtableClient) mutateRow(ctx context.Context, tableName, rowKey stri
 
 	// Handle complex updates
 	for cf, meta := range ComplexOperation {
+		if meta.IncrementType != translator.None {
+			var incrementValue = meta.IncrementValue
+			if meta.IncrementType == translator.Decrement {
+				incrementValue *= -1
+			}
+			mut.AddIntToCell(cf, "", counterTimestamp, incrementValue)
+			mutationCount++
+		}
 		if meta.UpdateListIndex != "" {
 			index, err := strconv.Atoi(meta.UpdateListIndex)
 			if err != nil {
@@ -253,7 +266,38 @@ func (btc *BigtableClient) mutateRow(ctx context.Context, tableName, rowKey stri
 	}, nil
 }
 
-func (btc *BigtableClient) DropTable(ctx context.Context, data *translator.DropTableStatementMap, schemaMappingTableName string) error {
+func (btc *BigtableClient) DropAllRows(ctx context.Context, data *translator.TruncateTableStatementMap) error {
+	_, err := btc.SchemaMappingConfig.GetTableConfig(data.Keyspace, data.Table)
+	if err != nil {
+		return err
+	}
+
+	adminClient, err := btc.getAdminClient(data.Keyspace)
+	if err != nil {
+		return err
+	}
+
+	btc.Logger.Info("truncate table: dropping all bigtable rows")
+	err = adminClient.DropAllRows(ctx, data.Table)
+	if status.Code(err) == codes.NotFound {
+		// Table doesn't exist in Bigtable, which is fine for a truncate.
+		btc.Logger.Info("truncate table: table not found in Bigtable, nothing to drop", zap.String("table", data.Table))
+		return nil
+	}
+	if err != nil {
+		btc.Logger.Error("truncate table: failed", zap.Error(err))
+		return err
+	}
+	btc.Logger.Info("truncate table: complete")
+	return nil
+}
+
+func (btc *BigtableClient) DropTable(ctx context.Context, data *translator.DropTableStatementMap) error {
+	_, err := btc.SchemaMappingConfig.GetTableConfig(data.Keyspace, data.Table)
+	if err != nil && !data.IfExists {
+		return err
+	}
+
 	client, err := btc.getClient(data.Keyspace)
 	if err != nil {
 		return err
@@ -264,7 +308,7 @@ func (btc *BigtableClient) DropTable(ctx context.Context, data *translator.DropT
 	}
 
 	// first clean up table from schema mapping table because that's the SoT
-	tbl := client.Open(schemaMappingTableName)
+	tbl := client.Open(btc.SchemaMappingConfig.SchemaMappingTableName)
 	var deleteMuts []*bigtable.Mutation
 	var rowKeysToDelete []string
 	err = tbl.ReadRows(ctx, bigtable.PrefixRange(data.Table+"#"), func(row bigtable.Row) bool {
@@ -306,7 +350,7 @@ func (btc *BigtableClient) DropTable(ctx context.Context, data *translator.DropT
 	// only reload schema mapping table if this operation changed it
 	if len(rowKeysToDelete) > 0 {
 		btc.Logger.Info("reloading schema mappings")
-		err = btc.reloadSchemaMappings(ctx, data.Keyspace, schemaMappingTableName)
+		err = btc.reloadSchemaMappings(ctx, data.Keyspace)
 		if err != nil {
 			return err
 		}
@@ -314,27 +358,31 @@ func (btc *BigtableClient) DropTable(ctx context.Context, data *translator.DropT
 	return nil
 }
 
-func (btc *BigtableClient) createSchemaMappingTableMaybe(ctx context.Context, keyspace, schemaMappingTableName string) error {
-	btc.Logger.Info("ensuring schema mapping table exists")
+func (btc *BigtableClient) createSchemaMappingTableMaybe(ctx context.Context, keyspace string) error {
+	btc.Logger.Info("ensuring schema mapping table exists for keyspace", zap.String("schema_mapping_table", btc.SchemaMappingConfig.SchemaMappingTableName), zap.String("keyspace", keyspace))
 	adminClient, err := btc.getAdminClient(keyspace)
 	if err != nil {
 		return err
 	}
 
 	// do a read to check if the table exists to save on admin API write quota
-	exists, err := btc.tableResourceExists(ctx, adminClient, schemaMappingTableName)
+	exists, err := btc.tableResourceExists(ctx, adminClient, btc.SchemaMappingConfig.SchemaMappingTableName)
 	if err != nil {
 		return err
 	}
 	if !exists {
-		err = adminClient.CreateTable(ctx, schemaMappingTableName)
-		if err != nil {
+		btc.Logger.Info("schema mapping table not found. Automatically creating it...")
+		err = adminClient.CreateTable(ctx, btc.SchemaMappingConfig.SchemaMappingTableName)
+		if status.Code(err) == codes.AlreadyExists {
+			// continue - maybe another Proxy instance raced, and created it instead
+		} else if err != nil {
 			btc.Logger.Error("failed to create schema mapping table", zap.Error(err))
 			return err
 		}
+		btc.Logger.Info("schema mapping table created.")
 	}
 
-	err = adminClient.CreateColumnFamily(ctx, schemaMappingTableName, schemaMappingTableColumnFamily)
+	err = adminClient.CreateColumnFamily(ctx, btc.SchemaMappingConfig.SchemaMappingTableName, schemaMappingTableColumnFamily)
 	if status.Code(err) == codes.AlreadyExists {
 		err = nil
 	}
@@ -345,7 +393,7 @@ func (btc *BigtableClient) createSchemaMappingTableMaybe(ctx context.Context, ke
 	return nil
 }
 
-func (btc *BigtableClient) CreateTable(ctx context.Context, data *translator.CreateTableStatementMap, schemaMappingTableName string) error {
+func (btc *BigtableClient) CreateTable(ctx context.Context, data *translator.CreateTableStatementMap) error {
 	client, err := btc.getClient(data.Keyspace)
 	if err != nil {
 		return err
@@ -356,15 +404,16 @@ func (btc *BigtableClient) CreateTable(ctx context.Context, data *translator.Cre
 	}
 
 	rowKeySchema, err := createBigtableRowKeySchema(data.PrimaryKeys, data.Columns, data.IntRowKeyEncoding)
-
-	columnFamilies := make(map[string]bigtable.Family)
-	for _, col := range data.Columns {
-		if utilities.IsCollection(col.Type) {
-			columnFamilies[col.Name] = bigtable.Family{
-				GCPolicy: bigtable.MaxVersionsPolicy(1),
-			}
-		}
+	if err != nil {
+		return err
 	}
+
+	columnFamilies, err := btc.addColumnFamilies(data.Columns)
+	if err != nil {
+		return err
+	}
+
+	// add default column family
 	columnFamilies[btc.BigtableConfig.DefaultColumnFamily] = bigtable.Family{
 		GCPolicy: bigtable.MaxVersionsPolicy(1),
 	}
@@ -379,33 +428,27 @@ func (btc *BigtableClient) CreateTable(ctx context.Context, data *translator.Cre
 	// ignore already exists errors - the schema mapping table is the SoT
 	if status.Code(err) == codes.AlreadyExists {
 		err = nil
-	}
-	if err != nil {
+	} else if err != nil {
 		btc.Logger.Error("failed to create bigtable table", zap.Error(err))
 		return err
 	}
 
-	exists, err := btc.tableSchemaExists(ctx, client, schemaMappingTableName, data.Table)
+	exists, err := btc.tableSchemaExists(ctx, client, data.Table)
 	if err != nil {
 		return err
-	}
-
-	if !exists {
-		btc.Logger.Info("updating table schema")
-		err = btc.updateTableSchema(ctx, data.Keyspace, schemaMappingTableName, data.Table, data.PrimaryKeys, data.Columns, nil)
-		if err != nil {
-			return err
-		}
 	}
 
 	if exists && !data.IfNotExists {
 		return fmt.Errorf("cannot create table %s because it already exists", data.Table)
 	}
 
-	// only reload schema mappings if we actually changed the schema mapping table
 	if !exists {
-		btc.Logger.Info("reloading schema mappings")
-		err = btc.reloadSchemaMappings(ctx, data.Keyspace, schemaMappingTableName)
+		btc.Logger.Info("updating table schema")
+		err = btc.updateTableSchema(ctx, data.Keyspace, data.Table, data.PrimaryKeys, data.Columns, nil)
+		if err != nil {
+			return err
+		}
+		err = btc.reloadSchemaMappings(ctx, data.Keyspace)
 		if err != nil {
 			return err
 		}
@@ -414,28 +457,37 @@ func (btc *BigtableClient) CreateTable(ctx context.Context, data *translator.Cre
 	return nil
 }
 
-func (btc *BigtableClient) AlterTable(ctx context.Context, data *translator.AlterTableStatementMap, schemaMappingTableName string) error {
+func (btc *BigtableClient) AlterTable(ctx context.Context, data *translator.AlterTableStatementMap) error {
 	adminClient, err := btc.getAdminClient(data.Keyspace)
 	if err != nil {
 		return err
 	}
+
 	// passing nil in as pmks because we don't have access to them here and because primary keys can't be altered
-	err = btc.updateTableSchema(ctx, data.Keyspace, schemaMappingTableName, data.Table, nil, data.AddColumns, data.DropColumns)
+	err = btc.updateTableSchema(ctx, data.Keyspace, data.Table, nil, data.AddColumns, data.DropColumns)
 	if err != nil {
 		return err
 	}
 
-	for _, col := range data.AddColumns {
-		if utilities.IsCollection(col.Type) {
-			err = adminClient.CreateColumnFamily(ctx, data.Table, col.Name)
-			if err != nil {
-				return err
-			}
+	columnFamilies, err := btc.addColumnFamilies(data.AddColumns)
+	if err != nil {
+		return err
+	}
+
+	for family, config := range columnFamilies {
+		err = adminClient.CreateColumnFamilyWithConfig(ctx, data.Table, family, config)
+		if status.Code(err) == codes.AlreadyExists {
+			// This can happen if the ALTER TABLE statement is run more than once.
+			continue
+		}
+
+		if err != nil {
+			return err
 		}
 	}
 
 	btc.Logger.Info("reloading schema mappings")
-	err = btc.reloadSchemaMappings(ctx, data.Keyspace, schemaMappingTableName)
+	err = btc.reloadSchemaMappings(ctx, data.Keyspace)
 	if err != nil {
 		return err
 	}
@@ -443,10 +495,38 @@ func (btc *BigtableClient) AlterTable(ctx context.Context, data *translator.Alte
 	return nil
 }
 
-func (btc *BigtableClient) updateTableSchema(ctx context.Context, keyspace string, schemaMappingTableName string, tableName string, pmks []translator.CreateTablePrimaryKeyConfig, addCols []message.ColumnMetadata, dropCols []string) error {
-	client, exists := btc.Clients[btc.InstancesMap[keyspace].BigtableInstance]
-	if !exists {
-		return fmt.Errorf("invalid keyspace `%s`", keyspace)
+func (btc *BigtableClient) addColumnFamilies(columns []message.ColumnMetadata) (map[string]bigtable.Family, error) {
+	columnFamilies := make(map[string]bigtable.Family)
+	for _, col := range columns {
+		if !utilities.IsCollection(col.Type) && col.Type != datatype.Counter {
+			continue
+		}
+
+		if col.Name == btc.BigtableConfig.DefaultColumnFamily {
+			return nil, fmt.Errorf("counter and collection type columns cannot be named '%s' because it's reserved as the default column family", btc.BigtableConfig.DefaultColumnFamily)
+		}
+
+		if utilities.IsCollection(col.Type) {
+			columnFamilies[col.Name] = bigtable.Family{
+				GCPolicy: bigtable.MaxVersionsPolicy(1),
+			}
+		} else if col.Type == datatype.Counter {
+			columnFamilies[col.Name] = bigtable.Family{
+				GCPolicy: bigtable.NoGcPolicy(),
+				ValueType: bigtable.AggregateType{
+					Input:      bigtable.Int64Type{},
+					Aggregator: bigtable.SumAggregator{},
+				},
+			}
+		}
+	}
+	return columnFamilies, nil
+}
+
+func (btc *BigtableClient) updateTableSchema(ctx context.Context, keyspace string, tableName string, pmks []translator.CreateTablePrimaryKeyConfig, addCols []message.ColumnMetadata, dropCols []string) error {
+	client, err := btc.getClient(keyspace)
+	if err != nil {
+		return err
 	}
 
 	ts := bigtable.Now()
@@ -487,8 +567,8 @@ func (btc *BigtableClient) updateTableSchema(ctx context.Context, keyspace strin
 	}
 
 	btc.Logger.Info("updating schema mapping table")
-	table := client.Open(schemaMappingTableName)
-	_, err := table.ApplyBulk(ctx, rowKeys, muts)
+	table := client.Open(btc.SchemaMappingConfig.SchemaMappingTableName)
+	_, err = table.ApplyBulk(ctx, rowKeys, muts)
 
 	if err != nil {
 		btc.Logger.Error("update schema mapping table failed")
@@ -595,10 +675,10 @@ func (btc *BigtableClient) DeleteRowNew(ctx context.Context, deleteQueryData *tr
 //   - map[string]map[string]*Column: Table metadata.
 //   - map[string][]Column: Primary key metadata.
 //   - error: Error if the retrieval fails.
-func (btc *BigtableClient) ReadTableConfigs(ctx context.Context, keyspace, schemaMappingTable string) ([]*schemaMapping.TableConfig, error) {
+func (btc *BigtableClient) ReadTableConfigs(ctx context.Context, keyspace string) ([]*schemaMapping.TableConfig, error) {
 	// if this is the first time we're getting table configs, ensure the schema mapping table exists
 	if btc.SchemaMappingConfig == nil || btc.SchemaMappingConfig.CountTables() == 0 {
-		err := btc.createSchemaMappingTableMaybe(ctx, keyspace, schemaMappingTable)
+		err := btc.createSchemaMappingTableMaybe(ctx, keyspace)
 		if err != nil {
 			return nil, err
 		}
@@ -610,7 +690,7 @@ func (btc *BigtableClient) ReadTableConfigs(ctx context.Context, keyspace, schem
 		return nil, err
 	}
 
-	table := client.Open(schemaMappingTable)
+	table := client.Open(btc.SchemaMappingConfig.SchemaMappingTableName)
 	filter := bigtable.LatestNFilter(1)
 
 	allColumns := make(map[string][]*types.Column)

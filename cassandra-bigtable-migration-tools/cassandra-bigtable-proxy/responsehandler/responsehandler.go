@@ -160,7 +160,7 @@ func (th *TypeHandler) BuildResponseRow(rowMap map[string]interface{}, query Que
 			switch v := value.(type) {
 			case int64:
 				switch cqlType {
-				case datatype.Bigint:
+				case datatype.Bigint, datatype.Counter:
 					val = v
 					dt = datatype.Bigint
 				case datatype.Int:

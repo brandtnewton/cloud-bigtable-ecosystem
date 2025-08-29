@@ -604,7 +604,9 @@ func Test_client_handlePrepare(t *testing.T) {
 }
 
 var mockTableSchemaConfig = schemaMapping.NewSchemaMappingConfig(
+	"schema_mappings",
 	"cf1",
+
 	zap.NewNop(),
 	[]*schemaMapping.TableConfig{
 		schemaMapping.NewTableConfig(
@@ -716,7 +718,7 @@ func TestNewProxy(t *testing.T) {
 	logger = proxycore.GetOrCreateNopLogger(logger)
 	var tbData []*schemaMapping.TableConfig = nil
 	bgtmockface := new(mockbigtable.BigTableClientIface)
-	bgtmockface.On("ReadTableConfigs", ctx, mock.AnythingOfType("string"), mock.AnythingOfType("string")).Return(tbData, nil)
+	bgtmockface.On("ReadTableConfigs", ctx, mock.AnythingOfType("string")).Return(tbData, nil)
 	bgtmockface.On("LoadConfigs", mock.AnythingOfType("*responsehandler.TypeHandler"), mock.AnythingOfType("*schemaMapping.SchemaMappingConfig")).Return(tbData, nil)
 
 	// Override the factory function to return the mock
@@ -2076,7 +2078,7 @@ func TestHandleDescribeKeyspaces(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			logger := zap.NewNop()
-			schemaMappingConfig := schemaMapping.NewSchemaMappingConfig("cf", logger, tt.mockTableMeta)
+			schemaMappingConfig := schemaMapping.NewSchemaMappingConfig("schema_mappings", "cf", logger, tt.mockTableMeta)
 			proxy := &Proxy{
 				logger:        logger,
 				schemaMapping: schemaMappingConfig,
@@ -2251,7 +2253,7 @@ func TestHandleDescribeTableColumns(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			logger := zap.NewNop()
-			schemaMappingConfig := schemaMapping.NewSchemaMappingConfig("cf", logger,
+			schemaMappingConfig := schemaMapping.NewSchemaMappingConfig("schema_mappings", "cf", logger,
 				[]*schemaMapping.TableConfig{tt.mockTableMeta},
 			)
 			proxy := &Proxy{
@@ -2423,7 +2425,9 @@ func TestHandlePostDDLEvent(t *testing.T) {
 				},
 			)
 			schemaMappingConfig := schemaMapping.NewSchemaMappingConfig(
+				"schema_mappings",
 				"cf",
+
 				logger,
 				[]*schemaMapping.TableConfig{
 					mockTableMetadata,

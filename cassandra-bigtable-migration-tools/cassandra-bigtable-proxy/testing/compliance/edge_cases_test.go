@@ -1,12 +1,10 @@
 package compliance
 
 import (
-	"context"
 	"fmt"
 	"math"
 	"testing"
 
-	"cloud.google.com/go/bigtable"
 	"github.com/gocql/gocql"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
@@ -96,12 +94,7 @@ func TestIntRowKeys(t *testing.T) {
 
 func TestLexicographicOrder(t *testing.T) {
 	require.NoError(t, session.Query("CREATE TABLE IF NOT EXISTS lex_test_ordered_code (org BIGINT, id INT, username TEXT, row_index INT, PRIMARY KEY (org, id, username))").Exec())
-	ctx := context.Background()
-	admin, err := bigtable.NewAdminClient(ctx, gcpProjectId, "bigtabledevinstance")
-	require.NoError(t, err)
-
-	err = admin.DropAllRows(ctx, "lex_test_ordered_code")
-	require.NoError(t, err)
+	require.NoError(t, session.Query("TRUNCATE TABLE lex_test_ordered_code").Exec())
 
 	orderedValues := []map[string]interface{}{
 		{"org": math.MinInt64, "id": math.MinInt32, "username": ""},

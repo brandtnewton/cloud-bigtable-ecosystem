@@ -58,6 +58,10 @@ func (t *Translator) TranslateCreateTableToBigtable(query, sessionKeyspace strin
 		return nil, errors.New("invalid input parameters found for table")
 	}
 
+	if tableName == t.SchemaMappingConfig.SchemaMappingTableName {
+		return nil, fmt.Errorf("cannot create a table with the configured schema mapping table name '%s'", tableName)
+	}
+
 	if createTableObj != nil && createTableObj.Keyspace() != nil && createTableObj.Keyspace().GetText() != "" {
 		keyspaceName = createTableObj.Keyspace().GetText()
 	} else if sessionKeyspace != "" {

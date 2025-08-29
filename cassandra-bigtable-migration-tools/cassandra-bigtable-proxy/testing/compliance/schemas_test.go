@@ -96,6 +96,15 @@ CREATE TABLE IF NOT EXISTS bigtabledevinstance.orders_big_endian_encoded (
 	PRIMARY KEY (user_id, order_num)
 ) WITH int_row_key_encoding='big_endian';
 `,
+			`
+CREATE TABLE IF NOT EXISTS bigtabledevinstance.social_posts (
+	user_id varchar,
+	id int,
+	likes counter,
+	views counter,
+	PRIMARY KEY (user_id, id)
+);
+`,
 		)
 	}
 

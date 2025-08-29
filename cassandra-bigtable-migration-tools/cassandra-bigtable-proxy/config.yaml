@@ -51,9 +51,7 @@ listeners:
       #   keyspace: KEYSPACE_MAP_TO_INSTANCE2
       #   appProfileID: GCP_BIGTABLE_APP_PROFILE_ID
 
-      # [Required] The name of the Bigtable instance.
-
-      # [Required] Name of the table  where cassandra schema to bigtable schema mapping is stored.
+    # [Required] Name of the table  where cassandra schema to bigtable schema mapping is stored.
     schemaMappingTable: SCHEMA_MAPPING_TABLE_NAME
 
     #[Required] Default column family for primitive data types is "cf1"

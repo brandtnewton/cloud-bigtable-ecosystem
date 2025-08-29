@@ -868,7 +868,7 @@ func processCollectionColumnsForPrepareQueries(tableConfig *schemaMapping.TableC
 				return nil, fmt.Errorf("unexpected state: no existing operation for counter param")
 			}
 
-			// yucky side effect, but necessary with the current code structure
+			// The increment value is part of the prepared statement, so we update the existing ComplexOperation meta with the value provided at execution time.
 			meta.IncrementValue = intVal
 		} else {
 			valInInterface, err := DataConversionInInsertionIfRequired(input.Values[i].Contents, input.ProtocolV, column.CQLType, "byte")

@@ -44,6 +44,10 @@ func TestBigEndianDataFailsOnNegativeIntKeys(t *testing.T) {
 }
 
 func TestLexicographicOrderBigEndian(t *testing.T) {
+	if testTarget == TestTargetCassandra {
+		t.Skip()
+		return
+	}
 	require.NoError(t, session.Query("CREATE TABLE IF NOT EXISTS lex_test_ordered_code_big_endian (org BIGINT, id INT, row_index INT, PRIMARY KEY (org, id)) WITH int_row_key_encoding='big_endian'").Exec())
 	require.NoError(t, session.Query("TRUNCATE TABLE lex_test_ordered_code_big_endian").Exec())
 

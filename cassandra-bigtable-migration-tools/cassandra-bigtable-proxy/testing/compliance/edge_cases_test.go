@@ -108,6 +108,10 @@ func TestIntRowKeys(t *testing.T) {
 }
 
 func TestLexicographicOrder(t *testing.T) {
+	if testTarget == TestTargetCassandra {
+		t.Skip()
+		return
+	}
 	require.NoError(t, session.Query("CREATE TABLE IF NOT EXISTS lex_test_ordered_code (org BIGINT, id INT, username TEXT, row_index INT, PRIMARY KEY (org, id, username))").Exec())
 	require.NoError(t, session.Query("TRUNCATE TABLE lex_test_ordered_code").Exec())
 

@@ -25,6 +25,11 @@ func TestCreateIfNotExist(t *testing.T) {
 }
 
 func TestCreateWhereBigtableTableExists(t *testing.T) {
+	if testTarget == TestTargetCassandra {
+		t.Skip()
+		return
+	}
+
 	t.Parallel()
 	table := uniqueTableName("create_table_")
 	defer cleanupTable(t, table)
@@ -78,6 +83,7 @@ func TestNegativeTestCasesForCreateTable(t *testing.T) {
 			name:          "Create table with same name as schema mapping table",
 			query:         "CREATE TABLE schema_mapping (num INT PRIMARY KEY, big_num BIGINT)",
 			expectedError: "cannot create a table with the configured schema mapping table name 'schema_mapping'",
+			skipCassandra: true,
 		},
 		{
 			name:          "multiple inline primary keys",
@@ -115,7 +121,7 @@ func TestNegativeTestCasesForCreateTable(t *testing.T) {
 		},
 		{
 			// not allowed because it would clash with the default column because collection column families are the column name
-name:          "uses default column family as counter column name",
+			name:          "uses default column family as counter column name",
 			query:         "CREATE TABLE uses_default_ctrf (num INT, cf1 counter, PRIMARY KEY (num))",
 			expectedError: "counter and collection type columns cannot be named 'cf1' because it's reserved as the default column family",
 			skipCassandra: true,
@@ -123,10 +129,11 @@ name:          "uses default column family as counter column name",
 	}
 
 	for _, tc := range testCases {
-		if tc.skipCassandra && testTarget == TestTargetCassandra {
-			continue
-		}
 		t.Run(tc.name, func(t *testing.T) {
+			if tc.skipCassandra && testTarget == TestTargetCassandra {
+				t.Skip()
+				return
+			}
 			t.Parallel()
 			err := session.Query(tc.query).Exec()
 			if testTarget == TestTargetCassandra {

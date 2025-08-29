@@ -48,6 +48,10 @@ func TestDroppedTableWriteFails(t *testing.T) {
 }
 
 func TestDroppedSchemaMappingTableFails(t *testing.T) {
+	if testTarget == TestTargetCassandra {
+		t.Skip()
+		return
+	}
 	t.Parallel()
 	err := session.Query("DROP TABLE schema_mapping").Exec()
 	require.Error(t, err)

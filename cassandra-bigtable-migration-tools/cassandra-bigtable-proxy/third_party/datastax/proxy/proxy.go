@@ -1502,7 +1502,7 @@ func (c *client) handleQuery(raw *frame.RawFrame, msg *partialQuery) {
 			} else if describeStmt.Tables {
 				c.handleDescribeTables(raw.Header, describeStmt.KeyspaceName)
 			} else if describeStmt.TableName != "" {
-				c.handleDescribeTableColumns(raw.Header, describeStmt.KeyspaceName, describeStmt.TableName)
+				c.handleDescribeTable(raw.Header, describeStmt.KeyspaceName, describeStmt.TableName)
 			} else if describeStmt.KeyspaceName != "" {
 				c.handleDescribeKeyspace(raw.Header, describeStmt.KeyspaceName)
 			} else {
@@ -2143,8 +2143,8 @@ func (c *client) handleDescribeTables(hdr *frame.Header, keyspace string) {
 	})
 }
 
-// handleDescribeTableColumns handles the DESCRIBE TABLE command for a specific table
-func (c *client) handleDescribeTableColumns(hdr *frame.Header, keyspace, table string) {
+// handleDescribeTable handles the DESCRIBE TABLE command for a specific table
+func (c *client) handleDescribeTable(hdr *frame.Header, keyspace, table string) {
 	tableConfig, err := c.proxy.schemaMapping.GetTableConfig(keyspace, table)
 	if err != nil {
 		c.sender.Send(hdr, &message.Invalid{ErrorMessage: fmt.Sprintf("Error getting column metadata: %v", err)})

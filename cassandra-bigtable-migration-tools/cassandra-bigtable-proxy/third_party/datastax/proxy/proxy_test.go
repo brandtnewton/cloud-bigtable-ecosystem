@@ -2269,7 +2269,7 @@ func TestHandleDescribeTableColumns(t *testing.T) {
 				Version:  primitive.ProtocolVersion4,
 				StreamId: 1,
 			}
-			client.handleDescribeTableColumns(header, tt.keyspace, tt.table)
+			client.handleDescribeTable(header, tt.keyspace, tt.table)
 			if !mockSender.SendCalled {
 				t.Error("Send was not called")
 				return

@@ -19,6 +19,14 @@ func TestTableConfig_Describe(t *testing.T) {
 			name: "Success",
 			table: NewTableConfig("keyspace1", "table1", "cf1", types.OrderedCodeEncoding, []*types.Column{
 				{
+					Name:         "name",
+					ColumnFamily: "cf1",
+					CQLType:      datatype.Varchar,
+					IsPrimaryKey: false,
+					PkPrecedence: 0,
+					KeyType:      utilities.KEY_TYPE_REGULAR,
+				},
+				{
 					Name:         "org_id",
 					ColumnFamily: "cf1",
 					CQLType:      datatype.Bigint,
@@ -34,16 +42,8 @@ func TestTableConfig_Describe(t *testing.T) {
 					PkPrecedence: 2,
 					KeyType:      utilities.KEY_TYPE_CLUSTERING,
 				},
-				{
-					Name:         "name",
-					ColumnFamily: "cf1",
-					CQLType:      datatype.Varchar,
-					IsPrimaryKey: false,
-					PkPrecedence: 0,
-					KeyType:      utilities.KEY_TYPE_REGULAR,
-				},
 			}),
-			want: "CREATE TABLE keyspace1.table1 (\n\torg_id BIGINT,\n\tuser_id BIGINT,\n\tname VARCHAR,\n\tPRIMARY KEY ((org_id), user_id)\n);",
+			want: "CREATE TABLE keyspace1.table1 (\n    org_id BIGINT,\n    user_id BIGINT,\n    name VARCHAR,\n    PRIMARY KEY (org_id, user_id)\n);",
 		},
 		{
 			name: "two partition keys",
@@ -65,6 +65,14 @@ func TestTableConfig_Describe(t *testing.T) {
 					KeyType:      utilities.KEY_TYPE_PARTITION,
 				},
 				{
+					Name:         "group_id",
+					ColumnFamily: "cf1",
+					CQLType:      datatype.Bigint,
+					IsPrimaryKey: true,
+					PkPrecedence: 3,
+					KeyType:      utilities.KEY_TYPE_CLUSTERING,
+				},
+				{
 					Name:         "name",
 					ColumnFamily: "cf1",
 					CQLType:      datatype.Varchar,
@@ -73,7 +81,7 @@ func TestTableConfig_Describe(t *testing.T) {
 					KeyType:      utilities.KEY_TYPE_REGULAR,
 				},
 			}),
-			want: "CREATE TABLE keyspace1.table1 (\n\torg_id BIGINT,\n\tuser_id BIGINT,\n\tname VARCHAR,\n\tPRIMARY KEY (org_id, user_id)\n);",
+			want: "CREATE TABLE keyspace1.table1 (\n    org_id BIGINT,\n    user_id BIGINT,\n    group_id BIGINT,\n    name VARCHAR,\n    PRIMARY KEY ((org_id, user_id), group_id)\n);",
 		},
 		{
 			name: "one partition key",
@@ -103,7 +111,7 @@ func TestTableConfig_Describe(t *testing.T) {
 					KeyType:      utilities.KEY_TYPE_REGULAR,
 				},
 			}),
-			want: "CREATE TABLE keyspace1.table1 (\n\torg_id BIGINT,\n\tuser_id BIGINT,\n\tname VARCHAR,\n\tPRIMARY KEY (org_id)\n);",
+			want: "CREATE TABLE keyspace1.table1 (\n    org_id BIGINT,\n    user_id BIGINT,\n    name VARCHAR,\n    PRIMARY KEY (org_id)\n);",
 		},
 	}
 

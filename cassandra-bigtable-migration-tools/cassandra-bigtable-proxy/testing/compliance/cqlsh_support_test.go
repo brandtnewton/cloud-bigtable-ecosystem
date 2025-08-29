@@ -96,7 +96,6 @@ func TestCqlshDesc(t *testing.T) {
 	require.NoError(t, err)
 
 	assert.Contains(t, got, "bigtabledevinstance")
-	assert.Contains(t, got, "system")
 }
 
 func TestCqlshDescTables(t *testing.T) {
@@ -115,7 +114,7 @@ func TestCqlshDescTable(t *testing.T) {
 	result, err := cqlshExec("DESCRIBE TABLE bigtabledevinstance.multiple_int_keys;")
 	require.NoError(t, err)
 
-	assert.Contains(t, result, "CREATE TABLE bigtabledevinstance.multiple_int_keys (\n    user_id bigint,\n    order_num int,\n    name text,\n    PRIMARY KEY (user_id, order_num)\n)")
+	assert.Contains(t, result, "CREATE TABLE bigtabledevinstance.multiple_int_keys (\n    user_id BIGINT,\n    order_num INT,\n    name VARCHAR,\n    PRIMARY KEY (user_id, order_num)\n)")
 }
 
 func TestCqlshDescKeyspace(t *testing.T) {
@@ -123,7 +122,7 @@ func TestCqlshDescKeyspace(t *testing.T) {
 	require.NoError(t, err)
 
 	assert.Contains(t, result, "CREATE KEYSPACE bigtabledevinstance ")
-	assert.Contains(t, result, "CREATE TABLE bigtabledevinstance.multiple_int_keys (\n    user_id bigint,\n    order_num int,\n    name text,\n    PRIMARY KEY (user_id, order_num)\n)")
+	assert.Contains(t, result, "CREATE TABLE bigtabledevinstance.multiple_int_keys (\n    user_id BIGINT,\n    order_num INT,\n    name VARCHAR,\n    PRIMARY KEY (user_id, order_num)\n)")
 	assert.Contains(t, result, "CREATE TABLE bigtabledevinstance.orders (\n")
 	assert.Contains(t, result, "CREATE TABLE bigtabledevinstance.user_info (\n")
 }

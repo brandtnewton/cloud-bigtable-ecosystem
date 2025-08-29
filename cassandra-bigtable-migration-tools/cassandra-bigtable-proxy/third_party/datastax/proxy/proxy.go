@@ -1500,7 +1500,7 @@ func (c *client) handleQuery(raw *frame.RawFrame, msg *partialQuery) {
 			if describeStmt.Keyspaces {
 				c.handleDescribeKeyspaces(raw.Header)
 			} else if describeStmt.Tables {
-				c.handleDescribeTables(raw.Header, describeStmt.KeyspaceName)
+				c.handleDescribeTables(raw.Header)
 			} else if describeStmt.TableName != "" {
 				c.handleDescribeTable(raw.Header, describeStmt.KeyspaceName, describeStmt.TableName)
 			} else if describeStmt.KeyspaceName != "" {
@@ -2081,31 +2081,18 @@ func (c *client) handleDescribeKeyspaces(hdr *frame.Header) {
 }
 
 // handleDescribeTables handles the DESCRIBE TABLES command
-func (c *client) handleDescribeTables(hdr *frame.Header, keyspace string) {
-	if keyspace == "" {
-		keyspace = "system_virtual_schema"
-	}
+func (c *client) handleDescribeTables(hdr *frame.Header) {
 	// Return a list of tables in
-	var tables []struct {
+	tables := []struct {
 		keyspace string
 		table    string
+	}{
+		{"system_virtual_schema", "keyspaces"},
+		{"system_virtual_schema", "tables"},
+		{"system_virtual_schema", "columns"},
 	}
 
-	if keyspace == "system_virtual_schema" {
-		tables = []struct {
-			keyspace string
-			table    string
-		}{
-			{"system_virtual_schema", "keyspaces"},
-			{"system_virtual_schema", "tables"},
-			{"system_virtual_schema", "columns"},
-		}
-	} else {
-		keyspaceTables, err := c.proxy.schemaMapping.GetKeyspace(keyspace)
-		if err != nil {
-			c.sender.Send(hdr, &message.Invalid{ErrorMessage: fmt.Sprintf("Error getting column metadata: %v", err)})
-			return
-		}
+	for _, keyspaceTables := range c.proxy.schemaMapping.GetAllTables() {
 		for _, table := range keyspaceTables {
 			tables = append(tables, struct {
 				keyspace string
@@ -2113,18 +2100,19 @@ func (c *client) handleDescribeTables(hdr *frame.Header, keyspace string) {
 			}{table.Keyspace, table.Name})
 		}
 	}
+
 	columns := []*message.ColumnMetadata{
 		{
 			Name:     "keyspace_name",
 			Type:     datatype.Varchar,
 			Table:    "tables",
-			Keyspace: keyspace,
+			Keyspace: "system",
 		},
 		{
 			Name:     "name",
 			Type:     datatype.Varchar,
 			Table:    "tables",
-			Keyspace: keyspace,
+			Keyspace: "system",
 		},
 	}
 	var rows []message.Row
@@ -2182,19 +2170,19 @@ func (c *client) handleDescribeKeyspace(hdr *frame.Header, keyspaceName string) 
 		},
 	}
 
-	// 1. CREATE KEYSPACE statement with all Cassandra properties
-	var createStmts []string
+	createStmts := []string{fmt.Sprintf("CREATE KEYSPACE %s WITH REPLICATION = {'class' : 'SimpleStrategy', 'replication_factor' : 1};", keyspaceName)}
 
-	// 2. CREATE TABLE statements for each table in the keyspace
-	tablesMap, ok := c.proxy.schemaMapping.GetAllTables()[keyspaceName]
-	if ok {
-		for _, tableConfig := range tablesMap {
-			createTableStmt := tableConfig.Describe()
-			createStmts = append(createStmts, createTableStmt)
-		}
+	tables, err := c.proxy.schemaMapping.GetKeyspace(keyspaceName)
+	if err != nil {
+		c.sender.Send(hdr, &message.Invalid{ErrorMessage: err.Error()})
+		return
 	}
 
-	// 3. Build rows
+	for _, tableConfig := range tables {
+		createTableStmt := tableConfig.Describe()
+		createStmts = append(createStmts, createTableStmt)
+	}
+
 	var rows []message.Row
 	for _, stmt := range createStmts {
 		rows = append(rows, message.Row{[]byte(stmt)})

@@ -19,7 +19,9 @@ package translator
 import (
 	"testing"
 
+	schemaMapping "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/schema-mapping"
 	"github.com/stretchr/testify/assert"
+	"go.uber.org/zap"
 )
 
 func TestTranslateTruncateTableToBigtable(t *testing.T) {
@@ -110,7 +112,7 @@ func TestTranslateTruncateTableToBigtable(t *testing.T) {
 
 	tr := &Translator{
 		Logger:              nil,
-		SchemaMappingConfig: nil,
+		SchemaMappingConfig: schemaMapping.NewSchemaMappingConfig("schema_mapping", "cf1", "v", zap.NewNop(), []*schemaMapping.TableConfig{}),
 	}
 
 	for _, tt := range tests {

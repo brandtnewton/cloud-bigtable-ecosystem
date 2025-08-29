@@ -107,7 +107,15 @@ func (tableConfig *TableConfig) Describe() string {
 	cols := maps.Values(tableConfig.Columns)
 	// sort by metadata index for consistent output
 	slices.SortFunc(cols, func(a, b *types.Column) int {
-		return int(a.Metadata.Index - b.Metadata.Index)
+		if a.IsPrimaryKey && b.IsPrimaryKey {
+			return a.PkPrecedence - b.PkPrecedence
+		} else if a.IsPrimaryKey {
+			return -1
+		} else if b.IsPrimaryKey {
+			return 1
+		} else {
+			return int(a.Metadata.Index - b.Metadata.Index)
+		}
 	})
 	var colNames []string = nil
 	for _, col := range cols {
@@ -133,7 +141,10 @@ func (tableConfig *TableConfig) Describe() string {
 
 	// Build primary key clause
 	pkClause := ""
-	if len(pkCols) > 0 {
+	if len(pkCols) == 1 && len(clusteringCols) == 1 {
+		// if only 1 of each key type are specified, it's a compound key which only uses one set of parenthesis
+		pkClause = fmt.Sprintf("PRIMARY KEY (%s, %s)", pkCols[0], clusteringCols[0])
+	} else {
 		if len(clusteringCols) > 0 {
 			pkClause = fmt.Sprintf("PRIMARY KEY ((%s), %s)",
 				strings.Join(pkCols, ", "),

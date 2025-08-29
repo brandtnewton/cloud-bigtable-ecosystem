@@ -1,3 +1,18 @@
+/*
+ * Copyright (C) 2025 Google LLC
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not
+ * use this file except in compliance with the License. You may obtain a copy of
+ * the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations under
+ * the License.
+ */
 package compliance
 
 // add test tables that are used by multiple tests here
@@ -83,6 +98,15 @@ CREATE TABLE IF NOT EXISTS bigtabledevinstance.test_int_key (
 	name varchar
 );
 `,
+		`
+CREATE TABLE IF NOT EXISTS bigtabledevinstance.social_posts (
+	user_id varchar,
+	id int,
+	likes counter,
+	views counter,
+	PRIMARY KEY (user_id, id)
+);
+`,
 	}
 
 	if testTarget == TestTargetProxy {
@@ -95,15 +119,6 @@ CREATE TABLE IF NOT EXISTS bigtabledevinstance.orders_big_endian_encoded (
 	name varchar,
 	PRIMARY KEY (user_id, order_num)
 ) WITH int_row_key_encoding='big_endian';
-`,
-			`
-CREATE TABLE IF NOT EXISTS bigtabledevinstance.social_posts (
-	user_id varchar,
-	id int,
-	likes counter,
-	views counter,
-	PRIMARY KEY (user_id, id)
-);
 `,
 		)
 	}

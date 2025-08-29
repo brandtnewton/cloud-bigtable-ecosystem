@@ -189,7 +189,7 @@ func (t *Translator) TranslateInsertQuerytoBigtable(queryStr string, protocolV p
 	} else if sessionKeyspace != "" {
 		keyspaceName = sessionKeyspace
 	} else {
-		return nil, fmt.Errorf("invalid input paramaters found for keyspace")
+		return nil, fmt.Errorf("invalid input parameters found for keyspace")
 	}
 
 	if table != nil && table.OBJECT_NAME() != nil && table.OBJECT_NAME().GetText() != "" {

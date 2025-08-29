@@ -285,7 +285,7 @@ func (t *Translator) TranslateDeleteQuerytoBigtable(queryStr string, isPreparedQ
 		if sessionKeyspace != "" {
 			keyspaceName = sessionKeyspace
 		} else {
-			return nil, fmt.Errorf("invalid input paramaters found for keyspace")
+			return nil, fmt.Errorf("invalid input parameters found for keyspace")
 		}
 	}
 

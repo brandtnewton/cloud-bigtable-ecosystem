@@ -75,6 +75,20 @@ func (c *SchemaMappingConfig) GetAllTables() map[string]map[string]*TableConfig 
 	return tablesCopy
 }
 
+func (c *SchemaMappingConfig) GetKeyspace(keyspace string) ([]*TableConfig, error) {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+	tables, ok := c.tables[keyspace]
+	if !ok {
+		return nil, fmt.Errorf("keyspace %s does not exist", keyspace)
+	}
+	var results []*TableConfig = nil
+	for _, table := range tables {
+		results = append(results, table)
+	}
+	return results, nil
+}
+
 func (c *SchemaMappingConfig) ReplaceTables(tableConfigs []*TableConfig) {
 	c.mu.Lock()
 	defer c.mu.Unlock()

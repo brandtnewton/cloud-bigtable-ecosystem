@@ -312,7 +312,7 @@ func (t *Translator) TranslateUpdateQuerytoBigtable(queryStr string, isPreparedQ
 	} else if sessionKeyspace != "" {
 		keyspaceName = sessionKeyspace
 	} else {
-		return nil, fmt.Errorf("invalid input paramaters found for keyspace")
+		return nil, fmt.Errorf("invalid input parameters found for keyspace")
 	}
 
 	tableConfig, err := t.SchemaMappingConfig.GetTableConfig(keyspaceName, tableName)

@@ -18,6 +18,7 @@ package translator
 
 import (
 	"errors"
+	"fmt"
 
 	cql "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/third_party/cqlparser"
 	"github.com/antlr4-go/antlr/v4"
@@ -43,6 +44,10 @@ func (t *Translator) TranslateTruncateTableToBigtable(query, sessionKeyspace str
 		}
 	} else {
 		return nil, errors.New("invalid truncate table query: table missing")
+	}
+
+	if tableName == t.SchemaMappingConfig.SchemaMappingTableName {
+		return nil, fmt.Errorf("cannot truncate the configured schema mapping table name '%s'", tableName)
 	}
 
 	if truncateTableObj.Keyspace() != nil && truncateTableObj.Keyspace().GetText() != "" {

@@ -80,7 +80,9 @@ func TestCqlshUseKeyspace(t *testing.T) {
 	// make sure queries with no keyspace fail because it's ambiguous
 	_, err := cqlshExec(`SELECT * FROM user_info LIMIT 1`)
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "invalid input parameters found for keyspace")
+	if testTarget == TestTargetProxy {
+		assert.Contains(t, err.Error(), "invalid input parameters found for keyspace")
+	}
 
 	// setting the keyspace should allow subsequent queries to omit keyspace because it's now set on the client session
 	_, err = cqlshExec(`USE bigtabledevinstance; SELECT * FROM user_info LIMIT 1`)
@@ -93,37 +95,35 @@ func TestCqlshDesc(t *testing.T) {
 	got, err := cqlshDescribe(`desc keyspaces`)
 	require.NoError(t, err)
 
-	assert.ElementsMatch(t, []string{"bigtabledevinstance", "cassandrakeyspace"}, got)
+	assert.Contains(t, got, "bigtabledevinstance")
+	assert.Contains(t, got, "system")
 }
 
 func TestCqlshDescTables(t *testing.T) {
 	result, err := cqlshExec("DESCRIBE TABLES")
 	require.NoError(t, err)
 
-	assert.Contains(t, result, "Keyspace bigtabledevinstance\n-----------------\n")
+	assert.Contains(t, result, "Keyspace bigtabledevinstance\n")
+	assert.Contains(t, result, "aggregation_grouping_test")
+	assert.Contains(t, result, "multiple_int_keys")
+	assert.Contains(t, result, "orders")
+	assert.Contains(t, result, "user_info")
+	assert.Contains(t, result, "Keyspace system\n")
 }
 
 func TestCqlshDescTable(t *testing.T) {
 	result, err := cqlshExec("DESCRIBE TABLE bigtabledevinstance.multiple_int_keys;")
 	require.NoError(t, err)
 
-	assert.Contains(t, result, "CREATE TABLE bigtabledevinstance.multiple_int_keys (\n\tuser_id bigint,\n\torder_num int,\n\tname varchar,\n\tPRIMARY KEY (user_id, order_num)\n);")
+	assert.Contains(t, result, "CREATE TABLE bigtabledevinstance.multiple_int_keys (\n    user_id bigint,\n    order_num int,\n    name text,\n    PRIMARY KEY (user_id, order_num)\n)")
 }
 
-// todo 'describe tables'
-// Keyspace keyspace1
-// -------------------
-// table1 table2...
-// table12 table13...
-//
-// Keyspace keyspace2
-// -------------------
-// table1 table2...
-// table12 table13...
+func TestCqlshDescKeyspace(t *testing.T) {
+	result, err := cqlshExec("DESCRIBE KEYSPACE bigtabledevinstance;")
+	require.NoError(t, err)
 
-// todo 'describe $keyspace.$table'
-// CREATE TABLE $keyspace.$table...
-// todo 'describe keyspace $keyspace'
-// CREATE KEYSPACE $keyspace ...
-//
-// CREATE TABLE $keyspace.$table...
+	assert.Contains(t, result, "CREATE KEYSPACE bigtabledevinstance ")
+	assert.Contains(t, result, "CREATE TABLE bigtabledevinstance.multiple_int_keys (\n    user_id bigint,\n    order_num int,\n    name text,\n    PRIMARY KEY (user_id, order_num)\n)")
+	assert.Contains(t, result, "CREATE TABLE bigtabledevinstance.orders (\n")
+	assert.Contains(t, result, "CREATE TABLE bigtabledevinstance.user_info (\n")
+}

@@ -143,9 +143,9 @@ func (tableConfig *TableConfig) Describe() string {
 		}
 	}
 
-	createTableStmt := fmt.Sprintf("CREATE TABLE %s.%s (\n\t%s,\n\t%s\n);",
+	createTableStmt := fmt.Sprintf("CREATE TABLE %s.%s (\n    %s,\n    %s\n);",
 		tableConfig.Keyspace, tableConfig.Name,
-		strings.Join(colDefs, ",\n\t"),
+		strings.Join(colDefs, ",\n    "),
 		pkClause)
 	return createTableStmt
 }

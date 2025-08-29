@@ -2160,7 +2160,7 @@ func TestHandleDescribeTables(t *testing.T) {
 				Version:  primitive.ProtocolVersion4,
 				StreamId: 1,
 			}
-			client.handleDescribeTables(header, "")
+			client.handleDescribeTables(header)
 			if !mockSender.SendCalled {
 				t.Error("Send was not called")
 				return

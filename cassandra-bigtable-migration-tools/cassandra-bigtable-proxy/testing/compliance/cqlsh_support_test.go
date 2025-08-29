@@ -107,7 +107,6 @@ func TestCqlshDescTables(t *testing.T) {
 	assert.Contains(t, result, "multiple_int_keys")
 	assert.Contains(t, result, "orders")
 	assert.Contains(t, result, "user_info")
-	assert.Contains(t, result, "Keyspace system\n")
 }
 
 func TestCqlshDescTable(t *testing.T) {

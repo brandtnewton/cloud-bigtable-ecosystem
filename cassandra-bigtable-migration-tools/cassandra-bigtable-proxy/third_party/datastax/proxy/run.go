@@ -99,7 +99,6 @@ type Bigtable struct {
 	SchemaMappingTable            string         `yaml:"schemaMappingTable"`
 	Session                       Session        `yaml:"Session"`
 	DefaultColumnFamily           string         `yaml:"defaultColumnFamily"`
-	CounterColumnName             string         `yaml:"counterColumnName"`
 	AppProfileID                  string         `yaml:"appProfileID"`
 	EncodeIntRowKeysWithBigEndian bool           `yaml:"encodeIntRowKeysWithBigEndian"`
 }
@@ -307,7 +306,6 @@ func Run(ctx context.Context, args []string) int {
 			InstancesMap:             InstanceMap,
 			GCPProjectID:             listener.Bigtable.ProjectID,
 			DefaultColumnFamily:      listener.Bigtable.DefaultColumnFamily,
-			CounterColumnName:        listener.Bigtable.CounterColumnName,
 			DefaultIntRowKeyEncoding: intRowKeyEncoding,
 		}
 

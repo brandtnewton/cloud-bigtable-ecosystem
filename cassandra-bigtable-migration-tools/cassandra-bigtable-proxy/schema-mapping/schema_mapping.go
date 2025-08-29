@@ -35,12 +35,11 @@ type SchemaMappingConfig struct {
 	mu                     sync.RWMutex
 	tables                 map[string]map[string]*TableConfig
 	SystemColumnFamily     string
-	CounterColumnName      string
 	SchemaMappingTableName string
 }
 
 // NewSchemaMappingConfig is a constructor for SchemaMappingConfig. Please use this instead of direct initialization.
-func NewSchemaMappingConfig(schemaMappingTableName, systemColumnFamily, counterColumnName string, logger *zap.Logger, tableConfigs []*TableConfig) *SchemaMappingConfig {
+func NewSchemaMappingConfig(schemaMappingTableName, systemColumnFamily string, logger *zap.Logger, tableConfigs []*TableConfig) *SchemaMappingConfig {
 	tablesMap := make(map[string]map[string]*TableConfig)
 	for _, tableConfig := range tableConfigs {
 		if keyspace, exists := tablesMap[tableConfig.Keyspace]; !exists {
@@ -53,7 +52,6 @@ func NewSchemaMappingConfig(schemaMappingTableName, systemColumnFamily, counterC
 		Logger:                 logger,
 		SchemaMappingTableName: schemaMappingTableName,
 		SystemColumnFamily:     systemColumnFamily,
-		CounterColumnName:      counterColumnName,
 		tables:                 tablesMap,
 	}
 }

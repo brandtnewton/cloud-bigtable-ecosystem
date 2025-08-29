@@ -121,7 +121,6 @@ func (th *TypeHandler) BuildResponseRow(rowMap map[string]interface{}, query Que
 	for index, metaData := range cmd {
 		key := metaData.Name
 		if rowMap[key] == nil {
-th.Logger.Warn("no result in row map found for key", zap.String("key", key), zap.Any("row map", rowMap), zap.Any("column metadata", metaData), zap.String("btql", query.Query))
 			rowMap[key] = []byte{}
 			mr = append(mr, nil)
 			continue

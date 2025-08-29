@@ -723,7 +723,7 @@ func (t *Translator) TranslateSelectQuerytoBigtable(originalQuery, sessionKeyspa
 		if sessionKeyspace != "" {
 			keyspaceName = sessionKeyspace
 		} else {
-			return nil, fmt.Errorf("invalid input paramaters found for keyspace")
+			return nil, fmt.Errorf("invalid input parameters found for keyspace")
 		}
 	}
 

@@ -33,21 +33,81 @@ import (
 func TestCqlshCrud(t *testing.T) {
 	t.Parallel()
 
-	_, err := scanCQLSHQuery(`INSERT INTO bigtabledevinstance.user_info (name, age, code) VALUES ('cqlsh_person', 80, 25)`)
+	_, err := cqlshExec(`INSERT INTO bigtabledevinstance.user_info (name, age, code) VALUES ('cqlsh_person', 80, 25)`)
 	require.NoError(t, err)
 
-	results, err := scanCQLSHQuery(`SELECT name, age, code FROM bigtabledevinstance.user_info where name='cqlsh_person' and age=80`)
+	results, err := cqlshScanToMap(`SELECT name, age, code FROM bigtabledevinstance.user_info WHERE name='cqlsh_person' AND age=80`)
 	require.NoError(t, err)
 	assert.Equal(t, []map[string]string{{"age": "80", "name": "cqlsh_person", "code": "25"}}, results)
+
+	_, err = cqlshExec(`UPDATE bigtabledevinstance.user_info SET code=32 WHERE name='cqlsh_person' AND age=80`)
+
+	results, err = cqlshScanToMap(`SELECT name, age, code FROM bigtabledevinstance.user_info WHERE name='cqlsh_person' AND age=80`)
+	require.NoError(t, err)
+	assert.Equal(t, []map[string]string{{"age": "80", "name": "cqlsh_person", "code": "32"}}, results)
+
+	_, err = cqlshExec(`DELETE FROM bigtabledevinstance.user_info WHERE name='cqlsh_person' AND age=80`)
+
+	results, err = cqlshScanToMap(`SELECT * FROM bigtabledevinstance.user_info WHERE name='cqlsh_person' AND age=80`)
+	require.NoError(t, err)
+	assert.Empty(t, results)
+}
+
+func TestCqlshError(t *testing.T) {
+	t.Parallel()
+
+	_, err := cqlshScanToMap(`INSERT INTO bigtabledevinstance.no_such_table (name, age, code) VALUES ('foo', 1, 2)`)
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "table no_such_table does not exist")
+}
+
+func TestCqlshCreateTable(t *testing.T) {
+	t.Parallel()
+
+	_, err := cqlshExec(`DROP TABLE IF EXISTS bigtabledevinstance.cqlsh_create_table_test`)
+	require.NoError(t, err)
+
+	_, err = cqlshExec(`CREATE TABLE bigtabledevinstance.cqlsh_create_table_test (id TEXT PRIMARY KEY, username TEXT, is_admin BOOLEAN); INSERT INTO bigtabledevinstance.cqlsh_create_table_test (id, username, is_admin) VALUES ('u1', 'admin', false)`)
+	require.NoError(t, err)
+
+	results, err := cqlshScanToMap(`SELECT id AS i, username AS u, is_admin FROM bigtabledevinstance.cqlsh_create_table_test WHERE id='u1'`)
+	assert.Equal(t, []map[string]string{{"i": "u1", "u": "admin", "is_admin": "False"}}, results)
+}
+
+func TestCqlshUseKeyspace(t *testing.T) {
+	t.Parallel()
+
+	// make sure queries with no keyspace fail because it's ambiguous
+	_, err := cqlshExec(`SELECT * FROM user_info LIMIT 1`)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "invalid input parameters found for keyspace")
+
+	// setting the keyspace should allow subsequent queries to omit keyspace because it's now set on the client session
+	_, err = cqlshExec(`USE bigtabledevinstance; SELECT * FROM user_info LIMIT 1`)
+	require.NoError(t, err)
 }
 
 func TestCqlshDesc(t *testing.T) {
 	t.Parallel()
 
-	got, err := runCQLSHDescribe(`desc keyspaces`)
+	got, err := cqlshDescribe(`desc keyspaces`)
 	require.NoError(t, err)
 
 	assert.ElementsMatch(t, []string{"bigtabledevinstance", "cassandrakeyspace"}, got)
+}
+
+func TestCqlshDescTables(t *testing.T) {
+	result, err := cqlshExec("DESCRIBE TABLES")
+	require.NoError(t, err)
+
+	assert.Contains(t, result, "Keyspace bigtabledevinstance\n-----------------\n")
+}
+
+func TestCqlshDescTable(t *testing.T) {
+	result, err := cqlshExec("DESCRIBE TABLE bigtabledevinstance.multiple_int_keys;")
+	require.NoError(t, err)
+
+	assert.Contains(t, result, "CREATE TABLE bigtabledevinstance.multiple_int_keys (\n\tuser_id bigint,\n\torder_num int,\n\tname varchar,\n\tPRIMARY KEY (user_id, order_num)\n);")
 }
 
 // todo 'describe tables'

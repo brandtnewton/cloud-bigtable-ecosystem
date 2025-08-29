@@ -19,12 +19,14 @@ package schemaMapping
 import (
 	"fmt"
 	"slices"
+	"strings"
 
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/global/types"
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/utilities"
 	"github.com/datastax/go-cassandra-native-protocol/datatype"
 	"github.com/datastax/go-cassandra-native-protocol/message"
 	"github.com/datastax/go-cassandra-native-protocol/primitive"
+	"golang.org/x/exp/maps"
 )
 
 // TableConfig contains all schema information about a single table
@@ -99,6 +101,53 @@ func (tableConfig *TableConfig) GetColumnFamily(columnName string) string {
 func (tableConfig *TableConfig) HasColumn(columnName string) bool {
 	_, ok := tableConfig.Columns[columnName]
 	return ok
+}
+
+func (tableConfig *TableConfig) Describe() string {
+	cols := maps.Values(tableConfig.Columns)
+	// sort by metadata index for consistent output
+	slices.SortFunc(cols, func(a, b *types.Column) int {
+		return int(a.Metadata.Index - b.Metadata.Index)
+	})
+	var colNames []string = nil
+	for _, col := range cols {
+		colNames = append(colNames, col.Name)
+	}
+
+	// First collect all column definitions with their data types
+	var colDefs []string
+	for _, colName := range colNames {
+		col := tableConfig.Columns[colName]
+		colDefs = append(colDefs, fmt.Sprintf("%s %s", colName, strings.ToUpper(col.CQLType.String())))
+	}
+
+	var pkCols []string = nil
+	var clusteringCols []string = nil
+	for _, key := range tableConfig.PrimaryKeys {
+		if key.KeyType == utilities.KEY_TYPE_PARTITION {
+			pkCols = append(pkCols, key.Name)
+		} else {
+			clusteringCols = append(clusteringCols, key.Name)
+		}
+	}
+
+	// Build primary key clause
+	pkClause := ""
+	if len(pkCols) > 0 {
+		if len(clusteringCols) > 0 {
+			pkClause = fmt.Sprintf("PRIMARY KEY ((%s), %s)",
+				strings.Join(pkCols, ", "),
+				strings.Join(clusteringCols, ", "))
+		} else {
+			pkClause = fmt.Sprintf("PRIMARY KEY (%s)", strings.Join(pkCols, ", "))
+		}
+	}
+
+	createTableStmt := fmt.Sprintf("CREATE TABLE %s.%s (\n\t%s,\n\t%s\n);",
+		tableConfig.Keyspace, tableConfig.Name,
+		strings.Join(colDefs, ",\n\t"),
+		pkClause)
+	return createTableStmt
 }
 
 func (tableConfig *TableConfig) GetColumn(columnName string) (*types.Column, error) {

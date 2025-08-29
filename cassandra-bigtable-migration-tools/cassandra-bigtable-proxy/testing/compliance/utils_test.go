@@ -17,7 +17,9 @@
 package compliance
 
 import (
+	"bytes"
 	"encoding/csv"
+	"errors"
 	"fmt"
 	"os/exec"
 	"regexp"
@@ -103,17 +105,25 @@ func testLexOrder(t *testing.T, input []map[string]interface{}, table string) {
 var plusMinusRegex = regexp.MustCompile(`^[-+]*$`)
 var rowsRegex = regexp.MustCompile(`^\(\d+ rows\)$`)
 
-func executeCQLSHQuery(query string) (string, error) {
-	cmd := exec.Command("cqlsh", "-e", query)
+func cqlshExec(query string) (string, error) {
+	cmd := exec.Command("cqlsh", "--request-timeout=60", "-e", query)
 
-	// Run the command and capture its combined stdout and stderr.
-	output, err := cmd.CombinedOutput()
+	var stdout, stderr bytes.Buffer
+	cmd.Stdout = &stdout
+	cmd.Stderr = &stderr
+
+	err := cmd.Run()
 	if err != nil {
 		// If the command fails, the error message from cqlsh is in the output.
-		return "", fmt.Errorf("cqlsh command failed: %w\nOutput: %s", err, string(output))
+		return "", fmt.Errorf("cqlsh command failed: %w\nOutput: %s", err, stderr.String())
 	}
 
-	raw := string(output)
+	errStr := stderr.String()
+	if errStr != "" {
+		return "", errors.New(errStr)
+	}
+
+	raw := stdout.String()
 	var fixed []string = nil
 	for _, s := range strings.Split(raw, "\n") {
 		if strings.TrimSpace(s) == "" {
@@ -136,8 +146,8 @@ func executeCQLSHQuery(query string) (string, error) {
 	return strings.Join(fixed, "\n"), nil
 }
 
-func runCQLSHDescribe(query string) ([]string, error) {
-	output, err := executeCQLSHQuery(query)
+func cqlshDescribe(query string) ([]string, error) {
+	output, err := cqlshExec(query)
 	if err != nil {
 		return nil, err
 	}
@@ -154,17 +164,15 @@ func runCQLSHDescribe(query string) ([]string, error) {
 
 // executeCQLQuery runs a query using cqlsh and returns the result as a slice of maps.
 // Each map represents a row, with keys being the column headers.
-func scanCQLSHQuery(query string) ([]map[string]string, error) {
-	output, err := executeCQLSHQuery(query)
+func cqlshScanToMap(query string) ([]map[string]string, error) {
+	output, err := cqlshExec(query)
 	if err != nil {
 		return nil, err
 	}
 
-	// Create a new CSV reader from the command's output string.
 	reader := csv.NewReader(strings.NewReader(output))
 	reader.Comma = '|'
 
-	// Read all the CSV records.
 	records, err := reader.ReadAll()
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse CSV output: %w", err)
@@ -181,7 +189,9 @@ func scanCQLSHQuery(query string) ([]map[string]string, error) {
 
 	var results []map[string]string
 	for _, row := range dataRows {
-		// Create a map for the current row.
+		if len(row) == 0 {
+			continue
+		}
 		rowData := make(map[string]string)
 		for i, value := range row {
 			// Check if the row has the same number of columns as the header.

@@ -2151,20 +2151,23 @@ func (c *client) handleDescribeTableColumns(hdr *frame.Header, keyspace, table s
 		return
 	}
 
-	// Get column metadata for the specified table
-	columns, err := tableConfig.GetMetadataForColumns(nil)
-	if err != nil {
-		c.sender.Send(hdr, &message.Invalid{ErrorMessage: fmt.Sprintf("Error getting column metadata: %v", err)})
-		return
+	columns := []*message.ColumnMetadata{
+		{
+			Name:     "create_statement",
+			Type:     datatype.Varchar,
+			Table:    tableConfig.Name,
+			Keyspace: tableConfig.Keyspace,
+		},
 	}
 
-	// Create response with column metadata
+	stmt := tableConfig.Describe()
+
 	c.sender.Send(hdr, &message.RowsResult{
 		Metadata: &message.RowsMetadata{
 			ColumnCount: int32(len(columns)),
 			Columns:     columns,
 		},
-		Data: []message.Row{}, // Empty data as we're just describing the structure
+		Data: []message.Row{{[]byte(stmt)}},
 	})
 }
 
@@ -2180,58 +2183,13 @@ func (c *client) handleDescribeKeyspace(hdr *frame.Header, keyspaceName string) 
 	}
 
 	// 1. CREATE KEYSPACE statement with all Cassandra properties
-	createStmts := []string{}
+	var createStmts []string
 
 	// 2. CREATE TABLE statements for each table in the keyspace
 	tablesMap, ok := c.proxy.schemaMapping.GetAllTables()[keyspaceName]
 	if ok {
-		for tableName, tableConfig := range tablesMap {
-			var colDefs []string
-			var pkCols []string
-			var clusteringCols []string
-
-			// Sort column names for consistent output
-			var colNames []string
-			for colName := range tableConfig.Columns {
-				colNames = append(colNames, colName)
-			}
-			sort.Strings(colNames)
-
-			// First collect all column definitions with their data types
-			for _, colName := range colNames {
-				col := tableConfig.Columns[colName]
-				colDefs = append(colDefs, fmt.Sprintf("%s %s", colName, col.CQLType))
-				if col.IsPrimaryKey {
-					if col.KeyType == "partition" {
-						pkCols = append(pkCols, colName)
-					} else if col.KeyType == "clustering" {
-						clusteringCols = append(clusteringCols, colName)
-					}
-				}
-			}
-
-			// Sort primary key columns by precedence
-			sort.Strings(pkCols)
-			sort.Strings(clusteringCols)
-
-			// Build primary key clause
-			pkClause := ""
-			if len(pkCols) > 0 {
-				if len(clusteringCols) > 0 {
-					pkClause = fmt.Sprintf(",\n    PRIMARY KEY ((%s), %s)",
-						strings.Join(pkCols, ", "),
-						strings.Join(clusteringCols, ", "))
-				} else {
-					pkClause = fmt.Sprintf(",\n    PRIMARY KEY (%s)",
-						strings.Join(pkCols, ", "))
-				}
-
-			}
-
-			createTableStmt := fmt.Sprintf("CREATE TABLE %s.%s (\n    %s%s\n);",
-				keyspaceName, tableName,
-				strings.Join(colDefs, ",\n    "),
-				pkClause)
+		for _, tableConfig := range tablesMap {
+			createTableStmt := tableConfig.Describe()
 			createStmts = append(createStmts, createTableStmt)
 		}
 	}

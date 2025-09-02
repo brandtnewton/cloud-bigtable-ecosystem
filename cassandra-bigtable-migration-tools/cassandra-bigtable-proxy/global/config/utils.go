@@ -1,7 +1,6 @@
 package config
 
 import (
-	"cassandra-to-bigtable-proxy/utilities"
 	"fmt"
 	"os"
 	"strings"
@@ -33,29 +32,20 @@ func parseProtocolVersion(s string) (version primitive.ProtocolVersion, ok bool)
 }
 
 // LoadConfig reads and parses the configuration from a YAML file
-func loadProxyConfig(filename string, args *CliArgs) (*ProxyConfig, error) {
+func loadProxyConfigFile(filename string, args *CliArgs) (*ProxyGlobalConfig, []*ProxyInstanceConfig, error) {
 	data, err := readFile(filename)
 	if err != nil {
-		return nil, fmt.Errorf("failed to read config file: %w", err)
+		return nil, nil, fmt.Errorf("failed to read config file: %w", err)
 	}
 
 	var config yamlProxyConfig
 	if err = yaml.Unmarshal(data, &config); err != nil {
-		return nil, fmt.Errorf("failed to unmarshal config: %w", err)
-	}
-
-	var listeners []*Listener = nil
-	for _, l := range config.Listeners {
-		listener, err := loadListenerConfig(&l, &config, args)
-		if err != nil {
-			return nil, err
-		}
-		listeners = append(listeners, listener)
+		return nil, nil, fmt.Errorf("failed to unmarshal config: %w", err)
 	}
 
 	// todo unit test with parent configs not defined to ensure no NPE is thrown
-	result := ProxyConfig{
-		Listeners: listeners,
+	globalConfig := &ProxyGlobalConfig{
+		CliArgs: args,
 		Otel: &OtelConfig{
 			Enabled:     config.Otel.Enabled,
 			ServiceName: config.Otel.ServiceName,
@@ -79,7 +69,7 @@ func loadProxyConfig(filename string, args *CliArgs) (*ProxyConfig, error) {
 				SamplingRatio: config.Otel.Traces.SamplingRatio,
 			},
 		},
-		LoggerConfig: &utilities.LoggerConfig{
+		LoggerConfig: &LoggerConfig{
 			OutputType: config.LoggerConfig.OutputType,
 			Filename:   config.LoggerConfig.Filename,
 			MaxSize:    config.LoggerConfig.MaxSize,
@@ -89,10 +79,19 @@ func loadProxyConfig(filename string, args *CliArgs) (*ProxyConfig, error) {
 		},
 	}
 
-	return &result, nil
+	var instanceConfigs []*ProxyInstanceConfig = nil
+	for _, l := range config.Listeners {
+		listener, err := loadListenerConfig(&l, &config, globalConfig)
+		if err != nil {
+			return nil, nil, err
+		}
+		instanceConfigs = append(instanceConfigs, listener)
+	}
+
+	return globalConfig, instanceConfigs, nil
 }
 
-func loadListenerConfig(l *yamlListener, config *yamlProxyConfig, args *CliArgs) (*Listener, error) {
+func loadListenerConfig(l *yamlListener, config *yamlProxyConfig, globalConfig *ProxyGlobalConfig) (*ProxyInstanceConfig, error) {
 	projectId := l.Bigtable.ProjectID
 	if projectId == "" {
 		projectId = config.CassandraToBigtableConfigs.ProjectID
@@ -143,22 +142,17 @@ func loadListenerConfig(l *yamlListener, config *yamlProxyConfig, args *CliArgs)
 	if l.Bigtable.EncodeIntRowKeysWithBigEndian {
 		intRowKeyEncoding = types.BigEndianEncoding
 	}
-	return &Listener{
-		Name: l.Name,
-		Port: l.Port,
-		Bigtable: &Bigtable{
-			ProjectID:          projectId,
-			Instances:          instances,
-			SchemaMappingTable: schemaMappingTable,
-			Session: &Session{
-				GrpcChannels: l.Bigtable.Session.GrpcChannels,
-			},
-			DefaultColumnFamily:      l.Bigtable.DefaultColumnFamily,
-			DefaultIntRowKeyEncoding: intRowKeyEncoding,
-			UserAgent:                getUserAgent(args),
+
+	bigtableConfig := &BigtableConfig{
+		ProjectID:          projectId,
+		Instances:          instances,
+		SchemaMappingTable: schemaMappingTable,
+		Session: &Session{
+			GrpcChannels: l.Bigtable.Session.GrpcChannels,
 		},
-		Otel: &Otel{
-			Disabled: false,
-		},
-	}, nil
+		DefaultColumnFamily:      l.Bigtable.DefaultColumnFamily,
+		DefaultIntRowKeyEncoding: intRowKeyEncoding,
+	}
+
+	return NewProxyInstanceConfig(globalConfig, l.Port, bigtableConfig), nil
 }

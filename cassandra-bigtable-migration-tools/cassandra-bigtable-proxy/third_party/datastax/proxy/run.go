@@ -1,6 +1,6 @@
 // Copyright (c) DataStax, Inc.
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
+// Licensed under the Apache License, ProtocolVersion 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
@@ -15,122 +15,61 @@
 package proxy
 
 import (
-	"cassandra-to-bigtable-proxy/utilities"
 	"context"
 	"crypto/tls"
 	"fmt"
 	"net"
 	"net/http"
 	"os"
-	"strconv"
 	"sync"
 
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/global/config"
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/global/constants"
+	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/utilities"
 	"go.uber.org/zap"
-)
-
-var (
-	defaultTcpBindPort = "0.0.0.0:%s"
 )
 
 // Run starts the proxy command. 'args' shouldn't include the executable (i.e. os.Args[1:]). It returns the exit code
 // for the proxy.
 func Run(ctx context.Context, args []string) error {
-	cliArgs, err := config.ParseCliArgs(args)
-
+	proxyGlobalConfig, proxyInstanceConfigs, err := config.ParseProxyConfigFromArgs(args)
 	if err != nil {
 		return err
 	}
 
-	proxyConfig, err := config.ParseProxyConfig(cliArgs)
-	if err != nil {
-		return err
-	}
-
-	flag := false
-	supportedLogLevels := []string{"info", "debug", "error", "warn"}
-	for _, level := range supportedLogLevels {
-		if cliArgs.LogLevel == level {
-			flag = true
-		}
-	}
-	if !flag {
-		return fmt.Errorf("Invalid log-level should be [info/debug/error/warn]")
-	}
-
-	logger, err := utilities.SetupLogger(cliArgs.LogLevel, proxyConfig.LoggerConfig)
+	logger, err := utilities.SetupLogger(proxyGlobalConfig.CliArgs.LogLevel, proxyGlobalConfig.LoggerConfig)
 	if err != nil {
 		return fmt.Errorf("unable to create logger")
 	}
 	defer logger.Sync()
-	if cliArgs.Version {
-		fmt.Printf("Version - %s\n", constants.ProxyReleaseVersion)
+	if proxyGlobalConfig.CliArgs.Version {
+		fmt.Printf("ProtocolVersion - %s\n", constants.ProxyReleaseVersion)
 		return nil
 	}
 
-	if proxyConfig.Otel == nil {
-		proxyConfig.Otel = &config.OtelConfig{
-			Enabled: false,
-		}
-	} else {
-		if proxyConfig.Otel.Enabled {
-			if proxyConfig.Otel.Traces.SamplingRatio < 0 || proxyConfig.Otel.Traces.SamplingRatio > 1 {
-				return fmt.Errorf("Sampling Ratio for Otel Traces should be between 0 and 1]")
-			}
-		}
-	}
-
-	// config logs.
-	logger.Info("Protocol Version:" + cliArgs.Version)
-	logger.Info("CQL Version:" + cliArgs.CQLVersion)
-	logger.Info("Release Version:" + cliArgs.ReleaseVersion)
-	logger.Info("Partitioner:" + cliArgs.Partitioner)
-	logger.Info("Data Center:" + cliArgs.DataCenter)
-	logger.Debug("Configuration - ", zap.Any("ProxyConfig", proxyConfig))
+	logger.Info("Protocol Version:" + proxyGlobalConfig.ProtocolVersion.String())
+	logger.Info("CQL Version:" + proxyGlobalConfig.CQLVersion)
+	logger.Info("Release Version:" + proxyGlobalConfig.ReleaseVersion)
+	logger.Info("Partitioner:" + proxyGlobalConfig.Partitioner)
+	logger.Info("Data Center:" + proxyGlobalConfig.CliArgs.DataCenter)
+	logger.Debug("Configuration - ", zap.Any("ProxyGlobalConfig", proxyGlobalConfig))
 	var wg sync.WaitGroup
 
-	for _, listener := range proxyConfig.Listeners {
-
-		p, err1 := NewProxy(ctx, Config{
-			Version:        version,
-			MaxVersion:     maxVersion,
-			NumConns:       cliArgs.NumConns,
-			Logger:         logger,
-			RPCAddr:        cliArgs.RpcAddress,
-			DC:             cliArgs.DataCenter,
-			Tokens:         cliArgs.Tokens,
-			BigtableConfig: listener.Bigtable,
-			Partitioner:    partitioner,
-			ReleaseVersion: releaseVersion,
-			CQLVersion:     cqlVersion,
-			OtelConfig:     proxyConfig.Otel,
-			UserAgent:      listener.Bigtable.UserAgent,
-			ClientPid:      cliArgs.ClientPid,
-			ClientUid:      cliArgs.ClientUid,
-		})
-
-		if err1 != nil {
-			logger.Error(err1.Error())
-			return err1
+	for _, listenerConfig := range proxyInstanceConfigs {
+		p, err := NewProxy(ctx, listenerConfig)
+		if err != nil {
+			logger.Error(err.Error())
+			return err
 		}
-		tcpPort := defaultTcpBindPort
-		if cliArgs.TcpBindPort != "" {
-			tcpPort = cliArgs.TcpBindPort
-		}
-		cfgloop := cliArgs
-		cfgloop.Bind = fmt.Sprintf(tcpPort, strconv.Itoa(listener.Port))
-		cfgloop.Bind = maybeAddPort(cfgloop.Bind, "9042")
-
 		var mux http.ServeMux
 		wg.Add(1)
-		go func(cfg *config.rawCliArgs, p *Proxy, mux *http.ServeMux) {
+		go func(cfg *config.ProxyGlobalConfig, p *Proxy, mux *http.ServeMux) {
 			defer wg.Done()
-			err := listenAndServe(cfg, p, mux, ctx, logger) // Use cfg2 or other instances as needed
+			err := listenAndServe(listenerConfig, p, mux, ctx, logger) // Use cfg2 or other instances as needed
 			if err != nil {
 				logger.Fatal("Error while serving - ", zap.Error(err))
 			}
-		}(cfgloop, p, &mux)
+		}(proxyGlobalConfig, p, &mux)
 
 	}
 	wg.Wait() // Wait for all servers to finish
@@ -139,36 +78,28 @@ func Run(ctx context.Context, args []string) error {
 	return nil
 }
 
-// maybeAddPort adds the default port to an IP; otherwise, it returns the original address.
-func maybeAddPort(addr string, defaultPort string) string {
-	if net.ParseIP(addr) != nil {
-		return net.JoinHostPort(addr, defaultPort)
-	}
-	return addr
-}
-
 // listenAndServe correctly handles serving both the proxy and an HTTP server simultaneously.
-func listenAndServe(c *config.rawCliArgs, p *Proxy, mux *http.ServeMux, ctx context.Context, logger *zap.Logger) (err error) {
+func listenAndServe(c *config.ProxyInstanceConfig, p *Proxy, mux *http.ServeMux, ctx context.Context, logger *zap.Logger) (err error) {
 	logger.Info("Starting proxy with configuration:\n")
 	logger.Info(fmt.Sprintf("  Bind: %s\n", c.Bind))
-	logger.Info(fmt.Sprintf("  Use Unix Socket: %v\n", c.UseUnixSocket))
-	logger.Info(fmt.Sprintf("  Unix Socket Path: %s\n", c.UnixSocketPath))
-	logger.Info(fmt.Sprintf("  Use TLS: %v\n", c.ProxyCertFile != "" && c.ProxyKeyFile != ""))
+	logger.Info(fmt.Sprintf("  Use Unix Socket: %v\n", c.GlobalConfig.CliArgs.UseUnixSocket))
+	logger.Info(fmt.Sprintf("  Unix Socket Path: %s\n", c.GlobalConfig.CliArgs.UnixSocketPath))
+	logger.Info(fmt.Sprintf("  Use TLS: %v\n", c.GlobalConfig.CliArgs.ProxyCertFile != "" && c.GlobalConfig.CliArgs.ProxyKeyFile != ""))
 
 	var listeners []net.Listener
 
 	// Set up listener based on configuration
-	if c.UseUnixSocket {
+	if c.GlobalConfig.CliArgs.UseUnixSocket {
 		// Use Unix Domain Socket
-		unixListener, err := resolveAndListen("", true, c.UnixSocketPath, "", "", logger)
+		unixListener, err := resolveAndListen("", true, c.GlobalConfig.CliArgs.UnixSocketPath, "", "", logger)
 		if err != nil {
 			return fmt.Errorf("failed to create Unix socket listener: %v", err)
 		}
 		listeners = append(listeners, unixListener)
-		logger.Info(fmt.Sprintf("Unix socket listener created successfully at %s\n", c.UnixSocketPath))
+		logger.Info(fmt.Sprintf("Unix socket listener created successfully at %s\n", c.GlobalConfig.CliArgs.UnixSocketPath))
 	} else {
 		// Use TCP
-		tcpListener, err := resolveAndListen(c.Bind, false, "", c.ProxyCertFile, c.ProxyKeyFile, logger)
+		tcpListener, err := resolveAndListen(c.GlobalConfig.CliArgs.Bind, false, "", c.GlobalConfig.CliArgs.ProxyCertFile, c.GlobalConfig.CliArgs.ProxyKeyFile, logger)
 		if err != nil {
 			return fmt.Errorf("failed to create TCP listener: %v", err)
 		}
@@ -176,8 +107,8 @@ func listenAndServe(c *config.rawCliArgs, p *Proxy, mux *http.ServeMux, ctx cont
 		logger.Info(fmt.Sprintf("TCP listener created successfully on %s\n", c.Bind))
 	}
 
-	// Set up Bigtable client
-	logger.Info("Initializing Bigtable client...\n")
+	// Set up BigtableConfig client
+	logger.Info("Initializing BigtableConfig client...\n")
 	err = p.Connect()
 	if err != nil {
 		for _, l := range listeners {
@@ -185,7 +116,7 @@ func listenAndServe(c *config.rawCliArgs, p *Proxy, mux *http.ServeMux, ctx cont
 		}
 		return err
 	}
-	logger.Info("Bigtable client initialized successfully\n")
+	logger.Info("BigtableConfig client initialized successfully\n")
 
 	var wg sync.WaitGroup
 	ch := make(chan error)

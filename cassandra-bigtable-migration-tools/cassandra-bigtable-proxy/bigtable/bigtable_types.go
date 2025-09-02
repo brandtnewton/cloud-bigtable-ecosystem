@@ -1,7 +1,7 @@
 /*
  * Copyright (C) 2025 Google LLC
  *
- * Licensed under the Apache License, Version 2.0 (the "License"); you may not
+ * Licensed under the Apache License, ProtocolVersion 2.0 (the "License"); you may not
  * use this file except in compliance with the License. You may obtain a copy of
  * the License at
  *
@@ -48,7 +48,7 @@ type BigtableClient struct {
 	AdminClients        map[string]*bigtable.AdminClient
 	Logger              *zap.Logger
 	SqlClient           btpb.BigtableClient
-	BigtableConfig      *config.Bigtable
+	BigtableConfig      *config.BigtableConfig
 	ResponseHandler     rh.ResponseHandlerIface
 	SchemaMappingConfig *schemaMapping.SchemaMappingConfig
 }

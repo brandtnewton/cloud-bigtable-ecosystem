@@ -1,6 +1,6 @@
 // Copyright (c) DataStax, Inc.
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
+// Licensed under the Apache License, ProtocolVersion 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
@@ -113,31 +113,9 @@ const (
 	sendingBulkApplyMutation            = "Sending Mutation For Bulk Apply"
 )
 
-type Config struct {
-	Version        primitive.ProtocolVersion
-	MaxVersion     primitive.ProtocolVersion
-	RetryPolicy    RetryPolicy
-	NumConns       int
-	Logger         *zap.Logger
-	RPCAddr        string
-	DC             string
-	Tokens         []string
-	BigtableConfig *config.Bigtable
-	OtelConfig     *config.OtelConfig
-	ReleaseVersion string
-	Partitioner    string
-	CQLVersion     string
-	// PreparedCache a cache that stores prepared queries. If not set it uses the default implementation with a max
-	// capacity of ~100MB.
-	PreparedCache proxycore.PreparedCache
-	UserAgent     string
-	ClientPid     int32
-	ClientUid     uint32
-}
-
 type Proxy struct {
 	ctx                      context.Context
-	config                   Config
+	config                   *config.ProxyInstanceConfig
 	logger                   *zap.Logger
 	cluster                  *proxycore.Cluster
 	sessions                 [primitive.ProtocolVersionDse2 + 1]sync.Map // Cache sessions per protocol version
@@ -174,9 +152,9 @@ func (p *Proxy) OnEvent(event proxycore.Event) {
 	}
 }
 
-func createBigtableConnection(ctx context.Context, config Config) (map[string]*bigtable.Client, map[string]*bigtable.AdminClient, error) {
+func createBigtableConnection(ctx context.Context, config *config.ProxyInstanceConfig) (map[string]*bigtable.Client, map[string]*bigtable.AdminClient, error) {
 
-	bigtableClients, adminClients, err := bigtableModule.CreateClientsForInstances(ctx, config.BigtableConfig)
+	bigtableClients, adminClients, err := bigtableModule.CreateClientsForInstances(ctx, config)
 	if err != nil {
 		config.Logger.Error("Failed to create yamlBigtable client: " + err.Error())
 		return nil, nil, err
@@ -184,17 +162,7 @@ func createBigtableConnection(ctx context.Context, config Config) (map[string]*b
 	return bigtableClients, adminClients, nil
 }
 
-func NewProxy(ctx context.Context, config Config) (*Proxy, error) {
-	if config.Version == 0 {
-		config.Version = primitive.ProtocolVersion4
-	}
-	if config.MaxVersion == 0 {
-		config.MaxVersion = primitive.ProtocolVersion4
-	}
-	if config.RetryPolicy == nil {
-		config.RetryPolicy = NewDefaultRetryPolicy()
-	}
-
+func NewProxy(ctx context.Context, config *config.ProxyInstanceConfig) (*Proxy, error) {
 	bigtableClients, adminClients, err := createBigtableConnection(ctx, config)
 	if err != nil {
 		return nil, err
@@ -236,7 +204,7 @@ func NewProxy(ctx context.Context, config Config) (*Proxy, error) {
 			TraceSampleRatio:   config.OtelConfig.Traces.SamplingRatio,
 			HealthCheckEnabled: config.OtelConfig.HealthCheck.Enabled,
 			HealthCheckEp:      config.OtelConfig.HealthCheck.Endpoint,
-			ServiceVersion:     config.Version.String(),
+			ServiceVersion:     config.GlobalConfig.ProtocolVersion.String(),
 		}
 	} else {
 		otelConfig = &otelgo.OTelConfig{OTELEnabled: false}
@@ -277,14 +245,14 @@ func (p *Proxy) Connect() error {
 	}
 
 	var err error
-	p.preparedCache, err = getOrCreateDefaultPreparedCache(p.config.PreparedCache)
+	p.preparedCache, err = NewDefaultPreparedCache(1e8 / 256) // ~100MB with an average query size of 256 bytes
 	if err != nil {
 		return fmt.Errorf("unable to create prepared cache %w", err)
 	}
 
 	//  connecting to cassandra cluster
 	p.cluster, err = proxycore.ConnectCluster(p.ctx, proxycore.ClusterConfig{
-		Version: p.config.Version,
+		Version: p.config.GlobalConfig.ProtocolVersion,
 		Logger:  p.logger,
 	})
 
@@ -412,7 +380,7 @@ func (p *Proxy) handle(conn net.Conn) {
 
 	if unixConn, ok := conn.(*net.UnixConn); ok {
 		UCred, err := getUdsPeerCredentials(unixConn)
-		if err != nil || p.config.ClientPid != UCred.Pid || p.config.ClientUid != UCred.Uid {
+		if err != nil || p.config.GlobalConfig.ClientPid != UCred.Pid || p.config.GlobalConfig.ClientUid != UCred.Uid {
 			conn.Close()
 			p.logger.Error("failed to authenticate connection")
 		}
@@ -456,18 +424,18 @@ func (p *Proxy) buildLocalRow() {
 		"data_center":             p.encodeTypeFatal(datatype.Varchar, p.localNode.dc),
 		"rack":                    p.encodeTypeFatal(datatype.Varchar, "rack1"),
 		"tokens":                  p.encodeTypeFatal(datatype.NewListType(datatype.Varchar), [1]string{"-9223372036854775808"}),
-		"release_version":         p.encodeTypeFatal(datatype.Varchar, p.config.ReleaseVersion),
-		"partitioner":             p.encodeTypeFatal(datatype.Varchar, p.config.Partitioner),
+		"release_version":         p.encodeTypeFatal(datatype.Varchar, p.config.GlobalConfig.ReleaseVersion),
+		"partitioner":             p.encodeTypeFatal(datatype.Varchar, p.config.GlobalConfig.Partitioner),
 		"cluster_name":            p.encodeTypeFatal(datatype.Varchar, "cql-proxy"),
-		"cql_version":             p.encodeTypeFatal(datatype.Varchar, p.config.CQLVersion),
+		"cql_version":             p.encodeTypeFatal(datatype.Varchar, p.config.GlobalConfig.CQLVersion),
 		"schema_version":          p.encodeTypeFatal(datatype.Uuid, schemaVersion), // TODO: Make this match the downstream cluster(s)
-		"native_protocol_version": p.encodeTypeFatal(datatype.Varchar, p.config.Version.String()),
+		"native_protocol_version": p.encodeTypeFatal(datatype.Varchar, p.config.GlobalConfig.ProtocolVersion.String()),
 		"dse_version":             p.encodeTypeFatal(datatype.Varchar, p.cluster.Info.DSEVersion),
 	}
 }
 
 func (p *Proxy) encodeTypeFatal(dt datatype.DataType, val interface{}) []byte {
-	encoded, err := proxycore.EncodeType(dt, p.config.Version, val)
+	encoded, err := proxycore.EncodeType(dt, p.config.GlobalConfig.ProtocolVersion, val)
 	if err != nil {
 		p.logger.Fatal("unable to encode type", zap.Error(err))
 	}
@@ -581,7 +549,7 @@ func (c *client) Receive(reader io.Reader) error {
 		return err
 	}
 
-	if raw.Header.Version > c.proxy.config.MaxVersion || raw.Header.Version < primitive.ProtocolVersion3 {
+	if raw.Header.Version > c.proxy.config.GlobalConfig.MaxVersion || raw.Header.Version < primitive.ProtocolVersion3 {
 		c.sender.Send(raw.Header, &message.ProtocolError{
 			ErrorMessage: fmt.Sprintf("Invalid or unsupported protocol version %d", raw.Header.Version),
 		})
@@ -598,7 +566,7 @@ func (c *client) Receive(reader io.Reader) error {
 	case *message.Options:
 		// CC - responding with status READY
 		c.sender.Send(raw.Header, &message.Supported{Options: map[string][]string{
-			"CQL_VERSION": {c.proxy.config.CQLVersion},
+			"CQL_VERSION": {c.proxy.config.GlobalConfig.CQLVersion},
 			"COMPRESSION": {},
 		}})
 	case *message.Startup:
@@ -1947,13 +1915,6 @@ func (c *client) Closing(_ error) {
 	c.proxy.removeClient(c)
 }
 
-func getOrCreateDefaultPreparedCache(cache proxycore.PreparedCache) (proxycore.PreparedCache, error) {
-	if cache == nil {
-		return NewDefaultPreparedCache(1e8 / 256) // ~100MB with an average query size of 256 bytes
-	}
-	return cache, nil
-}
-
 // NewDefaultPreparedCache creates a new default prepared cache capping the max item capacity to `size`.
 func NewDefaultPreparedCache(size int) (proxycore.PreparedCache, error) {
 	cache, err := lru.New(size)
@@ -2235,7 +2196,7 @@ func (c *client) handleEvent(event proxycore.Event) {
 	switch evt := event.(type) {
 	case *proxycore.SchemaChangeEvent:
 		c.sender.Send(&frame.Header{
-			Version:  c.proxy.config.Version,
+			Version:  c.proxy.config.GlobalConfig.ProtocolVersion,
 			StreamId: -1, // -1 for events
 			OpCode:   primitive.OpCodeEvent,
 		}, evt.Message)

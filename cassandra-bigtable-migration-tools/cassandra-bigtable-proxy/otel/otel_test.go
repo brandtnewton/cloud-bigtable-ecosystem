@@ -1,7 +1,7 @@
 /*
  * Copyright (C) 2025 Google LLC
  *
- * Licensed under the Apache License, Version 2.0 (the "License"); you may not
+ * Licensed under the Apache License, ProtocolVersion 2.0 (the "License"); you may not
  * use this file except in compliance with the License. You may obtain a copy of
  * the License at
  *
@@ -581,7 +581,7 @@ func Test_buildOtelResource(t *testing.T) {
 			},
 		},
 		{
-			name: "Missing Service Version",
+			name: "Missing Service ProtocolVersion",
 			config: &OTelConfig{
 				ServiceName:    "test-service",
 				ServiceVersion: "",

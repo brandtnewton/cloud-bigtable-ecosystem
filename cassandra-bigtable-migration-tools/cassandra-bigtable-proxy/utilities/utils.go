@@ -1,7 +1,7 @@
 /*
 * Copyright (C) 2025 Google LLC
 *
-* Licensed under the Apache License, Version 2.0 (the "License"); you may not
+* Licensed under the Apache License, ProtocolVersion 2.0 (the "License"); you may not
 * use this file except in compliance with the License. You may obtain a copy of
 * the License at
 *
@@ -24,6 +24,7 @@ import (
 	"time"
 
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/collectiondecoder"
+	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/global/config"
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/global/types"
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/third_party/datastax/proxycore"
 	"github.com/datastax/go-cassandra-native-protocol/datatype"
@@ -38,15 +39,6 @@ const (
 	KEY_TYPE_CLUSTERING = "clustering"
 	KEY_TYPE_REGULAR    = "regular"
 )
-
-type LoggerConfig struct {
-	OutputType string `yaml:"outputType"`
-	Filename   string `yaml:"fileName"`
-	MaxSize    int    `yaml:"maxSize"`    // megabytes
-	MaxBackups int    `yaml:"maxBackups"` // The value of MaxBackups determines how many previous log files are kept after a new log file is created due to the MaxSize or MaxAge limits.
-	MaxAge     int    `yaml:"maxAge"`     // days
-	Compress   bool   `yaml:"compress"`   // the rotated log files to be compressed to save disk space.
-}
 
 var (
 	MapOfStrToStr     = datatype.NewMapType(datatype.Varchar, datatype.Varchar)
@@ -217,7 +209,7 @@ func decodeNonPrimitive(choice datatype.PrimitiveType, b []byte) (any, error) {
 // SetupLogger() initializes a zap.Logger instance based on the provided log level and logger configuration.
 // If loggerConfig specifies file output, it sets up a file-based logger. Otherwise, it defaults to console output.
 // Returns the configured zap.Logger or an error if setup fails.
-func SetupLogger(logLevel string, loggerConfig *LoggerConfig) (*zap.Logger, error) {
+func SetupLogger(logLevel string, loggerConfig *config.LoggerConfig) (*zap.Logger, error) {
 	supportedLogLevels := []string{"info", "debug", "error", "warn"}
 	if !slices.Contains(supportedLogLevels, logLevel) {
 		return nil, fmt.Errorf("Invalid log-level should be [%s]", strings.Join(supportedLogLevels, "|"))
@@ -255,7 +247,7 @@ func getLogLevel(logLevel string) zap.AtomicLevel {
 // setupFileLogger() configures a zap.Logger for file output using a lumberjack.Logger for log rotation.
 // Accepts a zap.AtomicLevel and a LoggerConfig struct to customize log output and rotation settings.
 // Returns the configured zap.Logger or an error if setup fails.
-func setupFileLogger(level zap.AtomicLevel, loggerConfig *LoggerConfig) (*zap.Logger, error) {
+func setupFileLogger(level zap.AtomicLevel, loggerConfig *config.LoggerConfig) (*zap.Logger, error) {
 	rotationalLogger := &lumberjack.Logger{
 		Filename:   defaultIfEmpty(loggerConfig.Filename, "/var/log/cassandra-to-spanner-proxy/output.log"),
 		MaxSize:    loggerConfig.MaxSize,                       // megabytes, default 100MB

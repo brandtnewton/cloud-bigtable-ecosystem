@@ -33,6 +33,7 @@ import (
 
 	"cloud.google.com/go/bigtable"
 	bigtableModule "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/bigtable"
+	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/global/config"
 	constants "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/global/constants"
 	otelgo "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/otel"
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/responsehandler"
@@ -90,7 +91,7 @@ const (
 	handleExecuteForUpdate = "handleExecuteForUpdate"
 	handleExecuteForSelect = "handleExecuteForSelect"
 	cassandraQuery         = "Cassandra Query"
-	bigtableQuery          = "Bigtable Query"
+	bigtableQuery          = "yamlBigtable Query"
 	rowKey                 = "Row Key"
 )
 
@@ -105,8 +106,8 @@ var (
 
 // Events
 const (
-	executingBigtableRequestEvent       = "Executing Bigtable Mutation Request"
-	executingBigtableSQLAPIRequestEvent = "Executing Bigtable SQL API Request"
+	executingBigtableRequestEvent       = "Executing yamlBigtable Mutation Request"
+	executingBigtableSQLAPIRequestEvent = "Executing yamlBigtable SQL API Request"
 	bigtableExecutionDoneEvent          = "bigtable Execution Done"
 	gotBulkApplyResp                    = "Got the response for bulk apply"
 	sendingBulkApplyMutation            = "Sending Mutation For Bulk Apply"
@@ -121,8 +122,8 @@ type Config struct {
 	RPCAddr        string
 	DC             string
 	Tokens         []string
-	BigtableConfig bigtableModule.BigtableConfig
-	OtelConfig     *OtelConfig
+	BigtableConfig *config.Bigtable
+	OtelConfig     *config.OtelConfig
 	ReleaseVersion string
 	Partitioner    string
 	CQLVersion     string
@@ -175,17 +176,9 @@ func (p *Proxy) OnEvent(event proxycore.Event) {
 
 func createBigtableConnection(ctx context.Context, config Config) (map[string]*bigtable.Client, map[string]*bigtable.AdminClient, error) {
 
-	// Initialize Bigtable client
-	connConfig := bigtableModule.ConnConfig{
-		InstancesMap:  config.BigtableConfig.InstancesMap,
-		NumOfChannels: config.BigtableConfig.NumOfChannels,
-		GCPProjectID:  config.BigtableConfig.GCPProjectID,
-		UserAgent:     config.UserAgent,
-	}
-
-	bigtableClients, adminClients, err := bigtableModule.CreateClientsForInstances(ctx, connConfig)
+	bigtableClients, adminClients, err := bigtableModule.CreateClientsForInstances(ctx, config.BigtableConfig)
 	if err != nil {
-		config.Logger.Error("Failed to create Bigtable client: " + err.Error())
+		config.Logger.Error("Failed to create yamlBigtable client: " + err.Error())
 		return nil, nil, err
 	}
 	return bigtableClients, adminClients, nil
@@ -208,8 +201,8 @@ func NewProxy(ctx context.Context, config Config) (*Proxy, error) {
 	}
 	logger := proxycore.GetOrCreateNopLogger(config.Logger)
 	smc := schemaMapping.NewSchemaMappingConfig(config.BigtableConfig.SchemaMappingTable, config.BigtableConfig.DefaultColumnFamily, logger, nil)
-	bigtableCl := bigtableModule.NewBigtableClient(bigtableClients, adminClients, logger, config.BigtableConfig, &responsehandler.TypeHandler{}, smc, config.BigtableConfig.InstancesMap)
-	for k := range config.BigtableConfig.InstancesMap {
+	bigtableCl := bigtableModule.NewBigtableClient(bigtableClients, adminClients, logger, config.BigtableConfig, &responsehandler.TypeHandler{}, smc)
+	for k := range config.BigtableConfig.Instances {
 		tableConfigs, err := bigtableCl.ReadTableConfigs(ctx, k)
 		if err != nil {
 			return nil, err
@@ -812,7 +805,7 @@ func (c *client) prepareDeleteType(raw *frame.RawFrame, msg *message.Prepare, id
 			metadata := message.ColumnMetadata{
 				Keyspace: deleteQueryMetadata.Keyspace,
 				Table:    deleteQueryMetadata.Table,
-				Name:     TimestampColumnName,
+				Name:     config.TimestampColumnName,
 				Index:    deleteQueryMetadata.TimestampInfo.Index,
 				Type:     datatype.Bigint,
 			}

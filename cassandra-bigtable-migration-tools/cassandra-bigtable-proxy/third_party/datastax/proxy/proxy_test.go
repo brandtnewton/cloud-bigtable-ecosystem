@@ -31,6 +31,7 @@ import (
 
 	"cloud.google.com/go/bigtable"
 	bigtableModule "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/bigtable"
+	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/global/config"
 	rh "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/responsehandler"
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/third_party/datastax/parser"
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/utilities"
@@ -1979,7 +1980,7 @@ func TestGetTimestampMetadataForUpdate(t *testing.T) {
 	assert.Len(t, result, 2, "Expected two columns in the result")
 	assert.Equal(t, "test_keyspace", result[0].Keyspace)
 	assert.Equal(t, "test_table", result[0].Table)
-	assert.Equal(t, TimestampColumnName, result[0].Name)
+	assert.Equal(t, config.TimestampColumnName, result[0].Name)
 	assert.Equal(t, int32(0), result[0].Index)         // Assuming Index is of type uint32
 	assert.Equal(t, datatype.Bigint, result[0].Type)   // Assuming Bigint is a valid type
 	assert.Equal(t, "existing_column", result[1].Name) // Check the existing column is still present

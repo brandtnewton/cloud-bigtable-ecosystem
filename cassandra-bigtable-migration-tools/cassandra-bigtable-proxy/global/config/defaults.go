@@ -13,39 +13,83 @@
  * License for the specific language governing permissions and limitations under
  * the License.
  */
-package proxy
+package config
 
-import "fmt"
+import (
+	"errors"
+	"fmt"
 
-var (
-	BigtableGrpcChannels = 1
-	BigtableMinSession   = 100
-	BigtableMaxSession   = 400
-	SchemaMappingTable   = "schema_mapping"
-	ErrorAuditTable      = "error_audit"
-	DefaultColumnFamily  = "cf1"
-	DefaultProfileId     = "default"
-	TimestampColumnName  = "ts_column"
+	"github.com/datastax/go-cassandra-native-protocol/primitive"
 )
 
+var (
+	// todo ensure this is a reasonable default
+	DefaultBigtableGrpcChannels   = 1
+	BigtableMinSession            = 100
+	BigtableMaxSession            = 400
+	DefaultSchemaMappingTableName = "schema_mapping"
+	ErrorAuditTable               = "error_audit"
+	DefaultColumnFamily           = "cf1"
+	DefaultProfileId              = "default"
+	TimestampColumnName           = "ts_column"
+)
+
+func validateCliArgs(args *rawCliArgs) error {
+	if args.NumConns < 1 {
+		return fmt.Errorf("invalid number of connections, must be greater than 0 (provided: %d)", args.NumConns)
+	}
+
+	var ok bool
+	var version primitive.ProtocolVersion
+	if version, ok = parseProtocolVersion(args.ProtocolVersion); !ok {
+		return fmt.Errorf("unsupported protocol version: %s", args.ProtocolVersion)
+	}
+
+	var maxVersion primitive.ProtocolVersion
+	if maxVersion, ok = parseProtocolVersion(args.MaxProtocolVersion); !ok {
+		return fmt.Errorf("unsupported max protocol version: %s", args.ProtocolVersion)
+	}
+
+	if version > maxVersion {
+		return fmt.Errorf("default protocol version is greater than max protocol version")
+	}
+
+	if args.NumConns < 1 {
+		return fmt.Errorf("invalid number of connections, must be greater than 0 (provided: %d)", args.NumConns)
+	}
+
+	return nil
+}
+
 // ApplyDefaults applies default values to the configuration after it is loaded
-func ValidateAndApplyDefaults(cfg *UserConfig) error {
+func validateAndApplyDefaults(cfg *yamlProxyConfig) error {
 	if len(cfg.Listeners) == 0 {
 		return fmt.Errorf("listener configuration is missing in `config.yaml`")
 	}
+
+	if cfg.Otel == nil {
+		cfg.Otel = &yamlOtelConfig{
+			Enabled: false,
+		}
+	} else {
+		if cfg.Otel.Enabled {
+			if cfg.Otel.Traces.SamplingRatio < 0 || cfg.Otel.Traces.SamplingRatio > 1 {
+				return errors.New("Sampling Ratio for Otel Traces should be between 0 and 1]")
+			}
+		}
+	}
+
 	for i := range cfg.Listeners {
 		if cfg.Listeners[i].Bigtable.Session.GrpcChannels == 0 {
-			cfg.Listeners[i].Bigtable.Session.GrpcChannels = BigtableGrpcChannels
+			cfg.Listeners[i].Bigtable.Session.GrpcChannels = DefaultBigtableGrpcChannels
 		}
 		if cfg.Listeners[i].Bigtable.DefaultColumnFamily == "" {
 			cfg.Listeners[i].Bigtable.DefaultColumnFamily = DefaultColumnFamily
 		}
-		if cfg.Listeners[i].Bigtable.AppProfileID == "" {
-			cfg.Listeners[i].Bigtable.AppProfileID = DefaultProfileId
-		}
+
 		if cfg.Listeners[i].Bigtable.SchemaMappingTable == "" {
 			if cfg.CassandraToBigtableConfigs.SchemaMappingTable == "" {
-				cfg.Listeners[i].Bigtable.SchemaMappingTable = SchemaMappingTable
+				cfg.Listeners[i].Bigtable.SchemaMappingTable = DefaultSchemaMappingTableName
 			} else {
 				cfg.Listeners[i].Bigtable.SchemaMappingTable = cfg.CassandraToBigtableConfigs.SchemaMappingTable
 			}

@@ -22,6 +22,7 @@ import (
 	"strings"
 
 	"cloud.google.com/go/bigtable"
+	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/global/config"
 	"google.golang.org/api/option"
 	"google.golang.org/grpc"
 )
@@ -38,7 +39,7 @@ import (
 // Returns:
 //   - A pointer to an initialized bigtable.Client for the specified instance.
 //   - An error if the client setup process encounters any issues.
-func CreateBigtableClient(ctx context.Context, config ConnConfig, instanceConfig InstanceConfig) (*bigtable.Client, error) {
+func CreateBigtableClient(ctx context.Context, config *config.Bigtable, instanceConfig *config.InstancesMapping) (*bigtable.Client, error) {
 	instanceID := instanceConfig.BigtableInstance
 	// Create a gRPC connection pool with the specified number of channels
 	pool := grpc.WithDefaultCallOptions(grpc.MaxCallRecvMsgSize(1024 * 1024 * 10)) // 10 MB max message size
@@ -46,12 +47,12 @@ func CreateBigtableClient(ctx context.Context, config ConnConfig, instanceConfig
 	// Specify gRPC connection options, including your custom number of channels
 	opts := []option.ClientOption{
 		option.WithGRPCDialOption(pool),
-		option.WithGRPCConnectionPool(config.NumOfChannels),
+		option.WithGRPCConnectionPool(config.Session.GrpcChannels),
 		option.WithUserAgent(config.UserAgent),
 	}
 
-	client, err := bigtable.NewClientWithConfig(ctx, config.GCPProjectID, instanceID, bigtable.ClientConfig{
-		AppProfile: instanceConfig.AppProfileId,
+	client, err := bigtable.NewClientWithConfig(ctx, config.ProjectID, instanceID, bigtable.ClientConfig{
+		AppProfile: instanceConfig.AppProfileID,
 	}, opts...)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create Bigtable client for instance %s: %v", instanceID, err)
@@ -59,8 +60,8 @@ func CreateBigtableClient(ctx context.Context, config ConnConfig, instanceConfig
 	return client, nil
 }
 
-func CreateBigtableAdminClient(ctx context.Context, config ConnConfig, instanceID string) (*bigtable.AdminClient, error) {
-	client, err := bigtable.NewAdminClient(ctx, config.GCPProjectID, instanceID, option.WithUserAgent(config.UserAgent))
+func CreateBigtableAdminClient(ctx context.Context, config *config.Bigtable, instanceID string) (*bigtable.AdminClient, error) {
+	client, err := bigtable.NewAdminClient(ctx, config.ProjectID, instanceID, option.WithUserAgent(config.UserAgent))
 	if err != nil {
 		return nil, fmt.Errorf("failed to create Bigtable admin client for instance %s: %v", instanceID, err)
 	}
@@ -77,10 +78,10 @@ func CreateBigtableAdminClient(ctx context.Context, config ConnConfig, instanceI
 // Returns:
 //   - A map[string]*bigtable.Client, where each key is an instance ID and the value is the corresponding Bigtable client.
 //   - An error if the client creation fails for any of the specified instances.
-func CreateClientsForInstances(ctx context.Context, config ConnConfig) (map[string]*bigtable.Client, map[string]*bigtable.AdminClient, error) {
+func CreateClientsForInstances(ctx context.Context, config *config.Bigtable) (map[string]*bigtable.Client, map[string]*bigtable.AdminClient, error) {
 	clients := make(map[string]*bigtable.Client)
 	adminClients := make(map[string]*bigtable.AdminClient)
-	for _, instanceConfig := range config.InstancesMap {
+	for _, instanceConfig := range config.Instances {
 		instanceID := strings.TrimSpace(instanceConfig.BigtableInstance)
 		client, err := CreateBigtableClient(ctx, config, instanceConfig)
 		if err != nil {

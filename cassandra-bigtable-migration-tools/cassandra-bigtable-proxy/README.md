@@ -13,6 +13,8 @@ Cassandra to Cloud Bigtable Proxy Adapter is designed to forward your
 application's CQL traffic to Bigtable database service. It listens on a local
 address and securely forwards that traffic.
 
+If you'd just like to try it out, see [running locally](#build-and-run-proxy-locally).
+
 ## Table of Contents
 
 - [When to use Cassandra to Bigtable Proxy?](#when-to-use-cassandra-to-bigtable-proxy)

@@ -19,7 +19,7 @@ package bigtableclient
 import (
 	"cloud.google.com/go/bigtable"
 	btpb "cloud.google.com/go/bigtable/apiv2/bigtablepb"
-	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/global/types"
+	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/global/config"
 	rh "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/responsehandler"
 	schemaMapping "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/schema-mapping"
 	"go.uber.org/zap"
@@ -42,36 +42,13 @@ type MutationData struct {
 type BulkOperationResponse struct {
 	FailedRows string
 }
-type InstanceConfig struct {
-	BigtableInstance string
-	AppProfileId     string
-}
 
 type BigtableClient struct {
 	Clients             map[string]*bigtable.Client
 	AdminClients        map[string]*bigtable.AdminClient
 	Logger              *zap.Logger
 	SqlClient           btpb.BigtableClient
-	BigtableConfig      BigtableConfig
+	BigtableConfig      *config.Bigtable
 	ResponseHandler     rh.ResponseHandlerIface
 	SchemaMappingConfig *schemaMapping.SchemaMappingConfig
-	InstancesMap        map[string]InstanceConfig
-}
-
-type BigtableConfig struct {
-	SchemaMappingTable  string
-	NumOfChannels       int
-	InstancesMap        map[string]InstanceConfig //map of key[cassandra keyspace] to Instance Configuration[bigtable instance]
-	GCPProjectID        string
-	DefaultColumnFamily string
-	// all new tables should set this to false
-	DefaultIntRowKeyEncoding types.IntRowKeyEncodingType
-}
-
-type ConnConfig struct {
-	InstancesMap  map[string]InstanceConfig //map of key[cassandra keyspace] toInstance Configuration[bigtable instance]
-	NumOfChannels int
-	GCPProjectID  string
-	AppProfileID  string
-	UserAgent     string
 }

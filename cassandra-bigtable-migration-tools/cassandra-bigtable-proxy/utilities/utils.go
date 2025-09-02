@@ -18,7 +18,9 @@ package utilities
 
 import (
 	"fmt"
+	"slices"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/collectiondecoder"
@@ -216,6 +218,10 @@ func decodeNonPrimitive(choice datatype.PrimitiveType, b []byte) (any, error) {
 // If loggerConfig specifies file output, it sets up a file-based logger. Otherwise, it defaults to console output.
 // Returns the configured zap.Logger or an error if setup fails.
 func SetupLogger(logLevel string, loggerConfig *LoggerConfig) (*zap.Logger, error) {
+	supportedLogLevels := []string{"info", "debug", "error", "warn"}
+	if !slices.Contains(supportedLogLevels, logLevel) {
+		return nil, fmt.Errorf("Invalid log-level should be [%s]", strings.Join(supportedLogLevels, "|"))
+	}
 	level := getLogLevel(logLevel)
 
 	if loggerConfig != nil && loggerConfig.OutputType == "file" {

@@ -28,6 +28,7 @@ import (
 	"time"
 
 	"cloud.google.com/go/bigtable"
+	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/global/config"
 	"github.com/datastax/go-cassandra-native-protocol/datatype"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -99,7 +100,7 @@ type BigTableClientIface interface {
 //
 // Returns:
 //   - BigtableClient: New instance of BigtableClient
-var NewBigtableClient = func(client map[string]*bigtable.Client, adminClients map[string]*bigtable.AdminClient, logger *zap.Logger, config BigtableConfig, responseHandler rh.ResponseHandlerIface, schemaMapping *schemaMapping.SchemaMappingConfig, instancesMap map[string]InstanceConfig) BigTableClientIface {
+var NewBigtableClient = func(client map[string]*bigtable.Client, adminClients map[string]*bigtable.AdminClient, logger *zap.Logger, config *config.Bigtable, responseHandler rh.ResponseHandlerIface, schemaMapping *schemaMapping.SchemaMappingConfig) BigTableClientIface {
 	return &BigtableClient{
 		Clients:             client,
 		AdminClients:        adminClients,
@@ -107,7 +108,6 @@ var NewBigtableClient = func(client map[string]*bigtable.Client, adminClients ma
 		BigtableConfig:      config,
 		ResponseHandler:     responseHandler,
 		SchemaMappingConfig: schemaMapping,
-		InstancesMap:        instancesMap,
 	}
 }
 
@@ -1029,7 +1029,7 @@ func (btc *BigtableClient) PrepareStatement(ctx context.Context, query rh.QueryM
 //   - error: returns an error if either the keyspace is not found in InstancesMap
 //     or if no client exists for the corresponding Bigtable instance
 func (btc *BigtableClient) getClient(keyspace string) (*bigtable.Client, error) {
-	instanceInfo, ok := btc.InstancesMap[keyspace]
+	instanceInfo, ok := btc.BigtableConfig.Instances[keyspace]
 	if !ok {
 		return nil, fmt.Errorf("keyspace not found: '%s'", keyspace)
 	}
@@ -1053,7 +1053,7 @@ func (btc *BigtableClient) getClient(keyspace string) (*bigtable.Client, error) 
 //   - *bigtable.AdminClient: The admin client associated with the keyspace.
 //   - error: An error if the keyspace or admin client is not found.
 func (btc *BigtableClient) getAdminClient(keyspace string) (*bigtable.AdminClient, error) {
-	instanceInfo, ok := btc.InstancesMap[keyspace]
+	instanceInfo, ok := btc.BigtableConfig.Instances[keyspace]
 	if !ok {
 		return nil, fmt.Errorf("keyspace not found: '%s'", keyspace)
 	}

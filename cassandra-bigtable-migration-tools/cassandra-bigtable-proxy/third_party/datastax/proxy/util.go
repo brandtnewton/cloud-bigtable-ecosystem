@@ -23,6 +23,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/global/config"
 	types "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/global/types"
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/responsehandler"
 	schemaMapping "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/schema-mapping"
@@ -203,7 +204,7 @@ func getColumnMetadata(tableMetadata map[string]map[string]*schemaMapping.TableC
 
 // ConstructSystemMetadataRows constructs system metadata rows for keyspaces, tables, and columns.
 // It iterates through the provided table metadata and formats the data into a Cassandra-compatible structure.
-// The resulting metadata is used for system queries in the Bigtable proxy.
+// The resulting metadata is used for system queries in the yamlBigtable proxy.
 //
 // Parameters:
 //   - tableMetadata: A nested map where the first level represents keyspaces, the second level represents tables,
@@ -528,7 +529,7 @@ func getTimestampMetadata(insertQueryMetadata translator.InsertQueryMapping, col
 		metadata := message.ColumnMetadata{
 			Keyspace: insertQueryMetadata.Keyspace,
 			Table:    insertQueryMetadata.Table,
-			Name:     TimestampColumnName,
+			Name:     config.TimestampColumnName,
 			Index:    insertQueryMetadata.TimestampInfo.Index,
 			Type:     datatype.Bigint,
 		}
@@ -553,7 +554,7 @@ func getTimestampMetadataForUpdate(updateQueryMetadata translator.UpdateQueryMap
 		metadata := message.ColumnMetadata{
 			Keyspace: updateQueryMetadata.Keyspace,
 			Table:    updateQueryMetadata.Table,
-			Name:     TimestampColumnName,
+			Name:     config.TimestampColumnName,
 			Index:    updateQueryMetadata.TimestampInfo.Index,
 			Type:     datatype.Bigint,
 		}

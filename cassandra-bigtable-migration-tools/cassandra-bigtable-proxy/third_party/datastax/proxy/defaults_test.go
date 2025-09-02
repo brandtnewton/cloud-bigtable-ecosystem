@@ -15,7 +15,11 @@
  */
 package proxy
 
-import "testing"
+import (
+	"testing"
+
+	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/global/config"
+)
 
 func TestValidateAndApplyDefaults(t *testing.T) {
 	type args struct {
@@ -76,7 +80,7 @@ func TestValidateAndApplyDefaults(t *testing.T) {
 			wantErr: true,
 		},
 		{
-			name: "Valid Config with Custom SchemaMappingTable",
+			name: "Valid Config with Custom DefaultSchemaMappingTableName",
 			args: args{
 				cfg: &UserConfig{
 					Listeners: []Listener{
@@ -99,18 +103,18 @@ func TestValidateAndApplyDefaults(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if err := ValidateAndApplyDefaults(tt.args.cfg); (err != nil) != tt.wantErr {
+			if err := config.ValidateAndApplyDefaults(tt.args.cfg); (err != nil) != tt.wantErr {
 				t.Errorf("ValidateAndApplyDefaults() error = %v, wantErr %v", err, tt.wantErr)
 			}
 			if !tt.wantErr {
-				if tt.args.cfg.Listeners[0].Bigtable.Session.GrpcChannels != BigtableGrpcChannels {
-					t.Errorf("Expected GrpcChannels to be %d, got %d", BigtableGrpcChannels, tt.args.cfg.Listeners[0].Bigtable.Session.GrpcChannels)
+				if tt.args.cfg.Listeners[0].Bigtable.Session.GrpcChannels != config.DefaultBigtableGrpcChannels {
+					t.Errorf("Expected GrpcChannels to be %d, got %d", config.DefaultBigtableGrpcChannels, tt.args.cfg.Listeners[0].Bigtable.Session.GrpcChannels)
 				}
-				if tt.args.cfg.Listeners[0].Bigtable.DefaultColumnFamily != DefaultColumnFamily {
-					t.Errorf("Expected ColumnFamily to be %s, got %s", DefaultColumnFamily, tt.args.cfg.Listeners[0].Bigtable.DefaultColumnFamily)
+				if tt.args.cfg.Listeners[0].Bigtable.DefaultColumnFamily != config.DefaultColumnFamily {
+					t.Errorf("Expected ColumnFamily to be %s, got %s", config.DefaultColumnFamily, tt.args.cfg.Listeners[0].Bigtable.DefaultColumnFamily)
 				}
 				if tt.args.cfg.Listeners[0].Bigtable.SchemaMappingTable == "" {
-					t.Errorf("Expected SchemaMappingTable to be set, got empty string")
+					t.Errorf("Expected DefaultSchemaMappingTableName to be set, got empty string")
 				}
 			}
 		})

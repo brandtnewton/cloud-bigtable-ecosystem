@@ -28,7 +28,7 @@ import (
 	"time"
 
 	"cloud.google.com/go/bigtable"
-	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/global/config"
+	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/third_party/datastax/proxy/config"
 	"github.com/datastax/go-cassandra-native-protocol/datatype"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"

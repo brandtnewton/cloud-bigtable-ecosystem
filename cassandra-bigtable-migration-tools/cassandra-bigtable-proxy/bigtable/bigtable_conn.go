@@ -22,7 +22,7 @@ import (
 	"strings"
 
 	"cloud.google.com/go/bigtable"
-	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/global/config"
+	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/third_party/datastax/proxy/config"
 	"google.golang.org/api/option"
 	"google.golang.org/grpc"
 )

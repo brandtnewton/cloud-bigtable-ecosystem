@@ -19,6 +19,7 @@ import (
 	"testing"
 
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/global/config"
+	config2 "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/third_party/datastax/proxy/config"
 )
 
 func TestValidateAndApplyDefaults(t *testing.T) {
@@ -40,7 +41,7 @@ func TestValidateAndApplyDefaults(t *testing.T) {
 			wantErr: true,
 		},
 		{
-			name: "Valid Config with Defaults Applied",
+			name: "Valid ConfigFilePath with Defaults Applied",
 			args: args{
 				cfg: &UserConfig{
 					Listeners: []Listener{
@@ -80,7 +81,7 @@ func TestValidateAndApplyDefaults(t *testing.T) {
 			wantErr: true,
 		},
 		{
-			name: "Valid Config with Custom DefaultSchemaMappingTableName",
+			name: "Valid ConfigFilePath with Custom DefaultSchemaMappingTableName",
 			args: args{
 				cfg: &UserConfig{
 					Listeners: []Listener{
@@ -107,11 +108,11 @@ func TestValidateAndApplyDefaults(t *testing.T) {
 				t.Errorf("ValidateAndApplyDefaults() error = %v, wantErr %v", err, tt.wantErr)
 			}
 			if !tt.wantErr {
-				if tt.args.cfg.Listeners[0].Bigtable.Session.GrpcChannels != config.DefaultBigtableGrpcChannels {
-					t.Errorf("Expected GrpcChannels to be %d, got %d", config.DefaultBigtableGrpcChannels, tt.args.cfg.Listeners[0].Bigtable.Session.GrpcChannels)
+				if tt.args.cfg.Listeners[0].Bigtable.Session.GrpcChannels != config2.DefaultBigtableGrpcChannels {
+					t.Errorf("Expected GrpcChannels to be %d, got %d", config2.DefaultBigtableGrpcChannels, tt.args.cfg.Listeners[0].Bigtable.Session.GrpcChannels)
 				}
-				if tt.args.cfg.Listeners[0].Bigtable.DefaultColumnFamily != config.DefaultColumnFamily {
-					t.Errorf("Expected ColumnFamily to be %s, got %s", config.DefaultColumnFamily, tt.args.cfg.Listeners[0].Bigtable.DefaultColumnFamily)
+				if tt.args.cfg.Listeners[0].Bigtable.DefaultColumnFamily != config2.DefaultColumnFamily {
+					t.Errorf("Expected ColumnFamily to be %s, got %s", config2.DefaultColumnFamily, tt.args.cfg.Listeners[0].Bigtable.DefaultColumnFamily)
 				}
 				if tt.args.cfg.Listeners[0].Bigtable.SchemaMappingTable == "" {
 					t.Errorf("Expected DefaultSchemaMappingTableName to be set, got empty string")

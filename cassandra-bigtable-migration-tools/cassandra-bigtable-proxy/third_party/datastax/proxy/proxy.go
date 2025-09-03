@@ -33,12 +33,12 @@ import (
 
 	"cloud.google.com/go/bigtable"
 	bigtableModule "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/bigtable"
-	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/global/config"
 	constants "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/global/constants"
 	otelgo "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/otel"
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/responsehandler"
 	schemaMapping "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/schema-mapping"
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/third_party/datastax/parser"
+	config2 "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/third_party/datastax/proxy/config"
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/third_party/datastax/proxycore"
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/translator"
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/utilities"
@@ -115,7 +115,7 @@ const (
 
 type Proxy struct {
 	ctx                      context.Context
-	config                   *config.ProxyInstanceConfig
+	config                   *config2.ProxyInstanceConfig
 	logger                   *zap.Logger
 	cluster                  *proxycore.Cluster
 	sessions                 [primitive.ProtocolVersionDse2 + 1]sync.Map // Cache sessions per protocol version
@@ -152,7 +152,7 @@ func (p *Proxy) OnEvent(event proxycore.Event) {
 	}
 }
 
-func createBigtableConnection(ctx context.Context, config *config.ProxyInstanceConfig) (map[string]*bigtable.Client, map[string]*bigtable.AdminClient, error) {
+func createBigtableConnection(ctx context.Context, config *config2.ProxyInstanceConfig) (map[string]*bigtable.Client, map[string]*bigtable.AdminClient, error) {
 
 	bigtableClients, adminClients, err := bigtableModule.CreateClientsForInstances(ctx, config)
 	if err != nil {
@@ -162,7 +162,7 @@ func createBigtableConnection(ctx context.Context, config *config.ProxyInstanceC
 	return bigtableClients, adminClients, nil
 }
 
-func NewProxy(ctx context.Context, config *config.ProxyInstanceConfig) (*Proxy, error) {
+func NewProxy(ctx context.Context, config *config2.ProxyInstanceConfig) (*Proxy, error) {
 	bigtableClients, adminClients, err := createBigtableConnection(ctx, config)
 	if err != nil {
 		return nil, err
@@ -773,7 +773,7 @@ func (c *client) prepareDeleteType(raw *frame.RawFrame, msg *message.Prepare, id
 			metadata := message.ColumnMetadata{
 				Keyspace: deleteQueryMetadata.Keyspace,
 				Table:    deleteQueryMetadata.Table,
-				Name:     config.TimestampColumnName,
+				Name:     config2.TimestampColumnName,
 				Index:    deleteQueryMetadata.TimestampInfo.Index,
 				Type:     datatype.Bigint,
 			}

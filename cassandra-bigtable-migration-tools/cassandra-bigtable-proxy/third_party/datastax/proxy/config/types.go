@@ -1,21 +1,13 @@
 package config
 
-import (
-	"os"
-
-	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/global/types"
-	"github.com/datastax/go-cassandra-native-protocol/primitive"
-	"go.uber.org/zap"
-)
-
 type yamlProxyConfig struct {
 	CassandraToBigtableConfigs yamlCassandraToBigtableConfigs `yaml:"cassandraToBigtableConfigs"`
 	Listeners                  []yamlListener                 `yaml:"listeners"`
 	Otel                       *yamlOtelConfig                `yaml:"otel"`
-	LoggerConfig               *LoggerConfig                  `yaml:"loggerConfig"`
+	LoggerConfig               *yamlLoggerConfig              `yaml:"loggerConfig"`
 }
 
-type LoggerConfig struct {
+type yamlLoggerConfig struct {
 	OutputType string `yaml:"outputType"`
 	Filename   string `yaml:"fileName"`
 	MaxSize    int    `yaml:"maxSize"`    // megabytes
@@ -60,6 +52,7 @@ type yamlInstancesMap struct {
 	Keyspace         string `yaml:"keyspace"`
 	AppProfileID     string `yaml:"appProfileID"`
 }
+
 type yamlBigtable struct {
 	ProjectID                     string             `yaml:"projectId"`
 	Instances                     []yamlInstancesMap `yaml:"instances"`
@@ -79,97 +72,4 @@ type yamlSession struct {
 // yamlOtel configures OpenTelemetry features
 type yamlOtel struct {
 	Disabled bool `yaml:"disabled"`
-}
-
-type CliArgs struct {
-	Version            bool
-	RpcAddress         string
-	ProtocolVersion    primitive.ProtocolVersion
-	MaxProtocolVersion primitive.ProtocolVersion
-	DataCenter         string
-	Bind               string
-	Config             *os.File
-	NumConns           int
-	ReleaseVersion     string
-	Partitioner        string
-	Tokens             []string
-	CQLVersion         string
-	LogLevel           string
-	TcpBindPort        string
-	UseUnixSocket      bool
-	UnixSocketPath     string
-	ProxyCertFile      string
-	ProxyKeyFile       string
-	// hidden because we only intend the java session wrapper to use this flag
-	UserAgentOverride string
-	ClientPid         int32
-	ClientUid         uint32
-	// quick start config
-	// todo use
-	ProjectId  string
-	InstanceId string
-	AppProfile string
-}
-
-type OtelConfig struct {
-	Enabled     bool
-	ServiceName string
-	HealthCheck struct {
-		Enabled  bool
-		Endpoint string
-	}
-	Metrics struct {
-		Endpoint string
-	}
-	Traces struct {
-		Endpoint      string
-		SamplingRatio float64
-	}
-}
-
-type InstancesMapping struct {
-	BigtableInstance string
-	Keyspace         string
-	AppProfileID     string
-}
-
-type BigtableConfig struct {
-	ProjectID                string
-	Instances                map[string]*InstancesMapping
-	SchemaMappingTable       string
-	Session                  *Session
-	DefaultColumnFamily      string
-	DefaultIntRowKeyEncoding types.IntRowKeyEncodingType
-}
-
-type Session struct {
-	GrpcChannels int
-}
-
-type ProxyGlobalConfig struct {
-	ProtocolVersion primitive.ProtocolVersion
-	MaxVersion      primitive.ProtocolVersion
-	ReleaseVersion  string
-	Partitioner     string
-	CQLVersion      string
-	UserAgent       string
-	CliArgs         *CliArgs
-	ClientPid       int32
-	ClientUid       uint32
-	TcpBindPort     string
-	Otel            *OtelConfig
-	LoggerConfig    *LoggerConfig
-}
-
-type ProxyInstanceConfig struct {
-	Port           int
-	Bind           string
-	GlobalConfig   *ProxyGlobalConfig
-	NumConns       int
-	Logger         *zap.Logger
-	RPCAddr        string
-	DC             string
-	Tokens         []string
-	BigtableConfig *BigtableConfig
-	OtelConfig     *OtelConfig
 }

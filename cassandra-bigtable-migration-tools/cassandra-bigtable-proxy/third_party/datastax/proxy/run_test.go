@@ -20,7 +20,6 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
-	"reflect"
 	"strings"
 	"testing"
 	"time"
@@ -201,80 +200,6 @@ func signalContext(parent context.Context, sig ...os.Signal) (context.Context, f
 	return ctx, func() {
 		cancel()
 		signal.Stop(ch)
-	}
-}
-
-func TestLoadConfig(t *testing.T) {
-	type args struct {
-		filename string
-	}
-	tests := []struct {
-		name    string
-		args    args
-		want    *UserConfig
-		wantErr bool
-	}{
-		{
-			name: "Valid config file",
-			args: args{
-				filename: "testdata/valid_config.yaml",
-			},
-			want: &UserConfig{
-				Listeners: []Listener{
-					{
-						Name: "clusterA",
-						Port: 9092,
-						Bigtable: Bigtable{
-							ProjectID:           "cassandra-prod-789",
-							Instances:           []InstancesMap{{BigtableInstance: "prod-instance-001", Keyspace: "prodinstance001"}},
-							SchemaMappingTable:  "prod_table_config",
-							DefaultColumnFamily: "cf_default",
-							AppProfileID:        "prod-profile-123",
-							Session: Session{
-								GrpcChannels: 3,
-							},
-						},
-					},
-				},
-			},
-			wantErr: false,
-		},
-		{
-			name: "Non-existent config file",
-			args: args{
-				filename: "testdata/non_existent.yaml",
-			},
-			want:    nil,
-			wantErr: true,
-		},
-		{
-			name: "Invalid config format",
-			args: args{
-				filename: "testdata/invalid_config.yaml",
-			},
-			want:    nil,
-			wantErr: true,
-		},
-		{
-			name: "Config with missing required fields",
-			args: args{
-				filename: "testdata/missing_fields_config.yaml",
-			},
-			want:    nil,
-			wantErr: true,
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got, err := LoadConfig(tt.args.filename)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("LoadConfig() error = %v, wantErr %v", err, tt.wantErr)
-				return
-			}
-			if !tt.wantErr && !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("LoadConfig() = %v, want %v", got, tt.want)
-			}
-		})
 	}
 }
 

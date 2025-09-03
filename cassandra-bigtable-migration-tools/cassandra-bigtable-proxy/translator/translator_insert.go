@@ -34,7 +34,7 @@ import (
 // Parameters:
 //   - input: Insert Column Spec Context from antlr parser.
 //   - tableName: Table Name
-//   - schemaMapping: JSON Config which maintains column and its datatypes info.
+//   - schemaMapping: JSON ConfigFilePath which maintains column and its datatypes info.
 //
 // Returns: ColumnsResponse struct and error if any
 func parseColumnsAndValuesFromInsert(input cql.IInsertColumnSpecContext, tableName string, tableConfig *schemaMapping.TableConfig, keyspace string) (*ColumnsResponse, error) {

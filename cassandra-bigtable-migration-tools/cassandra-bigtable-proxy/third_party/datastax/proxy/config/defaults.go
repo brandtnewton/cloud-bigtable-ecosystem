@@ -19,7 +19,7 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/datastax/go-cassandra-native-protocol/primitive"
+	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/global/types"
 )
 
 var (
@@ -34,28 +34,13 @@ var (
 	TimestampColumnName           = "ts_column"
 )
 
-func validateCliArgs(args *rawCliArgs) error {
+func validateCliArgs(args *types.CliArgs) error {
 	if args.NumConns < 1 {
 		return fmt.Errorf("invalid number of connections, must be greater than 0 (provided: %d)", args.NumConns)
 	}
 
-	var ok bool
-	var version primitive.ProtocolVersion
-	if version, ok = parseProtocolVersion(args.ProtocolVersion); !ok {
-		return fmt.Errorf("unsupported protocol version: %s", args.ProtocolVersion)
-	}
-
-	var maxVersion primitive.ProtocolVersion
-	if maxVersion, ok = parseProtocolVersion(args.MaxProtocolVersion); !ok {
-		return fmt.Errorf("unsupported max protocol version: %s", args.ProtocolVersion)
-	}
-
-	if version > maxVersion {
+	if args.ProtocolVersion > args.MaxProtocolVersion {
 		return fmt.Errorf("default protocol version is greater than max protocol version")
-	}
-
-	if args.NumConns < 1 {
-		return fmt.Errorf("invalid number of connections, must be greater than 0 (provided: %d)", args.NumConns)
 	}
 
 	return nil

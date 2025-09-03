@@ -588,7 +588,7 @@ func Test_buildOtelResource(t *testing.T) {
 			},
 		},
 		{
-			name: "Empty Config",
+			name: "Empty ConfigFilePath",
 			config: &OTelConfig{
 				ServiceName:    "",
 				ServiceVersion: "",

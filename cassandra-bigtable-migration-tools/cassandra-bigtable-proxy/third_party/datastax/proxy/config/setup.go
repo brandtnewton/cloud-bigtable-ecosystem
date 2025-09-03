@@ -10,6 +10,7 @@ import (
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/global/types"
 	"github.com/alecthomas/kong"
 	"github.com/datastax/go-cassandra-native-protocol/primitive"
+	"gopkg.in/yaml.v2"
 )
 
 const (
@@ -42,13 +43,16 @@ type rawCliArgs struct {
 	UserAgentOverride string `yaml:"-" help:"" hidden:"" optional:"" default:"" short:"u"`
 	ClientPid         int32  `yaml:"client-pid" help:"" hidden:"" optional:"" default:"" short:""`
 	ClientUid         uint32 `yaml:"client-uid" help:"" hidden:"" optional:"" default:"" short:""`
-	// quick start config
-	ProjectId  string `yaml:"project-id" help:"Google Cloud Project Id to use."`
-	InstanceId string `yaml:"instance-id" help:"BigtableConfig Instance Id to use."`
-	AppProfile string `yaml:"app-profile" help:"BigtableConfig App Profile to use."`
+	// quick start config - used for running the proxy without a yaml config file
+	ProjectId           string `yaml:"project-id" help:"Google Cloud Project Id to use."`
+	InstanceId          string `yaml:"instance-id" help:"Bigtable Instance Id to use."`
+	AppProfile          string `yaml:"app-profile" help:"Bigtable App Profile to use."`
+	Port                int    `yaml:"port" help:"Port to serve CQL traffic on."`
+	DefaultColumnFamily string `yaml:"default-column-family" help:"The Bigtable column family used for storing scalar values."`
+	SchemaMappingTable  string `yaml:"schema-mapping-table" help:"The Bigtable table name used for storing schema information (automatically created by the proxy)."`
 }
 
-func parseCliArgs(args []string) (*CliArgs, error) {
+func ParseCliArgs(args []string) (*types.CliArgs, error) {
 	var parsed rawCliArgs
 
 	parser, err := kong.New(&parsed)
@@ -72,11 +76,6 @@ func parseCliArgs(args []string) (*CliArgs, error) {
 		parsed.CQLVersion = defaultCqlVersion
 	}
 
-	err = validateCliArgs(&parsed)
-	if err != nil {
-		return nil, err
-	}
-
 	var ok bool
 	var version primitive.ProtocolVersion
 	if version, ok = parseProtocolVersion(parsed.ProtocolVersion); !ok {
@@ -85,117 +84,102 @@ func parseCliArgs(args []string) (*CliArgs, error) {
 
 	var maxVersion primitive.ProtocolVersion
 	if maxVersion, ok = parseProtocolVersion(parsed.MaxProtocolVersion); !ok {
-		return nil, fmt.Errorf("unsupported max protocol version: %s", parsed.ProtocolVersion)
+		return nil, fmt.Errorf("unsupported max protocol version: %s", parsed.MaxProtocolVersion)
 	}
 
-	if version > maxVersion {
-		return nil, fmt.Errorf("default protocol version is greater than max protocol version")
+	configFilePath := ""
+	if parsed.Config != nil {
+		configFilePath = parsed.Config.Name()
 	}
 
-	result := CliArgs{
-		Version:            parsed.Version,
-		RpcAddress:         parsed.RpcAddress,
-		ProtocolVersion:    version,
-		MaxProtocolVersion: maxVersion,
-		DataCenter:         parsed.DataCenter,
-		Bind:               parsed.Bind,
-		Config:             parsed.Config,
-		NumConns:           parsed.NumConns,
-		ReleaseVersion:     parsed.ReleaseVersion,
-		Partitioner:        parsed.Partitioner,
-		Tokens:             parsed.Tokens,
-		CQLVersion:         parsed.CQLVersion,
-		LogLevel:           parsed.LogLevel,
-		TcpBindPort:        parsed.TcpBindPort,
-		UseUnixSocket:      parsed.UseUnixSocket,
-		UnixSocketPath:     parsed.UnixSocketPath,
-		ProxyCertFile:      parsed.ProxyCertFile,
-		ProxyKeyFile:       parsed.ProxyKeyFile,
-		UserAgentOverride:  parsed.UserAgentOverride,
-		ClientPid:          parsed.ClientPid,
-		ClientUid:          parsed.ClientUid,
-		ProjectId:          parsed.ProjectId,
-		InstanceId:         parsed.InstanceId,
-		AppProfile:         parsed.AppProfile,
+	tcpPort := parsed.TcpBindPort
+	if tcpPort == "" {
+		tcpPort = defaultTcpBindPort
+	}
+
+	userAgent := "cassandra-adapter/" + constants.ProxyReleaseVersion
+	if parsed.UserAgentOverride != "" {
+		userAgent = parsed.UserAgentOverride
+	}
+
+	result := types.CliArgs{
+		Version:                       parsed.Version,
+		RpcAddress:                    parsed.RpcAddress,
+		ProtocolVersion:               version,
+		MaxProtocolVersion:            maxVersion,
+		DataCenter:                    parsed.DataCenter,
+		Bind:                          parsed.Bind,
+		ConfigFilePath:                configFilePath,
+		NumConns:                      parsed.NumConns,
+		ReleaseVersion:                parsed.ReleaseVersion,
+		Partitioner:                   parsed.Partitioner,
+		Tokens:                        parsed.Tokens,
+		CQLVersion:                    parsed.CQLVersion,
+		LogLevel:                      parsed.LogLevel,
+		TcpBindPort:                   parsed.TcpBindPort,
+		UseUnixSocket:                 parsed.UseUnixSocket,
+		UnixSocketPath:                parsed.UnixSocketPath,
+		ProxyCertFile:                 parsed.ProxyCertFile,
+		ProxyKeyFile:                  parsed.ProxyKeyFile,
+		UserAgent:                     userAgent,
+		ClientPid:                     parsed.ClientPid,
+		ClientUid:                     parsed.ClientUid,
+		QuickStartProjectId:           parsed.ProjectId,
+		QuickStartInstanceId:          parsed.InstanceId,
+		QuickStartAppProfile:          parsed.AppProfile,
+		QuickStartPort:                parsed.Port,
+		QuickStartDefaultColumnFamily: parsed.DefaultColumnFamily,
+		QuickStartSchemaMappingTable:  parsed.SchemaMappingTable,
+	}
+
+	err = validateCliArgs(&result)
+	if err != nil {
+		return nil, err
 	}
 
 	return &result, err
 }
 
-func isQuickStartArgsDefined(args *CliArgs) bool {
-	return args.ProjectId != "" || args.AppProfile != "" || args.InstanceId != ""
+func isQuickStartArgsDefined(args *types.CliArgs) bool {
+
+	return args.QuickStartProjectId != "" ||
+		args.QuickStartInstanceId != "" ||
+		args.QuickStartAppProfile != "" ||
+		args.QuickStartPort != 0 ||
+		args.QuickStartDefaultColumnFamily != "" ||
+		args.QuickStartSchemaMappingTable != ""
 }
 
-func parseQuickStartArgs(args *CliArgs) (*ProxyGlobalConfig, []*ProxyInstanceConfig, error) {
+func maybeParseQuickStartArgs(args *types.CliArgs) (*types.ProxyInstanceConfig, error) {
 	if !isQuickStartArgsDefined(args) {
-		return nil, nil, errors.New("no quickstart args found")
+		return nil, nil
 	}
 
-	globalConfig, err := parseGlobalConfig(args)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	bigtableConfig := &BigtableConfig{
-		ProjectID: args.ProjectId,
-		Instances: map[string]*InstancesMapping{
-			args.InstanceId: {
-				BigtableInstance: args.InstanceId,
-				Keyspace:         args.InstanceId,
-				AppProfileID:     args.AppProfile,
+	bigtableConfig := &types.BigtableConfig{
+		ProjectID: args.QuickStartProjectId,
+		Instances: map[string]*types.InstancesMapping{
+			args.QuickStartInstanceId: {
+				BigtableInstance: args.QuickStartInstanceId,
+				Keyspace:         args.QuickStartInstanceId,
+				AppProfileID:     args.QuickStartAppProfile,
 			},
 		},
-		SchemaMappingTable: DefaultSchemaMappingTableName,
-		Session: &Session{
+		SchemaMappingTable: args.QuickStartSchemaMappingTable,
+		Session: &types.Session{
 			GrpcChannels: DefaultBigtableGrpcChannels,
 		},
-		DefaultColumnFamily:      DefaultColumnFamily,
+		DefaultColumnFamily:      args.QuickStartDefaultColumnFamily,
 		DefaultIntRowKeyEncoding: types.OrderedCodeEncoding,
 	}
 
-	instanceConfigs := []*ProxyInstanceConfig{
-		NewProxyInstanceConfig(globalConfig, 9042, bigtableConfig),
+	// quick start instances don't have a way to configure otel, so just disable it
+	otel := &types.OtelConfig{
+		Enabled: false,
 	}
 
-	return globalConfig, instanceConfigs, nil
-}
+	instanceConfig := NewProxyInstanceConfig(args, args.QuickStartPort, otel, bigtableConfig)
 
-func parseGlobalConfig(args *CliArgs) (*ProxyGlobalConfig, error) {
-	tcpPort := args.TcpBindPort
-	if tcpPort == "" {
-		tcpPort = defaultTcpBindPort
-	}
-
-	globalConfig := &ProxyGlobalConfig{
-		ProtocolVersion: args.ProtocolVersion,
-		MaxVersion:      args.MaxProtocolVersion,
-		UserAgent:       getUserAgent(args),
-		TcpBindPort:     tcpPort,
-		CliArgs:         args,
-		ClientPid:       args.ClientPid,
-		ClientUid:       args.ClientUid,
-		Partitioner:     args.Partitioner,
-		ReleaseVersion:  args.ReleaseVersion,
-		CQLVersion:      args.CQLVersion,
-		Otel: &OtelConfig{
-			Enabled: false,
-		},
-		LoggerConfig: nil,
-	}
-
-	if globalConfig.Otel == nil {
-		globalConfig.Otel = &OtelConfig{
-			Enabled: false,
-		}
-	} else {
-		if globalConfig.Otel.Enabled {
-			if globalConfig.Otel.Traces.SamplingRatio < 0 || globalConfig.Otel.Traces.SamplingRatio > 1 {
-				return nil, fmt.Errorf("Sampling Ratio for Otel Traces should be between 0 and 1]")
-			}
-		}
-	}
-
-	return globalConfig, nil
+	return instanceConfig, nil
 }
 
 // maybeAddPort adds the default port to an IP; otherwise, it returns the original address.
@@ -206,37 +190,38 @@ func maybeAddPort(addr string, defaultPort string) string {
 	return addr
 }
 
-func getUserAgent(args *CliArgs) string {
-	userAgent := "cassandra-adapter/" + constants.ProxyReleaseVersion
-	if args.UserAgentOverride != "" {
-		userAgent = args.UserAgentOverride
+func ParseProxyConfig(args *types.CliArgs) ([]*types.ProxyInstanceConfig, error) {
+	if args.ConfigFilePath == "" {
+		return nil, errors.New("no config file provided")
 	}
-	return userAgent
-}
 
-func ParseProxyConfigFromArgs(args []string) (*ProxyGlobalConfig, []*ProxyInstanceConfig, error) {
-	cliArgs, err := parseCliArgs(args)
+	fileData, err := readFile(args.ConfigFilePath)
 	if err != nil {
-		return nil, nil, err
-	}
-	return ParseProxyConfig(cliArgs)
-}
-
-func ParseProxyConfig(args *CliArgs) (*ProxyGlobalConfig, []*ProxyInstanceConfig, error) {
-	if isQuickStartArgsDefined(args) {
-		// todo polish UX - is this good?
-		fmt.Printf("quick start cli args found. continuing with quickstart config instead of reading config file.\n")
-		return parseQuickStartArgs(args)
+		return nil, fmt.Errorf("failed to read config file: %w", err)
 	}
 
-	if args.Config == nil {
-		return nil, nil, errors.New("no config file provided")
+	var config yamlProxyConfig
+	if err = yaml.Unmarshal(fileData, &config); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal config: %w", err)
 	}
 
-	proxyConfig, instanceConfigs, err := loadProxyConfigFile(args.Config.Name(), args)
+	instanceConfigs, err := loadProxyConfigFile(config, args)
 	if err != nil {
-		return nil, nil, fmt.Errorf("error while loading config.yaml: %w", err)
+		return nil, fmt.Errorf("error while loading config.yaml: %w", err)
 	}
 
-	return proxyConfig, instanceConfigs, nil
+	quickStartInstanceConfig, err := maybeParseQuickStartArgs(args)
+	if err != nil {
+		return nil, err
+	}
+
+	if quickStartInstanceConfig != nil {
+		instanceConfigs = append(instanceConfigs, quickStartInstanceConfig)
+	}
+
+	if len(instanceConfigs) == 0 {
+		return nil, fmt.Errorf("no listeners provided. please provide at least one listner via config.yaml or cli options")
+	}
+
+	return instanceConfigs, nil
 }

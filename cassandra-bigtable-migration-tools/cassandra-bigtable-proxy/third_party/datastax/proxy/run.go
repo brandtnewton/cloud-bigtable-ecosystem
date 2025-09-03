@@ -23,8 +23,9 @@ import (
 	"os"
 	"sync"
 
-	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/global/config"
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/global/constants"
+	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/global/types"
+	config2 "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/third_party/datastax/proxy/config"
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/utilities"
 	"go.uber.org/zap"
 )
@@ -32,27 +33,33 @@ import (
 // Run starts the proxy command. 'args' shouldn't include the executable (i.e. os.Args[1:]). It returns the exit code
 // for the proxy.
 func Run(ctx context.Context, args []string) error {
-	proxyGlobalConfig, proxyInstanceConfigs, err := config.ParseProxyConfigFromArgs(args)
+	cliArgs, err := config2.ParseCliArgs(args)
 	if err != nil {
 		return err
 	}
 
-	logger, err := utilities.SetupLogger(proxyGlobalConfig.CliArgs.LogLevel, proxyGlobalConfig.LoggerConfig)
-	if err != nil {
-		return fmt.Errorf("unable to create logger")
-	}
-	defer logger.Sync()
-	if proxyGlobalConfig.CliArgs.Version {
+	if cliArgs.Version {
 		fmt.Printf("ProtocolVersion - %s\n", constants.ProxyReleaseVersion)
 		return nil
 	}
 
-	logger.Info("Protocol Version:" + proxyGlobalConfig.ProtocolVersion.String())
-	logger.Info("CQL Version:" + proxyGlobalConfig.CQLVersion)
-	logger.Info("Release Version:" + proxyGlobalConfig.ReleaseVersion)
-	logger.Info("Partitioner:" + proxyGlobalConfig.Partitioner)
-	logger.Info("Data Center:" + proxyGlobalConfig.CliArgs.DataCenter)
-	logger.Debug("Configuration - ", zap.Any("ProxyGlobalConfig", proxyGlobalConfig))
+	proxyInstanceConfigs, err := config2.ParseProxyConfig(cliArgs)
+	if err != nil {
+		return err
+	}
+
+	logger, err := utilities.SetupLogger(cliArgs.LogLevel, cliArgs.LoggerConfig)
+	if err != nil {
+		return fmt.Errorf("unable to create logger")
+	}
+	defer logger.Sync()
+
+	logger.Info("Protocol Version:" + cliArgs.ProtocolVersion.String())
+	logger.Info("CQL Version:" + cliArgs.CQLVersion)
+	logger.Info("Release Version:" + cliArgs.ReleaseVersion)
+	logger.Info("Partitioner:" + cliArgs.Partitioner)
+	logger.Info("Data Center:" + cliArgs.DataCenter)
+	logger.Debug("Configuration - ", zap.Any("ProxyGlobalConfig", cliArgs))
 	var wg sync.WaitGroup
 
 	for _, listenerConfig := range proxyInstanceConfigs {
@@ -63,13 +70,13 @@ func Run(ctx context.Context, args []string) error {
 		}
 		var mux http.ServeMux
 		wg.Add(1)
-		go func(cfg *config.ProxyGlobalConfig, p *Proxy, mux *http.ServeMux) {
+		go func(cfg *types.ProxyInstanceConfig, p *Proxy, mux *http.ServeMux) {
 			defer wg.Done()
 			err := listenAndServe(listenerConfig, p, mux, ctx, logger) // Use cfg2 or other instances as needed
 			if err != nil {
 				logger.Fatal("Error while serving - ", zap.Error(err))
 			}
-		}(proxyGlobalConfig, p, &mux)
+		}(listenerConfig, p, &mux)
 
 	}
 	wg.Wait() // Wait for all servers to finish
@@ -79,7 +86,7 @@ func Run(ctx context.Context, args []string) error {
 }
 
 // listenAndServe correctly handles serving both the proxy and an HTTP server simultaneously.
-func listenAndServe(c *config.ProxyInstanceConfig, p *Proxy, mux *http.ServeMux, ctx context.Context, logger *zap.Logger) (err error) {
+func listenAndServe(c *config2.ProxyInstanceConfig, p *Proxy, mux *http.ServeMux, ctx context.Context, logger *zap.Logger) (err error) {
 	logger.Info("Starting proxy with configuration:\n")
 	logger.Info(fmt.Sprintf("  Bind: %s\n", c.Bind))
 	logger.Info(fmt.Sprintf("  Use Unix Socket: %v\n", c.GlobalConfig.CliArgs.UseUnixSocket))

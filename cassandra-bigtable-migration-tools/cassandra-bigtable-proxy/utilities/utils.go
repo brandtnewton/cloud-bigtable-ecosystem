@@ -24,8 +24,8 @@ import (
 	"time"
 
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/collectiondecoder"
-	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/global/config"
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/global/types"
+	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/third_party/datastax/proxy/config"
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/third_party/datastax/proxycore"
 	"github.com/datastax/go-cassandra-native-protocol/datatype"
 	"github.com/datastax/go-cassandra-native-protocol/primitive"
@@ -209,7 +209,7 @@ func decodeNonPrimitive(choice datatype.PrimitiveType, b []byte) (any, error) {
 // SetupLogger() initializes a zap.Logger instance based on the provided log level and logger configuration.
 // If loggerConfig specifies file output, it sets up a file-based logger. Otherwise, it defaults to console output.
 // Returns the configured zap.Logger or an error if setup fails.
-func SetupLogger(logLevel string, loggerConfig *config.LoggerConfig) (*zap.Logger, error) {
+func SetupLogger(logLevel string, loggerConfig *config.yamlLoggerConfig) (*zap.Logger, error) {
 	supportedLogLevels := []string{"info", "debug", "error", "warn"}
 	if !slices.Contains(supportedLogLevels, logLevel) {
 		return nil, fmt.Errorf("Invalid log-level should be [%s]", strings.Join(supportedLogLevels, "|"))
@@ -245,9 +245,9 @@ func getLogLevel(logLevel string) zap.AtomicLevel {
 }
 
 // setupFileLogger() configures a zap.Logger for file output using a lumberjack.Logger for log rotation.
-// Accepts a zap.AtomicLevel and a LoggerConfig struct to customize log output and rotation settings.
+// Accepts a zap.AtomicLevel and a yamlLoggerConfig struct to customize log output and rotation settings.
 // Returns the configured zap.Logger or an error if setup fails.
-func setupFileLogger(level zap.AtomicLevel, loggerConfig *config.LoggerConfig) (*zap.Logger, error) {
+func setupFileLogger(level zap.AtomicLevel, loggerConfig *config.yamlLoggerConfig) (*zap.Logger, error) {
 	rotationalLogger := &lumberjack.Logger{
 		Filename:   defaultIfEmpty(loggerConfig.Filename, "/var/log/cassandra-to-spanner-proxy/output.log"),
 		MaxSize:    loggerConfig.MaxSize,                       // megabytes, default 100MB

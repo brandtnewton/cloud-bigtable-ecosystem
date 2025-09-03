@@ -25,15 +25,14 @@ import (
 
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/global/constants"
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/global/types"
-	config2 "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/third_party/datastax/proxy/config"
-	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/utilities"
+	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/third_party/datastax/proxy/config"
 	"go.uber.org/zap"
 )
 
 // Run starts the proxy command. 'args' shouldn't include the executable (i.e. os.Args[1:]). It returns the exit code
 // for the proxy.
 func Run(ctx context.Context, args []string) error {
-	cliArgs, err := config2.ParseCliArgs(args)
+	cliArgs, err := config.ParseCliArgs(args)
 	if err != nil {
 		return err
 	}
@@ -43,12 +42,12 @@ func Run(ctx context.Context, args []string) error {
 		return nil
 	}
 
-	proxyInstanceConfigs, err := config2.ParseProxyConfig(cliArgs)
+	proxyInstanceConfigs, err := config.ParseProxyConfig(cliArgs)
 	if err != nil {
 		return err
 	}
 
-	logger, err := utilities.SetupLogger(cliArgs.LogLevel, cliArgs.LoggerConfig)
+	logger, err := config.ParseLoggerConfig(cliArgs)
 	if err != nil {
 		return fmt.Errorf("unable to create logger")
 	}
@@ -62,7 +61,8 @@ func Run(ctx context.Context, args []string) error {
 	logger.Debug("Configuration - ", zap.Any("ProxyGlobalConfig", cliArgs))
 	var wg sync.WaitGroup
 
-	for _, listenerConfig := range proxyInstanceConfigs {
+	for i := range proxyInstanceConfigs {
+		listenerConfig := proxyInstanceConfigs[i]
 		p, err := NewProxy(ctx, listenerConfig)
 		if err != nil {
 			logger.Error(err.Error())
@@ -86,27 +86,27 @@ func Run(ctx context.Context, args []string) error {
 }
 
 // listenAndServe correctly handles serving both the proxy and an HTTP server simultaneously.
-func listenAndServe(c *config2.ProxyInstanceConfig, p *Proxy, mux *http.ServeMux, ctx context.Context, logger *zap.Logger) (err error) {
+func listenAndServe(c *types.ProxyInstanceConfig, p *Proxy, mux *http.ServeMux, ctx context.Context, logger *zap.Logger) (err error) {
 	logger.Info("Starting proxy with configuration:\n")
 	logger.Info(fmt.Sprintf("  Bind: %s\n", c.Bind))
-	logger.Info(fmt.Sprintf("  Use Unix Socket: %v\n", c.GlobalConfig.CliArgs.UseUnixSocket))
-	logger.Info(fmt.Sprintf("  Unix Socket Path: %s\n", c.GlobalConfig.CliArgs.UnixSocketPath))
-	logger.Info(fmt.Sprintf("  Use TLS: %v\n", c.GlobalConfig.CliArgs.ProxyCertFile != "" && c.GlobalConfig.CliArgs.ProxyKeyFile != ""))
+	logger.Info(fmt.Sprintf("  Use Unix Socket: %v\n", c.CliArgs.UseUnixSocket))
+	logger.Info(fmt.Sprintf("  Unix Socket Path: %s\n", c.CliArgs.UnixSocketPath))
+	logger.Info(fmt.Sprintf("  Use TLS: %v\n", c.CliArgs.ProxyCertFile != "" && c.CliArgs.ProxyKeyFile != ""))
 
 	var listeners []net.Listener
 
 	// Set up listener based on configuration
-	if c.GlobalConfig.CliArgs.UseUnixSocket {
+	if c.CliArgs.UseUnixSocket {
 		// Use Unix Domain Socket
-		unixListener, err := resolveAndListen("", true, c.GlobalConfig.CliArgs.UnixSocketPath, "", "", logger)
+		unixListener, err := resolveAndListen("", true, c.CliArgs.UnixSocketPath, "", "", logger)
 		if err != nil {
 			return fmt.Errorf("failed to create Unix socket listener: %v", err)
 		}
 		listeners = append(listeners, unixListener)
-		logger.Info(fmt.Sprintf("Unix socket listener created successfully at %s\n", c.GlobalConfig.CliArgs.UnixSocketPath))
+		logger.Info(fmt.Sprintf("Unix socket listener created successfully at %s\n", c.CliArgs.UnixSocketPath))
 	} else {
 		// Use TCP
-		tcpListener, err := resolveAndListen(c.GlobalConfig.CliArgs.Bind, false, "", c.GlobalConfig.CliArgs.ProxyCertFile, c.GlobalConfig.CliArgs.ProxyKeyFile, logger)
+		tcpListener, err := resolveAndListen(c.CliArgs.Bind, false, "", c.CliArgs.ProxyCertFile, c.CliArgs.ProxyKeyFile, logger)
 		if err != nil {
 			return fmt.Errorf("failed to create TCP listener: %v", err)
 		}

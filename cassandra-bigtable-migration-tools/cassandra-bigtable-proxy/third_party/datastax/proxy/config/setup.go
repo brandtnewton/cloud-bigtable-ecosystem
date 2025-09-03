@@ -1,7 +1,6 @@
 package config
 
 import (
-	"errors"
 	"fmt"
 	"net"
 	"os"
@@ -10,6 +9,9 @@ import (
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/global/types"
 	"github.com/alecthomas/kong"
 	"github.com/datastax/go-cassandra-native-protocol/primitive"
+	"github.com/natefinch/lumberjack"
+	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
 	"gopkg.in/yaml.v2"
 )
 
@@ -190,12 +192,89 @@ func maybeAddPort(addr string, defaultPort string) string {
 	return addr
 }
 
-func ParseProxyConfig(args *types.CliArgs) ([]*types.ProxyInstanceConfig, error) {
-	if args.ConfigFilePath == "" {
-		return nil, errors.New("no config file provided")
+func ParseLoggerConfig(args *types.CliArgs) (*zap.Logger, error) {
+	level := zap.NewAtomicLevel()
+	err := level.UnmarshalText([]byte(args.LogLevel))
+	if err != nil {
+		return nil, err
 	}
 
-	fileData, err := readFile(args.ConfigFilePath)
+	var loggerConfig *yamlLoggerConfig = nil
+	if args.ConfigFilePath != "" {
+		config, err := readProxyConfig(args.ConfigFilePath)
+		if err != nil {
+			return nil, err
+		}
+		loggerConfig = config.LoggerConfig
+	}
+
+	if loggerConfig != nil && loggerConfig.OutputType == "file" {
+		return setupFileLogger(level, loggerConfig)
+	}
+
+	return setupConsoleLogger(level)
+}
+
+// setupFileLogger() configures a zap.Logger for file output using a lumberjack.Logger for log rotation.
+// Accepts a zap.AtomicLevel and a yamlLoggerConfig struct to customize log output and rotation settings.
+// Returns the configured zap.Logger or an error if setup fails.
+func setupFileLogger(level zap.AtomicLevel, loggerConfig *yamlLoggerConfig) (*zap.Logger, error) {
+	filename := loggerConfig.Filename
+	if filename == "" {
+		filename = "/var/log/cassandra-to-spanner-proxy/output.log"
+	}
+	maxAge := loggerConfig.MaxAge
+	if maxAge == 0 {
+		maxAge = 3 // setting default value to 3 days
+	}
+	maxBackups := loggerConfig.MaxBackups
+	if maxBackups == 0 {
+		maxBackups = 10 // setting default max backups to 10 files
+	}
+	rotationalLogger := &lumberjack.Logger{
+		Filename:   filename,
+		MaxSize:    loggerConfig.MaxSize, // megabytes, default 100MB
+		MaxAge:     maxAge,
+		MaxBackups: maxBackups,
+		Compress:   loggerConfig.Compress,
+	}
+	core := zapcore.NewCore(
+		zapcore.NewJSONEncoder(zap.NewProductionEncoderConfig()),
+		zapcore.AddSync(rotationalLogger),
+		level,
+	)
+	return zap.New(core), nil
+}
+
+// setupConsoleLogger() configures a zap.Logger for console output.
+// Accepts a zap.AtomicLevel to set the logging level.
+// Returns the configured zap.Logger or an error if setup fails.
+func setupConsoleLogger(level zap.AtomicLevel) (*zap.Logger, error) {
+	config := zap.Config{
+		Encoding:         "json", // or "console"
+		Level:            level,  // default log level
+		OutputPaths:      []string{"stdout"},
+		ErrorOutputPaths: []string{"stderr"},
+		EncoderConfig: zapcore.EncoderConfig{
+			TimeKey:        "time",
+			CallerKey:      "caller",
+			LevelKey:       "level",
+			NameKey:        "logger",
+			MessageKey:     "msg",
+			StacktraceKey:  "stacktrace",
+			LineEnding:     zapcore.DefaultLineEnding,
+			EncodeLevel:    zapcore.LowercaseLevelEncoder, // or zapcore.LowercaseColorLevelEncoder for console
+			EncodeTime:     zapcore.ISO8601TimeEncoder,
+			EncodeDuration: zapcore.StringDurationEncoder,
+			EncodeCaller:   zapcore.ShortCallerEncoder,
+		},
+	}
+
+	return config.Build()
+}
+
+func readProxyConfig(path string) (*yamlProxyConfig, error) {
+	fileData, err := readFile(path)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read config file: %w", err)
 	}
@@ -204,10 +283,24 @@ func ParseProxyConfig(args *types.CliArgs) ([]*types.ProxyInstanceConfig, error)
 	if err = yaml.Unmarshal(fileData, &config); err != nil {
 		return nil, fmt.Errorf("failed to unmarshal config: %w", err)
 	}
-
-	instanceConfigs, err := loadProxyConfigFile(config, args)
+	err = validateAndApplyDefaults(&config)
 	if err != nil {
-		return nil, fmt.Errorf("error while loading config.yaml: %w", err)
+		return nil, err
+	}
+	return &config, nil
+}
+
+func ParseProxyConfig(args *types.CliArgs) ([]*types.ProxyInstanceConfig, error) {
+	var instanceConfigs []*types.ProxyInstanceConfig = nil
+	if args.ConfigFilePath != "" {
+		config, err := readProxyConfig(args.ConfigFilePath)
+		if err != nil {
+			return nil, err
+		}
+		instanceConfigs, err = loadProxyConfigFile(config, args)
+		if err != nil {
+			return nil, fmt.Errorf("error while loading config.yaml: %w", err)
+		}
 	}
 
 	quickStartInstanceConfig, err := maybeParseQuickStartArgs(args)

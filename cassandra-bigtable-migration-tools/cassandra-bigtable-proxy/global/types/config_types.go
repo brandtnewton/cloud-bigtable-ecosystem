@@ -81,6 +81,5 @@ type ProxyInstanceConfig struct {
 	DC             string
 	Tokens         []string
 	BigtableConfig *BigtableConfig
-	TcpBindPort    string
 	OtelConfig     *OtelConfig
 }

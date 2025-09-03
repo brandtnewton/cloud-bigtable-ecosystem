@@ -31,7 +31,7 @@ func parseProtocolVersion(s string) (version primitive.ProtocolVersion, ok bool)
 }
 
 // LoadConfig reads and parses the configuration from a YAML file
-func loadProxyConfigFile(config yamlProxyConfig, args *types.CliArgs) ([]*types.ProxyInstanceConfig, error) {
+func loadProxyConfigFile(config *yamlProxyConfig, args *types.CliArgs) ([]*types.ProxyInstanceConfig, error) {
 
 	if config.Otel == nil {
 		config.Otel = &yamlOtelConfig{
@@ -83,7 +83,7 @@ func loadProxyConfigFile(config yamlProxyConfig, args *types.CliArgs) ([]*types.
 
 	var instanceConfigs []*types.ProxyInstanceConfig = nil
 	for _, l := range config.Listeners {
-		listener, err := loadListenerConfig(args, &l, &config, otel)
+		listener, err := loadListenerConfig(args, &l, config, otel)
 		if err != nil {
 			return nil, err
 		}

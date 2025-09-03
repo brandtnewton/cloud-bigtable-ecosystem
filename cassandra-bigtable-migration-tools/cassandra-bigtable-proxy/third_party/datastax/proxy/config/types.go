@@ -58,7 +58,7 @@ type yamlBigtable struct {
 	Instances                     []yamlInstancesMap `yaml:"instances"`
 	InstanceIDs                   string             `yaml:"instanceIds"`
 	SchemaMappingTable            string             `yaml:"schemaMappingTable"`
-	Session                       yamlSession        `yaml:"yamlSession"`
+	Session                       yamlSession        `yaml:"Session"`
 	DefaultColumnFamily           string             `yaml:"defaultColumnFamily"`
 	AppProfileID                  string             `yaml:"appProfileID"`
 	EncodeIntRowKeysWithBigEndian bool               `yaml:"encodeIntRowKeysWithBigEndian"`

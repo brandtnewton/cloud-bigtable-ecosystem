@@ -208,7 +208,7 @@ func TestParseProxyConfig(t *testing.T) {
 				Tokens:                        nil,
 				CQLVersion:                    "3.4.5",
 				LogLevel:                      "info",
-				TcpBindPort:                   "",
+				TcpBindPort:                   defaultTcpBindPort,
 				UseUnixSocket:                 false,
 				UnixSocketPath:                "/tmp/cassandra-proxy.sock",
 				ProxyCertFile:                 "",
@@ -226,7 +226,7 @@ func TestParseProxyConfig(t *testing.T) {
 			want: []*types.ProxyInstanceConfig{
 				{
 					Port:     9092,
-					Bind:     ":9092",
+					Bind:     "0.0.0.0:9092",
 					CliArgs:  nil, // reference fixed by test fixture
 					NumConns: 19,
 					Logger:   nil,
@@ -259,18 +259,81 @@ func TestParseProxyConfig(t *testing.T) {
 		{
 			name: "invalid protocol config",
 			args: &types.CliArgs{
-				ConfigFilePath: wd + "/testdata/valid_config.yaml",
+				ConfigFilePath: wd + "/testdata/invalid_config.yaml",
 			},
 			want:    nil,
-			wantErr: "default protocol version is greater than max protocol version",
+			wantErr: "failed to unmarshal config",
 		},
 		{
 			name: "no listeners provided",
 			args: &types.CliArgs{
-				ConfigFilePath: wd + "/testdata/valid_config.yaml",
+				ConfigFilePath: wd + "/testdata/no_listeners_config.yaml",
 			},
 			want:    nil,
-			wantErr: "default protocol version is greater than max protocol version",
+			wantErr: "no listeners provided",
+		},
+		{
+			name: "no listeners in yaml but quick start args given",
+			args: &types.CliArgs{
+				ConfigFilePath:       wd + "/testdata/no_listeners_config.yaml",
+				QuickStartPort:       9042,
+				QuickStartProjectId:  "my-project",
+				QuickStartInstanceId: "my-instance",
+			},
+			want:    nil,
+			wantErr: "",
+		},
+		{
+			name: "quick start",
+			args: &types.CliArgs{
+				ConfigFilePath:                wd + "/testdata/no_listeners_config.yaml",
+				QuickStartPort:                1234,
+				QuickStartProjectId:           "my-project",
+				QuickStartInstanceId:          "my-instance",
+				QuickStartSchemaMappingTable:  "sm",
+				QuickStartDefaultColumnFamily: "df",
+				QuickStartAppProfile:          "cql-proxy",
+			},
+			want:    nil,
+			wantErr: "",
+		},
+		{
+			name: "missing quickstart arg",
+			args: &types.CliArgs{
+				QuickStartInstanceId: "my-instance",
+			},
+			want:    nil,
+			wantErr: "partial quickstart config provided",
+		},
+		{
+			name: "missing quickstart arg 2",
+			args: &types.CliArgs{
+				QuickStartProjectId: "my-instance",
+			},
+			want:    nil,
+			wantErr: "partial quickstart config provided",
+		},
+		{
+			name: "missing quickstart arg 3",
+			args: &types.CliArgs{
+				QuickStartPort: 0,
+			},
+			want:    nil,
+			wantErr: "partial quickstart config provided",
+		},
+		{
+			name: "quick start and yaml have same port",
+			args: &types.CliArgs{
+				ConfigFilePath:                wd + "/testdata/valid_config.yaml",
+				QuickStartPort:                9092,
+				QuickStartProjectId:           "my-project",
+				QuickStartInstanceId:          "my-instance",
+				QuickStartSchemaMappingTable:  "sm",
+				QuickStartDefaultColumnFamily: "df",
+				QuickStartAppProfile:          "cql-proxy",
+			},
+			want:    nil,
+			wantErr: "multiple listeners configured to use same port: 9092",
 		},
 	}
 	for _, tt := range tests {

@@ -141,7 +141,7 @@ func (btc *BigtableClient) tableResourceExists(ctx context.Context, adminClient 
 	return true, nil
 }
 
-// mutateRow() - Applies mutations to a row in the specified BigtableConfig table.
+// mutateRow() - Applies mutations to a row in the specified Bigtable table.
 //
 // Parameters:
 //   - ctx: Context for the operation, used for cancellation and deadlines.

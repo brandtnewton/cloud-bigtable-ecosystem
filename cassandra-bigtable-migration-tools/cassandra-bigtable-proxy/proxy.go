@@ -16,6 +16,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"os/signal"
 
@@ -28,6 +29,7 @@ func main() {
 
 	err := proxy.Run(ctx, os.Args[1:])
 	if err != nil {
+		println(fmt.Errorf("error: %w", err))
 		os.Exit(1)
 		return
 	}

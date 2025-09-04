@@ -30,8 +30,8 @@ import (
 	mockbigtable "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/mocks/bigtable"
 	rh "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/responsehandler"
 	schemaMapping "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/schema-mapping"
-	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/require"
 	"go.uber.org/zap"
 )
 
@@ -203,8 +203,8 @@ func TestRun(t *testing.T) {
 	}
 	defer func() { bt.NewBigtableClient = originalNewBigTableClient }()
 
-	code := Run(ctx, []string{})
-	assert.Equal(t, 0, code)
+	err := Run(ctx, []string{})
+	require.NoError(t, err)
 }
 
 func Test_resolveAndListen(t *testing.T) {

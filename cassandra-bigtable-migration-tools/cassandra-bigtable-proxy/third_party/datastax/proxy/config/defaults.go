@@ -30,7 +30,7 @@ var (
 	DefaultSchemaMappingTableName = "schema_mapping"
 	ErrorAuditTable               = "error_audit"
 	DefaultColumnFamily           = "cf1"
-	DefaultProfileId              = "default"
+	DefaultAppProfileId           = "default"
 	TimestampColumnName           = "ts_column"
 )
 

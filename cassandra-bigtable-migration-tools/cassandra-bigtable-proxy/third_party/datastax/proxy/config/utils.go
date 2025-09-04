@@ -83,18 +83,9 @@ func loadProxyConfigFile(config *yamlProxyConfig, args *types.CliArgs) ([]*types
 }
 
 func loadListenerConfig(args *types.CliArgs, l *yamlListener, config *yamlProxyConfig, otel *types.OtelConfig) (*types.ProxyInstanceConfig, error) {
-	projectId := l.Bigtable.ProjectID
-	if projectId == "" {
-		projectId = config.CassandraToBigtableConfigs.ProjectID
-	}
-	schemaMappingTable := l.Bigtable.SchemaMappingTable
-	if schemaMappingTable == "" {
-		schemaMappingTable = config.CassandraToBigtableConfigs.SchemaMappingTable
-	}
-	var defaultAppProfileId = l.Bigtable.AppProfileID
-	if defaultAppProfileId == "" {
-		defaultAppProfileId = "default"
-	}
+	projectId := assignWithFallbacks(l.Bigtable.ProjectID, config.CassandraToBigtableConfigs.ProjectID, args.QuickStartProjectId)
+	schemaMappingTable := assignWithFallbacks(l.Bigtable.SchemaMappingTable, config.CassandraToBigtableConfigs.SchemaMappingTable, args.QuickStartSchemaMappingTable, DefaultSchemaMappingTableName)
+	defaultAppProfileId := assignWithFallbacks(l.Bigtable.AppProfileID, args.QuickStartAppProfile, DefaultAppProfileId)
 
 	var instancesDefined = len(l.Bigtable.Instances) > 0
 	var instanceIdsDefined = l.Bigtable.InstanceIDs != ""
@@ -107,10 +98,7 @@ func loadListenerConfig(args *types.CliArgs, l *yamlListener, config *yamlProxyC
 	var instances = make(map[string]*types.InstancesMapping)
 	if len(l.Bigtable.Instances) != 0 {
 		for _, i := range l.Bigtable.Instances {
-			appProfileId := i.AppProfileID
-			if appProfileId == "" {
-				appProfileId = defaultAppProfileId
-			}
+			appProfileId := assignWithFallbacks(i.AppProfileID, defaultAppProfileId)
 			instances[i.Keyspace] = &types.InstancesMapping{
 				BigtableInstance: i.BigtableInstance,
 				Keyspace:         i.Keyspace,
@@ -174,4 +162,16 @@ func buildBindAndPort(tcpBindPort string, port int) string {
 	}
 	tcpBindPort = maybeAddPort(tcpBindPort, strconv.Itoa(port))
 	return tcpBindPort
+}
+
+func assignWithFallbacks(s1 string, fallbacks ...string) string {
+	if s1 != "" {
+		return s1
+	}
+	for _, fallback := range fallbacks {
+		if fallback != "" {
+			return fallback
+		}
+	}
+	return ""
 }

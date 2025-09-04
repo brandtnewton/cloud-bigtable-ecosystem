@@ -62,7 +62,21 @@ func TestConnect(t *testing.T) {
 	mp := make(map[*client]struct{})
 	prox := &Proxy{
 		clients: mp,
-		logger:  logger,
+		config: &types.ProxyInstanceConfig{
+			Port: 0,
+			Options: &types.CliArgs{
+				ProtocolVersion:    primitive.ProtocolVersion4,
+				MaxProtocolVersion: primitive.ProtocolVersion4,
+			},
+			Bind:           "",
+			NumConns:       0,
+			RPCAddr:        "",
+			DC:             "",
+			Tokens:         nil,
+			BigtableConfig: nil,
+			OtelConfig:     nil,
+		},
+		logger: logger,
 	}
 	err := prox.Connect()
 	assert.NoError(t, err, "function should return no error")
@@ -2446,7 +2460,21 @@ func TestHandlePostDDLEvent(t *testing.T) {
 				},
 			)
 			proxy := &Proxy{
-				logger:        logger,
+				logger: logger,
+				config: &types.ProxyInstanceConfig{
+					Port: 0,
+					Options: &types.CliArgs{
+						ProtocolVersion:    primitive.ProtocolVersion4,
+						MaxProtocolVersion: primitive.ProtocolVersion4,
+					},
+					Bind:           "",
+					NumConns:       0,
+					RPCAddr:        "",
+					DC:             "",
+					Tokens:         nil,
+					BigtableConfig: nil,
+					OtelConfig:     nil,
+				},
 				schemaMapping: schemaMappingConfig,
 			}
 			mockSender := &mockSender{}

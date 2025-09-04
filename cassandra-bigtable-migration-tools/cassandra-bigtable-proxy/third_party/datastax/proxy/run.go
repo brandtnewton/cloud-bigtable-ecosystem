@@ -114,8 +114,8 @@ func listenAndServe(c *types.ProxyInstanceConfig, p *Proxy, mux *http.ServeMux, 
 		logger.Info(fmt.Sprintf("TCP listener created successfully on %s\n", c.Bind))
 	}
 
-	// Set up BigtableConfig client
-	logger.Info("Initializing BigtableConfig client...\n")
+	// Set up bigtable client
+	logger.Info("Initializing bigtable client...\n")
 	err = p.Connect()
 	if err != nil {
 		for _, l := range listeners {
@@ -123,7 +123,7 @@ func listenAndServe(c *types.ProxyInstanceConfig, p *Proxy, mux *http.ServeMux, 
 		}
 		return err
 	}
-	logger.Info("BigtableConfig client initialized successfully\n")
+	logger.Info("bigtable client initialized successfully\n")
 
 	var wg sync.WaitGroup
 	ch := make(chan error)

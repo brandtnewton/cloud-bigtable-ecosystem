@@ -16,7 +16,6 @@ type yamlLoggerConfig struct {
 	Compress   bool   `yaml:"compress"`   // the rotated log files to be compressed to save disk space.
 }
 
-// yamlCassandraToBigtableConfigs contains configurations for Cassandra to bigtable proxy
 type yamlCassandraToBigtableConfigs struct {
 	ProjectID          string `yaml:"projectId"`
 	SchemaMappingTable string `yaml:"DefaultSchemaMappingTableName"`

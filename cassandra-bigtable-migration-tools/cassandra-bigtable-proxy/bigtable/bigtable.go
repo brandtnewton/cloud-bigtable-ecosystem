@@ -87,9 +87,9 @@ type BigTableClientIface interface {
 // NewBigtableClient - Creates a new instance of BigtableClient.
 //
 // Parameters:
-//   - client: BigtableConfig client.
+//   - client: Bigtable client.
 //   - logger: Logger instance.
-//   - sqlClient: BigtableConfig SQL client.
+//   - sqlClient: Bigtable SQL client.
 //   - config: BigtableConfig configuration object.
 //   - responseHandler: TypeHandler for response handling.
 //   - grpcConn: grpcConn for calling apis.
@@ -278,7 +278,7 @@ func (btc *BigtableClient) DropAllRows(ctx context.Context, data *translator.Tru
 	err = adminClient.DropAllRows(ctx, data.Table)
 	if status.Code(err) == codes.NotFound {
 		// Table doesn't exist in BigtableConfig, which is fine for a truncate.
-		btc.Logger.Info("truncate table: table not found in BigtableConfig, nothing to drop", zap.String("table", data.Table))
+		btc.Logger.Info("truncate table: table not found in bigtable, nothing to drop", zap.String("table", data.Table))
 		return nil
 	}
 	if err != nil {
@@ -575,7 +575,7 @@ func (btc *BigtableClient) updateTableSchema(ctx context.Context, keyspace strin
 	return nil
 }
 
-// InsertRow - Inserts a row into the specified BigtableConfig table.
+// InsertRow - Inserts a row into the specified bigtable table.
 //
 // Parameters:
 //   - ctx: Context for the operation, used for cancellation and deadlines.
@@ -587,7 +587,7 @@ func (btc *BigtableClient) InsertRow(ctx context.Context, insertQueryData *trans
 	return btc.mutateRow(ctx, insertQueryData.Table, insertQueryData.RowKey, insertQueryData.Columns, insertQueryData.Values, insertQueryData.DeleteColumnFamilies, []types.Column{}, insertQueryData.TimestampInfo.Timestamp, translator.IfSpec{IfNotExists: insertQueryData.IfNotExists}, insertQueryData.Keyspace, nil)
 }
 
-// UpdateRow - Updates a row in the specified BigtableConfig table.
+// UpdateRow - Updates a row in the specified bigtable table.
 //
 // Parameters:
 //   - ctx: Context for the operation, used for cancellation and deadlines.
@@ -599,7 +599,7 @@ func (btc *BigtableClient) UpdateRow(ctx context.Context, updateQueryData *trans
 	return btc.mutateRow(ctx, updateQueryData.Table, updateQueryData.RowKey, updateQueryData.Columns, updateQueryData.Values, updateQueryData.DeleteColumnFamilies, updateQueryData.DeleteColumQualifires, updateQueryData.TimestampInfo.Timestamp, translator.IfSpec{IfExists: updateQueryData.IfExists}, updateQueryData.Keyspace, updateQueryData.ComplexOperation)
 }
 
-// DeleteRowNew - Deletes a row in the specified BigtableConfig table.
+// DeleteRowNew - Deletes a row in the specified bigtable table.
 //
 // Parameters:
 //   - ctx: Context for the operation, used for cancellation and deadlines.
@@ -744,7 +744,7 @@ func (btc *BigtableClient) ReadTableConfigs(ctx context.Context, keyspace string
 	}
 
 	if err != nil {
-		btc.Logger.Error("Failed to read rows from BigtableConfig - possible issue with schema_mapping table:", zap.Error(err))
+		btc.Logger.Error("Failed to read rows from bigtable - possible issue with schema_mapping table:", zap.Error(err))
 		return nil, err
 	}
 
@@ -779,7 +779,7 @@ func (btc *BigtableClient) ReadTableConfigs(ctx context.Context, keyspace string
 	return tableConfigs, nil
 }
 
-// ApplyBulkMutation - Applies bulk mutations to the specified BigtableConfig table.
+// ApplyBulkMutation - Applies bulk mutations to the specified bigtable table.
 //
 // Parameters:
 //   - ctx: Context for the operation, used for cancellation and deadlines.
@@ -874,20 +874,20 @@ func (btc *BigtableClient) ApplyBulkMutation(ctx context.Context, tableName stri
 	return res, nil
 }
 
-// Close() gracefully shuts down the BigtableConfig client and gRPC connection.
+// Close() gracefully shuts down the bigtable client and gRPC connection.
 //
-// It iterates through all active BigtableConfig clients and closes them before closing the gRPC connection.
+// It iterates through all active bigtable clients and closes them before closing the gRPC connection.
 func (btc *BigtableClient) Close() {
 	for _, clients := range btc.Clients {
 		clients.Close()
 	}
 }
 
-// getIndexOpTimestamp() retrieves the timestamp qualifier for a given list index in a BigtableConfig row.
+// getIndexOpTimestamp() retrieves the timestamp qualifier for a given list index in a bigtable row.
 //
 // Parameters:
 //   - ctx: Context for the operation, used for cancellation and deadlines.
-//   - tableName: The name of the BigtableConfig table.
+//   - tableName: The name of the bigtable table.
 //   - rowKey: The row key to look up.
 //   - columnFamily: The column family where the list is stored.
 //   - keyspace: The keyspace identifier.
@@ -924,18 +924,18 @@ func (btc *BigtableClient) getIndexOpTimestamp(ctx context.Context, tableName, r
 	return "", fmt.Errorf("index %d out of bounds for list size %d", index, len(row[columnFamily]))
 }
 
-// setMutationforListDelete() applies deletions to specific list elements in a BigtableConfig row.
+// setMutationforListDelete() applies deletions to specific list elements in a bigtable row.
 //
 // This function identifies and removes the specified elements from a list stored in a column family.
 //
 // Parameters:
 //   - ctx: Context for the operation, used for cancellation and deadlines.
-//   - tableName: The name of the BigtableConfig table.
+//   - tableName: The name of the bigtable table.
 //   - rowKey: The row key containing the list.
 //   - columnFamily: The column family storing the list.
 //   - keyspace: The keyspace identifier.
 //   - deleteList: A slice of byte arrays representing the values to be deleted from the list.
-//   - mut: The BigtableConfig mutation object to which delete operations will be added.
+//   - mut: The bigtable mutation object to which delete operations will be added.
 //
 // Returns:
 //   - error: An error if the row does not exist or if list elements cannot be deleted.
@@ -976,11 +976,11 @@ func (btc *BigtableClient) LoadConfigs(rh *responsehandler.TypeHandler, schemaCo
 	// Set the ResponseHandler for the BigtableClient to handle responses.
 	btc.ResponseHandler = rh
 
-	// Set the SchemaMappingConfig to define how data mapping will be handled in BigtableConfig.
+	// Set the SchemaMappingConfig to define how data mapping will be handled in bigtable.
 	btc.SchemaMappingConfig = schemaConfig
 }
 
-// PrepareStatement prepares a query for execution using the BigtableConfig SQL client.
+// PrepareStatement prepares a query for execution using the bigtable SQL client.
 func (btc *BigtableClient) PrepareStatement(ctx context.Context, query rh.QueryMetadata) (*bigtable.PreparedStatement, error) {
 	client, err := btc.getClient(query.KeyspaceName)
 	if err != nil {
@@ -1014,7 +1014,7 @@ func (btc *BigtableClient) PrepareStatement(ctx context.Context, query rh.QueryM
 	return preparedStatement, nil
 }
 
-// getClient retrieves a BigtableConfig client for a given keyspace.
+// getClient retrieves a bigtable client for a given keyspace.
 // It looks up the instance information associated with the keyspace in the InstancesMap,
 // then returns the corresponding client from the Clients map.
 //
@@ -1022,9 +1022,9 @@ func (btc *BigtableClient) PrepareStatement(ctx context.Context, query rh.QueryM
 //   - keyspace: string representing the Cassandra keyspace name
 //
 // Returns:
-//   - *bigtable.Client: the BigtableConfig client instance associated with the keyspace
+//   - *bigtable.Client: the bigtable client instance associated with the keyspace
 //   - error: returns an error if either the keyspace is not found in InstancesMap
-//     or if no client exists for the corresponding BigtableConfig instance
+//     or if no client exists for the corresponding bigtable instance
 func (btc *BigtableClient) getClient(keyspace string) (*bigtable.Client, error) {
 	instanceInfo, ok := btc.BigtableConfig.Instances[keyspace]
 	if !ok {
@@ -1037,10 +1037,10 @@ func (btc *BigtableClient) getClient(keyspace string) (*bigtable.Client, error) 
 	return client, nil
 }
 
-// getAdminClient retrieves the BigtableConfig AdminClient associated with the given keyspace.
+// getAdminClient retrieves the bigtable AdminClient associated with the given keyspace.
 // It looks up the instance information for the provided keyspace in the InstancesMap,
 // then fetches the corresponding AdminClient from the AdminClients map using the
-// BigtableConfig instance name. If the keyspace or the admin client is not found, it returns
+// bigtable instance name. If the keyspace or the admin client is not found, it returns
 // an error describing the missing resource.
 //
 // Parameters:

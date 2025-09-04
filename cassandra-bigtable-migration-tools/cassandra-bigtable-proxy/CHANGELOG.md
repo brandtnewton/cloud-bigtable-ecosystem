@@ -19,6 +19,6 @@ Significantly expands Cassandra Proxy capabilities and improves reliability.
 - Fixes Describe table commands
 - Fixes various bugs
 
-## v.0.1.0
+## v0.1.0
 
 Initial release of the Cassandra migration tools.

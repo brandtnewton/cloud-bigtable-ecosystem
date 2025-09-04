@@ -1,6 +1,6 @@
 // Copyright (c) DataStax, Inc.
 //
-// Licensed under the Apache License, ProtocolVersion 2.0 (the "License");
+// Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
@@ -25,7 +25,6 @@ import "errors"
 //
 // updateStatement: 'UPDATE' tableName usingClause? 'SET' updateOperations whereClause 'IF' ( 'EXISTS' | conditions )?
 // tableName: ( identifier '.' )? identifier
-//
 func isIdempotentUpdateStmt(l *lexer) (idempotent bool, t token, err error) {
 	t = l.next()
 	if tkIdentifier != t {
@@ -71,11 +70,11 @@ func isIdempotentUpdateStmt(l *lexer) (idempotent bool, t token, err error) {
 // Parse over using clause.
 //
 // usingClause
-//	  : 'USING' timestamp
-//    | 'USING' ttl
-//    | 'USING' timestamp 'AND' ttl
-//    | 'USING' ttl 'AND' timestamp
 //
+//		  : 'USING' timestamp
+//	   | 'USING' ttl
+//	   | 'USING' timestamp 'AND' ttl
+//	   | 'USING' ttl 'AND' timestamp
 func parseUsingClause(l *lexer, t token) (next token, err error) {
 	if tkUsing == t {
 		err = parseTtlOrTimestamp(l)
@@ -97,7 +96,6 @@ func parseUsingClause(l *lexer, t token) (next token, err error) {
 //
 // timestamp: 'TIMESTAMP' ( INTEGER | bindMarker )
 // ttl: 'TTL' ( INTEGER | bindMarker )
-//
 func parseTtlOrTimestamp(l *lexer) error {
 	var t token
 	if t = l.next(); !isUnreservedKeyword(l, t, "ttl") && !isUnreservedKeyword(l, t, "timestamp") {

@@ -1,6 +1,6 @@
 // Copyright (c) DataStax, Inc.
 //
-// Licensed under the Apache License, ProtocolVersion 2.0 (the "License");
+// Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
@@ -25,7 +25,6 @@ import "errors"
 // tableName: ( identifier '.' )? identifier
 // namedValues: '(' identifiers ')' 'VALUES' '(' terms ')'
 // jsonClause: 'JSON' stringLiteral ( 'DEFAULT' ( 'NULL' | 'UNSET' ) )?
-//
 func isIdempotentInsertStmt(l *lexer) (idempotent bool, t token, err error) {
 	t = l.next()
 	if tkInto != t {

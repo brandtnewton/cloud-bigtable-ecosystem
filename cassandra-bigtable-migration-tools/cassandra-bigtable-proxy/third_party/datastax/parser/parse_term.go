@@ -1,6 +1,6 @@
 // Copyright (c) DataStax, Inc.
 //
-// Licensed under the Apache License, ProtocolVersion 2.0 (the "License");
+// Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
@@ -56,7 +56,6 @@ const (
 //
 // typeCast: '(' type ')' term
 // type: identifier | identifier '<' type '>'
-//
 func parseTerm(l *lexer, t token) (idempotent bool, typ termType, err error) {
 	switch t {
 	case tkInteger: // Integer lister

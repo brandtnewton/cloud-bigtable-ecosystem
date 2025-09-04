@@ -1,6 +1,6 @@
 // Copyright (c) DataStax, Inc.
 //
-// Licensed under the Apache License, ProtocolVersion 2.0 (the "License");
+// Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
@@ -29,12 +29,12 @@ import "errors"
 // * Function calls
 //
 // updateOperation
-//    : identifier '=' term ( '+' identifier )?
-//    | identifier '=' identifier ( '+' | '-' ) term
-//    | identifier ( '+=' | '-=' ) term
-//    | identifier '[' term ']' '=' term
-//    | identifier '.' identifier '=' term
 //
+//	: identifier '=' term ( '+' identifier )?
+//	| identifier '=' identifier ( '+' | '-' ) term
+//	| identifier ( '+=' | '-=' ) term
+//	| identifier '[' term ']' '=' term
+//	| identifier '.' identifier '=' term
 func parseUpdateOp(l *lexer, t token) (idempotent bool, err error) {
 	if tkIdentifier != t {
 		return false, errors.New("expected identifier after 'SET' in update statement")

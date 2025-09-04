@@ -262,14 +262,14 @@ listeners:
 
     # If you want to use multiple instances, define them as a list of objects below.
     instances:
-    - # [Required] The name of the Bigtable instance.
-      bigtableInstance: YOUR_BIGTABLE_INSTANCE_ID
-      # [Required] The cassandra keyspace associated with this Bigtable instance.
-      # Cassandra keyspace should not contain any special characters except underscore(_).
-      keyspace: YOUR_KEYSPACE_NAME
-      # [Optional] appProfileID is required only if you want to use a specific app profile for this instance.
-      # This will override the global appProfileID if specified.
-      appProfileID: YOUR_APP_PROFILE_ID
+        - # [Required] The name of the Bigtable instance.
+          bigtableInstance: YOUR_BIGTABLE_INSTANCE_ID
+          # [Required] The cassandra keyspace associated with this Bigtable instance.
+          # Cassandra keyspace should not contain any special characters except underscore(_).
+          keyspace: YOUR_KEYSPACE_NAME
+          # [Optional] appProfileID is required only if you want to use a specific app profile for this instance.
+          # This will override the global appProfileID if specified.
+          appProfileID: YOUR_APP_PROFILE_ID
 
     # [Required] Name of the table  where cassandra schema to bigtable schema mapping is stored.
     schemaMappingTable: SCHEMA_MAPPING_TABLE_NAME
@@ -359,39 +359,12 @@ loggerConfig:
 
 ## Getting started
 
-We can setup the `cassandra-to-bigtable-proxy` Adapter via 3 different methods
+We can set up the `cassandra-to-bigtable-proxy` Adapter via 3 different methods
 as mentioned below
 
 - Locally build and run `cassandra-to-bigtable-proxy`
 - Run a docker image that has `cassandra-to-bigtable-proxy` installed
 - Use a Kubernetes container to run `cassandra-to-bigtable-proxy`
-
-### Quick Start
-
-This is the fastest and simplest way to get started with the Proxy, once you've
-built the proxy and created your Bigtable instance. With this setup, don't need
-to use a config.yaml file. More complicated setups, like supporting multiple
-keyspaces, can be achieved with a config.yaml file. You may use quick start
-setups alongside a config file, but we recommend keeping all of your config in
-one place.
-
-```
-./cassandra-to-bigtable-proxy --project-id='YOUR_PROJECT_ID' --instance-id='YOUR_INSTANCE_ID' --keyspace-id='YOUR_KEYSPACE_ID'
-```
-
-- **project-id** the Google Cloud project id to use
-- **instance-id** the Bigtable instance id to use
-- **keyspace-id** (Optional) the Cassandra keyspace that will be mapped to the
-  Bigtable instance. If undefined, the instance-id will double as the keyspace.
-- **port** (Optional) the port for the Proxy to listen on. The default
-  is `9042`.
-- **app-profile** (Optional, but recommended) the Bigtable app profile that will
-  be used to connect to Bigtable.
-- **default-column-family** (Optional) the Bigtable column family that all
-  scalar values will be written to. The default is `cf1`.
-- **schema-mapping-table** (Optional) the name of the Bigtable table that will
-  be used to store schema information. The default is `schema_mapping`. The
-  table will be automatically created.
 
 ### Build and Run Proxy Locally
 
@@ -453,6 +426,33 @@ Steps to run the Adapter locally are as mentioned below:
   ```
 
 - Application will be listening on the specified TCP port (default: 9042).
+
+#### Quick Start
+
+This is the fastest and simplest way to get started with the Proxy, once you've
+built the proxy and created your Bigtable instance. With this setup, don't need
+to use a config.yaml file. More complicated setups, like supporting multiple
+keyspaces, can be achieved with a config.yaml file. You may use quick start
+setups alongside a config file, but we recommend keeping all of your config in
+one place.
+
+```
+./cassandra-to-bigtable-proxy --project-id='YOUR_GOOGLE_CLOUD_PROJECT_ID' --instance-id='YOUR_BIGTABLE_INSTANCE_ID' --keyspace-id='YOUR_CASSANDRA_KEYSPACE'
+```
+
+- **project-id** the Google Cloud project id to use
+- **instance-id** the Bigtable instance id to use
+- **keyspace-id** (Optional) the Cassandra keyspace that will be mapped to the
+  Bigtable instance. If undefined, the instance-id will double as the keyspace.
+- **port** (Optional) the port for the Proxy to listen on. The default
+  is `9042`.
+- **app-profile** (Optional, but recommended) the Bigtable app profile that will
+  be used to connect to Bigtable.
+- **default-column-family** (Optional) the Bigtable column family that all
+  scalar values will be written to. The default is `cf1`.
+- **schema-mapping-table** (Optional) the name of the Bigtable table that will
+  be used to store schema information. The default is `schema_mapping`. The
+  table will be automatically created.
 
 ### Run Proxy via Docker
 

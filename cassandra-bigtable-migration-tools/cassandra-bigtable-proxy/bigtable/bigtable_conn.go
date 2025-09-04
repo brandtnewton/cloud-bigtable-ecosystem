@@ -27,7 +27,7 @@ import (
 	"google.golang.org/grpc"
 )
 
-// CreateBigtableClient initializes and returns a BigtableConfig client for a specified instance.
+// CreateBigtableClient initializes and returns a Bigtable client for a specified instance.
 // It sets up a gRPC connection pool with custom options and parameters.
 //
 // Parameters:

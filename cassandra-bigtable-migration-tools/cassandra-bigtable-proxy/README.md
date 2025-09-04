@@ -430,7 +430,7 @@ Steps to run the Adapter locally are as mentioned below:
 #### Quick Start
 
 This is the fastest and simplest way to get started with the Proxy, once you've
-built the proxy and created your Bigtable instance. With this setup, don't need
+built the proxy and created your Bigtable instance. With this setup, you don't need
 to use a config.yaml file. More complicated setups, like supporting multiple
 keyspaces, can be achieved with a config.yaml file. You may use quick start
 setups alongside a config file, but we recommend keeping all of your config in

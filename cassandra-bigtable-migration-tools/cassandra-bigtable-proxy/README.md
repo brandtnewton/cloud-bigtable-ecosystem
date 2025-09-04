@@ -408,7 +408,7 @@ Steps to run the Adapter locally are as mentioned below:
     - **rpc-address**: RPC address to bind to(This is specifically useful when
       connecting to zdm-proxy), **default value: 0.0.0.0**
     - **use-unix-socket** or **-u**: Enable Unix Domain Socket (UDS) connection.
-      See [UDS Connection](#unix-domain-socket-uds-connection) for details.
+      See [UDS Connection](#unix-domain-socket--uds--connection) for details.
     - **unix-socket-path**: Path for the Unix Domain Socket file, **default
       value: "/tmp/cassandra-proxy.sock"**
 

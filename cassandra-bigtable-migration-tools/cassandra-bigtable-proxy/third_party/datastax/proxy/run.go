@@ -38,7 +38,7 @@ func Run(ctx context.Context, args []string) error {
 	}
 
 	if cliArgs.Version {
-		fmt.Printf("ProtocolVersion - %s\n", constants.ProxyReleaseVersion)
+		fmt.Printf("Version - %s\n", constants.ProxyReleaseVersion)
 		return nil
 	}
 

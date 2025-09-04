@@ -581,14 +581,14 @@ func Test_buildOtelResource(t *testing.T) {
 			},
 		},
 		{
-			name: "Missing Service ProtocolVersion",
+			name: "Missing Service Version",
 			config: &OTelConfig{
 				ServiceName:    "test-service",
 				ServiceVersion: "",
 			},
 		},
 		{
-			name: "Empty ConfigFilePath",
+			name: "Empty Config",
 			config: &OTelConfig{
 				ServiceName:    "",
 				ServiceVersion: "",

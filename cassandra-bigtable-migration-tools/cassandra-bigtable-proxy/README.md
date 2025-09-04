@@ -13,7 +13,8 @@ Cassandra to Cloud Bigtable Proxy Adapter is designed to forward your
 application's CQL traffic to Bigtable database service. It listens on a local
 address and securely forwards that traffic.
 
-If you'd just like to try it out, see [running locally](#build-and-run-proxy-locally).
+If you'd just like to try it out,
+see the [quick start](#quick-start).
 
 ## Table of Contents
 
@@ -364,6 +365,33 @@ as mentioned below
 - Locally build and run `cassandra-to-bigtable-proxy`
 - Run a docker image that has `cassandra-to-bigtable-proxy` installed
 - Use a Kubernetes container to run `cassandra-to-bigtable-proxy`
+
+### Quick Start
+
+This is the fastest and simplest way to get started with the Proxy, once you've
+built the proxy and created your Bigtable instance. With this setup, don't need
+to use a config.yaml file. More complicated setups, like supporting multiple
+keyspaces, can be achieved with a config.yaml file. You may use quick start
+setups alongside a config file, but we recommend keeping all of your config in
+one place.
+
+```
+./cassandra-to-bigtable-proxy --project-id='YOUR_PROJECT_ID' --instance-id='YOUR_INSTANCE_ID' --keyspace-id='YOUR_KEYSPACE_ID'
+```
+
+- **project-id** the Google Cloud project id to use
+- **instance-id** the Bigtable instance id to use
+- **keyspace-id** (Optional) the Cassandra keyspace that will be mapped to the
+  Bigtable instance. If undefined, the instance-id will double as the keyspace.
+- **port** (Optional) the port for the Proxy to listen on. The default
+  is `9042`.
+- **app-profile** (Optional, but recommended) the Bigtable app profile that will
+  be used to connect to Bigtable.
+- **default-column-family** (Optional) the Bigtable column family that all
+  scalar values will be written to. The default is `cf1`.
+- **schema-mapping-table** (Optional) the name of the Bigtable table that will
+  be used to store schema information. The default is `schema_mapping`. The
+  table will be automatically created.
 
 ### Build and Run Proxy Locally
 

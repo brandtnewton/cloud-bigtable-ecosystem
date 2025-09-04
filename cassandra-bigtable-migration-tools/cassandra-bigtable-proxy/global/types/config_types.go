@@ -30,6 +30,7 @@ type CliArgs struct {
 	QuickStartPort                int
 	QuickStartProjectId           string
 	QuickStartInstanceId          string
+	QuickStartKeyspaceId          string
 	QuickStartAppProfile          string
 	QuickStartSchemaMappingTable  string
 	QuickStartDefaultColumnFamily string

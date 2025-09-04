@@ -50,6 +50,7 @@ type rawCliArgs struct {
 	// quick start config - used for running the proxy without a yaml config file
 	ProjectId           string `yaml:"project-id" help:"Google Cloud Project Id to use."`
 	InstanceId          string `yaml:"instance-id" help:"Bigtable Instance Id to use."`
+	KeyspaceId          string `yaml:"keyspace-id" help:"Cassandra Keyspace which will map to the instance-id option."`
 	AppProfile          string `yaml:"app-profile" help:"Bigtable App Profile to use." default:"default"`
 	Port                int    `yaml:"port" help:"Port to serve CQL traffic on." default:"9042"`
 	DefaultColumnFamily string `yaml:"default-column-family" help:"The Bigtable column family used for storing scalar values." default:"cf1"`
@@ -129,6 +130,7 @@ func ParseCliArgs(args []string) (*types.CliArgs, error) {
 		ClientUid:                     parsed.ClientUid,
 		QuickStartProjectId:           parsed.ProjectId,
 		QuickStartInstanceId:          parsed.InstanceId,
+		QuickStartKeyspaceId:          parsed.KeyspaceId,
 		QuickStartAppProfile:          parsed.AppProfile,
 		QuickStartPort:                parsed.Port,
 		QuickStartDefaultColumnFamily: parsed.DefaultColumnFamily,
@@ -148,16 +150,19 @@ func maybeParseQuickStartArgs(args *types.CliArgs) (*types.ProxyInstanceConfig, 
 		return nil, nil
 	}
 
+	// use keyspace-id but fallback to the bigtable instance id.
+	keyspace := assignWithFallbacks(args.QuickStartKeyspaceId, args.QuickStartInstanceId)
+
 	bigtableConfig := &types.BigtableConfig{
 		ProjectID: args.QuickStartProjectId,
 		Instances: map[string]*types.InstancesMapping{
-			args.QuickStartInstanceId: {
+			keyspace: {
 				BigtableInstance: args.QuickStartInstanceId,
-				Keyspace:         args.QuickStartInstanceId,
-				AppProfileID:     args.QuickStartAppProfile,
+				Keyspace:         keyspace,
+				AppProfileID:     assignWithFallbacks(args.QuickStartAppProfile, DefaultAppProfileId),
 			},
 		},
-		SchemaMappingTable: args.QuickStartSchemaMappingTable,
+		SchemaMappingTable: assignWithFallbacks(args.QuickStartSchemaMappingTable, DefaultSchemaMappingTableName),
 		Session: &types.Session{
 			GrpcChannels: DefaultBigtableGrpcChannels,
 		},

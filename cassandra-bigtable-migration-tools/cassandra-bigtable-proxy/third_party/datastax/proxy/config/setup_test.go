@@ -306,6 +306,39 @@ func TestParseProxyConfig(t *testing.T) {
 			wantErr: "",
 		},
 		{
+			name: "quick start with keyspace id",
+			args: []string{"-f", wd + "/testdata/no_listeners_config.yaml", "--port=1234", "--project-id=my-project", "--instance-id=my-instance", "--keyspace-id=my-keyspace", "--schema-mapping-table=sm", "--default-column-family=df", "--app-profile=cql-proxy"},
+			want: []*types.ProxyInstanceConfig{
+				{
+					Port:     1234,
+					Bind:     "0.0.0.0:1234",
+					Options:  nil, // reference fixed by test fixture
+					DC:       "datacenter1",
+					NumConns: 20,
+					BigtableConfig: &types.BigtableConfig{
+						ProjectID: "my-project",
+						Instances: map[string]*types.InstancesMapping{
+							"my-keyspace": {
+								BigtableInstance: "my-instance",
+								Keyspace:         "my-keyspace",
+								AppProfileID:     "cql-proxy",
+							},
+						},
+						SchemaMappingTable: "sm",
+						Session: &types.Session{
+							GrpcChannels: 1,
+						},
+						DefaultColumnFamily:      "df",
+						DefaultIntRowKeyEncoding: types.OrderedCodeEncoding,
+					},
+					OtelConfig: &types.OtelConfig{
+						Enabled: false,
+					},
+				},
+			},
+			wantErr: "",
+		},
+		{
 			name:    "missing quickstart arg",
 			args:    []string{"--instance-id=my-instance"},
 			want:    nil,

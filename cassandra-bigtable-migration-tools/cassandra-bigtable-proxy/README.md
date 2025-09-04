@@ -2,7 +2,7 @@
 
 ## Current Released Version
 
-Version `0.2.0` - Released on `August, 29 2025`
+Version `0.2.1` - Released on `September, 5 2025`
 
 For more details on this release, please refer to
 the [CHANGELOG.md](./CHANGELOG.md).

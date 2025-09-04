@@ -204,7 +204,7 @@ func getColumnMetadata(tableMetadata map[string]map[string]*schemaMapping.TableC
 
 // ConstructSystemMetadataRows constructs system metadata rows for keyspaces, tables, and columns.
 // It iterates through the provided table metadata and formats the data into a Cassandra-compatible structure.
-// The resulting metadata is used for system queries in the yamlBigtable proxy.
+// The resulting metadata is used for system queries in the Bigtable proxy.
 //
 // Parameters:
 //   - tableMetadata: A nested map where the first level represents keyspaces, the second level represents tables,

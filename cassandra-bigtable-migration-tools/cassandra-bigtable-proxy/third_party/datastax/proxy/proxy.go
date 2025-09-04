@@ -87,12 +87,10 @@ const errQueryNotPrepared = "query is not prepared"
 const (
 	handleQuery            = "handleQuery"
 	handleBatch            = "Batch"
-	handleExecuteForInsert = "handleExecuteForInsert"
 	handleExecuteForDelete = "handleExecuteForDelete"
 	handleExecuteForUpdate = "handleExecuteForUpdate"
 	handleExecuteForSelect = "handleExecuteForSelect"
 	cassandraQuery         = "Cassandra Query"
-	bigtableQuery          = "yamlBigtable Query"
 	rowKey                 = "Row Key"
 )
 
@@ -107,8 +105,8 @@ var (
 
 // Events
 const (
-	executingBigtableRequestEvent       = "Executing yamlBigtable Mutation Request"
-	executingBigtableSQLAPIRequestEvent = "Executing yamlBigtable SQL API Request"
+	executingBigtableRequestEvent       = "Executing Bigtable Mutation Request"
+	executingBigtableSQLAPIRequestEvent = "Executing Bigtable SQL API Request"
 	bigtableExecutionDoneEvent          = "bigtable Execution Done"
 	gotBulkApplyResp                    = "Got the response for bulk apply"
 	sendingBulkApplyMutation            = "Sending Mutation For Bulk Apply"

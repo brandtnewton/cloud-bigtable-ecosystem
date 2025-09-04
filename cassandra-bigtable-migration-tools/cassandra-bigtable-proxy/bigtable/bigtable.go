@@ -49,8 +49,6 @@ import (
 const (
 	applyingBigtableMutation       = "Applying Insert/Update Mutation"
 	bigtableMutationApplied        = "Insert/Update Mutation Applied"
-	callingBigtableSQLAPI          = "Calling BigtableConfig SQL API"
-	bigtableSQLAPICallDone         = "BigtableConfig SQL API Call Done"
 	applyingDeleteMutation         = "Applying Delete Mutation"
 	deleteMutationApplied          = "Delete Mutation Applied"
 	fetchingSchemaMappingConfig    = "Fetching Schema Mapping Configurations"

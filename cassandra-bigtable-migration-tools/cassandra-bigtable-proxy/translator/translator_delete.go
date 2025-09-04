@@ -72,7 +72,7 @@ func parseTableFromDelete(input cql.IFromSpecContext) (*TableObj, error) {
 // Parameters:
 //   - input: The Where Spec context from the antlr Parser.
 //   - tableName - Table Name
-//   - schemaMapping - JSON ConfigFilePath which maintains column and its datatypes info.
+//   - schemaMapping - JSON Config which maintains column and its datatypes info.
 //
 // Returns: QueryClauses and an error if any.
 func parseClauseFromDelete(input cql.IWhereSpecContext, tableConfig *schemaMapping.TableConfig) (*QueryClauses, error) {

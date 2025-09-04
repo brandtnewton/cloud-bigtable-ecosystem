@@ -37,15 +37,12 @@ type yamlOtelConfig struct {
 	} `yaml:"traces"`
 }
 
-// yamlListener represents each listener configuration
 type yamlListener struct {
 	Name     string       `yaml:"name"`
 	Port     int          `yaml:"port"`
 	Bigtable yamlBigtable `yaml:"bigtable"`
 	Otel     yamlOtel     `yaml:"otel"`
 }
-
-// yamlBigtable holds the yamlBigtable database configuration
 
 type yamlInstancesMap struct {
 	BigtableInstance string `yaml:"bigtableInstance"`
@@ -64,7 +61,6 @@ type yamlBigtable struct {
 	EncodeIntRowKeysWithBigEndian bool               `yaml:"encodeIntRowKeysWithBigEndian"`
 }
 
-// yamlSession describes the settings for yamlBigtable sessions
 type yamlSession struct {
 	GrpcChannels int `yaml:"grpcChannels"`
 }

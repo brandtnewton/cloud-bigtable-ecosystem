@@ -606,7 +606,7 @@ go test $(go list ./... | grep -v /testing/)
 ### Compliance Tests
 
 Compliance tests ensure that the proxy behaves correctly according to expected
-standards and specifications.
+standards and specifications. These tests also serve as integration tests.
 
 For detailed instructions on running compliance tests, refer to
 the [Compliance Test Cases](./testing/compliance/README.md)

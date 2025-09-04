@@ -104,7 +104,7 @@ func getClient(conn *grpc.ClientConn) (map[string]*bigtable.Client, map[string]*
 	if err != nil {
 		fmt.Printf("Failed to create Bigtable admin client: %v", err)
 	}
-	return map[string]*bigtable.Client{"bt1": client}, map[string]*bigtable.AdminClient{"ks1": adminClient}, ctx, nil
+	return map[string]*bigtable.Client{"bt1": client}, map[string]*bigtable.AdminClient{"bt1": adminClient}, ctx, nil
 }
 
 func TestMain(m *testing.M) {
@@ -119,7 +119,7 @@ func TestInsertRow(t *testing.T) {
 		t.Fatalf("Failed to create Bigtable client: %v", err)
 	}
 
-	adminClient := adminClients["ks1"]
+	adminClient := adminClients["bt1"]
 
 	// Create table
 	err = adminClient.CreateTable(ctx, "test-table-insert")
@@ -217,7 +217,7 @@ func TestUpdateRow(t *testing.T) {
 		t.Fatalf("Failed to create Bigtable client: %v", err)
 	}
 
-	adminClient := adminClients["ks1"]
+	adminClient := adminClients["bt1"]
 
 	// Create table
 	err = adminClient.CreateTable(ctx, "test-table-update")
@@ -268,7 +268,7 @@ func TestDeleteRow(t *testing.T) {
 		t.Fatalf("Failed to create Bigtable client: %v", err)
 	}
 
-	adminClient := adminClients["ks1"]
+	adminClient := adminClients["bt1"]
 
 	// Create table
 	err = adminClient.CreateTable(ctx, "test-table-delete")
@@ -317,7 +317,7 @@ func TestApplyBulkMutation(t *testing.T) {
 		t.Fatalf("Failed to create Bigtable client: %v", err)
 	}
 
-	adminClient, err := bigtable.NewAdminClient(ctx, "project", "instance", option.WithGRPCConn(conn))
+	adminClient, err := bigtable.NewAdminClient(ctx, "project", "bt1", option.WithGRPCConn(conn))
 	if err != nil {
 		t.Fatalf("Failed to create Bigtable admin client: %v", err)
 	}
@@ -365,12 +365,12 @@ func TestApplyBulkMutation(t *testing.T) {
 	}
 
 	// Apply bulk mutation
-	resp, err := btc.ApplyBulkMutation(ctx, "test-table-bulk-mutation", mutationData, "bt1")
+	resp, err := btc.ApplyBulkMutation(ctx, "test-table-bulk-mutation", mutationData, "ks1")
 	assert.NoError(t, err)
 	assert.Empty(t, resp.FailedRows)
 
 	// Verify mutations
-	tbl := client["ks1"].Open("test-table-bulk-mutation")
+	tbl := client["bt1"].Open("test-table-bulk-mutation")
 	row1, err := tbl.ReadRow(ctx, "test-row1")
 	assert.NoError(t, err)
 	assert.NotEmpty(t, row1)
@@ -387,7 +387,7 @@ func TestDeleteRowsUsingTimestamp(t *testing.T) {
 		t.Fatalf("Failed to create Bigtable client: %v", err)
 	}
 
-	adminClient, err := bigtable.NewAdminClient(ctx, "project", "instance", option.WithGRPCConn(conn))
+	adminClient, err := bigtable.NewAdminClient(ctx, "project", "bt1", option.WithGRPCConn(conn))
 	if err != nil {
 		t.Fatalf("Failed to create Bigtable admin client: %v", err)
 	}
@@ -406,7 +406,7 @@ func TestDeleteRowsUsingTimestamp(t *testing.T) {
 	err = adminClient.CreateColumnFamily(ctx, tableName, columnFamily)
 	assert.NoError(t, err)
 
-	tbl := client["ks1"].Open(tableName)
+	tbl := client["bt1"].Open(tableName)
 	mut := bigtable.NewMutation()
 	mut.Set(columnFamily, "col1", bigtable.Now(), []byte("value1"))
 	mut.Set(columnFamily, "col2", bigtable.Now(), []byte("value2"))
@@ -457,7 +457,7 @@ func TestMutateRowDeleteColumnFamily(t *testing.T) {
 		t.Fatalf("Failed to create Bigtable client: %v", err)
 	}
 
-	adminClient, err := bigtable.NewAdminClient(ctx, "project", "instance", option.WithGRPCConn(conn))
+	adminClient, err := bigtable.NewAdminClient(ctx, "project", "bt1", option.WithGRPCConn(conn))
 	if err != nil {
 		t.Fatalf("Failed to create Bigtable admin client: %v", err)
 	}
@@ -491,7 +491,7 @@ func TestMutateRowDeleteColumnFamily(t *testing.T) {
 	require.NoError(t, err)
 
 	// Verify deletion by reading the row
-	tbl := client["ks1"].Open(tableName)
+	tbl := client["bt1"].Open(tableName)
 	row, err := tbl.ReadRow(ctx, "row1")
 	require.NoError(t, err)
 	assert.NotContains(t, row, "cf2", "cf2 should be deleted")
@@ -502,7 +502,7 @@ func TestMutateRowDeleteQualifiers(t *testing.T) {
 	client, adminClients, ctx, err := getClient(conn)
 	require.NoError(t, err)
 
-	adminClient, err := bigtable.NewAdminClient(ctx, "project", "instance", option.WithGRPCConn(conn))
+	adminClient, err := bigtable.NewAdminClient(ctx, "project", "bt1", option.WithGRPCConn(conn))
 	require.NoError(t, err)
 
 	tableName := "test-table-delete-qualifiers"
@@ -533,7 +533,7 @@ func TestMutateRowDeleteQualifiers(t *testing.T) {
 	require.NoError(t, err)
 
 	// Verify deletion by reading the row
-	tbl := client["ks1"].Open(tableName)
+	tbl := client["bt1"].Open(tableName)
 	row, err := tbl.ReadRow(ctx, "row1", bigtable.RowFilter(bigtable.FamilyFilter("cf1")))
 	require.NoError(t, err)
 	cf := row["cf1"]
@@ -547,7 +547,7 @@ func TestMutateRowIfExists(t *testing.T) {
 	client, adminClients, ctx, err := getClient(conn)
 	require.NoError(t, err)
 
-	adminClient, err := bigtable.NewAdminClient(ctx, "project", "instance", option.WithGRPCConn(conn))
+	adminClient, err := bigtable.NewAdminClient(ctx, "project", "bt1", option.WithGRPCConn(conn))
 	require.NoError(t, err)
 
 	tableName := "test-table-if-exists"
@@ -580,7 +580,7 @@ func TestMutateRowIfExists(t *testing.T) {
 	require.NoError(t, err)
 
 	// Verify the update by reading the row
-	tbl := client["ks1"].Open(tableName)
+	tbl := client["bt1"].Open(tableName)
 	row, err := tbl.ReadRow(ctx, "row1", bigtable.RowFilter(bigtable.FamilyFilter("cf1")))
 	require.NoError(t, err)
 	assert.Equal(t, "v2", string(row["cf1"][0].Value), "value should be updated to v2")
@@ -600,7 +600,7 @@ func TestMutateRowIfNotExists(t *testing.T) {
 	client, adminClients, ctx, err := getClient(conn)
 	require.NoError(t, err)
 
-	adminClient, err := bigtable.NewAdminClient(ctx, "project", "instance", option.WithGRPCConn(conn))
+	adminClient, err := bigtable.NewAdminClient(ctx, "project", "bt1", option.WithGRPCConn(conn))
 	require.NoError(t, err)
 
 	tableName := "test-table-if-not-exists"
@@ -622,7 +622,7 @@ func TestMutateRowIfNotExists(t *testing.T) {
 	require.NoError(t, err)
 
 	// Verify the row is created
-	tbl := client["ks1"].Open(tableName)
+	tbl := client["bt1"].Open(tableName)
 	row, err := tbl.ReadRow(ctx, "row1", bigtable.RowFilter(bigtable.FamilyFilter("cf1")))
 	require.NoError(t, err)
 	assert.Equal(t, "v1", string(row["cf1"][0].Value), "row1 should be created with value v1")
@@ -641,7 +641,7 @@ func TestMutateRowNonByteValue(t *testing.T) {
 	client, adminClients, ctx, err := getClient(conn)
 	require.NoError(t, err)
 
-	adminClient, err := bigtable.NewAdminClient(ctx, "project", "instance", option.WithGRPCConn(conn))
+	adminClient, err := bigtable.NewAdminClient(ctx, "project", "bt1", option.WithGRPCConn(conn))
 	require.NoError(t, err)
 
 	tableName := "test-table-non-byte"
@@ -684,7 +684,7 @@ func TestComplexUpdateWithListIndex(t *testing.T) {
 	client, adminClients, ctx, err := getClient(conn)
 	require.NoError(t, err)
 
-	adminClient, err := bigtable.NewAdminClient(ctx, "project", "instance", option.WithGRPCConn(conn))
+	adminClient, err := bigtable.NewAdminClient(ctx, "project", "bt1", option.WithGRPCConn(conn))
 	require.NoError(t, err)
 
 	tableName := "test-table-complex-update-list-index"
@@ -724,7 +724,7 @@ func TestComplexUpdateWithListIndex(t *testing.T) {
 	require.NoError(t, err)
 
 	// Verify the update by reading the row
-	tbl := client["ks1"].Open(tableName)
+	tbl := client["bt1"].Open(tableName)
 	row, err := tbl.ReadRow(ctx, "row1", bigtable.RowFilter(bigtable.FamilyFilter("list")))
 	require.NoError(t, err)
 	cf := row["list"]
@@ -735,7 +735,7 @@ func TestComplexUpdateWithListDeletion(t *testing.T) {
 	client, adminClients, ctx, err := getClient(conn)
 	require.NoError(t, err)
 
-	adminClient, err := bigtable.NewAdminClient(ctx, "project", "instance", option.WithGRPCConn(conn))
+	adminClient, err := bigtable.NewAdminClient(ctx, "project", "bt1", option.WithGRPCConn(conn))
 	require.NoError(t, err)
 
 	tableName := "test-table-complex-update-list-delete"
@@ -775,7 +775,7 @@ func TestComplexUpdateWithListDeletion(t *testing.T) {
 	require.NoError(t, err)
 
 	// Verify the deletion by reading the row
-	tbl := client["ks1"].Open(tableName)
+	tbl := client["bt1"].Open(tableName)
 	row, err := tbl.ReadRow(ctx, "row1", bigtable.RowFilter(bigtable.FamilyFilter("list")))
 	require.NoError(t, err)
 	cf := row["list"]
@@ -813,7 +813,7 @@ func TestComplexUpdateOutOfBoundsIndex(t *testing.T) {
 	client, adminClients, ctx, err := getClient(conn)
 	require.NoError(t, err)
 
-	adminClient := adminClients["ks1"]
+	adminClient := adminClients["bt1"]
 
 	tableName := "test-table-complex-update-out-of-bounds"
 	require.NoError(t, adminClient.CreateTable(ctx, tableName))
@@ -905,21 +905,14 @@ func TestCreateTable(t *testing.T) {
 	client, adminClients, ctx, err := getClient(conn)
 	require.NoError(t, err)
 
-	btClient := NewBigtableClient(client, adminClients, zap.NewNop(), &types.BigtableConfig{
-		ProjectID:                "project-1213",
-		Instances:                map[string]*types.InstancesMapping{"ks1": {BigtableInstance: "ks1"}},
-		SchemaMappingTable:       "schema_mappings",
-		Session:                  nil,
-		DefaultColumnFamily:      "cf1",
-		DefaultIntRowKeyEncoding: 0,
-	}, nil, &schemaMapping.SchemaMappingConfig{SchemaMappingTableName: "schema_mappings"})
+	btClient := NewBigtableClient(client, adminClients, zap.NewNop(), bigtableConfig, nil, &schemaMapping.SchemaMappingConfig{SchemaMappingTableName: "schema_mappings"})
 
 	// force set up the schema mappings table
 	_, err = btClient.ReadTableConfigs(ctx, "ks1")
 	require.NoError(t, err)
 
 	// table should not exist yet
-	info, err := adminClients["ks1"].TableInfo(ctx, "create_table_test")
+	info, err := adminClients["bt1"].TableInfo(ctx, "create_table_test")
 	require.Error(t, err)
 	require.Equal(t, codes.NotFound, status.Code(err))
 	require.Nil(t, info)
@@ -989,7 +982,7 @@ func TestCreateTable(t *testing.T) {
 			},
 		},
 	}, tableMap["create_table_test"].Columns)
-	info, err = adminClients["ks1"].TableInfo(ctx, "create_table_test")
+	info, err = adminClients["bt1"].TableInfo(ctx, "create_table_test")
 	require.NoError(t, err)
 	require.NotNil(t, info)
 }
@@ -1054,7 +1047,7 @@ func TestAlterTable(t *testing.T) {
 	require.NoError(t, err)
 
 	// table should not exist yet
-	info, err := adminClients["ks1"].TableInfo(ctx, "alter_table_test")
+	info, err := adminClients["bt1"].TableInfo(ctx, "alter_table_test")
 	require.Error(t, err)
 	require.Equal(t, codes.NotFound, status.Code(err))
 	require.Nil(t, info)
@@ -1158,7 +1151,7 @@ func TestDropTable(t *testing.T) {
 	require.NoError(t, err)
 
 	// table should not exist yet
-	info, err := adminClients["ks1"].TableInfo(ctx, "drop_table_test")
+	info, err := adminClients["bt1"].TableInfo(ctx, "drop_table_test")
 	require.Error(t, err)
 	require.Equal(t, codes.NotFound, status.Code(err))
 	require.Nil(t, info)
@@ -1187,7 +1180,7 @@ func TestDropTable(t *testing.T) {
 	require.Nil(t, tableMap["drop_table_test"])
 
 	// table should be cleaned up
-	info, err = adminClients["ks1"].TableInfo(ctx, "drop_table_test")
+	info, err = adminClients["bt1"].TableInfo(ctx, "drop_table_test")
 	require.Error(t, err)
 	require.Equal(t, codes.NotFound, status.Code(err))
 	require.Nil(t, info)
@@ -1275,7 +1268,7 @@ func TestBigtableClient_getClient(t *testing.T) {
 	// Setup a dummy bigtable.Client and BigtableClient struct
 	dummyClient := &bigtable.Client{}
 	clients := map[string]*bigtable.Client{
-		"inst1": dummyClient,
+		"bt1": dummyClient,
 	}
 	btc := &BigtableClient{
 		BigtableConfig: bigtableConfig,
@@ -1303,14 +1296,14 @@ func TestBigtableClient_getClient(t *testing.T) {
 		client, err := btc2.getClient("ks2")
 		assert.Nil(t, client)
 		assert.Error(t, err)
-		assert.Contains(t, err.Error(), "client not found for instance 'inst2' (from keyspace 'ks2')")
+		assert.Contains(t, err.Error(), "keyspace not found: 'ks2'")
 	})
 }
 func TestBigtableClient_getAdminClient(t *testing.T) {
 	// Setup a dummy bigtable.AdminClient and BigtableClient struct
 	dummyAdminClient := &bigtable.AdminClient{}
 	adminClients := map[string]*bigtable.AdminClient{
-		"inst1": dummyAdminClient,
+		"bt1": dummyAdminClient,
 	}
 	btc := &BigtableClient{
 		BigtableConfig: bigtableConfig,
@@ -1338,6 +1331,6 @@ func TestBigtableClient_getAdminClient(t *testing.T) {
 		client, err := btc2.getAdminClient("ks2")
 		assert.Nil(t, client)
 		assert.Error(t, err)
-		assert.Contains(t, err.Error(), "admin client not found for instance 'inst2' (from keyspace 'ks2')")
+		assert.Contains(t, err.Error(), "keyspace not found: 'ks2'")
 	})
 }

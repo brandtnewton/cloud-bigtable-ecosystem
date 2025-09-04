@@ -2,7 +2,6 @@ package types
 
 import (
 	"github.com/datastax/go-cassandra-native-protocol/primitive"
-	"go.uber.org/zap"
 )
 
 type CliArgs struct {
@@ -73,10 +72,9 @@ type Session struct {
 
 type ProxyInstanceConfig struct {
 	Port           int
-	CliArgs        *CliArgs
+	Options        *CliArgs
 	Bind           string
 	NumConns       int
-	Logger         *zap.Logger
 	RPCAddr        string
 	DC             string
 	Tokens         []string

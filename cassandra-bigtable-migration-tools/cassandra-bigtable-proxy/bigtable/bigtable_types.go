@@ -19,9 +19,9 @@ package bigtableclient
 import (
 	"cloud.google.com/go/bigtable"
 	btpb "cloud.google.com/go/bigtable/apiv2/bigtablepb"
+	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/global/types"
 	rh "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/responsehandler"
 	schemaMapping "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/schema-mapping"
-	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/third_party/datastax/proxy/config"
 	"go.uber.org/zap"
 )
 
@@ -48,7 +48,7 @@ type BigtableClient struct {
 	AdminClients        map[string]*bigtable.AdminClient
 	Logger              *zap.Logger
 	SqlClient           btpb.BigtableClient
-	BigtableConfig      *config.BigtableConfig
+	BigtableConfig      *types.BigtableConfig
 	ResponseHandler     rh.ResponseHandlerIface
 	SchemaMappingConfig *schemaMapping.SchemaMappingConfig
 }

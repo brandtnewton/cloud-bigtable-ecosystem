@@ -34,11 +34,12 @@ import (
 	"cloud.google.com/go/bigtable"
 	bigtableModule "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/bigtable"
 	constants "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/global/constants"
+	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/global/types"
 	otelgo "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/otel"
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/responsehandler"
 	schemaMapping "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/schema-mapping"
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/third_party/datastax/parser"
-	config2 "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/third_party/datastax/proxy/config"
+	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/third_party/datastax/proxy/config"
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/third_party/datastax/proxycore"
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/translator"
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/utilities"
@@ -115,7 +116,7 @@ const (
 
 type Proxy struct {
 	ctx                      context.Context
-	config                   *config2.ProxyInstanceConfig
+	config                   *types.ProxyInstanceConfig
 	logger                   *zap.Logger
 	cluster                  *proxycore.Cluster
 	sessions                 [primitive.ProtocolVersionDse2 + 1]sync.Map // Cache sessions per protocol version
@@ -152,22 +153,19 @@ func (p *Proxy) OnEvent(event proxycore.Event) {
 	}
 }
 
-func createBigtableConnection(ctx context.Context, config *config2.ProxyInstanceConfig) (map[string]*bigtable.Client, map[string]*bigtable.AdminClient, error) {
-
+func createBigtableConnection(ctx context.Context, config *types.ProxyInstanceConfig) (map[string]*bigtable.Client, map[string]*bigtable.AdminClient, error) {
 	bigtableClients, adminClients, err := bigtableModule.CreateClientsForInstances(ctx, config)
 	if err != nil {
-		config.Logger.Error("Failed to create yamlBigtable client: " + err.Error())
-		return nil, nil, err
+		return nil, nil, fmt.Errorf("failed to create bigtable client: %w", err)
 	}
 	return bigtableClients, adminClients, nil
 }
 
-func NewProxy(ctx context.Context, config *config2.ProxyInstanceConfig) (*Proxy, error) {
+func NewProxy(ctx context.Context, logger *zap.Logger, config *types.ProxyInstanceConfig) (*Proxy, error) {
 	bigtableClients, adminClients, err := createBigtableConnection(ctx, config)
 	if err != nil {
 		return nil, err
 	}
-	logger := proxycore.GetOrCreateNopLogger(config.Logger)
 	smc := schemaMapping.NewSchemaMappingConfig(config.BigtableConfig.SchemaMappingTable, config.BigtableConfig.DefaultColumnFamily, logger, nil)
 	bigtableCl := bigtableModule.NewBigtableClient(bigtableClients, adminClients, logger, config.BigtableConfig, &responsehandler.TypeHandler{}, smc)
 	for k := range config.BigtableConfig.Instances {
@@ -178,13 +176,13 @@ func NewProxy(ctx context.Context, config *config2.ProxyInstanceConfig) (*Proxy,
 		smc.UpdateTables(tableConfigs)
 	}
 	responseHandler := &responsehandler.TypeHandler{
-		Logger:              config.Logger,
+		Logger:              logger,
 		SchemaMappingConfig: smc,
 	}
 
 	bigtableCl.LoadConfigs(responseHandler, smc)
 	proxyTranslator := &translator.Translator{
-		Logger:                   config.Logger,
+		Logger:                   logger,
 		SchemaMappingConfig:      smc,
 		DefaultIntRowKeyEncoding: config.BigtableConfig.DefaultIntRowKeyEncoding,
 	}
@@ -204,14 +202,14 @@ func NewProxy(ctx context.Context, config *config2.ProxyInstanceConfig) (*Proxy,
 			TraceSampleRatio:   config.OtelConfig.Traces.SamplingRatio,
 			HealthCheckEnabled: config.OtelConfig.HealthCheck.Enabled,
 			HealthCheckEp:      config.OtelConfig.HealthCheck.Endpoint,
-			ServiceVersion:     config.GlobalConfig.ProtocolVersion.String(),
+			ServiceVersion:     config.Options.ProtocolVersion.String(),
 		}
 	} else {
 		otelConfig = &otelgo.OTelConfig{OTELEnabled: false}
 	}
-	otelInst, shutdownOTel, err = otelgo.NewOpenTelemetry(ctx, otelConfig, config.Logger)
+	otelInst, shutdownOTel, err = otelgo.NewOpenTelemetry(ctx, otelConfig, logger)
 	if err != nil {
-		config.Logger.Error("Failed to enable the OTEL: " + err.Error())
+		logger.Error("Failed to enable the OTEL: " + err.Error())
 		return nil, err
 	}
 	systemQueryMetadataCache, err := ConstructSystemMetadataRows(smc.GetAllTables())
@@ -252,7 +250,7 @@ func (p *Proxy) Connect() error {
 
 	//  connecting to cassandra cluster
 	p.cluster, err = proxycore.ConnectCluster(p.ctx, proxycore.ClusterConfig{
-		Version: p.config.GlobalConfig.ProtocolVersion,
+		Version: p.config.Options.ProtocolVersion,
 		Logger:  p.logger,
 	})
 
@@ -380,7 +378,7 @@ func (p *Proxy) handle(conn net.Conn) {
 
 	if unixConn, ok := conn.(*net.UnixConn); ok {
 		UCred, err := getUdsPeerCredentials(unixConn)
-		if err != nil || p.config.GlobalConfig.ClientPid != UCred.Pid || p.config.GlobalConfig.ClientUid != UCred.Uid {
+		if err != nil || p.config.Options.ClientPid != UCred.Pid || p.config.Options.ClientUid != UCred.Uid {
 			conn.Close()
 			p.logger.Error("failed to authenticate connection")
 		}
@@ -424,18 +422,18 @@ func (p *Proxy) buildLocalRow() {
 		"data_center":             p.encodeTypeFatal(datatype.Varchar, p.localNode.dc),
 		"rack":                    p.encodeTypeFatal(datatype.Varchar, "rack1"),
 		"tokens":                  p.encodeTypeFatal(datatype.NewListType(datatype.Varchar), [1]string{"-9223372036854775808"}),
-		"release_version":         p.encodeTypeFatal(datatype.Varchar, p.config.GlobalConfig.ReleaseVersion),
-		"partitioner":             p.encodeTypeFatal(datatype.Varchar, p.config.GlobalConfig.Partitioner),
+		"release_version":         p.encodeTypeFatal(datatype.Varchar, p.config.Options.ReleaseVersion),
+		"partitioner":             p.encodeTypeFatal(datatype.Varchar, p.config.Options.Partitioner),
 		"cluster_name":            p.encodeTypeFatal(datatype.Varchar, "cql-proxy"),
-		"cql_version":             p.encodeTypeFatal(datatype.Varchar, p.config.GlobalConfig.CQLVersion),
+		"cql_version":             p.encodeTypeFatal(datatype.Varchar, p.config.Options.CQLVersion),
 		"schema_version":          p.encodeTypeFatal(datatype.Uuid, schemaVersion), // TODO: Make this match the downstream cluster(s)
-		"native_protocol_version": p.encodeTypeFatal(datatype.Varchar, p.config.GlobalConfig.ProtocolVersion.String()),
+		"native_protocol_version": p.encodeTypeFatal(datatype.Varchar, p.config.Options.ProtocolVersion.String()),
 		"dse_version":             p.encodeTypeFatal(datatype.Varchar, p.cluster.Info.DSEVersion),
 	}
 }
 
 func (p *Proxy) encodeTypeFatal(dt datatype.DataType, val interface{}) []byte {
-	encoded, err := proxycore.EncodeType(dt, p.config.GlobalConfig.ProtocolVersion, val)
+	encoded, err := proxycore.EncodeType(dt, p.config.Options.ProtocolVersion, val)
 	if err != nil {
 		p.logger.Fatal("unable to encode type", zap.Error(err))
 	}
@@ -549,7 +547,7 @@ func (c *client) Receive(reader io.Reader) error {
 		return err
 	}
 
-	if raw.Header.Version > c.proxy.config.GlobalConfig.MaxVersion || raw.Header.Version < primitive.ProtocolVersion3 {
+	if raw.Header.Version > c.proxy.config.Options.MaxProtocolVersion || raw.Header.Version < primitive.ProtocolVersion3 {
 		c.sender.Send(raw.Header, &message.ProtocolError{
 			ErrorMessage: fmt.Sprintf("Invalid or unsupported protocol version %d", raw.Header.Version),
 		})
@@ -566,7 +564,7 @@ func (c *client) Receive(reader io.Reader) error {
 	case *message.Options:
 		// CC - responding with status READY
 		c.sender.Send(raw.Header, &message.Supported{Options: map[string][]string{
-			"CQL_VERSION": {c.proxy.config.GlobalConfig.CQLVersion},
+			"CQL_VERSION": {c.proxy.config.Options.CQLVersion},
 			"COMPRESSION": {},
 		}})
 	case *message.Startup:
@@ -773,7 +771,7 @@ func (c *client) prepareDeleteType(raw *frame.RawFrame, msg *message.Prepare, id
 			metadata := message.ColumnMetadata{
 				Keyspace: deleteQueryMetadata.Keyspace,
 				Table:    deleteQueryMetadata.Table,
-				Name:     config2.TimestampColumnName,
+				Name:     config.TimestampColumnName,
 				Index:    deleteQueryMetadata.TimestampInfo.Index,
 				Type:     datatype.Bigint,
 			}
@@ -2196,7 +2194,7 @@ func (c *client) handleEvent(event proxycore.Event) {
 	switch evt := event.(type) {
 	case *proxycore.SchemaChangeEvent:
 		c.sender.Send(&frame.Header{
-			Version:  c.proxy.config.GlobalConfig.ProtocolVersion,
+			Version:  c.proxy.config.Options.ProtocolVersion,
 			StreamId: -1, // -1 for events
 			OpCode:   primitive.OpCodeEvent,
 		}, evt.Message)

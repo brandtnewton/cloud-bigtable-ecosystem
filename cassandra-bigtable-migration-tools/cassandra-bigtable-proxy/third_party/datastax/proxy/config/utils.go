@@ -3,6 +3,7 @@ package config
 import (
 	"fmt"
 	"os"
+	"strconv"
 	"strings"
 
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/global/types"
@@ -32,21 +33,9 @@ func parseProtocolVersion(s string) (version primitive.ProtocolVersion, ok bool)
 
 // LoadConfig reads and parses the configuration from a YAML file
 func loadProxyConfigFile(config *yamlProxyConfig, args *types.CliArgs) ([]*types.ProxyInstanceConfig, error) {
-
 	if config.Otel == nil {
 		config.Otel = &yamlOtelConfig{
 			Enabled: false,
-		}
-	}
-
-	if config.LoggerConfig == nil {
-		config.LoggerConfig = &yamlLoggerConfig{
-			OutputType: "",
-			Filename:   "",
-			MaxSize:    0,
-			MaxBackups: 0,
-			MaxAge:     0,
-			Compress:   false,
 		}
 	}
 
@@ -156,5 +145,33 @@ func loadListenerConfig(args *types.CliArgs, l *yamlListener, config *yamlProxyC
 		DefaultIntRowKeyEncoding: intRowKeyEncoding,
 	}
 
-	return NewProxyInstanceConfig(args, l.Port, otel, bigtableConfig), nil
+	result := NewProxyInstanceConfig(args, l.Port, otel, bigtableConfig)
+
+	err := validateInstanceConfig(result)
+	if err != nil {
+		return nil, fmt.Errorf("invalid listener configuration for '%s': %w", l.Name, err)
+	}
+
+	return result, nil
+}
+
+func findFirstDuplicateValue[T any](s []T, extractor func(T) string) (bool, string) {
+	var cache = make(map[string]bool)
+	for _, t := range s {
+		k := extractor(t)
+		if _, exists := cache[k]; exists {
+			// we found a duplicate entry for k
+			return true, k
+		}
+		cache[k] = true
+	}
+	return false, ""
+}
+
+func buildBindAndPort(tcpBindPort string, port int) string {
+	if strings.Contains(tcpBindPort, "%s") {
+		tcpBindPort = fmt.Sprintf(tcpBindPort, strconv.Itoa(port))
+	}
+	tcpBindPort = maybeAddPort(tcpBindPort, strconv.Itoa(port))
+	return tcpBindPort
 }

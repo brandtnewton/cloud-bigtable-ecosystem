@@ -724,17 +724,19 @@ func TestNewProxy(t *testing.T) {
 
 	// Override the factory function to return the mock
 	originalNewBigTableClient := bt.NewBigtableClient
-	bt.NewBigtableClient = func(client map[string]*bigtable.Client, adminClients map[string]*bigtable.AdminClient, logger *zap.Logger, config bt.BigtableConfig, responseHandler rh.ResponseHandlerIface, schemaMapping *schemaMapping.SchemaMappingConfig, instancesMap map[string]bt.InstanceConfig) bt.BigTableClientIface {
+	bt.NewBigtableClient = func(client map[string]*bigtable.Client, adminClients map[string]*bigtable.AdminClient, logger *zap.Logger, config *types.BigtableConfig, responseHandler rh.ResponseHandlerIface, schemaMapping *schemaMapping.SchemaMappingConfig) bt.BigTableClientIface {
 		return bgtmockface
 	}
 	defer func() { bt.NewBigtableClient = originalNewBigTableClient }()
-	prox, err := NewProxy(ctx, Config{
-		Version: primitive.ProtocolVersion4,
-		Logger:  logger,
-		OtelConfig: &OtelConfig{
+	prox, err := NewProxy(ctx, logger, &types.ProxyInstanceConfig{
+		Options: &types.CliArgs{
+			ProtocolVersion:    primitive.ProtocolVersion4,
+			MaxProtocolVersion: primitive.ProtocolVersion4,
+		},
+		OtelConfig: &types.OtelConfig{
 			Enabled: false,
 		},
-		BigtableConfig: bt.BigtableConfig{},
+		BigtableConfig: &types.BigtableConfig{},
 	})
 	assert.NotNilf(t, prox, "should not be nil")
 	assert.NoErrorf(t, err, "should not through an error")
@@ -2347,7 +2349,16 @@ func TestHandleEvent(t *testing.T) {
 			logger := zap.NewNop()
 			proxy := &Proxy{
 				logger: logger,
-				config: Config{Version: primitive.ProtocolVersion4},
+				config: &types.ProxyInstanceConfig{
+					Options: &types.CliArgs{
+						ProtocolVersion:    primitive.ProtocolVersion4,
+						MaxProtocolVersion: primitive.ProtocolVersion4,
+					},
+					OtelConfig: &types.OtelConfig{
+						Enabled: false,
+					},
+					BigtableConfig: &types.BigtableConfig{},
+				},
 			}
 			client := &client{
 				proxy:  proxy,

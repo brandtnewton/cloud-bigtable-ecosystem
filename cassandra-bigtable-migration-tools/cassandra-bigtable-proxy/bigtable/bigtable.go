@@ -28,7 +28,6 @@ import (
 	"time"
 
 	"cloud.google.com/go/bigtable"
-	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/third_party/datastax/proxy/config"
 	"github.com/datastax/go-cassandra-native-protocol/datatype"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -100,7 +99,7 @@ type BigTableClientIface interface {
 //
 // Returns:
 //   - BigtableClient: New instance of BigtableClient
-var NewBigtableClient = func(client map[string]*bigtable.Client, adminClients map[string]*bigtable.AdminClient, logger *zap.Logger, config *config.BigtableConfig, responseHandler rh.ResponseHandlerIface, schemaMapping *schemaMapping.SchemaMappingConfig) BigTableClientIface {
+var NewBigtableClient = func(client map[string]*bigtable.Client, adminClients map[string]*bigtable.AdminClient, logger *zap.Logger, config *types.BigtableConfig, responseHandler rh.ResponseHandlerIface, schemaMapping *schemaMapping.SchemaMappingConfig) BigTableClientIface {
 	return &BigtableClient{
 		Clients:             client,
 		AdminClients:        adminClients,

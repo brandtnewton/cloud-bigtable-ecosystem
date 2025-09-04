@@ -22,7 +22,7 @@ import (
 	"strings"
 
 	"cloud.google.com/go/bigtable"
-	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/third_party/datastax/proxy/config"
+	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/global/types"
 	"google.golang.org/api/option"
 	"google.golang.org/grpc"
 )
@@ -39,7 +39,7 @@ import (
 // Returns:
 //   - A pointer to an initialized bigtable.Client for the specified instance.
 //   - An error if the client setup process encounters any issues.
-func CreateBigtableClient(ctx context.Context, config *config.ProxyInstanceConfig, instanceConfig *config.InstancesMapping) (*bigtable.Client, error) {
+func CreateBigtableClient(ctx context.Context, config *types.ProxyInstanceConfig, instanceConfig *types.InstancesMapping) (*bigtable.Client, error) {
 	instanceID := instanceConfig.BigtableInstance
 	// Create a gRPC connection pool with the specified number of channels
 	pool := grpc.WithDefaultCallOptions(grpc.MaxCallRecvMsgSize(1024 * 1024 * 10)) // 10 MB max message size
@@ -48,7 +48,7 @@ func CreateBigtableClient(ctx context.Context, config *config.ProxyInstanceConfi
 	opts := []option.ClientOption{
 		option.WithGRPCDialOption(pool),
 		option.WithGRPCConnectionPool(config.BigtableConfig.Session.GrpcChannels),
-		option.WithUserAgent(config.GlobalConfig.UserAgent),
+		option.WithUserAgent(config.Options.UserAgent),
 	}
 
 	client, err := bigtable.NewClientWithConfig(ctx, config.BigtableConfig.ProjectID, instanceID, bigtable.ClientConfig{
@@ -60,8 +60,8 @@ func CreateBigtableClient(ctx context.Context, config *config.ProxyInstanceConfi
 	return client, nil
 }
 
-func CreateBigtableAdminClient(ctx context.Context, config *config.ProxyInstanceConfig, instanceID string) (*bigtable.AdminClient, error) {
-	client, err := bigtable.NewAdminClient(ctx, config.BigtableConfig.ProjectID, instanceID, option.WithUserAgent(config.GlobalConfig.UserAgent))
+func CreateBigtableAdminClient(ctx context.Context, config *types.ProxyInstanceConfig, instanceID string) (*bigtable.AdminClient, error) {
+	client, err := bigtable.NewAdminClient(ctx, config.BigtableConfig.ProjectID, instanceID, option.WithUserAgent(config.Options.UserAgent))
 	if err != nil {
 		return nil, fmt.Errorf("failed to create BigtableConfig admin client for instance %s: %v", instanceID, err)
 	}
@@ -78,7 +78,7 @@ func CreateBigtableAdminClient(ctx context.Context, config *config.ProxyInstance
 // Returns:
 //   - A map[string]*bigtable.Client, where each key is an instance ID and the value is the corresponding BigtableConfig client.
 //   - An error if the client creation fails for any of the specified instances.
-func CreateClientsForInstances(ctx context.Context, config *config.ProxyInstanceConfig) (map[string]*bigtable.Client, map[string]*bigtable.AdminClient, error) {
+func CreateClientsForInstances(ctx context.Context, config *types.ProxyInstanceConfig) (map[string]*bigtable.Client, map[string]*bigtable.AdminClient, error) {
 	clients := make(map[string]*bigtable.Client)
 	adminClients := make(map[string]*bigtable.AdminClient)
 	for _, instanceConfig := range config.BigtableConfig.Instances {

@@ -48,10 +48,6 @@ func validateCliArgs(args *types.CliArgs) error {
 
 // ApplyDefaults applies default values to the configuration after it is loaded
 func validateAndApplyDefaults(cfg *yamlProxyConfig) error {
-	if len(cfg.Listeners) == 0 {
-		return fmt.Errorf("listener configuration is missing in `config.yaml`")
-	}
-
 	if cfg.Otel == nil {
 		cfg.Otel = &yamlOtelConfig{
 			Enabled: false,
@@ -93,5 +89,24 @@ func validateAndApplyDefaults(cfg *yamlProxyConfig) error {
 			return fmt.Errorf("only one of 'instances' or 'instance_ids' should be set for listener %s on port %d", cfg.Listeners[i].Name, cfg.Listeners[i].Port)
 		}
 	}
+	return nil
+}
+
+func validateInstanceConfig(c *types.ProxyInstanceConfig) error {
+	if c.BigtableConfig.ProjectID == "" {
+		return fmt.Errorf("missing project id for listener with port %d", c.Port)
+	}
+	if len(c.BigtableConfig.Instances) == 0 {
+		return fmt.Errorf("missing instances for listener with port %d", c.Port)
+	}
+	for key, mapping := range c.BigtableConfig.Instances {
+		if mapping.BigtableInstance == "" {
+			return fmt.Errorf("missing an instance id for listener with port %d", c.Port)
+		}
+		if key == "" || mapping.Keyspace == "" {
+			return fmt.Errorf("missing a keyspace for listener with port %d", c.Port)
+		}
+	}
+
 	return nil
 }

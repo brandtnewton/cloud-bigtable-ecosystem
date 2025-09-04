@@ -26,6 +26,7 @@ import (
 
 	"cloud.google.com/go/bigtable"
 	bt "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/bigtable"
+	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/global/types"
 	mockbigtable "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/mocks/bigtable"
 	rh "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/responsehandler"
 	schemaMapping "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/schema-mapping"
@@ -33,26 +34,6 @@ import (
 	"github.com/stretchr/testify/mock"
 	"go.uber.org/zap"
 )
-
-func Test_parseProtocolVersion(t *testing.T) {
-
-	a := []string{"3", "4", "5", "65", "66", "invalid"}
-	for _, val := range a {
-		res, boolval := parseProtocolVersion(val)
-		assert.NotNilf(t, res, "should not be nil")
-		if val == "invalid" {
-			assert.Equalf(t, false, boolval, "should be true")
-			break
-		}
-		assert.Equalf(t, true, boolval, "should be true")
-	}
-
-}
-
-func Test_maybeAddPort(t *testing.T) {
-	res := maybeAddPort("127.0.0.1", "7000")
-	assert.Equalf(t, res, "127.0.0.1:7000", "assert equal")
-}
 
 func Test_listenAndServe(t *testing.T) {}
 
@@ -217,7 +198,7 @@ func TestRun(t *testing.T) {
 
 	// Override the factory function to return the mock
 	originalNewBigTableClient := bt.NewBigtableClient
-	bt.NewBigtableClient = func(client map[string]*bigtable.Client, adminClients map[string]*bigtable.AdminClient, logger *zap.Logger, config bt.BigtableConfig, responseHandler rh.ResponseHandlerIface, schemaMapping *schemaMapping.SchemaMappingConfig, instancesMap map[string]bt.InstanceConfig) bt.BigTableClientIface {
+	bt.NewBigtableClient = func(client map[string]*bigtable.Client, adminClients map[string]*bigtable.AdminClient, logger *zap.Logger, config *types.BigtableConfig, responseHandler rh.ResponseHandlerIface, schemaMapping *schemaMapping.SchemaMappingConfig) bt.BigTableClientIface {
 		return bgtmockface
 	}
 	defer func() { bt.NewBigtableClient = originalNewBigTableClient }()

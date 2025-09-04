@@ -1,9 +1,11 @@
 package config
 
 import (
+	"errors"
 	"fmt"
 	"net"
 	"os"
+	"strconv"
 
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/global/constants"
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/global/types"
@@ -48,10 +50,10 @@ type rawCliArgs struct {
 	// quick start config - used for running the proxy without a yaml config file
 	ProjectId           string `yaml:"project-id" help:"Google Cloud Project Id to use."`
 	InstanceId          string `yaml:"instance-id" help:"Bigtable Instance Id to use."`
-	AppProfile          string `yaml:"app-profile" help:"Bigtable App Profile to use."`
-	Port                int    `yaml:"port" help:"Port to serve CQL traffic on."`
-	DefaultColumnFamily string `yaml:"default-column-family" help:"The Bigtable column family used for storing scalar values."`
-	SchemaMappingTable  string `yaml:"schema-mapping-table" help:"The Bigtable table name used for storing schema information (automatically created by the proxy)."`
+	AppProfile          string `yaml:"app-profile" help:"Bigtable App Profile to use." default:"default"`
+	Port                int    `yaml:"port" help:"Port to serve CQL traffic on." default:"9042"`
+	DefaultColumnFamily string `yaml:"default-column-family" help:"The Bigtable column family used for storing scalar values." default:"cf1"`
+	SchemaMappingTable  string `yaml:"schema-mapping-table" help:"The Bigtable table name used for storing schema information (automatically created by the proxy)." default:"schema_mapping"`
 }
 
 func ParseCliArgs(args []string) (*types.CliArgs, error) {
@@ -78,6 +80,10 @@ func ParseCliArgs(args []string) (*types.CliArgs, error) {
 		parsed.CQLVersion = defaultCqlVersion
 	}
 
+	if parsed.TcpBindPort == "" {
+		parsed.TcpBindPort = defaultTcpBindPort
+	}
+
 	var ok bool
 	var version primitive.ProtocolVersion
 	if version, ok = parseProtocolVersion(parsed.ProtocolVersion); !ok {
@@ -92,11 +98,6 @@ func ParseCliArgs(args []string) (*types.CliArgs, error) {
 	configFilePath := ""
 	if parsed.Config != nil {
 		configFilePath = parsed.Config.Name()
-	}
-
-	tcpPort := parsed.TcpBindPort
-	if tcpPort == "" {
-		tcpPort = defaultTcpBindPort
 	}
 
 	userAgent := "cassandra-adapter/" + constants.ProxyReleaseVersion
@@ -142,18 +143,8 @@ func ParseCliArgs(args []string) (*types.CliArgs, error) {
 	return &result, err
 }
 
-func isQuickStartArgsDefined(args *types.CliArgs) bool {
-
-	return args.QuickStartProjectId != "" ||
-		args.QuickStartInstanceId != "" ||
-		args.QuickStartAppProfile != "" ||
-		args.QuickStartPort != 0 ||
-		args.QuickStartDefaultColumnFamily != "" ||
-		args.QuickStartSchemaMappingTable != ""
-}
-
 func maybeParseQuickStartArgs(args *types.CliArgs) (*types.ProxyInstanceConfig, error) {
-	if !isQuickStartArgsDefined(args) {
+	if args.QuickStartProjectId == "" && args.QuickStartInstanceId == "" {
 		return nil, nil
 	}
 
@@ -180,6 +171,11 @@ func maybeParseQuickStartArgs(args *types.CliArgs) (*types.ProxyInstanceConfig, 
 	}
 
 	instanceConfig := NewProxyInstanceConfig(args, args.QuickStartPort, otel, bigtableConfig)
+
+	err := validateInstanceConfig(instanceConfig)
+	if err != nil {
+		return nil, fmt.Errorf("invalid cli configuration: %w", err)
+	}
 
 	return instanceConfig, nil
 }
@@ -312,9 +308,22 @@ func ParseProxyConfig(args *types.CliArgs) ([]*types.ProxyInstanceConfig, error)
 		instanceConfigs = append(instanceConfigs, quickStartInstanceConfig)
 	}
 
-	if len(instanceConfigs) == 0 {
-		return nil, fmt.Errorf("no listeners provided. please provide at least one listner via config.yaml or cli options")
+	err = validateInstanceConfigs(instanceConfigs)
+	if err != nil {
+		return nil, err
 	}
 
 	return instanceConfigs, nil
+}
+
+func validateInstanceConfigs(configs []*types.ProxyInstanceConfig) error {
+	if len(configs) == 0 {
+		return errors.New("no listeners provided. please provide at least one listener via config.yaml or cli options")
+	}
+
+	found, duplicatePort := findFirstDuplicateValue(configs, func(config *types.ProxyInstanceConfig) string { return strconv.Itoa(config.Port) })
+	if found {
+		return fmt.Errorf("multiple listeners configured for port %s", duplicatePort)
+	}
+	return nil
 }

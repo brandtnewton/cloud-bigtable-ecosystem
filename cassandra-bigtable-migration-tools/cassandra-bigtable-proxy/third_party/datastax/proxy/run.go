@@ -63,7 +63,7 @@ func Run(ctx context.Context, args []string) error {
 
 	for i := range proxyInstanceConfigs {
 		listenerConfig := proxyInstanceConfigs[i]
-		p, err := NewProxy(ctx, listenerConfig)
+		p, err := NewProxy(ctx, logger, listenerConfig)
 		if err != nil {
 			logger.Error(err.Error())
 			return err
@@ -89,24 +89,24 @@ func Run(ctx context.Context, args []string) error {
 func listenAndServe(c *types.ProxyInstanceConfig, p *Proxy, mux *http.ServeMux, ctx context.Context, logger *zap.Logger) (err error) {
 	logger.Info("Starting proxy with configuration:\n")
 	logger.Info(fmt.Sprintf("  Bind: %s\n", c.Bind))
-	logger.Info(fmt.Sprintf("  Use Unix Socket: %v\n", c.CliArgs.UseUnixSocket))
-	logger.Info(fmt.Sprintf("  Unix Socket Path: %s\n", c.CliArgs.UnixSocketPath))
-	logger.Info(fmt.Sprintf("  Use TLS: %v\n", c.CliArgs.ProxyCertFile != "" && c.CliArgs.ProxyKeyFile != ""))
+	logger.Info(fmt.Sprintf("  Use Unix Socket: %v\n", c.Options.UseUnixSocket))
+	logger.Info(fmt.Sprintf("  Unix Socket Path: %s\n", c.Options.UnixSocketPath))
+	logger.Info(fmt.Sprintf("  Use TLS: %v\n", c.Options.ProxyCertFile != "" && c.Options.ProxyKeyFile != ""))
 
 	var listeners []net.Listener
 
 	// Set up listener based on configuration
-	if c.CliArgs.UseUnixSocket {
+	if c.Options.UseUnixSocket {
 		// Use Unix Domain Socket
-		unixListener, err := resolveAndListen("", true, c.CliArgs.UnixSocketPath, "", "", logger)
+		unixListener, err := resolveAndListen("", true, c.Options.UnixSocketPath, "", "", logger)
 		if err != nil {
 			return fmt.Errorf("failed to create Unix socket listener: %v", err)
 		}
 		listeners = append(listeners, unixListener)
-		logger.Info(fmt.Sprintf("Unix socket listener created successfully at %s\n", c.CliArgs.UnixSocketPath))
+		logger.Info(fmt.Sprintf("Unix socket listener created successfully at %s\n", c.Options.UnixSocketPath))
 	} else {
 		// Use TCP
-		tcpListener, err := resolveAndListen(c.CliArgs.Bind, false, "", c.CliArgs.ProxyCertFile, c.CliArgs.ProxyKeyFile, logger)
+		tcpListener, err := resolveAndListen(c.Options.Bind, false, "", c.Options.ProxyCertFile, c.Options.ProxyKeyFile, logger)
 		if err != nil {
 			return fmt.Errorf("failed to create TCP listener: %v", err)
 		}

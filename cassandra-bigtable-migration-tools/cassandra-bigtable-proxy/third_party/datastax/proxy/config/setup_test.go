@@ -5,6 +5,7 @@ import (
 	"os"
 	"testing"
 
+	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/global/constants"
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/global/types"
 	"github.com/datastax/go-cassandra-native-protocol/primitive"
 	"github.com/stretchr/testify/assert"
@@ -41,20 +42,20 @@ func TestParseCliArgs(t *testing.T) {
 				Tokens:                        nil,
 				CQLVersion:                    "3.4.5",
 				LogLevel:                      "info",
-				TcpBindPort:                   "",
+				TcpBindPort:                   "0.0.0.0:%s",
 				UseUnixSocket:                 false,
 				UnixSocketPath:                "/tmp/cassandra-proxy.sock",
 				ProxyCertFile:                 "",
 				ProxyKeyFile:                  "",
-				UserAgent:                     "",
+				UserAgent:                     "cassandra-adapter/" + constants.ProxyReleaseVersion,
 				ClientPid:                     0,
 				ClientUid:                     0,
 				QuickStartProjectId:           "",
 				QuickStartInstanceId:          "",
-				QuickStartAppProfile:          "",
-				QuickStartPort:                0,
-				QuickStartDefaultColumnFamily: "",
-				QuickStartSchemaMappingTable:  "",
+				QuickStartAppProfile:          "default",
+				QuickStartPort:                9042,
+				QuickStartDefaultColumnFamily: "cf1",
+				QuickStartSchemaMappingTable:  "schema_mapping",
 			},
 			wantErr: "",
 		},
@@ -75,20 +76,20 @@ func TestParseCliArgs(t *testing.T) {
 				Tokens:                        nil,
 				CQLVersion:                    "3.4.5",
 				LogLevel:                      "info",
-				TcpBindPort:                   "",
+				TcpBindPort:                   "0.0.0.0:%s",
 				UseUnixSocket:                 false,
 				UnixSocketPath:                "/tmp/cassandra-proxy.sock",
 				ProxyCertFile:                 "",
 				ProxyKeyFile:                  "",
-				UserAgent:                     "",
+				UserAgent:                     "cassandra-adapter/" + constants.ProxyReleaseVersion,
 				ClientPid:                     0,
 				ClientUid:                     0,
 				QuickStartProjectId:           "",
 				QuickStartInstanceId:          "",
-				QuickStartAppProfile:          "",
-				QuickStartPort:                0,
-				QuickStartDefaultColumnFamily: "",
-				QuickStartSchemaMappingTable:  "",
+				QuickStartAppProfile:          "default",
+				QuickStartPort:                9042,
+				QuickStartDefaultColumnFamily: "cf1",
+				QuickStartSchemaMappingTable:  "schema_mapping",
 			},
 			wantErr: "",
 		},
@@ -117,13 +118,12 @@ func TestParseCliArgs(t *testing.T) {
 				Tokens:                        nil,
 				CQLVersion:                    "3.4.5",
 				LogLevel:                      "info",
-				TcpBindPort:                   "",
+				TcpBindPort:                   "0.0.0.0:%s",
 				UseUnixSocket:                 false,
 				UnixSocketPath:                "/tmp/cassandra-proxy.sock",
 				ProxyCertFile:                 "",
 				ProxyKeyFile:                  "",
-				UserAgent:                     "",
-				ClientPid:                     0,
+				UserAgent:                     "cassandra-adapter/" + constants.ProxyReleaseVersion,
 				ClientUid:                     0,
 				QuickStartProjectId:           "my-project-id",
 				QuickStartInstanceId:          "my-instance-id",
@@ -188,48 +188,19 @@ func TestParseProxyConfig(t *testing.T) {
 
 	tests := []struct {
 		name    string
-		args    *types.CliArgs
+		args    []string
 		want    []*types.ProxyInstanceConfig
 		wantErr string
 	}{
 		{
 			name: "Valid config file",
-			args: &types.CliArgs{
-				Version:                       false,
-				RpcAddress:                    "",
-				ProtocolVersion:               primitive.ProtocolVersion3,
-				MaxProtocolVersion:            primitive.ProtocolVersion4,
-				DataCenter:                    "datacenter1",
-				Bind:                          ":9042",
-				ConfigFilePath:                wd + "/testdata/valid_config.yaml",
-				NumConns:                      19,
-				ReleaseVersion:                "4.0.0.6816",
-				Partitioner:                   "org.apache.cassandra.dht.Murmur3Partitioner",
-				Tokens:                        nil,
-				CQLVersion:                    "3.4.5",
-				LogLevel:                      "info",
-				TcpBindPort:                   defaultTcpBindPort,
-				UseUnixSocket:                 false,
-				UnixSocketPath:                "/tmp/cassandra-proxy.sock",
-				ProxyCertFile:                 "",
-				ProxyKeyFile:                  "",
-				UserAgent:                     "proxy",
-				ClientPid:                     0,
-				ClientUid:                     0,
-				QuickStartProjectId:           "",
-				QuickStartInstanceId:          "",
-				QuickStartAppProfile:          "",
-				QuickStartPort:                0,
-				QuickStartDefaultColumnFamily: "",
-				QuickStartSchemaMappingTable:  "",
-			},
+			args: []string{"-f", wd + "/testdata/valid_config.yaml", "--num-conns=19"},
 			want: []*types.ProxyInstanceConfig{
 				{
 					Port:     9092,
 					Bind:     "0.0.0.0:9092",
-					CliArgs:  nil, // reference fixed by test fixture
+					Options:  nil, // reference fixed by test fixture
 					NumConns: 19,
-					Logger:   nil,
 					RPCAddr:  "",
 					DC:       "datacenter1",
 					Tokens:   nil,
@@ -257,93 +228,181 @@ func TestParseProxyConfig(t *testing.T) {
 			wantErr: "",
 		},
 		{
-			name: "invalid protocol config",
-			args: &types.CliArgs{
-				ConfigFilePath: wd + "/testdata/invalid_config.yaml",
-			},
+			name:    "invalid protocol config",
+			args:    []string{"-f", wd + "/testdata/invalid_config.yaml"},
 			want:    nil,
 			wantErr: "failed to unmarshal config",
 		},
 		{
-			name: "no listeners provided",
-			args: &types.CliArgs{
-				ConfigFilePath: wd + "/testdata/no_listeners_config.yaml",
-			},
+			name:    "no listeners provided",
+			args:    []string{"-f", wd + "/testdata/no_listeners_config.yaml"},
 			want:    nil,
 			wantErr: "no listeners provided",
 		},
 		{
 			name: "no listeners in yaml but quick start args given",
-			args: &types.CliArgs{
-				ConfigFilePath:       wd + "/testdata/no_listeners_config.yaml",
-				QuickStartPort:       9042,
-				QuickStartProjectId:  "my-project",
-				QuickStartInstanceId: "my-instance",
+			args: []string{"-f", wd + "/testdata/no_listeners_config.yaml", "--port=9042", "--project-id=my-project", "--instance-id=my-instance"},
+			want: []*types.ProxyInstanceConfig{
+				{
+					Port:     9042,
+					Bind:     "0.0.0.0:9042",
+					Options:  nil, // reference fixed by test fixture
+					DC:       "datacenter1",
+					NumConns: 20,
+					BigtableConfig: &types.BigtableConfig{
+						ProjectID: "my-project",
+						Instances: map[string]*types.InstancesMapping{
+							"my-instance": {
+								BigtableInstance: "my-instance",
+								Keyspace:         "my-instance",
+								AppProfileID:     "default",
+							},
+						},
+						SchemaMappingTable: "schema_mapping",
+						Session: &types.Session{
+							GrpcChannels: 1,
+						},
+						DefaultColumnFamily:      "cf1",
+						DefaultIntRowKeyEncoding: types.OrderedCodeEncoding,
+					},
+					OtelConfig: &types.OtelConfig{
+						Enabled: false,
+					},
+				},
 			},
-			want:    nil,
 			wantErr: "",
 		},
 		{
 			name: "quick start",
-			args: &types.CliArgs{
-				ConfigFilePath:                wd + "/testdata/no_listeners_config.yaml",
-				QuickStartPort:                1234,
-				QuickStartProjectId:           "my-project",
-				QuickStartInstanceId:          "my-instance",
-				QuickStartSchemaMappingTable:  "sm",
-				QuickStartDefaultColumnFamily: "df",
-				QuickStartAppProfile:          "cql-proxy",
+			args: []string{"-f", wd + "/testdata/no_listeners_config.yaml", "--port=1234", "--project-id=my-project", "--instance-id=my-instance", "--schema-mapping-table=sm", "--default-column-family=df", "--app-profile=cql-proxy"},
+			want: []*types.ProxyInstanceConfig{
+				{
+					Port:     1234,
+					Bind:     "0.0.0.0:1234",
+					Options:  nil, // reference fixed by test fixture
+					DC:       "datacenter1",
+					NumConns: 20,
+					BigtableConfig: &types.BigtableConfig{
+						ProjectID: "my-project",
+						Instances: map[string]*types.InstancesMapping{
+							"my-instance": {
+								BigtableInstance: "my-instance",
+								Keyspace:         "my-instance",
+								AppProfileID:     "cql-proxy",
+							},
+						},
+						SchemaMappingTable: "sm",
+						Session: &types.Session{
+							GrpcChannels: 1,
+						},
+						DefaultColumnFamily:      "df",
+						DefaultIntRowKeyEncoding: types.OrderedCodeEncoding,
+					},
+					OtelConfig: &types.OtelConfig{
+						Enabled: false,
+					},
+				},
 			},
-			want:    nil,
 			wantErr: "",
 		},
 		{
-			name: "missing quickstart arg",
-			args: &types.CliArgs{
-				QuickStartInstanceId: "my-instance",
-			},
+			name:    "missing quickstart arg",
+			args:    []string{"--instance-id=my-instance"},
 			want:    nil,
-			wantErr: "partial quickstart config provided",
+			wantErr: "invalid cli configuration: missing project id for listener",
 		},
 		{
-			name: "missing quickstart arg 2",
-			args: &types.CliArgs{
-				QuickStartProjectId: "my-instance",
-			},
+			name:    "missing quickstart arg 2",
+			args:    []string{"--project-id=my-instance"},
 			want:    nil,
-			wantErr: "partial quickstart config provided",
+			wantErr: "invalid cli configuration: missing an instance id for",
 		},
 		{
-			name: "missing quickstart arg 3",
-			args: &types.CliArgs{
-				QuickStartPort: 0,
-			},
+			name:    "quick start and yaml have same port",
+			args:    []string{"-f", wd + "/testdata/valid_config.yaml", "--port=9092", "--project-id=my-project", "--instance-id=my-instance", "--schema-mapping-table=sm", "--default-column-family=df", "--app-profile=cql-proxy"},
 			want:    nil,
-			wantErr: "partial quickstart config provided",
-		},
-		{
-			name: "quick start and yaml have same port",
-			args: &types.CliArgs{
-				ConfigFilePath:                wd + "/testdata/valid_config.yaml",
-				QuickStartPort:                9092,
-				QuickStartProjectId:           "my-project",
-				QuickStartInstanceId:          "my-instance",
-				QuickStartSchemaMappingTable:  "sm",
-				QuickStartDefaultColumnFamily: "df",
-				QuickStartAppProfile:          "cql-proxy",
-			},
-			want:    nil,
-			wantErr: "multiple listeners configured to use same port: 9092",
+			wantErr: "multiple listeners configured for port 9092",
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			// fix references
-			for _, c := range tt.want {
-				c.CliArgs = tt.args
-			}
+			args, err := ParseCliArgs(tt.args)
+			require.NoError(t, err, "test args should be parsable")
 
-			got, err := ParseProxyConfig(tt.args)
+			got, err := ParseProxyConfig(args)
+
+			if tt.wantErr != "" {
+				require.Error(t, err)
+				assert.Contains(t, err.Error(), tt.wantErr)
+				return
+			}
+			require.NoError(t, err)
+			require.Equal(t, len(tt.want), len(got))
+			// loop over each element because this is a clearer diff than assert.ElementsMatch
+			for i := range tt.want {
+				tt.want[i].Options = args // add a reference to the cli args
+				assert.Equal(t, tt.want[i], got[i])
+			}
+		})
+	}
+}
+
+func TestValidateInstanceConfigs(t *testing.T) {
+	tests := []struct {
+		name    string
+		args    []*types.ProxyInstanceConfig
+		wantErr string
+	}{
+		{
+			name: "Duplicate ports",
+			args: []*types.ProxyInstanceConfig{
+				{
+					Port:           9042,
+					Tokens:         nil,
+					BigtableConfig: nil,
+					OtelConfig:     nil,
+				},
+				{
+					Port:           9042,
+					Tokens:         nil,
+					BigtableConfig: nil,
+					OtelConfig:     nil,
+				},
+			},
+			wantErr: "multiple listeners configured for port 9042",
+		},
+		{
+			name:    "Empty",
+			args:    []*types.ProxyInstanceConfig{},
+			wantErr: "no listeners provided",
+		},
+		{
+			name: "Duplicate keyspaces",
+			args: []*types.ProxyInstanceConfig{
+				{
+					Port: 1,
+					BigtableConfig: &types.BigtableConfig{
+						ProjectID: "my-project",
+						Instances: map[string]*types.InstancesMapping{
+							"foo": {
+								BigtableInstance: "",
+								Keyspace:         "",
+								AppProfileID:     "",
+							},
+						},
+						SchemaMappingTable:       "",
+						Session:                  nil,
+						DefaultColumnFamily:      "",
+						DefaultIntRowKeyEncoding: 0,
+					},
+				},
+			},
+			wantErr: "",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := validateInstanceConfigs(tt.args)
 
 			if tt.wantErr != "" {
 				require.Error(t, err)
@@ -352,10 +411,133 @@ func TestParseProxyConfig(t *testing.T) {
 			}
 
 			require.NoError(t, err)
-			require.Equal(t, len(tt.want), len(got))
-			// loop over each element because this is a clearer diff than assert.ElementsMatch
-			for i := range tt.want {
-				assert.Equal(t, tt.want[i], got[i])
+		})
+	}
+}
+
+func TestValidateInstanceConfig(t *testing.T) {
+	tests := []struct {
+		name    string
+		args    *types.ProxyInstanceConfig
+		wantErr string
+	}{
+		{
+			name: "valid config",
+			args: &types.ProxyInstanceConfig{
+				Port:   9042,
+				Tokens: nil,
+				BigtableConfig: &types.BigtableConfig{
+					ProjectID: "project-123",
+					Instances: map[string]*types.InstancesMapping{
+						"k": {
+							BigtableInstance: "i",
+							Keyspace:         "k",
+							AppProfileID:     "a",
+						},
+					},
+					SchemaMappingTable: "table",
+					Session: &types.Session{
+						GrpcChannels: 1,
+					},
+					DefaultColumnFamily:      "cf1",
+					DefaultIntRowKeyEncoding: types.OrderedCodeEncoding,
+				},
+				OtelConfig: nil,
+			},
+			wantErr: "",
+		},
+		{
+			name: "missing project id",
+			args: &types.ProxyInstanceConfig{
+				Port:   9042,
+				Tokens: nil,
+				BigtableConfig: &types.BigtableConfig{
+					ProjectID:          "",
+					Instances:          nil,
+					SchemaMappingTable: "table",
+					Session: &types.Session{
+						GrpcChannels: 1,
+					},
+					DefaultColumnFamily:      "cf1",
+					DefaultIntRowKeyEncoding: types.OrderedCodeEncoding,
+				},
+				OtelConfig: nil,
+			},
+			wantErr: "missing project id",
+		},
+		{
+			name: "missing instance id",
+			args: &types.ProxyInstanceConfig{
+				Port:   9042,
+				Tokens: nil,
+				BigtableConfig: &types.BigtableConfig{
+					ProjectID:          "",
+					Instances:          nil,
+					SchemaMappingTable: "table",
+					Session: &types.Session{
+						GrpcChannels: 1,
+					},
+					DefaultColumnFamily:      "cf1",
+					DefaultIntRowKeyEncoding: types.OrderedCodeEncoding,
+				},
+				OtelConfig: nil,
+			},
+			wantErr: "missing project id",
+		},
+		{
+			name: "missing keyspace id",
+			args: &types.ProxyInstanceConfig{
+				Port:   9042,
+				Tokens: nil,
+				BigtableConfig: &types.BigtableConfig{
+					ProjectID: "my-project",
+					Instances: map[string]*types.InstancesMapping{
+						"": {
+							BigtableInstance: "my-instance",
+							Keyspace:         "",
+							AppProfileID:     "default",
+						},
+					},
+					SchemaMappingTable: "table",
+					Session: &types.Session{
+						GrpcChannels: 1,
+					},
+					DefaultColumnFamily:      "cf1",
+					DefaultIntRowKeyEncoding: types.OrderedCodeEncoding,
+				},
+				OtelConfig: nil,
+			},
+			wantErr: "missing a keyspace",
+		},
+		{
+			name: "no instances",
+			args: &types.ProxyInstanceConfig{
+				Port:   9042,
+				Tokens: nil,
+				BigtableConfig: &types.BigtableConfig{
+					ProjectID:          "my-project",
+					Instances:          nil,
+					SchemaMappingTable: "table",
+					Session: &types.Session{
+						GrpcChannels: 1,
+					},
+					DefaultColumnFamily:      "cf1",
+					DefaultIntRowKeyEncoding: types.OrderedCodeEncoding,
+				},
+				OtelConfig: nil,
+			},
+			wantErr: "missing instances for listener with port 9042",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := validateInstanceConfig(tt.args)
+
+			if tt.wantErr != "" {
+				require.Error(t, err)
+				assert.Contains(t, err.Error(), tt.wantErr)
+			} else {
+				require.NoError(t, err)
 			}
 		})
 	}

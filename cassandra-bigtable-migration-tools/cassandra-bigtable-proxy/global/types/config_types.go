@@ -10,7 +10,6 @@ type CliArgs struct {
 	ProtocolVersion    primitive.ProtocolVersion
 	MaxProtocolVersion primitive.ProtocolVersion
 	DataCenter         string
-	Bind               string
 	ConfigFilePath     string
 	NumConns           int
 	ReleaseVersion     string

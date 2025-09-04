@@ -106,7 +106,7 @@ func listenAndServe(c *types.ProxyInstanceConfig, p *Proxy, mux *http.ServeMux, 
 		logger.Info(fmt.Sprintf("Unix socket listener created successfully at %s\n", c.Options.UnixSocketPath))
 	} else {
 		// Use TCP
-		tcpListener, err := resolveAndListen(c.Options.Bind, false, "", c.Options.ProxyCertFile, c.Options.ProxyKeyFile, logger)
+		tcpListener, err := resolveAndListen(c.Bind, false, "", c.Options.ProxyCertFile, c.Options.ProxyKeyFile, logger)
 		if err != nil {
 			return fmt.Errorf("failed to create TCP listener: %v", err)
 		}

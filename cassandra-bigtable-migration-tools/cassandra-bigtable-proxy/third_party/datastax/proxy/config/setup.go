@@ -30,7 +30,6 @@ type rawCliArgs struct {
 	ProtocolVersion    string   `yaml:"protocol-version" help:"Initial protocol version to use when connecting to the backend cluster (default: v4, options: v3, v4, v5, DSEv1, DSEv2)" default:"v4" short:"n" env:"PROTOCOL_VERSION"`
 	MaxProtocolVersion string   `yaml:"max-protocol-version" help:"Max protocol version supported by the backend cluster (default: v4, options: v3, v4, v5, DSEv1, DSEv2)" default:"v4" short:"m" env:"MAX_PROTOCOL_VERSION"`
 	DataCenter         string   `yaml:"data-center" help:"Data center to use in system tables" default:"datacenter1"  env:"DATA_CENTER"`
-	Bind               string   `yaml:"bind" help:"Address to use to bind server" short:"a" default:":9042" env:"BIND"`
 	Config             *os.File `yaml:"-" help:"YAML configuration file" short:"f" env:"CONFIG_FILE"` // Not available in the configuration file
 	NumConns           int      `yaml:"num-conns" help:"Number of connection to create to each node of the backend cluster" default:"20" env:"NUM_CONNS"`
 	ReleaseVersion     string   `yaml:"release-version" help:"Cluster Release version" default:"4.0.0.6816"  env:"RELEASE_VERSION"`
@@ -38,7 +37,7 @@ type rawCliArgs struct {
 	Tokens             []string `yaml:"tokens" help:"Tokens to use in the system tables. It's not recommended" env:"TOKENS"`
 	CQLVersion         string   `yaml:"cql-version" help:"CQL version" default:"3.4.5"  env:"CQLVERSION"`
 	LogLevel           string   `yaml:"log-level" help:"Log level configuration." default:"info" env:"LOG_LEVEL"`
-	TcpBindPort        string   `yaml:"-" help:"YAML configuration file" short:"t" env:"TCP_BIND_PORT"`
+	TcpBindPort        string   `yaml:"-" help:"YAML configuration file" short:"t" env:"TCP_BIND_PORT" default:"0.0.0.0:%s"`
 	UseUnixSocket      bool     `help:"Use Unix Domain Socket instead of TCP." default:"false"`
 	UnixSocketPath     string   `help:"Path for the Unix Domain Socket file." default:"/tmp/cassandra-proxy.sock"`
 	ProxyCertFile      string   `yaml:"proxy-cert-file" help:"Path to a PEM encoded certificate file with its intermediate certificate chain. This is used to encrypt traffic for proxy clients" env:"PROXY_CERT_FILE"`
@@ -112,7 +111,6 @@ func ParseCliArgs(args []string) (*types.CliArgs, error) {
 		ProtocolVersion:               version,
 		MaxProtocolVersion:            maxVersion,
 		DataCenter:                    parsed.DataCenter,
-		Bind:                          parsed.Bind,
 		ConfigFilePath:                configFilePath,
 		NumConns:                      parsed.NumConns,
 		ReleaseVersion:                parsed.ReleaseVersion,
@@ -264,7 +262,7 @@ func setupConsoleLogger(level zap.AtomicLevel) (*zap.Logger, error) {
 			MessageKey:     "msg",
 			StacktraceKey:  "stacktrace",
 			LineEnding:     zapcore.DefaultLineEnding,
-			EncodeLevel:    zapcore.LowercaseLevelEncoder, // or zapcore.LowercaseColorLevelEncoder for console
+			EncodeLevel:    zapcore.LowercaseLevelEncoder,
 			EncodeTime:     zapcore.ISO8601TimeEncoder,
 			EncodeDuration: zapcore.StringDurationEncoder,
 			EncodeCaller:   zapcore.ShortCallerEncoder,

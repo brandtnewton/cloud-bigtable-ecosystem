@@ -22,7 +22,7 @@ see the [quick start](#quick-start).
 - [Pre-requisites](#pre-requisites)
 - [Authenticate and Authorize with Google Cloud](#authenticate-and-authorize-with-google-cloud)
 - [Setting Up Bigtable Instance and Schema Configuration](#setting-up-bigtable-instance-and-schema-configuration)
-    - [DDL Support for Schema Creation](#ddl-support-for-schema-creation-recommended-method)
+    - [DDL Support for Schema Creation](#ddl-support-for-schema-creation)
 - [Proxy Configuration: YAML Configuration Explained](#proxy-configuration-yaml-configuration-explained)
 - [Getting started](#getting-started)
     - [Build and Run Proxy Locally](#build-and-run-proxy-locally)
@@ -157,7 +157,7 @@ as column names, data types, and primary key information.
 
 There are two primary methods for setting up your Bigtable infrastructure:
 
-### **DDL Support for Schema Creation**
+### DDL Support for Schema Creation
 
 The proxy now supports Data Definition Language (DDL) operations, making it
 easier to create and manage tables directly through CQL commands. This is the
@@ -219,15 +219,7 @@ recommended approach for setting up your schema.
       DROP TABLE keyspace.table;
       ```
 
-**Benefits of DDL Support:**
-
-- Simplified schema management using familiar CQL syntax
-- Automatic schema_mapping table population
-- Support for table modifications
-- Batch table creation through SQL files
-- No need for manual schema_mapping table management
-
-## Proxy Configuration: YAML Configuration Explained
+## Proxy Configuration YAML Configuration Explained
 
 The `cassandra-to-bigtable-proxy` Adapter is configured using the `config.yaml`
 file located in the root directory of the application. This file allows you to

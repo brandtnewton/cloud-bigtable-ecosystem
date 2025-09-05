@@ -440,6 +440,31 @@ func TestTranslator_TranslateInsertQuerytoBigtable(t *testing.T) {
 			wantErr: false,
 		},
 		{
+			name: "with double single quotes in a literal",
+			args: args{
+				queryStr:        "INSERT INTO test_keyspace.test_table (column1, column10, text_col) VALUES ('abc', 'pkval''s', 'text''s')",
+				protocolV:       protocolV,
+				isPreparedQuery: false,
+			},
+			fields: fields{
+				SchemaMappingConfig: GetSchemaMappingConfig(types.OrderedCodeEncoding),
+			},
+			want: &InsertQueryMapping{
+				Query:     "INSERT INTO test_keyspace.test_table (column1, column10, text_col) VALUES ('abc', 'pkval''s', 'text''s')",
+				QueryType: "INSERT",
+				Table:     "test_table",
+				Keyspace:  "test_keyspace",
+				Params: map[string]interface{}{
+					"column1":  []byte("abc"),
+					"column10": []byte("pkval's"),
+					"text_col": []byte("text's"),
+				},
+				ParamKeys: []string{"column1", "column10", "text_col"},
+				RowKey:    "abc\x00\x01pkval's",
+			},
+			wantErr: false,
+		},
+		{
 			name: "without keyspace in query, with default keyspace",
 			args: args{
 				queryStr:        "INSERT INTO test_table (column1, column10) VALUES ('abc', 'pkval')",
@@ -571,7 +596,6 @@ func TestTranslator_TranslateInsertQuerytoBigtable(t *testing.T) {
 			require.NoError(t, err)
 			assert.Equal(t, tt.want.Params, got.Params)
 			assert.Equal(t, tt.want.ParamKeys, got.ParamKeys)
-			//assert.Equal(t, tt.want.Values, got.Values)
 			assert.Equal(t, tt.want.RowKey, got.RowKey)
 			assert.Equal(t, tt.want.Keyspace, got.Keyspace)
 		})

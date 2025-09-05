@@ -1770,12 +1770,9 @@ func getTimestampValue(spec cql.IUsingTtlTimestampContext) (string, error) {
 }
 
 func trimQuotes(s string) string {
-	if s[0] == '\'' {
+	if s[0] == '\'' && s[len(s)-1] == '\'' {
 		// string literals must be single quoted
-		return strings.Trim(s, "'")
-	} else if s[0] == '"' {
-		// only 'quoted-identifiers' are wrapped in double quotes. We don't support them at the moment, but keeping this here for completeness.
-		return strings.Trim(s, "\"")
+		return strings.ReplaceAll(s[1:len(s)-1], `''`, `'`)
 	} else {
 		return s
 	}

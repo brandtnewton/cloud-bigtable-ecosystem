@@ -3438,18 +3438,17 @@ func TestTrimQuotes(t *testing.T) {
 			want:  `foo`,
 		},
 		{
-			value: `"foo"`,
-			want:  `foo`,
+			value: `'''foo'`,
+			want:  `'foo`,
 		},
-		// should keep inner quotes
 		{
-			value: `"fo"'o"`,
-			want:  `fo"'o`,
+			value: `'foo'''`,
+			want:  `foo'`,
 		},
-		// should keep inner quotes
+		// only trim the outermost quotes
 		{
-			value: `"'foo'"`,
-			want:  `'foo'`,
+			value: `'sister''s'`,
+			want:  `sister's`,
 		},
 		// should keep inner quotes
 		{

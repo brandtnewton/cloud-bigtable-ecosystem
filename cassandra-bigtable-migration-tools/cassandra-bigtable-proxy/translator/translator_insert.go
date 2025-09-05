@@ -163,8 +163,7 @@ func setParamsFromValues(input cql.IInsertValuesSpecContext, columns []types.Col
 // Returns: InsertQueryMapping, build the InsertQueryMapping and return it with nil value of error. In case of error
 // InsertQueryMapping will return as nil and error will contains the error object
 
-func (t *Translator) TranslateInsertQuerytoBigtable(queryStr string, protocolV primitive.ProtocolVersion, isPreparedQuery bool, sessionKeyspace string) (*InsertQueryMapping, error) {
-	query := renameLiterals(queryStr)
+func (t *Translator) TranslateInsertQuerytoBigtable(query string, protocolV primitive.ProtocolVersion, isPreparedQuery bool, sessionKeyspace string) (*InsertQueryMapping, error) {
 	lexer := cql.NewCqlLexer(antlr.NewInputStream(query))
 	stream := antlr.NewCommonTokenStream(lexer, antlr.TokenDefaultChannel)
 	p := cql.NewCqlParser(stream)
@@ -230,7 +229,7 @@ func (t *Translator) TranslateInsertQuerytoBigtable(queryStr string, protocolV p
 		}
 	}
 
-	timestampInfo, err := GetTimestampInfo(queryStr, insertObj, int32(len(columnsResponse.Columns)))
+	timestampInfo, err := GetTimestampInfo(query, insertObj, int32(len(columnsResponse.Columns)))
 	if err != nil {
 		return nil, err
 	}

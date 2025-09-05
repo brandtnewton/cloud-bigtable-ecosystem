@@ -157,3 +157,59 @@ func TestLexicographicOrder(t *testing.T) {
 
 	testLexOrder(t, orderedValues, "lex_test_ordered_code")
 }
+
+func TestPreparedQueryWithTwoSingleQuotes(t *testing.T) {
+	t.Parallel()
+	err := session.Query(`INSERT INTO bigtabledevinstance.user_info (name, age, text_col) VALUES (?, ?, ?)`, "Jame''s?", int64(59), "don''t").Exec()
+	require.NoError(t, err)
+
+	selectQuery := session.Query(`SELECT name, text_col FROM bigtabledevinstance.user_info WHERE name = ? AND age = ?`, "Jame''s?", int64(59))
+	var name string
+	var textCol string
+	err = selectQuery.Scan(&name, &textCol)
+	require.NoError(t, err)
+	assert.Equal(t, "Jame''s?", name)
+	assert.Equal(t, "don''t", textCol)
+
+	err = session.Query(`UPDATE bigtabledevinstance.user_info SET text_col=? WHERE name = ? AND age = ?`, "won''t", "Jame''s?", int64(59)).Exec()
+	require.NoError(t, err)
+
+	err = selectQuery.Scan(&name, &textCol)
+	require.NoError(t, err)
+	assert.Equal(t, "Jame''s?", name)
+	assert.Equal(t, "won''t", textCol)
+
+	err = session.Query(`DELETE FROM bigtabledevinstance.user_info WHERE name = ? AND age = ?`, "Jame''s?", int64(59)).Exec()
+	require.NoError(t, err)
+
+	err = selectQuery.Scan(&name, &textCol)
+	assert.Equal(t, gocql.ErrNotFound, err)
+}
+
+func TestPreparedQueryWithOneSingleQuote(t *testing.T) {
+	t.Parallel()
+	err := session.Query(`INSERT INTO bigtabledevinstance.user_info (name, age, text_col) VALUES (?, ?, ?)`, "Jame's?", int64(591), "don't").Exec()
+	require.NoError(t, err)
+
+	selectQuery := session.Query(`SELECT name, text_col FROM bigtabledevinstance.user_info WHERE name = ? AND age = ?`, "Jame's?", int64(591))
+	var name string
+	var textCol string
+	err = selectQuery.Scan(&name, &textCol)
+	require.NoError(t, err)
+	assert.Equal(t, "Jame's?", name)
+	assert.Equal(t, "don't", textCol)
+
+	err = session.Query(`UPDATE bigtabledevinstance.user_info SET text_col=? WHERE name = ? AND age = ?`, "won't", "Jame's?", int64(591)).Exec()
+	require.NoError(t, err)
+
+	err = selectQuery.Scan(&name, &textCol)
+	require.NoError(t, err)
+	assert.Equal(t, "Jame's?", name)
+	assert.Equal(t, "won't", textCol)
+
+	err = session.Query(`DELETE FROM bigtabledevinstance.user_info WHERE name = ? AND age = ?`, "Jame's?", int64(591)).Exec()
+	require.NoError(t, err)
+
+	err = selectQuery.Scan(&name, &textCol)
+	assert.Equal(t, gocql.ErrNotFound, err)
+}

@@ -53,6 +53,29 @@ func TestCqlshCrud(t *testing.T) {
 	assert.Empty(t, results)
 }
 
+func TestCqlshCrudSpecialChars(t *testing.T) {
+	t.Parallel()
+
+	_, err := cqlshExec(`INSERT INTO bigtabledevinstance.user_info (name, age, text_col) VALUES ('cqlsh_''person', 80, '25''s')`)
+	require.NoError(t, err)
+
+	results, err := cqlshScanToMap(`SELECT name, age, text_col FROM bigtabledevinstance.user_info WHERE name='cqlsh_''person' AND age=80`)
+	require.NoError(t, err)
+	assert.Equal(t, []map[string]string{{"age": "80", "name": "cqlsh_'person", "text_col": "25's"}}, results)
+
+	_, err = cqlshExec(`UPDATE bigtabledevinstance.user_info SET text_col='don''t' WHERE name='cqlsh_''person' AND age=80`)
+
+	results, err = cqlshScanToMap(`SELECT name, age, text_col FROM bigtabledevinstance.user_info WHERE name='cqlsh_''person' AND age=80`)
+	require.NoError(t, err)
+	assert.Equal(t, []map[string]string{{"age": "80", "name": "cqlsh_'person", "text_col": "don't"}}, results)
+
+	_, err = cqlshExec(`DELETE FROM bigtabledevinstance.user_info WHERE name='cqlsh_''person' AND age=80`)
+
+	results, err = cqlshScanToMap(`SELECT * FROM bigtabledevinstance.user_info WHERE name='cqlsh_''person' AND age=80`)
+	require.NoError(t, err)
+	assert.Empty(t, results)
+}
+
 // todo alias
 func TestCqlshCollections(t *testing.T) {
 	t.Parallel()

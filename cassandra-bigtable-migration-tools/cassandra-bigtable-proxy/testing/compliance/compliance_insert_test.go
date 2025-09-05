@@ -168,17 +168,6 @@ func TestInsertWithSpecialCharacters(t *testing.T) {
 		require.NoError(t, err)
 		assert.Equal(t, pkName, name)
 	})
-	t.Run("Double single quotes", func(t *testing.T) {
-		t.Parallel()
-		err := session.Query(`INSERT INTO bigtabledevinstance.user_info (name, age, text_col) VALUES (?, ?, ?)`, "Jame''s?", int64(59), "don''t").Exec()
-		require.NoError(t, err)
-		var name string
-		var textCol string
-		err = session.Query(`SELECT name, text_col FROM bigtabledevinstance.user_info WHERE name = ? AND age = ?`, "Jame''s?", int64(59)).Scan(&name, &textCol)
-		require.NoError(t, err)
-		assert.Equal(t, "Jame's?", name)
-		assert.Equal(t, "don't", textCol)
-	})
 }
 
 func TestNegativeInsertCases(t *testing.T) {

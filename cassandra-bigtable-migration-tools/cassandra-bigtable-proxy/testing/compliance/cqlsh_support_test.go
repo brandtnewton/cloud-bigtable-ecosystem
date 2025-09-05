@@ -53,18 +53,20 @@ func TestCqlshCrud(t *testing.T) {
 	assert.Empty(t, results)
 }
 
+// todo alias
 func TestCqlshCollections(t *testing.T) {
 	t.Parallel()
-	// include map characters ':' and '{}' to ensure we're parsing correctly
-	// todo test with '_a1b2c3'
-	// keywords within strings "time", "key", "type", "json"
 	// table with column names "time", "key", "type", "json" - maybe block creating those columns
-	_, err := cqlshExec(`INSERT INTO bigtabledevinstance.user_info (name, age, extra_info) VALUES ('map_insert', 1, {'foo': 'bar', 'key:': ':value', 'k}': '{v:k}'})`)
-	require.NoError(t, err)
+	t.Run("Insert text map", func(t *testing.T) {
+		t.Parallel()
+		// include map characters ':' and '{}' to ensure we're parsing correctly
+		_, err := cqlshExec(`INSERT INTO bigtabledevinstance.user_info (name, age, extra_info) VALUES ('map_insert', 1, {'foo': 'bar', 'key:': ':value', 'k}': '{v:k}', 'json': 'json', 'type': 'type_foo?!'})`)
+		require.NoError(t, err)
 
-	results, err := cqlshScanToMap(`SELECT name, age, extra_info FROM bigtabledevinstance.user_info WHERE name='map_insert' AND age=1`)
-	require.NoError(t, err)
-	assert.Equal(t, []map[string]string{{"age": "1", "name": "map_insert", "extra_info": "{'foo': 'bar', 'key:': ':value', 'k}': '{v:k}'}"}}, results)
+		results, err := cqlshScanToMap(`SELECT name, age, extra_info as ei FROM bigtabledevinstance.user_info WHERE name='map_insert' AND age=1`)
+		require.NoError(t, err)
+		assert.Equal(t, []map[string]string{{"age": "1", "name": "map_insert", "ei": "{'foo': 'bar', 'json': 'json', 'key:': ':value', 'k}': '{v:k}', 'type': 'type_foo?!'}"}}, results)
+	})
 }
 
 func TestCqlshError(t *testing.T) {

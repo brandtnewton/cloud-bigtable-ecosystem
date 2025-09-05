@@ -64,7 +64,6 @@ func parseColumnsAndValuesFromInsert(input cql.IInsertColumnSpecContext, tableNa
 		if columnName == "" {
 			return nil, errors.New("parseColumnsAndValuesFromInsert: No Columns found in the Insert Query")
 		}
-		columnName = strings.ReplaceAll(columnName, literalPlaceholder, "")
 		sourceColumn, err := tableConfig.GetColumn(columnName)
 		if err != nil {
 			return nil, fmt.Errorf("undefined column name %s in table %s.%s", columnName, keyspace, tableName)

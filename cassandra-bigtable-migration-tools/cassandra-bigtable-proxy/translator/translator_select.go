@@ -139,7 +139,6 @@ func parseColumnsFromSelect(input cql.ISelectElementsContext) (ColumnMeta, error
 					selectedColumns.IsWriteTimeColumn = true
 				}
 			}
-			selectedColumns.Name = strings.ReplaceAll(selectedColumns.Name, literalPlaceholder, "")
 			writetimeValue, isExist := ExtractWritetimeValue(selectedColumns.Name)
 			if isExist {
 				selectedColumns.IsWriteTimeColumn = true
@@ -230,7 +229,6 @@ func parseOrderByFromSelect(input cql.IOrderSpecContext) (OrderBy, error) {
 			return OrderBy{}, fmt.Errorf("In order by, column name not provided correctly")
 		}
 
-		colName = strings.ReplaceAll(colName, literalPlaceholder, "")
 		orderByCol := OrderByColumn{
 			Column:    colName,
 			Operation: Asc,
@@ -305,7 +303,6 @@ func parseGroupByColumn(input cql.IGroupSpecContext) []string {
 			return nil
 		}
 
-		colName = strings.ReplaceAll(colName, literalPlaceholder, "")
 		columns = append(columns, colName)
 	}
 
@@ -695,19 +692,13 @@ func getBigtableSelectQuery(t *Translator, data *SelectQueryMap) (string, error)
 //   - query: CQL Select statement
 //
 // Returns: SelectQueryMap struct and error if any
-func (t *Translator) TranslateSelectQuerytoBigtable(originalQuery, sessionKeyspace string) (*SelectQueryMap, error) {
-	lowerQuery := strings.ToLower(originalQuery)
-
-	//Create copy of cassandra query where literals are substituted with a suffix
-	query := renameLiterals(originalQuery)
-
+func (t *Translator) TranslateSelectQuerytoBigtable(query, sessionKeyspace string) (*SelectQueryMap, error) {
 	p, err := NewCqlParser(query, false)
 	if err != nil {
 		return nil, err
 	}
 	selectObj := p.Select_()
 	if selectObj == nil || selectObj.KwSelect() == nil {
-		// Todo - Code is not reachable
 		return nil, errors.New("ToBigtableSelect: Could not parse select object")
 	}
 
@@ -742,7 +733,7 @@ func (t *Translator) TranslateSelectQuerytoBigtable(originalQuery, sessionKeyspa
 
 	var QueryClauses QueryClauses
 
-	if hasWhere(lowerQuery) {
+	if selectObj.WhereSpec() != nil {
 		resp, err := parseWhereByClause(selectObj.WhereSpec(), tableConfig)
 		if err != nil {
 			return nil, err
@@ -751,11 +742,11 @@ func (t *Translator) TranslateSelectQuerytoBigtable(originalQuery, sessionKeyspa
 	}
 
 	var groupBy []string
-	if hasGroupBy(lowerQuery) {
+	if selectObj.GroupSpec() != nil {
 		groupBy = parseGroupByColumn(selectObj.GroupSpec())
 	}
 	var orderBy OrderBy
-	if hasOrderBy(lowerQuery) {
+	if selectObj.OrderSpec() != nil {
 		orderBy, err = parseOrderByFromSelect(selectObj.OrderSpec())
 		if err != nil {
 			// pass the original error to provide proper root cause of error.
@@ -766,7 +757,7 @@ func (t *Translator) TranslateSelectQuerytoBigtable(originalQuery, sessionKeyspa
 	}
 
 	var limit Limit
-	if hasLimit(lowerQuery) {
+	if selectObj.LimitSpec() != nil {
 		limit, err = parseLimitFromSelect(selectObj.LimitSpec())
 		if err != nil {
 			return nil, err

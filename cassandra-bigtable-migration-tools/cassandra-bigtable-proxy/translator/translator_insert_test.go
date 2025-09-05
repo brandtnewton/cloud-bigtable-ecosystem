@@ -32,8 +32,7 @@ import (
 	"go.uber.org/zap"
 )
 
-func parseInsertQuery(queryString string) cql.IInsertContext {
-	query := renameLiterals(queryString)
+func parseInsertQuery(query string) cql.IInsertContext {
 	lexer := cql.NewCqlLexer(antlr.NewInputStream(query))
 	stream := antlr.NewCommonTokenStream(lexer, antlr.TokenDefaultChannel)
 	p := cql.NewCqlParser(stream)
@@ -294,10 +293,10 @@ func TestTranslator_TranslateInsertQuerytoBigtable(t *testing.T) {
 				{Name: "column10", ColumnFamily: "cf1", CQLType: datatype.Varchar, IsPrimaryKey: true},
 			},
 			Values:      values,
-			Params:      response,
+			Params:      nil, // undefined because this is a prepared query
 			ParamKeys:   []string{"column1", "column2", "column3", "column5", "column6", "column9", "column10"},
 			PrimaryKeys: []string{"column1", "column10"},
-			RowKey:      "test-text\x00\x01column10",
+			RowKey:      "", // undefined because this is a prepared query
 			TimestampInfo: TimestampInfo{
 				Timestamp:         1234567,
 				HasUsingTimestamp: true,
@@ -330,10 +329,10 @@ func TestTranslator_TranslateInsertQuerytoBigtable(t *testing.T) {
 					{Name: "column10", ColumnFamily: "cf1", CQLType: datatype.Varchar, IsPrimaryKey: true},
 				},
 				Values:      values,
-				Params:      response,
+				Params:      nil,
 				ParamKeys:   []string{"column1", "column2", "column3", "column5", "column6", "column9", "column10"},
 				PrimaryKeys: []string{"column1", "column10"}, // assuming column1 and column10 are primary keys
-				RowKey:      "test-text\x00\x01column10",     // assuming row key format
+				RowKey:      "",                              // assuming row key format
 			},
 			wantErr: false,
 		},

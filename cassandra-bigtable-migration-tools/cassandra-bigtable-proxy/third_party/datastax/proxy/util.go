@@ -18,7 +18,6 @@ package proxy
 
 import (
 	"fmt"
-	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -45,12 +44,6 @@ type SystemQueryMetadataCache struct {
 	TableSystemQueryMetadataCache    map[primitive.ProtocolVersion][]message.Row
 	ColumnsSystemQueryMetadataCache  map[primitive.ProtocolVersion][]message.Row
 }
-
-// Compile a regular expression that matches the WHERE clause with at least one space before and after it.
-// The regex uses case-insensitive matching and captures everything after the WHERE clause.
-// \s+ matches one or more spaces before and after WHERE.
-// (.+) captures everything after WHERE and its trailing spaces.
-var whereRegex = regexp.MustCompile(`(?i)\s+WHERE\s+(.+)`)
 
 // addSecondsToCurrentTimestamp takes a number of seconds as input
 // and returns the current Unix timestamp plus the input time in seconds.

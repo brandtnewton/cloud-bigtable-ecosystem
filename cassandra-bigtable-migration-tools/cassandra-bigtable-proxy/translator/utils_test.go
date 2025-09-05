@@ -39,39 +39,6 @@ import (
 	"go.uber.org/zap"
 )
 
-func Test_hasWhere(t *testing.T) {
-	type args struct {
-		query string
-	}
-	tests := []struct {
-		name string
-		args args
-		want bool
-	}{
-		{
-			name: "success",
-			args: args{
-				query: "select * from table where id = 1;",
-			},
-			want: true,
-		},
-		{
-			name: "no where clause",
-			args: args{
-				query: "select * from table;",
-			},
-			want: false,
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			if got := hasWhere(tt.args.query); got != tt.want {
-				t.Errorf("hasWhere() = %v, want %v", got, tt.want)
-			}
-		})
-	}
-}
-
 // TestParseTimestamp tests the parseTimestamp function with various timestamp formats.
 func TestParseTimestamp(t *testing.T) {
 	cases := []struct {
@@ -3452,29 +3419,6 @@ func TestCqlTypeToEmptyPrimitive(t *testing.T) {
 			if !reflect.DeepEqual(result, tt.expected) {
 				t.Errorf("For cqlType %v and isPrimaryKey %v, expected %v (%T), but got %v (%T)",
 					tt.cqlType, tt.isPrimaryKey, tt.expected, tt.expected, result, result)
-			}
-		})
-	}
-}
-
-func TestRenameLiterals(t *testing.T) {
-	tests := []struct {
-		name     string
-		query    string
-		expected string
-	}{
-		{
-			name:     "No literals",
-			query:    `SELECT * FROM table`,
-			expected: `SELECT * FROM table`,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			result := renameLiterals(tt.query)
-			if result != tt.expected {
-				t.Errorf("Expected: %s, Got: %s", tt.expected, result)
 			}
 		})
 	}

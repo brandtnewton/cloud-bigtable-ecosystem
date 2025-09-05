@@ -173,6 +173,18 @@ func (t *Translator) TranslateCreateTableToBigtable(query, sessionKeyspace strin
 		}
 	}
 
+	// todo test
+	if utilities.IsReservedCqlKeyword(tableName) {
+		return nil, fmt.Errorf("cannot create a table with reserved keyword as name: '%s'", tableName)
+	}
+
+	// todo test
+	for _, column := range columns {
+		if utilities.IsReservedCqlKeyword(column.Name) {
+			return nil, fmt.Errorf("cannot create a table with reserved keyword as column name: '%s'", column.Name)
+		}
+	}
+
 	if len(pmks) == 0 {
 		return nil, errors.New("no primary key found in create table statement")
 	}

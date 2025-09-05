@@ -1509,7 +1509,7 @@ func parseWhereByClause(input cql.IWhereSpecContext, tableConfig *schemaMapping.
 				if value == "" {
 					return nil, errors.New("could not parse value from query for one of the clauses")
 				}
-				value = strings.ReplaceAll(value, "'", "")
+				value = trimQuotes(value)
 				typeCode := column.CQLType.GetDataTypeCode()
 				if value != questionMark {
 					if operator == constants.CONTAINS {
@@ -1560,8 +1560,8 @@ func parseWhereByClause(input cql.IWhereSpecContext, tableConfig *schemaMapping.
 				if value == "" || secondValue == "" || value == "<EOF>" || secondValue == "<EOF>" {
 					return nil, errors.New("could not parse value from query for one of the clauses")
 				}
-				value = strings.ReplaceAll(value, "'", "")
-				secondValue = strings.ReplaceAll(secondValue, "'", "")
+				value = trimQuotes(value)
+				secondValue = trimQuotes(secondValue)
 				if value != questionMark {
 					val, err := stringToPrimitives(value, column.CQLType)
 					if err != nil {
@@ -1588,7 +1588,7 @@ func parseWhereByClause(input cql.IWhereSpecContext, tableConfig *schemaMapping.
 				if value == "" {
 					return nil, errors.New("could not parse value from query for one of the clauses")
 				}
-				value = strings.ReplaceAll(value, "'", "")
+				value = trimQuotes(value)
 
 				if value != questionMark {
 
@@ -1620,7 +1620,6 @@ func parseWhereByClause(input cql.IWhereSpecContext, tableConfig *schemaMapping.
 								return nil, errors.New("could not parse value")
 							}
 							valueTxt := inVal.GetText()
-							valueTxt = strings.ReplaceAll(valueTxt, "'", "")
 							i, err := strconv.Atoi(valueTxt)
 							if err != nil {
 								return nil, err
@@ -1635,7 +1634,6 @@ func parseWhereByClause(input cql.IWhereSpecContext, tableConfig *schemaMapping.
 								return nil, errors.New("could not parse value")
 							}
 							valueTxt := inVal.GetText()
-							valueTxt = strings.ReplaceAll(valueTxt, "'", "")
 							i, err := strconv.ParseInt(valueTxt, 10, 64)
 							if err != nil {
 								return nil, err
@@ -1650,7 +1648,6 @@ func parseWhereByClause(input cql.IWhereSpecContext, tableConfig *schemaMapping.
 								return nil, errors.New("could not parse value")
 							}
 							valueTxt := inVal.GetText()
-							valueTxt = strings.ReplaceAll(valueTxt, "'", "")
 							i, err := strconv.ParseFloat(valueTxt, 32)
 
 							if err != nil {
@@ -1666,7 +1663,6 @@ func parseWhereByClause(input cql.IWhereSpecContext, tableConfig *schemaMapping.
 								return nil, errors.New("could not parse value")
 							}
 							valueTxt := inVal.GetText()
-							valueTxt = strings.ReplaceAll(valueTxt, "'", "")
 							i, err := strconv.ParseFloat(valueTxt, 64)
 							if err != nil {
 								return nil, err
@@ -1680,9 +1676,8 @@ func parseWhereByClause(input cql.IWhereSpecContext, tableConfig *schemaMapping.
 							if inVal == nil {
 								return nil, errors.New("could not parse value")
 							}
-							valueTxt := inVal.GetText()
-							valueTxt = strings.ReplaceAll(valueTxt, "'", "")
-							val := (valueTxt == "true")
+							valueTxt := trimQuotes(inVal.GetText())
+							val := strings.ToLower(valueTxt) == "true"
 							allValues = append(allValues, val)
 						}
 						params[placeholder] = allValues
@@ -1693,8 +1688,7 @@ func parseWhereByClause(input cql.IWhereSpecContext, tableConfig *schemaMapping.
 							if inVal == nil {
 								return nil, errors.New("could not parse value")
 							}
-							valueTxt := inVal.GetText()
-							valueTxt = strings.ReplaceAll(valueTxt, "'", "")
+							valueTxt := trimQuotes(inVal.GetText())
 							allValues = append(allValues, valueTxt)
 						}
 						params[placeholder] = allValues
@@ -1766,15 +1760,21 @@ func getTimestampValue(spec cql.IUsingTtlTimestampContext) (string, error) {
 	}
 	tsSpec.KwTimestamp()
 	valLiteral := tsSpec.DecimalLiteral()
-	var resp string
 
 	if valLiteral == nil {
 		return "", errors.New("no value found for Timestamp")
 	}
 
-	resp = valLiteral.GetText()
-	resp = strings.ReplaceAll(resp, "'", "")
+	resp := trimQuotes(valLiteral.GetText())
 	return resp, nil
+}
+
+func trimQuotes(s string) string {
+	if s[0] == '\'' {
+		return strings.Trim(s, "'")
+	} else {
+		return strings.Trim(s, "\"")
+	}
 }
 
 // GetTimestampInfo retrieves timestamp information from an insert query.

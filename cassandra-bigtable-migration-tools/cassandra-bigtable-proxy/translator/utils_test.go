@@ -3423,3 +3423,45 @@ func TestCqlTypeToEmptyPrimitive(t *testing.T) {
 		})
 	}
 }
+
+func TestTrimQuotes(t *testing.T) {
+	tests := []struct {
+		value string
+		want  string
+	}{
+		{
+			value: `foo`,
+			want:  `foo`,
+		},
+		{
+			value: `'foo'`,
+			want:  `foo`,
+		},
+		{
+			value: `"foo"`,
+			want:  `foo`,
+		},
+		// should keep inner quotes
+		{
+			value: `"fo"'o"`,
+			want:  `fo"'o`,
+		},
+		// should keep inner quotes
+		{
+			value: `"'foo'"`,
+			want:  `'foo'`,
+		},
+		// should keep inner quotes
+		{
+			value: `'"foo"'`,
+			want:  `"foo"`,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.value, func(t *testing.T) {
+			got := trimQuotes(tt.value)
+			assert.Equal(t, tt.want, got)
+		})
+	}
+}

@@ -17,9 +17,6 @@
 package proxy
 
 import (
-	"fmt"
-	"strconv"
-	"strings"
 	"time"
 
 	types "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/global/types"
@@ -65,28 +62,6 @@ func unixToISO(unixTimestamp int64) string {
 
 	// Format the time as an ISO 8601 string
 	return t.Format(time.RFC3339)
-}
-
-// ReplaceLimitValue replaces the limit placeholder in the query string with an actual value
-// if the limit is specified in the query parameters.
-func ReplaceLimitValue(query responsehandler.QueryMetadata) (responsehandler.QueryMetadata, error) {
-	if query.Limit.IsLimit {
-		if val, exists := query.Params[limitValue]; exists {
-			if val, ok := val.(int64); ok {
-				if val <= 0 {
-					return query, fmt.Errorf("LIMIT must be strictly positive")
-				}
-				query.Query = strings.ReplaceAll(query.Query, "@"+limitValue, strconv.FormatInt(val, 10))
-				delete(query.Params, limitValue)
-				return query, nil
-			} else {
-				return query, fmt.Errorf("LIMIT must be strictly positive")
-			}
-		} else {
-			return query, fmt.Errorf("limit values does not exist")
-		}
-	}
-	return query, nil
 }
 
 // GetSystemQueryMetadataCache converts structured metadata rows into a SystemQueryMetadataCache.

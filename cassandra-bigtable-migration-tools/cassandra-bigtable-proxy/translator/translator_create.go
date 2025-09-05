@@ -20,7 +20,6 @@ import (
 	"errors"
 	"fmt"
 	"slices"
-	"strings"
 
 	methods "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/global/methods"
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/global/types"
@@ -229,8 +228,4 @@ func createOptionsMap(withElement cql.IWithElementContext) map[string]string {
 		results[optionName] = optionValue
 	}
 	return results
-}
-
-func trimQuotes(s string) string {
-	return strings.Trim(s, "'")
 }

@@ -239,12 +239,12 @@ func handleColumnType(val cql.IRelationElementContext, columnType *types.Column,
 		return "", errors.New("could not parse value from query for one of the clauses")
 	}
 
-	value := strings.ReplaceAll(valConst.GetText(), "'", "")
+	value := trimQuotes(valConst.GetText())
 	if value == "" {
 		return "", errors.New("could not parse value from query for one of the clauses")
 	}
 
-	acctualVal := value
+	actualVal := value
 	if value != "?" {
 		formattedVal, err := formatValues(value, columnType.CQLType, 4)
 		if err != nil {
@@ -253,7 +253,7 @@ func handleColumnType(val cql.IRelationElementContext, columnType *types.Column,
 		params[placeholder] = formattedVal
 	}
 
-	return acctualVal, nil
+	return actualVal, nil
 }
 
 // TranslateDeleteQuerytoBigtable() translate the CQL Delete Query into bigtable mutation api equivalent.

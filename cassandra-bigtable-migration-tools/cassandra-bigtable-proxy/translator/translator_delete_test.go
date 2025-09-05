@@ -179,13 +179,13 @@ func TestTranslator_TranslateDeleteQuerytoBigtable(t *testing.T) {
 		{
 			name: "DELETE query with ifExists condition",
 			args: args{
-				queryStr: "DELETE FROM test_keyspace.user_info WHERE name='test' AND age=15 IF EXISTS",
+				queryStr: `DELETE FROM test_keyspace.user_info WHERE name="test" AND age=15 IF EXISTS`,
 			},
 			fields: fields{
 				SchemaMappingConfig: GetSchemaMappingConfig(types.OrderedCodeEncoding),
 			},
 			want: &DeleteQueryMapping{
-				Query:     "DELETE FROM test_keyspace.user_info WHERE name='test' AND age=15 IF EXISTS",
+				Query:     `DELETE FROM test_keyspace.user_info WHERE name="test" AND age=15 IF EXISTS`,
 				QueryType: "DELETE",
 				Table:     "user_info",
 				Keyspace:  "test_keyspace",

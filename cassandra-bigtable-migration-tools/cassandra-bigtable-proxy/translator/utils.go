@@ -1770,6 +1770,9 @@ func getTimestampValue(spec cql.IUsingTtlTimestampContext) (string, error) {
 }
 
 func trimQuotes(s string) string {
+	if len(s) < 2 {
+		return s
+	}
 	if s[0] == '\'' && s[len(s)-1] == '\'' {
 		// string literals must be single quoted
 		return strings.ReplaceAll(s[1:len(s)-1], `''`, `'`)
@@ -2621,7 +2624,7 @@ func parseCqlValue(expr antlr.ParserRuleContext) (interface{}, error) {
 func parseCqlConstant(c cql.IConstantContext) (interface{}, error) {
 
 	if c.StringLiteral() != nil {
-		return strings.Trim(c.StringLiteral().GetText(), "'"), nil
+		return trimQuotes(c.StringLiteral().GetText()), nil
 	}
 
 	if c.DecimalLiteral() != nil {

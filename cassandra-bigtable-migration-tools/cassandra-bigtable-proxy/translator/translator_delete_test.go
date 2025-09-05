@@ -229,7 +229,7 @@ func TestTranslator_TranslateDeleteQuerytoBigtable(t *testing.T) {
 					{
 						Column:       "name",
 						Operator:     "=",
-						Value:        "test",
+						Value:        "tes't",
 						IsPrimaryKey: true,
 					},
 					{
@@ -239,10 +239,13 @@ func TestTranslator_TranslateDeleteQuerytoBigtable(t *testing.T) {
 						IsPrimaryKey: true,
 					},
 				},
-				Params:      params2,
+				Params: map[string]interface{}{
+					"value1": []byte("tes't"),
+					"value2": formattedValue2,
+				},
 				ParamKeys:   []string{"value1", "value2"},
 				PrimaryKeys: []string{"name", "age"}, // assuming primary keys
-				RowKey:      "test\x00\x01\x8f",
+				RowKey:      "tes't\x00\x01\x8f",
 				IfExists:    true,
 			},
 			wantErr:         false,

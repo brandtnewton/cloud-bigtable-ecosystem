@@ -3434,6 +3434,22 @@ func TestTrimQuotes(t *testing.T) {
 			want:  `foo`,
 		},
 		{
+			value: `f`,
+			want:  `f`,
+		},
+		{
+			value: `fo`,
+			want:  `fo`,
+		},
+		{
+			value: ``,
+			want:  ``,
+		},
+		{
+			value: `''`,
+			want:  ``,
+		},
+		{
 			value: `'foo'`,
 			want:  `foo`,
 		},

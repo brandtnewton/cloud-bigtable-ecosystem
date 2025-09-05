@@ -148,7 +148,6 @@ func parseColumnsFromSelect(input cql.ISelectElementsContext) (ColumnMeta, error
 		}
 	}
 
-	// todo test
 	for _, c := range response.Column {
 		if c.IsAs && utilities.IsReservedCqlKeyword(c.Alias) {
 			return response, fmt.Errorf("cannot use reserved keyword as alias: '%s'", c.Alias)

@@ -2124,6 +2124,7 @@ func Test_parseColumnsFromSelectWithParser(t *testing.T) {
 		query   string
 		want    ColumnMeta
 		wantErr bool
+		err     string
 	}{
 		{
 			name:    "star query",

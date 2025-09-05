@@ -455,6 +455,13 @@ func TestTranslateCreateTableToBigtable(t *testing.T) {
 			error:           "cannot create a table with the configured schema mapping table name 'schema_mappings'",
 			defaultKeyspace: "test_keyspace",
 		},
+		{
+			name:            "same name as schema mapping table",
+			query:           "CREATE TABLE test_keyspace.table (column1 varchar, column10 int, PRIMARY KEY (column1, column10))",
+			want:            nil,
+			error:           "cannot create a table with reserved keyword as name: 'table'",
+			defaultKeyspace: "test_keyspace",
+		},
 	}
 
 	for _, tt := range tests {

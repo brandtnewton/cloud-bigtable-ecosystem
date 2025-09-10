@@ -208,6 +208,12 @@ func Test_setParamsFromValues(t *testing.T) {
 	}
 }
 
+func formatValueUnsafe(t *testing.T, value string, cqlType datatype.DataType, protocolV primitive.ProtocolVersion) []byte {
+	result, err := formatValues(value, cqlType, protocolV)
+	require.NoError(t, err)
+	return result
+}
+
 func TestTranslator_TranslateInsertQuerytoBigtable(t *testing.T) {
 	var protocolV primitive.ProtocolVersion = 4
 	type fields struct {
@@ -292,14 +298,15 @@ func TestTranslator_TranslateInsertQuerytoBigtable(t *testing.T) {
 				{Name: "column9", ColumnFamily: "cf1", CQLType: datatype.Bigint, IsPrimaryKey: false},
 				{Name: "column10", ColumnFamily: "cf1", CQLType: datatype.Varchar, IsPrimaryKey: true},
 			},
-			Values:      values,
+			Values:      nil, // undefined because this is a prepared query
 			Params:      nil, // undefined because this is a prepared query
 			ParamKeys:   []string{"column1", "column2", "column3", "column5", "column6", "column9", "column10"},
 			PrimaryKeys: []string{"column1", "column10"},
 			RowKey:      "", // undefined because this is a prepared query
 			TimestampInfo: TimestampInfo{
-				Timestamp:         1234567,
+				Timestamp:         0,
 				HasUsingTimestamp: true,
+				Index:             7,
 			}, // Should include the custom timestamp parameter
 		},
 		wantErr: false,
@@ -328,8 +335,8 @@ func TestTranslator_TranslateInsertQuerytoBigtable(t *testing.T) {
 					{Name: "column9", ColumnFamily: "cf1", CQLType: datatype.Bigint, IsPrimaryKey: false},
 					{Name: "column10", ColumnFamily: "cf1", CQLType: datatype.Varchar, IsPrimaryKey: true},
 				},
-				Values:      values,
-				Params:      nil,
+				Values:      nil, // undefined because this is a prepared query
+				Params:      nil, // undefined because this is a prepared query
 				ParamKeys:   []string{"column1", "column2", "column3", "column5", "column6", "column9", "column10"},
 				PrimaryKeys: []string{"column1", "column10"}, // assuming column1 and column10 are primary keys
 				RowKey:      "",                              // assuming row key format
@@ -385,8 +392,9 @@ func TestTranslator_TranslateInsertQuerytoBigtable(t *testing.T) {
 					"column1":  []byte("abc"),
 					"column10": []byte("pkval"),
 				},
-				ParamKeys: []string{"column1", "column10"},
-				RowKey:    "abc\x00\x01pkval",
+				PrimaryKeys: []string{"column1", "column10"},
+				ParamKeys:   []string{"column1", "column10"},
+				RowKey:      "abc\x00\x01pkval",
 			},
 			wantErr: false,
 		},
@@ -410,8 +418,34 @@ func TestTranslator_TranslateInsertQuerytoBigtable(t *testing.T) {
 					"column10":      []byte("pkval"),
 					"map_text_text": map[string]string{"foo": "bar", "key:": ":value", "k}": "{v:k}"},
 				},
-				ParamKeys: []string{"column1", "column10", "map_text_text"},
-				RowKey:    "abc\x00\x01pkval",
+				Columns: []types.Column{
+					{
+						Name:         "foo",
+						ColumnFamily: "map_text_text",
+						CQLType:      datatype.Varchar,
+					},
+					{
+						Name:         "key:",
+						ColumnFamily: "map_text_text",
+						CQLType:      datatype.Varchar,
+					},
+					{
+						Name:         "k}",
+						ColumnFamily: "map_text_text",
+						CQLType:      datatype.Varchar,
+					},
+				},
+				Values: []interface{}{
+					formatValueUnsafe(t, "bar", datatype.Varchar, primitive.ProtocolVersion4),
+					formatValueUnsafe(t, ":value", datatype.Varchar, primitive.ProtocolVersion4),
+					formatValueUnsafe(t, "{v:k}", datatype.Varchar, primitive.ProtocolVersion4),
+				},
+				DeleteColumnFamilies: []string{
+					"map_text_text",
+				},
+				PrimaryKeys: []string{"column1", "column10"},
+				ParamKeys:   []string{"column1", "column10", "map_text_text"},
+				RowKey:      "abc\x00\x01pkval",
 			},
 			wantErr: false,
 		},
@@ -434,8 +468,10 @@ func TestTranslator_TranslateInsertQuerytoBigtable(t *testing.T) {
 					"column1":  []byte("abc"),
 					"column10": []byte("pkval"),
 				},
-				ParamKeys: []string{"column1", "column10"},
-				RowKey:    "abc\x00\x01pkval",
+				Columns:     nil,
+				PrimaryKeys: []string{"column1", "column10"},
+				ParamKeys:   []string{"column1", "column10"},
+				RowKey:      "abc\x00\x01pkval",
 			},
 			wantErr: false,
 		},
@@ -459,8 +495,17 @@ func TestTranslator_TranslateInsertQuerytoBigtable(t *testing.T) {
 					"column10": []byte("pkval's"),
 					"text_col": []byte("text's"),
 				},
-				ParamKeys: []string{"column1", "column10", "text_col"},
-				RowKey:    "abc\x00\x01pkval's",
+				Columns: []types.Column{types.Column{
+					Name:         "text_col",
+					ColumnFamily: "cf1",
+					CQLType:      datatype.Varchar,
+				}},
+				Values: []interface{}{
+					formatValueUnsafe(t, "text's", datatype.Varchar, primitive.ProtocolVersion4),
+				},
+				PrimaryKeys: []string{"column1", "column10"},
+				ParamKeys:   []string{"column1", "column10", "text_col"},
+				RowKey:      "abc\x00\x01pkval's",
 			},
 			wantErr: false,
 		},
@@ -483,8 +528,9 @@ func TestTranslator_TranslateInsertQuerytoBigtable(t *testing.T) {
 					"column1":  []byte("abc"),
 					"column10": []byte("pkval"),
 				},
-				ParamKeys: []string{"column1", "column10"},
-				RowKey:    "abc\x00\x01pkval",
+				PrimaryKeys: []string{"column1", "column10"},
+				ParamKeys:   []string{"column1", "column10"},
+				RowKey:      "abc\x00\x01pkval",
 			},
 			wantErr: false,
 		},
@@ -594,10 +640,13 @@ func TestTranslator_TranslateInsertQuerytoBigtable(t *testing.T) {
 			}
 
 			require.NoError(t, err)
-			assert.Equal(t, tt.want.Params, got.Params)
-			assert.Equal(t, tt.want.ParamKeys, got.ParamKeys)
-			assert.Equal(t, tt.want.RowKey, got.RowKey)
-			assert.Equal(t, tt.want.Keyspace, got.Keyspace)
+			// order of Columns is not deterministic so compare separately
+			assert.ElementsMatch(t, tt.want.Columns, got.Columns)
+			got.Columns = tt.want.Columns
+			// order of Values is not deterministic so compare separately
+			assert.ElementsMatch(t, tt.want.Values, got.Values)
+			got.Values = tt.want.Values
+			assert.Equal(t, tt.want, got)
 		})
 	}
 }

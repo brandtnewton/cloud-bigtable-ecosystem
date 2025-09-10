@@ -1633,7 +1633,7 @@ func parseWhereByClause(input cql.IWhereSpecContext, tableConfig *schemaMapping.
 							if inVal == nil {
 								return nil, errors.New("could not parse value")
 							}
-							valueTxt := inVal.GetText()
+valueTxt := trimQuotes(inVal.GetText())
 							i, err := strconv.ParseInt(valueTxt, 10, 64)
 							if err != nil {
 								return nil, err

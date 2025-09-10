@@ -213,7 +213,7 @@ func TestTranslator_TranslateDeleteQuerytoBigtable(t *testing.T) {
 			defaultKeyspace: "test_keyspace",
 		},
 		{
-			name: "DELETE query with ifExists condition",
+			name: "DELETE query with escaped single quotes",
 			args: args{
 				queryStr: `DELETE FROM test_keyspace.user_info WHERE name='tes''t' AND age=15 IF EXISTS`,
 			},

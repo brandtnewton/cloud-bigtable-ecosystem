@@ -456,7 +456,7 @@ func TestTranslateCreateTableToBigtable(t *testing.T) {
 			defaultKeyspace: "test_keyspace",
 		},
 		{
-			name:            "same name as schema mapping table",
+			name:            "reserved table name",
 			query:           "CREATE TABLE test_keyspace.table (column1 varchar, column10 int, PRIMARY KEY (column1, column10))",
 			want:            nil,
 			error:           "cannot create a table with reserved keyword as name: 'table'",

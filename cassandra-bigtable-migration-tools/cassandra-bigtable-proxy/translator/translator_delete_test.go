@@ -340,6 +340,44 @@ func TestTranslator_TranslateDeleteQuerytoBigtable(t *testing.T) {
 			defaultKeyspace: "test_keyspace",
 		},
 		{
+			name: "empty key value",
+			args: args{
+				queryStr: "DELETE FROM test_keyspace.test_table WHERE column1 = '' AND column10 = 'pkval';",
+			},
+			fields: fields{
+				SchemaMappingConfig: GetSchemaMappingConfig(types.OrderedCodeEncoding),
+			},
+			want: &DeleteQueryMapping{
+				Query:     "DELETE FROM test_keyspace.test_table WHERE column1 = '' AND column10 = 'pkval';",
+				QueryType: "DELETE",
+				Table:     "test_table",
+				Keyspace:  "test_keyspace",
+				Clauses: []types.Clause{
+					{
+						Column:       "column1",
+						Operator:     "=",
+						Value:        "",
+						IsPrimaryKey: true,
+					},
+					{
+						Column:       "column10",
+						Operator:     "=",
+						Value:        "pkval",
+						IsPrimaryKey: true,
+					},
+				},
+				Params: map[string]interface{}{
+					"value1": []byte(""),
+					"value2": []byte("pkval"),
+				},
+				ParamKeys:   []string{"value1", "value2"},
+				PrimaryKeys: []string{"column1", "column10"},
+				RowKey:      "\x00\x00\x00\x01pkval",
+			},
+			wantErr:         false,
+			defaultKeyspace: "test_keyspace",
+		},
+		{
 			name: "without keyspace in query, with default keyspace",
 			args: args{
 				queryStr: "DELETE FROM test_table WHERE column1 = 'abc' AND column10 = 'pkval';",

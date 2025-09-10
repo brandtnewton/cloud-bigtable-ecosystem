@@ -240,9 +240,6 @@ func handleColumnType(val cql.IRelationElementContext, columnType *types.Column,
 	}
 
 	value := trimQuotes(valConst.GetText())
-	if value == "" {
-		return "", errors.New("could not parse value from query for one of the clauses")
-	}
 
 	actualVal := value
 	if value != "?" {

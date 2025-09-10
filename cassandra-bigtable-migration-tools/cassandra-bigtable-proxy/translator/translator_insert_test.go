@@ -510,6 +510,40 @@ func TestTranslator_TranslateInsertQuerytoBigtable(t *testing.T) {
 			wantErr: false,
 		},
 		{
+			name: "with empty key value",
+			args: args{
+				queryStr:        "INSERT INTO test_keyspace.test_table (column1, column10, text_col) VALUES ('', 'pkval''s', 'text''s')",
+				protocolV:       protocolV,
+				isPreparedQuery: false,
+			},
+			fields: fields{
+				SchemaMappingConfig: GetSchemaMappingConfig(types.OrderedCodeEncoding),
+			},
+			want: &InsertQueryMapping{
+				Query:     "INSERT INTO test_keyspace.test_table (column1, column10, text_col) VALUES ('', 'pkval''s', 'text''s')",
+				QueryType: "INSERT",
+				Table:     "test_table",
+				Keyspace:  "test_keyspace",
+				Params: map[string]interface{}{
+					"column1":  []byte(""),
+					"column10": []byte("pkval's"),
+					"text_col": []byte("text's"),
+				},
+				Columns: []types.Column{types.Column{
+					Name:         "text_col",
+					ColumnFamily: "cf1",
+					CQLType:      datatype.Varchar,
+				}},
+				Values: []interface{}{
+					formatValueUnsafe(t, "text's", datatype.Varchar, primitive.ProtocolVersion4),
+				},
+				PrimaryKeys: []string{"column1", "column10"},
+				ParamKeys:   []string{"column1", "column10", "text_col"},
+				RowKey:      "\x00\x00\x00\x01pkval's",
+			},
+			wantErr: false,
+		},
+		{
 			name: "without keyspace in query, with default keyspace",
 			args: args{
 				queryStr:        "INSERT INTO test_table (column1, column10) VALUES ('abc', 'pkval')",

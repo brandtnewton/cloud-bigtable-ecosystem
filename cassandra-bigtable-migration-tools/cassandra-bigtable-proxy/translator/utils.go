@@ -1774,11 +1774,9 @@ func trimQuotes(s string) string {
 		return s
 	}
 	if s[0] == '\'' && s[len(s)-1] == '\'' {
-		// string literals must be single quoted
-		return strings.ReplaceAll(s[1:len(s)-1], `''`, `'`)
-	} else {
-		return s
+		s = s[1 : len(s)-1]
 	}
+	return strings.ReplaceAll(s, `''`, `'`)
 }
 
 // GetTimestampInfo retrieves timestamp information from an insert query.

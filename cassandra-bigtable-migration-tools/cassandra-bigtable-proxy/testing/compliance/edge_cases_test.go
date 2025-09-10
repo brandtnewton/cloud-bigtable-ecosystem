@@ -224,14 +224,14 @@ func TestUnpreparedCrudTwoSingleQuotes(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, []map[string]string{{"age": "80", "name": "cqlsh_'person", "text_col": "25's"}}, results)
 
-_, err = cqlshExec(`UPDATE bigtabledevinstance.user_info SET text_col='don''t' WHERE name='cqlsh_''person' AND age=80`)
-require.NoError(t, err)
+	_, err = cqlshExec(`UPDATE bigtabledevinstance.user_info SET text_col='don''t' WHERE name='cqlsh_''person' AND age=80`)
+	require.NoError(t, err)
 	results, err = cqlshScanToMap(`SELECT name, age, text_col FROM bigtabledevinstance.user_info WHERE name='cqlsh_''person' AND age=80`)
 	require.NoError(t, err)
 	assert.Equal(t, []map[string]string{{"age": "80", "name": "cqlsh_'person", "text_col": "don't"}}, results)
 
-_, err = cqlshExec(`DELETE FROM bigtabledevinstance.user_info WHERE name='cqlsh_''person' AND age=80`)
-require.NoError(t, err)
+	_, err = cqlshExec(`DELETE FROM bigtabledevinstance.user_info WHERE name='cqlsh_''person' AND age=80`)
+	require.NoError(t, err)
 	results, err = cqlshScanToMap(`SELECT * FROM bigtabledevinstance.user_info WHERE name='cqlsh_''person' AND age=80`)
 	require.NoError(t, err)
 	assert.Empty(t, results)

@@ -230,8 +230,8 @@ require.NoError(t, err)
 	require.NoError(t, err)
 	assert.Equal(t, []map[string]string{{"age": "80", "name": "cqlsh_'person", "text_col": "don't"}}, results)
 
-	_, err = cqlshExec(`DELETE FROM bigtabledevinstance.user_info WHERE name='cqlsh_''person' AND age=80`)
-
+_, err = cqlshExec(`DELETE FROM bigtabledevinstance.user_info WHERE name='cqlsh_''person' AND age=80`)
+require.NoError(t, err)
 	results, err = cqlshScanToMap(`SELECT * FROM bigtabledevinstance.user_info WHERE name='cqlsh_''person' AND age=80`)
 	require.NoError(t, err)
 	assert.Empty(t, results)

@@ -67,6 +67,22 @@ func TestCqlshCollections(t *testing.T) {
 	})
 }
 
+func TestCqlshLimit(t *testing.T) {
+	t.Parallel()
+	var err error
+	// include map characters ':' and '{}' to ensure we're parsing correctly
+	_, err = cqlshExec(`INSERT INTO bigtabledevinstance.test_int_key (user_id, name) VALUES (1, 'foo')`)
+	require.NoError(t, err)
+	_, err = cqlshExec(`INSERT INTO bigtabledevinstance.test_int_key (user_id, name) VALUES (2, 'bar')`)
+	require.NoError(t, err)
+	_, err = cqlshExec(`INSERT INTO bigtabledevinstance.test_int_key (user_id, name) VALUES (3, 'fizz')`)
+	require.NoError(t, err)
+
+	results, err := cqlshScanToMap(`SELECT name FROM bigtabledevinstance.test_int_key LIMIT 2`)
+	require.NoError(t, err)
+	assert.Equal(t, 2, len(results))
+}
+
 func TestCqlshError(t *testing.T) {
 	t.Parallel()
 

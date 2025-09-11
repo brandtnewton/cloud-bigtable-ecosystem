@@ -1,3 +1,18 @@
+/*
+ * Copyright (C) 2025 Google LLC
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not
+ * use this file except in compliance with the License. You may obtain a copy of
+ * the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations under
+ * the License.
+ */
 package compliance
 
 import (
@@ -93,6 +108,10 @@ func TestIntRowKeys(t *testing.T) {
 }
 
 func TestLexicographicOrder(t *testing.T) {
+	if testTarget == TestTargetCassandra {
+		t.Skip()
+		return
+	}
 	require.NoError(t, session.Query("CREATE TABLE IF NOT EXISTS lex_test_ordered_code (org BIGINT, id INT, username TEXT, row_index INT, PRIMARY KEY (org, id, username))").Exec())
 	require.NoError(t, session.Query("TRUNCATE TABLE lex_test_ordered_code").Exec())
 
@@ -137,4 +156,64 @@ func TestLexicographicOrder(t *testing.T) {
 	}
 
 	testLexOrder(t, orderedValues, "lex_test_ordered_code")
+}
+
+func testPreparedCrudWithQuotes(t *testing.T, nameValue, textValue, updatedTextValue string, age int64) {
+	err := session.Query(`INSERT INTO bigtabledevinstance.user_info (name, age, text_col) VALUES (?, ?, ?)`, nameValue, age, textValue).Exec()
+	require.NoError(t, err)
+
+	selectQuery := session.Query(`SELECT name, text_col FROM bigtabledevinstance.user_info WHERE name = ? AND age = ?`, nameValue, age)
+	var name string
+	var textCol string
+	err = selectQuery.Scan(&name, &textCol)
+	require.NoError(t, err)
+	assert.Equal(t, nameValue, name)
+	assert.Equal(t, textValue, textCol)
+
+	err = session.Query(`UPDATE bigtabledevinstance.user_info SET text_col=? WHERE name = ? AND age = ?`, updatedTextValue, nameValue, age).Exec()
+	require.NoError(t, err)
+
+	err = selectQuery.Scan(&name, &textCol)
+	require.NoError(t, err)
+	assert.Equal(t, nameValue, name)
+	assert.Equal(t, updatedTextValue, textCol)
+
+	err = session.Query(`DELETE FROM bigtabledevinstance.user_info WHERE name = ? AND age = ?`, nameValue, age).Exec()
+	require.NoError(t, err)
+
+	err = selectQuery.Scan(&name, &textCol)
+	assert.Equal(t, gocql.ErrNotFound, err)
+}
+
+func TestPreparedQueryWithTwoSingleQuotes(t *testing.T) {
+	t.Parallel()
+	testPreparedCrudWithQuotes(t, "Jame''s?", "don''t", "won''t", 59)
+}
+
+func TestPreparedQueryWithOneSingleQuote(t *testing.T) {
+	t.Parallel()
+	testPreparedCrudWithQuotes(t, "Jame's?", "don't", "won't", 591)
+}
+
+func TestUnpreparedCrudTwoSingleQuotes(t *testing.T) {
+	t.Parallel()
+
+	_, err := cqlshExec(`INSERT INTO bigtabledevinstance.user_info (name, age, text_col) VALUES ('cqlsh_''person', 80, '25''s')`)
+	require.NoError(t, err)
+
+	results, err := cqlshScanToMap(`SELECT name, age, text_col FROM bigtabledevinstance.user_info WHERE name='cqlsh_''person' AND age=80`)
+	require.NoError(t, err)
+	assert.Equal(t, []map[string]string{{"age": "80", "name": "cqlsh_'person", "text_col": "25's"}}, results)
+
+	_, err = cqlshExec(`UPDATE bigtabledevinstance.user_info SET text_col='don''t' WHERE name='cqlsh_''person' AND age=80`)
+	require.NoError(t, err)
+	results, err = cqlshScanToMap(`SELECT name, age, text_col FROM bigtabledevinstance.user_info WHERE name='cqlsh_''person' AND age=80`)
+	require.NoError(t, err)
+	assert.Equal(t, []map[string]string{{"age": "80", "name": "cqlsh_'person", "text_col": "don't"}}, results)
+
+	_, err = cqlshExec(`DELETE FROM bigtabledevinstance.user_info WHERE name='cqlsh_''person' AND age=80`)
+	require.NoError(t, err)
+	results, err = cqlshScanToMap(`SELECT * FROM bigtabledevinstance.user_info WHERE name='cqlsh_''person' AND age=80`)
+	require.NoError(t, err)
+	assert.Empty(t, results)
 }

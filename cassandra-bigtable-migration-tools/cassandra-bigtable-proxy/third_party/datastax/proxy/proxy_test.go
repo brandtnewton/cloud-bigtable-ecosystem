@@ -2149,15 +2149,17 @@ func TestHandleDescribeTables(t *testing.T) {
 	tests := []struct {
 		name           string
 		mockTableMeta  *schemaMapping.SchemaMappingConfig
-		expectedTables []struct{ keyspace, table string }
+		expectedTables []string
 	}{
 		{
 			name:          "multiple keyspaces and tables",
 			mockTableMeta: mockTableSchemaConfig,
-			expectedTables: []struct{ keyspace, table string }{
-				{"system_virtual_schema", "keyspaces"},
-				{"system_virtual_schema", "tables"},
-				{"system_virtual_schema", "columns"},
+			expectedTables: []string{
+				"system_virtual_schema.keyspaces",
+				"system_virtual_schema.tables",
+				"system_virtual_schema.columns",
+				"keyspace.test_table",
+				"keyspace.user_info",
 			},
 		},
 	}
@@ -2195,7 +2197,7 @@ func TestHandleDescribeTables(t *testing.T) {
 				t.Errorf("Expected %d rows, got %d", len(tt.expectedTables), len(rowsResult.Data))
 				return
 			}
-			foundTables := make(map[string]bool)
+			var foundTables []string = nil
 			for _, row := range rowsResult.Data {
 				if len(row) != 2 {
 					t.Error("Expected 2 columns per row")
@@ -2204,115 +2206,9 @@ func TestHandleDescribeTables(t *testing.T) {
 				keyspace := string(row[0])
 				table := string(row[1])
 				tableKey := keyspace + "." + table
-				foundTables[tableKey] = true
+				foundTables = append(foundTables, tableKey)
 			}
-			for _, expected := range tt.expectedTables {
-				tableKey := expected.keyspace + "." + expected.table
-				if !foundTables[tableKey] {
-					t.Errorf("Expected table %s not found in results", tableKey)
-				}
-			}
-		})
-	}
-}
-
-func TestHandleDescribeTableColumns(t *testing.T) {
-	tests := []struct {
-		name          string
-		keyspace      string
-		table         string
-		mockTableMeta *schemaMapping.TableConfig
-		expectedCols  map[string]datatype.DataType
-	}{
-		{
-			name:     "test_table with three columns",
-			keyspace: "test_keyspace",
-			table:    "test_table",
-			mockTableMeta: schemaMapping.NewTableConfig(
-				"test_keyspace",
-				"test_table",
-				"cf", // Column family derived from the column definitions
-				types.OrderedCodeEncoding,
-				[]*types.Column{
-					{
-						Name:         "id",
-						CQLType:      datatype.Uuid,
-						KeyType:      "partition",
-						IsPrimaryKey: true,
-						ColumnFamily: "cf",
-						PkPrecedence: 0,
-					},
-					{
-						Name:         "name",
-						CQLType:      datatype.Varchar,
-						KeyType:      "clustering",
-						IsPrimaryKey: true,
-						ColumnFamily: "cf",
-						PkPrecedence: 1,
-					},
-					{
-						Name:         "age",
-						CQLType:      datatype.Int,
-						KeyType:      "regular",
-						IsPrimaryKey: false,
-						ColumnFamily: "cf",
-						PkPrecedence: 0,
-					},
-				},
-			),
-			expectedCols: map[string]datatype.DataType{
-				"id":   datatype.Uuid,
-				"name": datatype.Varchar,
-				"age":  datatype.Int,
-			},
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			logger := zap.NewNop()
-			schemaMappingConfig := schemaMapping.NewSchemaMappingConfig("schema_mappings", "cf", logger,
-				[]*schemaMapping.TableConfig{tt.mockTableMeta},
-			)
-			proxy := &Proxy{
-				logger:        logger,
-				schemaMapping: schemaMappingConfig,
-			}
-			mockSender := &mockSender{}
-			client := &client{
-				proxy:  proxy,
-				sender: mockSender,
-			}
-			header := &frame.Header{
-				Version:  primitive.ProtocolVersion4,
-				StreamId: 1,
-			}
-			client.handleDescribeTableColumns(header, tt.keyspace+"."+tt.table)
-			if !mockSender.SendCalled {
-				t.Error("Send was not called")
-				return
-			}
-			rowsResult, ok := mockSender.SendParams.Msg.(*message.RowsResult)
-			if !ok {
-				t.Error("Expected RowsResult message type")
-				return
-			}
-			if len(rowsResult.Metadata.Columns) != len(tt.expectedCols) {
-				t.Errorf("Expected %d columns, got %d", len(tt.expectedCols), len(rowsResult.Metadata.Columns))
-				return
-			}
-			for _, col := range rowsResult.Metadata.Columns {
-				expected, exists := tt.expectedCols[col.Name]
-				if !exists {
-					t.Errorf("Unexpected column: %s", col.Name)
-					continue
-				}
-				if col.Type.String() != expected.String() {
-					t.Errorf("Expected type %s for column %s, got %s", expected.String(), col.Name, col.Type.String())
-				}
-			}
-			if len(rowsResult.Data) != 0 {
-				t.Errorf("Expected no data rows, got %d", len(rowsResult.Data))
-			}
+			assert.ElementsMatch(t, tt.expectedTables, foundTables)
 		})
 	}
 }

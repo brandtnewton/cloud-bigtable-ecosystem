@@ -18,6 +18,8 @@ import (
 	"errors"
 	"fmt"
 
+	cql "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/third_party/cqlparser"
+	"github.com/antlr4-go/antlr/v4"
 	"github.com/datastax/go-cassandra-native-protocol/datatype"
 	"github.com/datastax/go-cassandra-native-protocol/message"
 )
@@ -194,33 +196,41 @@ func isDMLTerminator(t token) bool {
 	return t == tkEOF || t == tkEOS || t == tkInsert || t == tkUpdate || t == tkDelete || t == tkApply
 }
 
-func isHandledDescribeStmt(l *lexer) (stmt Statement, err error) {
-	t2 := l.next()
-	ds := &DescribeStatement{}
-	if t2 == tkIdentifier && l.identifier().equal("keyspaces") {
-		ds.Keyspaces = true
-		return ds, nil
-	} else if t2 == tkIdentifier && l.identifier().equal("tables") {
-		ds.Tables = true
-		return ds, nil
-	} else if t2 == tkIdentifier && l.identifier().equal("table") {
-		_, tableIdent, _, err := parseQualifiedIdentifier(l)
-		if err != nil {
-			return nil, err
+func isHandledDescribeStmt(query string, sessionKeyspace Identifier) (stmt Statement, err error) {
+	lexer := cql.NewCqlLexer(antlr.NewInputStream(query))
+	stream := antlr.NewCommonTokenStream(lexer, antlr.TokenDefaultChannel)
+	p := cql.NewCqlParser(stream)
+
+	describeTable := p.DescribeStatement()
+
+	target := describeTable.DescribeTarget()
+	if target == nil {
+		return nil, errors.New("invalid desc command")
+	}
+
+	if target.KwKeyspaces() != nil { // "DESC KEYSPACES;"
+		return &DescribeStatement{Keyspaces: true}, nil
+	} else if target.KwTables() != nil { // "DESC TABLES;"
+		return &DescribeStatement{Tables: true, KeyspaceName: sessionKeyspace.id}, nil
+	} else if target.KwTable() != nil { // "DESC TABLE [$KEYSPACE.]$TABLE;"
+		if target.Table() == nil {
+			return nil, errors.New("invalid describe command. table name required")
 		}
-		ds.TableName = tableIdent.id
-		return ds, nil
-	} else if t2 == tkIdentifier && l.identifier().equal("keyspace") {
-		if l.next() == tkIdentifier {
-			ks := l.identifier()
-			ds.KeyspaceName = ks.id
-			return ds, nil
+		table := target.Table().GetText()
+		keyspace := sessionKeyspace.id
+		if target.Keyspace() != nil {
+			keyspace = target.Keyspace().GetText()
 		}
-		return nil, errors.New("expected keyspace name after DESCRIBE KEYSPACE")
-	} else if t2 == tkIdentifier {
-		ks := l.identifier()
-		ds.KeyspaceName = ks.id
-		return ds, nil
+		return &DescribeStatement{KeyspaceName: keyspace, TableName: table}, nil
+	} else if target.KwKeyspace() != nil { // "DESC KEYSPACE $KEYSPACE;"
+		keyspace := sessionKeyspace.id
+		if target.Keyspace() != nil {
+			keyspace = target.Keyspace().GetText()
+		}
+		if keyspace == "" {
+			return nil, errors.New("expected keyspace name after DESCRIBE KEYSPACE")
+		}
+		return &DescribeStatement{KeyspaceName: keyspace}, nil
 	}
 	return nil, errors.New("invalid DESCRIBE statement")
 }
@@ -234,7 +244,7 @@ func IsQueryHandledWithQueryType(keyspace Identifier, query string) (handled boo
 	switch t {
 	case tkIdentifier:
 		if l.identifier().equal("describe") || l.identifier().equal("desc") {
-			stmt, err := isHandledDescribeStmt(&l)
+			stmt, err := isHandledDescribeStmt(query, keyspace)
 			return false, stmt, "describe", err
 		} else if l.identifier().equal("truncate") {
 			return false, nil, "truncate", nil

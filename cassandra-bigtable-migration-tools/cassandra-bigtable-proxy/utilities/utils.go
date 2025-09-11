@@ -19,6 +19,7 @@ package utilities
 import (
 	"fmt"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/collectiondecoder"
@@ -33,6 +34,127 @@ const (
 	KEY_TYPE_CLUSTERING = "clustering"
 	KEY_TYPE_REGULAR    = "regular"
 )
+
+// from https://cassandra.apache.org/doc/4.0/cassandra/cql/appendices.html#appendix-A
+// a value of "true" means the keyword is truly reserved, while a value of "false" means the keyword is non-reserved/available in certain situations.
+var reservedKeywords = map[string]bool{
+	"ADD":          true,
+	"AGGREGATE":    true,
+	"ALL":          false,
+	"ALLOW":        true,
+	"ALTER":        true,
+	"AND":          true,
+	"ANY":          true,
+	"APPLY":        true,
+	"AS":           false,
+	"ASC":          true,
+	"ASCII":        false,
+	"AUTHORIZE":    true,
+	"BATCH":        true,
+	"BEGIN":        true,
+	"BIGINT":       false,
+	"BLOB":         false,
+	"BOOLEAN":      false,
+	"BY":           true,
+	"CLUSTERING":   false,
+	"COLUMNFAMILY": true,
+	"COMPACT":      false,
+	"CONSISTENCY":  false,
+	"COUNT":        false,
+	"COUNTER":      false,
+	"CREATE":       true,
+	"CUSTOM":       false,
+	"DECIMAL":      false,
+	"DELETE":       true,
+	"DESC":         true,
+	"DISTINCT":     false,
+	"DOUBLE":       false,
+	"DROP":         true,
+	"EACH_QUORUM":  true,
+	"ENTRIES":      true,
+	"EXISTS":       false,
+	"FILTERING":    false,
+	"FLOAT":        false,
+	"FROM":         true,
+	"FROZEN":       false,
+	"FULL":         true,
+	"GRANT":        true,
+	"IF":           true,
+	"IN":           true,
+	"INDEX":        true,
+	"INET":         true,
+	"INFINITY":     true,
+	"INSERT":       true,
+	"INT":          false,
+	"INTO":         true,
+	"KEY":          false,
+	"KEYSPACE":     true,
+	"KEYSPACES":    true,
+	"LEVEL":        false,
+	"LIMIT":        true,
+	"LIST":         false,
+	"LOCAL_ONE":    true,
+	"LOCAL_QUORUM": true,
+	"MAP":          false,
+	"MATERIALIZED": true,
+	"MODIFY":       true,
+	"NAN":          true,
+	"NORECURSIVE":  true,
+	"NOSUPERUSER":  false,
+	"NOT":          true,
+	"OF":           true,
+	"ON":           true,
+	"ONE":          true,
+	"ORDER":        true,
+	"PARTITION":    true,
+	"PASSWORD":     true,
+	"PER":          true,
+	"PERMISSION":   false,
+	"PERMISSIONS":  false,
+	"PRIMARY":      true,
+	"QUORUM":       true,
+	"RENAME":       true,
+	"REVOKE":       true,
+	"SCHEMA":       true,
+	"SELECT":       true,
+	"SET":          true,
+	"STATIC":       false,
+	"STORAGE":      false,
+	"SUPERUSER":    false,
+	"TABLE":        true,
+	"TEXT":         false,
+	"TIME":         true,
+	"TIMESTAMP":    false,
+	"TIMEUUID":     false,
+	"THREE":        true,
+	"TO":           true,
+	"TOKEN":        true,
+	"TRUNCATE":     true,
+	"TTL":          false,
+	"TUPLE":        false,
+	"TWO":          true,
+	"TYPE":         false,
+	"UNLOGGED":     true,
+	"UPDATE":       true,
+	"USE":          true,
+	"USER":         false,
+	"USERS":        false,
+	"USING":        true,
+	"UUID":         false,
+	"VALUES":       false,
+	"VARCHAR":      false,
+	"VARINT":       false,
+	"VIEW":         true,
+	"WHERE":        true,
+	"WITH":         true,
+	"WRITETIME":    false,
+	"BITSTRING":    false,
+	"BYTE":         false,
+	"COMPLEX":      false,
+	"ENUM":         false,
+	"INTERVAL":     false,
+	"MACADDR":      false,
+}
 
 var (
 	MapOfStrToStr     = datatype.NewMapType(datatype.Varchar, datatype.Varchar)
@@ -153,6 +275,12 @@ func DecodeBytesToCassandraColumnType(b []byte, choice datatype.PrimitiveType, p
 		res, err := decodeNonPrimitive(choice, b)
 		return res, err
 	}
+}
+
+func IsReservedCqlKeyword(s string) bool {
+	// we're opting to treat reserved and "non-reserved" keywords the same, for simplicity
+	_, found := reservedKeywords[strings.ToUpper(s)]
+	return found
 }
 
 // decodeNonPrimitive() Decodes non-primitive types like list, list, and list from byte data based on the provided datatype choice. Returns the decoded collection or an error if unsupported.

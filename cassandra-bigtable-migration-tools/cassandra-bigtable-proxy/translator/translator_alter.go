@@ -49,6 +49,10 @@ func (t *Translator) TranslateAlterTableToBigtable(query, sessionKeyspace string
 		return nil, errors.New("invalid input paramaters found for table")
 	}
 
+	if tableName == t.SchemaMappingConfig.SchemaMappingTableName {
+		return nil, fmt.Errorf("cannot alter schema mapping table with configured name '%s'", tableName)
+	}
+
 	if alterTable != nil && alterTable.Keyspace() != nil && alterTable.Keyspace().GetText() != "" {
 		keyspaceName = alterTable.Keyspace().GetText()
 	} else if sessionKeyspace != "" {
@@ -110,6 +114,9 @@ func (t *Translator) TranslateAlterTableToBigtable(query, sessionKeyspace string
 	for _, addColumn := range addColumns {
 		if !utilities.IsSupportedColumnType(addColumn.Type) {
 			return nil, fmt.Errorf("column type '%s' is not supported", addColumn.Type)
+		}
+		if utilities.IsReservedCqlKeyword(addColumn.Name) {
+			return nil, fmt.Errorf("cannot alter a table with reserved keyword as column name: '%s'", addColumn.Name)
 		}
 		if tableConfig.HasColumn(addColumn.Name) {
 			return nil, fmt.Errorf("column '%s' already exists in table", addColumn.Name)

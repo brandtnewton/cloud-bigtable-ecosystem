@@ -17,7 +17,12 @@
 package compliance
 
 import (
+	"bytes"
+	"encoding/csv"
+	"errors"
 	"fmt"
+	"os/exec"
+	"regexp"
 	"strings"
 	"testing"
 	"time"
@@ -95,4 +100,107 @@ func testLexOrder(t *testing.T, input []map[string]interface{}, table string) {
 		require.True(t, int(result) >= 0 && int(result) < len(input), fmt.Sprintf("unexpected result index: %d your environment is probably not clean", result))
 		assert.Equal(t, int32(i), result, fmt.Sprintf("out of order result: expected %v but got %v", input[i], input[result]))
 	}
+}
+
+var plusMinusRegex = regexp.MustCompile(`^[-+]*$`)
+var rowsRegex = regexp.MustCompile(`^\(\d+ rows\)$`)
+
+func cqlshExec(query string) (string, error) {
+	cmd := exec.Command("cqlsh", "--request-timeout=60", "-e", query)
+
+	var stdout, stderr bytes.Buffer
+	cmd.Stdout = &stdout
+	cmd.Stderr = &stderr
+
+	err := cmd.Run()
+	if err != nil {
+		// If the command fails, the error message from cqlsh is in the output.
+		return "", fmt.Errorf("cqlsh command failed: %w\nOutput: %s", err, stderr.String())
+	}
+
+	errStr := stderr.String()
+	if errStr != "" {
+		return "", errors.New(errStr)
+	}
+
+	raw := stdout.String()
+	var fixed []string = nil
+	for _, s := range strings.Split(raw, "\n") {
+		if strings.TrimSpace(s) == "" {
+			continue
+		}
+		if strings.HasPrefix(s, "WARNING: cqlsh was built against ") {
+			continue
+		}
+		// skip the table header line
+		if plusMinusRegex.MatchString(s) {
+			continue
+		}
+		// skip row count line
+		if rowsRegex.MatchString(s) {
+			continue
+		}
+
+		fixed = append(fixed, s)
+	}
+	return strings.Join(fixed, "\n"), nil
+}
+
+func cqlshDescribe(query string) ([]string, error) {
+	output, err := cqlshExec(query)
+	if err != nil {
+		return nil, err
+	}
+	var results []string = nil
+	for _, s := range strings.Split(output, " ") {
+		trimmed := strings.TrimSpace(s)
+		if trimmed == "" {
+			continue
+		}
+		results = append(results, trimmed)
+	}
+	return results, nil
+}
+
+// executeCQLQuery runs a query using cqlsh and returns the result as a slice of maps.
+// Each map represents a row, with keys being the column headers.
+func cqlshScanToMap(query string) ([]map[string]string, error) {
+	output, err := cqlshExec(query)
+	if err != nil {
+		return nil, err
+	}
+
+	reader := csv.NewReader(strings.NewReader(output))
+	reader.Comma = '|'
+
+	records, err := reader.ReadAll()
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse CSV output: %w", err)
+	}
+
+	// Check if we have at least a header row.
+	if len(records) < 1 {
+		return []map[string]string{}, nil // No data, just return an empty slice.
+	}
+
+	// The first record is the header.
+	header := records[0]
+	dataRows := records[1:]
+
+	var results []map[string]string
+	for _, row := range dataRows {
+		if len(row) == 0 {
+			continue
+		}
+		rowData := make(map[string]string)
+		for i, value := range row {
+			// Check if the row has the same number of columns as the header.
+			if i < len(header) {
+				rowData[strings.TrimSpace(header[i])] = strings.TrimSpace(value)
+			}
+		}
+		results = append(results, rowData)
+	}
+
+	return results, nil
 }

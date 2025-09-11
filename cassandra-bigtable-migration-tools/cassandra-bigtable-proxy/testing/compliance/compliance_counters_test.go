@@ -20,8 +20,7 @@ func TestBasicCounterValidation(t *testing.T) {
 	assert.Equal(t, int64(0), views, "Un-initialized counter (views) should default to 0")
 
 	// Increment the counter
-	require.NoError(t, session.Query(`UPDATE social_posts SET likes = ? + likes WHERE user_id = ? AND id = ?`,
-		2, pkUser, pkId).Exec())
+	require.NoError(t, session.Query(`UPDATE social_posts SET likes = likes + ? WHERE user_id = ? AND id = ?`, 2, pkUser, pkId).Exec())
 
 	// Validate the increment
 	require.NoError(t, session.Query(`SELECT likes FROM social_posts WHERE user_id = ? AND id = ?`, pkUser, pkId).Scan(&likes))

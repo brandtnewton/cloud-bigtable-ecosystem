@@ -129,8 +129,11 @@ func setUpTests() {
 		"bigtabledevinstance.aggregation_grouping_test",
 		"bigtabledevinstance.multiple_int_keys",
 		"bigtabledevinstance.test_int_key",
-		"bigtabledevinstance.orders_big_endian_encoded",
 		"bigtabledevinstance.social_posts",
+	}
+
+	if testTarget == TestTargetProxy {
+		tableNames = append(tableNames, "bigtabledevinstance.orders_big_endian_encoded")
 	}
 
 	// truncate all tables

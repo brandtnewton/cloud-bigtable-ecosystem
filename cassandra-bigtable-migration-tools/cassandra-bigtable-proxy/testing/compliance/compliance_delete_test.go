@@ -111,6 +111,7 @@ func TestNegativeDeleteCases(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			err := session.Query(tc.query, tc.params...).Exec()
 			require.Error(t, err, "Expected query to fail")
 			// we don't care about validating the cassandra error message, just that we got an error

@@ -179,13 +179,13 @@ func TestTranslator_TranslateDeleteQuerytoBigtable(t *testing.T) {
 		{
 			name: "DELETE query with ifExists condition",
 			args: args{
-				queryStr: "DELETE FROM test_keyspace.user_info WHERE name='test' AND age=15 IF EXISTS",
+				queryStr: `DELETE FROM test_keyspace.user_info WHERE name='test' AND age=15 IF EXISTS`,
 			},
 			fields: fields{
 				SchemaMappingConfig: GetSchemaMappingConfig(types.OrderedCodeEncoding),
 			},
 			want: &DeleteQueryMapping{
-				Query:     "DELETE FROM test_keyspace.user_info WHERE name='test' AND age=15 IF EXISTS",
+				Query:     `DELETE FROM test_keyspace.user_info WHERE name='test' AND age=15 IF EXISTS`,
 				QueryType: "DELETE",
 				Table:     "user_info",
 				Keyspace:  "test_keyspace",
@@ -207,6 +207,45 @@ func TestTranslator_TranslateDeleteQuerytoBigtable(t *testing.T) {
 				ParamKeys:   []string{"value1", "value2"},
 				PrimaryKeys: []string{"name", "age"}, // assuming primary keys
 				RowKey:      "test\x00\x01\x8f",
+				IfExists:    true,
+			},
+			wantErr:         false,
+			defaultKeyspace: "test_keyspace",
+		},
+		{
+			name: "DELETE query with escaped single quotes",
+			args: args{
+				queryStr: `DELETE FROM test_keyspace.user_info WHERE name='tes''t' AND age=15 IF EXISTS`,
+			},
+			fields: fields{
+				SchemaMappingConfig: GetSchemaMappingConfig(types.OrderedCodeEncoding),
+			},
+			want: &DeleteQueryMapping{
+				Query:     `DELETE FROM test_keyspace.user_info WHERE name='tes''t' AND age=15 IF EXISTS`,
+				QueryType: "DELETE",
+				Table:     "user_info",
+				Keyspace:  "test_keyspace",
+				Clauses: []types.Clause{
+					{
+						Column:       "name",
+						Operator:     "=",
+						Value:        "tes't",
+						IsPrimaryKey: true,
+					},
+					{
+						Column:       "age",
+						Operator:     "=",
+						Value:        "15",
+						IsPrimaryKey: true,
+					},
+				},
+				Params: map[string]interface{}{
+					"value1": []byte("tes't"),
+					"value2": formattedValue2,
+				},
+				ParamKeys:   []string{"value1", "value2"},
+				PrimaryKeys: []string{"name", "age"}, // assuming primary keys
+				RowKey:      "tes't\x00\x01\x8f",
 				IfExists:    true,
 			},
 			wantErr:         false,
@@ -296,6 +335,44 @@ func TestTranslator_TranslateDeleteQuerytoBigtable(t *testing.T) {
 				ParamKeys:   []string{"value1", "value2"},
 				PrimaryKeys: []string{"column1", "column10"},
 				RowKey:      "abc\x00\x01pkval",
+			},
+			wantErr:         false,
+			defaultKeyspace: "test_keyspace",
+		},
+		{
+			name: "empty key value",
+			args: args{
+				queryStr: "DELETE FROM test_keyspace.test_table WHERE column1 = '' AND column10 = 'pkval';",
+			},
+			fields: fields{
+				SchemaMappingConfig: GetSchemaMappingConfig(types.OrderedCodeEncoding),
+			},
+			want: &DeleteQueryMapping{
+				Query:     "DELETE FROM test_keyspace.test_table WHERE column1 = '' AND column10 = 'pkval';",
+				QueryType: "DELETE",
+				Table:     "test_table",
+				Keyspace:  "test_keyspace",
+				Clauses: []types.Clause{
+					{
+						Column:       "column1",
+						Operator:     "=",
+						Value:        "",
+						IsPrimaryKey: true,
+					},
+					{
+						Column:       "column10",
+						Operator:     "=",
+						Value:        "pkval",
+						IsPrimaryKey: true,
+					},
+				},
+				Params: map[string]interface{}{
+					"value1": []byte(""),
+					"value2": []byte("pkval"),
+				},
+				ParamKeys:   []string{"value1", "value2"},
+				PrimaryKeys: []string{"column1", "column10"},
+				RowKey:      "\x00\x00\x00\x01pkval",
 			},
 			wantErr:         false,
 			defaultKeyspace: "test_keyspace",

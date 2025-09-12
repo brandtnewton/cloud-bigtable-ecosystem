@@ -29,7 +29,7 @@ func main() {
 
 	err := proxy.Run(ctx, os.Args[1:])
 	if err != nil {
-		println(fmt.Sprintf("error: %s", err.Error()))
+		fmt.Fprintf(os.Stderr, "error: %v\n", err)
 		os.Exit(1)
 		return
 	}

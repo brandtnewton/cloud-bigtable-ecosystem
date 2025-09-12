@@ -65,7 +65,7 @@ func ParseCliArgs(args []string) (*types.CliArgs, error) {
 	}
 
 	if _, err = parser.Parse(args); err != nil {
-		return nil, fmt.Errorf("error parsing flags: %v", err)
+		return nil, fmt.Errorf("error parsing flags: %w", err)
 	}
 
 	if parsed.Partitioner == "" {

@@ -905,7 +905,7 @@ func TestCreateTable(t *testing.T) {
 	client, adminClients, ctx, err := getClient(conn)
 	require.NoError(t, err)
 
-	btClient := NewBigtableClient(client, adminClients, zap.NewNop(), bigtableConfig, nil, &schemaMapping.SchemaMappingConfig{SchemaMappingTableName: "schema_mappings"})
+	btClient := NewBigtableClient(client, adminClients, zap.NewNop(), bigtableConfig, nil, &schemaMapping.SchemaMappingConfig{SchemaMappingTableName: "schema_mapping"})
 
 	// force set up the schema mappings table
 	_, err = btClient.ReadTableConfigs(ctx, "ks1")
@@ -992,7 +992,7 @@ func TestCreateTableWithEncodeIntRowKeysWithBigEndianTrue(t *testing.T) {
 	client, adminClients, ctx, err := getClient(conn)
 	require.NoError(t, err)
 
-	btClient := NewBigtableClient(client, adminClients, zap.NewNop(), bigtableConfig, nil, &schemaMapping.SchemaMappingConfig{SchemaMappingTableName: "schema_mappings"})
+	btClient := NewBigtableClient(client, adminClients, zap.NewNop(), bigtableConfig, nil, &schemaMapping.SchemaMappingConfig{SchemaMappingTableName: "schema_mapping"})
 
 	// force set up the schema mappings table
 	_, err = btClient.ReadTableConfigs(ctx, "ks1")
@@ -1016,7 +1016,7 @@ func TestCreateTableWithEncodeIntRowKeysWithBigEndianFalse(t *testing.T) {
 	client, adminClients, ctx, err := getClient(conn)
 	require.NoError(t, err)
 
-	btClient := NewBigtableClient(client, adminClients, zap.NewNop(), bigtableConfig, nil, &schemaMapping.SchemaMappingConfig{SchemaMappingTableName: "schema_mappings"})
+	btClient := NewBigtableClient(client, adminClients, zap.NewNop(), bigtableConfig, nil, &schemaMapping.SchemaMappingConfig{SchemaMappingTableName: "schema_mapping"})
 
 	// force set up the schema mappings table
 	_, err = btClient.ReadTableConfigs(ctx, "ks1")
@@ -1040,7 +1040,7 @@ func TestAlterTable(t *testing.T) {
 	client, adminClients, ctx, err := getClient(conn)
 	require.NoError(t, err)
 
-	btClient := NewBigtableClient(client, adminClients, zap.NewNop(), bigtableConfig, nil, &schemaMapping.SchemaMappingConfig{SchemaMappingTableName: "schema_mappings"})
+	btClient := NewBigtableClient(client, adminClients, zap.NewNop(), bigtableConfig, nil, &schemaMapping.SchemaMappingConfig{SchemaMappingTableName: "schema_mapping"})
 
 	// force set up the schema mappings table
 	_, err = btClient.ReadTableConfigs(ctx, "ks1")
@@ -1144,7 +1144,7 @@ func TestDropTable(t *testing.T) {
 	client, adminClients, ctx, err := getClient(conn)
 	require.NoError(t, err)
 
-	btClient := NewBigtableClient(client, adminClients, zap.NewNop(), bigtableConfig, nil, &schemaMapping.SchemaMappingConfig{SchemaMappingTableName: "schema_mappings"})
+	btClient := NewBigtableClient(client, adminClients, zap.NewNop(), bigtableConfig, nil, &schemaMapping.SchemaMappingConfig{SchemaMappingTableName: "schema_mapping"})
 
 	// force set up the schema mappings table
 	_, err = btClient.ReadTableConfigs(ctx, "ks1")

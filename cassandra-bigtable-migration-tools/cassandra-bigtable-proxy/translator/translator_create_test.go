@@ -450,9 +450,9 @@ func TestTranslateCreateTableToBigtable(t *testing.T) {
 		},
 		{
 			name:            "same name as schema mapping table",
-			query:           "CREATE TABLE test_keyspace.schema_mappings (column1 varchar, column10 int, PRIMARY KEY (column1, column10))",
+			query:           "CREATE TABLE test_keyspace.schema_mapping (column1 varchar, column10 int, PRIMARY KEY (column1, column10))",
 			want:            nil,
-			error:           "cannot create a table with the configured schema mapping table name 'schema_mappings'",
+			error:           "cannot create a table with the configured schema mapping table name 'schema_mapping'",
 			defaultKeyspace: "test_keyspace",
 		},
 		{
@@ -468,7 +468,7 @@ func TestTranslateCreateTableToBigtable(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			tr := &Translator{
 				Logger:                   nil,
-				SchemaMappingConfig:      schemaMapping.NewSchemaMappingConfig("schema_mappings", "cf1", zap.NewNop(), nil),
+				SchemaMappingConfig:      schemaMapping.NewSchemaMappingConfig("schema_mapping", "cf1", zap.NewNop(), nil),
 				DefaultIntRowKeyEncoding: tt.defaultIntRowKeyEncoding,
 			}
 			got, err := tr.TranslateCreateTableToBigtable(tt.query, tt.defaultKeyspace)

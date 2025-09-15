@@ -15,23 +15,23 @@
 cassandraToBigtableConfigs:
   # [Optional] Global default GCP Project ID
   projectId: YOUR_GCP_PROJECT_ID
-  # [Optional] Global default configuration table name
+  # [Optional] Global default configuration table name. This defaults to 'schema_mapping'
   schemaMappingTable: SCHEMA_MAPPING_TABLE_NAME
-  #[Required] Default column family for premitive data types
+  # [Optional] Default column family for primitive data types. This defaults to 'cf1'
   defaultColumnFamily: DEFAULT_COLUMN_FAMILY
 
 listeners:
 - name: cluster1
   port: 9042
   bigtable:
-    # [Optional], skip if it is the same as global_projectId.
+    # [Optional] skip if it is the same as cassandraToBigtableConfigs.projectId.
     projectId: YOUR_GCP_PROJECT_ID
 
     # [Optional] appProfileID (global) is required only if you want to use a specific app profile.
     # If a per-instance appProfileID is specified, it will override this global setting.
     # appProfileID: GCP_BIGTABLE_APP_PROFILE_ID
 
-    # If you want to use multiple instances then pass the instance names by comma seperated
+    # [Optional] If you want to use multiple instances then pass the instance names by comma seperated
     # Instance(cassandra keyspace) name should not contain any special characters except underscore(_)
     # if instanceIds values given here then proxy wont read from the below instances list
     # instanceIds: GCP_BIGTABLE_INSTANCE_ID1,GCP_BIGTABLE_INSTANCE_ID2
@@ -51,10 +51,10 @@ listeners:
       #   keyspace: KEYSPACE_MAP_TO_INSTANCE2
       #   appProfileID: GCP_BIGTABLE_APP_PROFILE_ID
 
-    # [Required] Name of the table  where cassandra schema to bigtable schema mapping is stored.
+    # [Optional] Name of the table  where cassandra schema to bigtable schema mapping is stored. This defaults to 'schema_mapping'
     schemaMappingTable: SCHEMA_MAPPING_TABLE_NAME
 
-    #[Required] Default column family for primitive data types is "cf1"
+    # [Optional] Default column family for primitive data types. This defaults to 'cf1'
     defaultColumnFamily: DEFAULT_COLUMN_FAMILY
 
     # [Optional] Nearly all users should keep this set to false. When undefined
@@ -64,6 +64,7 @@ listeners:
 
     # Number of grpc channels to be used for Bigtable session.
     Session:
+      # [Optional] The number of GRPC channels used by the Bigtable client. The default is 1.
       grpcChannels: 4
 
 otel:

@@ -619,7 +619,7 @@ func Test_client_handlePrepare(t *testing.T) {
 }
 
 var mockTableSchemaConfig = schemaMapping.NewSchemaMappingConfig(
-	"schema_mappings",
+	"schema_mapping",
 	"cf1",
 
 	zap.NewNop(),
@@ -2095,7 +2095,7 @@ func TestHandleDescribeKeyspaces(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			logger := zap.NewNop()
-			schemaMappingConfig := schemaMapping.NewSchemaMappingConfig("schema_mappings", "cf", logger, tt.mockTableMeta)
+			schemaMappingConfig := schemaMapping.NewSchemaMappingConfig("schema_mapping", "cf", logger, tt.mockTableMeta)
 			proxy := &Proxy{
 				logger:        logger,
 				schemaMapping: schemaMappingConfig,
@@ -2347,7 +2347,7 @@ func TestHandlePostDDLEvent(t *testing.T) {
 				},
 			)
 			schemaMappingConfig := schemaMapping.NewSchemaMappingConfig(
-				"schema_mappings",
+				"schema_mapping",
 				"cf",
 
 				logger,

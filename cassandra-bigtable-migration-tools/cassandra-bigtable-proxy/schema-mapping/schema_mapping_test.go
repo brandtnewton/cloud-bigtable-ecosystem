@@ -30,7 +30,7 @@ import (
 
 func getSchemaMappingConfig() *SchemaMappingConfig {
 	return NewSchemaMappingConfig(
-		"schema_mappings", "cf1",
+		"schema_mapping", "cf1",
 		zap.NewNop(),
 		[]*TableConfig{
 			NewTableConfig(

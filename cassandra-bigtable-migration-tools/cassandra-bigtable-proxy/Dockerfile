@@ -28,4 +28,6 @@ COPY --from=builder /go/bin/cassandra-to-bigtable-proxy  .
 
 COPY config.yaml /
 
+ENV CONFIG_FILE=config.yaml
+
 ENTRYPOINT ["/cassandra-to-bigtable-proxy"]

@@ -13,87 +13,24 @@
 # the License.
 
 cassandraToBigtableConfigs:
-  # [Optional] Global default GCP Project ID
-  projectId: gcp_project_id
-  # [Optional] Global default configuration table name
-  schemaMappingTable: schema_mapping
-  #[Required] Default column family for premitive data types
-  defaultColumnFamily: cf1
 
 listeners:
 - name: cluster1
   port: 9042
   bigtable:
-    # [Optional], skip if it is the same as global_projectId.
-    projectId: gcp_project_id
+    projectId: google.com:cloud-bigtable-dev
 
-    #If you want to use multiple instances then pass the instance names by comma seperated
-    #Instance name should not contain any special characters except underscore(_)
-    instanceIds: bigtableinstance
+    instances:
+    - bigtableInstance: bigtabledevinstance
+      keyspace: my_cassandra_keyspace
+      appProfileID: my-bigtable-app-profile
+    - bigtableInstance: bigtabledevinstance-2
+      keyspace: my_cassandra_keyspace_2
+      appProfileID: my-bigtable-app-profile-2
 
-    # [Required] Name of the table  where cassandra schema to bigtable schema mapping is stored.
-    schemaMappingTable: schema_mapping
-
-    #[Optional] appProfileID is required only if you want to use a specific app profile.
-    #appProfileID: bigtable-dev-profile
-
-    #[Required] Default column family for primitive data types is "cf1"
-    defaultColumnFamily: cf1
-
-    # Number of grpc channels to be used for Bigtable session.
+    appProfileID: my-bigtable-app-profile
     Session:
       grpcChannels: 4
 
 otel:
-  # Set enabled to true or false for OTEL metrics/traces/logs.
   enabled: False
-
-  # Name of the collector service to be setup as a sidecar
-  serviceName: cassandra-to-bigtable-otel-service
-
-  healthcheck:
-    # Enable the health check in this proxy application config only if the
-    # "health_check" extension is added to the OTEL collector service configuration.
-    #
-    # Recommendation:
-    # Enable the OTEL health check if you need to verify the collector's availability
-    # at the start of the application. For development or testing environments, it can
-    # be safely disabled to reduce complexity.
-
-    # Enable/Disable Health Check for OTEL, Default 'False'.
-    enabled: False
-    # Health check endpoint for the OTEL collector service
-    endpoint: localhost:13133
-  metrics:
-    # Collector service endpoint
-    endpoint: localhost:4317
-
-  traces:
-    # Collector service endpoint
-    endpoint: localhost:4317
-    #Sampling ratio should be between 0 and 1. Here 0.05 means 5/100 Sampling ratio.
-    samplingRatio: 1
-
-loggerConfig:
-  # Specifies the type of output, here it is set to 'file' indicating logs will be written to a file.
-  # Value of `outputType` should be `file` for file type or `stdout` for standard output.
-  # Default value is `stdout`.
-  outputType: stdout
-  # Set this only if the outputType is set to `file`.
-  # The path and name of the log file where logs will be stored. For example, output.log, Required Key.
-  # Default `/var/log/cassandra-to-spanner-proxy/output.log`.
-  fileName: output/output.log
-  # Set this only if the outputType is set to `file`.
-  # The maximum size of the log file in megabytes before it is rotated. For example, 500 for 500 MB.
-  maxSize: 10
-  # Set this only if the outputType is set to `file`.
-  # The maximum number of backup log files to keep. Once this limit is reached, the oldest log file will be deleted.
-  maxBackups: 2
-  # Set this only if the outputType is set to `file`.
-  # The maximum age in days for a log file to be retained. Logs older than this will be deleted. Required Key.
-  # Default 3 days
-  maxAge: 1
-
-  # Set this only if the outputType is set to `file`.
-  # Default value is set to 'False'. Change the value to 'True', if log files are required to be compressed.
-  compress: True

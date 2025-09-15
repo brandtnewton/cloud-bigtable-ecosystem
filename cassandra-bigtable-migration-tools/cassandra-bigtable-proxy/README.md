@@ -179,7 +179,7 @@ recommended approach for setting up your schema.
 
 3. **Start the Proxy:**
    ```bash
-   ./cassandra-to-bigtable-proxy
+   ./cassandra-to-bigtable-proxy -f config.yaml
    ```
     - The proxy will start with an empty cache since no tables exist yet.
 
@@ -384,14 +384,14 @@ Steps to run the Adapter locally are as mentioned below:
   *Once you create the build then execute the below command to run the
   application*
   ```sh
-  ./cassandra-to-bigtable-proxy
+  ./cassandra-to-bigtable-proxy -f config.yaml
   ```
 
   **2. Without Build**
     - You can start proxy directly without creating build, execute the below
       command to start the proxy.
   ```sh
-  go run proxy.go
+  go run proxy.go -f config.yaml
   ```
 
 - Optional Arguments with the default values.
@@ -414,7 +414,7 @@ Steps to run the Adapter locally are as mentioned below:
 
 - Run the Application with the arguments example
   ```sh
-  ./cassandra-to-bigtable-proxy --log-level error -t 9043
+  ./cassandra-to-bigtable-proxy --log-level error -t 9043 -f config.yaml
   ```
 
 - Application will be listening on the specified TCP port (default: 9042).
@@ -626,7 +626,7 @@ for local development or secure internal networks.
 
 1. Start the proxy with default TCP settings:
    ```bash
-   ./cassandra-to-bigtable-proxy
+   ./cassandra-to-bigtable-proxy -f config.yaml
    ```
    This will listen on `0.0.0.0:9042` by default.
 
@@ -659,7 +659,7 @@ Example:
 
 2. Start the proxy with TLS enabled:
    ```bash
-   ./cassandra-to-bigtable-proxy --proxy-cert-file cert.pem --proxy-key-file key.pem
+   ./cassandra-to-bigtable-proxy --proxy-cert-file cert.pem --proxy-key-file key.pem -f config.yaml
    ```
 
 3. Connect using a Cassandra client with TLS:
@@ -690,13 +690,13 @@ ideal for applications running on the same machine as the proxy.
 
 2. Start the proxy with UDS enabled:
    ```bash
-   ./cassandra-to-bigtable-proxy --use-unix-socket
+   ./cassandra-to-bigtable-proxy --use-unix-socket -f config.yaml
    ```
    This will create a Unix socket at `/tmp/cassandra-proxy.sock` by default.
 
    You can specify a custom path:
    ```bash
-   ./cassandra-to-bigtable-proxy --use-unix-socket --unix-socket-path "/path/to/custom.sock"
+   ./cassandra-to-bigtable-proxy --use-unix-socket --unix-socket-path "/path/to/custom.sock" -f config.yaml
    ```
 
 3. Set up socat to bridge TCP to UDS:
@@ -734,7 +734,7 @@ To specify a different protocol version when starting the proxy, use
 the `--protocol-version` flag:
 
 ```bash
-./cassandra-to-bigtable-proxy --protocol-version v3
+./cassandra-to-bigtable-proxy --protocol-version v3 -f config.yaml
 ```
 
 Note that some features may behave differently between Cassandra 3.x and 4.x.

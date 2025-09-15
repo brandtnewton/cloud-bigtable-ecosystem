@@ -64,7 +64,7 @@ func GetSchemaMappingConfig() *schemaMapping.SchemaMappingConfig {
 		),
 	}
 	return schemaMapping.NewSchemaMappingConfig(
-		"schema_mappings",
+		"schema_mapping",
 		"cf1",
 		zap.NewNop(),
 		allTableConfigs,

@@ -1,12 +1,5 @@
 # Cassandra to Cloud Bigtable Proxy Adapter
 
-## Current Released Version
-
-Version `0.2.1` - Released on `September, 5 2025`
-
-For more details on this release, please refer to
-the [CHANGELOG.md](./CHANGELOG.md).
-
 ## Introduction
 
 Cassandra to Cloud Bigtable Proxy Adapter is designed to forward your
@@ -33,7 +26,7 @@ see the [quick start](#quick-start).
 - [Setting Systemd Setup](#run-a-cassandra-to-bigtable-proxy-via-systemd)
 - [Instrument with OpenTelemetry](#instrument-with-openTelemetry)
 - [Differences from Cassandra](./docs/differences_from_cassandra.md)
-- [Troubleshooting][#troubleshooting]
+- [Troubleshooting](#Troubleshooting)
 - [Testing](#testing)
     - [Unit Tests](#unit-tests)
     - [Compliance Tests](#compliance-tests)
@@ -586,6 +579,8 @@ Your Application
 [Apache License 2.0](LICENSE)
 
 ## Troubleshooting
+
+Here are some tips for debugging common proxy issues.
 
 ### Confirm you're connected to the cassandra-bigtable-proxy
 

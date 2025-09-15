@@ -64,6 +64,7 @@ listeners:
 
     # Number of grpc channels to be used for Bigtable session.
     Session:
+      # [Optional] The number of GRPC channels used by the Bigtable client. The default is 1.
       grpcChannels: 4
 
 otel:

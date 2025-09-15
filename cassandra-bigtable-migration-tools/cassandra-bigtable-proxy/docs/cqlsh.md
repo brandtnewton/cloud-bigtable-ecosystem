@@ -29,32 +29,14 @@ Download the appropriate version of CQLSH by cloning the repository and followin
   cd cassandra/bin
   ```
 
-#### Step 2: Configure CQLSH to Connect to the Proxy (Optional)
+#### Step 2: Launch CQLSH
 
-Edit the CQLSH configuration to point to the Cassandra-to-Bigtable proxy:
-
-1. Open the `cqlshrc` configuration file. If it does not exist, create one in your home directory:
-   ```sh
-   nano ~/.cassandra/cqlshrc
-   ```
-
-2. Add the following configuration:
-   ```ini
-   [connection]
-   hostname = <proxy_hostname>
-   port = <proxy_port>
-   ```
-
-   Replace `<proxy_hostname>` and `<proxy_port>` with the appropriate values for your proxy setup.
-
-#### Step 3: Launch CQLSH
-
-Launch CQLSH with the configured/default settings:
+If the cassandra-bigtable-proxy is running locally on port 9042, you can simply connect with:
 ```sh
 ./cqlsh
 ```
 
-Launch CQLSH with the custom hostname and port:
+For all other setups, connect by specifying the hostname and port:
 ```sh
 ./cqlsh <proxy_hostname> <proxy_port>
 ```

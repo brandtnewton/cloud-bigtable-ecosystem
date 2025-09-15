@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"strings"
 	"testing"
 	"time"
 
@@ -37,7 +38,7 @@ const (
 func (target TestTarget) String() string {
 	switch target {
 	case TestTargetProxy:
-		return "proxy"
+		return "bigtable-proxy"
 	case TestTargetCassandra:
 		return "cassandra"
 	}
@@ -47,22 +48,7 @@ func (target TestTarget) String() string {
 // session is a global variable to hold the database session.
 var session *gocql.Session
 
-func getTestTarget() TestTarget {
-	testTarget := os.Getenv("COMPLIANCE_TEST_TARGET")
-	switch testTarget {
-	case "":
-		println("no test target specified, defaulting to proxy")
-		return TestTargetProxy
-	case "proxy":
-		return TestTargetProxy
-	case "cassandra":
-		return TestTargetCassandra
-	default:
-		panic(fmt.Sprintf("unrecognized test target: %s", testTarget))
-	}
-}
-
-var testTarget = getTestTarget()
+var testTarget TestTarget
 
 func createSession(keyspace string) (*gocql.Session, error) {
 	cluster := gocql.NewCluster("127.0.0.1") // Assumes Cassandra is running locally
@@ -77,10 +63,9 @@ func createSession(keyspace string) (*gocql.Session, error) {
 // TestMain sets up the database connection and schema before running tests,
 // and tears it down afterward.
 func TestMain(m *testing.M) {
+	setUpTests()
 
 	fmt.Printf("running against test target '%s'\n", testTarget.String())
-
-	setUpTests()
 
 	// --- Run Tests ---
 	exitCode := m.Run()
@@ -113,6 +98,19 @@ func setUpTests() {
 	if err != nil {
 		log.Fatalf("could not connect to the session: %v", err)
 	}
+
+	var clusterName string
+	err = session.Query("SELECT cluster_name FROM system.local LIMIT 1").Scan(&clusterName)
+	if err != nil {
+		log.Fatalf("failed to determine test target type with error: %v", err)
+		return
+	}
+	if strings.Contains(clusterName, "cassandra-bigtable-proxy-") {
+		testTarget = TestTargetProxy
+	} else {
+		testTarget = TestTargetCassandra
+	}
+	log.Println(fmt.Sprintf("determined test target to be %s from the cluster name '%s'", testTarget.String(), clusterName))
 
 	log.Println("Creating test tables...")
 	for i, stmt := range getSchemas() {

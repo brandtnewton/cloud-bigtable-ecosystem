@@ -33,6 +33,7 @@ see the [quick start](#quick-start).
 - [Setting Systemd Setup](#run-a-cassandra-to-bigtable-proxy-via-systemd)
 - [Instrument with OpenTelemetry](#instrument-with-openTelemetry)
 - [Differences from Cassandra](./docs/differences_from_cassandra.md)
+- [Troubleshooting][#troubleshooting]
 - [Testing](#testing)
     - [Unit Tests](#unit-tests)
     - [Compliance Tests](#compliance-tests)
@@ -254,14 +255,14 @@ listeners:
 
     # If you want to use multiple instances, define them as a list of objects below.
     instances:
-        - # [Required] The name of the Bigtable instance.
-          bigtableInstance: YOUR_BIGTABLE_INSTANCE_ID
-          # [Required] The cassandra keyspace associated with this Bigtable instance.
-          # Cassandra keyspace should not contain any special characters except underscore(_).
-          keyspace: YOUR_KEYSPACE_NAME
-          # [Optional] appProfileID is required only if you want to use a specific app profile for this instance.
-          # This will override the global appProfileID if specified.
-          appProfileID: YOUR_APP_PROFILE_ID
+    - # [Required] The name of the Bigtable instance.
+      bigtableInstance: YOUR_BIGTABLE_INSTANCE_ID
+      # [Required] The cassandra keyspace associated with this Bigtable instance.
+      # Cassandra keyspace should not contain any special characters except underscore(_).
+      keyspace: YOUR_KEYSPACE_NAME
+      # [Optional] appProfileID is required only if you want to use a specific app profile for this instance.
+      # This will override the global appProfileID if specified.
+      appProfileID: YOUR_APP_PROFILE_ID
 
     # [Required] Name of the table  where cassandra schema to bigtable schema mapping is stored.
     schemaMappingTable: SCHEMA_MAPPING_TABLE_NAME
@@ -422,7 +423,8 @@ Steps to run the Adapter locally are as mentioned below:
 #### Quick Start
 
 This is the fastest and simplest way to get started with the Proxy, once you've
-built the proxy and created your Bigtable instance. With this setup, you don't need
+built the proxy and created your Bigtable instance. With this setup, you don't
+need
 to use a config.yaml file. More complicated setups, like supporting multiple
 keyspaces, can be achieved with a config.yaml file. You may use quick start
 setups alongside a config file, but we recommend keeping all of your config in
@@ -465,7 +467,8 @@ one place.
 
 ## CQLSH support with Proxy
 
-- User can connect and use cqlsh with proxy. Detailed
+- You can use the cqlsh command line tool with the cassandra-bigtable-proxy.
+  Detailed
   document - [cqlsh.md](./docs/cqlsh.md)
 
 ## Limitations for Proxy Application
@@ -581,6 +584,37 @@ Your Application
 
 [cloud-cli]: https://cloud.google.com/cli
 [Apache License 2.0](LICENSE)
+
+## Troubleshooting
+
+### Confirm you're connected to the cassandra-bigtable-proxy
+
+You can confirm that you're connected to the cassandra-bigtable-proxy by
+running:
+
+```shell
+cqlsh -e 'SELECT cluster_name FROM system.local'
+```
+
+If you're connected to the proxy, you should see something
+like `cassandra-bigtable-proxy-v0.2.1` for the cluster name. The proxy uses "
+cassandra-bigtable-proxy-<version>" as it's host name (old versions are just "
+cql-proxy"), where <version> is the released version of the proxy.
+
+### NotFound error code
+
+If you see a Bigtable rpc NotFound error, most likely during start up, this is
+because some Bigtable resource was not found. Most likely causes are forgetting
+to create the Bigtable instance that your Cassandra keyspace will map to, or
+mixing up your keyspace with your instance id. Check your proxy configuration
+and try again.
+
+### ACCESS_TOKEN_SCOPE_INSUFFICIENT error
+
+If you see an ACCESS_TOKEN_SCOPE_INSUFFICIENT error, your Bigtable Proxy server
+doesn't have the necessary scope to connect to Bigtable (this is separate from
+IAM). Stop the server, set "Cloud API access scopes" to "Allow full access
+to all Cloud APIs" and restart the server.
 
 ## Testing
 

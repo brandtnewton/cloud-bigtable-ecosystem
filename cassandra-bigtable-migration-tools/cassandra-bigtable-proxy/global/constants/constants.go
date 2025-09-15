@@ -31,5 +31,5 @@ const (
 )
 
 const (
-	ProxyReleaseVersion = "v0.2.1"
+	ProxyReleaseVersion = "v0.2.2"
 )

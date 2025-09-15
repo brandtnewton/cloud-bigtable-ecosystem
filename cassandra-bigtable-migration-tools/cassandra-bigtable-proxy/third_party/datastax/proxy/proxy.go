@@ -422,7 +422,7 @@ func (p *Proxy) buildLocalRow() {
 		"tokens":                  p.encodeTypeFatal(datatype.NewListType(datatype.Varchar), [1]string{"-9223372036854775808"}),
 		"release_version":         p.encodeTypeFatal(datatype.Varchar, p.config.Options.ReleaseVersion),
 		"partitioner":             p.encodeTypeFatal(datatype.Varchar, p.config.Options.Partitioner),
-		"cluster_name":            p.encodeTypeFatal(datatype.Varchar, "cql-proxy"),
+		"cluster_name":            p.encodeTypeFatal(datatype.Varchar, fmt.Sprintf("cassandra-bigtable-proxy-%s", constants.ProxyReleaseVersion)),
 		"cql_version":             p.encodeTypeFatal(datatype.Varchar, p.config.Options.CQLVersion),
 		"schema_version":          p.encodeTypeFatal(datatype.Uuid, schemaVersion), // TODO: Make this match the downstream cluster(s)
 		"native_protocol_version": p.encodeTypeFatal(datatype.Varchar, p.config.Options.ProtocolVersion.String()),

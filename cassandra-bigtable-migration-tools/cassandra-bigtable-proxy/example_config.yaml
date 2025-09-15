@@ -23,8 +23,10 @@ listeners:
     instances:
     - bigtableInstance: bigtabledevinstance
       keyspace: my_cassandra_keyspace
+      appProfileID: my-bigtable-app-profile
     - bigtableInstance: bigtabledevinstance-2
       keyspace: my_cassandra_keyspace_2
+      appProfileID: my-bigtable-app-profile-2
 
     appProfileID: my-bigtable-app-profile
     Session:

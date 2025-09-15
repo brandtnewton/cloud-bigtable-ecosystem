@@ -103,5 +103,5 @@ func GetSchemaMappingConfig(intRowKeyEncoding types.IntRowKeyEncodingType) *sche
 		schemaMapping.NewTableConfig("test_keyspace", "non_primitive_table", systemColumnFamily, intRowKeyEncoding, nonPrimitiveTableColumns),
 	}
 
-	return schemaMapping.NewSchemaMappingConfig("schema_mappings", systemColumnFamily, zap.NewNop(), allTableConfigs)
+	return schemaMapping.NewSchemaMappingConfig("schema_mapping", systemColumnFamily, zap.NewNop(), allTableConfigs)
 }

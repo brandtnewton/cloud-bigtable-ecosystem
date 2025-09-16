@@ -37,7 +37,6 @@ type TableConfig struct {
 	PrimaryKeys        []*types.Column
 	SystemColumnFamily string
 	IntRowKeyEncoding  types.IntRowKeyEncodingType
-	IsSystemTable      bool
 }
 
 // NewTableConfig is a constructor for TableConfig. Please use this instead of direct initialization.
@@ -47,7 +46,6 @@ func NewTableConfig(
 	systemColumnFamily string,
 	intRowKeyEncoding types.IntRowKeyEncodingType,
 	columns []*types.Column,
-	isSystemTable bool,
 ) *TableConfig {
 	columnMap := make(map[string]*types.Column)
 	var pmks []*types.Column = nil
@@ -76,8 +74,11 @@ func NewTableConfig(
 		PrimaryKeys:        pmks,
 		SystemColumnFamily: systemColumnFamily,
 		IntRowKeyEncoding:  intRowKeyEncoding,
-		IsSystemTable:      isSystemTable,
 	}
+}
+
+func (tableConfig *TableConfig) IsSystemTable() bool {
+	return tableConfig.Keyspace == "system"
 }
 
 func (tableConfig *TableConfig) GetPkByTableNameWithFilter(filterPrimaryKeys []string) []*types.Column {

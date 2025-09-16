@@ -164,7 +164,7 @@ func NewProxy(ctx context.Context, logger *zap.Logger, config *types.ProxyInstan
 	if err != nil {
 		return nil, err
 	}
-	smc := schemaMapping.NewSchemaMappingConfig(config.BigtableConfig.SchemaMappingTable, config.BigtableConfig.DefaultColumnFamily, logger, nilg)
+	smc := schemaMapping.NewSchemaMappingConfig(config.BigtableConfig.SchemaMappingTable, config.BigtableConfig.DefaultColumnFamily, logger, nil)
 	bigtableCl := bigtableModule.NewBigtableClient(bigtableClients, adminClients, logger, config.BigtableConfig, &responsehandler.TypeHandler{}, smc)
 	for k := range config.BigtableConfig.Instances {
 		tableConfigs, err := bigtableCl.ReadTableConfigs(ctx, k)

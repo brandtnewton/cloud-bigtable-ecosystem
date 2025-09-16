@@ -162,7 +162,8 @@ func getColumnMetadata(tableMetadata map[string]map[string]*schemaMapping.TableC
 				}
 				// Add column metadata
 				columnsMetadataRows = append(columnsMetadataRows, []interface{}{
-					keyspace, tableName, columnName, "none", kind, 0, column.CQLType,
+					// minus 1 because cassandra uses -1 for non-keys and a 0 index keys, but we didn't do that for some reason
+					keyspace, tableName, columnName, "none", kind, column.PkPrecedence - 1, column.CQLType,
 				})
 			}
 		}

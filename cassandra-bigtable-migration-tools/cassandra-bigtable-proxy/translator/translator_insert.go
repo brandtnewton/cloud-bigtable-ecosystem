@@ -274,7 +274,6 @@ func (t *Translator) TranslateInsertQuerytoBigtable(query string, protocolV prim
 		newColumns = rawOutput.NewColumns
 		newValues = rawOutput.NewValues
 		delColumnFamily = rawOutput.DelColumnFamily
-
 	}
 
 	insertQueryData := &InsertQueryMapping{

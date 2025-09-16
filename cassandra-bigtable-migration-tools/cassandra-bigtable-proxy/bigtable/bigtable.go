@@ -727,6 +727,11 @@ func (btc *BigtableClient) ReadTableConfigs(ctx context.Context, keyspace string
 			return false
 		}
 
+		// we used to only write 'partition' but Cassandra calls it 'partition_key'
+		if KeyType == "partition" {
+			KeyType = utilities.KEY_TYPE_PARTITION
+		}
+
 		// Create a new column struct
 		column := &types.Column{
 			Name:         columnName,

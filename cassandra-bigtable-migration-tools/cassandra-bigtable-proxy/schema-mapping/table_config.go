@@ -77,10 +77,6 @@ func NewTableConfig(
 	}
 }
 
-func (tableConfig *TableConfig) IsSystemTable() bool {
-	return tableConfig.Keyspace == "system"
-}
-
 func (tableConfig *TableConfig) GetPkByTableNameWithFilter(filterPrimaryKeys []string) []*types.Column {
 	var result []*types.Column
 	for _, pmk := range tableConfig.PrimaryKeys {

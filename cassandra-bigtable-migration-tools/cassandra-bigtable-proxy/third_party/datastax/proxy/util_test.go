@@ -399,7 +399,26 @@ func TestGetColumnMetadata(t *testing.T) {
 			expectedColumns: [][]interface{}{
 				{"keyspace1", "table1", "age", "none", "regular", -1, datatype.Int},
 				{"keyspace1", "table1", "id", "none", "partition_key", 0, datatype.Uuid},
-				{"keyspace1", "table1", "name", "none", "clustering", 1, datatype.Varchar},
+				{"keyspace1", "table1", "name", "asc", "clustering", 0, datatype.Varchar},
+			},
+		},
+		{
+			name: "Compound Primary Key",
+			tableConfigs: []*schemaMapping.TableConfig{
+				schemaMapping.NewTableConfig("keyspace1", "table1", "cf1", types.OrderedCodeEncoding, []*types.Column{
+					{Name: "id", CQLType: datatype.Uuid, IsPrimaryKey: true, KeyType: "partition_key", PkPrecedence: 1},
+					{Name: "id2", CQLType: datatype.Uuid, IsPrimaryKey: true, KeyType: "partition_key", PkPrecedence: 2},
+					{Name: "name", CQLType: datatype.Varchar, IsPrimaryKey: true, KeyType: "clustering", PkPrecedence: 3},
+					{Name: "name2", CQLType: datatype.Varchar, IsPrimaryKey: true, KeyType: "clustering", PkPrecedence: 4},
+					{Name: "age", CQLType: datatype.Int, IsPrimaryKey: false, KeyType: "regular", PkPrecedence: 0},
+				}),
+			},
+			expectedColumns: [][]interface{}{
+				{"keyspace1", "table1", "age", "none", "regular", -1, datatype.Int},
+				{"keyspace1", "table1", "id", "none", "partition_key", 0, datatype.Uuid},
+				{"keyspace1", "table1", "id2", "none", "partition_key", 1, datatype.Uuid},
+				{"keyspace1", "table1", "name", "asc", "clustering", 0, datatype.Varchar},
+				{"keyspace1", "table1", "name2", "asc", "clustering", 1, datatype.Varchar},
 			},
 		},
 	}

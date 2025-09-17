@@ -155,17 +155,23 @@ func getColumnMetadata(tableMetadata map[string]map[string]*schemaMapping.TableC
 	for keyspace, tables := range tableMetadata {
 		for tableName, table := range tables {
 			for columnName, column := range table.Columns {
-				kind := utilities.KEY_TYPE_REGULAR
-				if column.IsPrimaryKey {
-					kind = utilities.KEY_TYPE_PARTITION
-					if column.KeyType == utilities.KEY_TYPE_CLUSTERING {
-						kind = utilities.KEY_TYPE_CLUSTERING
-					}
+
+				position := table.GetCassandraPositionForColumn(columnName)
+
+				clusteringOrder := "none"
+				if column.KeyType == utilities.KEY_TYPE_CLUSTERING {
+					clusteringOrder = "asc"
 				}
+
+				tpe := column.CQLType.String()
+				// todo we need to store the actual type in the schema mappings table
+				if column.CQLType == datatype.Varchar {
+					tpe = "text"
+				}
+
 				// Add column metadata
 				columnsMetadataRows = append(columnsMetadataRows, []interface{}{
-					// minus 1 because cassandra uses -1 for non-keys and a 0 index keys, but we didn't do that for some reason
-					keyspace, tableName, columnName, "none", kind, column.PkPrecedence - 1, column.CQLType,
+					keyspace, tableName, columnName, clusteringOrder, column.KeyType, position, tpe,
 				})
 			}
 		}

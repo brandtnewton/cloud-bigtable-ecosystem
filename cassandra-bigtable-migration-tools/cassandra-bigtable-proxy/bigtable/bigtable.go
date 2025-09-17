@@ -62,7 +62,20 @@ const (
 	schemaMappingTableColumnFamily = "cf"
 	// Cassandra doesn't have a time dimension to their counters, so we need to
 	// use the same time for all counters
-	counterTimestamp = 0
+	counterTimestamp            = 0
+	smColTableName              = "TableName"
+	smColColumnName             = "ColumnName"
+	smColColumnType             = "ColumnType"
+	smColIsCollection           = "IsCollection"
+	smColIsPrimaryKey           = "IsPrimaryKey"
+	smColPKPrecedence           = "PK_Precedence"
+	smColKeyType                = "KeyType"
+	smFullQualifierTableName    = schemaMappingTableColumnFamily + ":" + smColTableName
+	smFullQualifierColumnName   = schemaMappingTableColumnFamily + ":" + smColColumnName
+	smFullQualifierColumnType   = schemaMappingTableColumnFamily + ":" + smColColumnType
+	smFullQualifierIsPrimaryKey = schemaMappingTableColumnFamily + ":" + smColIsPrimaryKey
+	smFullQualifierPKPrecedence = schemaMappingTableColumnFamily + ":" + smColPKPrecedence
+	smFullQualifierKeyType      = schemaMappingTableColumnFamily + ":" + smColKeyType
 )
 
 type BigTableClientIface interface {
@@ -534,24 +547,25 @@ func (btc *BigtableClient) updateTableSchema(ctx context.Context, keyspace strin
 	})
 	for _, col := range addCols {
 		mut := bigtable.NewMutation()
-		mut.Set(schemaMappingTableColumnFamily, "ColumnName", ts, []byte(col.Name))
-		mut.Set(schemaMappingTableColumnFamily, "ColumnType", ts, []byte(col.Type.String()))
+		mut.Set(schemaMappingTableColumnFamily, smColColumnName, ts, []byte(col.Name))
+		mut.Set(schemaMappingTableColumnFamily, smColColumnType, ts, []byte(col.Type.String()))
 		isCollection := utilities.IsCollection(col.Type)
 		// todo this is no longer used. We'll remove this later, in a few releases, but we'll keep it for now so users can roll back to earlier versions of the proxy if needed
-		mut.Set(schemaMappingTableColumnFamily, "IsCollection", ts, []byte(strconv.FormatBool(isCollection)))
+		mut.Set(schemaMappingTableColumnFamily, smColIsCollection, ts, []byte(strconv.FormatBool(isCollection)))
 		pmkIndex := slices.IndexFunc(pmks, func(c translator.CreateTablePrimaryKeyConfig) bool {
 			return c.Name == col.Name
 		})
-		mut.Set(schemaMappingTableColumnFamily, "IsPrimaryKey", ts, []byte(strconv.FormatBool(pmkIndex != -1)))
+		mut.Set(schemaMappingTableColumnFamily, smColIsPrimaryKey, ts, []byte(strconv.FormatBool(pmkIndex != -1)))
 		if pmkIndex != -1 {
 			pmkConfig := pmks[pmkIndex]
-			mut.Set(schemaMappingTableColumnFamily, "KeyType", ts, []byte(pmkConfig.KeyType))
+			mut.Set(schemaMappingTableColumnFamily, smColKeyType, ts, []byte(pmkConfig.KeyType))
 		} else {
 			// overkill, but overwrite any previous KeyType configs which could exist if the table was recreated with different columns
-			mut.Set(schemaMappingTableColumnFamily, "KeyType", ts, []byte(utilities.KEY_TYPE_REGULAR))
+			mut.Set(schemaMappingTableColumnFamily, smColKeyType, ts, []byte(utilities.KEY_TYPE_REGULAR))
 		}
-		mut.Set(schemaMappingTableColumnFamily, "PK_Precedence", ts, []byte(strconv.Itoa(pmkIndex+1)))
-		mut.Set(schemaMappingTableColumnFamily, "TableName", ts, []byte(tableName))
+		// +1 because we track PKPrecedence as 1 indexed for some reason
+		mut.Set(schemaMappingTableColumnFamily, smColPKPrecedence, ts, []byte(strconv.Itoa(pmkIndex+1)))
+		mut.Set(schemaMappingTableColumnFamily, smColTableName, ts, []byte(tableName))
 		muts = append(muts, mut)
 		rowKeys = append(rowKeys, tableName+"#"+col.Name)
 	}
@@ -701,20 +715,20 @@ func (btc *BigtableClient) ReadTableConfigs(ctx context.Context, keyspace string
 		// Extract column values
 		for _, item := range row[schemaMappingTableColumnFamily] {
 			switch item.Column {
-			case schemaMappingTableColumnFamily + ":TableName":
+			case smFullQualifierTableName:
 				tableName = string(item.Value)
-			case schemaMappingTableColumnFamily + ":ColumnName":
+			case smFullQualifierColumnName:
 				columnName = string(item.Value)
-			case schemaMappingTableColumnFamily + ":ColumnType":
+			case smFullQualifierColumnType:
 				columnType = string(item.Value)
-			case schemaMappingTableColumnFamily + ":IsPrimaryKey":
+			case smFullQualifierIsPrimaryKey:
 				isPrimaryKey = string(item.Value) == "true"
-			case schemaMappingTableColumnFamily + ":PK_Precedence":
+			case smFullQualifierPKPrecedence:
 				pkPrecedence, readErr = strconv.Atoi(string(item.Value))
 				if readErr != nil {
 					return false
 				}
-			case schemaMappingTableColumnFamily + ":KeyType":
+			case smFullQualifierKeyType:
 				keyType = string(item.Value)
 			}
 		}
@@ -782,11 +796,12 @@ func (btc *BigtableClient) ReadTableConfigs(ctx context.Context, keyspace string
 // This parsing logic defaults the primary key types, because older versions of the proxy set keyType to an empty string. The only key type that we're guessing about is whether the key is a clustering key or not which, for the purposes of the proxy, doesn't matter.
 func (btc *BigtableClient) parseKeyType(keyspace, table, column, keyType string, pkPrecedence int) string {
 	keyType = strings.ToLower(keyType)
-	if keyType == utilities.KEY_TYPE_PARTITION {
+
+	if keyType == utilities.KEY_TYPE_PARTITION && pkPrecedence > 0 {
 		return utilities.KEY_TYPE_PARTITION
-	} else if keyType == utilities.KEY_TYPE_CLUSTERING {
+	} else if keyType == utilities.KEY_TYPE_CLUSTERING && pkPrecedence > 1 {
 		return utilities.KEY_TYPE_CLUSTERING
-	} else if keyType == utilities.KEY_TYPE_REGULAR {
+	} else if keyType == utilities.KEY_TYPE_REGULAR && pkPrecedence == 0 {
 		return utilities.KEY_TYPE_REGULAR
 	} else {
 		// this is an unknown key type
@@ -801,7 +816,8 @@ func (btc *BigtableClient) parseKeyType(keyspace, table, column, keyType string,
 			// default to clustering key because clustering keys usually follow, and it doesn't really matter for the purposes of the proxy.
 			defaultKeyType = utilities.KEY_TYPE_CLUSTERING
 		}
-		btc.Logger.Warn(fmt.Sprintf("unknown key type '%s' for %s.%s column %s with pkPrecedence of %d. defaulting key type to '%s'", keyType, keyspace, table, column, pkPrecedence, defaultKeyType))
+		btc.Logger.Warn(fmt.Sprintf("unknown key state KeyType='%s' and pkPrecedence of %d for %s.%s column %s with . defaulting key type to '%s'", keyType, pkPrecedence,
+			keyspace, table, column, defaultKeyType))
 
 		return defaultKeyType
 	}

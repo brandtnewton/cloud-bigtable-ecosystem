@@ -741,10 +741,7 @@ func (btc *BigtableClient) ReadTableConfigs(ctx context.Context, keyspace string
 			return false
 		}
 
-		// we used to only write 'partition' but Cassandra calls it 'partition_key'
-		if KeyType == "partition" {
-			KeyType = utilities.KEY_TYPE_PARTITION
-		}
+		keyType = btc.parseKeyType(keyspace, tableName, columnName, keyType, pkPrecedence)
 
 		// Create a new column struct
 		column := &types.Column{
@@ -752,7 +749,7 @@ func (btc *BigtableClient) ReadTableConfigs(ctx context.Context, keyspace string
 			CQLType:      cqlType,
 			IsPrimaryKey: isPrimaryKey,
 			PkPrecedence: pkPrecedence,
-			KeyType:      btc.parseKeyType(keyspace, tableName, columnName, keyType, pkPrecedence),
+			KeyType:      keyType,
 		}
 
 		allColumns[tableName] = append(allColumns[tableName], column)
@@ -804,6 +801,11 @@ func (btc *BigtableClient) ReadTableConfigs(ctx context.Context, keyspace string
 // This parsing logic defaults the primary key types, because older versions of the proxy set keyType to an empty string. The only key type that we're guessing about is whether the key is a clustering key or not which, for the purposes of the proxy, doesn't matter.
 func (btc *BigtableClient) parseKeyType(keyspace, table, column, keyType string, pkPrecedence int) string {
 	keyType = strings.ToLower(keyType)
+
+	// we used to write 'partition' for partition keys but Cassandra calls it 'partition_key'
+	if keyType == "partition" {
+		keyType = utilities.KEY_TYPE_PARTITION
+	}
 
 	if keyType == utilities.KEY_TYPE_PARTITION && pkPrecedence > 0 {
 		return utilities.KEY_TYPE_PARTITION

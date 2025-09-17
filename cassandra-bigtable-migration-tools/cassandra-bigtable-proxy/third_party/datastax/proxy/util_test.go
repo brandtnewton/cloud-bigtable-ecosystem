@@ -397,9 +397,9 @@ func TestGetColumnMetadata(t *testing.T) {
 				}),
 			},
 			expectedColumns: [][]interface{}{
+				{"keyspace1", "table1", "age", "none", "regular", -1, datatype.Int},
 				{"keyspace1", "table1", "id", "none", "partition_key", 0, datatype.Uuid},
 				{"keyspace1", "table1", "name", "none", "clustering", 1, datatype.Varchar},
-				{"keyspace1", "table1", "age", "none", "regular", -1, datatype.Int},
 			},
 		},
 	}

@@ -353,17 +353,3 @@ func (tableConfig *TableConfig) handleSpecialSelectedColumn(columnsMap map[strin
 
 	return columnMd, nil
 }
-
-// GetPkKeyType returns the key type of a primary key column for a given table and keyspace.
-// It takes the table name, keyspace name, and column name as input parameters.
-// Returns the key type as a string if the column is a primary key, or an error if:
-// - There's an error retrieving primary key information
-// - The specified column is not a primary key in the table
-func (tableConfig *TableConfig) GetPkKeyType(columnName string) (string, error) {
-	for _, col := range tableConfig.PrimaryKeys {
-		if col.Name == columnName {
-			return col.KeyType, nil
-		}
-	}
-	return "", fmt.Errorf("column %s is not a primary key in table %s", columnName, tableConfig.Name)
-}

@@ -17,6 +17,9 @@
 package proxy
 
 import (
+	"fmt"
+	"slices"
+	"strings"
 	"time"
 
 	types "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/global/types"
@@ -168,6 +171,12 @@ func getColumnMetadata(tableMetadata map[string]map[string]*schemaMapping.TableC
 			}
 		}
 	}
+	slices.SortFunc(columnsMetadataRows, func(a, b []interface{}) int {
+		// this is an inefficient way of sorting the rows but we only call this function on start up or when there's a schema change, so it shouldn't impact performance.
+		aStr := fmt.Sprintf("%v.%v.%v", a[0], a[1], a[2])
+		bStr := fmt.Sprintf("%v.%v.%v", b[0], b[1], b[2])
+		return strings.Compare(aStr, bStr)
+	})
 	return columnsMetadataRows
 }
 

@@ -107,9 +107,7 @@ func (c *SchemaMappingConfig) ReplaceTables(keyspace string, tableConfigs []*Tab
 func (c *SchemaMappingConfig) UpdateTables(tableConfigs []*TableConfig) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	if c.tables == nil {
-		c.tables = make(map[string]map[string]*TableConfig)
-	}
+
 	for _, tableConfig := range tableConfigs {
 		if _, exists := c.tables[tableConfig.Keyspace]; !exists {
 			c.tables[tableConfig.Keyspace] = make(map[string]*TableConfig)

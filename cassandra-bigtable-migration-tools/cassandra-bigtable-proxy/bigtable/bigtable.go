@@ -695,7 +695,7 @@ func (btc *BigtableClient) ReadTableConfigs(ctx context.Context, keyspace string
 	var readErr error
 	err = table.ReadRows(ctx, bigtable.InfiniteRange(""), func(row bigtable.Row) bool {
 		// Extract the row key and column values
-		var tableName, columnName, columnType, KeyType string
+		var tableName, columnName, columnType, keyType string
 		var isPrimaryKey bool
 		var pkPrecedence int
 		// Extract column values
@@ -715,7 +715,7 @@ func (btc *BigtableClient) ReadTableConfigs(ctx context.Context, keyspace string
 					return false
 				}
 			case schemaMappingTableColumnFamily + ":KeyType":
-				KeyType = string(item.Value)
+				keyType = string(item.Value)
 			}
 		}
 		cqlType, err := methods.GetCassandraColumnType(columnType)
@@ -730,7 +730,7 @@ func (btc *BigtableClient) ReadTableConfigs(ctx context.Context, keyspace string
 			CQLType:      cqlType,
 			IsPrimaryKey: isPrimaryKey,
 			PkPrecedence: pkPrecedence,
-			KeyType:      KeyType,
+			KeyType:      btc.parseKeyType(keyspace, tableName, columnName, keyType, pkPrecedence),
 		}
 
 		allColumns[tableName] = append(allColumns[tableName], column)
@@ -777,6 +777,34 @@ func (btc *BigtableClient) ReadTableConfigs(ctx context.Context, keyspace string
 	otelgo.AddAnnotation(ctx, schemaMappingConfigFetched)
 
 	return tableConfigs, nil
+}
+
+// This parsing logic defaults the primary key types, because older versions of the proxy set keyType to an empty string. The only key type that we're guessing about is whether the key is a clustering key or not which, for the purposes of the proxy, doesn't matter.
+func (btc *BigtableClient) parseKeyType(keyspace, table, column, keyType string, pkPrecedence int) string {
+	keyType = strings.ToLower(keyType)
+	if keyType == utilities.KEY_TYPE_PARTITION {
+		return utilities.KEY_TYPE_PARTITION
+	} else if keyType == utilities.KEY_TYPE_CLUSTERING {
+		return utilities.KEY_TYPE_CLUSTERING
+	} else if keyType == utilities.KEY_TYPE_REGULAR {
+		return utilities.KEY_TYPE_REGULAR
+	} else {
+		// this is an unknown key type
+		var defaultKeyType string
+		if pkPrecedence <= 0 {
+			// regular columns, that aren't part of the primary key have a precedence of 0.
+			defaultKeyType = utilities.KEY_TYPE_REGULAR
+		} else if pkPrecedence == 1 {
+			// default to partition key because the first key is always a partition key.
+			defaultKeyType = utilities.KEY_TYPE_PARTITION
+		} else {
+			// default to clustering key because clustering keys usually follow, and it doesn't really matter for the purposes of the proxy.
+			defaultKeyType = utilities.KEY_TYPE_CLUSTERING
+		}
+		btc.Logger.Warn(fmt.Sprintf("unknown key type '%s' for %s.%s column %s with pkPrecedence of %d. defaulting key type to '%s'", keyType, keyspace, table, column, pkPrecedence, defaultKeyType))
+
+		return defaultKeyType
+	}
 }
 
 // ApplyBulkMutation - Applies bulk mutations to the specified bigtable table.

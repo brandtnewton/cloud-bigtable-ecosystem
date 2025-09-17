@@ -59,7 +59,8 @@ func NewTableConfig(
 			Type:     column.CQLType,
 		}
 		columnMap[column.Name] = column
-		if column.KeyType != utilities.KEY_TYPE_REGULAR {
+		// The proxy tracks primary key order as 1-index for some reason so regular columns are 0.
+		if column.PkPrecedence > 0 {
 			// this field is redundant - make sure it's in sync with other fields
 			column.IsPrimaryKey = true
 			pmks = append(pmks, column)

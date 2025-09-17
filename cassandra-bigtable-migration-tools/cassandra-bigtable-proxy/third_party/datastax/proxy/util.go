@@ -17,7 +17,6 @@
 package proxy
 
 import (
-	"fmt"
 	"slices"
 	"strings"
 	"time"
@@ -152,7 +151,7 @@ func getTableMetadata(tableMetadata map[string]map[string]*schemaMapping.TableCo
 
 // getColumnMetadata converts table metadata into column metadata rows
 func getColumnMetadata(tableMetadata map[string]map[string]*schemaMapping.TableConfig) [][]interface{} {
-	columnsMetadataRows := [][]interface{}{}
+	var columnsMetadataRows [][]interface{}
 	for keyspace, tables := range tableMetadata {
 		for tableName, table := range tables {
 			for columnName, column := range table.Columns {
@@ -171,11 +170,15 @@ func getColumnMetadata(tableMetadata map[string]map[string]*schemaMapping.TableC
 			}
 		}
 	}
+	// sort by keyspace, table name and column name for deterministic output
 	slices.SortFunc(columnsMetadataRows, func(a, b []interface{}) int {
-		// this is an inefficient way of sorting the rows but we only call this function on start up or when there's a schema change, so it shouldn't impact performance.
-		aStr := fmt.Sprintf("%v.%v.%v", a[0], a[1], a[2])
-		bStr := fmt.Sprintf("%v.%v.%v", b[0], b[1], b[2])
-		return strings.Compare(aStr, bStr)
+		if res := strings.Compare(a[0].(string), b[0].(string)); res != 0 {
+			return res
+		}
+		if res := strings.Compare(a[1].(string), b[1].(string)); res != 0 {
+			return res
+		}
+		return strings.Compare(a[2].(string), b[2].(string))
 	})
 	return columnsMetadataRows
 }

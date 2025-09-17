@@ -21,6 +21,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"slices"
 	"testing"
 	"time"
 
@@ -985,6 +986,105 @@ func TestCreateTable(t *testing.T) {
 	info, err = adminClients["bt1"].TableInfo(ctx, "create_table_test")
 	require.NoError(t, err)
 	require.NotNil(t, info)
+}
+
+func TestCanLoadBadTableConfig(t *testing.T) {
+	client, adminClients, ctx, err := getClient(conn)
+	require.NoError(t, err)
+
+	btClient := NewBigtableClient(client, adminClients, zap.NewNop(), bigtableConfig, nil, &schemaMapping.SchemaMappingConfig{SchemaMappingTableName: "schema_mapping"})
+	_, err = btClient.ReadTableConfigs(ctx, "ks1")
+	require.NoError(t, err)
+
+	sm := client["bt1"].Open("schema_mapping")
+
+	tableName := "bad_key_type_table"
+	// WARNING: do NOT change this mutation. It captures a real world schema that we need to handle.
+	rks, muts := toMuts(tableName, []map[string][]byte{
+		map[string][]byte{
+			smColColumnName:   []byte("column1"),
+			smColColumnType:   []byte("varchar"),
+			smColIsCollection: []byte("false"),
+			smColIsPrimaryKey: []byte("true"),
+			smColKeyType:      []byte("regular"), // wrong key type but PkPrecedence is > 0
+			smColPKPrecedence: []byte("1"),
+			smColTableName:    []byte(tableName),
+		},
+		map[string][]byte{
+			smColColumnName:   []byte("column2"),
+			smColColumnType:   []byte("float"),
+			smColIsCollection: []byte("false"),
+			smColIsPrimaryKey: []byte("false"),
+			smColKeyType:      []byte(""), // missing key type
+			smColPKPrecedence: []byte("0"),
+			smColTableName:    []byte(tableName),
+		},
+		map[string][]byte{
+			smColColumnName:   []byte("column3"),
+			smColColumnType:   []byte("int"),
+			smColIsCollection: []byte("false"),
+			smColIsPrimaryKey: []byte("false"),
+			smColKeyType:      []byte(""), // missing key type
+			smColPKPrecedence: []byte("0"),
+			smColTableName:    []byte(tableName),
+		},
+		map[string][]byte{
+			smColColumnName:   []byte("column4"),
+			smColColumnType:   []byte("double"),
+			smColIsCollection: []byte("false"),
+			smColIsPrimaryKey: []byte("false"),
+			smColKeyType:      []byte(""), // missing key type
+			smColPKPrecedence: []byte("0"),
+			smColTableName:    []byte(tableName),
+		},
+		map[string][]byte{
+			smColColumnName:   []byte("column5"),
+			smColColumnType:   []byte("double"),
+			smColIsCollection: []byte("false"),
+			smColIsPrimaryKey: []byte("false"),
+			smColKeyType:      []byte(""), // missing key type
+			smColPKPrecedence: []byte("0"),
+			smColTableName:    []byte(tableName),
+		},
+	})
+	_, err = sm.ApplyBulk(ctx, rks, muts)
+	require.NoError(t, err)
+
+	err = adminClients["bt1"].CreateTable(ctx, tableName)
+	require.NoError(t, err)
+
+	tableConfigs, err := btClient.ReadTableConfigs(ctx, "ks1")
+	require.NoError(t, err)
+
+	index := slices.IndexFunc(tableConfigs, func(config *schemaMapping.TableConfig) bool {
+		return config.Name == tableName
+	})
+	require.NotEqual(t, -1, index)
+	tc := tableConfigs[index]
+	assert.Equal(t, tableName, tc.Name)
+	assert.Equal(t, "ks1", tc.Keyspace)
+	assert.Equal(t, []string{"column1"}, tc.GetPrimaryKeys())
+	pkCol, err := tc.GetColumn("column1")
+	require.NoError(t, err)
+	assert.Equal(t, "column1", pkCol.Name)
+	assert.Equal(t, 1, pkCol.PkPrecedence)
+	assert.Equal(t, utilities.KEY_TYPE_PARTITION, pkCol.KeyType)
+	assert.Equal(t, true, pkCol.IsPrimaryKey)
+}
+
+func toMuts(tableName string, data []map[string][]byte) ([]string, []*bigtable.Mutation) {
+	var muts []*bigtable.Mutation
+	var rowKeys []string
+	ts := bigtable.Now()
+	for _, d := range data {
+		mut := bigtable.NewMutation()
+		for k, v := range d {
+			mut.Set(schemaMappingTableColumnFamily, k, ts, v)
+		}
+		muts = append(muts, mut)
+		rowKeys = append(rowKeys, tableName+"#"+string(d[smColColumnName]))
+	}
+	return rowKeys, muts
 }
 
 // note: the bttest instance ignores RowKeySchema, so it will always be nil which breaks ReadTableConfigs() ability to infer key encoding.

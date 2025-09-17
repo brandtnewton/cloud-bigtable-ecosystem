@@ -813,10 +813,10 @@ func (btc *BigtableClient) parseKeyType(keyspace, table, column, keyType string,
 			// default to partition key because the first key is always a partition key.
 			defaultKeyType = utilities.KEY_TYPE_PARTITION
 		} else {
-			// default to clustering key because clustering keys usually follow, and it doesn't really matter for the purposes of the proxy.
+			// default to clustering key because clustering keys usually follow (this will be wrong in the case of a composite partition key), and it doesn't really matter for the purposes of the proxy.
 			defaultKeyType = utilities.KEY_TYPE_CLUSTERING
 		}
-		btc.Logger.Warn(fmt.Sprintf("unknown key state KeyType='%s' and pkPrecedence of %d for %s.%s column %s with . defaulting key type to '%s'", keyType, pkPrecedence,
+		btc.Logger.Warn(fmt.Sprintf("unknown key state KeyType='%s' and pkPrecedence of %d for %s.%s column %s. defaulting key type to '%s'", keyType, pkPrecedence,
 			keyspace, table, column, defaultKeyType))
 
 		return defaultKeyType

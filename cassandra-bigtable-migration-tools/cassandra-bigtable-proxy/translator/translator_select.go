@@ -685,13 +685,13 @@ func getBigtableSelectQuery(t *Translator, data *SelectQueryMap) (string, error)
 	return btQuery, nil
 }
 
-// TranslateSelectQuerytoBigtable() Translates Cassandra select statement into a compatible Cloud Bigtable select query.
+// TranslateSelectQuery() Translates Cassandra select statement into a compatible Cloud Bigtable select query.
 //
 // Parameters:
 //   - query: CQL Select statement
 //
 // Returns: SelectQueryMap struct and error if any
-func (t *Translator) TranslateSelectQuerytoBigtable(query, sessionKeyspace string) (*SelectQueryMap, error) {
+func (t *Translator) TranslateSelectQuery(query, sessionKeyspace string) (*SelectQueryMap, error) {
 	p, err := NewCqlParser(query, false)
 	if err != nil {
 		return nil, err

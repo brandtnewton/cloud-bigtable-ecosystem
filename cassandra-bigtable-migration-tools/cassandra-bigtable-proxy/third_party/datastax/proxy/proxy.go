@@ -729,7 +729,7 @@ func (c *client) prepareDeleteType(raw *frame.RawFrame, msg *message.Prepare, id
 	var returnColumns, variableColumns, columnsWithInOp []string
 	var err error
 
-	deleteQueryMetadata, err := c.proxy.translator.TranslateDeleteQuerytoBigtable(msg.Query, true, c.keyspace)
+	deleteQueryMetadata, err := c.proxy.translator.TranslateDeleteQuery(msg.Query, true, c.keyspace)
 	if err != nil {
 		c.proxy.logger.Error(translatorErrorMessage, zap.String(Query, msg.Query), zap.Error(err))
 		c.sender.Send(raw.Header, &message.Invalid{ErrorMessage: err.Error()})
@@ -835,7 +835,7 @@ func (c *client) prepareInsertType(raw *frame.RawFrame, msg *message.Prepare, id
 // function to handle and select query of prepared type
 func (c *client) prepareSelectType(raw *frame.RawFrame, msg *message.Prepare, id [16]byte) ([]*message.ColumnMetadata, []*message.ColumnMetadata, error) {
 	var variableColumns, columnsWithInOp []string
-	translatedSelectQuery, err := c.proxy.translator.TranslateSelectQuerytoBigtable(msg.Query, c.keyspace)
+	translatedSelectQuery, err := c.proxy.translator.TranslateSelectQuery(msg.Query, c.keyspace)
 	if err != nil {
 		c.proxy.logger.Error(translatorErrorMessage, zap.String(Query, msg.Query), zap.Error(err))
 		c.sender.Send(raw.Header, &message.Invalid{ErrorMessage: err.Error()})
@@ -1467,7 +1467,7 @@ func (c *client) handleQuery(raw *frame.RawFrame, msg *partialQuery) {
 			}
 			return
 		case selectType:
-			translatedSelectQuery, err := c.proxy.translator.TranslateSelectQuerytoBigtable(msg.query, c.keyspace)
+			translatedSelectQuery, err := c.proxy.translator.TranslateSelectQuery(msg.query, c.keyspace)
 			if err != nil {
 				c.proxy.logger.Error(translatorErrorMessage, zap.String(Query, msg.query), zap.Error(err))
 				otelErr = err
@@ -1536,7 +1536,7 @@ func (c *client) handleQuery(raw *frame.RawFrame, msg *partialQuery) {
 			return
 
 		case deleteType:
-			queryMetadata, err := c.proxy.translator.TranslateDeleteQuerytoBigtable(msg.query, false, c.keyspace)
+			queryMetadata, err := c.proxy.translator.TranslateDeleteQuery(msg.query, false, c.keyspace)
 			if err != nil {
 				c.proxy.logger.Error(translatorErrorMessage, zap.String(Query, msg.query), zap.Error(err))
 				otelErr = err

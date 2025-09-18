@@ -384,7 +384,7 @@ func TestGetColumnMetadata(t *testing.T) {
 				}),
 			},
 			expectedColumns: [][]interface{}{
-				{"test_keyspace", "test_table", "id", "none", "partition_key", 0, datatype.Uuid},
+				{"test_keyspace", "test_table", "id", "none", "partition_key", 0, "uuid"},
 			},
 		},
 		{
@@ -397,9 +397,9 @@ func TestGetColumnMetadata(t *testing.T) {
 				}),
 			},
 			expectedColumns: [][]interface{}{
-				{"keyspace1", "table1", "age", "none", "regular", -1, datatype.Int},
-				{"keyspace1", "table1", "id", "none", "partition_key", 0, datatype.Uuid},
-				{"keyspace1", "table1", "name", "asc", "clustering", 0, datatype.Varchar},
+				{"keyspace1", "table1", "age", "none", "regular", -1, "int"},
+				{"keyspace1", "table1", "id", "none", "partition_key", 0, "uuid"},
+				{"keyspace1", "table1", "name", "asc", "clustering", 0, "text"},
 			},
 		},
 		{
@@ -414,11 +414,11 @@ func TestGetColumnMetadata(t *testing.T) {
 				}),
 			},
 			expectedColumns: [][]interface{}{
-				{"keyspace1", "table1", "age", "none", "regular", -1, datatype.Int},
-				{"keyspace1", "table1", "id", "none", "partition_key", 0, datatype.Uuid},
-				{"keyspace1", "table1", "id2", "none", "partition_key", 1, datatype.Uuid},
-				{"keyspace1", "table1", "name", "asc", "clustering", 0, datatype.Varchar},
-				{"keyspace1", "table1", "name2", "asc", "clustering", 1, datatype.Varchar},
+				{"keyspace1", "table1", "age", "none", "regular", -1, "int"},
+				{"keyspace1", "table1", "id", "none", "partition_key", 0, "uuid"},
+				{"keyspace1", "table1", "id2", "none", "partition_key", 1, "uuid"},
+				{"keyspace1", "table1", "name", "asc", "clustering", 0, "text"},
+				{"keyspace1", "table1", "name2", "asc", "clustering", 1, "text"},
 			},
 		},
 	}

@@ -494,7 +494,7 @@ func TestTranslator_TranslateDeleteQuerytoBigtable(t *testing.T) {
 				Logger:              tt.fields.Logger,
 				SchemaMappingConfig: tt.fields.SchemaMappingConfig,
 			}
-			got, err := tr.TranslateDeleteQuerytoBigtable(tt.args.queryStr, false, tt.defaultKeyspace)
+			got, err := tr.TranslateDeleteQuery(tt.args.queryStr, false, tt.defaultKeyspace)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("Translator.TranslateDeleteQuerytoBigtable() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -670,17 +670,17 @@ func TestTranslator_BuildDeletePrepareQuery(t *testing.T) {
 				Logger:              tt.fields.Logger,
 				SchemaMappingConfig: tt.fields.SchemaMappingConfig,
 			}
-			got, got1, err := tr.BuildDeletePrepareQuery(tt.args.values, tt.args.st, tt.args.variableColumnMetadata, tt.args.protocolV)
+			got, got1, err := tr.BindDeleteQuery(tt.args.values, tt.args.st, tt.args.variableColumnMetadata, tt.args.protocolV)
 			if tt.wantErr {
 				assert.Error(t, err, "error expected")
 			} else {
 				assert.NoErrorf(t, err, "unexpected error")
 			}
 			if got != tt.want {
-				t.Errorf("Translator.BuildDeletePrepareQuery() got = %v, want %v", got, tt.want)
+				t.Errorf("Translator.BindDeleteQuery() got = %v, want %v", got, tt.want)
 			}
 			if !reflect.DeepEqual(got1, tt.want1) {
-				t.Errorf("Translator.BuildDeletePrepareQuery() got1 = %v, want %v", got1, tt.want1)
+				t.Errorf("Translator.BindDeleteQuery() got1 = %v, want %v", got1, tt.want1)
 			}
 		})
 	}

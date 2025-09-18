@@ -40,7 +40,6 @@ import (
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/utilities"
 	"github.com/antlr4-go/antlr/v4"
 	"github.com/datastax/go-cassandra-native-protocol/datatype"
-	"github.com/datastax/go-cassandra-native-protocol/message"
 	"github.com/datastax/go-cassandra-native-protocol/primitive"
 )
 
@@ -1816,7 +1815,7 @@ func GetTtlAndTimestampInfo(insertObj QueryWithUsingContext, index int32) (Times
 }
 
 func GetTimestampInfo(tsSpec UsingTimestampContext, index int32) (TimestampInfo, error) {
-	if tsSpec.Timestamp() != nil {
+	if tsSpec == nil || tsSpec.Timestamp() == nil {
 		return TimestampInfo{HasUsingTimestamp: false}, nil
 	}
 	timestampInfo, err := getTimestampValue(tsSpec.Timestamp(), index)
@@ -1845,83 +1844,26 @@ func convertToBigtableTimestamp(tsValue string, index int32) (TimestampInfo, err
 	return timestampInfo, nil
 }
 
-// getTimestampInfoForPrepareQuery retrieves timestamp information from prepared queries.
-// Extracts timestamp values from prepared statement parameters with validation.
-// Returns error if timestamp format is invalid or extraction fails.
-func getTimestampInfoForPrepareQuery(values []*primitive.Value, index int32, offset int32) (TimestampInfo, error) {
-	var timestampInfo TimestampInfo
-	timestampInfo.HasUsingTimestamp = true
-	if values[index] == nil {
-		err := fmt.Errorf("error processing timestamp column in prepare insert")
-		return timestampInfo, err
+func bindTimestampInfo(values []*primitive.Value, info TimestampInfo) (TimestampInfo, error) {
+	if !info.HasUsingTimestamp {
+		return TimestampInfo{}, nil
 	}
-	vBytes := values[index].Contents
+	if values[info.Index] == nil {
+		err := fmt.Errorf("error processing timestamp column in prepare insert")
+		return TimestampInfo{}, err
+	}
+	vBytes := values[info.Index].Contents
 	decode, err := proxycore.DecodeType(datatype.Bigint, 4, vBytes)
 	if err != nil {
 		fmt.Println("error while decoding timestamp column in prepare insert:", err)
-		return timestampInfo, err
+		return TimestampInfo{}, err
 	}
 	timestamp := decode.(int64)
-	// todo fix
-	var t time.Time
-	if timestamp < 10000000000 { // Assuming it's in seconds
-		t = time.Unix(timestamp, 0)
-	} else if timestamp < 10000000000000 { // Assuming it's in milliseconds
-		t = time.Unix(0, timestamp*int64(time.Millisecond))
-	} else { // As, we are supporting till microseconds, we are not converting it to microseconds
-		t = time.Unix(0, timestamp*int64(time.Microsecond))
-	}
-	microsec := t.UnixMicro()
-	timestampInfo.Timestamp = bigtable.Timestamp(microsec)
-	return timestampInfo, nil
-}
-
-// ProcessTimestamp processes timestamp values for insert operations.
-// Handles timestamp processing and validation with type conversion.
-// Returns error if timestamp format is invalid or processing fails.
-func ProcessTimestamp(st *InsertQueryMapping, values []*primitive.Value) (TimestampInfo, error) {
-	if st.TimestampInfo.HasUsingTimestamp {
-		return getTimestampInfoForPrepareQuery(values, st.TimestampInfo.Index, 0)
-	}
 	return TimestampInfo{
-		HasUsingTimestamp: false,
+		Timestamp:         bigtable.Timestamp(timestamp),
+		HasUsingTimestamp: true,
+		Index:             info.Index,
 	}, nil
-}
-
-// ProcessTimestampByUpdate processes timestamp values for update operations.
-// Handles timestamp processing and validation with type conversion.
-// Returns error if timestamp format is invalid or processing fails.
-func ProcessTimestampByUpdate(st *UpdateQueryMapping, values []*primitive.Value) (TimestampInfo, []*primitive.Value, []*message.ColumnMetadata, error) {
-	var timestampInfo TimestampInfo
-	var err error
-	timestampInfo.HasUsingTimestamp = false
-	variableMetadata := st.VariableMetadata
-	if st.TimestampInfo.HasUsingTimestamp {
-		timestampInfo, err = getTimestampInfoForPrepareQuery(values, st.TimestampInfo.Index, 0)
-		if err != nil {
-			return timestampInfo, values, variableMetadata, err
-		}
-		values = values[1:]
-		variableMetadata = st.VariableMetadata[1:]
-	}
-	return timestampInfo, values, variableMetadata, nil
-}
-
-// ProcessTimestampByDelete processes timestamp values for delete operations.
-// Handles timestamp processing and validation with type conversion.
-// Returns error if timestamp format is invalid or processing fails.
-func ProcessTimestampByDelete(st *DeleteQueryMapping, values []*primitive.Value) (TimestampInfo, []*primitive.Value, error) {
-	var timestampInfo TimestampInfo
-	timestampInfo.HasUsingTimestamp = false
-	var err error
-	if st.TimestampInfo.HasUsingTimestamp {
-		timestampInfo, err = getTimestampInfoForPrepareQuery(values, st.TimestampInfo.Index, 1)
-		if err != nil {
-			return timestampInfo, values, err
-		}
-		values = values[1:]
-	}
-	return timestampInfo, values, nil
 }
 
 // ValidateRequiredPrimaryKeys validates primary key requirements.
@@ -2343,7 +2285,7 @@ func EncodeInt(value interface{}, pv primitive.ProtocolVersion) ([]byte, error) 
 // ProcessComplexUpdate processes complex update operations.
 // Handles complex column updates including collections and counters with validation.
 // Returns error if update type is invalid or processing fails.
-func (t *Translator) ProcessComplexUpdate(columns []types.Column, values []interface{}, tableName, keyspaceName string, prependColumns []string) (map[string]*ComplexOperation, error) {
+func (t *Translator) ProcessComplexUpdate(columns []types.Column, values []interface{}) (map[string]*ComplexOperation, error) {
 	complexMeta := make(map[string]*ComplexOperation)
 
 	for i, column := range columns {

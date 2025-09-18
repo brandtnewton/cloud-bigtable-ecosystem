@@ -577,17 +577,17 @@ func TestTranslator_TranslateUpdateQuerytoBigtable(t *testing.T) {
 				Logger:              tt.fields.Logger,
 				SchemaMappingConfig: schemaMappingConfig,
 			}
-			got, err := tr.TranslateUpdateQuerytoBigtable(tt.args.query, false, "test_keyspace")
+			got, err := tr.TranslateUpdateQuery(tt.args.query, false, "test_keyspace")
 			if tt.wantErr {
 				assert.Error(t, err)
 				return
 			}
 			if got != nil && len(got.RowKey) > 0 && !reflect.DeepEqual(got.RowKey, tt.want.RowKey) {
-				t.Errorf("Translator.TranslateUpdateQuerytoBigtable() = %v, want %v", got.RowKey, tt.want.RowKey)
+				t.Errorf("Translator.TranslateUpdateQuery() = %v, want %v", got.RowKey, tt.want.RowKey)
 			}
 
 			if got != nil && !reflect.DeepEqual(got.Keyspace, tt.want.Keyspace) {
-				t.Errorf("Translator.TranslateUpdateQuerytoBigtable() = %v, want %v", got.Keyspace, tt.want.Keyspace)
+				t.Errorf("Translator.TranslateUpdateQuery() = %v, want %v", got.Keyspace, tt.want.Keyspace)
 			}
 
 			assert.Equal(t, tt.want.ComplexOperation, got.ComplexOperation)
@@ -692,30 +692,30 @@ func TestTranslator_BuildUpdatePrepareQuery(t *testing.T) {
 				Logger:              tt.fields.Logger,
 				SchemaMappingConfig: tt.fields.SchemaMappingConfig,
 			}
-			got, err := tr.BuildUpdatePrepareQuery(tt.args.columnsResponse, tt.args.values, tt.args.st, tt.args.protocolV)
+			got, err := tr.BindUpdateQuery(tt.args.columnsResponse, tt.args.values, tt.args.st, tt.args.protocolV)
 			if (err != nil) != tt.wantErr {
-				t.Errorf("Translator.BuildUpdatePrepareQuery() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("Translator.BindUpdateQuery() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
 			// Comparing specific fields as the whole struct comparison might fail due to dynamic parts
 			if got != nil && tt.want != nil {
 				if got.Query != tt.want.Query {
-					t.Errorf("Translator.BuildUpdatePrepareQuery() Query = %v, want %v", got.Query, tt.want.Query)
+					t.Errorf("Translator.BindUpdateQuery() Query = %v, want %v", got.Query, tt.want.Query)
 				}
 				if !reflect.DeepEqual(got.PrimaryKeys, tt.want.PrimaryKeys) {
-					t.Errorf("Translator.BuildUpdatePrepareQuery() PrimaryKeys = %v, want %v", got.PrimaryKeys, tt.want.PrimaryKeys)
+					t.Errorf("Translator.BindUpdateQuery() PrimaryKeys = %v, want %v", got.PrimaryKeys, tt.want.PrimaryKeys)
 				}
 				if len(got.Clauses) != len(tt.want.Clauses) {
-					t.Errorf("Translator.BuildUpdatePrepareQuery() Clauses length mismatch = %d, want %d", len(got.Clauses), len(tt.want.Clauses))
+					t.Errorf("Translator.BindUpdateQuery() Clauses length mismatch = %d, want %d", len(got.Clauses), len(tt.want.Clauses))
 				} else {
 					for i := range got.Clauses {
 						if !reflect.DeepEqual(got.Clauses[i], tt.want.Clauses[i]) {
-							t.Errorf("Translator.BuildUpdatePrepareQuery() Clause[%d] = %v, want %v", i, got.Clauses[i], tt.want.Clauses[i])
+							t.Errorf("Translator.BindUpdateQuery() Clause[%d] = %v, want %v", i, got.Clauses[i], tt.want.Clauses[i])
 						}
 					}
 				}
 			} else if !(got == nil && tt.want == nil) {
-				t.Errorf("Translator.BuildUpdatePrepareQuery() = %v, want %v", got, tt.want)
+				t.Errorf("Translator.BindUpdateQuery() = %v, want %v", got, tt.want)
 			}
 		})
 	}

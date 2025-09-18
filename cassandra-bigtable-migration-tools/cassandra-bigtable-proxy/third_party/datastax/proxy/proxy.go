@@ -800,7 +800,7 @@ func (c *client) prepareInsertType(raw *frame.RawFrame, msg *message.Prepare, id
 	var returnColumns []string
 
 	// Get the return columns from the query
-	insertQueryMetadata, err := c.proxy.translator.TranslateInsertQuerytoBigtable(msg.Query, raw.Header.Version, true, c.keyspace)
+	insertQueryMetadata, err := c.proxy.translator.TranslateInsertQuery(msg.Query, raw.Header.Version, true, c.keyspace)
 	if err != nil {
 		c.proxy.logger.Error(translatorErrorMessage, zap.String(Query, msg.Query), zap.Error(err))
 		c.sender.Send(raw.Header, &message.Invalid{ErrorMessage: err.Error()})
@@ -942,7 +942,7 @@ func (c *client) prepareUpdateType(raw *frame.RawFrame, msg *message.Prepare, id
 	var returnColumns, variableColumns, columnsWithInOp []string
 	var err error
 
-	updateQueryMetadata, err := c.proxy.translator.TranslateUpdateQuerytoBigtable(msg.Query, true, c.keyspace)
+	updateQueryMetadata, err := c.proxy.translator.TranslateUpdateQuery(msg.Query, true, c.keyspace)
 	if err != nil {
 		c.proxy.logger.Error(translatorErrorMessage, zap.String(Query, msg.Query), zap.Error(err))
 		c.sender.Send(raw.Header, &message.Invalid{ErrorMessage: err.Error()})
@@ -1337,7 +1337,7 @@ func (c *client) handleExecuteForInsert(raw *frame.RawFrame, msg *partialExecute
 
 // Prepare update query metadata
 func (c *client) prepareUpdateQueryMetadata(raw *frame.RawFrame, paramValues []*primitive.Value, st *translator.UpdateQueryMapping) (*translator.UpdateQueryMapping, []bigtableModule.ColumnData, error) {
-	updateData, iErr := c.proxy.translator.BuildUpdatePrepareQuery(st.Columns, paramValues, st, raw.Header.Version)
+	updateData, iErr := c.proxy.translator.BindUpdateQuery(st.Columns, paramValues, st, raw.Header.Version)
 	if iErr != nil {
 		return nil, nil, fmt.Errorf("error building update prepare query:%s", iErr)
 	}
@@ -1376,7 +1376,7 @@ func (c *client) prepareDeleteQueryMetadata(raw *frame.RawFrame, paramValue []*p
 		}
 	}
 
-	rowKey, timestamp, err := c.proxy.translator.BuildDeletePrepareQuery(paramValue, st, variableColumnMetadata, raw.Header.Version)
+	rowKey, timestamp, err := c.proxy.translator.BindDeleteQuery(paramValue, st, variableColumnMetadata, raw.Header.Version)
 	if err != nil {
 		return nil, fmt.Errorf("error building rowkey for delete prepare query:%w", err)
 	}
@@ -1403,7 +1403,7 @@ func (c *client) prepareDeleteQueryMetadata(raw *frame.RawFrame, paramValue []*p
 
 // Prepare insert query metadata
 func (c *client) prepareInsertQueryMetadata(raw *frame.RawFrame, paramValue []*primitive.Value, st *translator.InsertQueryMapping) (*translator.InsertQueryMapping, []bigtableModule.ColumnData, error) {
-	insertData, iErr := c.proxy.translator.BuildInsertPrepareQuery(st.Columns, paramValue, st, raw.Header.Version)
+	insertData, iErr := c.proxy.translator.BindInsertQuery(st.Columns, paramValue, st, raw.Header.Version)
 	if iErr != nil {
 		return nil, nil, fmt.Errorf("error building insert prepare query:%s", iErr)
 	}
@@ -1507,7 +1507,7 @@ func (c *client) handleQuery(raw *frame.RawFrame, msg *partialQuery) {
 			return
 
 		case insertType:
-			insertData, err := c.proxy.translator.TranslateInsertQuerytoBigtable(msg.query, raw.Header.Version, false, c.keyspace)
+			insertData, err := c.proxy.translator.TranslateInsertQuery(msg.query, raw.Header.Version, false, c.keyspace)
 			if err != nil {
 				c.proxy.logger.Error(translatorErrorMessage, zap.String(Query, msg.query), zap.Error(err))
 				otelErr = err
@@ -1570,7 +1570,7 @@ func (c *client) handleQuery(raw *frame.RawFrame, msg *partialQuery) {
 			}
 
 		case updateType:
-			updateQueryMetaData, err := c.proxy.translator.TranslateUpdateQuerytoBigtable(msg.query, false, c.keyspace)
+			updateQueryMetaData, err := c.proxy.translator.TranslateUpdateQuery(msg.query, false, c.keyspace)
 			if err != nil {
 				c.proxy.logger.Error(translatorErrorMessage, zap.String(Query, msg.query), zap.Error(err))
 				otelErr = err
@@ -1599,7 +1599,7 @@ func (c *client) handleQuery(raw *frame.RawFrame, msg *partialQuery) {
 			return
 
 		case dropType:
-			queryMetadata, err := c.proxy.translator.TranslateDropTableToBigtable(msg.query, c.keyspace)
+			queryMetadata, err := c.proxy.translator.TranslateDropQuery(msg.query, c.keyspace)
 			if err != nil {
 				c.proxy.logger.Error(translatorErrorMessage, zap.String(Query, msg.query), zap.Error(err))
 				otelErr = err
@@ -1651,7 +1651,7 @@ func (c *client) handleQuery(raw *frame.RawFrame, msg *partialQuery) {
 			}
 
 		case truncateType:
-			queryMetadata, err := c.proxy.translator.TranslateTruncateTableToBigtable(msg.query, c.keyspace)
+			queryMetadata, err := c.proxy.translator.TranslateTruncateQuery(msg.query, c.keyspace)
 			if err != nil {
 				c.proxy.logger.Error(translatorErrorMessage, zap.String(Query, msg.query), zap.Error(err))
 				otelErr = err
@@ -1674,7 +1674,7 @@ func (c *client) handleQuery(raw *frame.RawFrame, msg *partialQuery) {
 			}
 
 		case alterType:
-			queryMetadata, err := c.proxy.translator.TranslateAlterTableToBigtable(msg.query, c.keyspace)
+			queryMetadata, err := c.proxy.translator.TranslateAlterQuery(msg.query, c.keyspace)
 
 			if err != nil {
 				c.proxy.logger.Error(translatorErrorMessage, zap.String(Query, msg.query), zap.Error(err))

@@ -253,13 +253,7 @@ func handleColumnType(val cql.IRelationElementContext, columnType *types.Column,
 	return actualVal, nil
 }
 
-// TranslateDeleteQuerytoBigtable() translate the CQL Delete Query into bigtable mutation api equivalent.
-//
-// Parameters:
-//   - queryStr: CQL delete query with condition
-//
-// Returns: QueryClauses and an error if any.
-func (t *Translator) TranslateDeleteQuerytoBigtable(query string, isPreparedQuery bool, sessionKeyspace string) (*DeleteQueryMapping, error) {
+func (t *Translator) TranslateDeleteQuery(query string, isPreparedQuery bool, sessionKeyspace string) (*DeleteQueryMapping, error) {
 	lexer := cql.NewCqlLexer(antlr.NewInputStream(query))
 	stream := antlr.NewCommonTokenStream(lexer, antlr.TokenDefaultChannel)
 	p := cql.NewCqlParser(stream)
@@ -367,10 +361,8 @@ func (t *Translator) TranslateDeleteQuerytoBigtable(query string, isPreparedQuer
 	return deleteQueryData, nil
 }
 
-// BuildDeletePrepareQuery() Function to accept the values clause columns and form the rowKey and return the same
-func (t *Translator) BuildDeletePrepareQuery(values []*primitive.Value, st *DeleteQueryMapping, variableColumnMetadata []*message.ColumnMetadata, protocolV primitive.ProtocolVersion) (string, TimestampInfo, error) {
-
-	timestamp, values, err := ProcessTimestampByDelete(st, values)
+func (t *Translator) BindDeleteQuery(values []*primitive.Value, st *DeleteQueryMapping, variableColumnMetadata []*message.ColumnMetadata, protocolV primitive.ProtocolVersion) (string, TimestampInfo, error) {
+	timestamp, err := bindTimestampInfo(values, st.TimestampInfo)
 	if err != nil {
 		return "", TimestampInfo{}, fmt.Errorf("error while getting timestamp value")
 	}

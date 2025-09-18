@@ -24,7 +24,7 @@ import (
 	"github.com/antlr4-go/antlr/v4"
 )
 
-func (t *Translator) TranslateTruncateTableToBigtable(query, sessionKeyspace string) (*TruncateTableStatementMap, error) {
+func (t *Translator) TranslateTruncateQuery(query, sessionKeyspace string) (*TruncateTableStatementMap, error) {
 	lexer := cql.NewCqlLexer(antlr.NewInputStream(query))
 	stream := antlr.NewCommonTokenStream(lexer, antlr.TokenDefaultChannel)
 	p := cql.NewCqlParser(stream)

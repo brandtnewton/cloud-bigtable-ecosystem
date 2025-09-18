@@ -276,7 +276,7 @@ func TestTranslateAlterTableToBigtable(t *testing.T) {
 				Logger:              nil,
 				SchemaMappingConfig: smc,
 			}
-			got, err := tr.TranslateAlterTableToBigtable(tt.query, tt.defaultKeyspace)
+			got, err := tr.TranslateAlterQuery(tt.query, tt.defaultKeyspace)
 			if tt.error != "" {
 				require.Error(t, err)
 				assert.Equal(t, tt.error, err.Error())

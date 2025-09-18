@@ -275,13 +275,7 @@ func parseAssignments(assignments []cql.IAssignmentElementContext, tableConfig *
 	}, nil
 }
 
-// TranslateUpdateQuerytoBigtable() frames UpdateQueryMapping which translates the update to bigtable mutation
-//
-// Parameters:
-//   - query: CQL Update query
-//
-// Returns: UpdateQueryMapping struct and error if any
-func (t *Translator) TranslateUpdateQuerytoBigtable(query string, isPreparedQuery bool, sessionKeyspace string) (*UpdateQueryMapping, error) {
+func (t *Translator) TranslateUpdateQuery(query string, isPreparedQuery bool, sessionKeyspace string) (*UpdateQueryMapping, error) {
 	lexer := cql.NewCqlLexer(antlr.NewInputStream(query))
 	stream := antlr.NewCommonTokenStream(lexer, antlr.TokenDefaultChannel)
 	p := cql.NewCqlParser(stream)
@@ -461,7 +455,7 @@ func (t *Translator) TranslateUpdateQuerytoBigtable(query string, isPreparedQuer
 			newValues = append(newValues, encryVal)
 		}
 	} else {
-		complexMeta, err = t.ProcessComplexUpdate(columns, values, tableName, keyspaceName, PrependColumns)
+		complexMeta, err = t.ProcessComplexUpdate(columns, values)
 		if err != nil {
 			return nil, err
 		}
@@ -491,21 +485,7 @@ func (t *Translator) TranslateUpdateQuerytoBigtable(query string, isPreparedQuer
 	return updateQueryData, nil
 }
 
-// BuildUpdatePrepareQuery() constructs an UpdateQueryMapping for an update operation, preparing the necessary
-// components such as columns, values, row keys, and primary keys. It also processes any collection types
-// and manages timestamp information for the update query.
-//
-// Parameters:
-//   - columnsResponse: A slice of Column structs representing metadata of columns involved in the update.
-//   - values: A slice of pointers to primitive.Value, representing the values for the update operation.
-//   - st: A pointer to an UpdateQueryMapping that contains existing query data and metadata.
-//   - protocolV: The Cassandra protocol version used for encoding and decoding operations.
-//
-// Returns:
-//   - A pointer to an UpdateQueryMapping populated with the new query components required for the update.
-//   - An error if any issues arise during processing, such as failure to fetch primary keys or errors
-//     handling column data or timestamp.
-func (t *Translator) BuildUpdatePrepareQuery(columnsResponse []types.Column, values []*primitive.Value, st *UpdateQueryMapping, protocolV primitive.ProtocolVersion) (*UpdateQueryMapping, error) {
+func (t *Translator) BindUpdateQuery(columnsResponse []types.Column, values []*primitive.Value, st *UpdateQueryMapping, protocolV primitive.ProtocolVersion) (*UpdateQueryMapping, error) {
 	var newColumns []types.Column
 	var newValues []interface{}
 	var primaryKeys []string = st.PrimaryKeys
@@ -523,8 +503,11 @@ func (t *Translator) BuildUpdatePrepareQuery(columnsResponse []types.Column, val
 	if len(primaryKeys) == 0 {
 		primaryKeys = tableConfig.GetPrimaryKeys()
 	}
-	timestampInfo, values, variableMetadata, err := ProcessTimestampByUpdate(st, values)
-
+	ttlInfo, err := bindTimestampInfo(values, st.TtlInfo)
+	if err != nil {
+		return nil, err
+	}
+	timestampInfo, err := bindTimestampInfo(values, st.TimestampInfo)
 	if err != nil {
 		return nil, err
 	}
@@ -558,8 +541,7 @@ func (t *Translator) BuildUpdatePrepareQuery(columnsResponse []types.Column, val
 		}
 
 		if slices.Contains(primaryKeys, column.Name) {
-
-			val, _ := utilities.DecodeBytesToCassandraColumnType(values[i+indexEnd+1].Contents, variableMetadata[i+indexEnd+1].Type, protocolV)
+			val, _ := utilities.DecodeBytesToCassandraColumnType(values[i+indexEnd+1].Contents, st.VariableMetadata[i+indexEnd+1].Type, protocolV)
 			unencrypted[column.Name] = val
 		}
 	}
@@ -582,6 +564,7 @@ func (t *Translator) BuildUpdatePrepareQuery(columnsResponse []types.Column, val
 		DeleteColumnFamilies:  delColumnFamily,
 		DeleteColumQualifires: delColumns,
 		Clauses:               st.Clauses,
+		TtlInfo:               ttlInfo,
 		TimestampInfo:         timestampInfo,
 		IfExists:              st.IfExists,
 		ComplexOperation:      st.ComplexOperation,

@@ -771,7 +771,7 @@ func TestTranslator_TranslateInsertQuerytoBigtable(t *testing.T) {
 				Logger:              zap.NewNop(),
 				SchemaMappingConfig: tt.fields.SchemaMappingConfig,
 			}
-			got, err := tr.TranslateInsertQuerytoBigtable(tt.args.queryStr, tt.args.protocolV, tt.args.isPreparedQuery, "test_keyspace")
+			got, err := tr.TranslateInsertQuery(tt.args.queryStr, tt.args.protocolV, tt.args.isPreparedQuery, "test_keyspace")
 			if tt.wantErr {
 				require.Error(t, err)
 				return
@@ -895,13 +895,13 @@ func TestTranslator_BuildInsertPrepareQuery(t *testing.T) {
 				Logger:              tt.fields.Logger,
 				SchemaMappingConfig: tt.fields.SchemaMappingConfig,
 			}
-			got, err := tr.BuildInsertPrepareQuery(tt.args.columnsResponse, tt.args.values, tt.args.st, tt.args.protocolV)
+			got, err := tr.BindInsertQuery(tt.args.columnsResponse, tt.args.values, tt.args.st, tt.args.protocolV)
 			if (err != nil) != tt.wantErr {
-				t.Errorf("Translator.BuildInsertPrepareQuery() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("Translator.BindInsertQuery() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
 			if got.RowKey != tt.want.RowKey {
-				t.Errorf("Translator.BuildInsertPrepareQuery() RowKey = %v, want %v", got.RowKey, tt.want.RowKey)
+				t.Errorf("Translator.BindInsertQuery() RowKey = %v, want %v", got.RowKey, tt.want.RowKey)
 			}
 		})
 	}

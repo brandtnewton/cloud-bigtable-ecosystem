@@ -36,6 +36,7 @@ import (
 	"github.com/datastax/go-cassandra-native-protocol/message"
 	"github.com/datastax/go-cassandra-native-protocol/primitive"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"go.uber.org/zap"
 )
 
@@ -1163,17 +1164,17 @@ func TestConvertToBigtableTimestamp(t *testing.T) {
 			name:  "Valid timestamp input in micro second",
 			input: "1634232345000",
 			expected: TimestampInfo{
-				Timestamp:         bigtable.Time(time.Unix(1634232345, 0)),
+				Timestamp:         bigtable.Time(time.UnixMicro(1634232345000)),
 				HasUsingTimestamp: true,
 				Index:             0,
 			},
 			expectError: false,
 		},
 		{
-			name:  "Valid timestamp input in seconds",
+			name:  "Valid timestamp input",
 			input: "1634232345",
 			expected: TimestampInfo{
-				Timestamp:         bigtable.Time(time.Unix(1634232345, 0)),
+				Timestamp:         bigtable.Time(time.UnixMicro(1634232345)),
 				HasUsingTimestamp: true,
 				Index:             0,
 			},
@@ -1211,13 +1212,12 @@ func TestConvertToBigtableTimestamp(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			result, err := convertToBigtableTimestamp(test.input, 0)
 
-			if (err != nil) != test.expectError {
-				t.Errorf("Unexpected error status: got %v, expected error %v", err, test.expectError)
+			if test.expectError {
+				require.Error(t, err)
+				return
 			}
-
-			if !test.expectError && result != test.expected {
-				t.Errorf("Unexpected result: got %+v, expected %+v", result, test.expected)
-			}
+			require.NoError(t, err)
+			assert.Equal(t, test.expected, result)
 		})
 	}
 }
@@ -1349,7 +1349,7 @@ func TestProcessComplexUpdate(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			complexMeta, err := translator.ProcessComplexUpdate(tt.columns, tt.values, "test_table", "test_keyspace", tt.prependColumns)
+			complexMeta, err := translator.ProcessComplexUpdate(tt.columns, tt.values)
 
 			if err != tt.expectedErr {
 				t.Errorf("expected error %v, got %v", tt.expectedErr, err)
@@ -2552,7 +2552,7 @@ func TestProcessComplexUpdate_SuccessfulCases(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			gotMeta, err := translator.ProcessComplexUpdate(tt.columns, tt.values, tt.tableName, tt.keyspaceName, tt.prependColumns)
+			gotMeta, err := translator.ProcessComplexUpdate(tt.columns, tt.values)
 
 			if (err != nil) != tt.wantErr {
 				t.Errorf("ProcessComplexUpdate() error = %v, wantErr %v", err, tt.wantErr)

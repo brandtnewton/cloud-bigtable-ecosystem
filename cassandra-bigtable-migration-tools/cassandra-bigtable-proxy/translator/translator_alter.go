@@ -27,7 +27,7 @@ import (
 	"github.com/datastax/go-cassandra-native-protocol/message"
 )
 
-func (t *Translator) TranslateAlterTableToBigtable(query, sessionKeyspace string) (*AlterTableStatementMap, error) {
+func (t *Translator) TranslateAlterQuery(query, sessionKeyspace string) (*AlterTableStatementMap, error) {
 	lexer := cql.NewCqlLexer(antlr.NewInputStream(query))
 	stream := antlr.NewCommonTokenStream(lexer, antlr.TokenDefaultChannel)
 	p := cql.NewCqlParser(stream)

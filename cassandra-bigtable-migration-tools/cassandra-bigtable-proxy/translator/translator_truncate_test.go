@@ -117,7 +117,7 @@ func TestTranslateTruncateTableToBigtable(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := tr.TranslateTruncateTableToBigtable(tt.query, tt.defaultKeyspace)
+			got, err := tr.TranslateTruncateQuery(tt.query, tt.defaultKeyspace)
 			if tt.hasError {
 				assert.Error(t, err)
 			} else {

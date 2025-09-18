@@ -153,16 +153,7 @@ func setParamsFromValues(input cql.IInsertValuesSpecContext, columns []types.Col
 	return nil, nil, nil, errors.New("setParamsFromValues: No Value paramaters found")
 }
 
-// TranslateInsertQuerytoBigtable() parses Values from the Insert Query
-//
-// Parameters:
-//   - queryStr: Read the query, parse its columns, values, table name, type of query and keyspaces etc.
-//   - protocolV: Array of Column Names
-//
-// Returns: InsertQueryMapping, build the InsertQueryMapping and return it with nil value of error. In case of error
-// InsertQueryMapping will return as nil and error will contains the error object
-
-func (t *Translator) TranslateInsertQuerytoBigtable(query string, protocolV primitive.ProtocolVersion, isPreparedQuery bool, sessionKeyspace string) (*InsertQueryMapping, error) {
+func (t *Translator) TranslateInsertQuery(query string, protocolV primitive.ProtocolVersion, isPreparedQuery bool, sessionKeyspace string) (*InsertQueryMapping, error) {
 	lexer := cql.NewCqlLexer(antlr.NewInputStream(query))
 	stream := antlr.NewCommonTokenStream(lexer, antlr.TokenDefaultChannel)
 	p := cql.NewCqlParser(stream)
@@ -296,17 +287,7 @@ func (t *Translator) TranslateInsertQuerytoBigtable(query string, protocolV prim
 	return insertQueryData, nil
 }
 
-// BuildInsertPrepareQuery() reads the insert query from cache, forms the columns and its value for collection type of data.
-//
-// Parameters:
-//   - columnsResponse: List of all the columns
-//   - values: Array of values for all columns
-//   - tableName: tablename on which operation has to be performed
-//   - protocolV: cassandra protocol version
-//
-// Returns: InsertQueryMapping, build the InsertQueryMapping and return it with nil value of error. In case of error
-// InsertQueryMapping will return as nil and error will contains the error object
-func (t *Translator) BuildInsertPrepareQuery(columnsResponse []types.Column, values []*primitive.Value, st *InsertQueryMapping, protocolV primitive.ProtocolVersion) (*InsertQueryMapping, error) {
+func (t *Translator) BindInsertQuery(columnsResponse []types.Column, values []*primitive.Value, st *InsertQueryMapping, protocolV primitive.ProtocolVersion) (*InsertQueryMapping, error) {
 	var newColumns []types.Column
 	var newValues []interface{}
 	var primaryKeys []string = st.PrimaryKeys
@@ -323,7 +304,11 @@ func (t *Translator) BuildInsertPrepareQuery(columnsResponse []types.Column, val
 	if len(primaryKeys) == 0 {
 		primaryKeys = tableConfig.GetPrimaryKeys()
 	}
-	timestampInfo, err := ProcessTimestamp(st, values)
+	ttlInfo, err := bindTimestampInfo(values, st.TtlInfo)
+	if err != nil {
+		return nil, err
+	}
+	timestampInfo, err := bindTimestampInfo(values, st.TimestampInfo)
 	if err != nil {
 		return nil, err
 	}
@@ -360,6 +345,7 @@ func (t *Translator) BuildInsertPrepareQuery(columnsResponse []types.Column, val
 		PrimaryKeys:          primaryKeys,
 		RowKey:               rowKey,
 		DeleteColumnFamilies: delColumnFamily,
+		TtlInfo:              ttlInfo,
 		TimestampInfo:        timestampInfo,
 		Query:                st.Query,
 		QueryType:            st.QueryType,

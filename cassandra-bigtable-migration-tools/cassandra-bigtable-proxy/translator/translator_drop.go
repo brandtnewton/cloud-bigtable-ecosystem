@@ -34,7 +34,7 @@ func (l *antlrErrorListener) SyntaxError(recognizer antlr.Recognizer, offendingS
 	l.errors = append(l.errors, msg)
 }
 
-func (t *Translator) TranslateDropTableToBigtable(query string, sessionKeyspace string) (*DropTableStatementMap, error) {
+func (t *Translator) TranslateDropQuery(query string, sessionKeyspace string) (*DropTableStatementMap, error) {
 	lexer := cql.NewCqlLexer(antlr.NewInputStream(query))
 	errListener := &antlrErrorListener{}
 	lexer.RemoveErrorListeners()

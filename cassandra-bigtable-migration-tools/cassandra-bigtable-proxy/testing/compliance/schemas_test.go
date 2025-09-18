@@ -108,6 +108,15 @@ CREATE TABLE IF NOT EXISTS bigtabledevinstance.social_posts (
 	PRIMARY KEY (user_id, id)
 );
 `,
+		`
+CREATE TABLE IF NOT EXISTS bigtabledevinstance.compound_key_table (
+	org int,
+	id int,
+	email varchar,
+	name varchar,
+	PRIMARY KEY ((org, id), email)
+);
+`,
 	}
 
 	if testTarget == TestTargetProxy {

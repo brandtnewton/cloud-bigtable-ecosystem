@@ -16,6 +16,7 @@
 package proxy
 
 import (
+	"fmt"
 	"testing"
 	"time"
 
@@ -27,6 +28,7 @@ import (
 	"github.com/datastax/go-cassandra-native-protocol/primitive"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/require"
 	"go.uber.org/zap"
 )
 
@@ -367,41 +369,56 @@ func TestGetColumnMetadata(t *testing.T) {
 	tests := []struct {
 		name            string
 		tableConfigs    []*schemaMapping.TableConfig
-		expectedCount   int
-		expectedColumns []struct{ keyspace, table, column, kind string }
+		expectedColumns [][]interface{}
 	}{
 		{
 			name:            "Empty Metadata",
 			tableConfigs:    []*schemaMapping.TableConfig{},
-			expectedCount:   0,
-			expectedColumns: []struct{ keyspace, table, column, kind string }{},
+			expectedColumns: [][]interface{}{},
 		},
 		{
 			name: "Single Column",
 			tableConfigs: []*schemaMapping.TableConfig{
 				schemaMapping.NewTableConfig("test_keyspace", "test_table", "cf1", types.OrderedCodeEncoding, []*types.Column{
-					{Name: "id", CQLType: datatype.Uuid, IsPrimaryKey: true, KeyType: "partition"},
+					{Name: "id", CQLType: datatype.Uuid, IsPrimaryKey: true, KeyType: "partition_key", PkPrecedence: 1},
 				}),
 			},
-			expectedCount: 1,
-			expectedColumns: []struct{ keyspace, table, column, kind string }{
-				{"test_keyspace", "test_table", "id", "partition"},
+			expectedColumns: [][]interface{}{
+				{"test_keyspace", "test_table", "id", "none", "partition_key", 0, "uuid"},
 			},
 		},
 		{
 			name: "Multiple Columns",
 			tableConfigs: []*schemaMapping.TableConfig{
 				schemaMapping.NewTableConfig("keyspace1", "table1", "cf1", types.OrderedCodeEncoding, []*types.Column{
-					{Name: "id", CQLType: datatype.Uuid, IsPrimaryKey: true, KeyType: "partition"},
-					{Name: "name", CQLType: datatype.Varchar, IsPrimaryKey: true, KeyType: "clustering"},
-					{Name: "age", CQLType: datatype.Int, IsPrimaryKey: false, KeyType: "regular"},
+					{Name: "id", CQLType: datatype.Uuid, IsPrimaryKey: true, KeyType: "partition_key", PkPrecedence: 1},
+					{Name: "name", CQLType: datatype.Varchar, IsPrimaryKey: true, KeyType: "clustering", PkPrecedence: 2},
+					{Name: "age", CQLType: datatype.Int, IsPrimaryKey: false, KeyType: "regular", PkPrecedence: 0},
 				}),
 			},
-			expectedCount: 3,
-			expectedColumns: []struct{ keyspace, table, column, kind string }{
-				{"keyspace1", "table1", "id", "partition"},
-				{"keyspace1", "table1", "name", "clustering"},
-				{"keyspace1", "table1", "age", "regular"},
+			expectedColumns: [][]interface{}{
+				{"keyspace1", "table1", "age", "none", "regular", -1, "int"},
+				{"keyspace1", "table1", "id", "none", "partition_key", 0, "uuid"},
+				{"keyspace1", "table1", "name", "asc", "clustering", 0, "text"},
+			},
+		},
+		{
+			name: "Compound Primary Key",
+			tableConfigs: []*schemaMapping.TableConfig{
+				schemaMapping.NewTableConfig("keyspace1", "table1", "cf1", types.OrderedCodeEncoding, []*types.Column{
+					{Name: "id", CQLType: datatype.Uuid, IsPrimaryKey: true, KeyType: "partition_key", PkPrecedence: 1},
+					{Name: "id2", CQLType: datatype.Uuid, IsPrimaryKey: true, KeyType: "partition_key", PkPrecedence: 2},
+					{Name: "name", CQLType: datatype.Varchar, IsPrimaryKey: true, KeyType: "clustering", PkPrecedence: 3},
+					{Name: "name2", CQLType: datatype.Varchar, IsPrimaryKey: true, KeyType: "clustering", PkPrecedence: 4},
+					{Name: "age", CQLType: datatype.Int, IsPrimaryKey: false, KeyType: "regular", PkPrecedence: 0},
+				}),
+			},
+			expectedColumns: [][]interface{}{
+				{"keyspace1", "table1", "age", "none", "regular", -1, "int"},
+				{"keyspace1", "table1", "id", "none", "partition_key", 0, "uuid"},
+				{"keyspace1", "table1", "id2", "none", "partition_key", 1, "uuid"},
+				{"keyspace1", "table1", "name", "asc", "clustering", 0, "text"},
+				{"keyspace1", "table1", "name2", "asc", "clustering", 1, "text"},
 			},
 		},
 	}
@@ -411,19 +428,9 @@ func TestGetColumnMetadata(t *testing.T) {
 			schemaConfig := schemaMapping.NewSchemaMappingConfig("schema_mapping", "cf1", zap.NewNop(), tt.tableConfigs)
 			result := getColumnMetadata(schemaConfig.GetAllTables())
 
-			assert.Equal(t, tt.expectedCount, len(result), "Expected %d columns, got %d", tt.expectedCount, len(result))
-			for _, row := range result {
-				assert.Equal(t, 7, len(row), "Each row should have 7 elements")
-				keyspace, table, column, kind := row[0].(string), row[1].(string), row[2].(string), row[4].(string)
-				found := false
-				for _, expected := range tt.expectedColumns {
-					if expected.keyspace == keyspace && expected.table == table &&
-						expected.column == column && expected.kind == kind {
-						found = true
-						break
-					}
-				}
-				assert.True(t, found, "Unexpected column: %s.%s.%s (kind: %s)", keyspace, table, column, kind)
+			require.Equal(t, len(tt.expectedColumns), len(result))
+			for i := range tt.expectedColumns {
+				assert.Equal(t, tt.expectedColumns[i], result[i], fmt.Sprintf("unexpected result at index %d", i))
 			}
 		})
 	}

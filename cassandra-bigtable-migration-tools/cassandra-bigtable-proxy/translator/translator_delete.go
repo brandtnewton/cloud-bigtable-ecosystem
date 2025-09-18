@@ -334,11 +334,7 @@ func (t *Translator) TranslateDeleteQuerytoBigtable(query string, isPreparedQuer
 	// The below code checking the required primary keys and actual primary keys when we are having clause statements
 	if len(primaryKeysFound) != len(primaryKeys) && len(QueryClauses.Clauses) > 0 {
 		missingPrime := findFirstMissingKey(primaryKeys, primaryKeysFound)
-		missingPkColumnType, err := tableConfig.GetPkKeyType(missingPrime)
-		if err != nil {
-			return nil, err
-		}
-		return nil, fmt.Errorf("some %s key parts are missing: %s", missingPkColumnType, missingPrime)
+		return nil, fmt.Errorf("some primary key parts are missing: %s", missingPrime)
 	}
 
 	var rowKey string

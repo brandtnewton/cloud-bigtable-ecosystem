@@ -164,7 +164,7 @@ func TestNegativeTestCasesForUpdateOperations(t *testing.T) {
 			name:          "Update with missing primary key parts",
 			query:         "UPDATE bigtabledevinstance.user_info SET code=? where name=?",
 			params:        []interface{}{724, "Smith"},
-			expectedError: "some partition key parts are missing: age",
+			expectedError: "some primary key parts are missing: age",
 		},
 	}
 

@@ -17,6 +17,8 @@
 package proxy
 
 import (
+	"slices"
+	"strings"
 	"time"
 
 	types "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/global/types"
@@ -149,24 +151,41 @@ func getTableMetadata(tableMetadata map[string]map[string]*schemaMapping.TableCo
 
 // getColumnMetadata converts table metadata into column metadata rows
 func getColumnMetadata(tableMetadata map[string]map[string]*schemaMapping.TableConfig) [][]interface{} {
-	columnsMetadataRows := [][]interface{}{}
+	var columnsMetadataRows [][]interface{}
 	for keyspace, tables := range tableMetadata {
 		for tableName, table := range tables {
 			for columnName, column := range table.Columns {
-				kind := utilities.KEY_TYPE_REGULAR
-				if column.IsPrimaryKey {
-					kind = utilities.KEY_TYPE_PARTITION
-					if column.KeyType == utilities.KEY_TYPE_CLUSTERING {
-						kind = utilities.KEY_TYPE_CLUSTERING
-					}
+
+				position := table.GetCassandraPositionForColumn(columnName)
+
+				clusteringOrder := "none"
+				if column.KeyType == utilities.KEY_TYPE_CLUSTERING {
+					clusteringOrder = "asc"
 				}
+
+				tpe := column.CQLType.String()
+				// todo we need to store the actual type in the schema mappings table
+				if column.CQLType == datatype.Varchar {
+					tpe = "text"
+				}
+
 				// Add column metadata
 				columnsMetadataRows = append(columnsMetadataRows, []interface{}{
-					keyspace, tableName, columnName, "none", kind, 0, column.CQLType,
+					keyspace, tableName, columnName, clusteringOrder, column.KeyType, position, tpe,
 				})
 			}
 		}
 	}
+	// sort by keyspace, table name and column name for deterministic output
+	slices.SortFunc(columnsMetadataRows, func(a, b []interface{}) int {
+		if res := strings.Compare(a[0].(string), b[0].(string)); res != 0 {
+			return res
+		}
+		if res := strings.Compare(a[1].(string), b[1].(string)); res != 0 {
+			return res
+		}
+		return strings.Compare(a[2].(string), b[2].(string))
+	})
 	return columnsMetadataRows
 }
 

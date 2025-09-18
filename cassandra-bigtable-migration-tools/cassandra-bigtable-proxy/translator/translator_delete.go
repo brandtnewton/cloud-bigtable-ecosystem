@@ -293,7 +293,7 @@ func (t *Translator) TranslateDeleteQuerytoBigtable(query string, isPreparedQuer
 	if err != nil {
 		return nil, err
 	}
-	timestampInfo, err := GetTimestampInfoForRawDelete(deleteObj)
+	timestampInfo, err := GetTimestampInfo(deleteObj.UsingTimestampSpec(), 0)
 	if err != nil {
 		return nil, err
 	}

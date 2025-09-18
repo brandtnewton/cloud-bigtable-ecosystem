@@ -1747,26 +1747,18 @@ func parseWhereByClause(input cql.IWhereSpecContext, tableConfig *schemaMapping.
 // getTimestampValue extracts timestamp value from a query.
 // Parses timestamp specifications in USING TIMESTAMP clauses with validation.
 // Returns error if timestamp format is invalid or parsing fails.
-func getTimestampValue(spec cql.IUsingTtlTimestampContext) (string, error) {
-	if spec == nil {
-		return "", errors.New("invalid input")
+func getTimestampValue(spec TimeContext, index int32) (TimestampInfo, error) {
+	var value string
+	if spec != nil {
+		valLiteral := spec.DecimalLiteral()
+		if valLiteral == nil {
+			return TimestampInfo{}, errors.New("no value found for Timestamp")
+		}
+		value = trimQuotes(valLiteral.GetText())
+	} else {
+		value = questionMark
 	}
-
-	spec.KwUsing()
-	tsSpec := spec.Timestamp()
-
-	if tsSpec == nil {
-		return questionMark, nil
-	}
-	tsSpec.KwTimestamp()
-	valLiteral := tsSpec.DecimalLiteral()
-
-	if valLiteral == nil {
-		return "", errors.New("no value found for Timestamp")
-	}
-
-	resp := trimQuotes(valLiteral.GetText())
-	return resp, nil
+	return convertToBigtableTimestamp(value, index)
 }
 
 func trimQuotes(s string) string {
@@ -1779,21 +1771,57 @@ func trimQuotes(s string) string {
 	return strings.ReplaceAll(s, `''`, `'`)
 }
 
-// GetTimestampInfo retrieves timestamp information from an insert query.
+type QueryWithUsingContext interface {
+	UsingTtlTimestamp() cql.IUsingTtlTimestampContext
+}
+
+type UsingTimestampContext interface {
+	Timestamp() cql.ITimestampContext
+}
+
+type UsingTtlContext interface {
+	Ttl() cql.ITtlContext
+}
+
+type TimeContext interface {
+	DecimalLiteral() cql.IDecimalLiteralContext
+}
+
+// GetTtlAndTimestampInfo retrieves timestamp information from an insert query.
 // Extracts and processes timestamp values with validation and conversion.
 // Returns error if timestamp format is invalid or conversion fails.
-func GetTimestampInfo(queryStr string, insertObj cql.IInsertContext, index int32) (TimestampInfo, error) {
-	var timestampInfo TimestampInfo
-	if insertObj.UsingTtlTimestamp() != nil {
-		tsSpec := insertObj.UsingTtlTimestamp()
-		if tsSpec == nil {
-			return timestampInfo, errors.New("error parsing timestamp spec")
-		}
-		tsValue, err := getTimestampValue(tsSpec)
+func GetTtlAndTimestampInfo(insertObj QueryWithUsingContext, index int32) (TimestampInfo, TimestampInfo, error) {
+	var err error
+
+	tsSpec := insertObj.UsingTtlTimestamp()
+	if tsSpec == nil {
+		return TimestampInfo{}, TimestampInfo{}, nil
+	}
+
+	var ttlInfo TimestampInfo
+	if tsSpec.Ttl() != nil {
+		ttlInfo, err = getTimestampValue(tsSpec.Ttl(), index)
 		if err != nil {
-			return timestampInfo, err
+			return TimestampInfo{}, TimestampInfo{}, err
 		}
-		return convertToBigtableTimestamp(tsValue, index)
+		// increment index
+		index++
+	}
+
+	timestampInfo, err := GetTimestampInfo(tsSpec, index)
+	if err != nil {
+		return TimestampInfo{}, TimestampInfo{}, err
+	}
+	return ttlInfo, timestampInfo, nil
+}
+
+func GetTimestampInfo(tsSpec UsingTimestampContext, index int32) (TimestampInfo, error) {
+	if tsSpec.Timestamp() != nil {
+		return TimestampInfo{HasUsingTimestamp: false}, nil
+	}
+	timestampInfo, err := getTimestampValue(tsSpec.Timestamp(), index)
+	if err != nil {
+		return TimestampInfo{}, err
 	}
 	return timestampInfo, nil
 }
@@ -1811,67 +1839,9 @@ func convertToBigtableTimestamp(tsValue string, index int32) (TimestampInfo, err
 			return timestampInfo, err
 		}
 	}
-	t := time.Unix(unixTime, 0)
-	switch len(tsValue) {
-	case 13: // Milliseconds
-		t = time.Unix(0, unixTime*int64(time.Millisecond))
-	case 16: // Microseconds
-		t = time.Unix(0, unixTime*int64(time.Microsecond))
-	}
-	microsec := t.UnixMicro()
-	timestampInfo.Timestamp = bigtable.Timestamp(microsec)
+	timestampInfo.Timestamp = bigtable.Timestamp(unixTime)
 	timestampInfo.HasUsingTimestamp = true
 	timestampInfo.Index = index
-	return timestampInfo, nil
-}
-
-// GetTimestampInfoForRawDelete retrieves timestamp information for delete operations.
-// Extracts timestamp values from raw delete queries with validation.
-// Returns error if timestamp format is invalid or extraction fails.
-func GetTimestampInfoForRawDelete(deleteObj cql.IDelete_Context) (TimestampInfo, error) {
-	var timestampInfo TimestampInfo
-	hasUsingTimestamp := deleteObj.UsingTimestampSpec() != nil
-	timestampInfo.HasUsingTimestamp = false
-	if hasUsingTimestamp {
-		tsSpec := deleteObj.UsingTimestampSpec()
-		if tsSpec == nil {
-			return timestampInfo, ErrParsingTs
-		}
-
-		timestampSpec := tsSpec.Timestamp()
-		if timestampSpec == nil {
-			return timestampInfo, ErrParsingDelObj
-		}
-
-		if tsSpec.KwUsing() != nil {
-			tsSpec.KwUsing()
-		}
-		valLiteral := timestampSpec.DecimalLiteral()
-		if valLiteral == nil {
-			return timestampInfo, ErrTsNoValue
-		}
-		tsValue := valLiteral.GetText()
-		return convertToBigtableTimestamp(tsValue, 0)
-	}
-	return timestampInfo, nil
-}
-
-// GetTimestampInfoByUpdate retrieves timestamp information for update operations.
-// Extracts timestamp values from update queries with validation.
-// Returns error if timestamp format is invalid or extraction fails.
-func GetTimestampInfoByUpdate(updateObj cql.IUpdateContext) (TimestampInfo, error) {
-	var timestampInfo TimestampInfo
-	ttlTimestampObj := updateObj.UsingTtlTimestamp()
-	if ttlTimestampObj != nil {
-		tsValue, err := getTimestampValue(updateObj.UsingTtlTimestamp())
-		if err != nil {
-			return TimestampInfo{}, err
-		}
-		timestampInfo, err = convertToBigtableTimestamp(tsValue, 0)
-		if err != nil {
-			return TimestampInfo{}, err
-		}
-	}
 	return timestampInfo, nil
 }
 
@@ -1892,6 +1862,7 @@ func getTimestampInfoForPrepareQuery(values []*primitive.Value, index int32, off
 		return timestampInfo, err
 	}
 	timestamp := decode.(int64)
+	// todo fix
 	var t time.Time
 	if timestamp < 10000000000 { // Assuming it's in seconds
 		t = time.Unix(timestamp, 0)
@@ -1909,12 +1880,12 @@ func getTimestampInfoForPrepareQuery(values []*primitive.Value, index int32, off
 // Handles timestamp processing and validation with type conversion.
 // Returns error if timestamp format is invalid or processing fails.
 func ProcessTimestamp(st *InsertQueryMapping, values []*primitive.Value) (TimestampInfo, error) {
-	var timestampInfo TimestampInfo
-	timestampInfo.HasUsingTimestamp = false
 	if st.TimestampInfo.HasUsingTimestamp {
 		return getTimestampInfoForPrepareQuery(values, st.TimestampInfo.Index, 0)
 	}
-	return timestampInfo, nil
+	return TimestampInfo{
+		HasUsingTimestamp: false,
+	}, nil
 }
 
 // ProcessTimestampByUpdate processes timestamp values for update operations.

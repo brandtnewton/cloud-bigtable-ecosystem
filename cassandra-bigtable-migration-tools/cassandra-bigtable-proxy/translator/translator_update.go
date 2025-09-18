@@ -317,7 +317,7 @@ func (t *Translator) TranslateUpdateQuerytoBigtable(query string, isPreparedQuer
 		return nil, err
 	}
 
-	timestampInfo, err := GetTimestampInfoByUpdate(updateObj)
+	timestampInfo, ttlInfo, err := GetTtlAndTimestampInfo(updateObj, 0)
 	if err != nil {
 		return nil, err
 	}
@@ -483,6 +483,7 @@ func (t *Translator) TranslateUpdateQuerytoBigtable(query string, isPreparedQuer
 		ParamKeys:             setValues.ParamKeys,
 		UpdateSetValues:       setValues.UpdateSetValues,
 		PrimaryKeys:           primaryKeys,
+		TtlInfo:               ttlInfo,
 		TimestampInfo:         timestampInfo,
 		ComplexOperation:      complexMeta,
 	}

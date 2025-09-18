@@ -32,6 +32,7 @@ var (
 	DefaultColumnFamily           = "cf1"
 	DefaultAppProfileId           = "default"
 	TimestampColumnName           = "ts_column"
+	TtlColumnName                 = "ttl_column"
 )
 
 func validateCliArgs(args *types.CliArgs) error {

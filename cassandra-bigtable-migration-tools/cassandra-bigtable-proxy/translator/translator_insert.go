@@ -228,7 +228,7 @@ func (t *Translator) TranslateInsertQuerytoBigtable(query string, protocolV prim
 		}
 	}
 
-	timestampInfo, err := GetTimestampInfo(query, insertObj, int32(len(columnsResponse.Columns)))
+	ttlInfo, timestampInfo, err := GetTtlAndTimestampInfo(insertObj, int32(len(columnsResponse.Columns)))
 	if err != nil {
 		return nil, err
 	}
@@ -289,6 +289,7 @@ func (t *Translator) TranslateInsertQuerytoBigtable(query string, protocolV prim
 		PrimaryKeys:          resp.PrimayColumns,
 		RowKey:               rowKey,
 		DeleteColumnFamilies: delColumnFamily,
+		TtlInfo:              ttlInfo,
 		TimestampInfo:        timestampInfo,
 		IfNotExists:          ifNotExists,
 	}

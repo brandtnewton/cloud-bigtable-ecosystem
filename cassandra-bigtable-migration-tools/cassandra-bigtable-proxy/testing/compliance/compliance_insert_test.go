@@ -169,6 +169,21 @@ func TestInsertWithSpecialCharacters(t *testing.T) {
 		assert.Equal(t, pkName, name)
 	})
 }
+func TestInsertWithUsingTtl(t *testing.T) {
+	t.Parallel()
+	pkName, pkAge := "using_ttl", int64(40)
+	ts := time.Date(2025, 11, 18, 9, 36, 12, 0, time.UTC)
+	err := session.Query(`INSERT INTO bigtabledevinstance.user_info (name, age, code) VALUES (?, ?, ?) USING TTL ? AND TIMESTAMP ?`).
+		Bind(pkName, pkAge, 505, 3600, ts.UnixMicro()).
+		Exec()
+	require.NoError(t, err)
+	var name string
+	var writeTime int64
+	err = session.Query(`SELECT name, WRITETIME(name) FROM bigtabledevinstance.user_info WHERE name = ? AND age = ?`, pkName, pkAge).Scan(&name, &writeTime)
+	require.NoError(t, err)
+	assert.Equal(t, pkName, name)
+	assert.Equal(t, ts.UnixMicro(), writeTime)
+}
 
 func TestNegativeInsertCases(t *testing.T) {
 	t.Parallel()

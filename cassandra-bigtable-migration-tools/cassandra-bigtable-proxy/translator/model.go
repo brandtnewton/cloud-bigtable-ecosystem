@@ -148,7 +148,9 @@ type InsertQueryMapping struct {
 	ReturnMetadata       []*message.ColumnMetadata // Metadata of all columns of that table in Cassandra format
 	VariableMetadata     []*message.ColumnMetadata // Metadata of variable columns for prepared queries in Cassandra format
 	TimestampInfo        TimestampInfo
-	IfNotExists          bool
+	// TTL is not implemented, but we still need to handle it and include it in prepared queries.
+	TtlInfo     TimestampInfo
+	IfNotExists bool
 }
 
 type ColumnsResponse struct {
@@ -232,6 +234,7 @@ type UpdateQueryMapping struct {
 	DeleteColumQualifires []types.Column            // List of all map key deletion in complex update
 	ReturnMetadata        []*message.ColumnMetadata // Metadata of all columns of that table in Cassandra format
 	VariableMetadata      []*message.ColumnMetadata // Metadata of variable columns for prepared queries in Cassandra format
+	TtlInfo               TimestampInfo
 	TimestampInfo         TimestampInfo
 	IfExists              bool
 	ComplexOperation      map[string]*ComplexOperation

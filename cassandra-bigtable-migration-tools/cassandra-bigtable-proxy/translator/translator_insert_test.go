@@ -344,6 +344,110 @@ func TestTranslator_TranslateInsertQuerytoBigtable(t *testing.T) {
 			wantErr: false,
 		},
 		{
+			name: "with using ttl and timestamp",
+			args: args{
+				queryStr:        `INSERT INTO test_keyspace.test_table (column1, column10, column6) VALUES (?, ?, ?) USING TTL ? AND TIMESTAMP ?`,
+				protocolV:       primitive.ProtocolVersion4,
+				isPreparedQuery: true,
+			},
+			fields: fields{
+				SchemaMappingConfig: GetSchemaMappingConfig(types.OrderedCodeEncoding),
+			},
+			want: &InsertQueryMapping{
+				Query:     `INSERT INTO test_keyspace.test_table (column1, column10, column6) VALUES (?, ?, ?) USING TTL ? AND TIMESTAMP ?`,
+				QueryType: "INSERT",
+				Table:     "test_table",
+				Keyspace:  "test_keyspace",
+				Columns: []types.Column{
+					{Name: "column1", ColumnFamily: "cf1", CQLType: datatype.Varchar, IsPrimaryKey: true},
+					{Name: "column6", ColumnFamily: "cf1", CQLType: datatype.Int, IsPrimaryKey: false},
+					{Name: "column10", ColumnFamily: "cf1", CQLType: datatype.Varchar, IsPrimaryKey: true},
+				},
+				Values:      nil, // undefined because this is a prepared query
+				Params:      nil, // undefined because this is a prepared query
+				ParamKeys:   []string{"column1", "column10", "column6"},
+				PrimaryKeys: []string{"column1", "column10"},
+				RowKey:      "",
+				TtlInfo: TimestampInfo{
+					Timestamp:         0,
+					HasUsingTimestamp: true,
+					Index:             3,
+				},
+				TimestampInfo: TimestampInfo{
+					Timestamp:         0,
+					HasUsingTimestamp: true,
+					Index:             4,
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "with using timestamp",
+			args: args{
+				queryStr:        `INSERT INTO test_keyspace.test_table (column1, column10, column6) VALUES (?, ?, ?) USING TIMESTAMP ?`,
+				protocolV:       primitive.ProtocolVersion4,
+				isPreparedQuery: true,
+			},
+			fields: fields{
+				SchemaMappingConfig: GetSchemaMappingConfig(types.OrderedCodeEncoding),
+			},
+			want: &InsertQueryMapping{
+				Query:     `INSERT INTO test_keyspace.test_table (column1, column10, column6) VALUES (?, ?, ?) USING TIMESTAMP ?`,
+				QueryType: "INSERT",
+				Table:     "test_table",
+				Keyspace:  "test_keyspace",
+				Columns: []types.Column{
+					{Name: "column1", ColumnFamily: "cf1", CQLType: datatype.Varchar, IsPrimaryKey: true},
+					{Name: "column6", ColumnFamily: "cf1", CQLType: datatype.Int, IsPrimaryKey: false},
+					{Name: "column10", ColumnFamily: "cf1", CQLType: datatype.Varchar, IsPrimaryKey: true},
+				},
+				Values:      nil, // undefined because this is a prepared query
+				Params:      nil, // undefined because this is a prepared query
+				ParamKeys:   []string{"column1", "column10", "column6"},
+				PrimaryKeys: []string{"column1", "column10"},
+				RowKey:      "",
+				TimestampInfo: TimestampInfo{
+					Timestamp:         0,
+					HasUsingTimestamp: true,
+					Index:             3,
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "with using ttl",
+			args: args{
+				queryStr:        `INSERT INTO test_keyspace.test_table (column1, column10, column6) VALUES (?, ?, ?) USING TTL ?`,
+				protocolV:       primitive.ProtocolVersion4,
+				isPreparedQuery: true,
+			},
+			fields: fields{
+				SchemaMappingConfig: GetSchemaMappingConfig(types.OrderedCodeEncoding),
+			},
+			want: &InsertQueryMapping{
+				Query:     `INSERT INTO test_keyspace.test_table (column1, column10, column6) VALUES (?, ?, ?) USING TTL ?`,
+				QueryType: "INSERT",
+				Table:     "test_table",
+				Keyspace:  "test_keyspace",
+				Columns: []types.Column{
+					{Name: "column1", ColumnFamily: "cf1", CQLType: datatype.Varchar, IsPrimaryKey: true},
+					{Name: "column6", ColumnFamily: "cf1", CQLType: datatype.Int, IsPrimaryKey: false},
+					{Name: "column10", ColumnFamily: "cf1", CQLType: datatype.Varchar, IsPrimaryKey: true},
+				},
+				Values:      nil, // undefined because this is a prepared query
+				Params:      nil, // undefined because this is a prepared query
+				ParamKeys:   []string{"column1", "column10", "column6"},
+				PrimaryKeys: []string{"column1", "column10"},
+				RowKey:      "",
+				TtlInfo: TimestampInfo{
+					Timestamp:         0,
+					HasUsingTimestamp: true,
+					Index:             3,
+				},
+			},
+			wantErr: false,
+		},
+		{
 			name: "success",
 			args: args{
 				queryStr:        query,

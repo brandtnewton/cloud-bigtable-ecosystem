@@ -493,6 +493,16 @@ func addSystemKeyspacesToMetadata(tableMetadata map[string]map[string]*schemaMap
 //
 //	if the query uses a timestamp.
 func getTimestampMetadata(insertQueryMetadata translator.InsertQueryMapping, columnMetadataList []*message.ColumnMetadata) []*message.ColumnMetadata {
+	if insertQueryMetadata.TtlInfo.HasUsingTimestamp {
+		metadata := message.ColumnMetadata{
+			Keyspace: insertQueryMetadata.Keyspace,
+			Table:    insertQueryMetadata.Table,
+			Name:     config.TtlColumnName,
+			Index:    insertQueryMetadata.TtlInfo.Index,
+			Type:     datatype.Bigint,
+		}
+		columnMetadataList = append(columnMetadataList, &metadata)
+	}
 	if insertQueryMetadata.TimestampInfo.HasUsingTimestamp {
 		metadata := message.ColumnMetadata{
 			Keyspace: insertQueryMetadata.Keyspace,

@@ -19,6 +19,7 @@ import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
+import io.grpc.ClientInterceptor;
 import java.io.File;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
@@ -102,7 +103,7 @@ public abstract class BaseKafkaConnectIT extends BaseIT {
 
     Map<String, String> workerProps = new HashMap<>();
     String pluginPath = Objects.requireNonNull(System.getenv(PLUGIN_PATH_ENV_VAR_NAME));
-    assertTrue(new File(pluginPath).isDirectory());
+    assertTrue(String.format("invalid plugin dir: %s", pluginPath), new File(pluginPath).isDirectory());
     workerProps.put(WorkerConfig.PLUGIN_PATH_CONFIG, pluginPath);
     workerProps.put(WorkerConfig.OFFSET_COMMIT_INTERVAL_MS_CONFIG, Long.toString(10000));
     workerProps.put(WorkerConfig.PLUGIN_DISCOVERY_CONFIG, PluginDiscoveryMode.HYBRID_WARN.name());

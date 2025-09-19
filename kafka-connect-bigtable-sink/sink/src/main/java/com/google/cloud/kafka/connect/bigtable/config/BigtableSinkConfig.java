@@ -17,6 +17,7 @@ package com.google.cloud.kafka.connect.bigtable.config;
 
 import com.google.api.gax.core.CredentialsProvider;
 import com.google.api.gax.core.FixedCredentialsProvider;
+import com.google.api.gax.grpc.InstantiatingGrpcChannelProvider;
 import com.google.api.gax.retrying.RetrySettings;
 import com.google.api.gax.rpc.FixedHeaderProvider;
 import com.google.api.gax.rpc.HeaderProvider;
@@ -28,11 +29,13 @@ import com.google.cloud.bigtable.admin.v2.stub.BigtableTableAdminStubSettings;
 import com.google.cloud.bigtable.data.v2.BigtableDataClient;
 import com.google.cloud.bigtable.data.v2.BigtableDataSettings;
 import com.google.cloud.bigtable.data.v2.stub.EnhancedBigtableStubSettings;
+import com.google.cloud.kafka.connect.bigtable.BigtableInterceptor;
 import com.google.cloud.kafka.connect.bigtable.version.PackageMetadata;
 import com.google.cloud.kafka.connect.bigtable.wrappers.BigtableTableAdminClientWrapper;
 import com.google.cloud.kafka.connect.bigtable.wrappers.BigtableTableAdminClientInterface;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Sets;
+import io.grpc.ClientInterceptor;
 import java.io.ByteArrayInputStream;
 import java.io.FileInputStream;
 import java.io.IOException;
@@ -56,12 +59,13 @@ import org.threeten.bp.Duration;
 import org.threeten.bp.temporal.ChronoUnit;
 
 /**
- * A class defining the configuration of {@link
- * com.google.cloud.kafka.connect.bigtable.BigtableSinkConnector}.
+ * A class defining the configuration of
+ * {@link com.google.cloud.kafka.connect.bigtable.BigtableSinkConnector}.
  *
  * <p>It's responsible for the validation and parsing of the user-provided values.
  */
 public class BigtableSinkConfig extends AbstractConfig {
+
   public static final String GCP_PROJECT_ID_CONFIG = "gcp.bigtable.project.id";
   public static final String GCP_CREDENTIALS_PATH_CONFIG = "gcp.bigtable.credentials.path";
   public static final String GCP_CREDENTIALS_JSON_CONFIG = "gcp.bigtable.credentials.json";
@@ -96,12 +100,16 @@ public class BigtableSinkConfig extends AbstractConfig {
     super(definition, properties);
   }
 
+  public BigtableSinkConfig(Map<String, String> properties) {
+    this(properties, null);
+  }
+
   /**
    * The main constructor.
    *
    * @param properties The properties provided by the user.
    */
-  public BigtableSinkConfig(Map<String, String> properties) {
+  public BigtableSinkConfig(Map<String, String> properties, ClientInterceptor clientInterceptor) {
     this(getDefinition(), properties);
   }
 
@@ -130,7 +138,7 @@ public class BigtableSinkConfig extends AbstractConfig {
     Map<String, ConfigValue> validationResult = getDefinition().validateAll(props);
 
     if (validationResult.values().stream().allMatch(v -> v.errorMessages().isEmpty())) {
-      BigtableSinkConfig config = new BigtableSinkConfig(props);
+      BigtableSinkConfig config = new BigtableSinkConfig(props, null);
 
       // Note that we only need to verify the properties we define, the generic Sink configuration
       // is handled in SinkConnectorConfig::validate().
@@ -440,8 +448,8 @@ public class BigtableSinkConfig extends AbstractConfig {
   }
 
   /**
-   * @return {@link BigtableTableAdminClientInterface} connected to a Cloud Bigtable instance configured as
-   *     described in {@link BigtableSinkConfig#getDefinition()}.
+   * @return {@link BigtableTableAdminClientInterface} connected to a Cloud Bigtable instance
+   *     configured as described in {@link BigtableSinkConfig#getDefinition()}.
    */
   public BigtableTableAdminClientInterface getBigtableAdminClient() {
     Duration totalTimeout = getTotalRetryTimeout();
@@ -497,7 +505,8 @@ public class BigtableSinkConfig extends AbstractConfig {
                     StatusCode.Code.FAILED_PRECONDITION)));
 
     try {
-      return new BigtableTableAdminClientWrapper(BigtableTableAdminClient.create(adminSettingsBuilder.build()));
+      return new BigtableTableAdminClientWrapper(
+          BigtableTableAdminClient.create(adminSettingsBuilder.build()));
     } catch (IOException e) {
       throw new RetriableException(e);
     }
@@ -537,6 +546,14 @@ public class BigtableSinkConfig extends AbstractConfig {
     dataStubSettings.readRowSettings().setRetrySettings(retrySettings);
     dataStubSettings.readRowsSettings().setRetrySettings(retrySettings);
     dataStubSettings.bulkReadRowsSettings().setRetrySettings(retrySettings);
+
+
+
+    ClientInterceptor clientInterceptor = new BigtableInterceptor(3, java.time.Duration.ofSeconds(5), "google.bigtable.v2.Bigtable/MutateRows");
+    InstantiatingGrpcChannelProvider.Builder channelProviderBuilder = InstantiatingGrpcChannelProvider.newBuilder();
+    channelProviderBuilder.setChannelConfigurator(
+        managedChannelBuilder -> managedChannelBuilder.intercept(clientInterceptor));
+    dataStubSettings.setTransportChannelProvider(channelProviderBuilder.build());
 
     // After a schema modification, Bigtable API sometimes transiently returns NOT_FOUND and
     // FAILED_PRECONDITION errors. We just need to retry them. We do it if - and only if - the
@@ -628,8 +645,8 @@ public class BigtableSinkConfig extends AbstractConfig {
   }
 
   /**
-   * @return Maximal time for Cloud Bigtable clients as described in {@link
-   *     BigtableSinkConfig#getDefinition()}.
+   * @return Maximal time for Cloud Bigtable clients as described in
+   *     {@link BigtableSinkConfig#getDefinition()}.
    */
   private Duration getTotalRetryTimeout() {
     return Duration.of(getLong(RETRY_TIMEOUT_MILLIS_CONFIG), ChronoUnit.MILLIS);
@@ -639,10 +656,10 @@ public class BigtableSinkConfig extends AbstractConfig {
    * Extracts typed enum value from this object.
    *
    * @param configName Enum parameter name in {@link BigtableSinkConfig}.
-   * @param converter Function that parses parameter value into an enum value. It's assumed to throw
-   *     only {@link NullPointerException} and {@link IllegalArgumentException}.
-   * @return Parsed enum value.
+   * @param converter Function that parses parameter value into an enum value. It's assumed to
+   *     throw only {@link NullPointerException} and {@link IllegalArgumentException}.
    * @param <T> Enum type.
+   * @return Parsed enum value.
    */
   private <T> T getEnum(String configName, Function<String, T> converter) {
     String s = this.getString(configName);
@@ -660,8 +677,8 @@ public class BigtableSinkConfig extends AbstractConfig {
 
   /**
    * @return {@link Optional#empty()} if the user didn't configure the Cloud Bigtable credentials,
-   *     {@link Optional} containing {@link CredentialsProvider} configured as described in {@link
-   *     BigtableSinkConfig#getDefinition()} otherwise.
+   *     {@link Optional} containing {@link CredentialsProvider} configured as described in
+   *     {@link BigtableSinkConfig#getDefinition()} otherwise.
    */
   protected Optional<CredentialsProvider> getUserConfiguredBigtableCredentialsProvider() {
     String credentialsJson = getString(GCP_CREDENTIALS_JSON_CONFIG);

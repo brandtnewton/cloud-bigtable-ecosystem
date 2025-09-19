@@ -32,7 +32,7 @@ public class BigtableClientIT extends BaseIT {
   @Test
   public void testClient() {
     Map<String, String> props = baseConnectorProps();
-    BigtableSinkConfig config = new BigtableSinkConfig(props);
+    BigtableSinkConfig config = new BigtableSinkConfig(props, null);
 
     BigtableTableAdminClientInterface admin = config.getBigtableAdminClient();
     String tableId = getTestCaseId() + System.currentTimeMillis();

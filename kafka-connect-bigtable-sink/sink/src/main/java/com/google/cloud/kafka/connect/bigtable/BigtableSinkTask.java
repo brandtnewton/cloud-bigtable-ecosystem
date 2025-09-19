@@ -16,7 +16,6 @@
 package com.google.cloud.kafka.connect.bigtable;
 
 import com.google.api.core.ApiFuture;
-import com.google.api.core.ApiFutures;
 import com.google.api.gax.batching.Batcher;
 import com.google.api.gax.rpc.ApiException;
 import com.google.cloud.bigtable.data.v2.BigtableDataClient;
@@ -47,11 +46,13 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
-import java.util.stream.Collectors;
+import org.apache.kafka.clients.consumer.OffsetAndMetadata;
+import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.connect.data.SchemaAndValue;
 import org.apache.kafka.connect.errors.ConnectException;
 import org.apache.kafka.connect.errors.DataException;
@@ -67,19 +68,23 @@ import org.slf4j.LoggerFactory;
  * Cloud Bigtable.
  */
 public class BigtableSinkTask extends SinkTask {
+
   private BigtableSinkTaskConfig config;
   private BigtableDataClient bigtableData;
   private BigtableTableAdminClientInterface bigtableAdmin;
   private KeyMapper keyMapper;
   private ValueMapper valueMapper;
   private BigtableSchemaManager schemaManager;
-  @VisibleForTesting protected final Map<String, Batcher<RowMutationEntry, Void>> batchers;
-  @VisibleForTesting protected Logger logger = LoggerFactory.getLogger(BigtableSinkTask.class);
+  private volatile boolean stopped;
+  @VisibleForTesting
+  protected final BatcherManager batchers;
+  @VisibleForTesting
+  protected Logger logger = LoggerFactory.getLogger(BigtableSinkTask.class);
 
   /**
    * A default empty constructor. Initialization methods such as {@link BigtableSinkTask#start(Map)}
-   * or {@link SinkTask#initialize(SinkTaskContext)} must be called before {@link
-   * BigtableSinkTask#put(Collection)} can be called. Kafka Connect handles it well.
+   * or {@link SinkTask#initialize(SinkTaskContext)} must be called before
+   * {@link BigtableSinkTask#put(Collection)} can be called. Kafka Connect handles it well.
    */
   public BigtableSinkTask() {
     this(null, null, null, null, null, null, null);
@@ -102,11 +107,12 @@ public class BigtableSinkTask extends SinkTask {
     this.valueMapper = valueMapper;
     this.schemaManager = schemaManager;
     this.context = context;
-    this.batchers = new HashMap<>();
+    this.batchers = new BatcherManager(bigtableData);
   }
 
   @Override
   public void start(Map<String, String> props) {
+    stopped = false;
     config = new BigtableSinkTaskConfig(props);
     logger =
         LoggerFactory.getLogger(
@@ -130,13 +136,11 @@ public class BigtableSinkTask extends SinkTask {
   public void stop() {
     logger.trace("stop()");
     try {
-      Iterable<ApiFuture<Void>> batcherCloses =
-          batchers.values().stream().map(Batcher::closeAsync).collect(Collectors.toList());
-      ApiFutures.allAsList(batcherCloses).get();
+      batchers.FlushAll();
     } catch (ExecutionException | InterruptedException e) {
       logger.warn("Error closing Cloud Bigtable batchers.", e);
     } finally {
-      batchers.clear();
+      stopped = true;
     }
     if (bigtableAdmin != null) {
       try {
@@ -152,6 +156,25 @@ public class BigtableSinkTask extends SinkTask {
         logger.warn("Error closing Cloud Bigtable data client.", e);
       }
     }
+  }
+
+  @Override
+  public void flush(Map<TopicPartition, OffsetAndMetadata> currentOffsets) {
+    // Return immediately here since the executor will already be shutdown
+    if (stopped) {
+      // Still have to check for errors in order to prevent offsets being committed for records that
+      // we've failed to write
+      executor.maybeThrowEncounteredError();
+      return;
+    }
+
+    try {
+      batchers.FlushAll();
+    } catch (InterruptedException | ExecutionException e) {
+      throw new RuntimeException("Failed to flush outstanding records", e);
+    }
+
+    topicPartitionManager.resumeAll();
   }
 
   @Override
@@ -313,8 +336,8 @@ public class BigtableSinkTask extends SinkTask {
    * Generates a {@link Map} with desired key ordering.
    *
    * @param map A {@link Map} to be sorted.
-   * @param order A {@link Collection} defining desired order of the output {@link Map}. Must be a
-   *     superset of {@code mutations}'s key set.
+   * @param order A {@link Collection} defining desired order of the output {@link Map}. Must be
+   *     a superset of {@code mutations}'s key set.
    * @return A {@link Map} with the same keys and corresponding values as {@code map} with the same
    *     key ordering as {@code order}.
    */
@@ -406,12 +429,7 @@ public class BigtableSinkTask extends SinkTask {
         performUpsertBatch(batch, perRecordResults);
       }
     } finally {
-      for (Batcher<RowMutationEntry, Void> b : batchers.values()) {
-        // We flush the batchers to ensure that no unsent requests remain in the batchers
-        // after this method returns to make the behavior more predictable.
-        // We flush asynchronously and await the results instead.
-        b.sendOutstanding();
-      }
+      batchers.SendOutstanding();
     }
   }
 
@@ -429,17 +447,10 @@ public class BigtableSinkTask extends SinkTask {
     for (Map.Entry<SinkRecord, MutationData> recordEntry : batch) {
       SinkRecord record = recordEntry.getKey();
       MutationData recordMutationData = recordEntry.getValue();
-      String recordTableName = recordMutationData.getTargetTable();
-
-      Batcher<RowMutationEntry, Void> batcher =
-          batchers.computeIfAbsent(recordTableName, (k) -> bigtableData.newBulkMutationBatcher(k));
-      perRecordResults.put(record, batcher.add(recordMutationData.getUpsertMutation()));
+      ApiFuture<Void> put = batchers.Put(recordMutationData);
+      perRecordResults.put(record, put);
     }
-    for (Batcher<RowMutationEntry, Void> batcher : batchers.values()) {
-      // We must flush the batchers to respect CONFIG_MAX_BATCH_SIZE.
-      // We flush asynchronously and await the results instead.
-      batcher.sendOutstanding();
-    }
+    batchers.SendOutstanding();
   }
 
   /**

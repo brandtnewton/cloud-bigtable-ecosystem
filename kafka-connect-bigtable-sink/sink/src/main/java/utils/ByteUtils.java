@@ -29,7 +29,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.google.cloud.kafka.connect.bigtable.utils;
+package utils;
 
 import java.io.UnsupportedEncodingException;
 import java.math.BigDecimal;

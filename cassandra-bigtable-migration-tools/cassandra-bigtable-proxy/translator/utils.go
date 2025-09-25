@@ -1378,6 +1378,33 @@ func buildWhereClause(clauses []types.Clause, tableConfig *schemaMapping.TableCo
 	return whereClause, nil
 }
 
+func validateComplexOperation(tableConfig *schemaMapping.TableConfig, mapping *UpdateQueryMapping) error {
+	for colName, op := range mapping.ComplexOperation {
+		col, err := tableConfig.GetColumn(colName)
+		if err != nil {
+			return err
+		}
+		if col.TypeInfo.IsFrozen && (op.PrependList || op.Append || len(op.ListDeleteValues) > 0 || op.mapKey != nil) {
+			return errors.New("cannot partially update frozen columns")
+		}
+	}
+
+	for _, i := range mapping.Params {
+		ca, ok := i.(ComplexAssignment)
+		if ok {
+			col, err := tableConfig.GetColumn(ca.Column)
+			if err != nil {
+				return err
+			}
+			if col.TypeInfo.IsFrozen {
+				return errors.New("cannot partially update frozen columns")
+			}
+		}
+	}
+
+	return nil
+}
+
 // castColumns handles column type casting in queries.
 // Manages type conversion for column values with validation.
 // Returns error if column type is invalid or conversion fails.

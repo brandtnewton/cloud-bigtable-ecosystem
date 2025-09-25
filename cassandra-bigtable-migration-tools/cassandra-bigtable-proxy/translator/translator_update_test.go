@@ -411,6 +411,38 @@ func TestTranslator_TranslateUpdateQuerytoBigtable(t *testing.T) {
 			},
 		},
 		{
+			name: "update with frozen list assignment",
+			args: args{
+				query: "UPDATE test_keyspace.test_table SET frozen_list_text = ['item1', 'item2'] WHERE column1 = 'testText' AND column10 = 'column10';",
+			},
+			wantErr: false,
+			want: &UpdateQueryMapping{
+				ParamKeys: []string{"set1", "value1", "value2"},
+				Params: map[string]interface{}{
+					"set1":   []string{"item1", "item2"},
+					"value1": "testText",
+					"value2": "column10",
+				},
+				RowKey:           "testText\x00\x01column10",
+				Keyspace:         "test_keyspace",
+				ComplexOperation: map[string]*ComplexOperation{},
+			},
+		},
+		{
+			name: "append with frozen list fails",
+			args: args{
+				query: "UPDATE test_keyspace.test_table SET frozen_list_text = frozen_list_text + ['item1'] WHERE column1 = 'testText' AND column10 = 'column10';",
+			},
+			wantErr: true,
+		},
+		{
+			name: "prepend with frozen list fails",
+			args: args{
+				query: "UPDATE test_keyspace.test_table SET frozen_list_text = ['item1'] + frozen_list_text WHERE column1 = 'testText' AND column10 = 'column10';",
+			},
+			wantErr: true,
+		},
+		{
 			name: "update with map assignment",
 			args: args{
 				query: "UPDATE test_keyspace.test_table SET column8 = {'key1': true, 'key2': false} WHERE column1 = 'testText' AND column10 = 'column10';",
@@ -582,14 +614,8 @@ func TestTranslator_TranslateUpdateQuerytoBigtable(t *testing.T) {
 				assert.Error(t, err)
 				return
 			}
-			if got != nil && len(got.RowKey) > 0 && !reflect.DeepEqual(got.RowKey, tt.want.RowKey) {
-				t.Errorf("Translator.TranslateUpdateQuerytoBigtable() = %v, want %v", got.RowKey, tt.want.RowKey)
-			}
-
-			if got != nil && !reflect.DeepEqual(got.Keyspace, tt.want.Keyspace) {
-				t.Errorf("Translator.TranslateUpdateQuerytoBigtable() = %v, want %v", got.Keyspace, tt.want.Keyspace)
-			}
-
+			assert.Equal(t, tt.want.RowKey, got.RowKey)
+			assert.Equal(t, tt.want.Keyspace, got.Keyspace)
 			assert.Equal(t, tt.want.ComplexOperation, got.ComplexOperation)
 			assert.Equal(t, tt.want.Params, got.Params)
 		})

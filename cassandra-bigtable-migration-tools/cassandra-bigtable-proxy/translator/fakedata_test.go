@@ -51,6 +51,7 @@ func GetSchemaMappingConfig(intRowKeyEncoding types.IntRowKeyEncodingType) *sche
 		{Name: "map_text_text", TypeInfo: types.NewCqlTypeInfoFromType(datatype.NewMapType(datatype.Varchar, datatype.Varchar)), KeyType: utilities.KEY_TYPE_REGULAR},
 		{Name: "list_text", TypeInfo: types.NewCqlTypeInfoFromType(datatype.NewListType(datatype.Varchar)), KeyType: utilities.KEY_TYPE_REGULAR},
 		{Name: "counter_col", TypeInfo: types.NewCqlTypeInfoFromType(datatype.Counter), KeyType: utilities.KEY_TYPE_REGULAR},
+		{Name: "frozen_list_text", TypeInfo: types.NewCqlTypeInfo("frozen<list<text>>", datatype.NewListType(datatype.Varchar), true), KeyType: utilities.KEY_TYPE_REGULAR},
 	}
 
 	intTableColumns := []*types.Column{

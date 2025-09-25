@@ -7,6 +7,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// todo frozen upsert via insert
 // TestInsertAndSelectFrozenListInt tests the frozen<list<int>> column.
 func TestInsertAndSelectFrozenListInt(t *testing.T) {
 	t.Parallel()

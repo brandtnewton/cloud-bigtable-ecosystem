@@ -31,10 +31,10 @@ import (
 func TestTranslateAlterTableToBigtable(t *testing.T) {
 
 	userInfoTable := schemaMapping.NewTableConfig("test_keyspace", "user_info", "cf1", types.OrderedCodeEncoding, []*types.Column{
-		{Name: "name", TypeInfo: datatype.Varchar, KeyType: utilities.KEY_TYPE_PARTITION, PkPrecedence: 1},
-		{Name: "age", TypeInfo: datatype.Int, KeyType: utilities.KEY_TYPE_CLUSTERING, PkPrecedence: 2},
-		{Name: "email", TypeInfo: datatype.Varchar, KeyType: utilities.KEY_TYPE_REGULAR, PkPrecedence: 0},
-		{Name: "username", TypeInfo: datatype.Varchar, KeyType: utilities.KEY_TYPE_REGULAR, PkPrecedence: 0},
+		{Name: "name", TypeInfo: types.NewCqlTypeInfoFromType(datatype.Varchar), KeyType: utilities.KEY_TYPE_PARTITION, PkPrecedence: 1},
+		{Name: "age", TypeInfo: types.NewCqlTypeInfoFromType(datatype.Int), KeyType: utilities.KEY_TYPE_CLUSTERING, PkPrecedence: 2},
+		{Name: "email", TypeInfo: types.NewCqlTypeInfoFromType(datatype.Varchar), KeyType: utilities.KEY_TYPE_REGULAR, PkPrecedence: 0},
+		{Name: "username", TypeInfo: types.NewCqlTypeInfoFromType(datatype.Varchar), KeyType: utilities.KEY_TYPE_REGULAR, PkPrecedence: 0},
 	})
 
 	var tests = []struct {
@@ -56,7 +56,7 @@ func TestTranslateAlterTableToBigtable(t *testing.T) {
 				AddColumns: []types.CreateColumn{{
 					Name:  "firstname",
 					Index: 0,
-					Type:  datatype.Varchar,
+					Type:  types.NewCqlTypeInfoFromType(datatype.Varchar),
 				}},
 			},
 			error:           "",
@@ -73,7 +73,7 @@ func TestTranslateAlterTableToBigtable(t *testing.T) {
 				AddColumns: []types.CreateColumn{{
 					Name:  "firstname",
 					Index: 0,
-					Type:  datatype.Varchar,
+					Type:  types.NewCqlTypeInfoFromType(datatype.Varchar),
 				}},
 			},
 			error:           "",
@@ -106,11 +106,11 @@ func TestTranslateAlterTableToBigtable(t *testing.T) {
 				AddColumns: []types.CreateColumn{{
 					Name:  "firstname",
 					Index: 0,
-					Type:  datatype.Varchar,
+					Type:  types.NewCqlTypeInfoFromType(datatype.Varchar),
 				}, {
 					Name:  "number_of_cats",
 					Index: 1,
-					Type:  datatype.Int,
+					Type:  types.NewCqlTypeInfoFromType(datatype.Int),
 				}},
 			},
 			error:           "",
@@ -127,11 +127,11 @@ func TestTranslateAlterTableToBigtable(t *testing.T) {
 				AddColumns: []types.CreateColumn{{
 					Name:  "firstname",
 					Index: 0,
-					Type:  datatype.Varchar,
+					Type:  types.NewCqlTypeInfoFromType(datatype.Varchar),
 				}, {
 					Name:  "number_of_toes",
 					Index: 1,
-					Type:  datatype.Int,
+					Type:  types.NewCqlTypeInfoFromType(datatype.Int),
 				}},
 			},
 			error:           "",

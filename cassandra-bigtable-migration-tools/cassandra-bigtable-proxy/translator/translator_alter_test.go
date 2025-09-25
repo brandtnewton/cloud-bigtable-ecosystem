@@ -31,10 +31,10 @@ import (
 func TestTranslateAlterTableToBigtable(t *testing.T) {
 
 	userInfoTable := schemaMapping.NewTableConfig("test_keyspace", "user_info", "cf1", types.OrderedCodeEncoding, []*types.Column{
-		{Name: "name", CQLType: datatype.Varchar, KeyType: utilities.KEY_TYPE_PARTITION, PkPrecedence: 1},
-		{Name: "age", CQLType: datatype.Int, KeyType: utilities.KEY_TYPE_CLUSTERING, PkPrecedence: 2},
-		{Name: "email", CQLType: datatype.Varchar, KeyType: utilities.KEY_TYPE_REGULAR, PkPrecedence: 0},
-		{Name: "username", CQLType: datatype.Varchar, KeyType: utilities.KEY_TYPE_REGULAR, PkPrecedence: 0},
+		{Name: "name", TypeInfo: datatype.Varchar, KeyType: utilities.KEY_TYPE_PARTITION, PkPrecedence: 1},
+		{Name: "age", TypeInfo: datatype.Int, KeyType: utilities.KEY_TYPE_CLUSTERING, PkPrecedence: 2},
+		{Name: "email", TypeInfo: datatype.Varchar, KeyType: utilities.KEY_TYPE_REGULAR, PkPrecedence: 0},
+		{Name: "username", TypeInfo: datatype.Varchar, KeyType: utilities.KEY_TYPE_REGULAR, PkPrecedence: 0},
 	})
 
 	var tests = []struct {

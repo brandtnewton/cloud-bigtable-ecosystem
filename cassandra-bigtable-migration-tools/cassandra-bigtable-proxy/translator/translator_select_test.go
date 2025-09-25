@@ -1396,9 +1396,9 @@ func Test_GetBigtableSelectQuery(t *testing.T) {
 			translator: func() *Translator {
 				// REFACTOR: Use constructor functions
 				cols := []*types.Column{
-					{Name: "column1", CQLType: datatype.Varchar, KeyType: utilities.KEY_TYPE_PARTITION},
-					{Name: "column2", CQLType: datatype.Bigint, KeyType: utilities.KEY_TYPE_REGULAR},
-					{Name: "column3", CQLType: datatype.Bigint, KeyType: utilities.KEY_TYPE_PARTITION},
+					{Name: "column1", TypeInfo: datatype.Varchar, KeyType: utilities.KEY_TYPE_PARTITION},
+					{Name: "column2", TypeInfo: datatype.Bigint, KeyType: utilities.KEY_TYPE_REGULAR},
+					{Name: "column3", TypeInfo: datatype.Bigint, KeyType: utilities.KEY_TYPE_PARTITION},
 				}
 				tableCfg := schemaMapping.NewTableConfig("test_keyspace", "test_table", "cf1", types.OrderedCodeEncoding, cols)
 				schemaCfg := schemaMapping.NewSchemaMappingConfig("schema_mapping", "cf1", zap.NewNop(), []*schemaMapping.TableConfig{tableCfg})
@@ -1437,9 +1437,9 @@ func Test_GetBigtableSelectQuery(t *testing.T) {
 			translator: func() *Translator {
 				// REFACTOR: Use constructor functions
 				cols := []*types.Column{
-					{Name: "column1", CQLType: datatype.Varchar, KeyType: utilities.KEY_TYPE_PARTITION},
-					{Name: "column2", CQLType: datatype.Bigint, KeyType: utilities.KEY_TYPE_REGULAR},
-					{Name: "column3", CQLType: datatype.Bigint, KeyType: utilities.KEY_TYPE_REGULAR},
+					{Name: "column1", TypeInfo: datatype.Varchar, KeyType: utilities.KEY_TYPE_PARTITION},
+					{Name: "column2", TypeInfo: datatype.Bigint, KeyType: utilities.KEY_TYPE_REGULAR},
+					{Name: "column3", TypeInfo: datatype.Bigint, KeyType: utilities.KEY_TYPE_REGULAR},
 				}
 				tableCfg := schemaMapping.NewTableConfig("test_keyspace", "test_table", "cf1", types.OrderedCodeEncoding, cols)
 				schemaCfg := schemaMapping.NewSchemaMappingConfig("schema_mapping", "cf1", zap.NewNop(), []*schemaMapping.TableConfig{tableCfg})
@@ -1473,7 +1473,7 @@ func Test_GetBigtableSelectQuery(t *testing.T) {
 			translator: func() *Translator {
 				// REFACTOR: Use constructor functions
 				cols := []*types.Column{
-					{Name: "column1", CQLType: datatype.Bigint, KeyType: utilities.KEY_TYPE_PARTITION},
+					{Name: "column1", TypeInfo: datatype.Bigint, KeyType: utilities.KEY_TYPE_PARTITION},
 				}
 				tableCfg := schemaMapping.NewTableConfig("test_keyspace", "test_table", "cf1", types.OrderedCodeEncoding, cols)
 				schemaCfg := schemaMapping.NewSchemaMappingConfig("schema_mapping", "cf1", zap.NewNop(), []*schemaMapping.TableConfig{tableCfg})
@@ -1513,8 +1513,8 @@ func Test_GetBigtableSelectQuery(t *testing.T) {
 			translator: func() *Translator {
 				// REFACTOR: Use constructor functions
 				cols := []*types.Column{
-					{Name: "column1", CQLType: datatype.Varchar, KeyType: utilities.KEY_TYPE_PARTITION},
-					{Name: "column2", CQLType: datatype.Bigint, KeyType: utilities.KEY_TYPE_REGULAR},
+					{Name: "column1", TypeInfo: datatype.Varchar, KeyType: utilities.KEY_TYPE_PARTITION},
+					{Name: "column2", TypeInfo: datatype.Bigint, KeyType: utilities.KEY_TYPE_REGULAR},
 				}
 				tableCfg := schemaMapping.NewTableConfig("test_keyspace", "test_table", "cf1", types.OrderedCodeEncoding, cols)
 				schemaCfg := schemaMapping.NewSchemaMappingConfig("schema_mapping", "cf1", zap.NewNop(), []*schemaMapping.TableConfig{tableCfg})
@@ -1546,8 +1546,8 @@ func Test_GetBigtableSelectQuery(t *testing.T) {
 			translator: func() *Translator {
 				// REFACTOR: Use constructor functions
 				cols := []*types.Column{
-					{Name: "column1", CQLType: datatype.Varchar, KeyType: utilities.KEY_TYPE_PARTITION},
-					{Name: "column2", CQLType: datatype.Bigint, KeyType: utilities.KEY_TYPE_REGULAR},
+					{Name: "column1", TypeInfo: datatype.Varchar, KeyType: utilities.KEY_TYPE_PARTITION},
+					{Name: "column2", TypeInfo: datatype.Bigint, KeyType: utilities.KEY_TYPE_REGULAR},
 				}
 				tableCfg := schemaMapping.NewTableConfig("test_keyspace", "test_table", "cf1", types.OrderedCodeEncoding, cols)
 				schemaCfg := schemaMapping.NewSchemaMappingConfig("schema_mapping", "cf1", zap.NewNop(), []*schemaMapping.TableConfig{tableCfg})
@@ -1587,9 +1587,9 @@ func Test_GetBigtableSelectQuery(t *testing.T) {
 			translator: func() *Translator {
 				// REFACTOR: Use constructor functions
 				cols := []*types.Column{
-					{Name: "name", CQLType: datatype.Varchar, KeyType: utilities.KEY_TYPE_PARTITION},
-					{Name: "age", CQLType: datatype.Bigint, KeyType: utilities.KEY_TYPE_REGULAR},
-					{Name: "code", CQLType: datatype.Bigint, KeyType: utilities.KEY_TYPE_REGULAR},
+					{Name: "name", TypeInfo: datatype.Varchar, KeyType: utilities.KEY_TYPE_PARTITION},
+					{Name: "age", TypeInfo: datatype.Bigint, KeyType: utilities.KEY_TYPE_REGULAR},
+					{Name: "code", TypeInfo: datatype.Bigint, KeyType: utilities.KEY_TYPE_REGULAR},
 				}
 				tableCfg := schemaMapping.NewTableConfig("test_keyspace", "test_table", "cf1", types.OrderedCodeEncoding, cols)
 				schemaCfg := schemaMapping.NewSchemaMappingConfig("schema_mapping", "cf1", zap.NewNop(), []*schemaMapping.TableConfig{tableCfg})
@@ -1628,9 +1628,9 @@ func Test_GetBigtableSelectQuery(t *testing.T) {
 			translator: func() *Translator {
 				// REFACTOR: Use constructor functions
 				cols := []*types.Column{
-					{Name: "name", CQLType: datatype.Varchar, KeyType: utilities.KEY_TYPE_PARTITION},
-					{Name: "age", CQLType: datatype.Bigint, KeyType: utilities.KEY_TYPE_REGULAR},
-					{Name: "code", CQLType: datatype.Bigint, KeyType: utilities.KEY_TYPE_REGULAR},
+					{Name: "name", TypeInfo: datatype.Varchar, KeyType: utilities.KEY_TYPE_PARTITION},
+					{Name: "age", TypeInfo: datatype.Bigint, KeyType: utilities.KEY_TYPE_REGULAR},
+					{Name: "code", TypeInfo: datatype.Bigint, KeyType: utilities.KEY_TYPE_REGULAR},
 				}
 				tableCfg := schemaMapping.NewTableConfig("test_keyspace", "test_table", "cf1", types.OrderedCodeEncoding, cols)
 				schemaCfg := schemaMapping.NewSchemaMappingConfig("schema_mapping", "cf1", zap.NewNop(), []*schemaMapping.TableConfig{tableCfg})
@@ -1670,9 +1670,9 @@ func Test_GetBigtableSelectQuery(t *testing.T) {
 			translator: func() *Translator {
 				// REFACTOR: Use constructor functions
 				cols := []*types.Column{
-					{Name: "name", CQLType: datatype.Varchar, KeyType: utilities.KEY_TYPE_PARTITION},
-					{Name: "age", CQLType: datatype.Bigint, KeyType: utilities.KEY_TYPE_REGULAR},
-					{Name: "code", CQLType: datatype.Bigint, KeyType: utilities.KEY_TYPE_REGULAR},
+					{Name: "name", TypeInfo: datatype.Varchar, KeyType: utilities.KEY_TYPE_PARTITION},
+					{Name: "age", TypeInfo: datatype.Bigint, KeyType: utilities.KEY_TYPE_REGULAR},
+					{Name: "code", TypeInfo: datatype.Bigint, KeyType: utilities.KEY_TYPE_REGULAR},
 				}
 				tableCfg := schemaMapping.NewTableConfig("test_keyspace", "test_table", "cf1", types.OrderedCodeEncoding, cols)
 				schemaCfg := schemaMapping.NewSchemaMappingConfig("schema_mapping", "cf1", zap.NewNop(), []*schemaMapping.TableConfig{tableCfg})
@@ -2078,10 +2078,10 @@ func Test_processFunctionColumn(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			// REFACTOR: Use constructor functions
 			cols := []*types.Column{
-				{Name: "age", CQLType: datatype.Bigint, KeyType: utilities.KEY_TYPE_REGULAR},
-				{Name: "balance", CQLType: datatype.Float, KeyType: utilities.KEY_TYPE_REGULAR},
-				{Name: "name", CQLType: datatype.Varchar, KeyType: utilities.KEY_TYPE_REGULAR},
-				{Name: "code", CQLType: datatype.Int, KeyType: utilities.KEY_TYPE_REGULAR},
+				{Name: "age", TypeInfo: datatype.Bigint, KeyType: utilities.KEY_TYPE_REGULAR},
+				{Name: "balance", TypeInfo: datatype.Float, KeyType: utilities.KEY_TYPE_REGULAR},
+				{Name: "name", TypeInfo: datatype.Varchar, KeyType: utilities.KEY_TYPE_REGULAR},
+				{Name: "code", TypeInfo: datatype.Int, KeyType: utilities.KEY_TYPE_REGULAR},
 			}
 			tableCfg := schemaMapping.NewTableConfig("test_keyspace", "user_info", "cf1", types.OrderedCodeEncoding, cols)
 			schemaCfg := schemaMapping.NewSchemaMappingConfig("schema_mapping", "cf1", zap.NewNop(), []*schemaMapping.TableConfig{tableCfg})
@@ -2527,10 +2527,10 @@ func TestProcessSetStrings(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			// REFACTOR: Use constructor functions
 			cols := []*types.Column{
-				{Name: "name", CQLType: datatype.Varchar, KeyType: utilities.KEY_TYPE_REGULAR},
-				{Name: "age", CQLType: datatype.Bigint, KeyType: utilities.KEY_TYPE_REGULAR},
-				{Name: "code", CQLType: datatype.Int, KeyType: utilities.KEY_TYPE_REGULAR},
-				{Name: "map_col", CQLType: datatype.NewMapType(datatype.Varchar, datatype.Varchar), KeyType: utilities.KEY_TYPE_REGULAR},
+				{Name: "name", TypeInfo: datatype.Varchar, KeyType: utilities.KEY_TYPE_REGULAR},
+				{Name: "age", TypeInfo: datatype.Bigint, KeyType: utilities.KEY_TYPE_REGULAR},
+				{Name: "code", TypeInfo: datatype.Int, KeyType: utilities.KEY_TYPE_REGULAR},
+				{Name: "map_col", TypeInfo: datatype.NewMapType(datatype.Varchar, datatype.Varchar), KeyType: utilities.KEY_TYPE_REGULAR},
 			}
 			tableCfg := schemaMapping.NewTableConfig("test_keyspace", "user_info", "cf1", types.OrderedCodeEncoding, cols)
 			schemaCfg := schemaMapping.NewSchemaMappingConfig("schema_mapping", "cf1", zap.NewNop(), []*schemaMapping.TableConfig{tableCfg})
@@ -2580,8 +2580,8 @@ func Test_processAsColumn(t *testing.T) {
 			tableName:    "test_table",
 			columnFamily: "cf1",
 			colMeta: &types.Column{
-				Name:    "pk_1_text",
-				CQLType: datatype.Varchar,
+				Name:     "pk_1_text",
+				TypeInfo: datatype.Varchar,
 			},
 			columns:   []string{},
 			isGroupBy: true,
@@ -2596,8 +2596,8 @@ func Test_processAsColumn(t *testing.T) {
 			tableName:    "test_table",
 			columnFamily: "cf1",
 			colMeta: &types.Column{
-				Name:    "pk_1_text",
-				CQLType: datatype.Varchar,
+				Name:     "pk_1_text",
+				TypeInfo: datatype.Varchar,
 			},
 			columns:   []string{},
 			isGroupBy: false,
@@ -2612,8 +2612,8 @@ func Test_processAsColumn(t *testing.T) {
 			tableName:    "test_table",
 			columnFamily: "cf1",
 			colMeta: &types.Column{
-				Name:    "likes",
-				CQLType: datatype.Counter,
+				Name:     "likes",
+				TypeInfo: datatype.Counter,
 			},
 			columns:   []string{},
 			isGroupBy: false,
@@ -2628,7 +2628,7 @@ func Test_processAsColumn(t *testing.T) {
 			tableName:    "test_table",
 			columnFamily: "cf1",
 			colMeta: &types.Column{
-				CQLType: datatype.NewMapType(datatype.Varchar, datatype.Varchar),
+				TypeInfo: datatype.NewMapType(datatype.Varchar, datatype.Varchar),
 			},
 			columns:   []string{},
 			isGroupBy: false,
@@ -2643,7 +2643,7 @@ func Test_processAsColumn(t *testing.T) {
 			tableName:    "test_table",
 			columnFamily: "cf1",
 			colMeta: &types.Column{
-				CQLType: datatype.Varchar,
+				TypeInfo: datatype.Varchar,
 			},
 			columns:   []string{"existing_column"},
 			isGroupBy: false,
@@ -2659,7 +2659,7 @@ func Test_processAsColumn(t *testing.T) {
 			tableName:    "test_table",
 			columnFamily: "cf1",
 			colMeta: &types.Column{
-				CQLType: datatype.Varchar,
+				TypeInfo: datatype.Varchar,
 			},
 			columns:   []string{},
 			isGroupBy: false,

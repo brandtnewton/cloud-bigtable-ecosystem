@@ -82,16 +82,15 @@ func (t *Translator) TranslateAlterTableToBigtable(query, sessionKeyspace string
 	var addColumns []types.CreateColumn
 	if alterTable.AlterTableOperation().AlterTableAdd() != nil {
 		for i, addColumn := range alterTable.AlterTableOperation().AlterTableAdd().AlterTableColumnDefinition().AllColumn() {
-			dt, isFrozen, err := utilities.GetCassandraColumnType(alterTable.AlterTableOperation().AlterTableAdd().AlterTableColumnDefinition().DataType(i).GetText())
+			dt, err := utilities.GetCassandraColumnType(alterTable.AlterTableOperation().AlterTableAdd().AlterTableColumnDefinition().DataType(i).GetText())
 			if err != nil {
 				return nil, err
 			}
 
 			addColumns = append(addColumns, types.CreateColumn{
-				IsFrozen: isFrozen,
-				Type:     dt,
-				Name:     addColumn.GetText(),
-				Index:    int32(i),
+				Type:  dt,
+				Name:  addColumn.GetText(),
+				Index: int32(i),
 			})
 		}
 	}

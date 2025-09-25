@@ -162,7 +162,7 @@ func getColumnMetadata(tableMetadata map[string]map[string]*schemaMapping.TableC
 				}
 				// Add column metadata
 				columnsMetadataRows = append(columnsMetadataRows, []interface{}{
-					keyspace, tableName, columnName, "none", kind, 0, column.CQLType,
+					keyspace, tableName, columnName, "none", kind, 0, column.TypeInfo,
 				})
 			}
 		}
@@ -253,7 +253,7 @@ func addSystemKeyspacesToMetadata(tableMetadata map[string]map[string]*schemaMap
 			for _, col := range parser.SystemSchemaTablesColumns {
 				tableMetadata[ks]["tables"].Columns[col.Name] = &types.Column{
 					Name:         col.Name,
-					CQLType:      col.Type,
+					TypeInfo:     col.Type,
 					IsPrimaryKey: col.Name == "keyspace_name" || col.Name == "table_name",
 					KeyType: func() string {
 						if col.Name == "keyspace_name" || col.Name == "table_name" {
@@ -275,7 +275,7 @@ func addSystemKeyspacesToMetadata(tableMetadata map[string]map[string]*schemaMap
 			for _, col := range parser.SystemSchemaColumnsColumns {
 				tableMetadata[ks]["columns"].Columns[col.Name] = &types.Column{
 					Name:         col.Name,
-					CQLType:      col.Type,
+					TypeInfo:     col.Type,
 					IsPrimaryKey: col.Name == "keyspace_name" || col.Name == "table_name" || col.Name == "column_name",
 					KeyType: func() string {
 						if col.Name == "keyspace_name" || col.Name == "table_name" || col.Name == "column_name" {
@@ -297,7 +297,7 @@ func addSystemKeyspacesToMetadata(tableMetadata map[string]map[string]*schemaMap
 			for _, col := range parser.SystemSchemaKeyspacesColumns {
 				tableMetadata[ks]["keyspaces"].Columns[col.Name] = &types.Column{
 					Name:         col.Name,
-					CQLType:      col.Type,
+					TypeInfo:     col.Type,
 					IsPrimaryKey: col.Name == "keyspace_name",
 					KeyType: func() string {
 						if col.Name == "keyspace_name" {
@@ -344,7 +344,7 @@ func addSystemKeyspacesToMetadata(tableMetadata map[string]map[string]*schemaMap
 			for _, col := range columns {
 				tableMetadata[ks]["local"].Columns[col.Name] = &types.Column{
 					Name:         col.Name,
-					CQLType:      col.Type,
+					TypeInfo:     col.Type,
 					IsPrimaryKey: col.Name == "key",
 					KeyType: func() string {
 						if col.Name == "key" {
@@ -381,7 +381,7 @@ func addSystemKeyspacesToMetadata(tableMetadata map[string]map[string]*schemaMap
 			for _, col := range peerColumns {
 				tableMetadata[ks]["peers"].Columns[col.Name] = &types.Column{
 					Name:         col.Name,
-					CQLType:      col.Type,
+					TypeInfo:     col.Type,
 					IsPrimaryKey: col.Name == "peer",
 					KeyType: func() string {
 						if col.Name == "peer" {
@@ -420,7 +420,7 @@ func addSystemKeyspacesToMetadata(tableMetadata map[string]map[string]*schemaMap
 			for _, col := range peerV2Columns {
 				tableMetadata[ks]["peers_v2"].Columns[col.Name] = &types.Column{
 					Name:         col.Name,
-					CQLType:      col.Type,
+					TypeInfo:     col.Type,
 					IsPrimaryKey: col.Name == "peer",
 					KeyType: func() string {
 						if col.Name == "peer" {
@@ -446,7 +446,7 @@ func addSystemKeyspacesToMetadata(tableMetadata map[string]map[string]*schemaMap
 	for _, col := range parser.SystemVirtualSchemaKeyspaces {
 		tableMetadata["system_virtual_schema"]["keyspaces"].Columns[col.Name] = &types.Column{
 			Name:         col.Name,
-			CQLType:      col.Type,
+			TypeInfo:     col.Type,
 			IsPrimaryKey: false,
 			KeyType:      utilities.KEY_TYPE_REGULAR,
 		}
@@ -460,7 +460,7 @@ func addSystemKeyspacesToMetadata(tableMetadata map[string]map[string]*schemaMap
 	for _, col := range parser.SystemVirtualSchemaTables {
 		tableMetadata["system_virtual_schema"]["tables"].Columns[col.Name] = &types.Column{
 			Name:         col.Name,
-			CQLType:      col.Type,
+			TypeInfo:     col.Type,
 			IsPrimaryKey: false,
 			KeyType:      utilities.KEY_TYPE_REGULAR,
 		}
@@ -474,7 +474,7 @@ func addSystemKeyspacesToMetadata(tableMetadata map[string]map[string]*schemaMap
 	for _, col := range parser.SystemVirtualSchemaColumns {
 		tableMetadata["system_virtual_schema"]["columns"].Columns[col.Name] = &types.Column{
 			Name:         col.Name,
-			CQLType:      col.Type,
+			TypeInfo:     col.Type,
 			IsPrimaryKey: false,
 			KeyType:      utilities.KEY_TYPE_REGULAR,
 		}

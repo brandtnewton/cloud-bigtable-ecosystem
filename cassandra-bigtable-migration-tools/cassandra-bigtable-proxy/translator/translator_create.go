@@ -75,21 +75,19 @@ func (t *Translator) TranslateCreateTableToBigtable(query, sessionKeyspace strin
 	}
 
 	for i, col := range createTableObj.ColumnDefinitionList().AllColumnDefinition() {
-		dt, isFrozen, err := utilities.GetCassandraColumnType(col.DataType().GetText())
-
+		dt, err := utilities.GetCassandraColumnType(col.DataType().GetText())
 		if err != nil {
 			return nil, err
 		}
 
 		if !utilities.IsSupportedColumnType(dt) {
-			return nil, fmt.Errorf("column type '%s' is not supported", dt.String())
+			return nil, fmt.Errorf("column type '%s' is not supported", dt.RawType)
 		}
 
 		columns = append(columns, types.CreateColumn{
-			Type:     dt,
-			IsFrozen: isFrozen,
-			Name:     col.Column().GetText(),
-			Index:    int32(i),
+			Type:  dt,
+			Name:  col.Column().GetText(),
+			Index: int32(i),
 		})
 
 		if col.PrimaryKeyColumn() != nil {
@@ -192,7 +190,7 @@ func (t *Translator) TranslateCreateTableToBigtable(query, sessionKeyspace strin
 		}
 		col := columns[colIndex]
 		if !utilities.IsSupportedPrimaryKeyType(col.Type) {
-			return nil, fmt.Errorf("primary key cannot be of type %s", col.Type.String())
+			return nil, fmt.Errorf("primary key cannot be of type %s", col.Type.RawType)
 		}
 	}
 

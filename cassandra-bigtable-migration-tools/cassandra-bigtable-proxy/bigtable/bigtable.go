@@ -28,7 +28,6 @@ import (
 	"time"
 
 	"cloud.google.com/go/bigtable"
-	"github.com/datastax/go-cassandra-native-protocol/datatype"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
@@ -494,7 +493,7 @@ func (btc *BigtableClient) AlterTable(ctx context.Context, data *translator.Alte
 func (btc *BigtableClient) addColumnFamilies(columns []types.CreateColumn) (map[string]bigtable.Family, error) {
 	columnFamilies := make(map[string]bigtable.Family)
 	for _, col := range columns {
-		if !utilities.IsCollection(col.Type) && col.Type != datatype.Counter {
+		if !col.Type.IsCollection() && !col.Type.IsCounter() {
 			continue
 		}
 
@@ -502,11 +501,11 @@ func (btc *BigtableClient) addColumnFamilies(columns []types.CreateColumn) (map[
 			return nil, fmt.Errorf("counter and collection type columns cannot be named '%s' because it's reserved as the default column family", btc.BigtableConfig.DefaultColumnFamily)
 		}
 
-		if utilities.IsCollection(col.Type) {
+		if col.Type.IsCollection() {
 			columnFamilies[col.Name] = bigtable.Family{
 				GCPolicy: bigtable.MaxVersionsPolicy(1),
 			}
-		} else if col.Type == datatype.Counter {
+		} else if col.Type.IsCounter() {
 			columnFamilies[col.Name] = bigtable.Family{
 				GCPolicy: bigtable.NoGcPolicy(),
 				ValueType: bigtable.AggregateType{
@@ -534,14 +533,13 @@ func (btc *BigtableClient) updateTableSchema(ctx context.Context, keyspace strin
 	for _, col := range addCols {
 		mut := bigtable.NewMutation()
 		mut.Set(schemaMappingTableColumnFamily, "ColumnName", ts, []byte(col.Name))
-		mut.Set(schemaMappingTableColumnFamily, "ColumnType", ts, []byte(col.Type.String()))
-		isCollection := utilities.IsCollection(col.Type)
+		mut.Set(schemaMappingTableColumnFamily, "ColumnType", ts, []byte(col.Type.RawType))
+		isCollection := col.Type.IsCollection()
 		// todo this is no longer used. We'll remove this later, in a few releases, but we'll keep it for now so users can roll back to earlier versions of the proxy if needed
 		mut.Set(schemaMappingTableColumnFamily, "IsCollection", ts, []byte(strconv.FormatBool(isCollection)))
 		pmkIndex := slices.IndexFunc(pmks, func(c translator.CreateTablePrimaryKeyConfig) bool {
 			return c.Name == col.Name
 		})
-		mut.Set(schemaMappingTableColumnFamily, "IsFrozen", ts, []byte(strconv.FormatBool(col.IsFrozen)))
 		mut.Set(schemaMappingTableColumnFamily, "IsPrimaryKey", ts, []byte(strconv.FormatBool(pmkIndex != -1)))
 		if pmkIndex != -1 {
 			pmkConfig := pmks[pmkIndex]
@@ -697,7 +695,6 @@ func (btc *BigtableClient) ReadTableConfigs(ctx context.Context, keyspace string
 		// Extract the row key and column values
 		var tableName, columnName, columnType, KeyType string
 		var isPrimaryKey bool
-		var isFrozen bool
 		var pkPrecedence int
 		// Extract column values
 		for _, item := range row[schemaMappingTableColumnFamily] {
@@ -710,8 +707,6 @@ func (btc *BigtableClient) ReadTableConfigs(ctx context.Context, keyspace string
 				columnType = string(item.Value)
 			case schemaMappingTableColumnFamily + ":IsPrimaryKey":
 				isPrimaryKey = string(item.Value) == "true"
-			case schemaMappingTableColumnFamily + ":IsFrozen":
-				isFrozen = string(item.Value) == "true"
 			case schemaMappingTableColumnFamily + ":PK_Precedence":
 				pkPrecedence, readErr = strconv.Atoi(string(item.Value))
 				if readErr != nil {
@@ -721,8 +716,7 @@ func (btc *BigtableClient) ReadTableConfigs(ctx context.Context, keyspace string
 				KeyType = string(item.Value)
 			}
 		}
-		// we ignore the "isFrozen" returned value here because we don't serialize the frozen<...> type. We don't serialize the frozen type component because datatype.Datatype doesn't support it.
-		cqlType, _, err := utilities.GetCassandraColumnType(columnType)
+		dt, err := utilities.GetCassandraColumnType(columnType)
 		if err != nil {
 			readErr = err
 			return false
@@ -731,9 +725,8 @@ func (btc *BigtableClient) ReadTableConfigs(ctx context.Context, keyspace string
 		// Create a new column struct
 		column := &types.Column{
 			Name:         columnName,
-			CQLType:      cqlType,
+			TypeInfo:     dt,
 			IsPrimaryKey: isPrimaryKey,
-			IsFrozen:     isFrozen,
 			PkPrecedence: pkPrecedence,
 			KeyType:      KeyType,
 		}

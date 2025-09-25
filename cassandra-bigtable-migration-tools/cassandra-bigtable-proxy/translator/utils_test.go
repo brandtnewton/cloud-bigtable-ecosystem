@@ -2821,7 +2821,7 @@ func TestAddSetElements(t *testing.T) {
 				assert.Len(t, output.NewValues, 1)
 				assert.Equal(t, "value1", output.NewColumns[0].Name)
 				assert.Equal(t, "test_family", output.NewColumns[0].ColumnFamily)
-				assert.Equal(t, datatype.Varchar, output.NewColumns[0].TypeInfo)
+				assert.Equal(t, datatype.Varchar, output.NewColumns[0].TypeInfo.DataType)
 				assert.Empty(t, output.NewValues[0])
 			},
 		},
@@ -2842,7 +2842,7 @@ func TestAddSetElements(t *testing.T) {
 				for i, val := range expectedValues {
 					assert.Equal(t, val, output.NewColumns[i].Name)
 					assert.Equal(t, "test_family", output.NewColumns[i].ColumnFamily)
-					assert.Equal(t, datatype.Varchar, output.NewColumns[i].TypeInfo)
+					assert.Equal(t, datatype.Varchar, output.NewColumns[i].TypeInfo.DataType)
 					assert.Empty(t, output.NewValues[i])
 				}
 			},
@@ -2864,7 +2864,7 @@ func TestAddSetElements(t *testing.T) {
 				for i, val := range expectedValues {
 					assert.Equal(t, val, output.NewColumns[i].Name)
 					assert.Equal(t, "test_family", output.NewColumns[i].ColumnFamily)
-					assert.Equal(t, datatype.Boolean, output.NewColumns[i].TypeInfo)
+					assert.Equal(t, datatype.Boolean, output.NewColumns[i].TypeInfo.DataType)
 					assert.Empty(t, output.NewValues[i])
 				}
 			},
@@ -2899,7 +2899,7 @@ func TestAddSetElements(t *testing.T) {
 				assert.Len(t, output.NewValues, 1)
 				assert.Equal(t, "value1", output.NewColumns[0].Name)
 				assert.Empty(t, output.NewColumns[0].ColumnFamily)
-				assert.Equal(t, datatype.Varchar, output.NewColumns[0].TypeInfo)
+				assert.Equal(t, datatype.Varchar, output.NewColumns[0].TypeInfo.DataType)
 				assert.Empty(t, output.NewValues[0])
 			},
 		},
@@ -2981,7 +2981,7 @@ func TestHandleListOperation(t *testing.T) {
 				assert.Len(t, output.NewColumns, 2)
 				for _, col := range output.NewColumns {
 					assert.Equal(t, "mylist", col.ColumnFamily)
-					assert.Equal(t, datatype.Int, col.TypeInfo)
+					assert.Equal(t, datatype.Int, col.TypeInfo.DataType)
 				}
 			},
 		},
@@ -3079,7 +3079,7 @@ func TestHandleSetOperation(t *testing.T) {
 				assert.Len(t, output.NewValues, 3)
 				for i, col := range output.NewColumns {
 					assert.Equal(t, "myset", col.ColumnFamily)
-					assert.Equal(t, datatype.Int, col.TypeInfo)
+					assert.Equal(t, datatype.Int, col.TypeInfo.DataType)
 					assert.Equal(t, fmt.Sprintf("%d", i+1), col.Name)
 				}
 			},

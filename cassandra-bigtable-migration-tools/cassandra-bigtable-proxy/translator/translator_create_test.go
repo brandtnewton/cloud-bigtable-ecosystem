@@ -166,17 +166,17 @@ func TestTranslateCreateTableToBigtable(t *testing.T) {
 					{
 						Name:     "id",
 						Index:    0,
-						TypeInfo: types.NewCqlTypeInfoFromType(datatype.Varchar),
+						TypeInfo: types.NewCqlTypeInfo("text", datatype.Varchar, false),
 					},
 					{
 						Name:     "lastname",
 						Index:    1,
-						TypeInfo: types.NewCqlTypeInfoFromType(datatype.Varchar),
+						TypeInfo: types.NewCqlTypeInfo("varchar", datatype.Varchar, false),
 					},
 					{
 						Name:     "firstname",
 						Index:    2,
-						TypeInfo: types.NewCqlTypeInfoFromType(datatype.Varchar),
+						TypeInfo: types.NewCqlTypeInfo("varchar", datatype.Varchar, false),
 					},
 				},
 				PrimaryKeys: []CreateTablePrimaryKeyConfig{
@@ -212,7 +212,7 @@ func TestTranslateCreateTableToBigtable(t *testing.T) {
 					{Name: "column10", Index: 1, TypeInfo: types.NewCqlTypeInfoFromType(datatype.Int)},
 				},
 				PrimaryKeys: []CreateTablePrimaryKeyConfig{
-					{Name: "column1", KeyType: "partition"},
+					{Name: "column1", KeyType: "partition_key"},
 					{Name: "column10", KeyType: "clustering"},
 				},
 			},
@@ -235,7 +235,7 @@ func TestTranslateCreateTableToBigtable(t *testing.T) {
 					{Name: "frozen_col", Index: 2, TypeInfo: types.NewCqlTypeInfo("frozen<list<int>>", datatype.NewListType(datatype.Int), true)},
 				},
 				PrimaryKeys: []CreateTablePrimaryKeyConfig{
-					{Name: "column1", KeyType: "partition"},
+					{Name: "column1", KeyType: "partition_key"},
 					{Name: "column10", KeyType: "clustering"},
 				},
 			},
@@ -256,7 +256,7 @@ func TestTranslateCreateTableToBigtable(t *testing.T) {
 					{Name: "column1", Index: 0, TypeInfo: types.NewCqlTypeInfoFromType(datatype.Varchar)},
 					{Name: "column10", Index: 1, TypeInfo: types.NewCqlTypeInfoFromType(datatype.Int)},
 					{Name: "frozen_col", Index: 2, TypeInfo: types.NewCqlTypeInfo("frozen<list<int>>", datatype.NewListType(datatype.Int), true)},
-					{Name: "frozen_map", Index: 2, TypeInfo: types.NewCqlTypeInfo("frozen<map<text, text>>", datatype.NewMapType(datatype.Varchar, datatype.Varchar), true)},
+					{Name: "frozen_map", Index: 3, TypeInfo: types.NewCqlTypeInfo("frozen<map<text,text>>", datatype.NewMapType(datatype.Varchar, datatype.Varchar), true)},
 				},
 				PrimaryKeys: []CreateTablePrimaryKeyConfig{
 					{Name: "column1", KeyType: "partition_key"},

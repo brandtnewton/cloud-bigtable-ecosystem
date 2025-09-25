@@ -391,9 +391,9 @@ func TestGetColumnMetadata(t *testing.T) {
 			name: "Multiple Columns",
 			tableConfigs: []*schemaMapping.TableConfig{
 				schemaMapping.NewTableConfig("keyspace1", "table1", "cf1", types.OrderedCodeEncoding, []*types.Column{
-					{Name: "id", TypeInfo: types.NewCqlTypeInfoFromType(datatype.Uuid), IsPrimaryKey: true, KeyType: "partition_key", PkPrecedence: 1},
-					{Name: "name", TypeInfo: types.NewCqlTypeInfoFromType(datatype.Varchar), IsPrimaryKey: true, KeyType: "clustering", PkPrecedence: 2},
-					{Name: "age", TypeInfo: types.NewCqlTypeInfoFromType(datatype.Int), IsPrimaryKey: false, KeyType: "regular", PkPrecedence: 0},
+					{Name: "id", TypeInfo: types.NewCqlTypeInfo("uuid", datatype.Uuid, false), IsPrimaryKey: true, KeyType: "partition_key", PkPrecedence: 1},
+					{Name: "name", TypeInfo: types.NewCqlTypeInfo("text", datatype.Varchar, false), IsPrimaryKey: true, KeyType: "clustering", PkPrecedence: 2},
+					{Name: "age", TypeInfo: types.NewCqlTypeInfo("int", datatype.Int, false), IsPrimaryKey: false, KeyType: "regular", PkPrecedence: 0},
 				}),
 			},
 			expectedColumns: [][]interface{}{
@@ -406,18 +406,18 @@ func TestGetColumnMetadata(t *testing.T) {
 			name: "Compound Primary Key",
 			tableConfigs: []*schemaMapping.TableConfig{
 				schemaMapping.NewTableConfig("keyspace1", "table1", "cf1", types.OrderedCodeEncoding, []*types.Column{
-					{Name: "id", TypeInfo: types.NewCqlTypeInfoFromType(datatype.Uuid), IsPrimaryKey: true, KeyType: "partition_key", PkPrecedence: 1},
-					{Name: "id2", TypeInfo: types.NewCqlTypeInfoFromType(datatype.Uuid), IsPrimaryKey: true, KeyType: "partition_key", PkPrecedence: 2},
-					{Name: "name", TypeInfo: types.NewCqlTypeInfoFromType(datatype.Varchar), IsPrimaryKey: true, KeyType: "clustering", PkPrecedence: 3},
-					{Name: "name2", TypeInfo: types.NewCqlTypeInfoFromType(datatype.Varchar), IsPrimaryKey: true, KeyType: "clustering", PkPrecedence: 4},
-					{Name: "age", TypeInfo: types.NewCqlTypeInfoFromType(datatype.Int), IsPrimaryKey: false, KeyType: "regular", PkPrecedence: 0},
+					{Name: "id", TypeInfo: types.NewCqlTypeInfo("uuid", datatype.Uuid, false), IsPrimaryKey: true, KeyType: "partition_key", PkPrecedence: 1},
+					{Name: "id2", TypeInfo: types.NewCqlTypeInfo("uuid", datatype.Uuid, false), IsPrimaryKey: true, KeyType: "partition_key", PkPrecedence: 2},
+					{Name: "name", TypeInfo: types.NewCqlTypeInfo("varchar", datatype.Varchar, false), IsPrimaryKey: true, KeyType: "clustering", PkPrecedence: 3},
+					{Name: "name2", TypeInfo: types.NewCqlTypeInfo("text", datatype.Varchar, false), IsPrimaryKey: true, KeyType: "clustering", PkPrecedence: 4},
+					{Name: "age", TypeInfo: types.NewCqlTypeInfo("int", datatype.Int, false), IsPrimaryKey: false, KeyType: "regular", PkPrecedence: 0},
 				}),
 			},
 			expectedColumns: [][]interface{}{
 				{"keyspace1", "table1", "age", "none", "regular", -1, "int"},
 				{"keyspace1", "table1", "id", "none", "partition_key", 0, "uuid"},
 				{"keyspace1", "table1", "id2", "none", "partition_key", 1, "uuid"},
-				{"keyspace1", "table1", "name", "asc", "clustering", 0, "text"},
+				{"keyspace1", "table1", "name", "asc", "clustering", 0, "varchar"},
 				{"keyspace1", "table1", "name2", "asc", "clustering", 1, "text"},
 			},
 		},

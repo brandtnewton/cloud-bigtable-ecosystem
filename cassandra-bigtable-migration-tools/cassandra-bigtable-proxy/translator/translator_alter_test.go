@@ -56,7 +56,7 @@ func TestTranslateAlterTableToBigtable(t *testing.T) {
 				AddColumns: []types.CreateColumn{{
 					Name:     "firstname",
 					Index:    0,
-					TypeInfo: types.NewCqlTypeInfoFromType(datatype.Varchar),
+					TypeInfo: types.NewCqlTypeInfo("text", datatype.Varchar, false),
 				}},
 			},
 			error:           "",
@@ -64,7 +64,7 @@ func TestTranslateAlterTableToBigtable(t *testing.T) {
 		},
 		{
 			name:        "Add column with default keyspace",
-			query:       "ALTER TABLE user_info ADD firstname text",
+			query:       "ALTER TABLE user_info ADD firstname varchar",
 			tableConfig: userInfoTable,
 			want: &AlterTableStatementMap{
 				Table:     "user_info",
@@ -106,7 +106,7 @@ func TestTranslateAlterTableToBigtable(t *testing.T) {
 				AddColumns: []types.CreateColumn{{
 					Name:     "firstname",
 					Index:    0,
-					TypeInfo: types.NewCqlTypeInfoFromType(datatype.Varchar),
+					TypeInfo: types.NewCqlTypeInfo("text", datatype.Varchar, false),
 				}, {
 					Name:     "number_of_cats",
 					Index:    1,
@@ -127,7 +127,7 @@ func TestTranslateAlterTableToBigtable(t *testing.T) {
 				AddColumns: []types.CreateColumn{{
 					Name:     "firstname",
 					Index:    0,
-					TypeInfo: types.NewCqlTypeInfoFromType(datatype.Varchar),
+					TypeInfo: types.NewCqlTypeInfo("text", datatype.Varchar, false),
 				}, {
 					Name:     "number_of_toes",
 					Index:    1,

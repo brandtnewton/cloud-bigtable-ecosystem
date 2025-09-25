@@ -691,8 +691,8 @@ func newTestTableConfig() *schemaMapping.TableConfig {
 	const systemColumnFamily = "cf1"
 
 	testTableColumns := []*types.Column{
-		{Name: "col1", TypeInfo: datatype.Varchar, KeyType: utilities.KEY_TYPE_PARTITION},
-		{Name: "col2", TypeInfo: datatype.Int, KeyType: utilities.KEY_TYPE_CLUSTERING},
+		{Name: "col1", TypeInfo: types.NewCqlTypeInfoFromType(datatype.Varchar), KeyType: utilities.KEY_TYPE_PARTITION},
+		{Name: "col2", TypeInfo: types.NewCqlTypeInfoFromType(datatype.Int), KeyType: utilities.KEY_TYPE_CLUSTERING},
 	}
 
 	return schemaMapping.NewTableConfig(

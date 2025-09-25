@@ -859,34 +859,26 @@ var testCreateTableStatementMap = translator.CreateTableStatementMap{
 	Table:             "create_table_test",
 	IfNotExists:       false,
 	IntRowKeyEncoding: types.OrderedCodeEncoding,
-	Columns: []message.ColumnMetadata{
+	Columns: []types.CreateColumn{
 		{
-			Keyspace: "ks1",
-			Table:    "create_table_test",
-			Name:     "org",
-			Index:    0,
-			Type:     datatype.Varchar,
+			Name:  "org",
+			Index: 0,
+			Type:  types.NewCqlTypeInfoFromType(datatype.Varchar),
 		},
 		{
-			Keyspace: "ks1",
-			Table:    "create_table_test",
-			Name:     "id",
-			Index:    1,
-			Type:     datatype.Bigint,
+			Name:  "id",
+			Index: 1,
+			Type:  types.NewCqlTypeInfoFromType(datatype.Bigint),
 		},
 		{
-			Keyspace: "ks1",
-			Table:    "create_table_test",
-			Name:     "name",
-			Index:    2,
-			Type:     datatype.Varchar,
+			Name:  "name",
+			Index: 2,
+			Type:  types.NewCqlTypeInfoFromType(datatype.Varchar),
 		},
 		{
-			Keyspace: "ks1",
-			Table:    "create_table_test",
-			Name:     "zipcode",
-			Index:    3,
-			Type:     datatype.Int,
+			Name:  "zipcode",
+			Index: 3,
+			Type:  types.NewCqlTypeInfoFromType(datatype.Int),
 		},
 	},
 	PrimaryKeys: []translator.CreateTablePrimaryKeyConfig{
@@ -927,7 +919,7 @@ func TestCreateTable(t *testing.T) {
 	require.Equal(t, map[string]*types.Column{
 		"org": {
 			Name:         "org",
-			TypeInfo:     datatype.Varchar,
+			TypeInfo:     types.NewCqlTypeInfoFromType(datatype.Varchar),
 			IsPrimaryKey: true,
 			PkPrecedence: 1,
 			KeyType:      "partition",
@@ -941,7 +933,7 @@ func TestCreateTable(t *testing.T) {
 		},
 		"id": {
 			Name:         "id",
-			TypeInfo:     datatype.Bigint,
+			TypeInfo:     types.NewCqlTypeInfoFromType(datatype.Bigint),
 			IsPrimaryKey: true,
 			PkPrecedence: 2,
 			KeyType:      "clustering",
@@ -955,7 +947,7 @@ func TestCreateTable(t *testing.T) {
 		},
 		"name": {
 			Name:         "name",
-			TypeInfo:     datatype.Varchar,
+			TypeInfo:     types.NewCqlTypeInfoFromType(datatype.Varchar),
 			IsPrimaryKey: false,
 			PkPrecedence: 0,
 			KeyType:      utilities.KEY_TYPE_REGULAR,
@@ -969,7 +961,7 @@ func TestCreateTable(t *testing.T) {
 		},
 		"zipcode": {
 			Name:         "zipcode",
-			TypeInfo:     datatype.Int,
+			TypeInfo:     types.NewCqlTypeInfoFromType(datatype.Int),
 			IsPrimaryKey: false,
 			PkPrecedence: 0,
 			KeyType:      utilities.KEY_TYPE_REGULAR,
@@ -1062,12 +1054,10 @@ func TestAlterTable(t *testing.T) {
 		Keyspace:    "ks1",
 		Table:       "alter_table_test",
 		IfNotExists: false,
-		AddColumns: []message.ColumnMetadata{
+		AddColumns: []types.CreateColumn{
 			{
-				Keyspace: "ks1",
-				Table:    "alter_table_test",
-				Name:     "zodiac",
-				Type:     datatype.Varchar,
+				Name: "zodiac",
+				Type: types.NewCqlTypeInfoFromType(datatype.Varchar),
 			},
 		},
 		DropColumns: []string{
@@ -1083,7 +1073,7 @@ func TestAlterTable(t *testing.T) {
 	require.Equal(t, tableMap["alter_table_test"].Columns, map[string]*types.Column{
 		"org": {
 			Name:         "org",
-			TypeInfo:     datatype.Varchar,
+			TypeInfo:     types.NewCqlTypeInfoFromType(datatype.Varchar),
 			IsPrimaryKey: true,
 			PkPrecedence: 1,
 			KeyType:      "partition",
@@ -1097,7 +1087,7 @@ func TestAlterTable(t *testing.T) {
 		},
 		"id": {
 			Name:         "id",
-			TypeInfo:     datatype.Bigint,
+			TypeInfo:     types.NewCqlTypeInfoFromType(datatype.Bigint),
 			IsPrimaryKey: true,
 			PkPrecedence: 2,
 			KeyType:      "clustering",
@@ -1111,7 +1101,7 @@ func TestAlterTable(t *testing.T) {
 		},
 		"name": {
 			Name:         "name",
-			TypeInfo:     datatype.Varchar,
+			TypeInfo:     types.NewCqlTypeInfoFromType(datatype.Varchar),
 			IsPrimaryKey: false,
 			PkPrecedence: 0,
 			KeyType:      utilities.KEY_TYPE_REGULAR,
@@ -1125,7 +1115,7 @@ func TestAlterTable(t *testing.T) {
 		},
 		"zodiac": {
 			Name:         "zodiac",
-			TypeInfo:     datatype.Varchar,
+			TypeInfo:     types.NewCqlTypeInfoFromType(datatype.Varchar),
 			IsPrimaryKey: false,
 			PkPrecedence: 0,
 			KeyType:      utilities.KEY_TYPE_REGULAR,

@@ -617,7 +617,7 @@ func GetCassandraColumnType(typeStr string) (*types.CqlTypeInfo, error) {
 			return &types.CqlTypeInfo{
 				RawType:  typeStr,
 				DataType: innerType.DataType,
-				IsFrozen: false,
+				IsFrozen: true,
 			}, nil
 		case "list":
 			innerType, err := GetCassandraColumnType(matches[2])

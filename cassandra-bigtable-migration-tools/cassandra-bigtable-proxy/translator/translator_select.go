@@ -473,7 +473,7 @@ func processWriteTimeColumn(tableConfig *schemaMapping.TableConfig, columnMetada
 
 func processAsColumn(columnMetadata types.SelectedColumn, columnFamily string, colMeta *types.Column, columns []string, isGroupBy bool) []string {
 	var columnSelected string
-	if !utilities.IsCollection(colMeta.TypeInfo) {
+	if !colMeta.TypeInfo.IsCollection() {
 		var columnName = columnMetadata.Name
 		if colMeta.TypeInfo.IsCounter() {
 			// counters are stored as counter_col['']
@@ -523,7 +523,7 @@ Returns:
 	An updated slice of strings with the new formatted column reference appended.
 */
 func processRegularColumn(columnMetadata types.SelectedColumn, tableName string, columnFamily string, colMeta *types.Column, columns []string, isGroupBy bool) []string {
-	if !utilities.IsCollection(colMeta.TypeInfo) {
+	if !colMeta.TypeInfo.IsCollection() {
 		var columnName = columnMetadata.Name
 		if colMeta.TypeInfo.IsCounter() {
 			columnFamily = columnName
@@ -627,7 +627,7 @@ func getBigtableSelectQuery(t *Translator, data *SelectQueryMap) (string, error)
 				groupBykeys = append(groupBykeys, col)
 			} else {
 				if colMeta, ok := tableConfig.Columns[lookupCol]; ok {
-					if !utilities.IsCollection(colMeta.TypeInfo) {
+					if !colMeta.TypeInfo.IsCollection() {
 						col, err := castColumns(colMeta, t.SchemaMappingConfig.SystemColumnFamily)
 						if err != nil {
 							return "", err
@@ -652,7 +652,7 @@ func getBigtableSelectQuery(t *Translator, data *SelectQueryMap) (string, error)
 				if colMeta, ok := tableConfig.Columns[lookupCol]; ok {
 					if colMeta.IsPrimaryKey {
 						orderByClauses = append(orderByClauses, orderByCol.Column+" "+string(orderByCol.Operation))
-					} else if !utilities.IsCollection(colMeta.TypeInfo) {
+					} else if !colMeta.TypeInfo.IsCollection() {
 						orderByKey, err := castColumns(colMeta, t.SchemaMappingConfig.SystemColumnFamily)
 						if err != nil {
 							return "", err

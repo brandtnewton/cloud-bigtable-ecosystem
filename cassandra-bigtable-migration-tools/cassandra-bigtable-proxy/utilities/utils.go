@@ -216,12 +216,12 @@ const (
 )
 
 func IsCollectionColumn(c *types.Column) bool {
-	return IsCollection(c.TypeInfo)
+	return IsCollection(c.TypeInfo.DataType)
 }
 
 // IsCollection() checks if the provided data type is a collection type (list, set, or map).
-func IsCollection(dt *types.CqlTypeInfo) bool {
-	switch dt.DataType.GetDataTypeCode() {
+func IsCollection(dt datatype.DataType) bool {
+	switch dt.GetDataTypeCode() {
 	case primitive.DataTypeCodeList, primitive.DataTypeCodeSet, primitive.DataTypeCodeMap:
 		return true
 	default:
@@ -611,7 +611,7 @@ func GetCassandraColumnType(typeStr string) (*types.CqlTypeInfo, error) {
 			if err != nil {
 				return nil, fmt.Errorf("failed to extract type for '%s': %w", typeStr, err)
 			}
-			if !IsCollection(innerType) {
+			if !innerType.IsCollection() {
 				return nil, fmt.Errorf("failed to extract type for '%s': frozen types must be a collection", typeStr)
 			}
 			return &types.CqlTypeInfo{

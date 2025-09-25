@@ -138,7 +138,7 @@ func setParamsFromValues(input cql.IInsertValuesSpecContext, columns []types.Col
 					unenVal = goValue
 				} else {
 					unenVal = goValue
-					val, err = formatValues(fmt.Sprintf("%v", goValue), col.TypeInfo, protocolV)
+					val, err = formatValues(fmt.Sprintf("%v", goValue), col.TypeInfo.DataType, protocolV)
 					if err != nil {
 						return nil, nil, nil, err
 					}

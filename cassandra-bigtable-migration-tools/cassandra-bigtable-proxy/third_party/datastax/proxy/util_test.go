@@ -392,8 +392,8 @@ func TestGetColumnMetadata(t *testing.T) {
 			tableConfigs: []*schemaMapping.TableConfig{
 				schemaMapping.NewTableConfig("keyspace1", "table1", "cf1", types.OrderedCodeEncoding, []*types.Column{
 					{Name: "id", TypeInfo: types.NewCqlTypeInfoFromType(datatype.Uuid), IsPrimaryKey: true, KeyType: "partition_key", PkPrecedence: 1},
-					{Name: "name", CQLType: datatype.Varchar, IsPrimaryKey: true, KeyType: "clustering", PkPrecedence: 2},
-					{Name: "age", CQLType: datatype.Int, IsPrimaryKey: false, KeyType: "regular", PkPrecedence: 0},
+					{Name: "name", TypeInfo: types.NewCqlTypeInfoFromType(datatype.Varchar), IsPrimaryKey: true, KeyType: "clustering", PkPrecedence: 2},
+					{Name: "age", TypeInfo: types.NewCqlTypeInfoFromType(datatype.Int), IsPrimaryKey: false, KeyType: "regular", PkPrecedence: 0},
 				}),
 			},
 			expectedColumns: [][]interface{}{
@@ -406,10 +406,10 @@ func TestGetColumnMetadata(t *testing.T) {
 			name: "Compound Primary Key",
 			tableConfigs: []*schemaMapping.TableConfig{
 				schemaMapping.NewTableConfig("keyspace1", "table1", "cf1", types.OrderedCodeEncoding, []*types.Column{
-					{Name: "id", CQLType: datatype.Uuid, IsPrimaryKey: true, KeyType: "partition_key", PkPrecedence: 1},
-					{Name: "id2", CQLType: datatype.Uuid, IsPrimaryKey: true, KeyType: "partition_key", PkPrecedence: 2},
+					{Name: "id", TypeInfo: types.NewCqlTypeInfoFromType(datatype.Uuid), IsPrimaryKey: true, KeyType: "partition_key", PkPrecedence: 1},
+					{Name: "id2", TypeInfo: types.NewCqlTypeInfoFromType(datatype.Uuid), IsPrimaryKey: true, KeyType: "partition_key", PkPrecedence: 2},
 					{Name: "name", TypeInfo: types.NewCqlTypeInfoFromType(datatype.Varchar), IsPrimaryKey: true, KeyType: "clustering", PkPrecedence: 3},
-					{Name: "name2", CQLType: datatype.Varchar, IsPrimaryKey: true, KeyType: "clustering", PkPrecedence: 4},
+					{Name: "name2", TypeInfo: types.NewCqlTypeInfoFromType(datatype.Varchar), IsPrimaryKey: true, KeyType: "clustering", PkPrecedence: 4},
 					{Name: "age", TypeInfo: types.NewCqlTypeInfoFromType(datatype.Int), IsPrimaryKey: false, KeyType: "regular", PkPrecedence: 0},
 				}),
 			},

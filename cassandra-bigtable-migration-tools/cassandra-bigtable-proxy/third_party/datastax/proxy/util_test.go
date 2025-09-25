@@ -182,7 +182,7 @@ func TestConstructSystemMetadataRows(t *testing.T) {
 						[]*types.Column{
 							{
 								Name:         "id",
-								TypeInfo:     datatype.Uuid,
+								TypeInfo:     types.NewCqlTypeInfoFromType(datatype.Uuid),
 								KeyType:      "partition",
 								IsPrimaryKey: true,
 								ColumnFamily: "cf",
@@ -256,7 +256,7 @@ func TestGetKeyspaceMetadata(t *testing.T) {
 			name: "Single Keyspace",
 			tableConfigs: []*schemaMapping.TableConfig{
 				schemaMapping.NewTableConfig("test_keyspace", "test_table", "cf1", types.OrderedCodeEncoding, []*types.Column{
-					{Name: "id", TypeInfo: datatype.Uuid, KeyType: utilities.KEY_TYPE_REGULAR},
+					{Name: "id", TypeInfo: types.NewCqlTypeInfoFromType(datatype.Uuid), KeyType: utilities.KEY_TYPE_REGULAR},
 				}),
 			},
 			expectedCount:     1,
@@ -266,13 +266,13 @@ func TestGetKeyspaceMetadata(t *testing.T) {
 			name: "Multiple Keyspaces",
 			tableConfigs: []*schemaMapping.TableConfig{
 				schemaMapping.NewTableConfig("keyspace1", "table1", "cf1", types.OrderedCodeEncoding, []*types.Column{
-					{Name: "col1", TypeInfo: datatype.Varchar, KeyType: utilities.KEY_TYPE_REGULAR},
+					{Name: "col1", TypeInfo: types.NewCqlTypeInfoFromType(datatype.Varchar), KeyType: utilities.KEY_TYPE_REGULAR},
 				}),
 				schemaMapping.NewTableConfig("keyspace1", "table2", "cf1", types.OrderedCodeEncoding, []*types.Column{
-					{Name: "col2", TypeInfo: datatype.Int, KeyType: utilities.KEY_TYPE_REGULAR},
+					{Name: "col2", TypeInfo: types.NewCqlTypeInfoFromType(datatype.Int), KeyType: utilities.KEY_TYPE_REGULAR},
 				}),
 				schemaMapping.NewTableConfig("keyspace2", "table2", "cf1", types.OrderedCodeEncoding, []*types.Column{
-					{Name: "col2", TypeInfo: datatype.Int, KeyType: utilities.KEY_TYPE_REGULAR},
+					{Name: "col2", TypeInfo: types.NewCqlTypeInfoFromType(datatype.Int), KeyType: utilities.KEY_TYPE_REGULAR},
 				}),
 			},
 			expectedCount:     2,
@@ -315,7 +315,7 @@ func TestGetTableMetadata(t *testing.T) {
 			name: "Single Table",
 			tableConfigs: []*schemaMapping.TableConfig{
 				schemaMapping.NewTableConfig("test_keyspace", "test_table", "cf1", types.OrderedCodeEncoding, []*types.Column{
-					{Name: "id", TypeInfo: datatype.Uuid, KeyType: utilities.KEY_TYPE_REGULAR},
+					{Name: "id", TypeInfo: types.NewCqlTypeInfoFromType(datatype.Uuid), KeyType: utilities.KEY_TYPE_REGULAR},
 				}),
 			},
 			expectedCount: 1,
@@ -327,10 +327,10 @@ func TestGetTableMetadata(t *testing.T) {
 			name: "Multiple tables",
 			tableConfigs: []*schemaMapping.TableConfig{
 				schemaMapping.NewTableConfig("keyspace1", "table1", "cf1", types.OrderedCodeEncoding, []*types.Column{
-					{Name: "col1", TypeInfo: datatype.Varchar, KeyType: utilities.KEY_TYPE_REGULAR},
+					{Name: "col1", TypeInfo: types.NewCqlTypeInfoFromType(datatype.Varchar), KeyType: utilities.KEY_TYPE_REGULAR},
 				}),
 				schemaMapping.NewTableConfig("keyspace1", "table2", "cf1", types.OrderedCodeEncoding, []*types.Column{
-					{Name: "col2", TypeInfo: datatype.Int, KeyType: utilities.KEY_TYPE_REGULAR},
+					{Name: "col2", TypeInfo: types.NewCqlTypeInfoFromType(datatype.Int), KeyType: utilities.KEY_TYPE_REGULAR},
 				}),
 			},
 			expectedCount: 2,
@@ -380,7 +380,7 @@ func TestGetColumnMetadata(t *testing.T) {
 			name: "Single Column",
 			tableConfigs: []*schemaMapping.TableConfig{
 				schemaMapping.NewTableConfig("test_keyspace", "test_table", "cf1", types.OrderedCodeEncoding, []*types.Column{
-					{Name: "id", TypeInfo: datatype.Uuid, IsPrimaryKey: true, KeyType: "partition"},
+					{Name: "id", TypeInfo: types.NewCqlTypeInfoFromType(datatype.Uuid), IsPrimaryKey: true, KeyType: "partition"},
 				}),
 			},
 			expectedCount: 1,
@@ -392,9 +392,9 @@ func TestGetColumnMetadata(t *testing.T) {
 			name: "Multiple Columns",
 			tableConfigs: []*schemaMapping.TableConfig{
 				schemaMapping.NewTableConfig("keyspace1", "table1", "cf1", types.OrderedCodeEncoding, []*types.Column{
-					{Name: "id", TypeInfo: datatype.Uuid, IsPrimaryKey: true, KeyType: "partition"},
-					{Name: "name", TypeInfo: datatype.Varchar, IsPrimaryKey: true, KeyType: "clustering"},
-					{Name: "age", TypeInfo: datatype.Int, IsPrimaryKey: false, KeyType: "regular"},
+					{Name: "id", TypeInfo: types.NewCqlTypeInfoFromType(datatype.Uuid), IsPrimaryKey: true, KeyType: "partition"},
+					{Name: "name", TypeInfo: types.NewCqlTypeInfoFromType(datatype.Varchar), IsPrimaryKey: true, KeyType: "clustering"},
+					{Name: "age", TypeInfo: types.NewCqlTypeInfoFromType(datatype.Int), IsPrimaryKey: false, KeyType: "regular"},
 				}),
 			},
 			expectedCount: 3,

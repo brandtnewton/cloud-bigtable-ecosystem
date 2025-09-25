@@ -49,19 +49,19 @@ func TestTranslateCreateTableToBigtable(t *testing.T) {
 				IntRowKeyEncoding: types.OrderedCodeEncoding,
 				Columns: []types.CreateColumn{
 					{
-						Name:  "user_id",
-						Index: 0,
-						Type:  types.NewCqlTypeInfoFromType(datatype.Varchar),
+						Name:     "user_id",
+						Index:    0,
+						TypeInfo: types.NewCqlTypeInfoFromType(datatype.Varchar),
 					},
 					{
-						Name:  "order_num",
-						Index: 1,
-						Type:  types.NewCqlTypeInfoFromType(datatype.Int),
+						Name:     "order_num",
+						Index:    1,
+						TypeInfo: types.NewCqlTypeInfoFromType(datatype.Int),
 					},
 					{
-						Name:  "name",
-						Index: 2,
-						Type:  types.NewCqlTypeInfoFromType(datatype.Varchar),
+						Name:     "name",
+						Index:    2,
+						TypeInfo: types.NewCqlTypeInfoFromType(datatype.Varchar),
 					},
 				},
 				PrimaryKeys: []CreateTablePrimaryKeyConfig{
@@ -90,19 +90,19 @@ func TestTranslateCreateTableToBigtable(t *testing.T) {
 				IfNotExists:       true,
 				Columns: []types.CreateColumn{
 					{
-						Name:  "user_id",
-						Index: 0,
-						Type:  types.NewCqlTypeInfoFromType(datatype.Varchar),
+						Name:     "user_id",
+						Index:    0,
+						TypeInfo: types.NewCqlTypeInfoFromType(datatype.Varchar),
 					},
 					{
-						Name:  "order_num",
-						Index: 1,
-						Type:  types.NewCqlTypeInfoFromType(datatype.Int),
+						Name:     "order_num",
+						Index:    1,
+						TypeInfo: types.NewCqlTypeInfoFromType(datatype.Int),
 					},
 					{
-						Name:  "name",
-						Index: 2,
-						Type:  types.NewCqlTypeInfoFromType(datatype.Varchar),
+						Name:     "name",
+						Index:    2,
+						TypeInfo: types.NewCqlTypeInfoFromType(datatype.Varchar),
 					},
 				},
 				PrimaryKeys: []CreateTablePrimaryKeyConfig{
@@ -127,19 +127,19 @@ func TestTranslateCreateTableToBigtable(t *testing.T) {
 				IfNotExists:       false,
 				Columns: []types.CreateColumn{
 					{
-						Name:  "id",
-						Index: 0,
-						Type:  types.NewCqlTypeInfoFromType(datatype.Varchar),
+						Name:     "id",
+						Index:    0,
+						TypeInfo: types.NewCqlTypeInfoFromType(datatype.Varchar),
 					},
 					{
-						Name:  "lastname",
-						Index: 1,
-						Type:  types.NewCqlTypeInfoFromType(datatype.Varchar),
+						Name:     "lastname",
+						Index:    1,
+						TypeInfo: types.NewCqlTypeInfoFromType(datatype.Varchar),
 					},
 					{
-						Name:  "firstname",
-						Index: 2,
-						Type:  types.NewCqlTypeInfoFromType(datatype.Varchar),
+						Name:     "firstname",
+						Index:    2,
+						TypeInfo: types.NewCqlTypeInfoFromType(datatype.Varchar),
 					},
 				},
 				PrimaryKeys: []CreateTablePrimaryKeyConfig{
@@ -164,19 +164,19 @@ func TestTranslateCreateTableToBigtable(t *testing.T) {
 				IfNotExists:       false,
 				Columns: []types.CreateColumn{
 					{
-						Name:  "id",
-						Index: 0,
-						Type:  types.NewCqlTypeInfoFromType(datatype.Varchar),
+						Name:     "id",
+						Index:    0,
+						TypeInfo: types.NewCqlTypeInfoFromType(datatype.Varchar),
 					},
 					{
-						Name:  "lastname",
-						Index: 1,
-						Type:  types.NewCqlTypeInfoFromType(datatype.Varchar),
+						Name:     "lastname",
+						Index:    1,
+						TypeInfo: types.NewCqlTypeInfoFromType(datatype.Varchar),
 					},
 					{
-						Name:  "firstname",
-						Index: 2,
-						Type:  types.NewCqlTypeInfoFromType(datatype.Varchar),
+						Name:     "firstname",
+						Index:    2,
+						TypeInfo: types.NewCqlTypeInfoFromType(datatype.Varchar),
 					},
 				},
 				PrimaryKeys: []CreateTablePrimaryKeyConfig{
@@ -208,8 +208,8 @@ func TestTranslateCreateTableToBigtable(t *testing.T) {
 				IntRowKeyEncoding: types.OrderedCodeEncoding,
 				IfNotExists:       false,
 				Columns: []types.CreateColumn{
-					{Name: "column1", Index: 0, Type: types.NewCqlTypeInfoFromType(datatype.Varchar)},
-					{Name: "column10", Index: 1, Type: types.NewCqlTypeInfoFromType(datatype.Int)},
+					{Name: "column1", Index: 0, TypeInfo: types.NewCqlTypeInfoFromType(datatype.Varchar)},
+					{Name: "column10", Index: 1, TypeInfo: types.NewCqlTypeInfoFromType(datatype.Int)},
 				},
 				PrimaryKeys: []CreateTablePrimaryKeyConfig{
 					{Name: "column1", KeyType: "partition"},
@@ -230,9 +230,9 @@ func TestTranslateCreateTableToBigtable(t *testing.T) {
 				IntRowKeyEncoding: types.OrderedCodeEncoding,
 				IfNotExists:       false,
 				Columns: []types.CreateColumn{
-					{Name: "column1", Index: 0, Type: types.NewCqlTypeInfoFromType(datatype.Varchar)},
-					{Name: "column10", Index: 1, Type: types.NewCqlTypeInfoFromType(datatype.Int)},
-					{Name: "frozen_col", Index: 2, Type: types.NewCqlTypeInfo("frozen<list<int>>", datatype.NewListType(datatype.Int), true)},
+					{Name: "column1", Index: 0, TypeInfo: types.NewCqlTypeInfoFromType(datatype.Varchar)},
+					{Name: "column10", Index: 1, TypeInfo: types.NewCqlTypeInfoFromType(datatype.Int)},
+					{Name: "frozen_col", Index: 2, TypeInfo: types.NewCqlTypeInfo("frozen<list<int>>", datatype.NewListType(datatype.Int), true)},
 				},
 				PrimaryKeys: []CreateTablePrimaryKeyConfig{
 					{Name: "column1", KeyType: "partition"},
@@ -253,10 +253,10 @@ func TestTranslateCreateTableToBigtable(t *testing.T) {
 				IntRowKeyEncoding: types.OrderedCodeEncoding,
 				IfNotExists:       false,
 				Columns: []types.CreateColumn{
-					{Name: "column1", Index: 0, Type: types.NewCqlTypeInfoFromType(datatype.Varchar)},
-					{Name: "column10", Index: 1, Type: types.NewCqlTypeInfoFromType(datatype.Int)},
-					{Name: "frozen_col", Index: 2, Type: types.NewCqlTypeInfo("frozen<list<int>>", datatype.NewListType(datatype.Int), true)},
-					{Name: "frozen_map", Index: 2, Type: types.NewCqlTypeInfo("frozen<map<text, text>>", datatype.NewMapType(datatype.Varchar, datatype.Varchar), true)},
+					{Name: "column1", Index: 0, TypeInfo: types.NewCqlTypeInfoFromType(datatype.Varchar)},
+					{Name: "column10", Index: 1, TypeInfo: types.NewCqlTypeInfoFromType(datatype.Int)},
+					{Name: "frozen_col", Index: 2, TypeInfo: types.NewCqlTypeInfo("frozen<list<int>>", datatype.NewListType(datatype.Int), true)},
+					{Name: "frozen_map", Index: 2, TypeInfo: types.NewCqlTypeInfo("frozen<map<text, text>>", datatype.NewMapType(datatype.Varchar, datatype.Varchar), true)},
 				},
 				PrimaryKeys: []CreateTablePrimaryKeyConfig{
 					{Name: "column1", KeyType: "partition"},
@@ -277,8 +277,8 @@ func TestTranslateCreateTableToBigtable(t *testing.T) {
 				IntRowKeyEncoding: types.OrderedCodeEncoding,
 				IfNotExists:       false,
 				Columns: []types.CreateColumn{
-					{Name: "column1", Index: 0, Type: types.NewCqlTypeInfoFromType(datatype.Varchar)},
-					{Name: "column10", Index: 1, Type: types.NewCqlTypeInfoFromType(datatype.Int)},
+					{Name: "column1", Index: 0, TypeInfo: types.NewCqlTypeInfoFromType(datatype.Varchar)},
+					{Name: "column10", Index: 1, TypeInfo: types.NewCqlTypeInfoFromType(datatype.Int)},
 				},
 				PrimaryKeys: []CreateTablePrimaryKeyConfig{
 					{Name: "column1", KeyType: "partition"},
@@ -299,8 +299,8 @@ func TestTranslateCreateTableToBigtable(t *testing.T) {
 				IntRowKeyEncoding: types.OrderedCodeEncoding,
 				IfNotExists:       false,
 				Columns: []types.CreateColumn{
-					{Name: "column1", Index: 0, Type: types.NewCqlTypeInfoFromType(datatype.Varchar)},
-					{Name: "column10", Index: 1, Type: types.NewCqlTypeInfoFromType(datatype.Int)},
+					{Name: "column1", Index: 0, TypeInfo: types.NewCqlTypeInfoFromType(datatype.Varchar)},
+					{Name: "column10", Index: 1, TypeInfo: types.NewCqlTypeInfoFromType(datatype.Int)},
 				},
 				PrimaryKeys: []CreateTablePrimaryKeyConfig{
 					{Name: "column1", KeyType: "partition"},
@@ -322,8 +322,8 @@ func TestTranslateCreateTableToBigtable(t *testing.T) {
 				IntRowKeyEncoding: types.BigEndianEncoding,
 				IfNotExists:       false,
 				Columns: []types.CreateColumn{
-					{Name: "column1", Index: 0, Type: types.NewCqlTypeInfoFromType(datatype.Varchar)},
-					{Name: "column10", Index: 1, Type: types.NewCqlTypeInfoFromType(datatype.Int)},
+					{Name: "column1", Index: 0, TypeInfo: types.NewCqlTypeInfoFromType(datatype.Varchar)},
+					{Name: "column10", Index: 1, TypeInfo: types.NewCqlTypeInfoFromType(datatype.Int)},
 				},
 				PrimaryKeys: []CreateTablePrimaryKeyConfig{
 					{Name: "column1", KeyType: "partition"},
@@ -345,8 +345,8 @@ func TestTranslateCreateTableToBigtable(t *testing.T) {
 				IntRowKeyEncoding: types.OrderedCodeEncoding,
 				IfNotExists:       false,
 				Columns: []types.CreateColumn{
-					{Name: "column1", Index: 0, Type: types.NewCqlTypeInfoFromType(datatype.Varchar)},
-					{Name: "column10", Index: 1, Type: types.NewCqlTypeInfoFromType(datatype.Int)},
+					{Name: "column1", Index: 0, TypeInfo: types.NewCqlTypeInfoFromType(datatype.Varchar)},
+					{Name: "column10", Index: 1, TypeInfo: types.NewCqlTypeInfoFromType(datatype.Int)},
 				},
 				PrimaryKeys: []CreateTablePrimaryKeyConfig{
 					{Name: "column1", KeyType: "partition"},
@@ -368,8 +368,8 @@ func TestTranslateCreateTableToBigtable(t *testing.T) {
 				IntRowKeyEncoding: types.OrderedCodeEncoding,
 				IfNotExists:       false,
 				Columns: []types.CreateColumn{
-					{Name: "column1", Index: 0, Type: types.NewCqlTypeInfoFromType(datatype.Varchar)},
-					{Name: "column10", Index: 1, Type: types.NewCqlTypeInfoFromType(datatype.Int)},
+					{Name: "column1", Index: 0, TypeInfo: types.NewCqlTypeInfoFromType(datatype.Varchar)},
+					{Name: "column10", Index: 1, TypeInfo: types.NewCqlTypeInfoFromType(datatype.Int)},
 				},
 				PrimaryKeys: []CreateTablePrimaryKeyConfig{
 					{Name: "column1", KeyType: "partition"},

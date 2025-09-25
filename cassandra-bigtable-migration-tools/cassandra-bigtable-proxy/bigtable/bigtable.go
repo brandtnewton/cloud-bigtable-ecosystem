@@ -493,7 +493,7 @@ func (btc *BigtableClient) AlterTable(ctx context.Context, data *translator.Alte
 func (btc *BigtableClient) addColumnFamilies(columns []types.CreateColumn) (map[string]bigtable.Family, error) {
 	columnFamilies := make(map[string]bigtable.Family)
 	for _, col := range columns {
-		if !col.Type.IsCollection() && !col.Type.IsCounter() {
+		if !col.TypeInfo.IsCollection() && !col.TypeInfo.IsCounter() {
 			continue
 		}
 
@@ -501,11 +501,11 @@ func (btc *BigtableClient) addColumnFamilies(columns []types.CreateColumn) (map[
 			return nil, fmt.Errorf("counter and collection type columns cannot be named '%s' because it's reserved as the default column family", btc.BigtableConfig.DefaultColumnFamily)
 		}
 
-		if col.Type.IsCollection() {
+		if col.TypeInfo.IsCollection() {
 			columnFamilies[col.Name] = bigtable.Family{
 				GCPolicy: bigtable.MaxVersionsPolicy(1),
 			}
-		} else if col.Type.IsCounter() {
+		} else if col.TypeInfo.IsCounter() {
 			columnFamilies[col.Name] = bigtable.Family{
 				GCPolicy: bigtable.NoGcPolicy(),
 				ValueType: bigtable.AggregateType{
@@ -533,8 +533,8 @@ func (btc *BigtableClient) updateTableSchema(ctx context.Context, keyspace strin
 	for _, col := range addCols {
 		mut := bigtable.NewMutation()
 		mut.Set(schemaMappingTableColumnFamily, "ColumnName", ts, []byte(col.Name))
-		mut.Set(schemaMappingTableColumnFamily, "ColumnType", ts, []byte(col.Type.RawType))
-		isCollection := col.Type.IsCollection()
+		mut.Set(schemaMappingTableColumnFamily, "ColumnType", ts, []byte(col.TypeInfo.RawType))
+		isCollection := col.TypeInfo.IsCollection()
 		// todo this is no longer used. We'll remove this later, in a few releases, but we'll keep it for now so users can roll back to earlier versions of the proxy if needed
 		mut.Set(schemaMappingTableColumnFamily, "IsCollection", ts, []byte(strconv.FormatBool(isCollection)))
 		pmkIndex := slices.IndexFunc(pmks, func(c translator.CreateTablePrimaryKeyConfig) bool {

@@ -317,7 +317,7 @@ func (th *TypeHandler) HandleSetType(arr []interface{}, mr *message.Row, setType
 // Parameters:
 //   - mapData: map of string and interface{} of elementType of data.
 //   - mr: Pointer to the message.Row to append the converted data.
-//   - elementType: Type of the elements in the map.
+//   - elementType: TypeInfo of the elements in the map.
 //   - protocalV: Cassandra protocol version.
 //
 // Returns: Cassandra datatype and an error if any.

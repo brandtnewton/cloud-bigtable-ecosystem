@@ -64,9 +64,9 @@ func (t *CqlTypeInfo) IsCollection() bool {
 }
 
 type CreateColumn struct {
-	Name  string
-	Index int32
-	Type  *CqlTypeInfo
+	Name     string
+	Index    int32
+	TypeInfo *CqlTypeInfo
 }
 
 type Clause struct {

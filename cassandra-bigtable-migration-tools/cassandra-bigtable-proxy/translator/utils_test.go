@@ -1525,7 +1525,7 @@ func TestCastColumns(t *testing.T) {
 			name: "unsupported type",
 			colMeta: &types.Column{
 				Name:     "unsupported",
-				TypeInfo: nil,
+				TypeInfo: types.NewCqlTypeInfo("foo", datatype.NewCustomType("foo.bar"), false),
 			},
 			columnFamily: "cf1",
 			want:         "",

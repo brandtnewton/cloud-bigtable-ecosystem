@@ -938,13 +938,13 @@ func TestIsSupportedPrimaryKeyType(t *testing.T) {
 		input    *types.CqlTypeInfo
 		expected bool
 	}{
-		{"Supported Type - Int", types.NewCqlTypeInfoFromType(datatype.Int), true},
-		{"Supported Type - Bigint", types.NewCqlTypeInfoFromType(datatype.Bigint), true},
-		{"Supported Type - Varchar", types.NewCqlTypeInfoFromType(datatype.Varchar), true},
-		{"Unsupported Type - Boolean", types.NewCqlTypeInfoFromType(datatype.Boolean), false},
-		{"Unsupported Type - Float", types.NewCqlTypeInfoFromType(datatype.Float), false},
-		{"Unsupported Type - Blob", types.NewCqlTypeInfoFromType(datatype.Blob), false},
-		{"Unsupported Type - List", types.NewCqlTypeInfoFromType(datatype.NewListType(datatype.Int)), false},
+		{"Supported TypeInfo - Int", types.NewCqlTypeInfoFromType(datatype.Int), true},
+		{"Supported TypeInfo - Bigint", types.NewCqlTypeInfoFromType(datatype.Bigint), true},
+		{"Supported TypeInfo - Varchar", types.NewCqlTypeInfoFromType(datatype.Varchar), true},
+		{"Unsupported TypeInfo - Boolean", types.NewCqlTypeInfoFromType(datatype.Boolean), false},
+		{"Unsupported TypeInfo - Float", types.NewCqlTypeInfoFromType(datatype.Float), false},
+		{"Unsupported TypeInfo - Blob", types.NewCqlTypeInfoFromType(datatype.Blob), false},
+		{"Unsupported TypeInfo - List", types.NewCqlTypeInfoFromType(datatype.NewListType(datatype.Int)), false},
 	}
 
 	for _, tc := range testCases {
@@ -961,17 +961,17 @@ func TestIsSupportedCollectionElementType(t *testing.T) {
 		input    datatype.DataType
 		expected bool
 	}{
-		{"Supported Type - Int", datatype.Int, true},
-		{"Supported Type - Bigint", datatype.Bigint, true},
-		{"Supported Type - Varchar", datatype.Varchar, true},
-		{"Supported Type - Float", datatype.Float, true},
-		{"Supported Type - Double", datatype.Double, true},
-		{"Supported Type - Timestamp", datatype.Timestamp, true},
-		{"Supported Type - Boolean", datatype.Boolean, true},
-		{"Unsupported Type - Blob", datatype.Blob, false},
-		{"Unsupported Type - UUID", datatype.Uuid, false},
-		{"Unsupported Type - Map", datatype.NewMapType(datatype.Varchar, datatype.Int), false},
-		{"Unsupported Type - Set", datatype.NewSetType(datatype.Varchar), false},
+		{"Supported TypeInfo - Int", datatype.Int, true},
+		{"Supported TypeInfo - Bigint", datatype.Bigint, true},
+		{"Supported TypeInfo - Varchar", datatype.Varchar, true},
+		{"Supported TypeInfo - Float", datatype.Float, true},
+		{"Supported TypeInfo - Double", datatype.Double, true},
+		{"Supported TypeInfo - Timestamp", datatype.Timestamp, true},
+		{"Supported TypeInfo - Boolean", datatype.Boolean, true},
+		{"Unsupported TypeInfo - Blob", datatype.Blob, false},
+		{"Unsupported TypeInfo - UUID", datatype.Uuid, false},
+		{"Unsupported TypeInfo - Map", datatype.NewMapType(datatype.Varchar, datatype.Int), false},
+		{"Unsupported TypeInfo - Set", datatype.NewSetType(datatype.Varchar), false},
 	}
 
 	for _, tc := range testCases {
@@ -1015,10 +1015,10 @@ func TestIsSupportedColumnType(t *testing.T) {
 		{"Unsupported Map Value", types.NewCqlTypeInfoFromType(datatype.NewMapType(datatype.Varchar, datatype.Uuid)), false},
 		{"Nested Collection - List of Maps", types.NewCqlTypeInfoFromType(datatype.NewListType(datatype.NewMapType(datatype.Varchar, datatype.Int))), false},
 		// --- Negative Cases: Frozen Types ---
-		{"Frozen List", types.NewCqlTypeInfo("frozen<list<int>>", datatype.NewListType(datatype.Int), true), false},
-		{"Frozen Set", types.NewCqlTypeInfo("frozen<set<text>>", datatype.NewSetType(datatype.Varchar), true), false},
-		{"Frozen Map", types.NewCqlTypeInfo("frozen<map<timestamp, float>>", datatype.NewMapType(datatype.Timestamp, datatype.Float), true), false},
-		{"Frozen Map with Text Key", types.NewCqlTypeInfo("frozen<map<text, bigint>>", datatype.NewMapType(datatype.Varchar, datatype.Bigint), true), false},
+		{"Frozen List", types.NewCqlTypeInfo("frozen<list<int>>", datatype.NewListType(datatype.Int), true), true},
+		{"Frozen Set", types.NewCqlTypeInfo("frozen<set<text>>", datatype.NewSetType(datatype.Varchar), true), true},
+		{"Frozen Map", types.NewCqlTypeInfo("frozen<map<timestamp, float>>", datatype.NewMapType(datatype.Timestamp, datatype.Float), true), true},
+		{"Frozen Map with Text Key", types.NewCqlTypeInfo("frozen<map<text, bigint>>", datatype.NewMapType(datatype.Varchar, datatype.Bigint), true), true},
 	}
 
 	for _, tc := range testCases {

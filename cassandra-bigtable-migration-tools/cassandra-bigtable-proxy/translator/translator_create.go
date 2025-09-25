@@ -85,9 +85,9 @@ func (t *Translator) TranslateCreateTableToBigtable(query, sessionKeyspace strin
 		}
 
 		columns = append(columns, types.CreateColumn{
-			Type:  dt,
-			Name:  col.Column().GetText(),
-			Index: int32(i),
+			TypeInfo: dt,
+			Name:     col.Column().GetText(),
+			Index:    int32(i),
 		})
 
 		if col.PrimaryKeyColumn() != nil {
@@ -189,8 +189,8 @@ func (t *Translator) TranslateCreateTableToBigtable(query, sessionKeyspace strin
 			return nil, fmt.Errorf("primary key '%s' has no column definition in create table statement", pmk.Name)
 		}
 		col := columns[colIndex]
-		if !utilities.IsSupportedPrimaryKeyType(col.Type) {
-			return nil, fmt.Errorf("primary key cannot be of type %s", col.Type.RawType)
+		if !utilities.IsSupportedPrimaryKeyType(col.TypeInfo) {
+			return nil, fmt.Errorf("primary key cannot be of type %s", col.TypeInfo.RawType)
 		}
 	}
 

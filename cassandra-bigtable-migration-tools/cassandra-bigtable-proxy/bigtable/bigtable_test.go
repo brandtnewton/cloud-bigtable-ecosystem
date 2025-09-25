@@ -861,24 +861,24 @@ var testCreateTableStatementMap = translator.CreateTableStatementMap{
 	IntRowKeyEncoding: types.OrderedCodeEncoding,
 	Columns: []types.CreateColumn{
 		{
-			Name:  "org",
-			Index: 0,
-			Type:  types.NewCqlTypeInfoFromType(datatype.Varchar),
+			Name:     "org",
+			Index:    0,
+			TypeInfo: types.NewCqlTypeInfoFromType(datatype.Varchar),
 		},
 		{
-			Name:  "id",
-			Index: 1,
-			Type:  types.NewCqlTypeInfoFromType(datatype.Bigint),
+			Name:     "id",
+			Index:    1,
+			TypeInfo: types.NewCqlTypeInfoFromType(datatype.Bigint),
 		},
 		{
-			Name:  "name",
-			Index: 2,
-			Type:  types.NewCqlTypeInfoFromType(datatype.Varchar),
+			Name:     "name",
+			Index:    2,
+			TypeInfo: types.NewCqlTypeInfoFromType(datatype.Varchar),
 		},
 		{
-			Name:  "zipcode",
-			Index: 3,
-			Type:  types.NewCqlTypeInfoFromType(datatype.Int),
+			Name:     "zipcode",
+			Index:    3,
+			TypeInfo: types.NewCqlTypeInfoFromType(datatype.Int),
 		},
 	},
 	PrimaryKeys: []translator.CreateTablePrimaryKeyConfig{
@@ -1056,8 +1056,8 @@ func TestAlterTable(t *testing.T) {
 		IfNotExists: false,
 		AddColumns: []types.CreateColumn{
 			{
-				Name: "zodiac",
-				Type: types.NewCqlTypeInfoFromType(datatype.Varchar),
+				Name:     "zodiac",
+				TypeInfo: types.NewCqlTypeInfoFromType(datatype.Varchar),
 			},
 		},
 		DropColumns: []string{

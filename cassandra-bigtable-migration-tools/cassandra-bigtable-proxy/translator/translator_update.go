@@ -358,11 +358,7 @@ func (t *Translator) TranslateUpdateQuerytoBigtable(query string, isPreparedQuer
 	}
 	if !ValidateRequiredPrimaryKeys(primaryKeys, actualPrimaryKeys) {
 		missingPrime := findFirstMissingKey(primaryKeys, actualPrimaryKeys)
-		missingPkColumnType, err := tableConfig.GetPkKeyType(missingPrime)
-		if err != nil {
-			return nil, err
-		}
-		return nil, fmt.Errorf("some %s key parts are missing: %s", missingPkColumnType, missingPrime)
+		return nil, fmt.Errorf("some primary key parts are missing: %s", missingPrime)
 	}
 	if err != nil {
 		return nil, err

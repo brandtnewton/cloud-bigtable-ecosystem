@@ -67,7 +67,7 @@ func TestTranslateCreateTableToBigtable(t *testing.T) {
 				PrimaryKeys: []CreateTablePrimaryKeyConfig{
 					{
 						Name:    "user_id",
-						KeyType: "partition",
+						KeyType: "partition_key",
 					},
 					{
 						Name:    "order_num",
@@ -108,7 +108,7 @@ func TestTranslateCreateTableToBigtable(t *testing.T) {
 				PrimaryKeys: []CreateTablePrimaryKeyConfig{
 					{
 						Name:    "user_id",
-						KeyType: "partition",
+						KeyType: "partition_key",
 					},
 				},
 			},
@@ -182,11 +182,11 @@ func TestTranslateCreateTableToBigtable(t *testing.T) {
 				PrimaryKeys: []CreateTablePrimaryKeyConfig{
 					{
 						Name:    "id",
-						KeyType: "partition",
+						KeyType: "partition_key",
 					},
 					{
 						Name:    "lastname",
-						KeyType: "partition",
+						KeyType: "partition_key",
 					},
 					{
 						Name:    "firstname",
@@ -259,7 +259,7 @@ func TestTranslateCreateTableToBigtable(t *testing.T) {
 					{Name: "frozen_map", Index: 2, TypeInfo: types.NewCqlTypeInfo("frozen<map<text, text>>", datatype.NewMapType(datatype.Varchar, datatype.Varchar), true)},
 				},
 				PrimaryKeys: []CreateTablePrimaryKeyConfig{
-					{Name: "column1", KeyType: "partition"},
+					{Name: "column1", KeyType: "partition_key"},
 					{Name: "column10", KeyType: "clustering"},
 				},
 			},
@@ -281,7 +281,7 @@ func TestTranslateCreateTableToBigtable(t *testing.T) {
 					{Name: "column10", Index: 1, TypeInfo: types.NewCqlTypeInfoFromType(datatype.Int)},
 				},
 				PrimaryKeys: []CreateTablePrimaryKeyConfig{
-					{Name: "column1", KeyType: "partition"},
+					{Name: "column1", KeyType: "partition_key"},
 					{Name: "column10", KeyType: "clustering"},
 				},
 			},
@@ -303,7 +303,7 @@ func TestTranslateCreateTableToBigtable(t *testing.T) {
 					{Name: "column10", Index: 1, TypeInfo: types.NewCqlTypeInfoFromType(datatype.Int)},
 				},
 				PrimaryKeys: []CreateTablePrimaryKeyConfig{
-					{Name: "column1", KeyType: "partition"},
+					{Name: "column1", KeyType: "partition_key"},
 					{Name: "column10", KeyType: "clustering"},
 				},
 			},
@@ -326,7 +326,7 @@ func TestTranslateCreateTableToBigtable(t *testing.T) {
 					{Name: "column10", Index: 1, TypeInfo: types.NewCqlTypeInfoFromType(datatype.Int)},
 				},
 				PrimaryKeys: []CreateTablePrimaryKeyConfig{
-					{Name: "column1", KeyType: "partition"},
+					{Name: "column1", KeyType: "partition_key"},
 					{Name: "column10", KeyType: "clustering"},
 				},
 			},
@@ -349,7 +349,7 @@ func TestTranslateCreateTableToBigtable(t *testing.T) {
 					{Name: "column10", Index: 1, TypeInfo: types.NewCqlTypeInfoFromType(datatype.Int)},
 				},
 				PrimaryKeys: []CreateTablePrimaryKeyConfig{
-					{Name: "column1", KeyType: "partition"},
+					{Name: "column1", KeyType: "partition_key"},
 					{Name: "column10", KeyType: "clustering"},
 				},
 			},
@@ -372,7 +372,7 @@ func TestTranslateCreateTableToBigtable(t *testing.T) {
 					{Name: "column10", Index: 1, TypeInfo: types.NewCqlTypeInfoFromType(datatype.Int)},
 				},
 				PrimaryKeys: []CreateTablePrimaryKeyConfig{
-					{Name: "column1", KeyType: "partition"},
+					{Name: "column1", KeyType: "partition_key"},
 					{Name: "column10", KeyType: "clustering"},
 				},
 			},

@@ -117,6 +117,15 @@ CREATE TABLE IF NOT EXISTS bigtabledevinstance.frozen_table (
 	PRIMARY KEY (name)
 );
 `,
+		`
+CREATE TABLE IF NOT EXISTS bigtabledevinstance.compound_key_table (
+	org int,
+	id int,
+	email varchar,
+	name varchar,
+	PRIMARY KEY ((org, id), email)
+);
+`,
 	}
 
 	if testTarget == TestTargetProxy {

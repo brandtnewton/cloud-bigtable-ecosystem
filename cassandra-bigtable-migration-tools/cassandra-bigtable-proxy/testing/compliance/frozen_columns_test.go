@@ -8,6 +8,7 @@ import (
 )
 
 // todo frozen upsert via insert
+// todo test selecting part of a frozen collection
 func TestInsertAndSelectFrozenListInt(t *testing.T) {
 	t.Parallel()
 

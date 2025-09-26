@@ -1098,7 +1098,7 @@ func TestGetCassandraColumnType(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.input, func(t *testing.T) {
-			gotType, err := GetCassandraColumnType(tc.input)
+			gotType, err := ParseCqlType(tc.input)
 			if tc.wantErr {
 				require.Error(t, err)
 				return

@@ -8,25 +8,23 @@ import (
 )
 
 // todo frozen upsert via insert
-// TestInsertAndSelectFrozenListInt tests the frozen<list<int>> column.
 func TestInsertAndSelectFrozenListInt(t *testing.T) {
 	t.Parallel()
 
-	// Setup test data
 	testName := "test_user_list"
 	testList := []int{10, 20, 30, 40}
 
 	// Insert data
 	err := session.Query(`INSERT INTO bigtabledevinstance.frozen_table (name, list_nums) VALUES (?, ?)`,
 		testName, testList).Exec()
-	require.NoError(t, err, "Failed to insert record with frozen<list<int>>")
+	require.NoError(t, err)
 
 	// Retrieve and validate data
 	var retrievedList []int
 	err = session.Query(`SELECT list_nums FROM bigtabledevinstance.frozen_table WHERE name = ?`, testName).Scan(&retrievedList)
-	require.NoError(t, err, "Failed to select record with frozen<list<int>>")
+	require.NoError(t, err)
 
-	assert.Equal(t, testList, retrievedList, "Retrieved list does not match inserted list")
+	assert.Equal(t, testList, retrievedList)
 }
 
 // TestInsertAndSelectFrozenMapText tests the frozen<map<text, text>> column.
@@ -53,7 +51,6 @@ func TestInsertAndSelectFrozenMapText(t *testing.T) {
 	assert.Equal(t, testMap, retrievedMap, "Retrieved map does not match inserted map")
 }
 
-// TestInsertAndSelectFrozenSetText tests the frozen<set<text>> column.
 func TestInsertAndSelectFrozenSetText(t *testing.T) {
 	t.Parallel()
 
@@ -65,18 +62,15 @@ func TestInsertAndSelectFrozenSetText(t *testing.T) {
 	// Insert data
 	err := session.Query(`INSERT INTO bigtabledevinstance.frozen_table (name, set_text) VALUES (?, ?)`,
 		testName, testSet).Exec()
-	require.NoError(t, err, "Failed to insert record with frozen<set<text>>")
+	require.NoError(t, err)
 
 	// Retrieve and validate data
 	var retrievedSet []string
 	err = session.Query(`SELECT set_text FROM bigtabledevinstance.frozen_table WHERE name = ?`, testName).Scan(&retrievedSet)
-	require.NoError(t, err, "Failed to select record with frozen<set<text>>")
-
-	// IMPORTANT: Sets are unordered. Use ElementsMatch to compare, not Equal.
-	assert.ElementsMatch(t, testSet, retrievedSet, "Retrieved set does not match inserted set")
+	require.NoError(t, err)
+	assert.ElementsMatch(t, testSet, retrievedSet)
 }
 
-// TestInsertAndSelectAllFrozenTypes tests inserting and retrieving all columns at once.
 func TestInsertAndSelectAllFrozenTypes(t *testing.T) {
 	t.Parallel()
 
@@ -89,7 +83,7 @@ func TestInsertAndSelectAllFrozenTypes(t *testing.T) {
 	// Insert data
 	err := session.Query(`INSERT INTO bigtabledevinstance.frozen_table (name, list_nums, map_text, set_text) VALUES (?, ?, ?, ?)`,
 		testName, testList, testMap, testSet).Exec()
-	require.NoError(t, err, "Failed to insert record with all frozen types")
+	require.NoError(t, err)
 
 	// Retrieve and validate data
 	var (
@@ -99,12 +93,12 @@ func TestInsertAndSelectAllFrozenTypes(t *testing.T) {
 	)
 	err = session.Query(`SELECT list_nums, map_text, set_text FROM bigtabledevinstance.frozen_table WHERE name = ?`,
 		testName).Scan(&retrievedList, &retrievedMap, &retrievedSet)
-	require.NoError(t, err, "Failed to select record with all frozen types")
+	require.NoError(t, err)
 
 	// Validate all fields
-	assert.Equal(t, testList, retrievedList, "List data mismatch")
-	assert.Equal(t, testMap, retrievedMap, "Map data mismatch")
-	assert.ElementsMatch(t, testSet, retrievedSet, "Set data mismatch")
+	assert.Equal(t, testList, retrievedList)
+	assert.Equal(t, testMap, retrievedMap)
+	assert.ElementsMatch(t, testSet, retrievedSet)
 }
 
 // TestFailAppendToFrozenList demonstrates that you cannot append to a frozen list.
@@ -115,16 +109,14 @@ func TestFailAppendToFrozenList(t *testing.T) {
 	// Setup: Insert initial record
 	err := session.Query(`INSERT INTO bigtabledevinstance.frozen_table (name, list_nums) VALUES (?, ?)`,
 		testName, []int{1, 2}).Exec()
-	require.NoError(t, err, "Failed to insert initial record")
+	require.NoError(t, err)
 
 	// Attempt to append to the frozen list (this should fail)
 	err = session.Query(`UPDATE bigtabledevinstance.frozen_table SET list_nums = list_nums + ? WHERE name = ?`,
 		[]int{3}, testName).Exec()
 
-	// We expect an error
-	require.Error(t, err, "Expected an error when appending to a frozen list")
-	// Check for Cassandra's specific error message
-	assert.Contains(t, err.Error(), "Invalid operation (APPEND) for frozen list", "Error message did not indicate invalid frozen operation")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "cannot partially update frozen columns")
 }
 
 // TestFailAddToFrozenSet demonstrates that you cannot add elements to a frozen set.
@@ -141,8 +133,8 @@ func TestFailAddToFrozenSet(t *testing.T) {
 	err = session.Query(`UPDATE bigtabledevinstance.frozen_table SET set_text = set_text + ? WHERE name = ?`,
 		[]string{"c"}, testName).Exec()
 
-	require.Error(t, err, "Expected an error when adding to a frozen set")
-	assert.Contains(t, err.Error(), "Invalid operation (ADD) for frozen set", "Error message did not indicate invalid frozen operation")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "cannot partially update frozen columns")
 }
 
 // TestFailUpdateKeyInFrozenMap demonstrates that you cannot update a key in a frozen map.
@@ -153,14 +145,14 @@ func TestFailUpdateKeyInFrozenMap(t *testing.T) {
 	// Setup: Insert initial record
 	err := session.Query(`INSERT INTO bigtabledevinstance.frozen_table (name, map_text) VALUES (?, ?)`,
 		testName, map[string]string{"k1": "v1"}).Exec()
-	require.NoError(t, err, "Failed to insert initial record")
+	require.NoError(t, err)
 
 	// Attempt to update a single key in the frozen map (this should fail)
 	err = session.Query(`UPDATE bigtabledevinstance.frozen_table SET map_text[?] = ? WHERE name = ?`,
 		"k2", "v2", testName).Exec()
 
-	require.Error(t, err, "Expected an error when updating a key in a frozen map")
-	assert.Contains(t, err.Error(), "Invalid operation (SET) for frozen map", "Error message did not indicate invalid frozen operation")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "cannot partially update frozen columns")
 }
 
 // TestSuccessReplaceEntireFrozenCollection demonstrates the *correct* way to "update"
@@ -173,7 +165,7 @@ func TestSuccessReplaceEntireFrozenCollection(t *testing.T) {
 	initialList := []int{10, 20}
 	err := session.Query(`INSERT INTO bigtabledevinstance.frozen_table (name, list_nums) VALUES (?, ?)`,
 		testName, initialList).Exec()
-	require.NoError(t, err, "Failed to insert initial record")
+	require.NoError(t, err)
 
 	// "Modify" the list by replacing the *entire* value
 	newList := []int{10, 20, 30, 40}
@@ -181,12 +173,12 @@ func TestSuccessReplaceEntireFrozenCollection(t *testing.T) {
 		newList, testName).Exec()
 
 	// This operation should succeed
-	require.NoError(t, err, "Failed to replace entire frozen list")
+	require.NoError(t, err)
 
 	// Retrieve and validate the new list
 	var retrievedList []int
 	err = session.Query(`SELECT list_nums FROM bigtabledevinstance.frozen_table WHERE name = ?`, testName).Scan(&retrievedList)
-	require.NoError(t, err, "Failed to select replaced list")
+	require.NoError(t, err)
 
-	assert.Equal(t, newList, retrievedList, "Retrieved list does not match the new, replaced list")
+	assert.Equal(t, newList, retrievedList)
 }

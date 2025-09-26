@@ -533,7 +533,7 @@ func handleSetOperation(val interface{}, column types.Column, colFamily string, 
 		case "+":
 			setValues, ok := v.Right.([]string)
 			if !ok {
-				return fmt.Errorf("expected []string for remove operation, got %T", v.Right)
+				return fmt.Errorf("expected []string for add operation, got %T", v.Right)
 			}
 			return addSetElements(setValues, colFamily, column, input, output)
 		case "-":

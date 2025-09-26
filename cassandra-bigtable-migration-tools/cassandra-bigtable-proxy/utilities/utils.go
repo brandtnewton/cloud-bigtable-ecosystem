@@ -585,7 +585,15 @@ func IsSupportedColumnType(dt *types.CqlTypeInfo) bool {
 
 var cqlGenericTypeRegex = regexp.MustCompile(`^(\w+)<(.+)>$`)
 
-// GetCassandraColumnType converts a string representation of a Cassandra data type into
+func ParseCqlTypeOrDie(typeStr string) *types.CqlTypeInfo {
+	t, err := ParseCqlType(typeStr)
+	if err != nil {
+		panic(err)
+	}
+	return t
+}
+
+// ParseCqlType converts a string representation of a Cassandra data type into
 // a corresponding DataType value. It supports a range of common Cassandra data types,
 // including text, blob, timestamp, int, bigint, boolean, uuid, various map and list types.
 //
@@ -600,14 +608,14 @@ var cqlGenericTypeRegex = regexp.MustCompile(`^(\w+)<(.+)>$`)
 //   - error: An error is returned if the provided string does not match any of the known
 //     Cassandra data types. This helps in identifying unsupported or incorrectly specified
 //     data types.
-func GetCassandraColumnType(typeStr string) (*types.CqlTypeInfo, error) {
+func ParseCqlType(typeStr string) (*types.CqlTypeInfo, error) {
 	typeStr = strings.ToLower(strings.ReplaceAll(typeStr, " ", ""))
 
 	matches := cqlGenericTypeRegex.FindStringSubmatch(typeStr)
 	if matches != nil {
 		switch matches[1] {
 		case "frozen":
-			innerType, err := GetCassandraColumnType(matches[2])
+			innerType, err := ParseCqlType(matches[2])
 			if err != nil {
 				return nil, fmt.Errorf("failed to extract type for '%s': %w", typeStr, err)
 			}
@@ -620,7 +628,7 @@ func GetCassandraColumnType(typeStr string) (*types.CqlTypeInfo, error) {
 				IsFrozen: true,
 			}, nil
 		case "list":
-			innerType, err := GetCassandraColumnType(matches[2])
+			innerType, err := ParseCqlType(matches[2])
 			if err != nil {
 				return nil, fmt.Errorf("failed to extract type for '%s': %w", typeStr, err)
 			}
@@ -630,7 +638,7 @@ func GetCassandraColumnType(typeStr string) (*types.CqlTypeInfo, error) {
 				IsFrozen: false,
 			}, nil
 		case "set":
-			innerType, err := GetCassandraColumnType(matches[2])
+			innerType, err := ParseCqlType(matches[2])
 			if err != nil {
 				return nil, fmt.Errorf("failed to extract type for '%s': %w", typeStr, err)
 			}
@@ -644,11 +652,11 @@ func GetCassandraColumnType(typeStr string) (*types.CqlTypeInfo, error) {
 			if len(parts) != 2 {
 				return nil, fmt.Errorf("failed to extract type for '%s': malformed map type", typeStr)
 			}
-			keyType, err := GetCassandraColumnType(parts[0])
+			keyType, err := ParseCqlType(parts[0])
 			if err != nil {
 				return nil, fmt.Errorf("failed to extract type for '%s': %w", typeStr, err)
 			}
-			valueType, err := GetCassandraColumnType(parts[1])
+			valueType, err := ParseCqlType(parts[1])
 			if err != nil {
 				return nil, fmt.Errorf("failed to extract type for '%s': %w", typeStr, err)
 			}

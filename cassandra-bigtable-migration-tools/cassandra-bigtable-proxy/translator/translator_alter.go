@@ -82,7 +82,7 @@ func (t *Translator) TranslateAlterTableToBigtable(query, sessionKeyspace string
 	var addColumns []types.CreateColumn
 	if alterTable.AlterTableOperation().AlterTableAdd() != nil {
 		for i, addColumn := range alterTable.AlterTableOperation().AlterTableAdd().AlterTableColumnDefinition().AllColumn() {
-			dt, err := utilities.GetCassandraColumnType(alterTable.AlterTableOperation().AlterTableAdd().AlterTableColumnDefinition().DataType(i).GetText())
+			dt, err := utilities.ParseCqlType(alterTable.AlterTableOperation().AlterTableAdd().AlterTableColumnDefinition().DataType(i).GetText())
 			if err != nil {
 				return nil, err
 			}

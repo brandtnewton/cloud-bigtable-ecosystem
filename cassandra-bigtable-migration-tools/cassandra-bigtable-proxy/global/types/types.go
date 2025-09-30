@@ -52,9 +52,11 @@ func NewCqlTypeInfo(rawType string, dataType datatype.DataType, isFrozen bool) *
 func (t *CqlTypeInfo) GetDataTypeCode() primitive.DataTypeCode {
 	return t.DataType.GetDataTypeCode()
 }
+
 func (t *CqlTypeInfo) IsCounter() bool {
 	return t.DataType == datatype.Counter
 }
+
 func (t *CqlTypeInfo) IsCollection() bool {
 	switch t.DataType.GetDataTypeCode() {
 	case primitive.DataTypeCodeList, primitive.DataTypeCodeSet, primitive.DataTypeCodeMap:

@@ -634,10 +634,10 @@ func ParseCqlType(dtc cql.IDataTypeContext) (*types.CqlTypeInfo, error) {
 		}
 		innerType, err := ParseCqlType(dtc.DataTypeDefinition().DataType(0))
 		if err != nil {
-return nil, fmt.Errorf("failed to extract type for '%s': %w", dtc.GetText(), err)
+			return nil, fmt.Errorf("failed to extract type for '%s': %w", dtc.GetText(), err)
 		}
 		if !innerType.IsCollection() {
-			return nil, fmt.Errorf("failed to extract type for '%s': frozen types must be a collection", dtc)
+			return nil, fmt.Errorf("failed to extract type for '%s': frozen types must be a collection", dtc.GetText())
 		}
 		return types.NewCqlTypeInfo(dtc.GetText(), innerType.DataType, true), nil
 	case "list":
@@ -647,7 +647,7 @@ return nil, fmt.Errorf("failed to extract type for '%s': %w", dtc.GetText(), err
 		}
 		innerType, err := ParseCqlType(dtc.DataTypeDefinition().DataType(0))
 		if err != nil {
-			return nil, fmt.Errorf("failed to extract type for '%s': %w", dtc, err)
+			return nil, fmt.Errorf("failed to extract type for '%s': %w", dtc.GetText(), err)
 		}
 		if innerType.IsCollection() && !innerType.IsFrozen {
 			return nil, fmt.Errorf("lists cannot contain collections unless they are frozen")
@@ -660,7 +660,7 @@ return nil, fmt.Errorf("failed to extract type for '%s': %w", dtc.GetText(), err
 		}
 		innerType, err := ParseCqlType(dtc.DataTypeDefinition().DataType(0))
 		if err != nil {
-			return nil, fmt.Errorf("failed to extract type for '%s': %w", dtc, err)
+			return nil, fmt.Errorf("failed to extract type for '%s': %w", dtc.GetText(), err)
 		}
 		if innerType.IsCollection() && !innerType.IsFrozen {
 			return nil, fmt.Errorf("sets cannot contain collections unless they are frozen")
@@ -673,20 +673,20 @@ return nil, fmt.Errorf("failed to extract type for '%s': %w", dtc.GetText(), err
 		}
 		keyType, err := ParseCqlType(dtc.DataTypeDefinition().DataType(0))
 		if err != nil {
-			return nil, fmt.Errorf("failed to extract key type for '%s': %w", dtc, err)
+			return nil, fmt.Errorf("failed to extract key type for '%s': %w", dtc.GetText(), err)
 		}
 		if keyType.IsCollection() {
 			return nil, fmt.Errorf("map key types must be scalar")
 		}
 		valueType, err := ParseCqlType(dtc.DataTypeDefinition().DataType(1))
 		if err != nil {
-			return nil, fmt.Errorf("failed to extract value type for '%s': %w", dtc, err)
+			return nil, fmt.Errorf("failed to extract value type for '%s': %w", dtc.GetText(), err)
 		}
 		if valueType.IsCollection() && !valueType.IsFrozen {
 			return nil, fmt.Errorf("map values cannot be collections unless they are frozen")
 		}
 		if err != nil {
-			return nil, fmt.Errorf("failed to extract type for '%s': %w", dtc, err)
+			return nil, fmt.Errorf("failed to extract type for '%s': %w", dtc.GetText(), err)
 		}
 		return types.NewCqlTypeInfo(dtc.GetText(), datatype.NewMapType(keyType.DataType, valueType.DataType), keyType.IsFrozen || valueType.IsFrozen), nil
 	case "text", "varchar":
@@ -814,7 +814,7 @@ func validateDataTypeDefinition(dt cql.IDataTypeContext, expectedTypeCount int) 
 		return fmt.Errorf("expected exactly %d types but found %d in: '%s'", expectedTypeCount, len(def.AllDataType()), dt.GetText())
 	}
 	if def.SyntaxBracketLa() == nil {
-return fmt.Errorf("missing opening type bracket in: '%s'", dt.GetText())
+		return fmt.Errorf("missing opening type bracket in: '%s'", dt.GetText())
 	}
 	if def.SyntaxBracketRa() == nil {
 		return fmt.Errorf("missing closing type bracket in: '%s'", dt.GetText())

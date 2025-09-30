@@ -814,7 +814,7 @@ func validateDataTypeDefinition(dt cql.IDataTypeContext, expectedTypeCount int) 
 		return fmt.Errorf("expected exactly %d types but found %d in: '%s'", expectedTypeCount, len(def.AllDataType()), dt.GetText())
 	}
 	if def.SyntaxBracketLa() == nil {
-		return fmt.Errorf("missing opening type bracket in: '%s'", dt)
+return fmt.Errorf("missing opening type bracket in: '%s'", dt.GetText())
 	}
 	if def.SyntaxBracketRa() == nil {
 		return fmt.Errorf("missing closing type bracket in: '%s'", dt.GetText())

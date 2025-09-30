@@ -469,10 +469,6 @@ func (t *Translator) TranslateUpdateQuerytoBigtable(query string, isPreparedQuer
 		ComplexOperation:      complexMeta,
 	}
 
-	if err := validateComplexOperation(tableConfig, updateQueryData); err != nil {
-		return nil, err
-	}
-
 	return updateQueryData, nil
 }
 

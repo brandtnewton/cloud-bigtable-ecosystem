@@ -413,59 +413,6 @@ func TestTranslator_TranslateUpdateQuerytoBigtable(t *testing.T) {
 			},
 		},
 		{
-			name: "update with frozen list assignment",
-			args: args{
-				query: "UPDATE test_keyspace.test_table SET frozen_list_text = ['item1', 'item2'] WHERE column1 = 'testText' AND column10 = 'column10';",
-			},
-			wantErr: "",
-			want: &UpdateQueryMapping{
-				ParamKeys: []string{"set1", "value1", "value2"},
-				Params: map[string]interface{}{
-					"set1":   []string{"item1", "item2"},
-					"value1": "testText",
-					"value2": "column10",
-				},
-				RowKey:           "testText\x00\x01column10",
-				Keyspace:         "test_keyspace",
-				ComplexOperation: map[string]*ComplexOperation{},
-			},
-		},
-		{
-			name: "append with frozen list fails",
-			args: args{
-				query: "UPDATE test_keyspace.test_table SET frozen_list_text = frozen_list_text + ['item1'] WHERE column1 = 'testText' AND column10 = 'column10';",
-			},
-			wantErr: "cannot partially update frozen column",
-		},
-		{
-			name: "prepend with frozen list fails",
-			args: args{
-				query: "UPDATE test_keyspace.test_table SET frozen_list_text = ['item1'] + frozen_list_text WHERE column1 = 'testText' AND column10 = 'column10';",
-			},
-			wantErr: "cannot partially update frozen column",
-		},
-		{
-			name: "remove from a frozen list fails",
-			args: args{
-				query: "UPDATE test_keyspace.test_table SET frozen_list_text = frozen_list_text - ['item1'] WHERE column1 = 'testText' AND column10 = 'column10';",
-			},
-			wantErr: "cannot partially update frozen column",
-		},
-		{
-			name: "append to a frozen set column fails",
-			args: args{
-				query: "UPDATE test_keyspace.test_table SET frozen_set_text = frozen_set_text + {'item3'} WHERE column1 = 'testText' AND column10 = 'column10';",
-			},
-			wantErr: "cannot partially update frozen column",
-		},
-		{
-			name: "remove from a frozen set column fails",
-			args: args{
-				query: "UPDATE test_keyspace.test_table SET frozen_set_text = frozen_set_text - {'item3'} WHERE column1 = 'testText' AND column10 = 'column10';",
-			},
-			wantErr: "cannot partially update frozen column",
-		},
-		{
 			name: "update with map assignment",
 			args: args{
 				query: "UPDATE test_keyspace.test_table SET column8 = {'key1': true, 'key2': false} WHERE column1 = 'testText' AND column10 = 'column10';",

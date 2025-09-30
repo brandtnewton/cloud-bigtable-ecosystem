@@ -44,6 +44,7 @@ type CqlTypeInfo struct {
 func NewCqlTypeInfoFromType(dt datatype.DataType) *CqlTypeInfo {
 	return NewCqlTypeInfo(dt.String(), dt, false)
 }
+
 func NewCqlTypeInfo(rawType string, dataType datatype.DataType, isFrozen bool) *CqlTypeInfo {
 	return &CqlTypeInfo{RawType: rawType, DataType: dataType, IsFrozen: isFrozen}
 }

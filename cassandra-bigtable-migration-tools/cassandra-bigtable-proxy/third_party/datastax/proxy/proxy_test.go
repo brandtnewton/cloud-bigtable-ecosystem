@@ -34,7 +34,7 @@ import (
 	rh "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/responsehandler"
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/third_party/datastax/parser"
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/third_party/datastax/proxy/config"
-	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/utilities"
+	u "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/utilities"
 	lru "github.com/hashicorp/golang-lru"
 
 	bt "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/bigtable"
@@ -630,12 +630,12 @@ var mockTableSchemaConfig = schemaMapping.NewSchemaMappingConfig(
 			"cf1", // SystemColumnFamily from the original struct
 			types.OrderedCodeEncoding,
 			[]*types.Column{
-				{Name: "test_id", TypeInfo: types.NewCqlTypeInfoFromType(datatype.Varchar), KeyType: utilities.KEY_TYPE_PARTITION, IsPrimaryKey: true},
-				{Name: "column1", TypeInfo: types.NewCqlTypeInfoFromType(datatype.Varchar), KeyType: utilities.KEY_TYPE_CLUSTERING, IsPrimaryKey: true, PkPrecedence: 1},
-				{Name: "column10", TypeInfo: types.NewCqlTypeInfoFromType(datatype.Varchar), KeyType: utilities.KEY_TYPE_CLUSTERING, IsPrimaryKey: true, PkPrecedence: 2},
-				{Name: "test_hash", TypeInfo: types.NewCqlTypeInfoFromType(datatype.Varchar), KeyType: utilities.KEY_TYPE_REGULAR},
-				{Name: "column2", TypeInfo: types.NewCqlTypeInfoFromType(datatype.Blob), KeyType: utilities.KEY_TYPE_REGULAR},
-				{Name: "column3", TypeInfo: types.NewCqlTypeInfoFromType(datatype.Boolean), KeyType: utilities.KEY_TYPE_REGULAR},
+				{Name: "test_id", TypeInfo: types.NewCqlTypeInfoFromType(datatype.Varchar), KeyType: u.KEY_TYPE_PARTITION, IsPrimaryKey: true},
+				{Name: "column1", TypeInfo: types.NewCqlTypeInfoFromType(datatype.Varchar), KeyType: u.KEY_TYPE_CLUSTERING, IsPrimaryKey: true, PkPrecedence: 1},
+				{Name: "column10", TypeInfo: types.NewCqlTypeInfoFromType(datatype.Varchar), KeyType: u.KEY_TYPE_CLUSTERING, IsPrimaryKey: true, PkPrecedence: 2},
+				{Name: "test_hash", TypeInfo: types.NewCqlTypeInfoFromType(datatype.Varchar), KeyType: u.KEY_TYPE_REGULAR},
+				{Name: "column2", TypeInfo: types.NewCqlTypeInfoFromType(datatype.Blob), KeyType: u.KEY_TYPE_REGULAR},
+				{Name: "column3", TypeInfo: types.NewCqlTypeInfoFromType(datatype.Boolean), KeyType: u.KEY_TYPE_REGULAR},
 			},
 		),
 		schemaMapping.NewTableConfig(
@@ -644,8 +644,8 @@ var mockTableSchemaConfig = schemaMapping.NewSchemaMappingConfig(
 			"cf1", // Assuming a default column family
 			types.OrderedCodeEncoding,
 			[]*types.Column{
-				{Name: "name", TypeInfo: types.NewCqlTypeInfoFromType(datatype.Varchar), KeyType: utilities.KEY_TYPE_PARTITION, IsPrimaryKey: true, PkPrecedence: 0},
-				{Name: "age", TypeInfo: types.NewCqlTypeInfoFromType(datatype.Varchar), KeyType: utilities.KEY_TYPE_REGULAR},
+				{Name: "name", TypeInfo: types.NewCqlTypeInfoFromType(datatype.Varchar), KeyType: u.KEY_TYPE_PARTITION, IsPrimaryKey: true, PkPrecedence: 0},
+				{Name: "age", TypeInfo: types.NewCqlTypeInfoFromType(datatype.Varchar), KeyType: u.KEY_TYPE_REGULAR},
 			},
 		),
 	},
@@ -1520,7 +1520,7 @@ func TestHandleQueryUpdate(t *testing.T) {
 	mockSender := &mockSender{}
 
 	bigTablemockiface := new(mockbigtable.BigTableClientIface)
-	bigTablemockiface.On("UpdateRow", nil, &translator.UpdateQueryMapping{Query: "UPDATE test_keyspace.user_info SET age = '33' WHERE name = 'ibrahim';", TranslatedQuery: "", QueryType: "UPDATE", Table: "user_info", Keyspace: "test_keyspace", UpdateSetValues: []translator.UpdateSetValue{translator.UpdateSetValue{Column: "age", Value: "@set1", ColumnFamily: "", CQLType: types.NewCqlTypeInfo("text", datatype.Varchar, false), Encrypted: []uint8{0x33, 0x33}}}, Clauses: []types.Clause{types.Clause{Column: "name", Operator: "=", Value: "@value1", IsPrimaryKey: true}}, Params: map[string]interface{}{"set1": []uint8{0x33, 0x33}, "value1": "ibrahim"}, ParamKeys: []string{"set1", "value1"}, PrimaryKeys: []string{"name"}, Columns: []types.Column{types.Column{Name: "age", ColumnFamily: "cf1", TypeInfo: types.NewCqlTypeInfoFromType(datatype.Varchar), IsPrimaryKey: false}, types.Column{Name: "name", ColumnFamily: "cf1", TypeInfo: types.NewCqlTypeInfoFromType(datatype.Varchar), IsPrimaryKey: false}}, Values: []interface{}{[]uint8{0x33, 0x33}, []uint8{0x69, 0x62, 0x72, 0x61, 0x68, 0x69, 0x6d}}, RowKey: "ibrahim", DeleteColumnFamilies: []string(nil), DeleteColumQualifires: []types.Column(nil), ReturnMetadata: []*message.ColumnMetadata(nil), VariableMetadata: []*message.ColumnMetadata(nil), TimestampInfo: translator.TimestampInfo{Timestamp: 0, HasUsingTimestamp: false, Index: 0}, IfExists: false, ComplexOperation: map[string]*translator.ComplexOperation{}}).Return(&message.RowsResult{}, nil)
+	bigTablemockiface.On("UpdateRow", nil, &translator.UpdateQueryMapping{Query: "UPDATE test_keyspace.user_info SET age = '33' WHERE name = 'ibrahim';", TranslatedQuery: "", QueryType: "UPDATE", Table: "user_info", Keyspace: "test_keyspace", UpdateSetValues: []translator.UpdateSetValue{translator.UpdateSetValue{Column: "age", Value: "@set1", ColumnFamily: "", CQLType: u.ParseCqlTypeOrDie("text"), Encrypted: []uint8{0x33, 0x33}}}, Clauses: []types.Clause{types.Clause{Column: "name", Operator: "=", Value: "@value1", IsPrimaryKey: true}}, Params: map[string]interface{}{"set1": []uint8{0x33, 0x33}, "value1": "ibrahim"}, ParamKeys: []string{"set1", "value1"}, PrimaryKeys: []string{"name"}, Columns: []types.Column{types.Column{Name: "age", ColumnFamily: "cf1", TypeInfo: types.NewCqlTypeInfoFromType(datatype.Varchar), IsPrimaryKey: false}, types.Column{Name: "name", ColumnFamily: "cf1", TypeInfo: types.NewCqlTypeInfoFromType(datatype.Varchar), IsPrimaryKey: false}}, Values: []interface{}{[]uint8{0x33, 0x33}, []uint8{0x69, 0x62, 0x72, 0x61, 0x68, 0x69, 0x6d}}, RowKey: "ibrahim", DeleteColumnFamilies: []string(nil), DeleteColumQualifires: []types.Column(nil), ReturnMetadata: []*message.ColumnMetadata(nil), VariableMetadata: []*message.ColumnMetadata(nil), TimestampInfo: translator.TimestampInfo{Timestamp: 0, HasUsingTimestamp: false, Index: 0}, IfExists: false, ComplexOperation: map[string]*translator.ComplexOperation{}}).Return(&message.RowsResult{}, nil)
 	client := client{
 		ctx:            ctx,
 		preparedQuerys: make(map[[16]byte]interface{}),

@@ -109,15 +109,6 @@ CREATE TABLE IF NOT EXISTS bigtabledevinstance.social_posts (
 );
 `,
 		`
-CREATE TABLE IF NOT EXISTS bigtabledevinstance.frozen_table (
-	name varchar,
-	list_nums frozen<list<int>>,
-	map_text frozen<map<text, text>>,
-	set_text frozen<set<text>>,
-	PRIMARY KEY (name)
-);
-`,
-		`
 CREATE TABLE IF NOT EXISTS bigtabledevinstance.compound_key_table (
 	org int,
 	id int,

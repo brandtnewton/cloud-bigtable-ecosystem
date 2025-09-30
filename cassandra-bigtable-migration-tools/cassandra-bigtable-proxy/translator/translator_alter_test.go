@@ -56,7 +56,7 @@ func TestTranslateAlterTableToBigtable(t *testing.T) {
 				AddColumns: []types.CreateColumn{{
 					Name:     "firstname",
 					Index:    0,
-					TypeInfo: types.NewCqlTypeInfo("text", datatype.Varchar, false),
+					TypeInfo: utilities.ParseCqlTypeOrDie("text"),
 				}},
 			},
 			error:           "",
@@ -106,7 +106,7 @@ func TestTranslateAlterTableToBigtable(t *testing.T) {
 				AddColumns: []types.CreateColumn{{
 					Name:     "firstname",
 					Index:    0,
-					TypeInfo: types.NewCqlTypeInfo("text", datatype.Varchar, false),
+					TypeInfo: utilities.ParseCqlTypeOrDie("text"),
 				}, {
 					Name:     "number_of_cats",
 					Index:    1,
@@ -127,7 +127,7 @@ func TestTranslateAlterTableToBigtable(t *testing.T) {
 				AddColumns: []types.CreateColumn{{
 					Name:     "firstname",
 					Index:    0,
-					TypeInfo: types.NewCqlTypeInfo("text", datatype.Varchar, false),
+					TypeInfo: utilities.ParseCqlTypeOrDie("text"),
 				}, {
 					Name:     "number_of_toes",
 					Index:    1,

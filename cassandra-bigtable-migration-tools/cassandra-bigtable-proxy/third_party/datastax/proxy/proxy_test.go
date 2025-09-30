@@ -869,7 +869,7 @@ func TestGetMetadataFromCache(t *testing.T) {
 	assert.NotNil(t, variableMeta, "Expected variableMeta to not be nil.")
 	assert.NotNil(t, returnMeta, "Expected returnMeta to not be nil.")
 
-	// Case 6: Invalid Query TypeInfo
+	// Case 6: Invalid Query Type
 	invalidQuery := "Invalid FROM products WHERE product_id = ?;"
 	id = md5.Sum([]byte(invalidQuery))
 	client.AddQueryToCache(id, mockQuery{})
@@ -986,7 +986,7 @@ func TestHandleServerPreparedQuery(t *testing.T) {
 		t.Errorf("Send was not called when expected for test - TestHandleServerPreparedQuery Case 5")
 	}
 
-	// Case 5: Invalid Query TypeInfo
+	// Case 5: Invalid Query Type
 	invalidQuery := "Invalid FROM products WHERE product_id = ?;"
 	id = md5.Sum([]byte(invalidQuery))
 	client.AddQueryToCache(id, mockQuery{})

@@ -1011,11 +1011,11 @@ func TestIsSupportedColumnType(t *testing.T) {
 
 		// --- Negative Cases: Collection Types ---
 		{"Unsupported List Element", ParseCqlTypeOrDie("list<uuid>"), false},
-		{"Unsupported List Element", ParseCqlTypeOrDie("list<list<text>>"), false},
+		{"Unsupported List Element", types.NewCqlTypeInfoFromType(datatype.NewListType(datatype.NewListType(datatype.Int))), false},
 		{"Unsupported Set Element", ParseCqlTypeOrDie("set<blob>"), false},
 		{"Unsupported Map Key", ParseCqlTypeOrDie("map<blob,text>"), false},
 		{"Unsupported Map Value", ParseCqlTypeOrDie("map<text,uuid>"), false},
-		{"Nested Collection - List of Maps", ParseCqlTypeOrDie("list<map<text,int>>"), false},
+		{"Nested Collection - List of Maps", types.NewCqlTypeInfoFromType(datatype.NewListType(datatype.NewMapType(datatype.Varchar, datatype.Int))), false},
 		// --- Negative Cases: Frozen Types ---
 		{"Frozen List", ParseCqlTypeOrDie("frozen<list<int>>"), false},
 		{"Frozen Set", ParseCqlTypeOrDie("frozen<set<text>>"), false},
@@ -1045,6 +1045,7 @@ func TestGetCassandraColumnType(t *testing.T) {
 		{"text", types.NewCqlTypeInfo("text", datatype.Varchar, false), ""},
 		{"blob", types.NewCqlTypeInfo("blob", datatype.Blob, false), ""},
 		{"timestamp", types.NewCqlTypeInfo("timestamp", datatype.Timestamp, false), ""},
+		{"TimeSTAmp", types.NewCqlTypeInfo("timestamp", datatype.Timestamp, false), ""},
 		{"int", types.NewCqlTypeInfo("int", datatype.Int, false), ""},
 		{"float", types.NewCqlTypeInfo("float", datatype.Float, false), ""},
 		{"double", types.NewCqlTypeInfo("double", datatype.Double, false), ""},
@@ -1057,25 +1058,32 @@ func TestGetCassandraColumnType(t *testing.T) {
 		{"map<text, varchar>", types.NewCqlTypeInfo("map<text,varchar>", datatype.NewMapType(datatype.Varchar, datatype.Varchar), false), ""},
 		{"map<varchar,text>", types.NewCqlTypeInfo("map<varchar,text>", datatype.NewMapType(datatype.Varchar, datatype.Varchar), false), ""},
 		{"map<varchar, varchar>", types.NewCqlTypeInfo("map<varchar,varchar>", datatype.NewMapType(datatype.Varchar, datatype.Varchar), false), ""},
-		{"map<varchar>", nil, "malformed map type"},
-		{"map<varchar,varchar,varchar>", nil, "unsupported column type"},
-		{"map<>", nil, "unsupported column type"},
-		{"int<>", nil, "unsupported column type"},
+		{"maP<vARCHar, varcHAr>", types.NewCqlTypeInfo("map<varchar,varchar>", datatype.NewMapType(datatype.Varchar, datatype.Varchar), false), ""},
+		{"map<varchar>", nil, "expected exactly 2 types but found 1 in: 'map<varchar>'"},
+		{"map<varchar,varchar,varchar>", nil, "expected exactly 2 types but found 3 in: 'map<varchar,varchar,varchar>'"},
+		{"map<>", nil, "empty type definition in 'map<>'"},
+		{"int<>", nil, "unexpected data type definition: 'int<>'"},
 		{"list<text>", types.NewCqlTypeInfo("list<text>", datatype.NewListType(datatype.Varchar), false), ""},
 		{"list<varchar>", types.NewCqlTypeInfo("list<varchar>", datatype.NewListType(datatype.Varchar), false), ""},
 		{"frozen<list<text>>", types.NewCqlTypeInfo("frozen<list<text>>", datatype.NewListType(datatype.Varchar), true), ""},
 		{"frozen<list<varchar>>", types.NewCqlTypeInfo("frozen<list<varchar>>", datatype.NewListType(datatype.Varchar), true), ""},
 		{"set<text>", types.NewCqlTypeInfo("set<text>", datatype.NewSetType(datatype.Varchar), false), ""},
-		{"set<text", nil, "unsupported column type"},
-		{"set<", nil, "unsupported column type"},
+		{"set<text", nil, "missing closing type bracket in: 'set<text'"},
+		{"set", nil, "data type definition missing in: 'set'"},
+		{"frozen", nil, "data type definition missing in: 'frozen'"},
+		{"map", nil, "data type definition missing in: 'map'"},
+		{"list", nil, "data type definition missing in: 'list'"},
+		{"set<", nil, "failed"}, // we don't get a good parsing error from here but that's ok
 		{"set<varchar>", types.NewCqlTypeInfo("set<varchar>", datatype.NewSetType(datatype.Varchar), false), ""},
 		{"frozen<set<text>>", types.NewCqlTypeInfo("frozen<set<text>>", datatype.NewSetType(datatype.Varchar), true), ""},
 		{"frozen<set<varchar>>", types.NewCqlTypeInfo("frozen<set<varchar>>", datatype.NewSetType(datatype.Varchar), true), ""},
-		{"unknown", nil, "unsupported column type"},
-		{"", nil, "unsupported column type"},
-		{"<>list", nil, "unsupported column type"},
-		{"<int>", nil, "unsupported column type"},
-		{"map<map<text,int>", nil, "unsupported column type"},
+		{"unknown", nil, "unknown data type name: 'unknown'"},
+		{"", nil, "unknown data type name: ''"},
+		{"<>list", nil, "unknown data type name: ''"},
+		{"<int>", nil, "unknown data type name: '<int'"},
+		{"map<map<text,int>", nil, "expected exactly 2 types but found 1 in: 'map<map<text,int>'"},
+		{"map<map<text,int>,text>", nil, "map key types must be scalar"},
+		{"map<text, frozen<map<text,int>>>", types.NewCqlTypeInfo("map<text,frozen<map<text,int>>>", datatype.NewMapType(datatype.Varchar, datatype.NewMapType(datatype.Varchar, datatype.Int)), true), ""},
 		// Future scope items below:
 		{"map<text, int>", types.NewCqlTypeInfo("map<text,int>", datatype.NewMapType(datatype.Varchar, datatype.Int), false), ""},
 		{"map<varchar, int>", types.NewCqlTypeInfo("map<varchar,int>", datatype.NewMapType(datatype.Varchar, datatype.Int), false), ""},
@@ -1095,6 +1103,11 @@ func TestGetCassandraColumnType(t *testing.T) {
 		{"map<timestamp, float>", types.NewCqlTypeInfo("map<timestamp,float>", datatype.NewMapType(datatype.Timestamp, datatype.Float), false), ""},
 		{"map<timestamp, double>", types.NewCqlTypeInfo("map<timestamp,double>", datatype.NewMapType(datatype.Timestamp, datatype.Double), false), ""},
 		{"map<timestamp, timestamp>", types.NewCqlTypeInfo("map<timestamp,timestamp>", datatype.NewMapType(datatype.Timestamp, datatype.Timestamp), false), ""},
+		{"map<timestamp, sdfs>", nil, "failed"}, // we don't get a good error because the lexer doesn't recognize the invalid type
+		{"map<intt, int>", nil, "failed"},       // we don't get a good error because the lexer doesn't recognize the invalid type
+		{"set<asdfasdf>", nil, "failed"},        // we don't get a good error because the lexer doesn't recognize the invalid type
+		{"list<asdfasdf>", nil, "failed"},       // we don't get a good error because the lexer doesn't recognize the invalid type
+		{"frozen<asdfasdf>", nil, "failed"},     // we don't get a good error because the lexer doesn't recognize the invalid type
 		{"set<int>", types.NewCqlTypeInfo("set<int>", datatype.NewSetType(datatype.Int), false), ""},
 		{"set<bigint>", types.NewCqlTypeInfo("set<bigint>", datatype.NewSetType(datatype.Bigint), false), ""},
 		{"set<float>", types.NewCqlTypeInfo("set<float>", datatype.NewSetType(datatype.Float), false), ""},
@@ -1110,15 +1123,16 @@ func TestGetCassandraColumnType(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.input, func(t *testing.T) {
-			gotType, err := ParseCqlType(tc.input)
+			got, err := ParseCqlTypeString(tc.input)
 			if tc.wantErr != "" {
+				assert.Nil(t, got)
 				require.Error(t, err)
 				assert.Contains(t, err.Error(), tc.wantErr)
 				return
 			}
 
 			require.NoError(t, err)
-			assert.Equal(t, tc.wantType, gotType)
+			assert.Equal(t, tc.wantType, got)
 		})
 	}
 }

@@ -733,7 +733,7 @@ func (btc *BigtableClient) ReadTableConfigs(ctx context.Context, keyspace string
 				keyType = string(item.Value)
 			}
 		}
-		dt, err := utilities.ParseCqlType(columnType)
+		dt, err := utilities.ParseCqlTypeString(columnType)
 		if err != nil {
 			readErr = err
 			return false

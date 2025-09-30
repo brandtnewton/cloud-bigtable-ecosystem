@@ -75,7 +75,7 @@ func (t *Translator) TranslateCreateTableToBigtable(query, sessionKeyspace strin
 	}
 
 	for i, col := range createTableObj.ColumnDefinitionList().AllColumnDefinition() {
-		dt, err := utilities.ParseCqlType(col.DataType().GetText())
+		dt, err := utilities.ParseCqlType(col.DataType())
 		if err != nil {
 			return nil, err
 		}

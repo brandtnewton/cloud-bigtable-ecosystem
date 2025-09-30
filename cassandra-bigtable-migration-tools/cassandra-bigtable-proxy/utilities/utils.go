@@ -25,7 +25,9 @@ import (
 
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/collectiondecoder"
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/global/types"
+	cql "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/third_party/cqlparser"
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/third_party/datastax/proxycore"
+	"github.com/antlr4-go/antlr/v4"
 	"github.com/datastax/go-cassandra-native-protocol/datatype"
 	"github.com/datastax/go-cassandra-native-protocol/primitive"
 )
@@ -590,14 +592,14 @@ func IsSupportedColumnType(dt *types.CqlTypeInfo) bool {
 var cqlGenericTypeRegex = regexp.MustCompile(`^(\w+)<(.+)>$`)
 
 func ParseCqlTypeOrDie(typeStr string) *types.CqlTypeInfo {
-	t, err := ParseCqlType(typeStr)
+	t, err := ParseCqlTypeString(typeStr)
 	if err != nil {
 		panic(err)
 	}
 	return t
 }
 
-// ParseCqlType converts a string representation of a Cassandra data type into
+// ParseCqlTypeString converts a string representation of a Cassandra data type into
 // a corresponding DataType value. It supports a range of common Cassandra data types,
 // including text, blob, timestamp, int, bigint, boolean, uuid, various map and list types.
 //
@@ -612,88 +614,210 @@ func ParseCqlTypeOrDie(typeStr string) *types.CqlTypeInfo {
 //   - error: An error is returned if the provided string does not match any of the known
 //     Cassandra data types. This helps in identifying unsupported or incorrectly specified
 //     data types.
-func ParseCqlType(typeStr string) (*types.CqlTypeInfo, error) {
-	typeStr = strings.ToLower(strings.ReplaceAll(typeStr, " ", ""))
+func ParseCqlTypeString(input string) (*types.CqlTypeInfo, error) {
+	input = strings.ToLower(strings.ReplaceAll(input, " ", ""))
+	lexer := cql.NewCqlLexer(antlr.NewInputStream(input))
+	stream := antlr.NewCommonTokenStream(lexer, antlr.TokenDefaultChannel)
+	p := cql.NewCqlParser(stream)
+	dataTypeTree := p.DataType()
+	return ParseCqlType(dataTypeTree)
+}
 
-	matches := cqlGenericTypeRegex.FindStringSubmatch(typeStr)
-	if matches != nil {
-		switch matches[1] {
-		case "frozen":
-			innerType, err := ParseCqlType(matches[2])
-			if err != nil {
-				return nil, fmt.Errorf("failed to extract type for '%s': %w", typeStr, err)
-			}
-			if !innerType.IsCollection() {
-				return nil, fmt.Errorf("failed to extract type for '%s': frozen types must be a collection", typeStr)
-			}
-			return types.NewCqlTypeInfo(typeStr, innerType.DataType, true), nil
-		case "list":
-			innerType, err := ParseCqlType(matches[2])
-			if err != nil {
-				return nil, fmt.Errorf("failed to extract type for '%s': %w", typeStr, err)
-			}
-			return types.NewCqlTypeInfo(typeStr, datatype.NewListType(innerType.DataType), innerType.IsFrozen), nil
-		case "set":
-			innerType, err := ParseCqlType(matches[2])
-			if err != nil {
-				return nil, fmt.Errorf("failed to extract type for '%s': %w", typeStr, err)
-			}
-			return types.NewCqlTypeInfo(typeStr, datatype.NewSetType(innerType.DataType), innerType.IsFrozen), nil
-		case "map":
-			parts := strings.SplitN(matches[2], ",", 2)
-			if len(parts) != 2 {
-				return nil, fmt.Errorf("failed to extract type for '%s': malformed map type", typeStr)
-			}
-			keyType, err := ParseCqlType(parts[0])
-			if err != nil {
-				return nil, fmt.Errorf("failed to extract type for '%s': %w", typeStr, err)
-			}
-			valueType, err := ParseCqlType(parts[1])
-			if err != nil {
-				return nil, fmt.Errorf("failed to extract type for '%s': %w", typeStr, err)
-			}
-			return types.NewCqlTypeInfo(typeStr, datatype.NewMapType(keyType.DataType, valueType.DataType), keyType.IsFrozen || valueType.IsFrozen), nil
-		default:
-			return nil, fmt.Errorf("unsupported generic column type: %s in type %s", matches[1], typeStr)
+// ParseCqlType - parses a DataType out behaving exactly like Cassandra might. Does not validate that we support the type in this Proxy.
+func ParseCqlType(dtc cql.IDataTypeContext) (*types.CqlTypeInfo, error) {
+	dataTypeName := dtc.DataTypeName().GetText()
+	switch strings.ToLower(dataTypeName) {
+	case "frozen":
+		err := validateDataTypeDefinition(dtc, 1)
+		if err != nil {
+			return nil, err
 		}
-	}
-
-	switch typeStr {
+		innerType, err := ParseCqlType(dtc.DataTypeDefinition().DataType(0))
+		if err != nil {
+			return nil, fmt.Errorf("failed to extract type for '%s': %w", dtc, err)
+		}
+		if !innerType.IsCollection() {
+			return nil, fmt.Errorf("failed to extract type for '%s': frozen types must be a collection", dtc)
+		}
+		return types.NewCqlTypeInfo(dtc.GetText(), innerType.DataType, true), nil
+	case "list":
+		err := validateDataTypeDefinition(dtc, 1)
+		if err != nil {
+			return nil, err
+		}
+		innerType, err := ParseCqlType(dtc.DataTypeDefinition().DataType(0))
+		if err != nil {
+			return nil, fmt.Errorf("failed to extract type for '%s': %w", dtc, err)
+		}
+		if innerType.IsCollection() && !innerType.IsFrozen {
+			return nil, fmt.Errorf("lists cannot contain collections unless they are frozen")
+		}
+		return types.NewCqlTypeInfo(dtc.GetText(), datatype.NewListType(innerType.DataType), innerType.IsFrozen), nil
+	case "set":
+		err := validateDataTypeDefinition(dtc, 1)
+		if err != nil {
+			return nil, err
+		}
+		innerType, err := ParseCqlType(dtc.DataTypeDefinition().DataType(0))
+		if err != nil {
+			return nil, fmt.Errorf("failed to extract type for '%s': %w", dtc, err)
+		}
+		if innerType.IsCollection() && !innerType.IsFrozen {
+			return nil, fmt.Errorf("sets cannot contain collections unless they are frozen")
+		}
+		return types.NewCqlTypeInfo(dtc.GetText(), datatype.NewSetType(innerType.DataType), innerType.IsFrozen), nil
+	case "map":
+		err := validateDataTypeDefinition(dtc, 2)
+		if err != nil {
+			return nil, err
+		}
+		keyType, err := ParseCqlType(dtc.DataTypeDefinition().DataType(0))
+		if err != nil {
+			return nil, fmt.Errorf("failed to extract key type for '%s': %w", dtc, err)
+		}
+		if keyType.IsCollection() {
+			return nil, fmt.Errorf("map key types must be scalar")
+		}
+		valueType, err := ParseCqlType(dtc.DataTypeDefinition().DataType(1))
+		if err != nil {
+			return nil, fmt.Errorf("failed to extract value type for '%s': %w", dtc, err)
+		}
+		if valueType.IsCollection() && !valueType.IsFrozen {
+			return nil, fmt.Errorf("map values cannot be collections unless they are frozen")
+		}
+		if err != nil {
+			return nil, fmt.Errorf("failed to extract type for '%s': %w", dtc, err)
+		}
+		return types.NewCqlTypeInfo(dtc.GetText(), datatype.NewMapType(keyType.DataType, valueType.DataType), keyType.IsFrozen || valueType.IsFrozen), nil
 	case "text", "varchar":
-		return types.NewCqlTypeInfo(typeStr, datatype.Varchar, false), nil
+		err := validateNoDataTypeDefinition(dtc)
+		if err != nil {
+			return nil, err
+		}
+		return types.NewCqlTypeInfo(dataTypeName, datatype.Varchar, false), nil
 	case "blob":
-		return types.NewCqlTypeInfo(typeStr, datatype.Blob, false), nil
+		err := validateNoDataTypeDefinition(dtc)
+		if err != nil {
+			return nil, err
+		}
+		return types.NewCqlTypeInfo(dataTypeName, datatype.Blob, false), nil
 	case "timestamp":
-		return types.NewCqlTypeInfo(typeStr, datatype.Timestamp, false), nil
+		err := validateNoDataTypeDefinition(dtc)
+		if err != nil {
+			return nil, err
+		}
+		return types.NewCqlTypeInfo(dataTypeName, datatype.Timestamp, false), nil
 	case "int":
-		return types.NewCqlTypeInfo(typeStr, datatype.Int, false), nil
+		err := validateNoDataTypeDefinition(dtc)
+		if err != nil {
+			return nil, err
+		}
+		return types.NewCqlTypeInfo(dataTypeName, datatype.Int, false), nil
 	case "bigint":
-		return types.NewCqlTypeInfo(typeStr, datatype.Bigint, false), nil
+		err := validateNoDataTypeDefinition(dtc)
+		if err != nil {
+			return nil, err
+		}
+		return types.NewCqlTypeInfo(dataTypeName, datatype.Bigint, false), nil
 	case "boolean":
-		return types.NewCqlTypeInfo(typeStr, datatype.Boolean, false), nil
+		err := validateNoDataTypeDefinition(dtc)
+		if err != nil {
+			return nil, err
+		}
+		return types.NewCqlTypeInfo(dataTypeName, datatype.Boolean, false), nil
 	case "uuid":
-		return types.NewCqlTypeInfo(typeStr, datatype.Uuid, false), nil
+		err := validateNoDataTypeDefinition(dtc)
+		if err != nil {
+			return nil, err
+		}
+		return types.NewCqlTypeInfo(dataTypeName, datatype.Uuid, false), nil
 	case "float":
-		return types.NewCqlTypeInfo(typeStr, datatype.Float, false), nil
+		err := validateNoDataTypeDefinition(dtc)
+		if err != nil {
+			return nil, err
+		}
+		return types.NewCqlTypeInfo(dataTypeName, datatype.Float, false), nil
 	case "double", "decimal":
-		return types.NewCqlTypeInfo(typeStr, datatype.Double, false), nil
+		err := validateNoDataTypeDefinition(dtc)
+		if err != nil {
+			return nil, err
+		}
+		return types.NewCqlTypeInfo(dataTypeName, datatype.Double, false), nil
 	case "counter":
-		return types.NewCqlTypeInfo(typeStr, datatype.Counter, false), nil
+		err := validateNoDataTypeDefinition(dtc)
+		if err != nil {
+			return nil, err
+		}
+		return types.NewCqlTypeInfo(dataTypeName, datatype.Counter, false), nil
 	case "timeuuid":
-		return types.NewCqlTypeInfo(typeStr, datatype.Timeuuid, false), nil
+		err := validateNoDataTypeDefinition(dtc)
+		if err != nil {
+			return nil, err
+		}
+		return types.NewCqlTypeInfo(dataTypeName, datatype.Timeuuid, false), nil
 	case "ascii":
-		return types.NewCqlTypeInfo(typeStr, datatype.Ascii, false), nil
+		err := validateNoDataTypeDefinition(dtc)
+		if err != nil {
+			return nil, err
+		}
+		return types.NewCqlTypeInfo(dataTypeName, datatype.Ascii, false), nil
 	case "varint":
-		return types.NewCqlTypeInfo(typeStr, datatype.Varint, false), nil
+		err := validateNoDataTypeDefinition(dtc)
+		if err != nil {
+			return nil, err
+		}
+		return types.NewCqlTypeInfo(dataTypeName, datatype.Varint, false), nil
 	case "inet":
-		return types.NewCqlTypeInfo(typeStr, datatype.Inet, false), nil
+		err := validateNoDataTypeDefinition(dtc)
+		if err != nil {
+			return nil, err
+		}
+		return types.NewCqlTypeInfo(dataTypeName, datatype.Inet, false), nil
 	case "date":
-		return types.NewCqlTypeInfo(typeStr, datatype.Date, false), nil
+		err := validateNoDataTypeDefinition(dtc)
+		if err != nil {
+			return nil, err
+		}
+		return types.NewCqlTypeInfo(dataTypeName, datatype.Date, false), nil
 	case "smallint":
-		return types.NewCqlTypeInfo(typeStr, datatype.Tinyint, false), nil
+		err := validateNoDataTypeDefinition(dtc)
+		if err != nil {
+			return nil, err
+		}
+		return types.NewCqlTypeInfo(dataTypeName, datatype.Tinyint, false), nil
 	case "duration":
-		return types.NewCqlTypeInfo(typeStr, datatype.Duration, false), nil
+		err := validateNoDataTypeDefinition(dtc)
+		if err != nil {
+			return nil, err
+		}
+		return types.NewCqlTypeInfo(dataTypeName, datatype.Duration, false), nil
 	default:
-		return nil, fmt.Errorf("unsupported column type: %s", typeStr)
+		return nil, fmt.Errorf("unknown data type name: '%s' in type '%s'", dataTypeName, dtc)
 	}
+}
+
+func validateNoDataTypeDefinition(dt cql.IDataTypeContext) error {
+	if dt.DataTypeDefinition() != nil {
+		return fmt.Errorf("unexpected data type definition: '%s'", dt.GetText())
+	}
+	return nil
+}
+func validateDataTypeDefinition(dt cql.IDataTypeContext, expectedTypeCount int) error {
+	def := dt.DataTypeDefinition()
+	if def == nil {
+		return fmt.Errorf("data type definition missing in: '%s'", dt.GetText())
+	}
+	if def.GetText() == "<>" {
+		return fmt.Errorf("empty type definition in '%s'", dt.GetText())
+	}
+	if len(def.AllDataType()) != expectedTypeCount {
+		return fmt.Errorf("expected exactly %d types but found %d in: '%s'", expectedTypeCount, len(def.AllDataType()), dt.GetText())
+	}
+	if def.SyntaxBracketLa() == nil {
+		return fmt.Errorf("missing opening type bracket in: '%s'", dt)
+	}
+	if def.SyntaxBracketRa() == nil {
+		return fmt.Errorf("missing closing type bracket in: '%s'", dt.GetText())
+	}
+	return nil
 }

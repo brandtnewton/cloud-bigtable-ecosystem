@@ -110,7 +110,7 @@ func TestNegativeTestCasesForCreateTable(t *testing.T) {
 		{
 			name:          "Create table with invalid column type",
 			query:         "CREATE TABLE fail_invalid_col_type (num INT, big_num UUID, PRIMARY KEY (num))",
-			expectedError: "column type 'uuid' is not supported",
+			expectedError: "column type 'UUID' is not supported",
 			skipCassandra: true,
 		},
 		{

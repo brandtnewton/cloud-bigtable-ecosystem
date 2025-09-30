@@ -637,7 +637,7 @@ func ParseCqlType(dtc cql.IDataTypeContext) (*types.CqlTypeInfo, error) {
 			return nil, fmt.Errorf("failed to extract type for '%s': %w", dtc.GetText(), err)
 		}
 		if !innerType.IsCollection() {
-			return nil, fmt.Errorf("failed to extract type for '%s': frozen types must be a collection", dtc.GetText())
+return nil, fmt.Errorf("failed to extract type for '%s': frozen types must be a collection", dtc.GetText())
 		}
 		return types.NewCqlTypeInfo(dtc.GetText(), innerType.DataType, true), nil
 	case "list":

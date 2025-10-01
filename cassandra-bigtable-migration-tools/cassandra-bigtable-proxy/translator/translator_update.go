@@ -185,7 +185,7 @@ func parseAssignments(assignments []cql.IAssignmentElementContext, tableConfig *
 				if utilities.IsCollectionColumn(column) {
 					val = value
 				} else {
-					val, err = formatValues(fmt.Sprintf("%v", value), column.TypeInfo.DataType, 4)
+					val, err = formatValues(fmt.Sprintf("%v", value), column.TypeInfo.DataType(), 4)
 					if err != nil {
 						return nil, err
 					}
@@ -241,7 +241,7 @@ func parseAssignments(assignments []cql.IAssignmentElementContext, tableConfig *
 			if column.TypeInfo.IsCollection() || column.TypeInfo.IsCounter() {
 				val = value
 			} else {
-				val, err = formatValues(fmt.Sprintf("%v", value), column.TypeInfo.DataType, 4)
+				val, err = formatValues(fmt.Sprintf("%v", value), column.TypeInfo.DataType(), 4)
 				if err != nil {
 					return nil, err
 				}
@@ -436,7 +436,7 @@ func (t *Translator) TranslateUpdateQuerytoBigtable(query string, isPreparedQuer
 				pv = val.Value[1:]
 			}
 			value := fmt.Sprintf("%v", QueryClauses.Params[pv])
-			encryVal, err := formatValues(value, column.TypeInfo.DataType, 4)
+			encryVal, err := formatValues(value, column.TypeInfo.DataType(), 4)
 			if err != nil {
 				return nil, err
 			}

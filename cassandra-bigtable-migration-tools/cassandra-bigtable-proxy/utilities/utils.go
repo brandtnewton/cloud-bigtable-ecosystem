@@ -160,34 +160,34 @@ var reservedKeywords = map[string]bool{
 }
 
 var (
-	MapOfStrToStr     = datatype.NewMapType(datatype.Varchar, datatype.Varchar)
-	MapOfStrToInt     = datatype.NewMapType(datatype.Varchar, datatype.Int)
-	MapOfStrToBigInt  = datatype.NewMapType(datatype.Varchar, datatype.Bigint)
-	MapOfStrToBool    = datatype.NewMapType(datatype.Varchar, datatype.Boolean)
-	MapOfStrToFloat   = datatype.NewMapType(datatype.Varchar, datatype.Float)
-	MapOfStrToDouble  = datatype.NewMapType(datatype.Varchar, datatype.Double)
-	MapOfStrToTime    = datatype.NewMapType(datatype.Varchar, datatype.Timestamp)
-	MapOfTimeToTime   = datatype.NewMapType(datatype.Timestamp, datatype.Timestamp)
-	MapOfTimeToStr    = datatype.NewMapType(datatype.Timestamp, datatype.Varchar)
-	MapOfTimeToInt    = datatype.NewMapType(datatype.Timestamp, datatype.Int)
-	MapOfTimeToBigInt = datatype.NewMapType(datatype.Timestamp, datatype.Bigint)
-	MapOfTimeToFloat  = datatype.NewMapType(datatype.Timestamp, datatype.Float)
-	MapOfTimeToDouble = datatype.NewMapType(datatype.Timestamp, datatype.Double)
-	MapOfTimeToBool   = datatype.NewMapType(datatype.Timestamp, datatype.Boolean)
-	SetOfStr          = datatype.NewSetType(datatype.Varchar)
-	SetOfInt          = datatype.NewSetType(datatype.Int)
-	SetOfBigInt       = datatype.NewSetType(datatype.Bigint)
-	SetOfBool         = datatype.NewSetType(datatype.Boolean)
-	SetOfFloat        = datatype.NewSetType(datatype.Float)
-	SetOfDouble       = datatype.NewSetType(datatype.Double)
-	SetOfTimeStamp    = datatype.NewSetType(datatype.Timestamp)
-	ListOfStr         = datatype.NewListType(datatype.Varchar)
-	ListOfBool        = datatype.NewListType(datatype.Boolean)
-	ListOfInt         = datatype.NewListType(datatype.Int)
-	ListOfBigInt      = datatype.NewListType(datatype.Bigint)
-	ListOfFloat       = datatype.NewListType(datatype.Float)
-	ListOfDouble      = datatype.NewListType(datatype.Double)
-	ListOfTimeStamp   = datatype.NewListType(datatype.Timestamp)
+	MapOfStrToStr     = types.NewMapType(types.TypeVarchar, types.TypeVarchar).(types.MapType)
+	MapOfStrToInt     = types.NewMapType(types.TypeVarchar, types.TypeInt).(types.MapType)
+	MapOfStrToBigInt  = types.NewMapType(types.TypeVarchar, types.TypeBigint).(types.MapType)
+	MapOfStrToBool    = types.NewMapType(types.TypeVarchar, types.TypeBoolean).(types.MapType)
+	MapOfStrToFloat   = types.NewMapType(types.TypeVarchar, types.TypeFloat).(types.MapType)
+	MapOfStrToDouble  = types.NewMapType(types.TypeVarchar, types.TypeDouble).(types.MapType)
+	MapOfStrToTime    = types.NewMapType(types.TypeVarchar, types.TypeTimestamp).(types.MapType)
+	MapOfTimeToTime   = types.NewMapType(types.TypeTimestamp, types.TypeTimestamp).(types.MapType)
+	MapOfTimeToStr    = types.NewMapType(types.TypeTimestamp, types.TypeVarchar).(types.MapType)
+	MapOfTimeToInt    = types.NewMapType(types.TypeTimestamp, types.TypeInt).(types.MapType)
+	MapOfTimeToBigInt = types.NewMapType(types.TypeTimestamp, types.TypeBigint).(types.MapType)
+	MapOfTimeToFloat  = types.NewMapType(types.TypeTimestamp, types.TypeFloat).(types.MapType)
+	MapOfTimeToDouble = types.NewMapType(types.TypeTimestamp, types.TypeDouble).(types.MapType)
+	MapOfTimeToBool   = types.NewMapType(types.TypeTimestamp, types.TypeBoolean).(types.MapType)
+	SetOfStr          = types.NewSetType(types.TypeVarchar).(types.SetType)
+	SetOfInt          = types.NewSetType(types.TypeInt).(types.SetType)
+	SetOfBigInt       = types.NewSetType(types.TypeBigint).(types.SetType)
+	SetOfBool         = types.NewSetType(types.TypeBoolean).(types.SetType)
+	SetOfFloat        = types.NewSetType(types.TypeFloat).(types.SetType)
+	SetOfDouble       = types.NewSetType(types.TypeDouble).(types.SetType)
+	SetOfTimeStamp    = types.NewSetType(types.TypeTimestamp).(types.SetType)
+	ListOfStr         = types.NewListType(types.TypeVarchar).(types.ListType)
+	ListOfBool        = types.NewListType(types.TypeBoolean).(types.ListType)
+	ListOfInt         = types.NewListType(types.TypeInt).(types.ListType)
+	ListOfBigInt      = types.NewListType(types.TypeBigint).(types.ListType)
+	ListOfFloat       = types.NewListType(types.TypeFloat).(types.ListType)
+	ListOfDouble      = types.NewListType(types.TypeDouble).(types.ListType)
+	ListOfTimeStamp   = types.NewListType(types.TypeTimestamp).(types.ListType)
 )
 
 var (
@@ -216,10 +216,6 @@ const (
 	Error = "error"
 	Warn  = "warn"
 )
-
-func IsCollectionColumn(c *types.Column) bool {
-	return IsCollection(c.TypeInfo.DataType)
-}
 
 // IsCollection() checks if the provided data type is a collection type (list, set, or map).
 func IsCollection(dt datatype.DataType) bool {
@@ -298,25 +294,25 @@ func decodeNonPrimitive(choice datatype.PrimitiveType, b []byte) (any, error) {
 		// Now check the element type's code
 		switch elementType.GetDataTypeCode() {
 		case primitive.DataTypeCodeVarchar:
-			decodedList, err := collectiondecoder.DecodeCollection(ListOfStr, primitive.ProtocolVersion4, b)
+			decodedList, err := collectiondecoder.DecodeCollection(ListOfStr.DataType(), primitive.ProtocolVersion4, b)
 			if err != nil {
 				return nil, err
 			}
 			return decodedList, err
 		case primitive.DataTypeCodeInt:
-			decodedList, err := collectiondecoder.DecodeCollection(ListOfInt, primitive.ProtocolVersion4, b)
+			decodedList, err := collectiondecoder.DecodeCollection(ListOfInt.DataType(), primitive.ProtocolVersion4, b)
 			if err != nil {
 				return nil, err
 			}
 			return decodedList, err
 		case primitive.DataTypeCodeBigint:
-			decodedList, err := collectiondecoder.DecodeCollection(ListOfBigInt, primitive.ProtocolVersion4, b)
+			decodedList, err := collectiondecoder.DecodeCollection(ListOfBigInt.DataType(), primitive.ProtocolVersion4, b)
 			if err != nil {
 				return nil, err
 			}
 			return decodedList, err
 		case primitive.DataTypeCodeDouble:
-			decodedList, err := collectiondecoder.DecodeCollection(ListOfDouble, primitive.ProtocolVersion4, b)
+			decodedList, err := collectiondecoder.DecodeCollection(ListOfDouble.DataType(), primitive.ProtocolVersion4, b)
 			if err != nil {
 				return nil, err
 			}
@@ -373,13 +369,13 @@ func TypeConversion(s any, protocalV primitive.ProtocolVersion) ([]byte, error) 
 	case bool:
 		bytes, err = proxycore.EncodeType(datatype.Boolean, protocalV, v)
 	case map[string]string:
-		bytes, err = proxycore.EncodeType(MapOfStrToStr, protocalV, v)
+		bytes, err = proxycore.EncodeType(MapOfStrToStr.DataType(), protocalV, v)
 	case float64:
 		bytes, err = proxycore.EncodeType(datatype.Double, protocalV, v)
 	case float32:
 		bytes, err = proxycore.EncodeType(datatype.Float, protocalV, v)
 	case []string:
-		bytes, err = proxycore.EncodeType(SetOfStr, protocalV, v)
+		bytes, err = proxycore.EncodeType(SetOfStr.DataType(), protocalV, v)
 	case datatype.DataType:
 		cqlTypeInString := fmt.Sprintf("%v", v)
 		bytes, err = proxycore.EncodeType(datatype.Varchar, protocalV, cqlTypeInString)
@@ -545,12 +541,12 @@ func GetClauseByColumn(clause []types.Clause, column string) (types.Clause, erro
 	return types.Clause{}, fmt.Errorf("clause not found")
 }
 
-func IsSupportedPrimaryKeyType(dt *types.CqlTypeInfo) bool {
-	if dt.IsFrozen {
+func IsSupportedPrimaryKeyType(dt types.CqlDataType) bool {
+	if dt.IsFrozen() {
 		return false
 	}
 
-	switch dt.DataType {
+	switch dt.DataType() {
 	case datatype.Int, datatype.Bigint, datatype.Varchar:
 		return true
 	default:
@@ -567,22 +563,22 @@ func isSupportedCollectionElementType(dt datatype.DataType) bool {
 	}
 }
 
-func IsSupportedColumnType(dt *types.CqlTypeInfo) bool {
-	if dt.IsFrozen {
+func IsSupportedColumnType(dt types.CqlDataType) bool {
+	if dt.IsAnyFrozen() {
 		return false
 	}
 
-	switch dt.DataType.GetDataTypeCode() {
+	switch dt.DataType().GetDataTypeCode() {
 	case primitive.DataTypeCodeInt, primitive.DataTypeCodeBigint, primitive.DataTypeCodeBlob, primitive.DataTypeCodeBoolean, primitive.DataTypeCodeDouble, primitive.DataTypeCodeFloat, primitive.DataTypeCodeTimestamp, primitive.DataTypeCodeText, primitive.DataTypeCodeVarchar, primitive.DataTypeCodeCounter:
 		return true
 	case primitive.DataTypeCodeMap:
-		mapType := dt.DataType.(datatype.MapType)
+		mapType := dt.DataType().(datatype.MapType)
 		return isSupportedCollectionElementType(mapType.GetKeyType()) && isSupportedCollectionElementType(mapType.GetValueType())
 	case primitive.DataTypeCodeSet:
-		setType := dt.DataType.(datatype.SetType)
+		setType := dt.DataType().(datatype.SetType)
 		return isSupportedCollectionElementType(setType.GetElementType())
 	case primitive.DataTypeCodeList:
-		listType := dt.DataType.(datatype.ListType)
+		listType := dt.DataType().(datatype.ListType)
 		return isSupportedCollectionElementType(listType.GetElementType())
 	default:
 		return false
@@ -591,7 +587,7 @@ func IsSupportedColumnType(dt *types.CqlTypeInfo) bool {
 
 var cqlGenericTypeRegex = regexp.MustCompile(`^(\w+)<(.+)>$`)
 
-func ParseCqlTypeOrDie(typeStr string) *types.CqlTypeInfo {
+func ParseCqlTypeOrDie(typeStr string) types.CqlDataType {
 	t, err := ParseCqlTypeString(typeStr)
 	if err != nil {
 		panic(err)
@@ -614,7 +610,7 @@ func ParseCqlTypeOrDie(typeStr string) *types.CqlTypeInfo {
 //   - error: An error is returned if the provided string does not match any of the known
 //     Cassandra data types. This helps in identifying unsupported or incorrectly specified
 //     data types.
-func ParseCqlTypeString(input string) (*types.CqlTypeInfo, error) {
+func ParseCqlTypeString(input string) (types.CqlDataType, error) {
 	input = strings.ToLower(strings.ReplaceAll(input, " ", ""))
 	lexer := cql.NewCqlLexer(antlr.NewInputStream(input))
 	stream := antlr.NewCommonTokenStream(lexer, antlr.TokenDefaultChannel)
@@ -624,7 +620,7 @@ func ParseCqlTypeString(input string) (*types.CqlTypeInfo, error) {
 }
 
 // ParseCqlType - parses a DataType out behaving exactly like Cassandra might. Does not validate that we support the type in this Proxy.
-func ParseCqlType(dtc cql.IDataTypeContext) (*types.CqlTypeInfo, error) {
+func ParseCqlType(dtc cql.IDataTypeContext) (types.CqlDataType, error) {
 	dataTypeName := dtc.DataTypeName().GetText()
 	switch strings.ToLower(dataTypeName) {
 	case "frozen":
@@ -639,7 +635,7 @@ func ParseCqlType(dtc cql.IDataTypeContext) (*types.CqlTypeInfo, error) {
 		if !innerType.IsCollection() {
 			return nil, fmt.Errorf("frozen types must be a collection: '%s'", dtc.GetText())
 		}
-		return types.NewCqlTypeInfo(dtc.GetText(), innerType.DataType, true), nil
+		return types.NewFrozenType(innerType), nil
 	case "list":
 		err := validateDataTypeDefinition(dtc, 1)
 		if err != nil {
@@ -649,10 +645,10 @@ func ParseCqlType(dtc cql.IDataTypeContext) (*types.CqlTypeInfo, error) {
 		if err != nil {
 			return nil, fmt.Errorf("failed to extract type for '%s': %w", dtc.GetText(), err)
 		}
-		if innerType.IsCollection() && !innerType.IsFrozen {
+		if innerType.IsCollection() && !innerType.IsFrozen() {
 			return nil, fmt.Errorf("lists cannot contain collections unless they are frozen")
 		}
-		return types.NewCqlTypeInfo(dtc.GetText(), datatype.NewListType(innerType.DataType), innerType.IsFrozen), nil
+		return types.NewListType(innerType), nil
 	case "set":
 		err := validateDataTypeDefinition(dtc, 1)
 		if err != nil {
@@ -662,10 +658,10 @@ func ParseCqlType(dtc cql.IDataTypeContext) (*types.CqlTypeInfo, error) {
 		if err != nil {
 			return nil, fmt.Errorf("failed to extract type for '%s': %w", dtc.GetText(), err)
 		}
-		if innerType.IsCollection() && !innerType.IsFrozen {
+		if innerType.IsCollection() && !innerType.IsFrozen() {
 			return nil, fmt.Errorf("sets cannot contain collections unless they are frozen")
 		}
-		return types.NewCqlTypeInfo(dtc.GetText(), datatype.NewSetType(innerType.DataType), innerType.IsFrozen), nil
+		return types.NewSetType(innerType), nil
 	case "map":
 		err := validateDataTypeDefinition(dtc, 2)
 		if err != nil {
@@ -682,115 +678,109 @@ func ParseCqlType(dtc cql.IDataTypeContext) (*types.CqlTypeInfo, error) {
 		if err != nil {
 			return nil, fmt.Errorf("failed to extract value type for '%s': %w", dtc.GetText(), err)
 		}
-		if valueType.IsCollection() && !valueType.IsFrozen {
+		if valueType.IsCollection() && !valueType.IsFrozen() {
 			return nil, fmt.Errorf("map values cannot be collections unless they are frozen")
 		}
 		if err != nil {
 			return nil, fmt.Errorf("failed to extract type for '%s': %w", dtc.GetText(), err)
 		}
-		return types.NewCqlTypeInfo(dtc.GetText(), datatype.NewMapType(keyType.DataType, valueType.DataType), keyType.IsFrozen || valueType.IsFrozen), nil
-	case "text", "varchar":
+		return types.NewMapType(keyType, valueType), nil
+	case "text":
 		err := validateNoDataTypeDefinition(dtc)
 		if err != nil {
 			return nil, err
 		}
-		return types.NewCqlTypeInfo(dataTypeName, datatype.Varchar, false), nil
+		return types.TypeText, nil
+	case "varchar":
+		err := validateNoDataTypeDefinition(dtc)
+		if err != nil {
+			return nil, err
+		}
+		return types.TypeVarchar, nil
 	case "blob":
 		err := validateNoDataTypeDefinition(dtc)
 		if err != nil {
 			return nil, err
 		}
-		return types.NewCqlTypeInfo(dataTypeName, datatype.Blob, false), nil
+		return types.TypeBlob, nil
 	case "timestamp":
 		err := validateNoDataTypeDefinition(dtc)
 		if err != nil {
 			return nil, err
 		}
-		return types.NewCqlTypeInfo(dataTypeName, datatype.Timestamp, false), nil
+		return types.TypeTimestamp, nil
 	case "int":
 		err := validateNoDataTypeDefinition(dtc)
 		if err != nil {
 			return nil, err
 		}
-		return types.NewCqlTypeInfo(dataTypeName, datatype.Int, false), nil
+		return types.TypeInt, nil
 	case "bigint":
 		err := validateNoDataTypeDefinition(dtc)
 		if err != nil {
 			return nil, err
 		}
-		return types.NewCqlTypeInfo(dataTypeName, datatype.Bigint, false), nil
+		return types.TypeBigint, nil
 	case "boolean":
 		err := validateNoDataTypeDefinition(dtc)
 		if err != nil {
 			return nil, err
 		}
-		return types.NewCqlTypeInfo(dataTypeName, datatype.Boolean, false), nil
+		return types.TypeBoolean, nil
 	case "uuid":
 		err := validateNoDataTypeDefinition(dtc)
 		if err != nil {
 			return nil, err
 		}
-		return types.NewCqlTypeInfo(dataTypeName, datatype.Uuid, false), nil
+		return types.TypeUuid, nil
 	case "float":
 		err := validateNoDataTypeDefinition(dtc)
 		if err != nil {
 			return nil, err
 		}
-		return types.NewCqlTypeInfo(dataTypeName, datatype.Float, false), nil
+		return types.TypeFloat, nil
 	case "double", "decimal":
 		err := validateNoDataTypeDefinition(dtc)
 		if err != nil {
 			return nil, err
 		}
-		return types.NewCqlTypeInfo(dataTypeName, datatype.Double, false), nil
+		return types.TypeDouble, nil
 	case "counter":
 		err := validateNoDataTypeDefinition(dtc)
 		if err != nil {
 			return nil, err
 		}
-		return types.NewCqlTypeInfo(dataTypeName, datatype.Counter, false), nil
+		return types.TypeCounter, nil
 	case "timeuuid":
 		err := validateNoDataTypeDefinition(dtc)
 		if err != nil {
 			return nil, err
 		}
-		return types.NewCqlTypeInfo(dataTypeName, datatype.Timeuuid, false), nil
+		return types.TypeTimeuuid, nil
 	case "ascii":
 		err := validateNoDataTypeDefinition(dtc)
 		if err != nil {
 			return nil, err
 		}
-		return types.NewCqlTypeInfo(dataTypeName, datatype.Ascii, false), nil
+		return types.TypeAscii, nil
 	case "varint":
 		err := validateNoDataTypeDefinition(dtc)
 		if err != nil {
 			return nil, err
 		}
-		return types.NewCqlTypeInfo(dataTypeName, datatype.Varint, false), nil
-	case "inet":
-		err := validateNoDataTypeDefinition(dtc)
-		if err != nil {
-			return nil, err
-		}
-		return types.NewCqlTypeInfo(dataTypeName, datatype.Inet, false), nil
+		return types.TypeVarint, nil
 	case "date":
 		err := validateNoDataTypeDefinition(dtc)
 		if err != nil {
 			return nil, err
 		}
-		return types.NewCqlTypeInfo(dataTypeName, datatype.Date, false), nil
+		return types.TypeDate, nil
 	case "smallint":
 		err := validateNoDataTypeDefinition(dtc)
 		if err != nil {
 			return nil, err
 		}
-		return types.NewCqlTypeInfo(dataTypeName, datatype.Tinyint, false), nil
-	case "duration":
-		err := validateNoDataTypeDefinition(dtc)
-		if err != nil {
-			return nil, err
-		}
-		return types.NewCqlTypeInfo(dataTypeName, datatype.Duration, false), nil
+		return types.TypeTinyint, nil
 	default:
 		return nil, fmt.Errorf("unknown data type name: '%s' in type '%s'", dataTypeName, dtc)
 	}

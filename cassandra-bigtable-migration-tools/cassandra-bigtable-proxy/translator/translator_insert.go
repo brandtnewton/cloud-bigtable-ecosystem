@@ -24,7 +24,6 @@ import (
 	types "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/global/types"
 	schemaMapping "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/schema-mapping"
 	cql "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/third_party/cqlparser"
-	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/utilities"
 	"github.com/antlr4-go/antlr/v4"
 	"github.com/datastax/go-cassandra-native-protocol/primitive"
 )
@@ -133,12 +132,12 @@ func setParamsFromValues(input cql.IInsertValuesSpecContext, columns []types.Col
 				if er != nil {
 					return nil, nil, nil, er
 				}
-				if utilities.IsCollectionColumn(column) {
+				if column.TypeInfo.IsCollection() {
 					val = goValue
 					unenVal = goValue
 				} else {
 					unenVal = goValue
-					val, err = formatValues(fmt.Sprintf("%v", goValue), col.TypeInfo.DataType, protocolV)
+					val, err = formatValues(fmt.Sprintf("%v", goValue), col.TypeInfo.DataType(), protocolV)
 					if err != nil {
 						return nil, nil, nil, err
 					}

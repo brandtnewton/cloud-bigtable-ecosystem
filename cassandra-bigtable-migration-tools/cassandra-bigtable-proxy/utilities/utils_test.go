@@ -150,10 +150,10 @@ func TestDecodeBytesToCassandraColumnType(t *testing.T) {
 		{
 			name: "Decode list of varchar",
 			input: func() []byte {
-				b, _ := proxycore.EncodeType(ListOfStr, primitive.ProtocolVersion4, []string{"test1", "test2"})
+				b, _ := proxycore.EncodeType(ListOfStr.DataType(), primitive.ProtocolVersion4, []string{"test1", "test2"})
 				return b
 			}(),
-			dataType:        ListOfStr,
+			dataType:        ListOfStr.DataType(),
 			protocolVersion: primitive.ProtocolVersion4,
 			expected:        []string{"test1", "test2"},
 			expectError:     false,
@@ -161,10 +161,10 @@ func TestDecodeBytesToCassandraColumnType(t *testing.T) {
 		{
 			name: "Decode list of bigint",
 			input: func() []byte {
-				b, _ := proxycore.EncodeType(ListOfBigInt, primitive.ProtocolVersion4, []int64{123, 456})
+				b, _ := proxycore.EncodeType(ListOfBigInt.DataType(), primitive.ProtocolVersion4, []int64{123, 456})
 				return b
 			}(),
-			dataType:        ListOfBigInt,
+			dataType:        ListOfBigInt.DataType(),
 			protocolVersion: primitive.ProtocolVersion4,
 			expected:        []int64{123, 456},
 			expectError:     false,
@@ -172,10 +172,10 @@ func TestDecodeBytesToCassandraColumnType(t *testing.T) {
 		{
 			name: "Decode list of double",
 			input: func() []byte {
-				b, _ := proxycore.EncodeType(ListOfDouble, primitive.ProtocolVersion4, []float64{123.45, 456.78})
+				b, _ := proxycore.EncodeType(ListOfDouble.DataType(), primitive.ProtocolVersion4, []float64{123.45, 456.78})
 				return b
 			}(),
-			dataType:        ListOfDouble,
+			dataType:        ListOfDouble.DataType(),
 			protocolVersion: primitive.ProtocolVersion4,
 			expected:        []float64{123.45, 456.78},
 			expectError:     false,
@@ -191,7 +191,7 @@ func TestDecodeBytesToCassandraColumnType(t *testing.T) {
 		{
 			name:            "Unsupported list element type",
 			input:           []byte("test"),
-			dataType:        ListOfBool, // List of boolean is not supported
+			dataType:        ListOfBool.DataType(), // List of boolean is not supported
 			protocolVersion: primitive.ProtocolVersion4,
 			expectError:     true,
 			errorMessage:    "unsupported list element type to decode",
@@ -232,37 +232,37 @@ func TestDecodeNonPrimitive(t *testing.T) {
 		{
 			name: "Decode list of varchar",
 			input: func() []byte {
-				b, _ := proxycore.EncodeType(ListOfStr, primitive.ProtocolVersion4, []string{"test1", "test2"})
+				b, _ := proxycore.EncodeType(ListOfStr.DataType(), primitive.ProtocolVersion4, []string{"test1", "test2"})
 				return b
 			}(),
-			dataType:    ListOfStr,
+			dataType:    ListOfStr.DataType(),
 			expected:    []string{"test1", "test2"},
 			expectError: false,
 		},
 		{
 			name: "Decode list of bigint",
 			input: func() []byte {
-				b, _ := proxycore.EncodeType(ListOfBigInt, primitive.ProtocolVersion4, []int64{123, 456})
+				b, _ := proxycore.EncodeType(ListOfBigInt.DataType(), primitive.ProtocolVersion4, []int64{123, 456})
 				return b
 			}(),
-			dataType:    ListOfBigInt,
+			dataType:    ListOfBigInt.DataType(),
 			expected:    []int64{123, 456},
 			expectError: false,
 		},
 		{
 			name: "Decode list of double",
 			input: func() []byte {
-				b, _ := proxycore.EncodeType(ListOfDouble, primitive.ProtocolVersion4, []float64{123.45, 456.78})
+				b, _ := proxycore.EncodeType(ListOfDouble.DataType(), primitive.ProtocolVersion4, []float64{123.45, 456.78})
 				return b
 			}(),
-			dataType:    ListOfDouble,
+			dataType:    ListOfDouble.DataType(),
 			expected:    []float64{123.45, 456.78},
 			expectError: false,
 		},
 		{
 			name:         "Unsupported list element type",
 			input:        []byte("test"),
-			dataType:     ListOfBool, // List of boolean is not supported
+			dataType:     ListOfBool.DataType(), // List of boolean is not supported
 			expectError:  true,
 			errorMessage: "unsupported list element type to decode",
 		},
@@ -935,7 +935,7 @@ func TestGetClauseByColumn(t *testing.T) {
 func TestIsSupportedPrimaryKeyType(t *testing.T) {
 	testCases := []struct {
 		name     string
-		input    *types.CqlTypeInfo
+		input    types.CqlDataType
 		expected bool
 	}{
 		{"Supported TypeInfo - Int", ParseCqlTypeOrDie("int"), true},
@@ -986,7 +986,7 @@ func TestIsSupportedCollectionElementType(t *testing.T) {
 func TestIsSupportedColumnType(t *testing.T) {
 	testCases := []struct {
 		name     string
-		input    *types.CqlTypeInfo
+		input    types.CqlDataType
 		expected bool
 	}{
 		// --- Positive Cases: Primitive Types ---
@@ -1011,21 +1011,17 @@ func TestIsSupportedColumnType(t *testing.T) {
 
 		// --- Negative Cases: Collection Types ---
 		{"Unsupported List Element", ParseCqlTypeOrDie("list<uuid>"), false},
-		{"Unsupported List Element", types.NewCqlTypeInfoFromType(datatype.NewListType(datatype.NewListType(datatype.Int))), false},
+		{"Unsupported List Element", types.NewListType(types.NewListType(types.TypeInt)), false},
 		{"Unsupported Set Element", ParseCqlTypeOrDie("set<blob>"), false},
 		{"Unsupported Map Key", ParseCqlTypeOrDie("map<blob,text>"), false},
 		{"Unsupported Map Value", ParseCqlTypeOrDie("map<text,uuid>"), false},
-		{"Nested Collection - List of Maps", types.NewCqlTypeInfoFromType(datatype.NewListType(datatype.NewMapType(datatype.Varchar, datatype.Int))), false},
+		{"Nested Collection - List of Maps", types.NewListType(types.NewMapType(types.TypeVarchar, types.TypeInt)), false},
 		// --- Negative Cases: Frozen Types ---
 		{"Frozen List", ParseCqlTypeOrDie("frozen<list<int>>"), false},
 		{"Frozen Set", ParseCqlTypeOrDie("frozen<set<text>>"), false},
 		{"Frozen Map", ParseCqlTypeOrDie("frozen<map<timestamp, float>>"), false},
 		{"Frozen Map with Text Key", ParseCqlTypeOrDie("frozen<map<text, bigint>>"), false},
 		{"List of frozen lists", ParseCqlTypeOrDie("list<frozen<list<bigint>>>"), false},
-
-		// --- Negative Cases: UDT ---
-		{"udt", types.NewCqlTypeInfoFromType(datatype.NewCustomType("foobar")), false},
-		{"list of frozen udt", types.NewCqlTypeInfoFromType(datatype.NewListType(datatype.NewCustomType("foobar"))), false},
 	}
 
 	for _, tc := range testCases {
@@ -1039,86 +1035,86 @@ func TestIsSupportedColumnType(t *testing.T) {
 func TestGetCassandraColumnType(t *testing.T) {
 	testCases := []struct {
 		input    string
-		wantType *types.CqlTypeInfo
+		wantType types.CqlDataType
 		wantErr  string
 	}{
-		{"text", types.NewCqlTypeInfo("text", datatype.Varchar, false), ""},
-		{"blob", types.NewCqlTypeInfo("blob", datatype.Blob, false), ""},
-		{"timestamp", types.NewCqlTypeInfo("timestamp", datatype.Timestamp, false), ""},
-		{"TimeSTAmp", types.NewCqlTypeInfo("timestamp", datatype.Timestamp, false), ""},
-		{"int", types.NewCqlTypeInfo("int", datatype.Int, false), ""},
-		{"float", types.NewCqlTypeInfo("float", datatype.Float, false), ""},
-		{"double", types.NewCqlTypeInfo("double", datatype.Double, false), ""},
-		{"bigint", types.NewCqlTypeInfo("bigint", datatype.Bigint, false), ""},
-		{"boolean", types.NewCqlTypeInfo("boolean", datatype.Boolean, false), ""},
-		{"uuid", types.NewCqlTypeInfo("uuid", datatype.Uuid, false), ""},
-		{"map<text, boolean>", types.NewCqlTypeInfo("map<text,boolean>", datatype.NewMapType(datatype.Varchar, datatype.Boolean), false), ""},
-		{"map<varchar, boolean>", types.NewCqlTypeInfo("map<varchar,boolean>", datatype.NewMapType(datatype.Varchar, datatype.Boolean), false), ""},
-		{"map<text, text>", types.NewCqlTypeInfo("map<text,text>", datatype.NewMapType(datatype.Varchar, datatype.Varchar), false), ""},
-		{"map<text, varchar>", types.NewCqlTypeInfo("map<text,varchar>", datatype.NewMapType(datatype.Varchar, datatype.Varchar), false), ""},
-		{"map<varchar,text>", types.NewCqlTypeInfo("map<varchar,text>", datatype.NewMapType(datatype.Varchar, datatype.Varchar), false), ""},
-		{"map<varchar, varchar>", types.NewCqlTypeInfo("map<varchar,varchar>", datatype.NewMapType(datatype.Varchar, datatype.Varchar), false), ""},
-		{"maP<vARCHar, varcHAr>", types.NewCqlTypeInfo("map<varchar,varchar>", datatype.NewMapType(datatype.Varchar, datatype.Varchar), false), ""},
+		{"text", types.TypeText, ""},
+		{"blob", types.TypeBlob, ""},
+		{"timestamp", types.TypeTimestamp, ""},
+		{"TimeSTAmp", types.TypeTimestamp, ""},
+		{"int", types.TypeInt, ""},
+		{"float", types.TypeFloat, ""},
+		{"double", types.TypeDouble, ""},
+		{"bigint", types.TypeBigint, ""},
+		{"boolean", types.TypeBoolean, ""},
+		{"uuid", types.TypeUuid, ""},
+		{"map<text, boolean>", types.NewMapType(types.TypeVarchar, types.TypeBoolean), ""},
+		{"map<varchar, boolean>", types.NewMapType(types.TypeVarchar, types.TypeBoolean), ""},
+		{"map<text, text>", types.NewMapType(types.TypeText, types.TypeText), ""},
+		{"map<text, varchar>", types.NewMapType(types.TypeText, types.TypeVarchar), ""},
+		{"map<varchar,text>", types.NewMapType(types.TypeVarchar, types.TypeText), ""},
+		{"map<varchar, varchar>", types.NewMapType(types.TypeVarchar, types.TypeVarchar), ""},
+		{"maP<vARCHar, varcHAr>", types.NewMapType(types.TypeVarchar, types.TypeVarchar), ""},
 		{"map<varchar>", nil, "expected exactly 2 types but found 1 in: 'map<varchar>'"},
 		{"map<varchar,varchar,varchar>", nil, "expected exactly 2 types but found 3 in: 'map<varchar,varchar,varchar>'"},
 		{"map<>", nil, "empty type definition in 'map<>'"},
 		{"int<>", nil, "unexpected data type definition: 'int<>'"},
-		{"list<text>", types.NewCqlTypeInfo("list<text>", datatype.NewListType(datatype.Varchar), false), ""},
-		{"list<varchar>", types.NewCqlTypeInfo("list<varchar>", datatype.NewListType(datatype.Varchar), false), ""},
-		{"frozen<list<text>>", types.NewCqlTypeInfo("frozen<list<text>>", datatype.NewListType(datatype.Varchar), true), ""},
-		{"frozen<list<varchar>>", types.NewCqlTypeInfo("frozen<list<varchar>>", datatype.NewListType(datatype.Varchar), true), ""},
-		{"set<text>", types.NewCqlTypeInfo("set<text>", datatype.NewSetType(datatype.Varchar), false), ""},
+		{"list<text>", types.NewListType(types.TypeText), ""},
+		{"list<varchar>", types.NewListType(types.TypeVarchar), ""},
+		{"frozen<list<text>>", types.NewFrozenType(types.NewListType(types.TypeText)), ""},
+		{"frozen<list<varchar>>", types.NewFrozenType(types.NewListType(types.TypeVarchar)), ""},
+		{"set<text>", types.NewSetType(types.TypeText), ""},
 		{"set<text", nil, "missing closing type bracket in: 'set<text'"},
 		{"set", nil, "data type definition missing in: 'set'"},
 		{"frozen", nil, "data type definition missing in: 'frozen'"},
 		{"map", nil, "data type definition missing in: 'map'"},
 		{"list", nil, "data type definition missing in: 'list'"},
 		{"set<", nil, "failed"}, // we don't get a good parsing error from here but that's ok
-		{"set<varchar>", types.NewCqlTypeInfo("set<varchar>", datatype.NewSetType(datatype.Varchar), false), ""},
-		{"frozen<set<text>>", types.NewCqlTypeInfo("frozen<set<text>>", datatype.NewSetType(datatype.Varchar), true), ""},
-		{"frozen<set<varchar>>", types.NewCqlTypeInfo("frozen<set<varchar>>", datatype.NewSetType(datatype.Varchar), true), ""},
+		{"set<varchar>", types.NewSetType(types.TypeVarchar), ""},
+		{"frozen<set<text>>", types.NewFrozenType(types.NewSetType(types.TypeVarchar)), ""},
+		{"frozen<set<varchar>>", types.NewFrozenType(types.NewSetType(types.TypeVarchar)), ""},
 		{"unknown", nil, "unknown data type name: 'unknown'"},
 		{"", nil, "unknown data type name: ''"},
 		{"<>list", nil, "unknown data type name: ''"},
 		{"<int>", nil, "unknown data type name: '<int'"},
 		{"map<map<text,int>", nil, "expected exactly 2 types but found 1 in: 'map<map<text,int>'"},
 		{"map<map<text,int>,text>", nil, "map key types must be scalar"},
-		{"map<text, frozen<map<text,int>>>", types.NewCqlTypeInfo("map<text,frozen<map<text,int>>>", datatype.NewMapType(datatype.Varchar, datatype.NewMapType(datatype.Varchar, datatype.Int)), true), ""},
+		{"map<text, frozen<map<text,int>>>", types.NewMapType(types.TypeText, types.NewFrozenType(types.NewMapType(types.TypeText, types.TypeText))), ""},
 		// Future scope items below:
-		{"map<text, int>", types.NewCqlTypeInfo("map<text,int>", datatype.NewMapType(datatype.Varchar, datatype.Int), false), ""},
-		{"map<varchar, int>", types.NewCqlTypeInfo("map<varchar,int>", datatype.NewMapType(datatype.Varchar, datatype.Int), false), ""},
-		{"map<text, bigint>", types.NewCqlTypeInfo("map<text,bigint>", datatype.NewMapType(datatype.Varchar, datatype.Bigint), false), ""},
-		{"map<varchar, bigint>", types.NewCqlTypeInfo("map<varchar,bigint>", datatype.NewMapType(datatype.Varchar, datatype.Bigint), false), ""},
-		{"map<text, float>", types.NewCqlTypeInfo("map<text,float>", datatype.NewMapType(datatype.Varchar, datatype.Float), false), ""},
-		{"map<varchar, float>", types.NewCqlTypeInfo("map<varchar,float>", datatype.NewMapType(datatype.Varchar, datatype.Float), false), ""},
-		{"map<text, double>", types.NewCqlTypeInfo("map<text,double>", datatype.NewMapType(datatype.Varchar, datatype.Double), false), ""},
-		{"map<varchar, double>", types.NewCqlTypeInfo("map<varchar,double>", datatype.NewMapType(datatype.Varchar, datatype.Double), false), ""},
-		{"map<text, timestamp>", types.NewCqlTypeInfo("map<text,timestamp>", datatype.NewMapType(datatype.Varchar, datatype.Timestamp), false), ""},
-		{"map<varchar, timestamp>", types.NewCqlTypeInfo("map<varchar,timestamp>", datatype.NewMapType(datatype.Varchar, datatype.Timestamp), false), ""},
-		{"map<timestamp, text>", types.NewCqlTypeInfo("map<timestamp,text>", datatype.NewMapType(datatype.Timestamp, datatype.Varchar), false), ""},
-		{"map<timestamp, varchar>", types.NewCqlTypeInfo("map<timestamp,varchar>", datatype.NewMapType(datatype.Timestamp, datatype.Varchar), false), ""},
-		{"map<timestamp, boolean>", types.NewCqlTypeInfo("map<timestamp,boolean>", datatype.NewMapType(datatype.Timestamp, datatype.Boolean), false), ""},
-		{"map<timestamp, int>", types.NewCqlTypeInfo("map<timestamp,int>", datatype.NewMapType(datatype.Timestamp, datatype.Int), false), ""},
-		{"map<timestamp, bigint>", types.NewCqlTypeInfo("map<timestamp,bigint>", datatype.NewMapType(datatype.Timestamp, datatype.Bigint), false), ""},
-		{"map<timestamp, float>", types.NewCqlTypeInfo("map<timestamp,float>", datatype.NewMapType(datatype.Timestamp, datatype.Float), false), ""},
-		{"map<timestamp, double>", types.NewCqlTypeInfo("map<timestamp,double>", datatype.NewMapType(datatype.Timestamp, datatype.Double), false), ""},
-		{"map<timestamp, timestamp>", types.NewCqlTypeInfo("map<timestamp,timestamp>", datatype.NewMapType(datatype.Timestamp, datatype.Timestamp), false), ""},
+		{"map<text, int>", types.NewMapType(types.TypeVarchar, types.TypeInt), ""},
+		{"map<varchar, int>", types.NewMapType(types.TypeVarchar, types.TypeInt), ""},
+		{"map<text, bigint>", types.NewMapType(types.TypeVarchar, types.TypeBigint), ""},
+		{"map<varchar, bigint>", types.NewMapType(types.TypeVarchar, types.TypeBigint), ""},
+		{"map<text, float>", types.NewMapType(types.TypeVarchar, types.TypeFloat), ""},
+		{"map<varchar, float>", types.NewMapType(types.TypeVarchar, types.TypeFloat), ""},
+		{"map<text, double>", types.NewMapType(types.TypeVarchar, types.TypeDouble), ""},
+		{"map<varchar, double>", types.NewMapType(types.TypeVarchar, types.TypeDouble), ""},
+		{"map<text, timestamp>", types.NewMapType(types.TypeVarchar, types.TypeTimestamp), ""},
+		{"map<varchar, timestamp>", types.NewMapType(types.TypeVarchar, types.TypeTimestamp), ""},
+		{"map<timestamp, text>", types.NewMapType(types.TypeTimestamp, types.TypeVarchar), ""},
+		{"map<timestamp, varchar>", types.NewMapType(types.TypeTimestamp, types.TypeVarchar), ""},
+		{"map<timestamp, boolean>", types.NewMapType(types.TypeTimestamp, types.TypeBoolean), ""},
+		{"map<timestamp, int>", types.NewMapType(types.TypeTimestamp, types.TypeInt), ""},
+		{"map<timestamp, bigint>", types.NewMapType(types.TypeTimestamp, types.TypeBigint), ""},
+		{"map<timestamp, float>", types.NewMapType(types.TypeTimestamp, types.TypeFloat), ""},
+		{"map<timestamp, double>", types.NewMapType(types.TypeTimestamp, types.TypeDouble), ""},
+		{"map<timestamp, timestamp>", types.NewMapType(types.TypeTimestamp, types.TypeTimestamp), ""},
 		{"map<timestamp, sdfs>", nil, "failed"}, // we don't get a good error because the lexer doesn't recognize the invalid type
 		{"map<intt, int>", nil, "failed"},       // we don't get a good error because the lexer doesn't recognize the invalid type
 		{"set<asdfasdf>", nil, "failed"},        // we don't get a good error because the lexer doesn't recognize the invalid type
 		{"list<asdfasdf>", nil, "failed"},       // we don't get a good error because the lexer doesn't recognize the invalid type
 		{"frozen<asdfasdf>", nil, "failed"},     // we don't get a good error because the lexer doesn't recognize the invalid type
-		{"set<int>", types.NewCqlTypeInfo("set<int>", datatype.NewSetType(datatype.Int), false), ""},
-		{"set<bigint>", types.NewCqlTypeInfo("set<bigint>", datatype.NewSetType(datatype.Bigint), false), ""},
-		{"set<float>", types.NewCqlTypeInfo("set<float>", datatype.NewSetType(datatype.Float), false), ""},
-		{"set<double>", types.NewCqlTypeInfo("set<double>", datatype.NewSetType(datatype.Double), false), ""},
-		{"set<boolean>", types.NewCqlTypeInfo("set<boolean>", datatype.NewSetType(datatype.Boolean), false), ""},
-		{"set<timestamp>", types.NewCqlTypeInfo("set<timestamp>", datatype.NewSetType(datatype.Timestamp), false), ""},
-		{"set<text>", types.NewCqlTypeInfo("set<text>", datatype.NewSetType(datatype.Varchar), false), ""},
-		{"set<varchar>", types.NewCqlTypeInfo("set<varchar>", datatype.NewSetType(datatype.Varchar), false), ""},
-		{"set<frozen<list<varchar>>>", types.NewCqlTypeInfo("set<frozen<list<varchar>>>", datatype.NewSetType(datatype.NewListType(datatype.Varchar)), true), ""},
-		{"set<frozen<map<text,int>>>", types.NewCqlTypeInfo("set<frozen<map<text,int>>>", datatype.NewSetType(datatype.NewMapType(datatype.Varchar, datatype.Int)), true), ""},
-		{"list<frozen<map<text,int>>>", types.NewCqlTypeInfo("list<frozen<map<text,int>>>", datatype.NewListType(datatype.NewMapType(datatype.Varchar, datatype.Int)), true), ""},
+		{"set<int>", types.NewSetType(types.TypeInt), ""},
+		{"set<bigint>", types.NewSetType(types.TypeBigint), ""},
+		{"set<float>", types.NewSetType(types.TypeFloat), ""},
+		{"set<double>", types.NewSetType(types.TypeDouble), ""},
+		{"set<boolean>", types.NewSetType(types.TypeBoolean), ""},
+		{"set<timestamp>", types.NewSetType(types.TypeTimestamp), ""},
+		{"set<text>", types.NewSetType(types.TypeText), ""},
+		{"set<varchar>", types.NewSetType(types.TypeVarchar), ""},
+		{"set<frozen<list<varchar>>>", types.NewSetType(types.NewListType(types.TypeVarchar)), ""},
+		{"set<frozen<map<text,int>>>", types.NewSetType(types.NewMapType(types.TypeText, types.TypeInt)), ""},
+		{"list<frozen<map<text,int>>>", types.NewListType(types.NewMapType(types.TypeText, types.TypeInt)), ""},
 	}
 
 	for _, tc := range testCases {

@@ -56,7 +56,7 @@ func NewTableConfig(
 			Table:    name,
 			Name:     column.Name,
 			Index:    int32(i),
-			Type:     column.TypeInfo.DataType,
+			Type:     column.TypeInfo.DataType(),
 		}
 		columnMap[column.Name] = column
 		if column.KeyType != utilities.KEY_TYPE_REGULAR {
@@ -151,7 +151,7 @@ func (tableConfig *TableConfig) Describe() string {
 	var colDefs []string
 	for _, colName := range colNames {
 		col := tableConfig.Columns[colName]
-		colDefs = append(colDefs, fmt.Sprintf("%s %s", colName, strings.ToUpper(col.TypeInfo.RawType)))
+		colDefs = append(colDefs, fmt.Sprintf("%s %s", colName, strings.ToUpper(col.TypeInfo.String())))
 	}
 
 	var pkCols []string = nil
@@ -204,9 +204,9 @@ func (tableConfig *TableConfig) GetColumnDataType(columnName string) (datatype.D
 	if err != nil {
 		return nil, err
 	}
-	return col.DataType, nil
+	return col.DataType(), nil
 }
-func (tableConfig *TableConfig) GetColumnType(columnName string) (*types.CqlTypeInfo, error) {
+func (tableConfig *TableConfig) GetColumnType(columnName string) (types.CqlDataType, error) {
 	col, ok := tableConfig.Columns[columnName]
 	if !ok {
 		return nil, fmt.Errorf("undefined column name %s in table %s.%s", columnName, tableConfig.Keyspace, tableConfig.Name)

@@ -241,7 +241,7 @@ type UpdateSetValue struct {
 	Column       string
 	Value        string
 	ColumnFamily string
-	CQLType      *types.CqlTypeInfo
+	CQLType      types.CqlDataType
 	Encrypted    interface{}
 }
 

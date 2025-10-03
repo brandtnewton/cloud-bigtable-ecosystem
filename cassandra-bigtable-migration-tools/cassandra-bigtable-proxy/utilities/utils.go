@@ -820,12 +820,18 @@ func ParseCqlType(dtc cql.IDataTypeContext) (types.CqlDataType, error) {
 			return nil, err
 		}
 		return types.TypeFloat, nil
-	case "double", "decimal":
+	case "double":
 		err := validateNoDataTypeDefinition(dtc)
 		if err != nil {
 			return nil, err
 		}
 		return types.TypeDouble, nil
+	case "decimal":
+		err := validateNoDataTypeDefinition(dtc)
+		if err != nil {
+			return nil, err
+		}
+		return types.TypeDecimal, nil
 	case "counter":
 		err := validateNoDataTypeDefinition(dtc)
 		if err != nil {
@@ -857,6 +863,12 @@ func ParseCqlType(dtc cql.IDataTypeContext) (types.CqlDataType, error) {
 		}
 		return types.TypeDate, nil
 	case "smallint":
+		err := validateNoDataTypeDefinition(dtc)
+		if err != nil {
+			return nil, err
+		}
+		return types.TypeSmallint, nil
+	case "tinyint":
 		err := validateNoDataTypeDefinition(dtc)
 		if err != nil {
 			return nil, err

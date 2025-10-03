@@ -658,11 +658,6 @@ func handleCounterOperation(val interface{}, column *types.Column, input Process
 // Manages simple assignment/replace complete map, add, remove, and update at index operations on map columns.
 // Returns error if operation type is invalid or value type doesn't match map key/value types.
 func handleMapOperation(val interface{}, column *types.Column, mt *types.MapType, colFamily string, input ProcessRawCollectionsInput, output *ProcessRawCollectionsOutput) error {
-	mt, ok := column.TypeInfo.(*types.MapType)
-	if !ok {
-		return fmt.Errorf("failed to assert map type for %s", column.TypeInfo.String())
-	}
-
 	// Check if key type is VARCHAR or TIMESTAMP
 	if mt.KeyType().DataType() == datatype.Varchar || mt.KeyType().DataType() == datatype.Timestamp {
 		switch v := val.(type) {

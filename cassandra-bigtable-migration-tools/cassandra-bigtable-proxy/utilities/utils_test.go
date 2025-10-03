@@ -16,6 +16,7 @@
 package utilities
 
 import (
+	"fmt"
 	"math"
 	"reflect"
 	"testing"
@@ -1129,6 +1130,121 @@ func TestGetCassandraColumnType(t *testing.T) {
 
 			require.NoError(t, err)
 			assert.Equal(t, tc.wantType, got)
+		})
+	}
+}
+
+func TestFromDataCode(t *testing.T) {
+
+	// ## Test Cases for Primitive Types ##
+	// These tests verify that each primitive type is correctly converted.
+	primitiveTests := []struct {
+		name     string
+		input    datatype.DataType
+		expected types.CqlDataType
+	}{
+		{"Ascii", datatype.Ascii, types.TypeAscii},
+		{"Bigint", datatype.Bigint, types.TypeBigint},
+		{"Blob", datatype.Blob, types.TypeBlob},
+		{"Boolean", datatype.Boolean, types.TypeBoolean},
+		{"Counter", datatype.Counter, types.TypeCounter},
+		{"Decimal", datatype.Decimal, types.TypeDecimal},
+		{"Double", datatype.Double, types.TypeDouble},
+		{"Float", datatype.Float, types.TypeFloat},
+		{"Int", datatype.Int, types.TypeInt},
+		{"Text", datatype.Varchar, types.TypeVarchar},
+		{"Timestamp", datatype.Timestamp, types.TypeTimestamp},
+		{"Uuid", datatype.Uuid, types.TypeUuid},
+		{"Varchar", datatype.Varchar, types.TypeVarchar},
+		{"Varint", datatype.Varint, types.TypeVarint},
+		{"Timeuuid", datatype.Timeuuid, types.TypeTimeuuid},
+		{"Inet", datatype.Inet, types.TypeInet},
+		{"Date", datatype.Date, types.TypeDate},
+		{"Time", datatype.Time, types.TypeTime},
+		{"Smallint", datatype.Smallint, types.TypeSmallint},
+		{"Tinyint", datatype.Tinyint, types.TypeTinyint},
+	}
+
+	for _, tc := range primitiveTests {
+		t.Run(fmt.Sprintf("Primitive_%s", tc.name), func(t *testing.T) {
+			got, err := FromDataCode(tc.input)
+			require.NoError(t, err)
+			assert.Equal(t, tc.expected, got)
+		})
+	}
+
+	// ## Test Cases for Collection Types ##
+	// These tests verify simple and nested collections.
+	collectionTests := []struct {
+		name     string
+		input    datatype.DataType
+		expected types.CqlDataType
+	}{
+		{
+			name:     "Simple List",
+			input:    datatype.NewListType(datatype.Int),
+			expected: types.NewListType(types.TypeInt),
+		},
+		{
+			name:     "Simple Set",
+			input:    datatype.NewSetType(datatype.Varchar),
+			expected: types.NewSetType(types.TypeVarchar),
+		},
+		{
+			name:     "Simple Map",
+			input:    datatype.NewMapType(datatype.Uuid, datatype.Boolean),
+			expected: types.NewMapType(types.TypeUuid, types.TypeBoolean),
+		},
+		{
+			name:     "Nested Collection List<Map<Int, Text>>",
+			input:    datatype.NewListType(datatype.NewMapType(datatype.Int, datatype.Varchar)),
+			expected: types.NewListType(types.NewMapType(types.TypeInt, types.TypeVarchar)),
+		},
+	}
+
+	for _, tc := range collectionTests {
+		t.Run(fmt.Sprintf("Collection_%s", tc.name), func(t *testing.T) {
+			got, err := FromDataCode(tc.input)
+			require.NoError(t, err)
+			assert.Equal(t, tc.expected, got)
+		})
+	}
+
+	// ## Test Cases for Errors ##
+	// These tests ensure the function fails gracefully.
+	errorTests := []struct {
+		name        string
+		input       datatype.DataType
+		expectedErr string
+	}{
+		{
+			name:        "Unhandled Primitive Type",
+			input:       datatype.NewCustomType("foobar"), // An invalid/unhandled code
+			expectedErr: "unhandled type: custom(foobar)",
+		},
+		{
+			name:  "List with unhandled element type",
+			input: datatype.NewListType(datatype.NewCustomType("foobar")), // An invalid/unhandled code
+
+			expectedErr: "unhandled type: custom(foobar)",
+		},
+		{
+			name:        "Map with unhandled key type",
+			input:       datatype.NewMapType(datatype.Varchar, datatype.NewCustomType("foobar")),
+			expectedErr: "unhandled type: custom(foobar)",
+		},
+		{
+			name:        "Map with unhandled key type",
+			input:       datatype.NewMapType(datatype.NewCustomType("foobar"), datatype.Varchar),
+			expectedErr: "unhandled type: custom(foobar)",
+		},
+	}
+
+	for _, tc := range errorTests {
+		t.Run(fmt.Sprintf("Error_%s", tc.name), func(t *testing.T) {
+			_, err := FromDataCode(tc.input)
+			require.Error(t, err)
+			assert.Contains(t, err.Error(), tc.expectedErr)
 		})
 	}
 }

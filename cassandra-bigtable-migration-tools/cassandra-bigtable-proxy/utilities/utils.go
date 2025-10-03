@@ -327,7 +327,7 @@ func FromDataCode(dt datatype.DataType) (types.CqlDataType, error) {
 	case primitive.DataTypeCodeList:
 		lt, ok := dt.(datatype.ListType)
 		if !ok {
-			return nil, fmt.Errorf("Unhandled type %s", dt.String())
+			return nil, fmt.Errorf("unhandled type %s", dt.String())
 		}
 		et, err := FromDataCode(lt.GetElementType())
 		if err != nil {
@@ -337,7 +337,7 @@ func FromDataCode(dt datatype.DataType) (types.CqlDataType, error) {
 	case primitive.DataTypeCodeMap:
 		mt, ok := dt.(datatype.MapType)
 		if !ok {
-			return nil, fmt.Errorf("Unhandled type %s", dt.String())
+			return nil, fmt.Errorf("unhandled type %s", dt.String())
 		}
 		kt, err := FromDataCode(mt.GetKeyType())
 		if err != nil {
@@ -349,17 +349,17 @@ func FromDataCode(dt datatype.DataType) (types.CqlDataType, error) {
 		}
 		return types.NewMapType(kt, vt), nil
 	case primitive.DataTypeCodeSet:
-		lt, ok := dt.(datatype.ListType)
+		st, ok := dt.(datatype.SetType)
 		if !ok {
-			return nil, fmt.Errorf("Unhandled type %s", dt.String())
+			return nil, fmt.Errorf("unhandled type %s", dt.String())
 		}
-		et, err := FromDataCode(lt.GetElementType())
+		et, err := FromDataCode(st.GetElementType())
 		if err != nil {
 			return nil, err
 		}
 		return types.NewSetType(et), nil
 	default:
-		return nil, fmt.Errorf("Unhandled type: %s", dt.String())
+		return nil, fmt.Errorf("unhandled type: %s", dt.String())
 	}
 }
 

@@ -1540,12 +1540,12 @@ func TestCastColumns(t *testing.T) {
 // compareComplexOperation checks if two ComplexOperation structures are equal.
 func compareComplexOperation(expected, actual *ComplexOperation) bool {
 	return expected.Append == actual.Append &&
-			expected.mapKey == actual.mapKey &&
-			expected.PrependList == actual.PrependList &&
-			expected.UpdateListIndex == actual.UpdateListIndex &&
-			expected.Delete == actual.Delete &&
-			expected.ListDelete == actual.ListDelete &&
-			reflect.DeepEqual(expected.ExpectedDatatype, actual.ExpectedDatatype)
+		expected.mapKey == actual.mapKey &&
+		expected.PrependList == actual.PrependList &&
+		expected.UpdateListIndex == actual.UpdateListIndex &&
+		expected.Delete == actual.Delete &&
+		expected.ListDelete == actual.ListDelete &&
+		reflect.DeepEqual(expected.ExpectedDatatype, actual.ExpectedDatatype)
 }
 
 func TestCreateOrderedCodeKey(t *testing.T) {

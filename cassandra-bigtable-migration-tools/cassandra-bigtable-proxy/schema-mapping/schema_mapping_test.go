@@ -41,13 +41,13 @@ func getSchemaMappingConfig() *SchemaMappingConfig {
 				[]*types.Column{
 					{
 						Name:         "column1",
-						TypeInfo:     types.TypeVarchar,
+						CQLType:      types.TypeVarchar,
 						KeyType:      utilities.KEY_TYPE_REGULAR,
 						ColumnFamily: "cf1",
 					},
 					{
 						Name:         "column2",
-						TypeInfo:     types.TypeInt,
+						CQLType:      types.TypeInt,
 						KeyType:      utilities.KEY_TYPE_REGULAR,
 						ColumnFamily: "cf1",
 					},
@@ -61,13 +61,13 @@ func getSchemaMappingConfig() *SchemaMappingConfig {
 				[]*types.Column{
 					{
 						Name:         "id",
-						TypeInfo:     types.TypeInt,
+						CQLType:      types.TypeInt,
 						KeyType:      "partition",
 						IsPrimaryKey: true,
 					},
 					{
 						Name:         "name",
-						TypeInfo:     types.TypeVarchar,
+						CQLType:      types.TypeVarchar,
 						KeyType:      "clustering",
 						IsPrimaryKey: true,
 					},
@@ -114,7 +114,7 @@ func Test_GetColumn(t *testing.T) {
 				Name:         "column1",
 				ColumnFamily: "cf1",
 				IsPrimaryKey: false,
-				TypeInfo:     types.TypeVarchar,
+				CQLType:      types.TypeVarchar,
 			},
 			wantErr: false,
 		},
@@ -141,7 +141,7 @@ func Test_GetColumn(t *testing.T) {
 				assert.Equal(t, tt.want.Name, got.Name)
 				assert.Equal(t, tt.want.ColumnFamily, got.ColumnFamily)
 				assert.Equal(t, tt.want.IsPrimaryKey, got.IsPrimaryKey)
-				assert.Equal(t, tt.want.TypeInfo, got.TypeInfo)
+				assert.Equal(t, tt.want.CQLType, got.CQLType)
 			}
 		})
 	}

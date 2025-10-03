@@ -645,7 +645,7 @@ func TestTranslator_BuildUpdatePrepareQuery(t *testing.T) {
 					{
 						Name:         "pk_1_text",
 						ColumnFamily: "",
-						TypeInfo:     types.TypeVarchar,
+						CQLType:      types.TypeVarchar,
 					},
 				},
 				st: &UpdateQueryMapping{
@@ -694,7 +694,7 @@ func TestTranslator_BuildUpdatePrepareQuery(t *testing.T) {
 					{
 						Name:         "blob_col",
 						ColumnFamily: "",
-						TypeInfo:     types.TypeBlob,
+						CQLType:      types.TypeBlob,
 					},
 				},
 				Values: []interface{}{[]interface{}(nil)},

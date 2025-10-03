@@ -81,7 +81,7 @@ func Test_setParamsFromValues(t *testing.T) {
 					{
 						Name:         "name",
 						ColumnFamily: "cf1",
-						TypeInfo:     utilities.ParseCqlTypeOrDie("varchar"),
+						CQLType:      utilities.ParseCqlTypeOrDie("varchar"),
 					},
 				},
 				schemaMapping:   GetSchemaMappingConfig(types.OrderedCodeEncoding),
@@ -101,7 +101,7 @@ func Test_setParamsFromValues(t *testing.T) {
 					{
 						Name:         "name",
 						ColumnFamily: "cf1",
-						TypeInfo:     utilities.ParseCqlTypeOrDie("varchar"),
+						CQLType:      utilities.ParseCqlTypeOrDie("varchar"),
 					},
 				},
 				schemaMapping:   GetSchemaMappingConfig(types.OrderedCodeEncoding),
@@ -121,7 +121,7 @@ func Test_setParamsFromValues(t *testing.T) {
 					{
 						Name:         "name",
 						ColumnFamily: "cf1",
-						TypeInfo:     utilities.ParseCqlTypeOrDie("varchar"),
+						CQLType:      utilities.ParseCqlTypeOrDie("varchar"),
 					},
 				},
 				schemaMapping:   GetSchemaMappingConfig(types.OrderedCodeEncoding),
@@ -141,7 +141,7 @@ func Test_setParamsFromValues(t *testing.T) {
 					{
 						Name:         "name",
 						ColumnFamily: "cf1",
-						TypeInfo:     utilities.ParseCqlTypeOrDie("varchar"),
+						CQLType:      utilities.ParseCqlTypeOrDie("varchar"),
 					},
 				},
 				schemaMapping:   GetSchemaMappingConfig(types.OrderedCodeEncoding),
@@ -161,7 +161,7 @@ func Test_setParamsFromValues(t *testing.T) {
 					{
 						Name:         "name",
 						ColumnFamily: "cf1",
-						TypeInfo:     utilities.ParseCqlTypeOrDie("varchar"),
+						CQLType:      utilities.ParseCqlTypeOrDie("varchar"),
 					},
 				},
 				schemaMapping:   GetSchemaMappingConfig(types.OrderedCodeEncoding),
@@ -263,7 +263,7 @@ func TestTranslator_TranslateInsertQuerytoBigtable(t *testing.T) {
 	}
 
 	query := "INSERT INTO test_keyspace.test_table (column1, column2, column3, column5, column6, column9, column10) VALUES ('" +
-		textValue + "', '" + blobValue + "', " + booleanValue + ", '" + timestampValue + "', " + intValue + ", " + bigIntValue + ", " + column10 + ")"
+			textValue + "', '" + blobValue + "', " + booleanValue + ", '" + timestampValue + "', " + intValue + ", " + bigIntValue + ", " + column10 + ")"
 
 	preparedQuery := "INSERT INTO test_keyspace.test_table (column1, column2, column3, column5, column6, column9, column10) VALUES ('?', '?', '?', '?', '?', '?', '?')"
 	// Query with USING TIMESTAMP
@@ -291,13 +291,13 @@ func TestTranslator_TranslateInsertQuerytoBigtable(t *testing.T) {
 			Table:     "test_table",
 			Keyspace:  "test_keyspace",
 			Columns: []*types.Column{
-				{Name: "column1", ColumnFamily: "cf1", TypeInfo: utilities.ParseCqlTypeOrDie("varchar"), IsPrimaryKey: true},
-				{Name: "column2", ColumnFamily: "cf1", TypeInfo: utilities.ParseCqlTypeOrDie("blob"), IsPrimaryKey: false},
-				{Name: "column3", ColumnFamily: "cf1", TypeInfo: utilities.ParseCqlTypeOrDie("boolean"), IsPrimaryKey: false},
-				{Name: "column5", ColumnFamily: "cf1", TypeInfo: utilities.ParseCqlTypeOrDie("timestamp"), IsPrimaryKey: false},
-				{Name: "column6", ColumnFamily: "cf1", TypeInfo: utilities.ParseCqlTypeOrDie("int"), IsPrimaryKey: false},
-				{Name: "column9", ColumnFamily: "cf1", TypeInfo: utilities.ParseCqlTypeOrDie("bigint"), IsPrimaryKey: false},
-				{Name: "column10", ColumnFamily: "cf1", TypeInfo: utilities.ParseCqlTypeOrDie("varchar"), IsPrimaryKey: true},
+				{Name: "column1", ColumnFamily: "cf1", CQLType: utilities.ParseCqlTypeOrDie("varchar"), IsPrimaryKey: true},
+				{Name: "column2", ColumnFamily: "cf1", CQLType: utilities.ParseCqlTypeOrDie("blob"), IsPrimaryKey: false},
+				{Name: "column3", ColumnFamily: "cf1", CQLType: utilities.ParseCqlTypeOrDie("boolean"), IsPrimaryKey: false},
+				{Name: "column5", ColumnFamily: "cf1", CQLType: utilities.ParseCqlTypeOrDie("timestamp"), IsPrimaryKey: false},
+				{Name: "column6", ColumnFamily: "cf1", CQLType: utilities.ParseCqlTypeOrDie("int"), IsPrimaryKey: false},
+				{Name: "column9", ColumnFamily: "cf1", CQLType: utilities.ParseCqlTypeOrDie("bigint"), IsPrimaryKey: false},
+				{Name: "column10", ColumnFamily: "cf1", CQLType: utilities.ParseCqlTypeOrDie("varchar"), IsPrimaryKey: true},
 			},
 			Values:      nil, // undefined because this is a prepared query
 			Params:      nil, // undefined because this is a prepared query
@@ -328,13 +328,13 @@ func TestTranslator_TranslateInsertQuerytoBigtable(t *testing.T) {
 				Table:     "test_table",
 				Keyspace:  "test_keyspace",
 				Columns: []*types.Column{
-					{Name: "column1", ColumnFamily: "cf1", TypeInfo: utilities.ParseCqlTypeOrDie("varchar"), IsPrimaryKey: true},
-					{Name: "column2", ColumnFamily: "cf1", TypeInfo: utilities.ParseCqlTypeOrDie("blob"), IsPrimaryKey: false},
-					{Name: "column3", ColumnFamily: "cf1", TypeInfo: utilities.ParseCqlTypeOrDie("boolean"), IsPrimaryKey: false},
-					{Name: "column5", ColumnFamily: "cf1", TypeInfo: utilities.ParseCqlTypeOrDie("timestamp"), IsPrimaryKey: false},
-					{Name: "column6", ColumnFamily: "cf1", TypeInfo: utilities.ParseCqlTypeOrDie("int"), IsPrimaryKey: false},
-					{Name: "column9", ColumnFamily: "cf1", TypeInfo: utilities.ParseCqlTypeOrDie("bigint"), IsPrimaryKey: false},
-					{Name: "column10", ColumnFamily: "cf1", TypeInfo: utilities.ParseCqlTypeOrDie("varchar"), IsPrimaryKey: true},
+					{Name: "column1", ColumnFamily: "cf1", CQLType: utilities.ParseCqlTypeOrDie("varchar"), IsPrimaryKey: true},
+					{Name: "column2", ColumnFamily: "cf1", CQLType: utilities.ParseCqlTypeOrDie("blob"), IsPrimaryKey: false},
+					{Name: "column3", ColumnFamily: "cf1", CQLType: utilities.ParseCqlTypeOrDie("boolean"), IsPrimaryKey: false},
+					{Name: "column5", ColumnFamily: "cf1", CQLType: utilities.ParseCqlTypeOrDie("timestamp"), IsPrimaryKey: false},
+					{Name: "column6", ColumnFamily: "cf1", CQLType: utilities.ParseCqlTypeOrDie("int"), IsPrimaryKey: false},
+					{Name: "column9", ColumnFamily: "cf1", CQLType: utilities.ParseCqlTypeOrDie("bigint"), IsPrimaryKey: false},
+					{Name: "column10", ColumnFamily: "cf1", CQLType: utilities.ParseCqlTypeOrDie("varchar"), IsPrimaryKey: true},
 				},
 				Values:      nil, // undefined because this is a prepared query
 				Params:      nil, // undefined because this is a prepared query
@@ -360,11 +360,11 @@ func TestTranslator_TranslateInsertQuerytoBigtable(t *testing.T) {
 				Table:     "test_table",
 				Keyspace:  "test_keyspace",
 				Columns: []*types.Column{
-					{Name: "column2", ColumnFamily: "cf1", TypeInfo: utilities.ParseCqlTypeOrDie("blob"), IsPrimaryKey: false},
-					{Name: "column3", ColumnFamily: "cf1", TypeInfo: utilities.ParseCqlTypeOrDie("boolean"), IsPrimaryKey: false},
-					{Name: "column5", ColumnFamily: "cf1", TypeInfo: utilities.ParseCqlTypeOrDie("timestamp"), IsPrimaryKey: false},
-					{Name: "column6", ColumnFamily: "cf1", TypeInfo: utilities.ParseCqlTypeOrDie("int"), IsPrimaryKey: false},
-					{Name: "column9", ColumnFamily: "cf1", TypeInfo: utilities.ParseCqlTypeOrDie("bigint"), IsPrimaryKey: false},
+					{Name: "column2", ColumnFamily: "cf1", CQLType: utilities.ParseCqlTypeOrDie("blob"), IsPrimaryKey: false},
+					{Name: "column3", ColumnFamily: "cf1", CQLType: utilities.ParseCqlTypeOrDie("boolean"), IsPrimaryKey: false},
+					{Name: "column5", ColumnFamily: "cf1", CQLType: utilities.ParseCqlTypeOrDie("timestamp"), IsPrimaryKey: false},
+					{Name: "column6", ColumnFamily: "cf1", CQLType: utilities.ParseCqlTypeOrDie("int"), IsPrimaryKey: false},
+					{Name: "column9", ColumnFamily: "cf1", CQLType: utilities.ParseCqlTypeOrDie("bigint"), IsPrimaryKey: false},
 				},
 				Values:      values,
 				Params:      response,
@@ -423,17 +423,17 @@ func TestTranslator_TranslateInsertQuerytoBigtable(t *testing.T) {
 					{
 						Name:         "foo",
 						ColumnFamily: "map_text_text",
-						TypeInfo:     utilities.ParseCqlTypeOrDie("varchar"),
+						CQLType:      utilities.ParseCqlTypeOrDie("varchar"),
 					},
 					{
 						Name:         "key:",
 						ColumnFamily: "map_text_text",
-						TypeInfo:     utilities.ParseCqlTypeOrDie("varchar"),
+						CQLType:      utilities.ParseCqlTypeOrDie("varchar"),
 					},
 					{
 						Name:         "k}",
 						ColumnFamily: "map_text_text",
-						TypeInfo:     utilities.ParseCqlTypeOrDie("varchar"),
+						CQLType:      utilities.ParseCqlTypeOrDie("varchar"),
 					},
 				},
 				Values: []interface{}{
@@ -500,7 +500,7 @@ func TestTranslator_TranslateInsertQuerytoBigtable(t *testing.T) {
 					{
 						Name:         "text_col",
 						ColumnFamily: "cf1",
-						TypeInfo:     utilities.ParseCqlTypeOrDie("varchar"),
+						CQLType:      utilities.ParseCqlTypeOrDie("varchar"),
 					},
 				},
 				Values: []interface{}{
@@ -536,7 +536,7 @@ func TestTranslator_TranslateInsertQuerytoBigtable(t *testing.T) {
 					{
 						Name:         "text_col",
 						ColumnFamily: "cf1",
-						TypeInfo:     utilities.ParseCqlTypeOrDie("varchar"),
+						CQLType:      utilities.ParseCqlTypeOrDie("varchar"),
 					},
 				},
 				Values: []interface{}{
@@ -719,7 +719,7 @@ func TestTranslator_BuildInsertPrepareQuery(t *testing.T) {
 					{
 						Name:         "pk_1_text",
 						ColumnFamily: "cf1",
-						TypeInfo:     utilities.ParseCqlTypeOrDie("varchar"),
+						CQLType:      utilities.ParseCqlTypeOrDie("varchar"),
 						IsPrimaryKey: true,
 					},
 				},
@@ -737,7 +737,7 @@ func TestTranslator_BuildInsertPrepareQuery(t *testing.T) {
 						{
 							Name:         "pk_1_text",
 							ColumnFamily: "cf1",
-							TypeInfo:     utilities.ParseCqlTypeOrDie("varchar"),
+							CQLType:      utilities.ParseCqlTypeOrDie("varchar"),
 							IsPrimaryKey: true,
 						},
 					},
@@ -767,7 +767,7 @@ func TestTranslator_BuildInsertPrepareQuery(t *testing.T) {
 					{
 						Name:         "pk_1_text",
 						ColumnFamily: "cf1",
-						TypeInfo:     utilities.ParseCqlTypeOrDie("varchar"),
+						CQLType:      utilities.ParseCqlTypeOrDie("varchar"),
 						IsPrimaryKey: true,
 					},
 				},

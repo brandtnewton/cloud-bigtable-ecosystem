@@ -939,14 +939,14 @@ func TestIsSupportedPrimaryKeyType(t *testing.T) {
 		input    types.CqlDataType
 		expected bool
 	}{
-		{"Supported TypeInfo - Int", ParseCqlTypeOrDie("int"), true},
-		{"Supported TypeInfo - Bigint", ParseCqlTypeOrDie("bigint"), true},
-		{"Supported TypeInfo - Varchar", ParseCqlTypeOrDie("varchar"), true},
-		{"Unsupported TypeInfo - Boolean", ParseCqlTypeOrDie("boolean"), false},
-		{"Unsupported TypeInfo - Float", ParseCqlTypeOrDie("float"), false},
-		{"Unsupported TypeInfo - Blob", ParseCqlTypeOrDie("blob"), false},
-		{"Unsupported TypeInfo - List", ParseCqlTypeOrDie("list<int>"), false},
-		{"Unsupported TypeInfo - Frozen", ParseCqlTypeOrDie("frozen<list<int>>"), false},
+		{"Supported CQLType - Int", ParseCqlTypeOrDie("int"), true},
+		{"Supported CQLType - Bigint", ParseCqlTypeOrDie("bigint"), true},
+		{"Supported CQLType - Varchar", ParseCqlTypeOrDie("varchar"), true},
+		{"Unsupported CQLType - Boolean", ParseCqlTypeOrDie("boolean"), false},
+		{"Unsupported CQLType - Float", ParseCqlTypeOrDie("float"), false},
+		{"Unsupported CQLType - Blob", ParseCqlTypeOrDie("blob"), false},
+		{"Unsupported CQLType - List", ParseCqlTypeOrDie("list<int>"), false},
+		{"Unsupported CQLType - Frozen", ParseCqlTypeOrDie("frozen<list<int>>"), false},
 	}
 
 	for _, tc := range testCases {
@@ -963,17 +963,17 @@ func TestIsSupportedCollectionElementType(t *testing.T) {
 		input    datatype.DataType
 		expected bool
 	}{
-		{"Supported TypeInfo - Int", datatype.Int, true},
-		{"Supported TypeInfo - Bigint", datatype.Bigint, true},
-		{"Supported TypeInfo - Varchar", datatype.Varchar, true},
-		{"Supported TypeInfo - Float", datatype.Float, true},
-		{"Supported TypeInfo - Double", datatype.Double, true},
-		{"Supported TypeInfo - Timestamp", datatype.Timestamp, true},
-		{"Supported TypeInfo - Boolean", datatype.Boolean, true},
-		{"Unsupported TypeInfo - Blob", datatype.Blob, false},
-		{"Unsupported TypeInfo - UUID", datatype.Uuid, false},
-		{"Unsupported TypeInfo - Map", datatype.NewMapType(datatype.Varchar, datatype.Int), false},
-		{"Unsupported TypeInfo - Set", datatype.NewSetType(datatype.Varchar), false},
+		{"Supported CQLType - Int", datatype.Int, true},
+		{"Supported CQLType - Bigint", datatype.Bigint, true},
+		{"Supported CQLType - Varchar", datatype.Varchar, true},
+		{"Supported CQLType - Float", datatype.Float, true},
+		{"Supported CQLType - Double", datatype.Double, true},
+		{"Supported CQLType - Timestamp", datatype.Timestamp, true},
+		{"Supported CQLType - Boolean", datatype.Boolean, true},
+		{"Unsupported CQLType - Blob", datatype.Blob, false},
+		{"Unsupported CQLType - UUID", datatype.Uuid, false},
+		{"Unsupported CQLType - Map", datatype.NewMapType(datatype.Varchar, datatype.Int), false},
+		{"Unsupported CQLType - Set", datatype.NewSetType(datatype.Varchar), false},
 	}
 
 	for _, tc := range testCases {

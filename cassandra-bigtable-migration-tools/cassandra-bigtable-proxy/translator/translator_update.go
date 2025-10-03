@@ -182,10 +182,10 @@ func parseAssignments(assignments []cql.IAssignmentElementContext, tableConfig *
 				return nil, fmt.Errorf("primary key not allowed to assignments")
 			}
 			if value != questionMark {
-				if column.TypeInfo.IsCollection() {
+				if column.CQLType.IsCollection() {
 					val = value
 				} else {
-					val, err = formatValues(fmt.Sprintf("%v", value), column.TypeInfo.DataType(), 4)
+					val, err = formatValues(fmt.Sprintf("%v", value), column.CQLType.DataType(), 4)
 					if err != nil {
 						return nil, err
 					}
@@ -197,7 +197,7 @@ func parseAssignments(assignments []cql.IAssignmentElementContext, tableConfig *
 				Column:    columnName,
 				Value:     "@set" + strconv.Itoa(i+1),
 				Encrypted: val,
-				CQLType:   column.TypeInfo,
+				CQLType:   column.CQLType,
 			})
 			continue // Prevent falling through to the rest of the loop
 		} else if setVal.SyntaxBracketLs() != nil && setVal.DecimalLiteral() != nil && setVal.SyntaxBracketRs() != nil && setVal.Constant() != nil {
@@ -238,10 +238,10 @@ func parseAssignments(assignments []cql.IAssignmentElementContext, tableConfig *
 			return nil, fmt.Errorf("primary key not allowed to assignments")
 		}
 		if !isPreparedQuery {
-			if column.TypeInfo.IsCollection() || column.TypeInfo == types.TypeCounter {
+			if column.CQLType.IsCollection() || column.CQLType == types.TypeCounter {
 				val = value
 			} else {
-				val, err = formatValues(fmt.Sprintf("%v", value), column.TypeInfo.DataType(), 4)
+				val, err = formatValues(fmt.Sprintf("%v", value), column.CQLType.DataType(), 4)
 				if err != nil {
 					return nil, err
 				}
@@ -255,7 +255,7 @@ func parseAssignments(assignments []cql.IAssignmentElementContext, tableConfig *
 			Column:    columnName,
 			Value:     "@set" + strconv.Itoa(i+1),
 			Encrypted: val,
-			CQLType:   column.TypeInfo,
+			CQLType:   column.CQLType,
 		})
 	}
 	return &UpdateSetResponse{
@@ -369,7 +369,7 @@ func (t *Translator) TranslateUpdateQuerytoBigtable(query string, isPreparedQuer
 	var columns []*types.Column
 	for _, val := range setValues.UpdateSetValues {
 		values = append(values, val.Encrypted)
-		columns = append(columns, &types.Column{Name: val.Column, ColumnFamily: t.SchemaMappingConfig.SystemColumnFamily, TypeInfo: val.CQLType})
+		columns = append(columns, &types.Column{Name: val.Column, ColumnFamily: t.SchemaMappingConfig.SystemColumnFamily, CQLType: val.CQLType})
 	}
 	var newValues []interface{} = values
 	var newColumns []*types.Column = columns
@@ -427,7 +427,7 @@ func (t *Translator) TranslateUpdateQuerytoBigtable(query string, isPreparedQuer
 		for _, val := range QueryClauses.Clauses {
 			var column *types.Column
 			if columns, exists := tableConfig.Columns[val.Column]; exists {
-				column = &types.Column{Name: columns.Name, ColumnFamily: tableConfig.SystemColumnFamily, TypeInfo: columns.TypeInfo}
+				column = &types.Column{Name: columns.Name, ColumnFamily: tableConfig.SystemColumnFamily, CQLType: columns.CQLType}
 			}
 			newColumns = append(newColumns, column)
 
@@ -436,7 +436,7 @@ func (t *Translator) TranslateUpdateQuerytoBigtable(query string, isPreparedQuer
 				pv = val.Value[1:]
 			}
 			value := fmt.Sprintf("%v", QueryClauses.Params[pv])
-			encryVal, err := formatValues(value, column.TypeInfo.DataType(), 4)
+			encryVal, err := formatValues(value, column.CQLType.DataType(), 4)
 			if err != nil {
 				return nil, err
 			}

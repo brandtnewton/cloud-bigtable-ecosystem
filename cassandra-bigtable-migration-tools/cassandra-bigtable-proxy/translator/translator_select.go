@@ -388,7 +388,7 @@ func processFunctionColumn(t *Translator, columnMetadata types.SelectedColumn, t
 		return nil, fmt.Errorf("unknown function '%s'", columnMetadata.FuncName)
 	}
 	if columnMetadata.FuncName != "count" {
-		if !dtAllowedInAggregate(colMeta.TypeInfo.DataType()) {
+		if !dtAllowedInAggregate(colMeta.CQLType.DataType()) {
 			return nil, fmt.Errorf("column not supported for aggregate")
 		}
 	}
@@ -473,9 +473,9 @@ func processWriteTimeColumn(tableConfig *schemaMapping.TableConfig, columnMetada
 
 func processAsColumn(columnMetadata types.SelectedColumn, columnFamily string, colMeta *types.Column, columns []string, isGroupBy bool) []string {
 	var columnSelected string
-	if !colMeta.TypeInfo.IsCollection() {
+	if !colMeta.CQLType.IsCollection() {
 		var columnName = columnMetadata.Name
-		if colMeta.TypeInfo == types.TypeCounter {
+		if colMeta.CQLType == types.TypeCounter {
 			// counters are stored as counter_col['']
 			columnFamily = columnMetadata.Name
 			columnName = ""
@@ -489,7 +489,7 @@ func processAsColumn(columnMetadata types.SelectedColumn, columnFamily string, c
 			columnSelected = fmt.Sprintf("%s['%s'] as %s", columnFamily, columnName, columnMetadata.Alias)
 		}
 	} else {
-		if colMeta.TypeInfo.DataType().GetDataTypeCode() == primitive.DataTypeCodeList {
+		if colMeta.CQLType.DataType().GetDataTypeCode() == primitive.DataTypeCodeList {
 			columnSelected = fmt.Sprintf("MAP_VALUES(%s) as %s", columnMetadata.Name, columnMetadata.Alias)
 		} else {
 			columnSelected = fmt.Sprintf("`%s` as %s", columnMetadata.Name, columnMetadata.Alias)
@@ -523,9 +523,9 @@ Returns:
 	An updated slice of strings with the new formatted column reference appended.
 */
 func processRegularColumn(columnMetadata types.SelectedColumn, tableName string, columnFamily string, colMeta *types.Column, columns []string, isGroupBy bool) []string {
-	if !colMeta.TypeInfo.IsCollection() {
+	if !colMeta.CQLType.IsCollection() {
 		var columnName = columnMetadata.Name
-		if colMeta.TypeInfo == types.TypeCounter {
+		if colMeta.CQLType == types.TypeCounter {
 			columnFamily = columnName
 			columnName = ""
 		}
@@ -539,7 +539,7 @@ func processRegularColumn(columnMetadata types.SelectedColumn, tableName string,
 		}
 	} else {
 		var collectionColumn string
-		if colMeta.TypeInfo.DataType().GetDataTypeCode() == primitive.DataTypeCodeList {
+		if colMeta.CQLType.DataType().GetDataTypeCode() == primitive.DataTypeCodeList {
 			collectionColumn = fmt.Sprintf("MAP_VALUES(%s)", columnMetadata.Name)
 		} else {
 			collectionColumn = fmt.Sprintf("`%s`", columnMetadata.Name)
@@ -627,7 +627,7 @@ func getBigtableSelectQuery(t *Translator, data *SelectQueryMap) (string, error)
 				groupBykeys = append(groupBykeys, col)
 			} else {
 				if colMeta, ok := tableConfig.Columns[lookupCol]; ok {
-					if !colMeta.TypeInfo.IsCollection() {
+					if !colMeta.CQLType.IsCollection() {
 						col, err := castColumns(colMeta, t.SchemaMappingConfig.SystemColumnFamily)
 						if err != nil {
 							return "", err
@@ -652,7 +652,7 @@ func getBigtableSelectQuery(t *Translator, data *SelectQueryMap) (string, error)
 				if colMeta, ok := tableConfig.Columns[lookupCol]; ok {
 					if colMeta.IsPrimaryKey {
 						orderByClauses = append(orderByClauses, orderByCol.Column+" "+string(orderByCol.Operation))
-					} else if !colMeta.TypeInfo.IsCollection() {
+					} else if !colMeta.CQLType.IsCollection() {
 						orderByKey, err := castColumns(colMeta, t.SchemaMappingConfig.SystemColumnFamily)
 						if err != nil {
 							return "", err

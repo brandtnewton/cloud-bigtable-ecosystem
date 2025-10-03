@@ -165,7 +165,7 @@ func getColumnMetadata(tableMetadata map[string]map[string]*schemaMapping.TableC
 
 				// Add column metadata
 				columnsMetadataRows = append(columnsMetadataRows, []interface{}{
-					keyspace, tableName, columnName, clusteringOrder, column.KeyType, position, column.TypeInfo.String(),
+					keyspace, tableName, columnName, clusteringOrder, column.KeyType, position, column.CQLType.String(),
 				})
 			}
 		}
@@ -270,7 +270,7 @@ func addSystemKeyspacesToMetadata(tableMetadata map[string]map[string]*schemaMap
 				}
 				tableMetadata[ks]["tables"].Columns[col.Name] = &types.Column{
 					Name:         col.Name,
-					TypeInfo:     cqlDataType,
+					CQLType:      cqlDataType,
 					IsPrimaryKey: col.Name == "keyspace_name" || col.Name == "table_name",
 					KeyType: func() string {
 						if col.Name == "keyspace_name" || col.Name == "table_name" {
@@ -296,7 +296,7 @@ func addSystemKeyspacesToMetadata(tableMetadata map[string]map[string]*schemaMap
 				}
 				tableMetadata[ks]["columns"].Columns[col.Name] = &types.Column{
 					Name:         col.Name,
-					TypeInfo:     cqlDataType,
+					CQLType:      cqlDataType,
 					IsPrimaryKey: col.Name == "keyspace_name" || col.Name == "table_name" || col.Name == "column_name",
 					KeyType: func() string {
 						if col.Name == "keyspace_name" || col.Name == "table_name" || col.Name == "column_name" {
@@ -322,7 +322,7 @@ func addSystemKeyspacesToMetadata(tableMetadata map[string]map[string]*schemaMap
 				}
 				tableMetadata[ks]["keyspaces"].Columns[col.Name] = &types.Column{
 					Name:         col.Name,
-					TypeInfo:     cqlDataType,
+					CQLType:      cqlDataType,
 					IsPrimaryKey: col.Name == "keyspace_name",
 					KeyType: func() string {
 						if col.Name == "keyspace_name" {
@@ -373,7 +373,7 @@ func addSystemKeyspacesToMetadata(tableMetadata map[string]map[string]*schemaMap
 				}
 				tableMetadata[ks]["local"].Columns[col.Name] = &types.Column{
 					Name:         col.Name,
-					TypeInfo:     cqlDataType,
+					CQLType:      cqlDataType,
 					IsPrimaryKey: col.Name == "key",
 					KeyType: func() string {
 						if col.Name == "key" {
@@ -414,7 +414,7 @@ func addSystemKeyspacesToMetadata(tableMetadata map[string]map[string]*schemaMap
 				}
 				tableMetadata[ks]["peers"].Columns[col.Name] = &types.Column{
 					Name:         col.Name,
-					TypeInfo:     cqlDataType,
+					CQLType:      cqlDataType,
 					IsPrimaryKey: col.Name == "peer",
 					KeyType: func() string {
 						if col.Name == "peer" {
@@ -457,7 +457,7 @@ func addSystemKeyspacesToMetadata(tableMetadata map[string]map[string]*schemaMap
 				}
 				tableMetadata[ks]["peers_v2"].Columns[col.Name] = &types.Column{
 					Name:         col.Name,
-					TypeInfo:     cqlDataType,
+					CQLType:      cqlDataType,
 					IsPrimaryKey: col.Name == "peer",
 					KeyType: func() string {
 						if col.Name == "peer" {
@@ -487,7 +487,7 @@ func addSystemKeyspacesToMetadata(tableMetadata map[string]map[string]*schemaMap
 		}
 		tableMetadata["system_virtual_schema"]["keyspaces"].Columns[col.Name] = &types.Column{
 			Name:         col.Name,
-			TypeInfo:     cqlDataType,
+			CQLType:      cqlDataType,
 			IsPrimaryKey: false,
 			KeyType:      utilities.KEY_TYPE_REGULAR,
 		}
@@ -505,7 +505,7 @@ func addSystemKeyspacesToMetadata(tableMetadata map[string]map[string]*schemaMap
 		}
 		tableMetadata["system_virtual_schema"]["tables"].Columns[col.Name] = &types.Column{
 			Name:         col.Name,
-			TypeInfo:     cqlDataType,
+			CQLType:      cqlDataType,
 			IsPrimaryKey: false,
 			KeyType:      utilities.KEY_TYPE_REGULAR,
 		}
@@ -523,7 +523,7 @@ func addSystemKeyspacesToMetadata(tableMetadata map[string]map[string]*schemaMap
 		}
 		tableMetadata["system_virtual_schema"]["columns"].Columns[col.Name] = &types.Column{
 			Name:         col.Name,
-			TypeInfo:     cqlDataType,
+			CQLType:      cqlDataType,
 			IsPrimaryKey: false,
 			KeyType:      utilities.KEY_TYPE_REGULAR,
 		}

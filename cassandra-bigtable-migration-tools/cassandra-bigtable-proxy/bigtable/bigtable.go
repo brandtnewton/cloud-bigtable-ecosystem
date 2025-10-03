@@ -744,7 +744,7 @@ func (btc *BigtableClient) ReadTableConfigs(ctx context.Context, keyspace string
 		// Create a new column struct
 		column := &types.Column{
 			Name:         columnName,
-			TypeInfo:     dt,
+			CQLType:      dt,
 			IsPrimaryKey: isPrimaryKey,
 			PkPrecedence: pkPrecedence,
 			KeyType:      keyType,

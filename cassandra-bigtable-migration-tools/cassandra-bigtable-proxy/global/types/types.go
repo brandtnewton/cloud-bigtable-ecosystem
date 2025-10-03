@@ -22,7 +22,7 @@ import (
 type Column struct {
 	Name         string
 	ColumnFamily string
-	TypeInfo     CqlDataType
+	CQLType      CqlDataType
 	// todo remove this field because it's redundant - you can use PkPrecedence or KeyType to infer this
 	IsPrimaryKey bool
 	PkPrecedence int

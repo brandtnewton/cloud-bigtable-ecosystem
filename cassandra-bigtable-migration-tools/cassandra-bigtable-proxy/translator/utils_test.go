@@ -395,7 +395,7 @@ func Test_processCollectionColumnsForPrepareQueries(t *testing.T) {
 		{
 			name: "Valid Input For Timestamp Float",
 			columns: []*types.Column{
-				{Name: "map_timestamp_float", ColumnFamily: "map_timestamp_float", TypeInfo: utilities.ParseCqlTypeOrDie("map<timestamp,float>")},
+				{Name: "map_timestamp_float", ColumnFamily: "map_timestamp_float", CQLType: utilities.ParseCqlTypeOrDie("map<timestamp,float>")},
 			},
 			variableMetadata: []*message.ColumnMetadata{},
 			values: []*primitive.Value{
@@ -410,7 +410,7 @@ func Test_processCollectionColumnsForPrepareQueries(t *testing.T) {
 				SchemaMappingConfig: GetSchemaMappingConfig(types.OrderedCodeEncoding),
 			},
 			wantNewColumns: []*types.Column{
-				{Name: "1633046400000", ColumnFamily: "map_timestamp_float", TypeInfo: types.TypeFloat},
+				{Name: "1633046400000", ColumnFamily: "map_timestamp_float", CQLType: types.TypeFloat},
 			},
 			wantNewValues:       []interface{}{timestampFloatValue},
 			wantUnencrypted:     map[string]interface{}{},
@@ -421,7 +421,7 @@ func Test_processCollectionColumnsForPrepareQueries(t *testing.T) {
 		{
 			name: "Valid Input For Text Timestamp",
 			columns: []*types.Column{
-				{Name: "map_text_timestamp", ColumnFamily: "map_text_timestamp", TypeInfo: utilities.ParseCqlTypeOrDie("map<varchar,timestamp>")},
+				{Name: "map_text_timestamp", ColumnFamily: "map_text_timestamp", CQLType: utilities.ParseCqlTypeOrDie("map<varchar,timestamp>")},
 			},
 			variableMetadata: []*message.ColumnMetadata{},
 			values: []*primitive.Value{
@@ -435,7 +435,7 @@ func Test_processCollectionColumnsForPrepareQueries(t *testing.T) {
 				SchemaMappingConfig: GetSchemaMappingConfig(types.OrderedCodeEncoding),
 			},
 			wantNewColumns: []*types.Column{
-				{Name: "test", ColumnFamily: "map_text_timestamp", TypeInfo: types.TypeTimestamp},
+				{Name: "test", ColumnFamily: "map_text_timestamp", CQLType: types.TypeTimestamp},
 			},
 			wantNewValues:       []interface{}{timestampValue},
 			wantUnencrypted:     map[string]interface{}{},
@@ -446,7 +446,7 @@ func Test_processCollectionColumnsForPrepareQueries(t *testing.T) {
 		{
 			name: "Valid Input For Timestamp Text",
 			columns: []*types.Column{
-				{Name: "map_timestamp_text", ColumnFamily: "map_timestamp_text", TypeInfo: utilities.ParseCqlTypeOrDie("map<timestamp,varchar>")},
+				{Name: "map_timestamp_text", ColumnFamily: "map_timestamp_text", CQLType: utilities.ParseCqlTypeOrDie("map<timestamp,varchar>")},
 			},
 			variableMetadata: []*message.ColumnMetadata{},
 			values: []*primitive.Value{
@@ -460,7 +460,7 @@ func Test_processCollectionColumnsForPrepareQueries(t *testing.T) {
 				SchemaMappingConfig: GetSchemaMappingConfig(types.OrderedCodeEncoding),
 			},
 			wantNewColumns: []*types.Column{
-				{Name: "1633046400000", ColumnFamily: "map_timestamp_text", TypeInfo: types.TypeVarchar},
+				{Name: "1633046400000", ColumnFamily: "map_timestamp_text", CQLType: types.TypeVarchar},
 			},
 			wantNewValues:       []interface{}{timestampTextValue},
 			wantUnencrypted:     map[string]interface{}{},
@@ -471,7 +471,7 @@ func Test_processCollectionColumnsForPrepareQueries(t *testing.T) {
 		{
 			name: "Valid Input For Set Timestamp",
 			columns: []*types.Column{
-				{Name: "set_timestamp", ColumnFamily: "set_timestamp", TypeInfo: types.NewSetType(types.TypeTimestamp)},
+				{Name: "set_timestamp", ColumnFamily: "set_timestamp", CQLType: types.NewSetType(types.TypeTimestamp)},
 			},
 			variableMetadata: []*message.ColumnMetadata{},
 			values: []*primitive.Value{
@@ -485,7 +485,7 @@ func Test_processCollectionColumnsForPrepareQueries(t *testing.T) {
 				SchemaMappingConfig: GetSchemaMappingConfig(types.OrderedCodeEncoding),
 			},
 			wantNewColumns: []*types.Column{
-				{Name: "1633046400", ColumnFamily: "set_timestamp", TypeInfo: types.TypeBigint},
+				{Name: "1633046400", ColumnFamily: "set_timestamp", CQLType: types.TypeBigint},
 			},
 			wantNewValues:       []interface{}{emptyVal},
 			wantUnencrypted:     map[string]interface{}{},
@@ -496,7 +496,7 @@ func Test_processCollectionColumnsForPrepareQueries(t *testing.T) {
 		{
 			name: "Valid Input For Set Double",
 			columns: []*types.Column{
-				{Name: "set_double", ColumnFamily: "set_double", TypeInfo: types.NewSetType(types.TypeDouble)},
+				{Name: "set_double", ColumnFamily: "set_double", CQLType: types.NewSetType(types.TypeDouble)},
 			},
 			variableMetadata: []*message.ColumnMetadata{},
 			values: []*primitive.Value{
@@ -510,7 +510,7 @@ func Test_processCollectionColumnsForPrepareQueries(t *testing.T) {
 				SchemaMappingConfig: GetSchemaMappingConfig(types.OrderedCodeEncoding),
 			},
 			wantNewColumns: []*types.Column{
-				{Name: "6.283", ColumnFamily: "set_double", TypeInfo: types.TypeDouble},
+				{Name: "6.283", ColumnFamily: "set_double", CQLType: types.TypeDouble},
 			},
 			wantNewValues:       []interface{}{emptyVal},
 			wantUnencrypted:     map[string]interface{}{},
@@ -521,7 +521,7 @@ func Test_processCollectionColumnsForPrepareQueries(t *testing.T) {
 		{
 			name: "Valid Input For Set Float",
 			columns: []*types.Column{
-				{Name: "set_float", ColumnFamily: "set_float", TypeInfo: types.NewSetType(types.TypeFloat)},
+				{Name: "set_float", ColumnFamily: "set_float", CQLType: types.NewSetType(types.TypeFloat)},
 			},
 			variableMetadata: []*message.ColumnMetadata{},
 			values: []*primitive.Value{
@@ -535,7 +535,7 @@ func Test_processCollectionColumnsForPrepareQueries(t *testing.T) {
 				SchemaMappingConfig: GetSchemaMappingConfig(types.OrderedCodeEncoding),
 			},
 			wantNewColumns: []*types.Column{
-				{Name: "6.283", ColumnFamily: "set_float", TypeInfo: types.TypeFloat},
+				{Name: "6.283", ColumnFamily: "set_float", CQLType: types.TypeFloat},
 			},
 			wantNewValues:       []interface{}{emptyVal},
 			wantUnencrypted:     map[string]interface{}{},
@@ -546,7 +546,7 @@ func Test_processCollectionColumnsForPrepareQueries(t *testing.T) {
 		{
 			name: "Valid Input For Set Text",
 			columns: []*types.Column{
-				{Name: "set_text", ColumnFamily: "set_text", TypeInfo: types.NewSetType(types.TypeVarchar)},
+				{Name: "set_text", ColumnFamily: "set_text", CQLType: types.NewSetType(types.TypeVarchar)},
 			},
 			variableMetadata: []*message.ColumnMetadata{},
 			values: []*primitive.Value{
@@ -560,7 +560,7 @@ func Test_processCollectionColumnsForPrepareQueries(t *testing.T) {
 				SchemaMappingConfig: GetSchemaMappingConfig(types.OrderedCodeEncoding),
 			},
 			wantNewColumns: []*types.Column{
-				{Name: "test", ColumnFamily: "set_text", TypeInfo: types.TypeVarchar},
+				{Name: "test", ColumnFamily: "set_text", CQLType: types.TypeVarchar},
 			},
 			wantNewValues:       []interface{}{emptyVal},
 			wantUnencrypted:     map[string]interface{}{},
@@ -571,7 +571,7 @@ func Test_processCollectionColumnsForPrepareQueries(t *testing.T) {
 		{
 			name: "Valid Input For Set BigInt",
 			columns: []*types.Column{
-				{Name: "set_bigint", ColumnFamily: "set_bigint", TypeInfo: types.NewSetType(types.TypeBigint)},
+				{Name: "set_bigint", ColumnFamily: "set_bigint", CQLType: types.NewSetType(types.TypeBigint)},
 			},
 			variableMetadata: []*message.ColumnMetadata{},
 			values: []*primitive.Value{
@@ -585,7 +585,7 @@ func Test_processCollectionColumnsForPrepareQueries(t *testing.T) {
 				SchemaMappingConfig: GetSchemaMappingConfig(types.OrderedCodeEncoding),
 			},
 			wantNewColumns: []*types.Column{
-				{Name: "12372432764", ColumnFamily: "set_bigint", TypeInfo: types.TypeBigint},
+				{Name: "12372432764", ColumnFamily: "set_bigint", CQLType: types.TypeBigint},
 			},
 			wantNewValues:       []interface{}{emptyVal},
 			wantUnencrypted:     map[string]interface{}{},
@@ -596,7 +596,7 @@ func Test_processCollectionColumnsForPrepareQueries(t *testing.T) {
 		{
 			name: "Valid Input For Set Int",
 			columns: []*types.Column{
-				{Name: "set_int", ColumnFamily: "set_int", TypeInfo: types.NewSetType(types.TypeInt)},
+				{Name: "set_int", ColumnFamily: "set_int", CQLType: types.NewSetType(types.TypeInt)},
 			},
 			variableMetadata: []*message.ColumnMetadata{},
 			values: []*primitive.Value{
@@ -610,7 +610,7 @@ func Test_processCollectionColumnsForPrepareQueries(t *testing.T) {
 				SchemaMappingConfig: GetSchemaMappingConfig(types.OrderedCodeEncoding),
 			},
 			wantNewColumns: []*types.Column{
-				{Name: "12", ColumnFamily: "set_int", TypeInfo: types.TypeInt},
+				{Name: "12", ColumnFamily: "set_int", CQLType: types.TypeInt},
 			},
 			wantNewValues:       []interface{}{emptyVal},
 			wantUnencrypted:     map[string]interface{}{},
@@ -621,7 +621,7 @@ func Test_processCollectionColumnsForPrepareQueries(t *testing.T) {
 		{
 			name: "Valid Input For Timestamp Timestamp",
 			columns: []*types.Column{
-				{Name: "map_timestamp_timestamp", ColumnFamily: "map_timestamp_timestamp", TypeInfo: utilities.ParseCqlTypeOrDie("map<timestamp,timestamp>")},
+				{Name: "map_timestamp_timestamp", ColumnFamily: "map_timestamp_timestamp", CQLType: utilities.ParseCqlTypeOrDie("map<timestamp,timestamp>")},
 			},
 			variableMetadata: []*message.ColumnMetadata{},
 			values: []*primitive.Value{
@@ -635,7 +635,7 @@ func Test_processCollectionColumnsForPrepareQueries(t *testing.T) {
 				SchemaMappingConfig: GetSchemaMappingConfig(types.OrderedCodeEncoding),
 			},
 			wantNewColumns: []*types.Column{
-				{Name: "1633046400000", ColumnFamily: "map_timestamp_timestamp", TypeInfo: types.TypeTimestamp},
+				{Name: "1633046400000", ColumnFamily: "map_timestamp_timestamp", CQLType: types.TypeTimestamp},
 			},
 			wantNewValues:       []interface{}{timestampTimestampValue},
 			wantUnencrypted:     map[string]interface{}{},
@@ -646,7 +646,7 @@ func Test_processCollectionColumnsForPrepareQueries(t *testing.T) {
 		{
 			name: "Valid Input For Text Bigint",
 			columns: []*types.Column{
-				{Name: "map_text_bigint", ColumnFamily: "map_text_bigint", TypeInfo: utilities.ParseCqlTypeOrDie("map<varchar,bigint>")},
+				{Name: "map_text_bigint", ColumnFamily: "map_text_bigint", CQLType: utilities.ParseCqlTypeOrDie("map<varchar,bigint>")},
 			},
 			variableMetadata: []*message.ColumnMetadata{},
 			values: []*primitive.Value{
@@ -660,7 +660,7 @@ func Test_processCollectionColumnsForPrepareQueries(t *testing.T) {
 				SchemaMappingConfig: GetSchemaMappingConfig(types.OrderedCodeEncoding),
 			},
 			wantNewColumns: []*types.Column{
-				{Name: "test", ColumnFamily: "map_text_bigint", TypeInfo: types.TypeBigint},
+				{Name: "test", ColumnFamily: "map_text_bigint", CQLType: types.TypeBigint},
 			},
 			wantNewValues:       []interface{}{bigintValue},
 			wantUnencrypted:     map[string]interface{}{},
@@ -671,7 +671,7 @@ func Test_processCollectionColumnsForPrepareQueries(t *testing.T) {
 		{
 			name: "Valid Input For Timestamp Int",
 			columns: []*types.Column{
-				{Name: "map_timestamp_int", ColumnFamily: "map_timestamp_int", TypeInfo: utilities.ParseCqlTypeOrDie("map<timestamp,int>")},
+				{Name: "map_timestamp_int", ColumnFamily: "map_timestamp_int", CQLType: utilities.ParseCqlTypeOrDie("map<timestamp,int>")},
 			},
 			variableMetadata: []*message.ColumnMetadata{},
 			values: []*primitive.Value{
@@ -685,7 +685,7 @@ func Test_processCollectionColumnsForPrepareQueries(t *testing.T) {
 				SchemaMappingConfig: GetSchemaMappingConfig(types.OrderedCodeEncoding),
 			},
 			wantNewColumns: []*types.Column{
-				{Name: "1633046400000", ColumnFamily: "map_timestamp_int", TypeInfo: types.TypeInt},
+				{Name: "1633046400000", ColumnFamily: "map_timestamp_int", CQLType: types.TypeInt},
 			},
 			wantNewValues:       []interface{}{timestampIntValue},
 			wantUnencrypted:     map[string]interface{}{},
@@ -696,7 +696,7 @@ func Test_processCollectionColumnsForPrepareQueries(t *testing.T) {
 		{
 			name: "Valid Input For Set Boolean",
 			columns: []*types.Column{
-				{Name: "set_boolean", ColumnFamily: "set_boolean", TypeInfo: types.NewSetType(types.TypeBoolean)},
+				{Name: "set_boolean", ColumnFamily: "set_boolean", CQLType: types.NewSetType(types.TypeBoolean)},
 			},
 			variableMetadata: []*message.ColumnMetadata{},
 			values: []*primitive.Value{
@@ -710,7 +710,7 @@ func Test_processCollectionColumnsForPrepareQueries(t *testing.T) {
 				SchemaMappingConfig: GetSchemaMappingConfig(types.OrderedCodeEncoding),
 			},
 			wantNewColumns: []*types.Column{
-				{Name: "1", ColumnFamily: "set_boolean", TypeInfo: types.TypeBoolean},
+				{Name: "1", ColumnFamily: "set_boolean", CQLType: types.TypeBoolean},
 			},
 			wantNewValues:       []interface{}{emptyVal},
 			wantUnencrypted:     map[string]interface{}{},
@@ -721,7 +721,7 @@ func Test_processCollectionColumnsForPrepareQueries(t *testing.T) {
 		{
 			name: "Valid Input For Text Boolean",
 			columns: []*types.Column{
-				{Name: "map_text_boolean", ColumnFamily: "map_text_boolean", TypeInfo: utilities.ParseCqlTypeOrDie("map<varchar,boolean>")},
+				{Name: "map_text_boolean", ColumnFamily: "map_text_boolean", CQLType: utilities.ParseCqlTypeOrDie("map<varchar,boolean>")},
 			},
 			variableMetadata: []*message.ColumnMetadata{},
 			values: []*primitive.Value{
@@ -735,7 +735,7 @@ func Test_processCollectionColumnsForPrepareQueries(t *testing.T) {
 				SchemaMappingConfig: GetSchemaMappingConfig(types.OrderedCodeEncoding),
 			},
 			wantNewColumns: []*types.Column{
-				{Name: "test", ColumnFamily: "map_text_boolean", TypeInfo: types.TypeBoolean},
+				{Name: "test", ColumnFamily: "map_text_boolean", CQLType: types.TypeBoolean},
 			},
 			wantNewValues:       []interface{}{trueVal},
 			wantUnencrypted:     map[string]interface{}{},
@@ -746,7 +746,7 @@ func Test_processCollectionColumnsForPrepareQueries(t *testing.T) {
 		{
 			name: "Valid Input For Text Text",
 			columns: []*types.Column{
-				{Name: "map_text_text", ColumnFamily: "map_text_text", TypeInfo: utilities.ParseCqlTypeOrDie("map<varchar,varchar>")},
+				{Name: "map_text_text", ColumnFamily: "map_text_text", CQLType: utilities.ParseCqlTypeOrDie("map<varchar,varchar>")},
 			},
 			variableMetadata: []*message.ColumnMetadata{},
 			values: []*primitive.Value{
@@ -760,7 +760,7 @@ func Test_processCollectionColumnsForPrepareQueries(t *testing.T) {
 				SchemaMappingConfig: GetSchemaMappingConfig(types.OrderedCodeEncoding),
 			},
 			wantNewColumns: []*types.Column{
-				{Name: "test", ColumnFamily: "map_text_text", TypeInfo: types.TypeVarchar},
+				{Name: "test", ColumnFamily: "map_text_text", CQLType: types.TypeVarchar},
 			},
 			wantNewValues:       []interface{}{textValue},
 			wantUnencrypted:     map[string]interface{}{},
@@ -771,7 +771,7 @@ func Test_processCollectionColumnsForPrepareQueries(t *testing.T) {
 		{
 			name: "Valid Input For Text Int",
 			columns: []*types.Column{
-				{Name: "map_text_int", ColumnFamily: "map_text_int", TypeInfo: utilities.ParseCqlTypeOrDie("map<varchar,int>")},
+				{Name: "map_text_int", ColumnFamily: "map_text_int", CQLType: utilities.ParseCqlTypeOrDie("map<varchar,int>")},
 			},
 			variableMetadata: []*message.ColumnMetadata{},
 			values: []*primitive.Value{
@@ -785,7 +785,7 @@ func Test_processCollectionColumnsForPrepareQueries(t *testing.T) {
 				SchemaMappingConfig: GetSchemaMappingConfig(types.OrderedCodeEncoding),
 			},
 			wantNewColumns: []*types.Column{
-				{Name: "test", ColumnFamily: "map_text_int", TypeInfo: types.TypeInt},
+				{Name: "test", ColumnFamily: "map_text_int", CQLType: types.TypeInt},
 			},
 			wantNewValues:       []interface{}{intValue},
 			wantUnencrypted:     map[string]interface{}{},
@@ -796,7 +796,7 @@ func Test_processCollectionColumnsForPrepareQueries(t *testing.T) {
 		{
 			name: "Valid Input For Text Float",
 			columns: []*types.Column{
-				{Name: "map_text_float", ColumnFamily: "map_text_float", TypeInfo: utilities.ParseCqlTypeOrDie("map<varchar,float>")},
+				{Name: "map_text_float", ColumnFamily: "map_text_float", CQLType: utilities.ParseCqlTypeOrDie("map<varchar,float>")},
 			},
 			variableMetadata: []*message.ColumnMetadata{},
 			values: []*primitive.Value{
@@ -810,7 +810,7 @@ func Test_processCollectionColumnsForPrepareQueries(t *testing.T) {
 				SchemaMappingConfig: GetSchemaMappingConfig(types.OrderedCodeEncoding),
 			},
 			wantNewColumns: []*types.Column{
-				{Name: "test", ColumnFamily: "map_text_float", TypeInfo: types.TypeFloat},
+				{Name: "test", ColumnFamily: "map_text_float", CQLType: types.TypeFloat},
 			},
 			wantNewValues:       []interface{}{floatValue},
 			wantUnencrypted:     map[string]interface{}{},
@@ -821,7 +821,7 @@ func Test_processCollectionColumnsForPrepareQueries(t *testing.T) {
 		{
 			name: "Valid Input For Text Double",
 			columns: []*types.Column{
-				{Name: "map_text_double", ColumnFamily: "map_text_double", TypeInfo: utilities.ParseCqlTypeOrDie("map<varchar,double>")},
+				{Name: "map_text_double", ColumnFamily: "map_text_double", CQLType: utilities.ParseCqlTypeOrDie("map<varchar,double>")},
 			},
 			variableMetadata: []*message.ColumnMetadata{},
 			values: []*primitive.Value{
@@ -835,7 +835,7 @@ func Test_processCollectionColumnsForPrepareQueries(t *testing.T) {
 				SchemaMappingConfig: GetSchemaMappingConfig(types.OrderedCodeEncoding),
 			},
 			wantNewColumns: []*types.Column{
-				{Name: "test", ColumnFamily: "map_text_double", TypeInfo: types.TypeDouble},
+				{Name: "test", ColumnFamily: "map_text_double", CQLType: types.TypeDouble},
 			},
 			wantNewValues:       []interface{}{doubleValue},
 			wantUnencrypted:     map[string]interface{}{},
@@ -846,7 +846,7 @@ func Test_processCollectionColumnsForPrepareQueries(t *testing.T) {
 		{
 			name: "Valid Input For Timestamp Boolean",
 			columns: []*types.Column{
-				{Name: "map_timestamp_boolean", ColumnFamily: "map_timestamp_boolean", TypeInfo: utilities.ParseCqlTypeOrDie("map<timestamp,boolean>")},
+				{Name: "map_timestamp_boolean", ColumnFamily: "map_timestamp_boolean", CQLType: utilities.ParseCqlTypeOrDie("map<timestamp,boolean>")},
 			},
 			variableMetadata: []*message.ColumnMetadata{},
 			values: []*primitive.Value{
@@ -860,7 +860,7 @@ func Test_processCollectionColumnsForPrepareQueries(t *testing.T) {
 				SchemaMappingConfig: GetSchemaMappingConfig(types.OrderedCodeEncoding),
 			},
 			wantNewColumns: []*types.Column{
-				{Name: "1633046400000", ColumnFamily: "map_timestamp_boolean", TypeInfo: types.TypeBoolean},
+				{Name: "1633046400000", ColumnFamily: "map_timestamp_boolean", CQLType: types.TypeBoolean},
 			},
 			wantNewValues:       []interface{}{timestampBooleanValue},
 			wantUnencrypted:     map[string]interface{}{},
@@ -871,7 +871,7 @@ func Test_processCollectionColumnsForPrepareQueries(t *testing.T) {
 		{
 			name: "Valid Input For Timestamp Double",
 			columns: []*types.Column{
-				{Name: "map_timestamp_double", ColumnFamily: "map_timestamp_double", TypeInfo: utilities.ParseCqlTypeOrDie("map<timestamp,double>")},
+				{Name: "map_timestamp_double", ColumnFamily: "map_timestamp_double", CQLType: utilities.ParseCqlTypeOrDie("map<timestamp,double>")},
 			},
 			variableMetadata: []*message.ColumnMetadata{},
 			values: []*primitive.Value{
@@ -885,7 +885,7 @@ func Test_processCollectionColumnsForPrepareQueries(t *testing.T) {
 				SchemaMappingConfig: GetSchemaMappingConfig(types.OrderedCodeEncoding),
 			},
 			wantNewColumns: []*types.Column{
-				{Name: "1633046400000", ColumnFamily: "map_timestamp_double", TypeInfo: types.TypeDouble},
+				{Name: "1633046400000", ColumnFamily: "map_timestamp_double", CQLType: types.TypeDouble},
 			},
 			wantNewValues:       []interface{}{timestampDoubleValue},
 			wantUnencrypted:     map[string]interface{}{},
@@ -896,7 +896,7 @@ func Test_processCollectionColumnsForPrepareQueries(t *testing.T) {
 		{
 			name: "Valid Input For Timestamp Bigint",
 			columns: []*types.Column{
-				{Name: "map_timestamp_bigint", ColumnFamily: "map_timestamp_bigint", TypeInfo: utilities.ParseCqlTypeOrDie("map<timestamp,bigint>")},
+				{Name: "map_timestamp_bigint", ColumnFamily: "map_timestamp_bigint", CQLType: utilities.ParseCqlTypeOrDie("map<timestamp,bigint>")},
 			},
 			variableMetadata: []*message.ColumnMetadata{},
 			values: []*primitive.Value{
@@ -910,7 +910,7 @@ func Test_processCollectionColumnsForPrepareQueries(t *testing.T) {
 				SchemaMappingConfig: GetSchemaMappingConfig(types.OrderedCodeEncoding),
 			},
 			wantNewColumns: []*types.Column{
-				{Name: "1633046400000", ColumnFamily: "map_timestamp_bigint", TypeInfo: types.TypeBigint},
+				{Name: "1633046400000", ColumnFamily: "map_timestamp_bigint", CQLType: types.TypeBigint},
 			},
 			wantNewValues:       []interface{}{timestampBigintValue},
 			wantUnencrypted:     map[string]interface{}{},
@@ -921,7 +921,7 @@ func Test_processCollectionColumnsForPrepareQueries(t *testing.T) {
 		{
 			name: "Valid Input For List<text>",
 			columns: []*types.Column{
-				{Name: "list_text", ColumnFamily: "list_text", TypeInfo: types.NewListType(types.TypeVarchar)},
+				{Name: "list_text", ColumnFamily: "list_text", CQLType: types.NewListType(types.TypeVarchar)},
 			},
 			values: []*primitive.Value{
 				{Contents: listBytesText},
@@ -934,7 +934,7 @@ func Test_processCollectionColumnsForPrepareQueries(t *testing.T) {
 				SchemaMappingConfig: GetSchemaMappingConfig(types.OrderedCodeEncoding),
 			},
 			wantNewColumns: []*types.Column{
-				{Name: time.Now().Format("20060102150405.000"), ColumnFamily: "list_text", TypeInfo: types.TypeVarchar},
+				{Name: time.Now().Format("20060102150405.000"), ColumnFamily: "list_text", CQLType: types.TypeVarchar},
 			},
 			wantNewValues:       []interface{}{textValue},
 			wantUnencrypted:     map[string]interface{}{},
@@ -945,7 +945,7 @@ func Test_processCollectionColumnsForPrepareQueries(t *testing.T) {
 		{
 			name: "Valid Input For List<int>",
 			columns: []*types.Column{
-				{Name: "list_int", ColumnFamily: "list_int", TypeInfo: types.NewListType(types.TypeInt)},
+				{Name: "list_int", ColumnFamily: "list_int", CQLType: types.NewListType(types.TypeInt)},
 			},
 			values: []*primitive.Value{
 				{Contents: listBytesInt},
@@ -958,7 +958,7 @@ func Test_processCollectionColumnsForPrepareQueries(t *testing.T) {
 				SchemaMappingConfig: GetSchemaMappingConfig(types.OrderedCodeEncoding),
 			},
 			wantNewColumns: []*types.Column{
-				{Name: time.Now().Format("20060102150405.000"), ColumnFamily: "list_int", TypeInfo: types.TypeInt},
+				{Name: time.Now().Format("20060102150405.000"), ColumnFamily: "list_int", CQLType: types.TypeInt},
 			},
 			wantNewValues:       []interface{}{intValue},
 			wantUnencrypted:     map[string]interface{}{},
@@ -969,7 +969,7 @@ func Test_processCollectionColumnsForPrepareQueries(t *testing.T) {
 		{
 			name: "Valid Input For List<bigint>",
 			columns: []*types.Column{
-				{Name: "list_bigint", ColumnFamily: "list_bigint", TypeInfo: types.NewListType(types.TypeBigint)},
+				{Name: "list_bigint", ColumnFamily: "list_bigint", CQLType: types.NewListType(types.TypeBigint)},
 			},
 			values: []*primitive.Value{
 				{Contents: listBytesBigint},
@@ -982,7 +982,7 @@ func Test_processCollectionColumnsForPrepareQueries(t *testing.T) {
 				SchemaMappingConfig: GetSchemaMappingConfig(types.OrderedCodeEncoding),
 			},
 			wantNewColumns: []*types.Column{
-				{Name: time.Now().Format("20060102150405.000"), ColumnFamily: "list_bigint", TypeInfo: types.TypeBigint},
+				{Name: time.Now().Format("20060102150405.000"), ColumnFamily: "list_bigint", CQLType: types.TypeBigint},
 			},
 			wantNewValues:       []interface{}{bigintValue},
 			wantUnencrypted:     map[string]interface{}{},
@@ -993,7 +993,7 @@ func Test_processCollectionColumnsForPrepareQueries(t *testing.T) {
 		{
 			name: "Valid Input For List<boolean>",
 			columns: []*types.Column{
-				{Name: "list_boolean", ColumnFamily: "list_boolean", TypeInfo: types.NewListType(types.TypeBoolean)},
+				{Name: "list_boolean", ColumnFamily: "list_boolean", CQLType: types.NewListType(types.TypeBoolean)},
 			},
 			values: []*primitive.Value{
 				{Contents: listBytesBool},
@@ -1006,7 +1006,7 @@ func Test_processCollectionColumnsForPrepareQueries(t *testing.T) {
 				SchemaMappingConfig: GetSchemaMappingConfig(types.OrderedCodeEncoding),
 			},
 			wantNewColumns: []*types.Column{
-				{Name: time.Now().Format("20060102150405.000"), ColumnFamily: "list_boolean", TypeInfo: types.TypeBoolean},
+				{Name: time.Now().Format("20060102150405.000"), ColumnFamily: "list_boolean", CQLType: types.TypeBoolean},
 			},
 			wantNewValues:       []interface{}{trueVal},
 			wantUnencrypted:     map[string]interface{}{},
@@ -1017,7 +1017,7 @@ func Test_processCollectionColumnsForPrepareQueries(t *testing.T) {
 		{
 			name: "Valid Input For List<float>",
 			columns: []*types.Column{
-				{Name: "list_float", ColumnFamily: "list_float", TypeInfo: types.NewListType(types.TypeFloat)},
+				{Name: "list_float", ColumnFamily: "list_float", CQLType: types.NewListType(types.TypeFloat)},
 			},
 			values: []*primitive.Value{
 				{Contents: listBytesFloat},
@@ -1030,7 +1030,7 @@ func Test_processCollectionColumnsForPrepareQueries(t *testing.T) {
 				SchemaMappingConfig: GetSchemaMappingConfig(types.OrderedCodeEncoding),
 			},
 			wantNewColumns: []*types.Column{
-				{Name: time.Now().Format("20060102150405.000"), ColumnFamily: "list_float", TypeInfo: types.TypeFloat},
+				{Name: time.Now().Format("20060102150405.000"), ColumnFamily: "list_float", CQLType: types.TypeFloat},
 			},
 			wantNewValues:       []interface{}{floatVal},
 			wantUnencrypted:     map[string]interface{}{},
@@ -1041,7 +1041,7 @@ func Test_processCollectionColumnsForPrepareQueries(t *testing.T) {
 		{
 			name: "Valid Input For List<double>",
 			columns: []*types.Column{
-				{Name: "list_double", ColumnFamily: "list_double", TypeInfo: types.NewListType(types.TypeDouble)},
+				{Name: "list_double", ColumnFamily: "list_double", CQLType: types.NewListType(types.TypeDouble)},
 			},
 			values: []*primitive.Value{
 				{Contents: listBytesDouble},
@@ -1054,7 +1054,7 @@ func Test_processCollectionColumnsForPrepareQueries(t *testing.T) {
 				SchemaMappingConfig: GetSchemaMappingConfig(types.OrderedCodeEncoding),
 			},
 			wantNewColumns: []*types.Column{
-				{Name: time.Now().Format("20060102150405.000"), ColumnFamily: "list_double", TypeInfo: types.TypeDouble},
+				{Name: time.Now().Format("20060102150405.000"), ColumnFamily: "list_double", CQLType: types.TypeDouble},
 			},
 			wantNewValues:       []interface{}{doubleVal},
 			wantUnencrypted:     map[string]interface{}{},
@@ -1065,7 +1065,7 @@ func Test_processCollectionColumnsForPrepareQueries(t *testing.T) {
 		{
 			name: "Valid Input For List<timestamp>",
 			columns: []*types.Column{
-				{Name: "list_timestamp", ColumnFamily: "list_timestamp", TypeInfo: types.NewListType(types.TypeTimestamp)},
+				{Name: "list_timestamp", ColumnFamily: "list_timestamp", CQLType: types.NewListType(types.TypeTimestamp)},
 			},
 			values: []*primitive.Value{
 				{Contents: listBytesTimestamp},
@@ -1078,7 +1078,7 @@ func Test_processCollectionColumnsForPrepareQueries(t *testing.T) {
 				SchemaMappingConfig: GetSchemaMappingConfig(types.OrderedCodeEncoding),
 			},
 			wantNewColumns: []*types.Column{
-				{Name: time.Now().Format("20060102150405.000"), ColumnFamily: "list_timestamp", TypeInfo: types.TypeBigint},
+				{Name: time.Now().Format("20060102150405.000"), ColumnFamily: "list_timestamp", CQLType: types.TypeBigint},
 			},
 			wantNewValues:       []interface{}{timestampVal},
 			wantUnencrypted:     map[string]interface{}{},
@@ -1297,8 +1297,8 @@ func TestProcessComplexUpdate(t *testing.T) {
 		{
 			name: "successful collection update for map and list",
 			columns: []*types.Column{
-				{Name: "map_text_bool_col", TypeInfo: utilities.ParseCqlTypeOrDie("map<varchar,boolean>")},
-				{Name: "list_text", TypeInfo: types.NewListType(types.TypeVarchar)},
+				{Name: "map_text_bool_col", CQLType: utilities.ParseCqlTypeOrDie("map<varchar,boolean>")},
+				{Name: "list_text", CQLType: types.NewListType(types.TypeVarchar)},
 			},
 			values: []interface{}{
 				ComplexAssignment{
@@ -1327,7 +1327,7 @@ func TestProcessComplexUpdate(t *testing.T) {
 		{
 			name: "non-collection column should be skipped",
 			columns: []*types.Column{
-				{Name: "pk_1_text", TypeInfo: types.TypeVarchar},
+				{Name: "pk_1_text", CQLType: types.TypeVarchar},
 			},
 			values: []interface{}{
 				"pk_1_text+value",
@@ -1435,8 +1435,8 @@ func TestCastColumns(t *testing.T) {
 		{
 			name: "integer type",
 			colMeta: &types.Column{
-				Name:     "age",
-				TypeInfo: types.TypeInt,
+				Name:    "age",
+				CQLType: types.TypeInt,
 			},
 			columnFamily: "cf1",
 			want:         "TO_INT64(cf1['age'])",
@@ -1445,8 +1445,8 @@ func TestCastColumns(t *testing.T) {
 		{
 			name: "bigint type",
 			colMeta: &types.Column{
-				Name:     "timestamp",
-				TypeInfo: types.TypeBigint,
+				Name:    "timestamp",
+				CQLType: types.TypeBigint,
 			},
 			columnFamily: "cf1",
 			want:         "TO_INT64(cf1['timestamp'])",
@@ -1455,8 +1455,8 @@ func TestCastColumns(t *testing.T) {
 		{
 			name: "float type",
 			colMeta: &types.Column{
-				Name:     "price",
-				TypeInfo: types.TypeFloat,
+				Name:    "price",
+				CQLType: types.TypeFloat,
 			},
 			columnFamily: "cf1",
 			want:         "TO_FLOAT32(cf1['price'])",
@@ -1465,8 +1465,8 @@ func TestCastColumns(t *testing.T) {
 		{
 			name: "double type",
 			colMeta: &types.Column{
-				Name:     "value",
-				TypeInfo: types.TypeDouble,
+				Name:    "value",
+				CQLType: types.TypeDouble,
 			},
 			columnFamily: "cf1",
 			want:         "TO_FLOAT64(cf1['value'])",
@@ -1475,8 +1475,8 @@ func TestCastColumns(t *testing.T) {
 		{
 			name: "boolean type",
 			colMeta: &types.Column{
-				Name:     "active",
-				TypeInfo: types.TypeBoolean,
+				Name:    "active",
+				CQLType: types.TypeBoolean,
 			},
 			columnFamily: "cf1",
 			want:         "TO_INT64(cf1['active'])",
@@ -1485,8 +1485,8 @@ func TestCastColumns(t *testing.T) {
 		{
 			name: "timestamp type",
 			colMeta: &types.Column{
-				Name:     "created_at",
-				TypeInfo: types.TypeTimestamp,
+				Name:    "created_at",
+				CQLType: types.TypeTimestamp,
 			},
 			columnFamily: "cf1",
 			want:         "TO_TIME(cf1['created_at'])",
@@ -1495,8 +1495,8 @@ func TestCastColumns(t *testing.T) {
 		{
 			name: "blob type",
 			colMeta: &types.Column{
-				Name:     "data",
-				TypeInfo: types.TypeBlob,
+				Name:    "data",
+				CQLType: types.TypeBlob,
 			},
 			columnFamily: "cf1",
 			want:         "TO_BLOB(cf1['data'])",
@@ -1505,8 +1505,8 @@ func TestCastColumns(t *testing.T) {
 		{
 			name: "text type",
 			colMeta: &types.Column{
-				Name:     "name",
-				TypeInfo: types.TypeVarchar,
+				Name:    "name",
+				CQLType: types.TypeVarchar,
 			},
 			columnFamily: "cf1",
 			want:         "cf1['name']",
@@ -1515,8 +1515,8 @@ func TestCastColumns(t *testing.T) {
 		{
 			name: "handle special characters in column name",
 			colMeta: &types.Column{
-				Name:     "special-name",
-				TypeInfo: types.TypeVarchar,
+				Name:    "special-name",
+				CQLType: types.TypeVarchar,
 			},
 			columnFamily: "cf1",
 			want:         "cf1['special-name']",
@@ -1559,7 +1559,7 @@ func TestCreateOrderedCodeKey(t *testing.T) {
 		{
 			name: "simple string",
 			tableConfig: schemaMapping.NewTableConfig("keyspace", "table", "cf1", types.OrderedCodeEncoding, []*types.Column{
-				{Name: "user_id", TypeInfo: types.TypeVarchar, KeyType: utilities.KEY_TYPE_PARTITION, PkPrecedence: 1},
+				{Name: "user_id", CQLType: types.TypeVarchar, KeyType: utilities.KEY_TYPE_PARTITION, PkPrecedence: 1},
 			}),
 			values:  map[string]interface{}{"user_id": "user1"},
 			want:    []byte("user1"),
@@ -1568,7 +1568,7 @@ func TestCreateOrderedCodeKey(t *testing.T) {
 		{
 			name: "int nonzero",
 			tableConfig: schemaMapping.NewTableConfig("keyspace", "table", "cf1", types.OrderedCodeEncoding, []*types.Column{
-				{Name: "user_id", TypeInfo: types.TypeBigint, KeyType: utilities.KEY_TYPE_PARTITION, PkPrecedence: 1},
+				{Name: "user_id", CQLType: types.TypeBigint, KeyType: utilities.KEY_TYPE_PARTITION, PkPrecedence: 1},
 			}),
 			values:  map[string]interface{}{"user_id": int64(1)},
 			want:    []byte("\x81"),
@@ -1577,7 +1577,7 @@ func TestCreateOrderedCodeKey(t *testing.T) {
 		{
 			name: "int32 nonzero",
 			tableConfig: schemaMapping.NewTableConfig("keyspace", "table", "cf1", types.OrderedCodeEncoding, []*types.Column{
-				{Name: "user_id", TypeInfo: types.TypeInt, KeyType: utilities.KEY_TYPE_PARTITION, PkPrecedence: 1},
+				{Name: "user_id", CQLType: types.TypeInt, KeyType: utilities.KEY_TYPE_PARTITION, PkPrecedence: 1},
 			}),
 			values:  map[string]interface{}{"user_id": int32(1)},
 			want:    []byte("\x81"),
@@ -1586,7 +1586,7 @@ func TestCreateOrderedCodeKey(t *testing.T) {
 		{
 			name: "int32 nonzero big endian",
 			tableConfig: schemaMapping.NewTableConfig("keyspace", "table", "cf1", types.BigEndianEncoding, []*types.Column{
-				{Name: "user_id", TypeInfo: types.TypeInt, KeyType: utilities.KEY_TYPE_PARTITION, PkPrecedence: 1},
+				{Name: "user_id", CQLType: types.TypeInt, KeyType: utilities.KEY_TYPE_PARTITION, PkPrecedence: 1},
 			}),
 			values:  map[string]interface{}{"user_id": int32(1)},
 			want:    []byte("\x00\xff\x00\xff\x00\xff\x00\xff\x00\xff\x00\xff\x00\xff\x01"),
@@ -1595,7 +1595,7 @@ func TestCreateOrderedCodeKey(t *testing.T) {
 		{
 			name: "int32 max",
 			tableConfig: schemaMapping.NewTableConfig("keyspace", "table", "cf1", types.BigEndianEncoding, []*types.Column{
-				{Name: "user_id", TypeInfo: types.TypeInt, KeyType: utilities.KEY_TYPE_PARTITION, PkPrecedence: 1},
+				{Name: "user_id", CQLType: types.TypeInt, KeyType: utilities.KEY_TYPE_PARTITION, PkPrecedence: 1},
 			}),
 			values:  map[string]interface{}{"user_id": int32(2147483647)},
 			want:    []byte("\x00\xff\x00\xff\x00\xff\x00\xff\x7f\xff\xff\xff"),
@@ -1604,7 +1604,7 @@ func TestCreateOrderedCodeKey(t *testing.T) {
 		{
 			name: "int64 max",
 			tableConfig: schemaMapping.NewTableConfig("keyspace", "table", "cf1", types.BigEndianEncoding, []*types.Column{
-				{Name: "user_id", TypeInfo: types.TypeBigint, KeyType: utilities.KEY_TYPE_PARTITION, PkPrecedence: 1},
+				{Name: "user_id", CQLType: types.TypeBigint, KeyType: utilities.KEY_TYPE_PARTITION, PkPrecedence: 1},
 			}),
 			values:  map[string]interface{}{"user_id": int64(9223372036854775807)},
 			want:    []byte("\x7f\xff\xff\xff\xff\xff\xff\xff"),
@@ -1613,7 +1613,7 @@ func TestCreateOrderedCodeKey(t *testing.T) {
 		{
 			name: "negative int",
 			tableConfig: schemaMapping.NewTableConfig("keyspace", "table", "cf1", types.OrderedCodeEncoding, []*types.Column{
-				{Name: "user_id", TypeInfo: types.TypeBigint, KeyType: utilities.KEY_TYPE_PARTITION, PkPrecedence: 1},
+				{Name: "user_id", CQLType: types.TypeBigint, KeyType: utilities.KEY_TYPE_PARTITION, PkPrecedence: 1},
 			}),
 			values:  map[string]interface{}{"user_id": int64(-1)},
 			want:    []byte("\x7f"),
@@ -1622,7 +1622,7 @@ func TestCreateOrderedCodeKey(t *testing.T) {
 		{
 			name: "negative int big endian fails",
 			tableConfig: schemaMapping.NewTableConfig("keyspace", "table", "cf1", types.BigEndianEncoding, []*types.Column{
-				{Name: "user_id", TypeInfo: types.TypeBigint, KeyType: utilities.KEY_TYPE_PARTITION, PkPrecedence: 1},
+				{Name: "user_id", CQLType: types.TypeBigint, KeyType: utilities.KEY_TYPE_PARTITION, PkPrecedence: 1},
 			}),
 			values:  map[string]interface{}{"user_id": int64(-1)},
 			want:    nil,
@@ -1631,7 +1631,7 @@ func TestCreateOrderedCodeKey(t *testing.T) {
 		{
 			name: "int zero",
 			tableConfig: schemaMapping.NewTableConfig("keyspace", "table", "cf1", types.OrderedCodeEncoding, []*types.Column{
-				{Name: "user_id", TypeInfo: types.TypeBigint, KeyType: utilities.KEY_TYPE_PARTITION, PkPrecedence: 1},
+				{Name: "user_id", CQLType: types.TypeBigint, KeyType: utilities.KEY_TYPE_PARTITION, PkPrecedence: 1},
 			}),
 			values:  map[string]interface{}{"user_id": int64(0)},
 			want:    []byte("\x80"),
@@ -1640,7 +1640,7 @@ func TestCreateOrderedCodeKey(t *testing.T) {
 		{
 			name: "int64 minvalue",
 			tableConfig: schemaMapping.NewTableConfig("keyspace", "table", "cf1", types.OrderedCodeEncoding, []*types.Column{
-				{Name: "user_id", TypeInfo: types.TypeBigint, KeyType: utilities.KEY_TYPE_PARTITION, PkPrecedence: 1},
+				{Name: "user_id", CQLType: types.TypeBigint, KeyType: utilities.KEY_TYPE_PARTITION, PkPrecedence: 1},
 			}),
 			values:  map[string]interface{}{"user_id": int64(math.MinInt64)},
 			want:    []byte("\x00\xff\x3f\x80\x00\xff\x00\xff\x00\xff\x00\xff\x00\xff\x00\xff\x00\xff"),
@@ -1649,7 +1649,7 @@ func TestCreateOrderedCodeKey(t *testing.T) {
 		{
 			name: "int64 negative value with leading null byte",
 			tableConfig: schemaMapping.NewTableConfig("keyspace", "table", "cf1", types.OrderedCodeEncoding, []*types.Column{
-				{Name: "user_id", TypeInfo: types.TypeBigint, KeyType: utilities.KEY_TYPE_PARTITION, PkPrecedence: 1},
+				{Name: "user_id", CQLType: types.TypeBigint, KeyType: utilities.KEY_TYPE_PARTITION, PkPrecedence: 1},
 			}),
 			values:  map[string]interface{}{"user_id": int64(-922337203685473)},
 			want:    []byte("\x00\xff\xfc\xb9\x23\xa2\x9c\x77\x9f"),
@@ -1658,7 +1658,7 @@ func TestCreateOrderedCodeKey(t *testing.T) {
 		{
 			name: "int32 minvalue",
 			tableConfig: schemaMapping.NewTableConfig("keyspace", "table", "cf1", types.OrderedCodeEncoding, []*types.Column{
-				{Name: "user_id", TypeInfo: types.TypeInt, KeyType: utilities.KEY_TYPE_PARTITION, PkPrecedence: 1},
+				{Name: "user_id", CQLType: types.TypeInt, KeyType: utilities.KEY_TYPE_PARTITION, PkPrecedence: 1},
 			}),
 			values:  map[string]interface{}{"user_id": int64(math.MinInt32)},
 			want:    []byte("\x07\x80\x00\xff\x00\xff\x00\xff"),
@@ -1667,9 +1667,9 @@ func TestCreateOrderedCodeKey(t *testing.T) {
 		{
 			name: "int minvalue combined",
 			tableConfig: schemaMapping.NewTableConfig("keyspace", "table", "cf1", types.OrderedCodeEncoding, []*types.Column{
-				{Name: "user_id", TypeInfo: types.TypeBigint, KeyType: utilities.KEY_TYPE_PARTITION, PkPrecedence: 1},
-				{Name: "other_id", TypeInfo: types.TypeInt, KeyType: utilities.KEY_TYPE_PARTITION, PkPrecedence: 2},
-				{Name: "yet_another_id", TypeInfo: types.TypeVarchar, KeyType: utilities.KEY_TYPE_PARTITION, PkPrecedence: 3},
+				{Name: "user_id", CQLType: types.TypeBigint, KeyType: utilities.KEY_TYPE_PARTITION, PkPrecedence: 1},
+				{Name: "other_id", CQLType: types.TypeInt, KeyType: utilities.KEY_TYPE_PARTITION, PkPrecedence: 2},
+				{Name: "yet_another_id", CQLType: types.TypeVarchar, KeyType: utilities.KEY_TYPE_PARTITION, PkPrecedence: 3},
 			}),
 			values:  map[string]interface{}{"user_id": int64(math.MinInt64), "other_id": int64(math.MinInt32), "yet_another_id": "id123"},
 			want:    []byte("\x00\xff\x3f\x80\x00\xff\x00\xff\x00\xff\x00\xff\x00\xff\x00\xff\x00\xff\x00\x01\x07\x80\x00\xff\x00\xff\x00\xff\x00\x01\x69\x64\x31\x32\x33"),
@@ -1678,8 +1678,8 @@ func TestCreateOrderedCodeKey(t *testing.T) {
 		{
 			name: "int mixed",
 			tableConfig: schemaMapping.NewTableConfig("keyspace", "table", "cf1", types.OrderedCodeEncoding, []*types.Column{
-				{Name: "user_id", TypeInfo: types.TypeBigint, KeyType: utilities.KEY_TYPE_PARTITION, PkPrecedence: 1},
-				{Name: "other_id", TypeInfo: types.TypeInt, KeyType: utilities.KEY_TYPE_PARTITION, PkPrecedence: 2},
+				{Name: "user_id", CQLType: types.TypeBigint, KeyType: utilities.KEY_TYPE_PARTITION, PkPrecedence: 1},
+				{Name: "other_id", CQLType: types.TypeInt, KeyType: utilities.KEY_TYPE_PARTITION, PkPrecedence: 2},
 			}),
 			values:  map[string]interface{}{"user_id": int64(-43232545), "other_id": int64(-12451)},
 			want:    []byte("\x0d\x6c\x52\xdf\x00\x01\x1f\xcf\x5d"),
@@ -1688,7 +1688,7 @@ func TestCreateOrderedCodeKey(t *testing.T) {
 		{
 			name: "int zero big endian",
 			tableConfig: schemaMapping.NewTableConfig("keyspace", "table", "cf1", types.BigEndianEncoding, []*types.Column{
-				{Name: "user_id", TypeInfo: types.TypeBigint, KeyType: utilities.KEY_TYPE_PARTITION, PkPrecedence: 1},
+				{Name: "user_id", CQLType: types.TypeBigint, KeyType: utilities.KEY_TYPE_PARTITION, PkPrecedence: 1},
 			}),
 			values:  map[string]interface{}{"user_id": int64(0)},
 			want:    []byte("\x00\xff\x00\xff\x00\xff\x00\xff\x00\xff\x00\xff\x00\xff\x00\xff"),
@@ -1697,9 +1697,9 @@ func TestCreateOrderedCodeKey(t *testing.T) {
 		{
 			name: "compound key",
 			tableConfig: schemaMapping.NewTableConfig("keyspace", "table", "cf1", types.OrderedCodeEncoding, []*types.Column{
-				{Name: "user_id", TypeInfo: types.TypeVarchar, KeyType: utilities.KEY_TYPE_PARTITION, PkPrecedence: 1},
-				{Name: "team_num", TypeInfo: types.TypeBigint, KeyType: utilities.KEY_TYPE_CLUSTERING, PkPrecedence: 2},
-				{Name: "city", TypeInfo: types.TypeVarchar, KeyType: utilities.KEY_TYPE_CLUSTERING, PkPrecedence: 3},
+				{Name: "user_id", CQLType: types.TypeVarchar, KeyType: utilities.KEY_TYPE_PARTITION, PkPrecedence: 1},
+				{Name: "team_num", CQLType: types.TypeBigint, KeyType: utilities.KEY_TYPE_CLUSTERING, PkPrecedence: 2},
+				{Name: "city", CQLType: types.TypeVarchar, KeyType: utilities.KEY_TYPE_CLUSTERING, PkPrecedence: 3},
 			}),
 			values: map[string]interface{}{
 				"user_id":  "user1",
@@ -1712,9 +1712,9 @@ func TestCreateOrderedCodeKey(t *testing.T) {
 		{
 			name: "compound key big endian",
 			tableConfig: schemaMapping.NewTableConfig("keyspace", "table", "cf1", types.BigEndianEncoding, []*types.Column{
-				{Name: "user_id", TypeInfo: types.TypeVarchar, KeyType: utilities.KEY_TYPE_PARTITION, PkPrecedence: 1},
-				{Name: "team_num", TypeInfo: types.TypeBigint, KeyType: utilities.KEY_TYPE_CLUSTERING, PkPrecedence: 2},
-				{Name: "city", TypeInfo: types.TypeVarchar, KeyType: utilities.KEY_TYPE_CLUSTERING, PkPrecedence: 3},
+				{Name: "user_id", CQLType: types.TypeVarchar, KeyType: utilities.KEY_TYPE_PARTITION, PkPrecedence: 1},
+				{Name: "team_num", CQLType: types.TypeBigint, KeyType: utilities.KEY_TYPE_CLUSTERING, PkPrecedence: 2},
+				{Name: "city", CQLType: types.TypeVarchar, KeyType: utilities.KEY_TYPE_CLUSTERING, PkPrecedence: 3},
 			}),
 			values: map[string]interface{}{
 				"user_id":  "user1",
@@ -1727,9 +1727,9 @@ func TestCreateOrderedCodeKey(t *testing.T) {
 		{
 			name: "unhandled int row key encoding type",
 			tableConfig: schemaMapping.NewTableConfig("keyspace", "table", "cf1", 4 /*unhandled type*/, []*types.Column{
-				{Name: "user_id", TypeInfo: types.TypeVarchar, KeyType: utilities.KEY_TYPE_PARTITION, PkPrecedence: 1},
-				{Name: "team_num", TypeInfo: types.TypeBigint, KeyType: utilities.KEY_TYPE_CLUSTERING, PkPrecedence: 2},
-				{Name: "city", TypeInfo: types.TypeVarchar, KeyType: utilities.KEY_TYPE_CLUSTERING, PkPrecedence: 3},
+				{Name: "user_id", CQLType: types.TypeVarchar, KeyType: utilities.KEY_TYPE_PARTITION, PkPrecedence: 1},
+				{Name: "team_num", CQLType: types.TypeBigint, KeyType: utilities.KEY_TYPE_CLUSTERING, PkPrecedence: 2},
+				{Name: "city", CQLType: types.TypeVarchar, KeyType: utilities.KEY_TYPE_CLUSTERING, PkPrecedence: 3},
 			}),
 			values: map[string]interface{}{
 				"user_id":  "user1",
@@ -1742,10 +1742,10 @@ func TestCreateOrderedCodeKey(t *testing.T) {
 		{
 			name: "compound key with trailing empty",
 			tableConfig: schemaMapping.NewTableConfig("keyspace", "table", "cf1", types.OrderedCodeEncoding, []*types.Column{
-				{Name: "user_id", TypeInfo: types.TypeVarchar, KeyType: utilities.KEY_TYPE_PARTITION, PkPrecedence: 1},
-				{Name: "team_num", TypeInfo: types.TypeBigint, KeyType: utilities.KEY_TYPE_CLUSTERING, PkPrecedence: 2},
-				{Name: "city", TypeInfo: types.TypeVarchar, KeyType: utilities.KEY_TYPE_CLUSTERING, PkPrecedence: 3},
-				{Name: "borough", TypeInfo: types.TypeVarchar, KeyType: utilities.KEY_TYPE_CLUSTERING, PkPrecedence: 4},
+				{Name: "user_id", CQLType: types.TypeVarchar, KeyType: utilities.KEY_TYPE_PARTITION, PkPrecedence: 1},
+				{Name: "team_num", CQLType: types.TypeBigint, KeyType: utilities.KEY_TYPE_CLUSTERING, PkPrecedence: 2},
+				{Name: "city", CQLType: types.TypeVarchar, KeyType: utilities.KEY_TYPE_CLUSTERING, PkPrecedence: 3},
+				{Name: "borough", CQLType: types.TypeVarchar, KeyType: utilities.KEY_TYPE_CLUSTERING, PkPrecedence: 4},
 			}),
 			values: map[string]interface{}{
 				"user_id":  "user3",
@@ -1759,10 +1759,10 @@ func TestCreateOrderedCodeKey(t *testing.T) {
 		{
 			name: "compound key with trailing empty big endian",
 			tableConfig: schemaMapping.NewTableConfig("keyspace", "table", "cf1", types.BigEndianEncoding, []*types.Column{
-				{Name: "user_id", TypeInfo: types.TypeVarchar, KeyType: utilities.KEY_TYPE_PARTITION, PkPrecedence: 1},
-				{Name: "team_num", TypeInfo: types.TypeBigint, KeyType: utilities.KEY_TYPE_CLUSTERING, PkPrecedence: 2},
-				{Name: "city", TypeInfo: types.TypeVarchar, KeyType: utilities.KEY_TYPE_CLUSTERING, PkPrecedence: 3},
-				{Name: "borough", TypeInfo: types.TypeVarchar, KeyType: utilities.KEY_TYPE_CLUSTERING, PkPrecedence: 4},
+				{Name: "user_id", CQLType: types.TypeVarchar, KeyType: utilities.KEY_TYPE_PARTITION, PkPrecedence: 1},
+				{Name: "team_num", CQLType: types.TypeBigint, KeyType: utilities.KEY_TYPE_CLUSTERING, PkPrecedence: 2},
+				{Name: "city", CQLType: types.TypeVarchar, KeyType: utilities.KEY_TYPE_CLUSTERING, PkPrecedence: 3},
+				{Name: "borough", CQLType: types.TypeVarchar, KeyType: utilities.KEY_TYPE_CLUSTERING, PkPrecedence: 4},
 			}),
 			values: map[string]interface{}{
 				"user_id":  "user3",
@@ -1776,9 +1776,9 @@ func TestCreateOrderedCodeKey(t *testing.T) {
 		{
 			name: "compound key with empty middle",
 			tableConfig: schemaMapping.NewTableConfig("keyspace", "table", "cf1", types.OrderedCodeEncoding, []*types.Column{
-				{Name: "user_id", TypeInfo: types.TypeBlob, KeyType: utilities.KEY_TYPE_PARTITION, PkPrecedence: 1},
-				{Name: "team_id", TypeInfo: types.TypeBlob, KeyType: utilities.KEY_TYPE_CLUSTERING, PkPrecedence: 2},
-				{Name: "city", TypeInfo: types.TypeBlob, KeyType: utilities.KEY_TYPE_CLUSTERING, PkPrecedence: 3},
+				{Name: "user_id", CQLType: types.TypeBlob, KeyType: utilities.KEY_TYPE_PARTITION, PkPrecedence: 1},
+				{Name: "team_id", CQLType: types.TypeBlob, KeyType: utilities.KEY_TYPE_CLUSTERING, PkPrecedence: 2},
+				{Name: "city", CQLType: types.TypeBlob, KeyType: utilities.KEY_TYPE_CLUSTERING, PkPrecedence: 3},
 			}),
 			values: map[string]interface{}{
 				"user_id": "\xa2",
@@ -1791,7 +1791,7 @@ func TestCreateOrderedCodeKey(t *testing.T) {
 		{
 			name: "bytes with delimiter",
 			tableConfig: schemaMapping.NewTableConfig("keyspace", "table", "cf1", types.OrderedCodeEncoding, []*types.Column{
-				{Name: "user_id", TypeInfo: types.TypeBlob, KeyType: utilities.KEY_TYPE_PARTITION, PkPrecedence: 1},
+				{Name: "user_id", CQLType: types.TypeBlob, KeyType: utilities.KEY_TYPE_PARTITION, PkPrecedence: 1},
 			}),
 			values: map[string]interface{}{
 				"user_id": "\x80\x00\x01\x81",
@@ -1802,10 +1802,10 @@ func TestCreateOrderedCodeKey(t *testing.T) {
 		{
 			name: "compound key with 2 empty middle fields",
 			tableConfig: schemaMapping.NewTableConfig("keyspace", "table", "cf1", types.OrderedCodeEncoding, []*types.Column{
-				{Name: "user_id", TypeInfo: types.TypeBlob, KeyType: utilities.KEY_TYPE_PARTITION, PkPrecedence: 1},
-				{Name: "team_num", TypeInfo: types.TypeBlob, KeyType: utilities.KEY_TYPE_CLUSTERING, PkPrecedence: 2},
-				{Name: "city", TypeInfo: types.TypeBlob, KeyType: utilities.KEY_TYPE_CLUSTERING, PkPrecedence: 3},
-				{Name: "borough", TypeInfo: types.TypeBlob, KeyType: utilities.KEY_TYPE_CLUSTERING, PkPrecedence: 4},
+				{Name: "user_id", CQLType: types.TypeBlob, KeyType: utilities.KEY_TYPE_PARTITION, PkPrecedence: 1},
+				{Name: "team_num", CQLType: types.TypeBlob, KeyType: utilities.KEY_TYPE_CLUSTERING, PkPrecedence: 2},
+				{Name: "city", CQLType: types.TypeBlob, KeyType: utilities.KEY_TYPE_CLUSTERING, PkPrecedence: 3},
+				{Name: "borough", CQLType: types.TypeBlob, KeyType: utilities.KEY_TYPE_CLUSTERING, PkPrecedence: 4},
 			}),
 			values: map[string]interface{}{
 				"user_id":  "\xa2",
@@ -1819,8 +1819,8 @@ func TestCreateOrderedCodeKey(t *testing.T) {
 		{
 			name: "byte strings",
 			tableConfig: schemaMapping.NewTableConfig("keyspace", "table", "cf1", types.OrderedCodeEncoding, []*types.Column{
-				{Name: "user_id", TypeInfo: types.TypeBlob, KeyType: utilities.KEY_TYPE_PARTITION, PkPrecedence: 1},
-				{Name: "city", TypeInfo: types.TypeBlob, KeyType: utilities.KEY_TYPE_CLUSTERING, PkPrecedence: 2},
+				{Name: "user_id", CQLType: types.TypeBlob, KeyType: utilities.KEY_TYPE_PARTITION, PkPrecedence: 1},
+				{Name: "city", CQLType: types.TypeBlob, KeyType: utilities.KEY_TYPE_CLUSTERING, PkPrecedence: 2},
 			}),
 			values: map[string]interface{}{
 				"user_id": "\xa5",
@@ -1832,8 +1832,8 @@ func TestCreateOrderedCodeKey(t *testing.T) {
 		{
 			name: "empty first value",
 			tableConfig: schemaMapping.NewTableConfig("keyspace", "table", "cf1", types.OrderedCodeEncoding, []*types.Column{
-				{Name: "user_id", TypeInfo: types.TypeVarchar, KeyType: utilities.KEY_TYPE_PARTITION, PkPrecedence: 1},
-				{Name: "city", TypeInfo: types.TypeBlob, KeyType: utilities.KEY_TYPE_CLUSTERING, PkPrecedence: 2},
+				{Name: "user_id", CQLType: types.TypeVarchar, KeyType: utilities.KEY_TYPE_PARTITION, PkPrecedence: 1},
+				{Name: "city", CQLType: types.TypeBlob, KeyType: utilities.KEY_TYPE_CLUSTERING, PkPrecedence: 2},
 			}),
 			values: map[string]interface{}{
 				"user_id": "",
@@ -1845,9 +1845,9 @@ func TestCreateOrderedCodeKey(t *testing.T) {
 		{
 			name: "null escaped",
 			tableConfig: schemaMapping.NewTableConfig("keyspace", "table", "cf1", types.OrderedCodeEncoding, []*types.Column{
-				{Name: "user_id", TypeInfo: types.TypeVarchar, KeyType: utilities.KEY_TYPE_PARTITION, PkPrecedence: 1},
-				{Name: "city", TypeInfo: types.TypeVarchar, KeyType: utilities.KEY_TYPE_CLUSTERING, PkPrecedence: 2},
-				{Name: "borough", TypeInfo: types.TypeVarchar, KeyType: utilities.KEY_TYPE_CLUSTERING, PkPrecedence: 3},
+				{Name: "user_id", CQLType: types.TypeVarchar, KeyType: utilities.KEY_TYPE_PARTITION, PkPrecedence: 1},
+				{Name: "city", CQLType: types.TypeVarchar, KeyType: utilities.KEY_TYPE_CLUSTERING, PkPrecedence: 2},
+				{Name: "borough", CQLType: types.TypeVarchar, KeyType: utilities.KEY_TYPE_CLUSTERING, PkPrecedence: 3},
 			}),
 			values: map[string]interface{}{
 				"user_id": "nn",
@@ -1860,9 +1860,9 @@ func TestCreateOrderedCodeKey(t *testing.T) {
 		{
 			name: "null escaped (big endian)",
 			tableConfig: schemaMapping.NewTableConfig("keyspace", "table", "cf1", types.BigEndianEncoding, []*types.Column{
-				{Name: "user_id", TypeInfo: types.TypeVarchar, KeyType: utilities.KEY_TYPE_PARTITION, PkPrecedence: 1},
-				{Name: "team_num", TypeInfo: types.TypeBigint, KeyType: utilities.KEY_TYPE_CLUSTERING, PkPrecedence: 2},
-				{Name: "city", TypeInfo: types.TypeVarchar, KeyType: utilities.KEY_TYPE_CLUSTERING, PkPrecedence: 3},
+				{Name: "user_id", CQLType: types.TypeVarchar, KeyType: utilities.KEY_TYPE_PARTITION, PkPrecedence: 1},
+				{Name: "team_num", CQLType: types.TypeBigint, KeyType: utilities.KEY_TYPE_CLUSTERING, PkPrecedence: 2},
+				{Name: "city", CQLType: types.TypeVarchar, KeyType: utilities.KEY_TYPE_CLUSTERING, PkPrecedence: 3},
 			}),
 			values: map[string]interface{}{
 				"user_id":  "abcd",
@@ -1875,7 +1875,7 @@ func TestCreateOrderedCodeKey(t *testing.T) {
 		{
 			name: "invalid utf8 varchar returns error",
 			tableConfig: schemaMapping.NewTableConfig("keyspace", "table", "cf1", types.OrderedCodeEncoding, []*types.Column{
-				{Name: "user_id", TypeInfo: types.TypeVarchar, KeyType: utilities.KEY_TYPE_PARTITION, PkPrecedence: 1},
+				{Name: "user_id", CQLType: types.TypeVarchar, KeyType: utilities.KEY_TYPE_PARTITION, PkPrecedence: 1},
 			}),
 			values: map[string]interface{}{
 				"user_id": string([]uint8{182}),
@@ -1886,7 +1886,7 @@ func TestCreateOrderedCodeKey(t *testing.T) {
 		{
 			name: "null char",
 			tableConfig: schemaMapping.NewTableConfig("keyspace", "table", "cf1", types.OrderedCodeEncoding, []*types.Column{
-				{Name: "user_id", TypeInfo: types.TypeVarchar, KeyType: utilities.KEY_TYPE_PARTITION, PkPrecedence: 1},
+				{Name: "user_id", CQLType: types.TypeVarchar, KeyType: utilities.KEY_TYPE_PARTITION, PkPrecedence: 1},
 			}),
 			values: map[string]interface{}{
 				"user_id": "\x00\x01",
@@ -2154,7 +2154,7 @@ func TestProcessCollectionColumnsForPrepareQueries_ComplexMetaAndNonCollection(t
 		{
 			name: "Non-collection column (text)",
 			columnsResponse: []*types.Column{
-				{Name: "pk_1_text", TypeInfo: types.TypeVarchar, ColumnFamily: "cf1"},
+				{Name: "pk_1_text", CQLType: types.TypeVarchar, ColumnFamily: "cf1"},
 			},
 			values: []*primitive.Value{
 				{Contents: textValueBytes},
@@ -2162,7 +2162,7 @@ func TestProcessCollectionColumnsForPrepareQueries_ComplexMetaAndNonCollection(t
 			complexMeta: map[string]*ComplexOperation{},
 			primaryKeys: []string{"pk_1_text"},
 			wantNewColumns: []*types.Column{
-				{Name: "pk_1_text", TypeInfo: types.TypeVarchar, ColumnFamily: "cf1"},
+				{Name: "pk_1_text", CQLType: types.TypeVarchar, ColumnFamily: "cf1"},
 			},
 			wantNewValues:    []interface{}{textValueBytes},
 			wantUnencrypted:  map[string]interface{}{},
@@ -2174,7 +2174,7 @@ func TestProcessCollectionColumnsForPrepareQueries_ComplexMetaAndNonCollection(t
 		{
 			name: "Non-collection column (int)",
 			columnsResponse: []*types.Column{
-				{Name: "column_int", TypeInfo: types.TypeInt, ColumnFamily: "cf1"},
+				{Name: "column_int", CQLType: types.TypeInt, ColumnFamily: "cf1"},
 			},
 			values: []*primitive.Value{
 				{Contents: intValueBytes},
@@ -2182,7 +2182,7 @@ func TestProcessCollectionColumnsForPrepareQueries_ComplexMetaAndNonCollection(t
 			complexMeta: map[string]*ComplexOperation{},
 			primaryKeys: []string{},
 			wantNewColumns: []*types.Column{
-				{Name: "column_int", TypeInfo: types.TypeInt, ColumnFamily: "cf1"},
+				{Name: "column_int", CQLType: types.TypeInt, ColumnFamily: "cf1"},
 			},
 
 			wantNewValues:    []interface{}{[]byte{0, 0, 0, 0, 0, 0, 0, 123}},
@@ -2195,7 +2195,7 @@ func TestProcessCollectionColumnsForPrepareQueries_ComplexMetaAndNonCollection(t
 		{
 			name: "Map append for specific key",
 			columnsResponse: []*types.Column{
-				{Name: "map_text_text", TypeInfo: utilities.ParseCqlTypeOrDie("map<varchar,varchar>"), ColumnFamily: "map_text_text"},
+				{Name: "map_text_text", CQLType: utilities.ParseCqlTypeOrDie("map<varchar,varchar>"), ColumnFamily: "map_text_text"},
 			},
 			values: []*primitive.Value{
 				{Contents: textValue2Bytes},
@@ -2209,7 +2209,7 @@ func TestProcessCollectionColumnsForPrepareQueries_ComplexMetaAndNonCollection(t
 			},
 			primaryKeys: []string{},
 			wantNewColumns: []*types.Column{
-				{Name: "newKey", ColumnFamily: "map_text_text", TypeInfo: types.TypeVarchar},
+				{Name: "newKey", ColumnFamily: "map_text_text", CQLType: types.TypeVarchar},
 			},
 			wantNewValues:    []interface{}{textValue2Bytes},
 			wantUnencrypted:  map[string]interface{}{},
@@ -2221,7 +2221,7 @@ func TestProcessCollectionColumnsForPrepareQueries_ComplexMetaAndNonCollection(t
 		{
 			name: "Map delete",
 			columnsResponse: []*types.Column{
-				{Name: "map_text_text", TypeInfo: utilities.ParseCqlTypeOrDie("map<varchar,varchar>"), ColumnFamily: "map_text_text"},
+				{Name: "map_text_text", CQLType: utilities.ParseCqlTypeOrDie("map<varchar,varchar>"), ColumnFamily: "map_text_text"},
 			},
 			values: []*primitive.Value{
 				// Value contains the keys to delete, encoded as a set<text>
@@ -2248,7 +2248,7 @@ func TestProcessCollectionColumnsForPrepareQueries_ComplexMetaAndNonCollection(t
 		{
 			name: "List update by index",
 			columnsResponse: []*types.Column{
-				{Name: "list_text", TypeInfo: types.NewListType(types.TypeVarchar), ColumnFamily: "list_text"},
+				{Name: "list_text", CQLType: types.NewListType(types.TypeVarchar), ColumnFamily: "list_text"},
 			},
 			values: []*primitive.Value{
 				{Contents: textValue3Bytes}, // The new value for the specific index
@@ -2271,7 +2271,7 @@ func TestProcessCollectionColumnsForPrepareQueries_ComplexMetaAndNonCollection(t
 		{
 			name: "Set delete elements",
 			columnsResponse: []*types.Column{
-				{Name: "set_text", TypeInfo: types.NewSetType(types.TypeVarchar), ColumnFamily: "set_text"},
+				{Name: "set_text", CQLType: types.NewSetType(types.TypeVarchar), ColumnFamily: "set_text"},
 			},
 			values: []*primitive.Value{
 				{Contents: setValueBytes}, // The set containing elements to delete
@@ -2422,7 +2422,7 @@ func TestProcessComplexUpdate_SuccessfulCases(t *testing.T) {
 		{
 			name: "map append operation",
 			columns: []*types.Column{
-				{Name: "map_text_text", TypeInfo: utilities.ParseCqlTypeOrDie("map<varchar,varchar>")},
+				{Name: "map_text_text", CQLType: utilities.ParseCqlTypeOrDie("map<varchar,varchar>")},
 			},
 			values: []interface{}{
 				ComplexAssignment{
@@ -2444,7 +2444,7 @@ func TestProcessComplexUpdate_SuccessfulCases(t *testing.T) {
 		{
 			name: "list prepend operation",
 			columns: []*types.Column{
-				{Name: "list_text", TypeInfo: types.NewListType(types.TypeVarchar)},
+				{Name: "list_text", CQLType: types.NewListType(types.TypeVarchar)},
 			},
 			values: []interface{}{
 				ComplexAssignment{
@@ -2468,8 +2468,8 @@ func TestProcessComplexUpdate_SuccessfulCases(t *testing.T) {
 		{
 			name: "multiple operations",
 			columns: []*types.Column{
-				{Name: "map_text_text", TypeInfo: utilities.ParseCqlTypeOrDie("map<varchar,varchar>")},
-				{Name: "list_text", TypeInfo: types.NewListType(types.TypeVarchar)},
+				{Name: "map_text_text", CQLType: utilities.ParseCqlTypeOrDie("map<varchar,varchar>")},
+				{Name: "list_text", CQLType: types.NewListType(types.TypeVarchar)},
 			},
 			// values: []interface{}{
 			// 	"map_text_text+{key:?}",
@@ -2507,7 +2507,7 @@ func TestProcessComplexUpdate_SuccessfulCases(t *testing.T) {
 		{
 			name: "non-collection column operation",
 			columns: []*types.Column{
-				{Name: "normal_col", TypeInfo: types.TypeVarchar},
+				{Name: "normal_col", CQLType: types.TypeVarchar},
 			},
 			values:         []interface{}{"normal_col+value"},
 			tableName:      "table1",
@@ -2519,7 +2519,7 @@ func TestProcessComplexUpdate_SuccessfulCases(t *testing.T) {
 		{
 			name: "skip invalid value type",
 			columns: []*types.Column{
-				{Name: "map_text_text", TypeInfo: utilities.ParseCqlTypeOrDie("map<varchar,varchar>")},
+				{Name: "map_text_text", CQLType: utilities.ParseCqlTypeOrDie("map<varchar,varchar>")},
 			},
 			values:         []interface{}{123}, // Not a string
 			tableName:      "table1",
@@ -2791,8 +2791,8 @@ func TestAddSetElements(t *testing.T) {
 			setValues: []string{"value1"},
 			colFamily: "test_family",
 			column: &types.Column{
-				Name:     "test_set",
-				TypeInfo: types.NewSetType(types.TypeVarchar),
+				Name:    "test_set",
+				CQLType: types.NewSetType(types.TypeVarchar),
 			},
 			input:  ProcessRawCollectionsInput{},
 			output: &ProcessRawCollectionsOutput{},
@@ -2801,7 +2801,7 @@ func TestAddSetElements(t *testing.T) {
 				assert.Len(t, output.NewValues, 1)
 				assert.Equal(t, "value1", output.NewColumns[0].Name)
 				assert.Equal(t, "test_family", output.NewColumns[0].ColumnFamily)
-				assert.Equal(t, datatype.Varchar, output.NewColumns[0].TypeInfo.DataType())
+				assert.Equal(t, datatype.Varchar, output.NewColumns[0].CQLType.DataType())
 				assert.Empty(t, output.NewValues[0])
 			},
 		},
@@ -2810,8 +2810,8 @@ func TestAddSetElements(t *testing.T) {
 			setValues: []string{"value1", "value2", "value3"},
 			colFamily: "test_family",
 			column: &types.Column{
-				Name:     "test_set",
-				TypeInfo: types.NewSetType(types.TypeVarchar),
+				Name:    "test_set",
+				CQLType: types.NewSetType(types.TypeVarchar),
 			},
 			input:  ProcessRawCollectionsInput{},
 			output: &ProcessRawCollectionsOutput{},
@@ -2822,7 +2822,7 @@ func TestAddSetElements(t *testing.T) {
 				for i, val := range expectedValues {
 					assert.Equal(t, val, output.NewColumns[i].Name)
 					assert.Equal(t, "test_family", output.NewColumns[i].ColumnFamily)
-					assert.Equal(t, datatype.Varchar, output.NewColumns[i].TypeInfo.DataType())
+					assert.Equal(t, datatype.Varchar, output.NewColumns[i].CQLType.DataType())
 					assert.Empty(t, output.NewValues[i])
 				}
 			},
@@ -2832,8 +2832,8 @@ func TestAddSetElements(t *testing.T) {
 			setValues: []string{"true", "false"},
 			colFamily: "test_family",
 			column: &types.Column{
-				Name:     "test_set",
-				TypeInfo: types.NewSetType(types.TypeBoolean),
+				Name:    "test_set",
+				CQLType: types.NewSetType(types.TypeBoolean),
 			},
 			input:  ProcessRawCollectionsInput{},
 			output: &ProcessRawCollectionsOutput{},
@@ -2844,7 +2844,7 @@ func TestAddSetElements(t *testing.T) {
 				for i, val := range expectedValues {
 					assert.Equal(t, val, output.NewColumns[i].Name)
 					assert.Equal(t, "test_family", output.NewColumns[i].ColumnFamily)
-					assert.Equal(t, datatype.Boolean, output.NewColumns[i].TypeInfo.DataType())
+					assert.Equal(t, datatype.Boolean, output.NewColumns[i].CQLType.DataType())
 					assert.Empty(t, output.NewValues[i])
 				}
 			},
@@ -2854,8 +2854,8 @@ func TestAddSetElements(t *testing.T) {
 			setValues: []string{},
 			colFamily: "test_family",
 			column: &types.Column{
-				Name:     "test_set",
-				TypeInfo: types.NewSetType(types.TypeVarchar),
+				Name:    "test_set",
+				CQLType: types.NewSetType(types.TypeVarchar),
 			},
 			input:  ProcessRawCollectionsInput{},
 			output: &ProcessRawCollectionsOutput{},
@@ -2869,8 +2869,8 @@ func TestAddSetElements(t *testing.T) {
 			setValues: []string{"value1"},
 			colFamily: "",
 			column: &types.Column{
-				Name:     "test_set",
-				TypeInfo: types.NewSetType(types.TypeVarchar),
+				Name:    "test_set",
+				CQLType: types.NewSetType(types.TypeVarchar),
 			},
 			input:  ProcessRawCollectionsInput{},
 			output: &ProcessRawCollectionsOutput{},
@@ -2879,7 +2879,7 @@ func TestAddSetElements(t *testing.T) {
 				assert.Len(t, output.NewValues, 1)
 				assert.Equal(t, "value1", output.NewColumns[0].Name)
 				assert.Empty(t, output.NewColumns[0].ColumnFamily)
-				assert.Equal(t, datatype.Varchar, output.NewColumns[0].TypeInfo.DataType())
+				assert.Equal(t, datatype.Varchar, output.NewColumns[0].CQLType.DataType())
 				assert.Empty(t, output.NewValues[0])
 			},
 		},
@@ -2888,8 +2888,8 @@ func TestAddSetElements(t *testing.T) {
 			setValues: []string{"invalid"},
 			colFamily: "test_family",
 			column: &types.Column{
-				Name:     "test_set",
-				TypeInfo: types.NewSetType(types.TypeBoolean),
+				Name:    "test_set",
+				CQLType: types.NewSetType(types.TypeBoolean),
 			},
 			input:       ProcessRawCollectionsInput{},
 			output:      &ProcessRawCollectionsOutput{},
@@ -2900,8 +2900,8 @@ func TestAddSetElements(t *testing.T) {
 			setValues: []string{"value1"},
 			colFamily: "test_family",
 			column: &types.Column{
-				Name:     "test_set",
-				TypeInfo: types.NewSetType(types.TypeVarchar),
+				Name:    "test_set",
+				CQLType: types.NewSetType(types.TypeVarchar),
 			},
 			input:       ProcessRawCollectionsInput{},
 			output:      nil,
@@ -2912,8 +2912,8 @@ func TestAddSetElements(t *testing.T) {
 			setValues: []string{"value1", "123", "true"},
 			colFamily: "test_family",
 			column: &types.Column{
-				Name:     "test_set",
-				TypeInfo: types.NewSetType(types.TypeInt),
+				Name:    "test_set",
+				CQLType: types.NewSetType(types.TypeInt),
 			},
 			input:       ProcessRawCollectionsInput{},
 			output:      &ProcessRawCollectionsOutput{},
@@ -2923,7 +2923,7 @@ func TestAddSetElements(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := addSetElements(tt.setValues, tt.colFamily, tt.column.TypeInfo.(*types.SetType), tt.input, tt.output)
+			err := addSetElements(tt.setValues, tt.colFamily, tt.column.CQLType.(*types.SetType), tt.input, tt.output)
 
 			if tt.expectedErr {
 				assert.Error(t, err)
@@ -2949,8 +2949,8 @@ func TestHandleListOperation(t *testing.T) {
 		{
 			name: "Add operation with prepend",
 			column: &types.Column{
-				Name:     "mylist",
-				TypeInfo: types.NewListType(types.TypeInt),
+				Name:    "mylist",
+				CQLType: types.NewListType(types.TypeInt),
 			},
 			input: ProcessRawCollectionsInput{
 				PrependColumns: []string{"mylist"},
@@ -2961,15 +2961,15 @@ func TestHandleListOperation(t *testing.T) {
 				assert.Len(t, output.NewColumns, 2)
 				for _, col := range output.NewColumns {
 					assert.Equal(t, "mylist", col.ColumnFamily)
-					assert.Equal(t, datatype.Int, col.TypeInfo.DataType())
+					assert.Equal(t, datatype.Int, col.CQLType.DataType())
 				}
 			},
 		},
 		{
 			name: "Remove operation",
 			column: &types.Column{
-				Name:     "mylist",
-				TypeInfo: types.NewListType(types.TypeInt),
+				Name:    "mylist",
+				CQLType: types.NewListType(types.TypeInt),
 			},
 			operation: ComplexAssignment{Operation: "-", Right: []string{"3", "4"}},
 			input:     ProcessRawCollectionsInput{},
@@ -2982,8 +2982,8 @@ func TestHandleListOperation(t *testing.T) {
 		{
 			name: "Update index operation",
 			column: &types.Column{
-				Name:     "mylist",
-				TypeInfo: types.NewListType(types.TypeInt),
+				Name:    "mylist",
+				CQLType: types.NewListType(types.TypeInt),
 			},
 			operation: ComplexAssignment{Operation: "update_index", Left: "1", Right: "123"},
 			input:     ProcessRawCollectionsInput{},
@@ -2995,8 +2995,8 @@ func TestHandleListOperation(t *testing.T) {
 		{
 			name: "Simple assignment",
 			column: &types.Column{
-				Name:     "mylist",
-				TypeInfo: types.NewListType(types.TypeInt),
+				Name:    "mylist",
+				CQLType: types.NewListType(types.TypeInt),
 			},
 			operation: []string{"1", "2"},
 			input:     ProcessRawCollectionsInput{},
@@ -3010,8 +3010,8 @@ func TestHandleListOperation(t *testing.T) {
 		{
 			name: "Invalid operation",
 			column: &types.Column{
-				Name:     "mylist",
-				TypeInfo: types.NewListType(types.TypeInt),
+				Name:    "mylist",
+				CQLType: types.NewListType(types.TypeInt),
 			},
 			operation: ComplexAssignment{Operation: "invalid"},
 			input:     ProcessRawCollectionsInput{},
@@ -3024,7 +3024,7 @@ func TestHandleListOperation(t *testing.T) {
 			output := &ProcessRawCollectionsOutput{
 				ComplexMeta: make(map[string]*ComplexOperation),
 			}
-			err := handleListOperation(tt.operation, tt.column, tt.column.TypeInfo.(*types.ListType), tt.column.Name, tt.input, output)
+			err := handleListOperation(tt.operation, tt.column, tt.column.CQLType.(*types.ListType), tt.column.Name, tt.input, output)
 			if tt.wantErr {
 				assert.Error(t, err)
 				return
@@ -3049,8 +3049,8 @@ func TestHandleSetOperation(t *testing.T) {
 		{
 			name: "Add elements to set",
 			column: &types.Column{
-				Name:     "myset",
-				TypeInfo: types.NewSetType(types.TypeInt),
+				Name:    "myset",
+				CQLType: types.NewSetType(types.TypeInt),
 			},
 			operation: ComplexAssignment{Operation: "+", Right: []string{"1", "2", "3"}},
 			input:     ProcessRawCollectionsInput{},
@@ -3059,7 +3059,7 @@ func TestHandleSetOperation(t *testing.T) {
 				assert.Len(t, output.NewValues, 3)
 				for i, col := range output.NewColumns {
 					assert.Equal(t, "myset", col.ColumnFamily)
-					assert.Equal(t, datatype.Int, col.TypeInfo.DataType())
+					assert.Equal(t, datatype.Int, col.CQLType.DataType())
 					assert.Equal(t, fmt.Sprintf("%d", i+1), col.Name)
 				}
 			},
@@ -3067,8 +3067,8 @@ func TestHandleSetOperation(t *testing.T) {
 		{
 			name: "Remove elements from set",
 			column: &types.Column{
-				Name:     "myset",
-				TypeInfo: types.NewSetType(types.TypeInt),
+				Name:    "myset",
+				CQLType: types.NewSetType(types.TypeInt),
 			},
 			operation: ComplexAssignment{Operation: "-", Right: []string{"1", "2"}},
 			input:     ProcessRawCollectionsInput{},
@@ -3082,8 +3082,8 @@ func TestHandleSetOperation(t *testing.T) {
 		{
 			name: "Simple assignment to set",
 			column: &types.Column{
-				Name:     "myset",
-				TypeInfo: types.NewSetType(types.TypeInt),
+				Name:    "myset",
+				CQLType: types.NewSetType(types.TypeInt),
 			},
 			operation: []string{"1", "2", "3"},
 			input:     ProcessRawCollectionsInput{},
@@ -3097,8 +3097,8 @@ func TestHandleSetOperation(t *testing.T) {
 		{
 			name: "Invalid operation",
 			column: &types.Column{
-				Name:     "myset",
-				TypeInfo: types.NewSetType(types.TypeInt),
+				Name:    "myset",
+				CQLType: types.NewSetType(types.TypeInt),
 			},
 			operation: ComplexAssignment{Operation: "invalid"},
 			input:     ProcessRawCollectionsInput{},
@@ -3111,7 +3111,7 @@ func TestHandleSetOperation(t *testing.T) {
 			output := &ProcessRawCollectionsOutput{
 				ComplexMeta: make(map[string]*ComplexOperation),
 			}
-			err := handleSetOperation(tt.operation, tt.column, tt.column.TypeInfo.(*types.SetType), tt.column.Name, tt.input, output)
+			err := handleSetOperation(tt.operation, tt.column, tt.column.CQLType.(*types.SetType), tt.column.Name, tt.input, output)
 			if tt.wantErr {
 				assert.Error(t, err)
 				return
@@ -3136,8 +3136,8 @@ func TestHandleMapOperation(t *testing.T) {
 		{
 			name: "Add entries to map",
 			column: &types.Column{
-				Name:     "mymap",
-				TypeInfo: types.NewMapType(types.TypeVarchar, types.TypeInt),
+				Name:    "mymap",
+				CQLType: types.NewMapType(types.TypeVarchar, types.TypeInt),
 			},
 			operation: ComplexAssignment{Operation: "+", Right: map[string]string{"key1": "1", "key2": "2"}},
 			input:     ProcessRawCollectionsInput{},
@@ -3153,8 +3153,8 @@ func TestHandleMapOperation(t *testing.T) {
 		{
 			name: "Remove entries from map",
 			column: &types.Column{
-				Name:     "mymap",
-				TypeInfo: types.NewMapType(types.TypeVarchar, types.TypeInt),
+				Name:    "mymap",
+				CQLType: types.NewMapType(types.TypeVarchar, types.TypeInt),
 			},
 			operation: ComplexAssignment{Operation: "-", Right: []string{"key1", "key2"}},
 			input:     ProcessRawCollectionsInput{},
@@ -3169,8 +3169,8 @@ func TestHandleMapOperation(t *testing.T) {
 		{
 			name: "Update map index",
 			column: &types.Column{
-				Name:     "mymap",
-				TypeInfo: types.NewMapType(types.TypeVarchar, types.TypeInt),
+				Name:    "mymap",
+				CQLType: types.NewMapType(types.TypeVarchar, types.TypeInt),
 			},
 			operation: ComplexAssignment{Operation: "update_index", Left: "key1", Right: "99"},
 			input:     ProcessRawCollectionsInput{},
@@ -3183,8 +3183,8 @@ func TestHandleMapOperation(t *testing.T) {
 		{
 			name: "Simple assignment to map",
 			column: &types.Column{
-				Name:     "mymap",
-				TypeInfo: types.NewMapType(types.TypeVarchar, types.TypeInt),
+				Name:    "mymap",
+				CQLType: types.NewMapType(types.TypeVarchar, types.TypeInt),
 			},
 			operation: map[string]string{"key1": "1", "key2": "2"},
 			input:     ProcessRawCollectionsInput{},
@@ -3198,8 +3198,8 @@ func TestHandleMapOperation(t *testing.T) {
 		{
 			name: "Invalid map key type",
 			column: &types.Column{
-				Name:     "mymap",
-				TypeInfo: types.NewMapType(types.TypeInt, types.TypeInt),
+				Name:    "mymap",
+				CQLType: types.NewMapType(types.TypeInt, types.TypeInt),
 			},
 			operation: ComplexAssignment{Operation: "+", Right: map[string]string{"key1": "1"}},
 			input:     ProcessRawCollectionsInput{},
@@ -3212,7 +3212,7 @@ func TestHandleMapOperation(t *testing.T) {
 			output := &ProcessRawCollectionsOutput{
 				ComplexMeta: make(map[string]*ComplexOperation),
 			}
-			err := handleMapOperation(tt.operation, tt.column, tt.column.TypeInfo.(*types.MapType), tt.column.Name, tt.input, output)
+			err := handleMapOperation(tt.operation, tt.column, tt.column.CQLType.(*types.MapType), tt.column.Name, tt.input, output)
 			if tt.wantErr {
 				assert.Error(t, err)
 				return
@@ -3228,16 +3228,16 @@ func TestHandleMapOperation(t *testing.T) {
 func TestProcessCollectionColumnsForRawQueries(t *testing.T) {
 	// Mock key data types for columns
 	colList := &types.Column{
-		Name:     "list_text",
-		TypeInfo: types.NewListType(types.TypeVarchar),
+		Name:    "list_text",
+		CQLType: types.NewListType(types.TypeVarchar),
 	}
 	colSet := &types.Column{
-		Name:     "column7",
-		TypeInfo: types.NewSetType(types.TypeVarchar),
+		Name:    "column7",
+		CQLType: types.NewSetType(types.TypeVarchar),
 	}
 	colMap := &types.Column{
-		Name:     "map_text_text",
-		TypeInfo: types.NewMapType(types.TypeVarchar, types.TypeVarchar),
+		Name:    "map_text_text",
+		CQLType: types.NewMapType(types.TypeVarchar, types.TypeVarchar),
 	}
 
 	// Mock inputs
@@ -3276,22 +3276,22 @@ func TestConvertAllValuesToRowKeyType(t *testing.T) {
 	pkCols := []*types.Column{
 		{
 			Name:         "id_int",
-			TypeInfo:     types.TypeInt,
+			CQLType:      types.TypeInt,
 			IsPrimaryKey: true,
 		},
 		{
 			Name:         "id_bigint",
-			TypeInfo:     types.TypeBigint,
+			CQLType:      types.TypeBigint,
 			IsPrimaryKey: true,
 		},
 		{
 			Name:         "name_varchar",
-			TypeInfo:     types.TypeVarchar,
+			CQLType:      types.TypeVarchar,
 			IsPrimaryKey: true,
 		},
 		{
 			Name:         "blob_pk",
-			TypeInfo:     types.TypeBlob,
+			CQLType:      types.TypeBlob,
 			IsPrimaryKey: true,
 		},
 	}

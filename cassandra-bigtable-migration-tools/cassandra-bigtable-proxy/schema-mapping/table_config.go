@@ -41,11 +41,11 @@ type TableConfig struct {
 
 // NewTableConfig is a constructor for TableConfig. Please use this instead of direct initialization.
 func NewTableConfig(
-	keyspace string,
-	name string,
-	systemColumnFamily string,
-	intRowKeyEncoding types.IntRowKeyEncodingType,
-	columns []*types.Column,
+		keyspace string,
+		name string,
+		systemColumnFamily string,
+		intRowKeyEncoding types.IntRowKeyEncodingType,
+		columns []*types.Column,
 ) *TableConfig {
 	columnMap := make(map[string]*types.Column)
 	var pmks []*types.Column = nil
@@ -56,7 +56,7 @@ func NewTableConfig(
 			Table:    name,
 			Name:     column.Name,
 			Index:    int32(i),
-			Type:     column.TypeInfo.DataType(),
+			Type:     column.CQLType.DataType(),
 		}
 		columnMap[column.Name] = column
 		if column.KeyType != utilities.KEY_TYPE_REGULAR {
@@ -151,7 +151,7 @@ func (tableConfig *TableConfig) Describe() string {
 	var colDefs []string
 	for _, colName := range colNames {
 		col := tableConfig.Columns[colName]
-		colDefs = append(colDefs, fmt.Sprintf("%s %s", colName, strings.ToUpper(col.TypeInfo.String())))
+		colDefs = append(colDefs, fmt.Sprintf("%s %s", colName, strings.ToUpper(col.CQLType.String())))
 	}
 
 	var pkCols []string = nil
@@ -212,10 +212,10 @@ func (tableConfig *TableConfig) GetColumnType(columnName string) (types.CqlDataT
 		return nil, fmt.Errorf("undefined column name %s in table %s.%s", columnName, tableConfig.Keyspace, tableConfig.Name)
 	}
 
-	if col.TypeInfo == nil {
+	if col.CQLType == nil {
 		return nil, fmt.Errorf("undefined column name %s in table %s.%s", columnName, tableConfig.Keyspace, tableConfig.Name)
 	}
-	return col.TypeInfo, nil
+	return col.CQLType, nil
 }
 
 // GetMetadataForColumns retrieves metadata for specific columns in a given table.

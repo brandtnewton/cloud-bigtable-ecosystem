@@ -920,7 +920,7 @@ func TestCreateTable(t *testing.T) {
 	require.Equal(t, map[string]*types.Column{
 		"org": {
 			Name:         "org",
-			TypeInfo:     types.TypeVarchar,
+			CQLType:      types.TypeVarchar,
 			IsPrimaryKey: true,
 			PkPrecedence: 1,
 			KeyType:      "partition_key",
@@ -934,7 +934,7 @@ func TestCreateTable(t *testing.T) {
 		},
 		"id": {
 			Name:         "id",
-			TypeInfo:     types.TypeBigint,
+			CQLType:      types.TypeBigint,
 			IsPrimaryKey: true,
 			PkPrecedence: 2,
 			KeyType:      "clustering",
@@ -948,7 +948,7 @@ func TestCreateTable(t *testing.T) {
 		},
 		"name": {
 			Name:         "name",
-			TypeInfo:     types.TypeVarchar,
+			CQLType:      types.TypeVarchar,
 			IsPrimaryKey: false,
 			PkPrecedence: 0,
 			KeyType:      utilities.KEY_TYPE_REGULAR,
@@ -962,7 +962,7 @@ func TestCreateTable(t *testing.T) {
 		},
 		"zipcode": {
 			Name:         "zipcode",
-			TypeInfo:     types.TypeInt,
+			CQLType:      types.TypeInt,
 			IsPrimaryKey: false,
 			PkPrecedence: 0,
 			KeyType:      utilities.KEY_TYPE_REGULAR,
@@ -1173,7 +1173,7 @@ func TestAlterTable(t *testing.T) {
 	require.Equal(t, tableMap["alter_table_test"].Columns, map[string]*types.Column{
 		"org": {
 			Name:         "org",
-			TypeInfo:     types.TypeVarchar,
+			CQLType:      types.TypeVarchar,
 			IsPrimaryKey: true,
 			PkPrecedence: 1,
 			KeyType:      "partition_key",
@@ -1187,7 +1187,7 @@ func TestAlterTable(t *testing.T) {
 		},
 		"id": {
 			Name:         "id",
-			TypeInfo:     types.TypeBigint,
+			CQLType:      types.TypeBigint,
 			IsPrimaryKey: true,
 			PkPrecedence: 2,
 			KeyType:      "clustering",
@@ -1201,7 +1201,7 @@ func TestAlterTable(t *testing.T) {
 		},
 		"name": {
 			Name:         "name",
-			TypeInfo:     types.TypeVarchar,
+			CQLType:      types.TypeVarchar,
 			IsPrimaryKey: false,
 			PkPrecedence: 0,
 			KeyType:      utilities.KEY_TYPE_REGULAR,
@@ -1215,7 +1215,7 @@ func TestAlterTable(t *testing.T) {
 		},
 		"zodiac": {
 			Name:         "zodiac",
-			TypeInfo:     types.TypeVarchar,
+			CQLType:      types.TypeVarchar,
 			IsPrimaryKey: false,
 			PkPrecedence: 0,
 			KeyType:      utilities.KEY_TYPE_REGULAR,

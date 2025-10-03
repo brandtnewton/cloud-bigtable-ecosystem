@@ -20,7 +20,7 @@ func TestTableConfig_Describe(t *testing.T) {
 				{
 					Name:         "name",
 					ColumnFamily: "cf1",
-					TypeInfo:     types.TypeVarchar,
+					CQLType:      types.TypeVarchar,
 					IsPrimaryKey: false,
 					PkPrecedence: 0,
 					KeyType:      utilities.KEY_TYPE_REGULAR,
@@ -28,7 +28,7 @@ func TestTableConfig_Describe(t *testing.T) {
 				{
 					Name:         "org_id",
 					ColumnFamily: "cf1",
-					TypeInfo:     types.TypeBigint,
+					CQLType:      types.TypeBigint,
 					IsPrimaryKey: true,
 					PkPrecedence: 1,
 					KeyType:      utilities.KEY_TYPE_PARTITION,
@@ -36,7 +36,7 @@ func TestTableConfig_Describe(t *testing.T) {
 				{
 					Name:         "user_id",
 					ColumnFamily: "cf1",
-					TypeInfo:     types.TypeBigint,
+					CQLType:      types.TypeBigint,
 					IsPrimaryKey: true,
 					PkPrecedence: 2,
 					KeyType:      utilities.KEY_TYPE_CLUSTERING,
@@ -50,7 +50,7 @@ func TestTableConfig_Describe(t *testing.T) {
 				{
 					Name:         "org_id",
 					ColumnFamily: "cf1",
-					TypeInfo:     types.TypeBigint,
+					CQLType:      types.TypeBigint,
 					IsPrimaryKey: true,
 					PkPrecedence: 1,
 					KeyType:      utilities.KEY_TYPE_PARTITION,
@@ -58,7 +58,7 @@ func TestTableConfig_Describe(t *testing.T) {
 				{
 					Name:         "user_id",
 					ColumnFamily: "cf1",
-					TypeInfo:     types.TypeBigint,
+					CQLType:      types.TypeBigint,
 					IsPrimaryKey: true,
 					PkPrecedence: 2,
 					KeyType:      utilities.KEY_TYPE_PARTITION,
@@ -66,7 +66,7 @@ func TestTableConfig_Describe(t *testing.T) {
 				{
 					Name:         "group_id",
 					ColumnFamily: "cf1",
-					TypeInfo:     types.TypeBigint,
+					CQLType:      types.TypeBigint,
 					IsPrimaryKey: true,
 					PkPrecedence: 3,
 					KeyType:      utilities.KEY_TYPE_CLUSTERING,
@@ -74,7 +74,7 @@ func TestTableConfig_Describe(t *testing.T) {
 				{
 					Name:         "name",
 					ColumnFamily: "cf1",
-					TypeInfo:     types.TypeVarchar,
+					CQLType:      types.TypeVarchar,
 					IsPrimaryKey: false,
 					PkPrecedence: 0,
 					KeyType:      utilities.KEY_TYPE_REGULAR,
@@ -88,7 +88,7 @@ func TestTableConfig_Describe(t *testing.T) {
 				{
 					Name:         "org_id",
 					ColumnFamily: "cf1",
-					TypeInfo:     types.TypeBigint,
+					CQLType:      types.TypeBigint,
 					IsPrimaryKey: true,
 					PkPrecedence: 1,
 					KeyType:      utilities.KEY_TYPE_PARTITION,
@@ -96,7 +96,7 @@ func TestTableConfig_Describe(t *testing.T) {
 				{
 					Name:         "user_id",
 					ColumnFamily: "cf1",
-					TypeInfo:     types.TypeBigint,
+					CQLType:      types.TypeBigint,
 					IsPrimaryKey: false,
 					PkPrecedence: 0,
 					KeyType:      utilities.KEY_TYPE_REGULAR,
@@ -104,7 +104,7 @@ func TestTableConfig_Describe(t *testing.T) {
 				{
 					Name:         "name",
 					ColumnFamily: "cf1",
-					TypeInfo:     types.TypeVarchar,
+					CQLType:      types.TypeVarchar,
 					IsPrimaryKey: false,
 					PkPrecedence: 0,
 					KeyType:      utilities.KEY_TYPE_REGULAR,

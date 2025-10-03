@@ -136,8 +136,8 @@ func (m MapType) ValueType() CqlDataType {
 	return m.valueType
 }
 
-func NewMapType(keyType CqlDataType, valueType CqlDataType) CqlDataType {
-	return MapType{keyType: keyType, valueType: valueType, dt: datatype.NewMapType(keyType.DataType(), valueType.DataType())}
+func NewMapType(keyType CqlDataType, valueType CqlDataType) *MapType {
+	return &MapType{keyType: keyType, valueType: valueType, dt: datatype.NewMapType(keyType.DataType(), valueType.DataType())}
 }
 
 func (m MapType) DataType() datatype.DataType {
@@ -172,8 +172,8 @@ func (l ListType) ElementType() CqlDataType {
 	return l.elementType
 }
 
-func NewListType(elementType CqlDataType) CqlDataType {
-	return ListType{elementType: elementType, dt: datatype.NewListType(elementType.DataType())}
+func NewListType(elementType CqlDataType) *ListType {
+	return &ListType{elementType: elementType, dt: datatype.NewListType(elementType.DataType())}
 }
 
 func (l ListType) DataType() datatype.DataType {
@@ -204,8 +204,8 @@ func (s SetType) IsAnyFrozen() bool {
 	return s.elementType.IsAnyFrozen()
 }
 
-func NewSetType(elementType CqlDataType) CqlDataType {
-	return SetType{elementType: elementType, dt: datatype.NewSetType(elementType.DataType())}
+func NewSetType(elementType CqlDataType) *SetType {
+	return &SetType{elementType: elementType, dt: datatype.NewSetType(elementType.DataType())}
 }
 
 func (s SetType) DataType() datatype.DataType {
@@ -256,6 +256,6 @@ func (f FrozenType) String() string {
 	return fmt.Sprintf("frozen<%s>", f.innerType.String())
 }
 
-func NewFrozenType(inner CqlDataType) CqlDataType {
+func NewFrozenType(inner CqlDataType) *FrozenType {
 	return &FrozenType{innerType: inner}
 }

@@ -618,7 +618,7 @@ func TestTranslator_BuildUpdatePrepareQuery(t *testing.T) {
 		SchemaMappingConfig *schemaMapping.SchemaMappingConfig
 	}
 	type args struct {
-		columnsResponse []types.Column
+		columnsResponse []*types.Column
 		values          []*primitive.Value
 		st              *UpdateQueryMapping
 		protocolV       primitive.ProtocolVersion
@@ -641,7 +641,7 @@ func TestTranslator_BuildUpdatePrepareQuery(t *testing.T) {
 					{Contents: []byte("")},
 					{Contents: []byte("")},
 				},
-				columnsResponse: []types.Column{
+				columnsResponse: []*types.Column{
 					{
 						Name:         "pk_1_text",
 						ColumnFamily: "",
@@ -690,7 +690,7 @@ func TestTranslator_BuildUpdatePrepareQuery(t *testing.T) {
 						IsPrimaryKey: true,
 					},
 				},
-				Columns: []types.Column{
+				Columns: []*types.Column{
 					{
 						Name:         "blob_col",
 						ColumnFamily: "",

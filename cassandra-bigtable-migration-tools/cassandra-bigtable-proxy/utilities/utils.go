@@ -160,34 +160,34 @@ var reservedKeywords = map[string]bool{
 }
 
 var (
-	MapOfStrToStr     = types.NewMapType(types.TypeVarchar, types.TypeVarchar).(types.MapType)
-	MapOfStrToInt     = types.NewMapType(types.TypeVarchar, types.TypeInt).(types.MapType)
-	MapOfStrToBigInt  = types.NewMapType(types.TypeVarchar, types.TypeBigint).(types.MapType)
-	MapOfStrToBool    = types.NewMapType(types.TypeVarchar, types.TypeBoolean).(types.MapType)
-	MapOfStrToFloat   = types.NewMapType(types.TypeVarchar, types.TypeFloat).(types.MapType)
-	MapOfStrToDouble  = types.NewMapType(types.TypeVarchar, types.TypeDouble).(types.MapType)
-	MapOfStrToTime    = types.NewMapType(types.TypeVarchar, types.TypeTimestamp).(types.MapType)
-	MapOfTimeToTime   = types.NewMapType(types.TypeTimestamp, types.TypeTimestamp).(types.MapType)
-	MapOfTimeToStr    = types.NewMapType(types.TypeTimestamp, types.TypeVarchar).(types.MapType)
-	MapOfTimeToInt    = types.NewMapType(types.TypeTimestamp, types.TypeInt).(types.MapType)
-	MapOfTimeToBigInt = types.NewMapType(types.TypeTimestamp, types.TypeBigint).(types.MapType)
-	MapOfTimeToFloat  = types.NewMapType(types.TypeTimestamp, types.TypeFloat).(types.MapType)
-	MapOfTimeToDouble = types.NewMapType(types.TypeTimestamp, types.TypeDouble).(types.MapType)
-	MapOfTimeToBool   = types.NewMapType(types.TypeTimestamp, types.TypeBoolean).(types.MapType)
-	SetOfStr          = types.NewSetType(types.TypeVarchar).(types.SetType)
-	SetOfInt          = types.NewSetType(types.TypeInt).(types.SetType)
-	SetOfBigInt       = types.NewSetType(types.TypeBigint).(types.SetType)
-	SetOfBool         = types.NewSetType(types.TypeBoolean).(types.SetType)
-	SetOfFloat        = types.NewSetType(types.TypeFloat).(types.SetType)
-	SetOfDouble       = types.NewSetType(types.TypeDouble).(types.SetType)
-	SetOfTimeStamp    = types.NewSetType(types.TypeTimestamp).(types.SetType)
-	ListOfStr         = types.NewListType(types.TypeVarchar).(types.ListType)
-	ListOfBool        = types.NewListType(types.TypeBoolean).(types.ListType)
-	ListOfInt         = types.NewListType(types.TypeInt).(types.ListType)
-	ListOfBigInt      = types.NewListType(types.TypeBigint).(types.ListType)
-	ListOfFloat       = types.NewListType(types.TypeFloat).(types.ListType)
-	ListOfDouble      = types.NewListType(types.TypeDouble).(types.ListType)
-	ListOfTimeStamp   = types.NewListType(types.TypeTimestamp).(types.ListType)
+	MapOfStrToStr     = types.NewMapType(types.TypeVarchar, types.TypeVarchar)
+	MapOfStrToInt     = types.NewMapType(types.TypeVarchar, types.TypeInt)
+	MapOfStrToBigInt  = types.NewMapType(types.TypeVarchar, types.TypeBigint)
+	MapOfStrToBool    = types.NewMapType(types.TypeVarchar, types.TypeBoolean)
+	MapOfStrToFloat   = types.NewMapType(types.TypeVarchar, types.TypeFloat)
+	MapOfStrToDouble  = types.NewMapType(types.TypeVarchar, types.TypeDouble)
+	MapOfStrToTime    = types.NewMapType(types.TypeVarchar, types.TypeTimestamp)
+	MapOfTimeToTime   = types.NewMapType(types.TypeTimestamp, types.TypeTimestamp)
+	MapOfTimeToStr    = types.NewMapType(types.TypeTimestamp, types.TypeVarchar)
+	MapOfTimeToInt    = types.NewMapType(types.TypeTimestamp, types.TypeInt)
+	MapOfTimeToBigInt = types.NewMapType(types.TypeTimestamp, types.TypeBigint)
+	MapOfTimeToFloat  = types.NewMapType(types.TypeTimestamp, types.TypeFloat)
+	MapOfTimeToDouble = types.NewMapType(types.TypeTimestamp, types.TypeDouble)
+	MapOfTimeToBool   = types.NewMapType(types.TypeTimestamp, types.TypeBoolean)
+	SetOfStr          = types.NewSetType(types.TypeVarchar)
+	SetOfInt          = types.NewSetType(types.TypeInt)
+	SetOfBigInt       = types.NewSetType(types.TypeBigint)
+	SetOfBool         = types.NewSetType(types.TypeBoolean)
+	SetOfFloat        = types.NewSetType(types.TypeFloat)
+	SetOfDouble       = types.NewSetType(types.TypeDouble)
+	SetOfTimeStamp    = types.NewSetType(types.TypeTimestamp)
+	ListOfStr         = types.NewListType(types.TypeVarchar)
+	ListOfBool        = types.NewListType(types.TypeBoolean)
+	ListOfInt         = types.NewListType(types.TypeInt)
+	ListOfBigInt      = types.NewListType(types.TypeBigint)
+	ListOfFloat       = types.NewListType(types.TypeFloat)
+	ListOfDouble      = types.NewListType(types.TypeDouble)
+	ListOfTimeStamp   = types.NewListType(types.TypeTimestamp)
 )
 
 var (
@@ -280,6 +280,87 @@ func IsReservedCqlKeyword(s string) bool {
 	// we're opting to treat reserved and "non-reserved" keywords the same, for simplicity
 	_, found := reservedKeywords[strings.ToUpper(s)]
 	return found
+}
+
+func FromDataCode(dt datatype.DataType) (types.CqlDataType, error) {
+	switch dt.GetDataTypeCode() {
+	case primitive.DataTypeCodeAscii:
+		return types.TypeAscii, nil
+	case primitive.DataTypeCodeBigint:
+		return types.TypeBigint, nil
+	case primitive.DataTypeCodeBlob:
+		return types.TypeBlob, nil
+	case primitive.DataTypeCodeBoolean:
+		return types.TypeBoolean, nil
+	case primitive.DataTypeCodeCounter:
+		return types.TypeCounter, nil
+	case primitive.DataTypeCodeDecimal:
+		return types.TypeDecimal, nil
+	case primitive.DataTypeCodeDouble:
+		return types.TypeDouble, nil
+	case primitive.DataTypeCodeFloat:
+		return types.TypeFloat, nil
+	case primitive.DataTypeCodeInt:
+		return types.TypeInt, nil
+	case primitive.DataTypeCodeText:
+		return types.TypeText, nil
+	case primitive.DataTypeCodeTimestamp:
+		return types.TypeTimestamp, nil
+	case primitive.DataTypeCodeUuid:
+		return types.TypeUuid, nil
+	case primitive.DataTypeCodeVarchar:
+		return types.TypeVarchar, nil
+	case primitive.DataTypeCodeVarint:
+		return types.TypeVarint, nil
+	case primitive.DataTypeCodeTimeuuid:
+		return types.TypeTimeuuid, nil
+	case primitive.DataTypeCodeInet:
+		return types.TypeInet, nil
+	case primitive.DataTypeCodeDate:
+		return types.TypeDate, nil
+	case primitive.DataTypeCodeTime:
+		return types.TypeTime, nil
+	case primitive.DataTypeCodeSmallint:
+		return types.TypeSmallint, nil
+	case primitive.DataTypeCodeTinyint:
+		return types.TypeTinyint, nil
+	case primitive.DataTypeCodeList:
+		lt, ok := dt.(datatype.ListType)
+		if !ok {
+			return nil, fmt.Errorf("Unhandled type %s", dt.String())
+		}
+		et, err := FromDataCode(lt.GetElementType())
+		if err != nil {
+			return nil, err
+		}
+		return types.NewListType(et), nil
+	case primitive.DataTypeCodeMap:
+		mt, ok := dt.(datatype.MapType)
+		if !ok {
+			return nil, fmt.Errorf("Unhandled type %s", dt.String())
+		}
+		kt, err := FromDataCode(mt.GetKeyType())
+		if err != nil {
+			return nil, err
+		}
+		vt, err := FromDataCode(mt.GetValueType())
+		if err != nil {
+			return nil, err
+		}
+		return types.NewMapType(kt, vt), nil
+	case primitive.DataTypeCodeSet:
+		lt, ok := dt.(datatype.ListType)
+		if !ok {
+			return nil, fmt.Errorf("Unhandled type %s", dt.String())
+		}
+		et, err := FromDataCode(lt.GetElementType())
+		if err != nil {
+			return nil, err
+		}
+		return types.NewSetType(et), nil
+	default:
+		return nil, fmt.Errorf("Unhandled type: %s", dt.String())
+	}
 }
 
 // decodeNonPrimitive() Decodes non-primitive types like list, list, and list from byte data based on the provided datatype choice. Returns the decoded collection or an error if unsupported.

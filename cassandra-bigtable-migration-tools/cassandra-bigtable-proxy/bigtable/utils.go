@@ -125,7 +125,7 @@ func createBigtableRowKeySchema(pmks []translator.CreateTablePrimaryKeyConfig, c
 }
 
 func createBigtableRowKeyField(col types.CreateColumn, intRowKeyEncoding types.IntRowKeyEncodingType) (bigtable.StructField, error) {
-	switch col.TypeInfo.DataType {
+	switch col.TypeInfo.DataType() {
 	case datatype.Varchar:
 		return bigtable.StructField{FieldName: col.Name, FieldType: bigtable.StringType{Encoding: bigtable.StringUtf8BytesEncoding{}}}, nil
 	case datatype.Int, datatype.Bigint, datatype.Timestamp:
@@ -137,7 +137,7 @@ func createBigtableRowKeyField(col types.CreateColumn, intRowKeyEncoding types.I
 		}
 		return bigtable.StructField{}, fmt.Errorf("unhandled int row key encoding %v", intRowKeyEncoding)
 	default:
-		return bigtable.StructField{}, fmt.Errorf("unhandled row key type %s", col.TypeInfo.RawType)
+		return bigtable.StructField{}, fmt.Errorf("unhandled row key type %s", col.TypeInfo.String())
 	}
 }
 

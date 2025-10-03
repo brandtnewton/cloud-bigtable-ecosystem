@@ -138,7 +138,7 @@ type InsertQueryMapping struct {
 	QueryType            QueryTypesEnum            // Type of the query (e.g., INSERT)
 	Table                string                    // Table involved in the query
 	Keyspace             string                    // Keyspace to which the table belongs
-	Columns              []types.Column            // List of columns involved in the insert operation
+	Columns              []*types.Column           // List of columns involved in the insert operation
 	Values               []interface{}             // Values to be inserted
 	Params               map[string]interface{}    // Parameters for the query
 	ParamKeys            []string                  // Column names of the parameters
@@ -152,7 +152,7 @@ type InsertQueryMapping struct {
 }
 
 type ColumnsResponse struct {
-	Columns       []types.Column
+	Columns       []*types.Column
 	ParamKeys     []string
 	PrimayColumns []string
 }
@@ -225,11 +225,11 @@ type UpdateQueryMapping struct {
 	Params                map[string]interface{}    // Parameters for the query
 	ParamKeys             []string                  // Column names of the parameters
 	PrimaryKeys           []string                  // Primary keys of the table
-	Columns               []types.Column            // List of columns in update query
+	Columns               []*types.Column           // List of columns in update query
 	Values                []interface{}             // values for the update
 	RowKey                string                    // Unique rowkey which is required for update operation
 	DeleteColumnFamilies  []string                  // List of all collection type of columns
-	DeleteColumQualifires []types.Column            // List of all map key deletion in complex update
+	DeleteColumQualifires []*types.Column           // List of all map key deletion in complex update
 	ReturnMetadata        []*message.ColumnMetadata // Metadata of all columns of that table in Cassandra format
 	VariableMetadata      []*message.ColumnMetadata // Metadata of variable columns for prepared queries in Cassandra format
 	TimestampInfo         TimestampInfo
@@ -258,7 +258,7 @@ type TableObj struct {
 
 // ProcessRawCollectionsInput holds the parameters for processCollectionColumnsForRawQueries.
 type ProcessRawCollectionsInput struct {
-	Columns        []types.Column
+	Columns        []*types.Column
 	Values         []interface{}
 	TableName      string
 	Translator     *Translator
@@ -268,16 +268,16 @@ type ProcessRawCollectionsInput struct {
 
 // ProcessRawCollectionsOutput holds the results from processCollectionColumnsForRawQueries.
 type ProcessRawCollectionsOutput struct {
-	NewColumns      []types.Column
+	NewColumns      []*types.Column
 	NewValues       []interface{}
 	DelColumnFamily []string
-	DelColumns      []types.Column
+	DelColumns      []*types.Column
 	ComplexMeta     map[string]*ComplexOperation
 }
 
 // ProcessPrepareCollectionsInput holds the parameters for processCollectionColumnsForPrepareQueries.
 type ProcessPrepareCollectionsInput struct {
-	ColumnsResponse []types.Column
+	ColumnsResponse []*types.Column
 	Values          []*primitive.Value
 	TableName       string
 	ProtocolV       primitive.ProtocolVersion
@@ -290,12 +290,12 @@ type ProcessPrepareCollectionsInput struct {
 
 // ProcessPrepareCollectionsOutput holds the results from processCollectionColumnsForPrepareQueries.
 type ProcessPrepareCollectionsOutput struct {
-	NewColumns      []types.Column
+	NewColumns      []*types.Column
 	NewValues       []interface{}
 	Unencrypted     map[string]interface{}
 	IndexEnd        int
 	DelColumnFamily []string
-	DelColumns      []types.Column
+	DelColumns      []*types.Column
 	ComplexMeta     map[string]*ComplexOperation
 }
 

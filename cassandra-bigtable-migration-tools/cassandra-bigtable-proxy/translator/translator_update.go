@@ -366,14 +366,14 @@ func (t *Translator) TranslateUpdateQuerytoBigtable(query string, isPreparedQuer
 	var primkeyvalues []string
 	var rowKey string
 	var values []interface{}
-	var columns []types.Column
+	var columns []*types.Column
 	for _, val := range setValues.UpdateSetValues {
 		values = append(values, val.Encrypted)
-		columns = append(columns, types.Column{Name: val.Column, ColumnFamily: t.SchemaMappingConfig.SystemColumnFamily, TypeInfo: val.CQLType})
+		columns = append(columns, &types.Column{Name: val.Column, ColumnFamily: t.SchemaMappingConfig.SystemColumnFamily, TypeInfo: val.CQLType})
 	}
 	var newValues []interface{} = values
-	var newColumns []types.Column = columns
-	var delColumns []types.Column
+	var newColumns []*types.Column = columns
+	var delColumns []*types.Column
 	var delColumnFamily []string
 	var complexMeta map[string]*ComplexOperation
 	var rawOutput *ProcessRawCollectionsOutput // Declare rawOutput here
@@ -425,9 +425,9 @@ func (t *Translator) TranslateUpdateQuerytoBigtable(query string, isPreparedQuer
 		complexMeta = rawOutput.ComplexMeta // Assign complexMeta from output
 
 		for _, val := range QueryClauses.Clauses {
-			var column types.Column
+			var column *types.Column
 			if columns, exists := tableConfig.Columns[val.Column]; exists {
-				column = types.Column{Name: columns.Name, ColumnFamily: tableConfig.SystemColumnFamily, TypeInfo: columns.TypeInfo}
+				column = &types.Column{Name: columns.Name, ColumnFamily: tableConfig.SystemColumnFamily, TypeInfo: columns.TypeInfo}
 			}
 			newColumns = append(newColumns, column)
 
@@ -486,14 +486,14 @@ func (t *Translator) TranslateUpdateQuerytoBigtable(query string, isPreparedQuer
 //   - A pointer to an UpdateQueryMapping populated with the new query components required for the update.
 //   - An error if any issues arise during processing, such as failure to fetch primary keys or errors
 //     handling column data or timestamp.
-func (t *Translator) BuildUpdatePrepareQuery(columnsResponse []types.Column, values []*primitive.Value, st *UpdateQueryMapping, protocolV primitive.ProtocolVersion) (*UpdateQueryMapping, error) {
-	var newColumns []types.Column
+func (t *Translator) BuildUpdatePrepareQuery(columnsResponse []*types.Column, values []*primitive.Value, st *UpdateQueryMapping, protocolV primitive.ProtocolVersion) (*UpdateQueryMapping, error) {
+	var newColumns []*types.Column
 	var newValues []interface{}
 	var primaryKeys []string = st.PrimaryKeys
 	var err error
 	var unencrypted map[string]interface{}
 	var delColumnFamily []string
-	var delColumns []types.Column                      // Added missing declaration
+	var delColumns []*types.Column                     // Added missing declaration
 	var prepareOutput *ProcessPrepareCollectionsOutput // Declare prepareOutput
 
 	tableConfig, err := t.SchemaMappingConfig.GetTableConfig(st.Keyspace, st.Table)

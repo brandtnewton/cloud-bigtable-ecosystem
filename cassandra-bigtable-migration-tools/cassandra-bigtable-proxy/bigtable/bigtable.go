@@ -167,7 +167,7 @@ func (btc *BigtableClient) tableResourceExists(ctx context.Context, adminClient 
 //
 // Returns:
 //   - error: Error if the mutation fails.
-func (btc *BigtableClient) mutateRow(ctx context.Context, tableName, rowKey string, columns []types.Column, values []any, deleteColumnFamilies []string, deleteQualifiers []types.Column, timestamp bigtable.Timestamp, ifSpec translator.IfSpec, keyspace string, ComplexOperation map[string]*translator.ComplexOperation) (*message.RowsResult, error) {
+func (btc *BigtableClient) mutateRow(ctx context.Context, tableName, rowKey string, columns []*types.Column, values []any, deleteColumnFamilies []string, deleteQualifiers []*types.Column, timestamp bigtable.Timestamp, ifSpec translator.IfSpec, keyspace string, ComplexOperation map[string]*translator.ComplexOperation) (*message.RowsResult, error) {
 	otelgo.AddAnnotation(ctx, applyingBigtableMutation)
 	mut := bigtable.NewMutation()
 
@@ -509,7 +509,7 @@ func (btc *BigtableClient) AlterTable(ctx context.Context, data *translator.Alte
 func (btc *BigtableClient) addColumnFamilies(columns []types.CreateColumn) (map[string]bigtable.Family, error) {
 	columnFamilies := make(map[string]bigtable.Family)
 	for _, col := range columns {
-		if !col.TypeInfo.IsCollection() && !col.TypeInfo.IsCounter() {
+		if !col.TypeInfo.IsCollection() && col.TypeInfo.Code() != types.COUNTER {
 			continue
 		}
 
@@ -521,7 +521,7 @@ func (btc *BigtableClient) addColumnFamilies(columns []types.CreateColumn) (map[
 			columnFamilies[col.Name] = bigtable.Family{
 				GCPolicy: bigtable.MaxVersionsPolicy(1),
 			}
-		} else if col.TypeInfo.IsCounter() {
+		} else if col.TypeInfo.Code() == types.COUNTER {
 			columnFamilies[col.Name] = bigtable.Family{
 				GCPolicy: bigtable.NoGcPolicy(),
 				ValueType: bigtable.AggregateType{
@@ -549,7 +549,7 @@ func (btc *BigtableClient) updateTableSchema(ctx context.Context, keyspace strin
 	for _, col := range addCols {
 		mut := bigtable.NewMutation()
 		mut.Set(schemaMappingTableColumnFamily, smColColumnName, ts, []byte(col.Name))
-		mut.Set(schemaMappingTableColumnFamily, smColColumnType, ts, []byte(col.TypeInfo.RawType))
+		mut.Set(schemaMappingTableColumnFamily, smColColumnType, ts, []byte(col.TypeInfo.String()))
 		isCollection := col.TypeInfo.IsCollection()
 		// todo this is no longer used. We'll remove this later, in a few releases, but we'll keep it for now so users can roll back to earlier versions of the proxy if needed
 		mut.Set(schemaMappingTableColumnFamily, smColIsCollection, ts, []byte(strconv.FormatBool(isCollection)))
@@ -599,7 +599,7 @@ func (btc *BigtableClient) updateTableSchema(ctx context.Context, keyspace strin
 // Returns:
 //   - error: Error if the insertion fails.
 func (btc *BigtableClient) InsertRow(ctx context.Context, insertQueryData *translator.InsertQueryMapping) (*message.RowsResult, error) {
-	return btc.mutateRow(ctx, insertQueryData.Table, insertQueryData.RowKey, insertQueryData.Columns, insertQueryData.Values, insertQueryData.DeleteColumnFamilies, []types.Column{}, insertQueryData.TimestampInfo.Timestamp, translator.IfSpec{IfNotExists: insertQueryData.IfNotExists}, insertQueryData.Keyspace, nil)
+	return btc.mutateRow(ctx, insertQueryData.Table, insertQueryData.RowKey, insertQueryData.Columns, insertQueryData.Values, insertQueryData.DeleteColumnFamilies, []*types.Column{}, insertQueryData.TimestampInfo.Timestamp, translator.IfSpec{IfNotExists: insertQueryData.IfNotExists}, insertQueryData.Keyspace, nil)
 }
 
 // UpdateRow - Updates a row in the specified bigtable table.

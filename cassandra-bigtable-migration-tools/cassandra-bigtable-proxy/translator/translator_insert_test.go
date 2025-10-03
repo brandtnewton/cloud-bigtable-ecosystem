@@ -60,7 +60,7 @@ func Test_setParamsFromValues(t *testing.T) {
 	unencryptedForSpecialChar["name"] = "#!@#$%^&*()_+"
 	type args struct {
 		input           cql.IInsertValuesSpecContext
-		columns         []types.Column
+		columns         []*types.Column
 		schemaMapping   *schemaMapping.SchemaMappingConfig
 		protocolV       primitive.ProtocolVersion
 		isPreparedQuery bool
@@ -77,7 +77,7 @@ func Test_setParamsFromValues(t *testing.T) {
 			name: "success with special characters",
 			args: args{
 				input: parseInsertQuery("INSERT INTO xobani_derived.user_info ( name ) VALUES ('#!@#$%^&*()_+')").InsertValuesSpec(),
-				columns: []types.Column{
+				columns: []*types.Column{
 					{
 						Name:         "name",
 						ColumnFamily: "cf1",
@@ -97,7 +97,7 @@ func Test_setParamsFromValues(t *testing.T) {
 			name: "success",
 			args: args{
 				input: parseInsertQuery("INSERT INTO xobani_derived.user_info ( name ) VALUES ('Test')").InsertValuesSpec(),
-				columns: []types.Column{
+				columns: []*types.Column{
 					{
 						Name:         "name",
 						ColumnFamily: "cf1",
@@ -117,7 +117,7 @@ func Test_setParamsFromValues(t *testing.T) {
 			name: "success in prepare query",
 			args: args{
 				input: parseInsertQuery("INSERT INTO xobani_derived.user_info ( name ) VALUES ('?')").InsertValuesSpec(),
-				columns: []types.Column{
+				columns: []*types.Column{
 					{
 						Name:         "name",
 						ColumnFamily: "cf1",
@@ -137,7 +137,7 @@ func Test_setParamsFromValues(t *testing.T) {
 			name: "failed",
 			args: args{
 				input: nil,
-				columns: []types.Column{
+				columns: []*types.Column{
 					{
 						Name:         "name",
 						ColumnFamily: "cf1",
@@ -157,7 +157,7 @@ func Test_setParamsFromValues(t *testing.T) {
 			name: "failed",
 			args: args{
 				input: parseInsertQuery("INSERT INTO xobani_derived.user_info ( name ) VALUES").InsertValuesSpec(),
-				columns: []types.Column{
+				columns: []*types.Column{
 					{
 						Name:         "name",
 						ColumnFamily: "cf1",
@@ -290,7 +290,7 @@ func TestTranslator_TranslateInsertQuerytoBigtable(t *testing.T) {
 			QueryType: "INSERT",
 			Table:     "test_table",
 			Keyspace:  "test_keyspace",
-			Columns: []types.Column{
+			Columns: []*types.Column{
 				{Name: "column1", ColumnFamily: "cf1", TypeInfo: utilities.ParseCqlTypeOrDie("varchar"), IsPrimaryKey: true},
 				{Name: "column2", ColumnFamily: "cf1", TypeInfo: utilities.ParseCqlTypeOrDie("blob"), IsPrimaryKey: false},
 				{Name: "column3", ColumnFamily: "cf1", TypeInfo: utilities.ParseCqlTypeOrDie("boolean"), IsPrimaryKey: false},
@@ -327,7 +327,7 @@ func TestTranslator_TranslateInsertQuerytoBigtable(t *testing.T) {
 				QueryType: "INSERT",
 				Table:     "test_table",
 				Keyspace:  "test_keyspace",
-				Columns: []types.Column{
+				Columns: []*types.Column{
 					{Name: "column1", ColumnFamily: "cf1", TypeInfo: utilities.ParseCqlTypeOrDie("varchar"), IsPrimaryKey: true},
 					{Name: "column2", ColumnFamily: "cf1", TypeInfo: utilities.ParseCqlTypeOrDie("blob"), IsPrimaryKey: false},
 					{Name: "column3", ColumnFamily: "cf1", TypeInfo: utilities.ParseCqlTypeOrDie("boolean"), IsPrimaryKey: false},
@@ -359,7 +359,7 @@ func TestTranslator_TranslateInsertQuerytoBigtable(t *testing.T) {
 				QueryType: "INSERT",
 				Table:     "test_table",
 				Keyspace:  "test_keyspace",
-				Columns: []types.Column{
+				Columns: []*types.Column{
 					{Name: "column2", ColumnFamily: "cf1", TypeInfo: utilities.ParseCqlTypeOrDie("blob"), IsPrimaryKey: false},
 					{Name: "column3", ColumnFamily: "cf1", TypeInfo: utilities.ParseCqlTypeOrDie("boolean"), IsPrimaryKey: false},
 					{Name: "column5", ColumnFamily: "cf1", TypeInfo: utilities.ParseCqlTypeOrDie("timestamp"), IsPrimaryKey: false},
@@ -419,7 +419,7 @@ func TestTranslator_TranslateInsertQuerytoBigtable(t *testing.T) {
 					"column10":      []byte("pkval"),
 					"map_text_text": map[string]string{"foo": "bar", "key:": ":value", "k}": "{v:k}"},
 				},
-				Columns: []types.Column{
+				Columns: []*types.Column{
 					{
 						Name:         "foo",
 						ColumnFamily: "map_text_text",
@@ -496,11 +496,13 @@ func TestTranslator_TranslateInsertQuerytoBigtable(t *testing.T) {
 					"column10": []byte("pkval's"),
 					"text_col": []byte("text's"),
 				},
-				Columns: []types.Column{types.Column{
-					Name:         "text_col",
-					ColumnFamily: "cf1",
-					TypeInfo:     utilities.ParseCqlTypeOrDie("varchar"),
-				}},
+				Columns: []*types.Column{
+					{
+						Name:         "text_col",
+						ColumnFamily: "cf1",
+						TypeInfo:     utilities.ParseCqlTypeOrDie("varchar"),
+					},
+				},
 				Values: []interface{}{
 					formatValueUnsafe(t, "text's", datatype.Varchar, primitive.ProtocolVersion4),
 				},
@@ -530,11 +532,13 @@ func TestTranslator_TranslateInsertQuerytoBigtable(t *testing.T) {
 					"column10": []byte("pkval's"),
 					"text_col": []byte("text's"),
 				},
-				Columns: []types.Column{types.Column{
-					Name:         "text_col",
-					ColumnFamily: "cf1",
-					TypeInfo:     utilities.ParseCqlTypeOrDie("varchar"),
-				}},
+				Columns: []*types.Column{
+					{
+						Name:         "text_col",
+						ColumnFamily: "cf1",
+						TypeInfo:     utilities.ParseCqlTypeOrDie("varchar"),
+					},
+				},
 				Values: []interface{}{
 					formatValueUnsafe(t, "text's", datatype.Varchar, primitive.ProtocolVersion4),
 				},
@@ -692,7 +696,7 @@ func TestTranslator_BuildInsertPrepareQuery(t *testing.T) {
 		SchemaMappingConfig *schemaMapping.SchemaMappingConfig
 	}
 	type args struct {
-		columnsResponse []types.Column
+		columnsResponse []*types.Column
 		values          []*primitive.Value
 		st              *InsertQueryMapping
 		protocolV       primitive.ProtocolVersion
@@ -711,7 +715,7 @@ func TestTranslator_BuildInsertPrepareQuery(t *testing.T) {
 				SchemaMappingConfig: GetSchemaMappingConfig(types.OrderedCodeEncoding),
 			},
 			args: args{
-				columnsResponse: []types.Column{
+				columnsResponse: []*types.Column{
 					{
 						Name:         "pk_1_text",
 						ColumnFamily: "cf1",
@@ -729,7 +733,7 @@ func TestTranslator_BuildInsertPrepareQuery(t *testing.T) {
 					Keyspace:    "test_keyspace",
 					PrimaryKeys: []string{"pk_1_text"},
 					RowKey:      "",
-					Columns: []types.Column{
+					Columns: []*types.Column{
 						{
 							Name:         "pk_1_text",
 							ColumnFamily: "cf1",
@@ -759,7 +763,7 @@ func TestTranslator_BuildInsertPrepareQuery(t *testing.T) {
 				Keyspace:    "test_keyspace",
 				PrimaryKeys: []string{"pk_1_text"},
 				RowKey:      "",
-				Columns: []types.Column{
+				Columns: []*types.Column{
 					{
 						Name:         "pk_1_text",
 						ColumnFamily: "cf1",

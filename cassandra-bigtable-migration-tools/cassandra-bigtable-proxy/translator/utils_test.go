@@ -378,14 +378,14 @@ func Test_processCollectionColumnsForPrepareQueries(t *testing.T) {
 
 	tests := []struct {
 		name                string
-		columns             []types.Column
+		columns             []*types.Column
 		variableMetadata    []*message.ColumnMetadata
 		values              []*primitive.Value
 		tableName           string
 		protocolV           primitive.ProtocolVersion
 		primaryKeys         []string
 		translator          *Translator
-		wantNewColumns      []types.Column
+		wantNewColumns      []*types.Column
 		wantNewValues       []interface{}
 		wantUnencrypted     map[string]interface{}
 		wantIndexEnd        int
@@ -394,8 +394,8 @@ func Test_processCollectionColumnsForPrepareQueries(t *testing.T) {
 	}{
 		{
 			name: "Valid Input For Timestamp Float",
-			columns: []types.Column{
-				{Name: "map_timestamp_float", ColumnFamily: "map_timestamp_float", TypeInfo: types.NewMapType(types.TypeTimestamp, types.TypeFloat)},
+			columns: []*types.Column{
+				{Name: "map_timestamp_float", ColumnFamily: "map_timestamp_float", TypeInfo: utilities.ParseCqlTypeOrDie("map<timestamp,float>")},
 			},
 			variableMetadata: []*message.ColumnMetadata{},
 			values: []*primitive.Value{
@@ -409,7 +409,7 @@ func Test_processCollectionColumnsForPrepareQueries(t *testing.T) {
 				Logger:              zap.NewNop(),
 				SchemaMappingConfig: GetSchemaMappingConfig(types.OrderedCodeEncoding),
 			},
-			wantNewColumns: []types.Column{
+			wantNewColumns: []*types.Column{
 				{Name: "1633046400000", ColumnFamily: "map_timestamp_float", TypeInfo: types.TypeFloat},
 			},
 			wantNewValues:       []interface{}{timestampFloatValue},
@@ -420,8 +420,8 @@ func Test_processCollectionColumnsForPrepareQueries(t *testing.T) {
 		},
 		{
 			name: "Valid Input For Text Timestamp",
-			columns: []types.Column{
-				{Name: "map_text_timestamp", ColumnFamily: "map_text_timestamp", TypeInfo: types.NewMapType(types.TypeVarchar, types.TypeTimestamp)},
+			columns: []*types.Column{
+				{Name: "map_text_timestamp", ColumnFamily: "map_text_timestamp", TypeInfo: utilities.ParseCqlTypeOrDie("map<varchar,timestamp>")},
 			},
 			variableMetadata: []*message.ColumnMetadata{},
 			values: []*primitive.Value{
@@ -434,7 +434,7 @@ func Test_processCollectionColumnsForPrepareQueries(t *testing.T) {
 				Logger:              zap.NewNop(),
 				SchemaMappingConfig: GetSchemaMappingConfig(types.OrderedCodeEncoding),
 			},
-			wantNewColumns: []types.Column{
+			wantNewColumns: []*types.Column{
 				{Name: "test", ColumnFamily: "map_text_timestamp", TypeInfo: types.TypeTimestamp},
 			},
 			wantNewValues:       []interface{}{timestampValue},
@@ -445,8 +445,8 @@ func Test_processCollectionColumnsForPrepareQueries(t *testing.T) {
 		},
 		{
 			name: "Valid Input For Timestamp Text",
-			columns: []types.Column{
-				{Name: "map_timestamp_text", ColumnFamily: "map_timestamp_text", TypeInfo: types.NewMapType(types.TypeTimestamp, types.TypeVarchar)},
+			columns: []*types.Column{
+				{Name: "map_timestamp_text", ColumnFamily: "map_timestamp_text", TypeInfo: utilities.ParseCqlTypeOrDie("map<timestamp,varchar>")},
 			},
 			variableMetadata: []*message.ColumnMetadata{},
 			values: []*primitive.Value{
@@ -459,7 +459,7 @@ func Test_processCollectionColumnsForPrepareQueries(t *testing.T) {
 				Logger:              zap.NewNop(),
 				SchemaMappingConfig: GetSchemaMappingConfig(types.OrderedCodeEncoding),
 			},
-			wantNewColumns: []types.Column{
+			wantNewColumns: []*types.Column{
 				{Name: "1633046400000", ColumnFamily: "map_timestamp_text", TypeInfo: types.TypeVarchar},
 			},
 			wantNewValues:       []interface{}{timestampTextValue},
@@ -470,7 +470,7 @@ func Test_processCollectionColumnsForPrepareQueries(t *testing.T) {
 		},
 		{
 			name: "Valid Input For Set Timestamp",
-			columns: []types.Column{
+			columns: []*types.Column{
 				{Name: "set_timestamp", ColumnFamily: "set_timestamp", TypeInfo: types.NewSetType(types.TypeTimestamp)},
 			},
 			variableMetadata: []*message.ColumnMetadata{},
@@ -484,7 +484,7 @@ func Test_processCollectionColumnsForPrepareQueries(t *testing.T) {
 				Logger:              zap.NewNop(),
 				SchemaMappingConfig: GetSchemaMappingConfig(types.OrderedCodeEncoding),
 			},
-			wantNewColumns: []types.Column{
+			wantNewColumns: []*types.Column{
 				{Name: "1633046400", ColumnFamily: "set_timestamp", TypeInfo: types.TypeBigint},
 			},
 			wantNewValues:       []interface{}{emptyVal},
@@ -495,7 +495,7 @@ func Test_processCollectionColumnsForPrepareQueries(t *testing.T) {
 		},
 		{
 			name: "Valid Input For Set Double",
-			columns: []types.Column{
+			columns: []*types.Column{
 				{Name: "set_double", ColumnFamily: "set_double", TypeInfo: types.NewSetType(types.TypeDouble)},
 			},
 			variableMetadata: []*message.ColumnMetadata{},
@@ -509,7 +509,7 @@ func Test_processCollectionColumnsForPrepareQueries(t *testing.T) {
 				Logger:              zap.NewNop(),
 				SchemaMappingConfig: GetSchemaMappingConfig(types.OrderedCodeEncoding),
 			},
-			wantNewColumns: []types.Column{
+			wantNewColumns: []*types.Column{
 				{Name: "6.283", ColumnFamily: "set_double", TypeInfo: types.TypeDouble},
 			},
 			wantNewValues:       []interface{}{emptyVal},
@@ -520,7 +520,7 @@ func Test_processCollectionColumnsForPrepareQueries(t *testing.T) {
 		},
 		{
 			name: "Valid Input For Set Float",
-			columns: []types.Column{
+			columns: []*types.Column{
 				{Name: "set_float", ColumnFamily: "set_float", TypeInfo: types.NewSetType(types.TypeFloat)},
 			},
 			variableMetadata: []*message.ColumnMetadata{},
@@ -534,7 +534,7 @@ func Test_processCollectionColumnsForPrepareQueries(t *testing.T) {
 				Logger:              zap.NewNop(),
 				SchemaMappingConfig: GetSchemaMappingConfig(types.OrderedCodeEncoding),
 			},
-			wantNewColumns: []types.Column{
+			wantNewColumns: []*types.Column{
 				{Name: "6.283", ColumnFamily: "set_float", TypeInfo: types.TypeFloat},
 			},
 			wantNewValues:       []interface{}{emptyVal},
@@ -545,7 +545,7 @@ func Test_processCollectionColumnsForPrepareQueries(t *testing.T) {
 		},
 		{
 			name: "Valid Input For Set Text",
-			columns: []types.Column{
+			columns: []*types.Column{
 				{Name: "set_text", ColumnFamily: "set_text", TypeInfo: types.NewSetType(types.TypeVarchar)},
 			},
 			variableMetadata: []*message.ColumnMetadata{},
@@ -559,7 +559,7 @@ func Test_processCollectionColumnsForPrepareQueries(t *testing.T) {
 				Logger:              zap.NewNop(),
 				SchemaMappingConfig: GetSchemaMappingConfig(types.OrderedCodeEncoding),
 			},
-			wantNewColumns: []types.Column{
+			wantNewColumns: []*types.Column{
 				{Name: "test", ColumnFamily: "set_text", TypeInfo: types.TypeVarchar},
 			},
 			wantNewValues:       []interface{}{emptyVal},
@@ -570,7 +570,7 @@ func Test_processCollectionColumnsForPrepareQueries(t *testing.T) {
 		},
 		{
 			name: "Valid Input For Set BigInt",
-			columns: []types.Column{
+			columns: []*types.Column{
 				{Name: "set_bigint", ColumnFamily: "set_bigint", TypeInfo: types.NewSetType(types.TypeBigint)},
 			},
 			variableMetadata: []*message.ColumnMetadata{},
@@ -584,7 +584,7 @@ func Test_processCollectionColumnsForPrepareQueries(t *testing.T) {
 				Logger:              zap.NewNop(),
 				SchemaMappingConfig: GetSchemaMappingConfig(types.OrderedCodeEncoding),
 			},
-			wantNewColumns: []types.Column{
+			wantNewColumns: []*types.Column{
 				{Name: "12372432764", ColumnFamily: "set_bigint", TypeInfo: types.TypeBigint},
 			},
 			wantNewValues:       []interface{}{emptyVal},
@@ -595,7 +595,7 @@ func Test_processCollectionColumnsForPrepareQueries(t *testing.T) {
 		},
 		{
 			name: "Valid Input For Set Int",
-			columns: []types.Column{
+			columns: []*types.Column{
 				{Name: "set_int", ColumnFamily: "set_int", TypeInfo: types.NewSetType(types.TypeInt)},
 			},
 			variableMetadata: []*message.ColumnMetadata{},
@@ -609,7 +609,7 @@ func Test_processCollectionColumnsForPrepareQueries(t *testing.T) {
 				Logger:              zap.NewNop(),
 				SchemaMappingConfig: GetSchemaMappingConfig(types.OrderedCodeEncoding),
 			},
-			wantNewColumns: []types.Column{
+			wantNewColumns: []*types.Column{
 				{Name: "12", ColumnFamily: "set_int", TypeInfo: types.TypeInt},
 			},
 			wantNewValues:       []interface{}{emptyVal},
@@ -620,8 +620,8 @@ func Test_processCollectionColumnsForPrepareQueries(t *testing.T) {
 		},
 		{
 			name: "Valid Input For Timestamp Timestamp",
-			columns: []types.Column{
-				{Name: "map_timestamp_timestamp", ColumnFamily: "map_timestamp_timestamp", TypeInfo: types.NewMapType(types.TypeTimestamp, types.TypeTimestamp)},
+			columns: []*types.Column{
+				{Name: "map_timestamp_timestamp", ColumnFamily: "map_timestamp_timestamp", TypeInfo: utilities.ParseCqlTypeOrDie("map<timestamp,timestamp>")},
 			},
 			variableMetadata: []*message.ColumnMetadata{},
 			values: []*primitive.Value{
@@ -634,7 +634,7 @@ func Test_processCollectionColumnsForPrepareQueries(t *testing.T) {
 				Logger:              zap.NewNop(),
 				SchemaMappingConfig: GetSchemaMappingConfig(types.OrderedCodeEncoding),
 			},
-			wantNewColumns: []types.Column{
+			wantNewColumns: []*types.Column{
 				{Name: "1633046400000", ColumnFamily: "map_timestamp_timestamp", TypeInfo: types.TypeTimestamp},
 			},
 			wantNewValues:       []interface{}{timestampTimestampValue},
@@ -645,8 +645,8 @@ func Test_processCollectionColumnsForPrepareQueries(t *testing.T) {
 		},
 		{
 			name: "Valid Input For Text Bigint",
-			columns: []types.Column{
-				{Name: "map_text_bigint", ColumnFamily: "map_text_bigint", TypeInfo: types.NewMapType(types.TypeVarchar, types.TypeBigint)},
+			columns: []*types.Column{
+				{Name: "map_text_bigint", ColumnFamily: "map_text_bigint", TypeInfo: utilities.ParseCqlTypeOrDie("map<varchar,bigint>")},
 			},
 			variableMetadata: []*message.ColumnMetadata{},
 			values: []*primitive.Value{
@@ -659,7 +659,7 @@ func Test_processCollectionColumnsForPrepareQueries(t *testing.T) {
 				Logger:              zap.NewNop(),
 				SchemaMappingConfig: GetSchemaMappingConfig(types.OrderedCodeEncoding),
 			},
-			wantNewColumns: []types.Column{
+			wantNewColumns: []*types.Column{
 				{Name: "test", ColumnFamily: "map_text_bigint", TypeInfo: types.TypeBigint},
 			},
 			wantNewValues:       []interface{}{bigintValue},
@@ -670,8 +670,8 @@ func Test_processCollectionColumnsForPrepareQueries(t *testing.T) {
 		},
 		{
 			name: "Valid Input For Timestamp Int",
-			columns: []types.Column{
-				{Name: "map_timestamp_int", ColumnFamily: "map_timestamp_int", TypeInfo: types.NewMapType(types.TypeTimestamp, types.TypeInt)},
+			columns: []*types.Column{
+				{Name: "map_timestamp_int", ColumnFamily: "map_timestamp_int", TypeInfo: utilities.ParseCqlTypeOrDie("map<timestamp,int>")},
 			},
 			variableMetadata: []*message.ColumnMetadata{},
 			values: []*primitive.Value{
@@ -684,7 +684,7 @@ func Test_processCollectionColumnsForPrepareQueries(t *testing.T) {
 				Logger:              zap.NewNop(),
 				SchemaMappingConfig: GetSchemaMappingConfig(types.OrderedCodeEncoding),
 			},
-			wantNewColumns: []types.Column{
+			wantNewColumns: []*types.Column{
 				{Name: "1633046400000", ColumnFamily: "map_timestamp_int", TypeInfo: types.TypeInt},
 			},
 			wantNewValues:       []interface{}{timestampIntValue},
@@ -695,7 +695,7 @@ func Test_processCollectionColumnsForPrepareQueries(t *testing.T) {
 		},
 		{
 			name: "Valid Input For Set Boolean",
-			columns: []types.Column{
+			columns: []*types.Column{
 				{Name: "set_boolean", ColumnFamily: "set_boolean", TypeInfo: types.NewSetType(types.TypeBoolean)},
 			},
 			variableMetadata: []*message.ColumnMetadata{},
@@ -709,7 +709,7 @@ func Test_processCollectionColumnsForPrepareQueries(t *testing.T) {
 				Logger:              zap.NewNop(),
 				SchemaMappingConfig: GetSchemaMappingConfig(types.OrderedCodeEncoding),
 			},
-			wantNewColumns: []types.Column{
+			wantNewColumns: []*types.Column{
 				{Name: "1", ColumnFamily: "set_boolean", TypeInfo: types.TypeBoolean},
 			},
 			wantNewValues:       []interface{}{emptyVal},
@@ -720,8 +720,8 @@ func Test_processCollectionColumnsForPrepareQueries(t *testing.T) {
 		},
 		{
 			name: "Valid Input For Text Boolean",
-			columns: []types.Column{
-				{Name: "map_text_boolean", ColumnFamily: "map_text_boolean", TypeInfo: types.NewMapType(types.TypeVarchar, types.TypeBoolean)},
+			columns: []*types.Column{
+				{Name: "map_text_boolean", ColumnFamily: "map_text_boolean", TypeInfo: utilities.ParseCqlTypeOrDie("map<varchar,boolean>")},
 			},
 			variableMetadata: []*message.ColumnMetadata{},
 			values: []*primitive.Value{
@@ -734,7 +734,7 @@ func Test_processCollectionColumnsForPrepareQueries(t *testing.T) {
 				Logger:              zap.NewNop(),
 				SchemaMappingConfig: GetSchemaMappingConfig(types.OrderedCodeEncoding),
 			},
-			wantNewColumns: []types.Column{
+			wantNewColumns: []*types.Column{
 				{Name: "test", ColumnFamily: "map_text_boolean", TypeInfo: types.TypeBoolean},
 			},
 			wantNewValues:       []interface{}{trueVal},
@@ -745,8 +745,8 @@ func Test_processCollectionColumnsForPrepareQueries(t *testing.T) {
 		},
 		{
 			name: "Valid Input For Text Text",
-			columns: []types.Column{
-				{Name: "map_text_text", ColumnFamily: "map_text_text", TypeInfo: types.NewMapType(types.TypeVarchar, types.TypeVarchar)},
+			columns: []*types.Column{
+				{Name: "map_text_text", ColumnFamily: "map_text_text", TypeInfo: utilities.ParseCqlTypeOrDie("map<varchar,varchar>")},
 			},
 			variableMetadata: []*message.ColumnMetadata{},
 			values: []*primitive.Value{
@@ -759,7 +759,7 @@ func Test_processCollectionColumnsForPrepareQueries(t *testing.T) {
 				Logger:              zap.NewNop(),
 				SchemaMappingConfig: GetSchemaMappingConfig(types.OrderedCodeEncoding),
 			},
-			wantNewColumns: []types.Column{
+			wantNewColumns: []*types.Column{
 				{Name: "test", ColumnFamily: "map_text_text", TypeInfo: types.TypeVarchar},
 			},
 			wantNewValues:       []interface{}{textValue},
@@ -770,8 +770,8 @@ func Test_processCollectionColumnsForPrepareQueries(t *testing.T) {
 		},
 		{
 			name: "Valid Input For Text Int",
-			columns: []types.Column{
-				{Name: "map_text_int", ColumnFamily: "map_text_int", TypeInfo: types.NewMapType(types.TypeVarchar, types.TypeInt)},
+			columns: []*types.Column{
+				{Name: "map_text_int", ColumnFamily: "map_text_int", TypeInfo: utilities.ParseCqlTypeOrDie("map<varchar,int>")},
 			},
 			variableMetadata: []*message.ColumnMetadata{},
 			values: []*primitive.Value{
@@ -784,7 +784,7 @@ func Test_processCollectionColumnsForPrepareQueries(t *testing.T) {
 				Logger:              zap.NewNop(),
 				SchemaMappingConfig: GetSchemaMappingConfig(types.OrderedCodeEncoding),
 			},
-			wantNewColumns: []types.Column{
+			wantNewColumns: []*types.Column{
 				{Name: "test", ColumnFamily: "map_text_int", TypeInfo: types.TypeInt},
 			},
 			wantNewValues:       []interface{}{intValue},
@@ -795,8 +795,8 @@ func Test_processCollectionColumnsForPrepareQueries(t *testing.T) {
 		},
 		{
 			name: "Valid Input For Text Float",
-			columns: []types.Column{
-				{Name: "map_text_float", ColumnFamily: "map_text_float", TypeInfo: types.NewMapType(types.TypeVarchar, types.TypeFloat)},
+			columns: []*types.Column{
+				{Name: "map_text_float", ColumnFamily: "map_text_float", TypeInfo: utilities.ParseCqlTypeOrDie("map<varchar,float>")},
 			},
 			variableMetadata: []*message.ColumnMetadata{},
 			values: []*primitive.Value{
@@ -809,7 +809,7 @@ func Test_processCollectionColumnsForPrepareQueries(t *testing.T) {
 				Logger:              zap.NewNop(),
 				SchemaMappingConfig: GetSchemaMappingConfig(types.OrderedCodeEncoding),
 			},
-			wantNewColumns: []types.Column{
+			wantNewColumns: []*types.Column{
 				{Name: "test", ColumnFamily: "map_text_float", TypeInfo: types.TypeFloat},
 			},
 			wantNewValues:       []interface{}{floatValue},
@@ -820,8 +820,8 @@ func Test_processCollectionColumnsForPrepareQueries(t *testing.T) {
 		},
 		{
 			name: "Valid Input For Text Double",
-			columns: []types.Column{
-				{Name: "map_text_double", ColumnFamily: "map_text_double", TypeInfo: types.NewMapType(types.TypeVarchar, types.TypeDouble)},
+			columns: []*types.Column{
+				{Name: "map_text_double", ColumnFamily: "map_text_double", TypeInfo: utilities.ParseCqlTypeOrDie("map<varchar,double>")},
 			},
 			variableMetadata: []*message.ColumnMetadata{},
 			values: []*primitive.Value{
@@ -834,7 +834,7 @@ func Test_processCollectionColumnsForPrepareQueries(t *testing.T) {
 				Logger:              zap.NewNop(),
 				SchemaMappingConfig: GetSchemaMappingConfig(types.OrderedCodeEncoding),
 			},
-			wantNewColumns: []types.Column{
+			wantNewColumns: []*types.Column{
 				{Name: "test", ColumnFamily: "map_text_double", TypeInfo: types.TypeDouble},
 			},
 			wantNewValues:       []interface{}{doubleValue},
@@ -845,8 +845,8 @@ func Test_processCollectionColumnsForPrepareQueries(t *testing.T) {
 		},
 		{
 			name: "Valid Input For Timestamp Boolean",
-			columns: []types.Column{
-				{Name: "map_timestamp_boolean", ColumnFamily: "map_timestamp_boolean", TypeInfo: types.NewMapType(types.TypeTimestamp, types.TypeBoolean)},
+			columns: []*types.Column{
+				{Name: "map_timestamp_boolean", ColumnFamily: "map_timestamp_boolean", TypeInfo: utilities.ParseCqlTypeOrDie("map<timestamp,boolean>")},
 			},
 			variableMetadata: []*message.ColumnMetadata{},
 			values: []*primitive.Value{
@@ -859,7 +859,7 @@ func Test_processCollectionColumnsForPrepareQueries(t *testing.T) {
 				Logger:              zap.NewNop(),
 				SchemaMappingConfig: GetSchemaMappingConfig(types.OrderedCodeEncoding),
 			},
-			wantNewColumns: []types.Column{
+			wantNewColumns: []*types.Column{
 				{Name: "1633046400000", ColumnFamily: "map_timestamp_boolean", TypeInfo: types.TypeBoolean},
 			},
 			wantNewValues:       []interface{}{timestampBooleanValue},
@@ -870,8 +870,8 @@ func Test_processCollectionColumnsForPrepareQueries(t *testing.T) {
 		},
 		{
 			name: "Valid Input For Timestamp Double",
-			columns: []types.Column{
-				{Name: "map_timestamp_double", ColumnFamily: "map_timestamp_double", TypeInfo: types.NewMapType(types.TypeTimestamp, types.TypeDouble)},
+			columns: []*types.Column{
+				{Name: "map_timestamp_double", ColumnFamily: "map_timestamp_double", TypeInfo: utilities.ParseCqlTypeOrDie("map<timestamp,double>")},
 			},
 			variableMetadata: []*message.ColumnMetadata{},
 			values: []*primitive.Value{
@@ -884,7 +884,7 @@ func Test_processCollectionColumnsForPrepareQueries(t *testing.T) {
 				Logger:              zap.NewNop(),
 				SchemaMappingConfig: GetSchemaMappingConfig(types.OrderedCodeEncoding),
 			},
-			wantNewColumns: []types.Column{
+			wantNewColumns: []*types.Column{
 				{Name: "1633046400000", ColumnFamily: "map_timestamp_double", TypeInfo: types.TypeDouble},
 			},
 			wantNewValues:       []interface{}{timestampDoubleValue},
@@ -895,8 +895,8 @@ func Test_processCollectionColumnsForPrepareQueries(t *testing.T) {
 		},
 		{
 			name: "Valid Input For Timestamp Bigint",
-			columns: []types.Column{
-				{Name: "map_timestamp_bigint", ColumnFamily: "map_timestamp_bigint", TypeInfo: types.NewMapType(types.TypeTimestamp, types.TypeBigint)},
+			columns: []*types.Column{
+				{Name: "map_timestamp_bigint", ColumnFamily: "map_timestamp_bigint", TypeInfo: utilities.ParseCqlTypeOrDie("map<timestamp,bigint>")},
 			},
 			variableMetadata: []*message.ColumnMetadata{},
 			values: []*primitive.Value{
@@ -909,7 +909,7 @@ func Test_processCollectionColumnsForPrepareQueries(t *testing.T) {
 				Logger:              zap.NewNop(),
 				SchemaMappingConfig: GetSchemaMappingConfig(types.OrderedCodeEncoding),
 			},
-			wantNewColumns: []types.Column{
+			wantNewColumns: []*types.Column{
 				{Name: "1633046400000", ColumnFamily: "map_timestamp_bigint", TypeInfo: types.TypeBigint},
 			},
 			wantNewValues:       []interface{}{timestampBigintValue},
@@ -920,7 +920,7 @@ func Test_processCollectionColumnsForPrepareQueries(t *testing.T) {
 		},
 		{
 			name: "Valid Input For List<text>",
-			columns: []types.Column{
+			columns: []*types.Column{
 				{Name: "list_text", ColumnFamily: "list_text", TypeInfo: types.NewListType(types.TypeVarchar)},
 			},
 			values: []*primitive.Value{
@@ -933,7 +933,7 @@ func Test_processCollectionColumnsForPrepareQueries(t *testing.T) {
 				Logger:              zap.NewNop(),
 				SchemaMappingConfig: GetSchemaMappingConfig(types.OrderedCodeEncoding),
 			},
-			wantNewColumns: []types.Column{
+			wantNewColumns: []*types.Column{
 				{Name: time.Now().Format("20060102150405.000"), ColumnFamily: "list_text", TypeInfo: types.TypeVarchar},
 			},
 			wantNewValues:       []interface{}{textValue},
@@ -944,7 +944,7 @@ func Test_processCollectionColumnsForPrepareQueries(t *testing.T) {
 		},
 		{
 			name: "Valid Input For List<int>",
-			columns: []types.Column{
+			columns: []*types.Column{
 				{Name: "list_int", ColumnFamily: "list_int", TypeInfo: types.NewListType(types.TypeInt)},
 			},
 			values: []*primitive.Value{
@@ -957,7 +957,7 @@ func Test_processCollectionColumnsForPrepareQueries(t *testing.T) {
 				Logger:              zap.NewNop(),
 				SchemaMappingConfig: GetSchemaMappingConfig(types.OrderedCodeEncoding),
 			},
-			wantNewColumns: []types.Column{
+			wantNewColumns: []*types.Column{
 				{Name: time.Now().Format("20060102150405.000"), ColumnFamily: "list_int", TypeInfo: types.TypeInt},
 			},
 			wantNewValues:       []interface{}{intValue},
@@ -968,7 +968,7 @@ func Test_processCollectionColumnsForPrepareQueries(t *testing.T) {
 		},
 		{
 			name: "Valid Input For List<bigint>",
-			columns: []types.Column{
+			columns: []*types.Column{
 				{Name: "list_bigint", ColumnFamily: "list_bigint", TypeInfo: types.NewListType(types.TypeBigint)},
 			},
 			values: []*primitive.Value{
@@ -981,7 +981,7 @@ func Test_processCollectionColumnsForPrepareQueries(t *testing.T) {
 				Logger:              zap.NewNop(),
 				SchemaMappingConfig: GetSchemaMappingConfig(types.OrderedCodeEncoding),
 			},
-			wantNewColumns: []types.Column{
+			wantNewColumns: []*types.Column{
 				{Name: time.Now().Format("20060102150405.000"), ColumnFamily: "list_bigint", TypeInfo: types.TypeBigint},
 			},
 			wantNewValues:       []interface{}{bigintValue},
@@ -992,7 +992,7 @@ func Test_processCollectionColumnsForPrepareQueries(t *testing.T) {
 		},
 		{
 			name: "Valid Input For List<boolean>",
-			columns: []types.Column{
+			columns: []*types.Column{
 				{Name: "list_boolean", ColumnFamily: "list_boolean", TypeInfo: types.NewListType(types.TypeBoolean)},
 			},
 			values: []*primitive.Value{
@@ -1005,7 +1005,7 @@ func Test_processCollectionColumnsForPrepareQueries(t *testing.T) {
 				Logger:              zap.NewNop(),
 				SchemaMappingConfig: GetSchemaMappingConfig(types.OrderedCodeEncoding),
 			},
-			wantNewColumns: []types.Column{
+			wantNewColumns: []*types.Column{
 				{Name: time.Now().Format("20060102150405.000"), ColumnFamily: "list_boolean", TypeInfo: types.TypeBoolean},
 			},
 			wantNewValues:       []interface{}{trueVal},
@@ -1016,7 +1016,7 @@ func Test_processCollectionColumnsForPrepareQueries(t *testing.T) {
 		},
 		{
 			name: "Valid Input For List<float>",
-			columns: []types.Column{
+			columns: []*types.Column{
 				{Name: "list_float", ColumnFamily: "list_float", TypeInfo: types.NewListType(types.TypeFloat)},
 			},
 			values: []*primitive.Value{
@@ -1029,7 +1029,7 @@ func Test_processCollectionColumnsForPrepareQueries(t *testing.T) {
 				Logger:              zap.NewNop(),
 				SchemaMappingConfig: GetSchemaMappingConfig(types.OrderedCodeEncoding),
 			},
-			wantNewColumns: []types.Column{
+			wantNewColumns: []*types.Column{
 				{Name: time.Now().Format("20060102150405.000"), ColumnFamily: "list_float", TypeInfo: types.TypeFloat},
 			},
 			wantNewValues:       []interface{}{floatVal},
@@ -1040,7 +1040,7 @@ func Test_processCollectionColumnsForPrepareQueries(t *testing.T) {
 		},
 		{
 			name: "Valid Input For List<double>",
-			columns: []types.Column{
+			columns: []*types.Column{
 				{Name: "list_double", ColumnFamily: "list_double", TypeInfo: types.NewListType(types.TypeDouble)},
 			},
 			values: []*primitive.Value{
@@ -1053,7 +1053,7 @@ func Test_processCollectionColumnsForPrepareQueries(t *testing.T) {
 				Logger:              zap.NewNop(),
 				SchemaMappingConfig: GetSchemaMappingConfig(types.OrderedCodeEncoding),
 			},
-			wantNewColumns: []types.Column{
+			wantNewColumns: []*types.Column{
 				{Name: time.Now().Format("20060102150405.000"), ColumnFamily: "list_double", TypeInfo: types.TypeDouble},
 			},
 			wantNewValues:       []interface{}{doubleVal},
@@ -1064,7 +1064,7 @@ func Test_processCollectionColumnsForPrepareQueries(t *testing.T) {
 		},
 		{
 			name: "Valid Input For List<timestamp>",
-			columns: []types.Column{
+			columns: []*types.Column{
 				{Name: "list_timestamp", ColumnFamily: "list_timestamp", TypeInfo: types.NewListType(types.TypeTimestamp)},
 			},
 			values: []*primitive.Value{
@@ -1077,7 +1077,7 @@ func Test_processCollectionColumnsForPrepareQueries(t *testing.T) {
 				Logger:              zap.NewNop(),
 				SchemaMappingConfig: GetSchemaMappingConfig(types.OrderedCodeEncoding),
 			},
-			wantNewColumns: []types.Column{
+			wantNewColumns: []*types.Column{
 				{Name: time.Now().Format("20060102150405.000"), ColumnFamily: "list_timestamp", TypeInfo: types.TypeBigint},
 			},
 			wantNewValues:       []interface{}{timestampVal},
@@ -1288,7 +1288,7 @@ func TestProcessComplexUpdate(t *testing.T) {
 
 	tests := []struct {
 		name           string
-		columns        []types.Column
+		columns        []*types.Column
 		values         []interface{}
 		prependColumns []string
 		expectedMeta   map[string]*ComplexOperation
@@ -1296,8 +1296,8 @@ func TestProcessComplexUpdate(t *testing.T) {
 	}{
 		{
 			name: "successful collection update for map and list",
-			columns: []types.Column{
-				{Name: "map_text_bool_col", TypeInfo: types.NewMapType(types.TypeVarchar, types.TypeBoolean)},
+			columns: []*types.Column{
+				{Name: "map_text_bool_col", TypeInfo: utilities.ParseCqlTypeOrDie("map<varchar,boolean>")},
 				{Name: "list_text", TypeInfo: types.NewListType(types.TypeVarchar)},
 			},
 			values: []interface{}{
@@ -1326,7 +1326,7 @@ func TestProcessComplexUpdate(t *testing.T) {
 		},
 		{
 			name: "non-collection column should be skipped",
-			columns: []types.Column{
+			columns: []*types.Column{
 				{Name: "pk_1_text", TypeInfo: types.TypeVarchar},
 			},
 			values: []interface{}{
@@ -2138,22 +2138,22 @@ func TestProcessCollectionColumnsForPrepareQueries_ComplexMetaAndNonCollection(t
 	// --- Test Cases ---
 	tests := []struct {
 		name            string
-		columnsResponse []types.Column
+		columnsResponse []*types.Column
 		values          []*primitive.Value
 		complexMeta     map[string]*ComplexOperation
 		primaryKeys     []string
 		// Expected outputs
-		wantNewColumns   []types.Column
+		wantNewColumns   []*types.Column
 		wantNewValues    []interface{}
 		wantUnencrypted  map[string]interface{}
 		wantIndexEnd     int
 		wantDelColFamily []string
-		wantDelColumns   []types.Column
+		wantDelColumns   []*types.Column
 		wantErr          bool
 	}{
 		{
 			name: "Non-collection column (text)",
-			columnsResponse: []types.Column{
+			columnsResponse: []*types.Column{
 				{Name: "pk_1_text", TypeInfo: types.TypeVarchar, ColumnFamily: "cf1"},
 			},
 			values: []*primitive.Value{
@@ -2161,7 +2161,7 @@ func TestProcessCollectionColumnsForPrepareQueries_ComplexMetaAndNonCollection(t
 			},
 			complexMeta: map[string]*ComplexOperation{},
 			primaryKeys: []string{"pk_1_text"},
-			wantNewColumns: []types.Column{
+			wantNewColumns: []*types.Column{
 				{Name: "pk_1_text", TypeInfo: types.TypeVarchar, ColumnFamily: "cf1"},
 			},
 			wantNewValues:    []interface{}{textValueBytes},
@@ -2173,7 +2173,7 @@ func TestProcessCollectionColumnsForPrepareQueries_ComplexMetaAndNonCollection(t
 		},
 		{
 			name: "Non-collection column (int)",
-			columnsResponse: []types.Column{
+			columnsResponse: []*types.Column{
 				{Name: "column_int", TypeInfo: types.TypeInt, ColumnFamily: "cf1"},
 			},
 			values: []*primitive.Value{
@@ -2181,7 +2181,7 @@ func TestProcessCollectionColumnsForPrepareQueries_ComplexMetaAndNonCollection(t
 			},
 			complexMeta: map[string]*ComplexOperation{},
 			primaryKeys: []string{},
-			wantNewColumns: []types.Column{
+			wantNewColumns: []*types.Column{
 				{Name: "column_int", TypeInfo: types.TypeInt, ColumnFamily: "cf1"},
 			},
 
@@ -2194,8 +2194,8 @@ func TestProcessCollectionColumnsForPrepareQueries_ComplexMetaAndNonCollection(t
 		},
 		{
 			name: "Map append for specific key",
-			columnsResponse: []types.Column{
-				{Name: "map_text_text", TypeInfo: types.NewMapType(types.TypeVarchar, types.TypeVarchar), ColumnFamily: "map_text_text"},
+			columnsResponse: []*types.Column{
+				{Name: "map_text_text", TypeInfo: utilities.ParseCqlTypeOrDie("map<varchar,varchar>"), ColumnFamily: "map_text_text"},
 			},
 			values: []*primitive.Value{
 				{Contents: textValue2Bytes},
@@ -2208,7 +2208,7 @@ func TestProcessCollectionColumnsForPrepareQueries_ComplexMetaAndNonCollection(t
 				},
 			},
 			primaryKeys: []string{},
-			wantNewColumns: []types.Column{
+			wantNewColumns: []*types.Column{
 				{Name: "newKey", ColumnFamily: "map_text_text", TypeInfo: types.TypeVarchar},
 			},
 			wantNewValues:    []interface{}{textValue2Bytes},
@@ -2220,8 +2220,8 @@ func TestProcessCollectionColumnsForPrepareQueries_ComplexMetaAndNonCollection(t
 		},
 		{
 			name: "Map delete",
-			columnsResponse: []types.Column{
-				{Name: "map_text_text", TypeInfo: types.NewMapType(types.TypeVarchar, types.TypeVarchar), ColumnFamily: "map_text_text"},
+			columnsResponse: []*types.Column{
+				{Name: "map_text_text", TypeInfo: utilities.ParseCqlTypeOrDie("map<varchar,varchar>"), ColumnFamily: "map_text_text"},
 			},
 			values: []*primitive.Value{
 				// Value contains the keys to delete, encoded as a set<text>
@@ -2239,7 +2239,7 @@ func TestProcessCollectionColumnsForPrepareQueries_ComplexMetaAndNonCollection(t
 			wantUnencrypted:  map[string]interface{}{},
 			wantIndexEnd:     0,
 			wantDelColFamily: nil, // Delete specific keys, not the whole family
-			wantDelColumns: []types.Column{
+			wantDelColumns: []*types.Column{
 				{Name: "elem1", ColumnFamily: "map_text_text"},
 				{Name: "elem2", ColumnFamily: "map_text_text"},
 			},
@@ -2247,7 +2247,7 @@ func TestProcessCollectionColumnsForPrepareQueries_ComplexMetaAndNonCollection(t
 		},
 		{
 			name: "List update by index",
-			columnsResponse: []types.Column{
+			columnsResponse: []*types.Column{
 				{Name: "list_text", TypeInfo: types.NewListType(types.TypeVarchar), ColumnFamily: "list_text"},
 			},
 			values: []*primitive.Value{
@@ -2270,7 +2270,7 @@ func TestProcessCollectionColumnsForPrepareQueries_ComplexMetaAndNonCollection(t
 		},
 		{
 			name: "Set delete elements",
-			columnsResponse: []types.Column{
+			columnsResponse: []*types.Column{
 				{Name: "set_text", TypeInfo: types.NewSetType(types.TypeVarchar), ColumnFamily: "set_text"},
 			},
 			values: []*primitive.Value{
@@ -2288,7 +2288,7 @@ func TestProcessCollectionColumnsForPrepareQueries_ComplexMetaAndNonCollection(t
 			wantUnencrypted:  map[string]interface{}{},
 			wantIndexEnd:     0,
 			wantDelColFamily: nil, // Deleting specific elements
-			wantDelColumns: []types.Column{
+			wantDelColumns: []*types.Column{
 				{Name: "elem1", ColumnFamily: "set_text"},
 				{Name: "elem2", ColumnFamily: "set_text"},
 			},
@@ -2411,7 +2411,7 @@ func TestProcessComplexUpdate_SuccessfulCases(t *testing.T) {
 
 	tests := []struct {
 		name           string
-		columns        []types.Column
+		columns        []*types.Column
 		values         []interface{}
 		tableName      string
 		keyspaceName   string
@@ -2421,8 +2421,8 @@ func TestProcessComplexUpdate_SuccessfulCases(t *testing.T) {
 	}{
 		{
 			name: "map append operation",
-			columns: []types.Column{
-				{Name: "map_text_text", TypeInfo: types.NewMapType(types.TypeVarchar, types.TypeVarchar)},
+			columns: []*types.Column{
+				{Name: "map_text_text", TypeInfo: utilities.ParseCqlTypeOrDie("map<varchar,varchar>")},
 			},
 			values: []interface{}{
 				ComplexAssignment{
@@ -2443,7 +2443,7 @@ func TestProcessComplexUpdate_SuccessfulCases(t *testing.T) {
 		},
 		{
 			name: "list prepend operation",
-			columns: []types.Column{
+			columns: []*types.Column{
 				{Name: "list_text", TypeInfo: types.NewListType(types.TypeVarchar)},
 			},
 			values: []interface{}{
@@ -2467,8 +2467,8 @@ func TestProcessComplexUpdate_SuccessfulCases(t *testing.T) {
 		},
 		{
 			name: "multiple operations",
-			columns: []types.Column{
-				{Name: "map_text_text", TypeInfo: types.NewMapType(types.TypeVarchar, types.TypeVarchar)},
+			columns: []*types.Column{
+				{Name: "map_text_text", TypeInfo: utilities.ParseCqlTypeOrDie("map<varchar,varchar>")},
 				{Name: "list_text", TypeInfo: types.NewListType(types.TypeVarchar)},
 			},
 			// values: []interface{}{
@@ -2506,7 +2506,7 @@ func TestProcessComplexUpdate_SuccessfulCases(t *testing.T) {
 		},
 		{
 			name: "non-collection column operation",
-			columns: []types.Column{
+			columns: []*types.Column{
 				{Name: "normal_col", TypeInfo: types.TypeVarchar},
 			},
 			values:         []interface{}{"normal_col+value"},
@@ -2518,8 +2518,8 @@ func TestProcessComplexUpdate_SuccessfulCases(t *testing.T) {
 		},
 		{
 			name: "skip invalid value type",
-			columns: []types.Column{
-				{Name: "map_text_text", TypeInfo: types.NewMapType(types.TypeVarchar, types.TypeVarchar)},
+			columns: []*types.Column{
+				{Name: "map_text_text", TypeInfo: utilities.ParseCqlTypeOrDie("map<varchar,varchar>")},
 			},
 			values:         []interface{}{123}, // Not a string
 			tableName:      "table1",
@@ -2780,7 +2780,7 @@ func TestAddSetElements(t *testing.T) {
 		name        string
 		setValues   []string
 		colFamily   string
-		column      types.Column
+		column      *types.Column
 		input       ProcessRawCollectionsInput
 		output      *ProcessRawCollectionsOutput
 		expectedErr bool
@@ -2790,7 +2790,7 @@ func TestAddSetElements(t *testing.T) {
 			name:      "Add single string element to set",
 			setValues: []string{"value1"},
 			colFamily: "test_family",
-			column: types.Column{
+			column: &types.Column{
 				Name:     "test_set",
 				TypeInfo: types.NewSetType(types.TypeVarchar),
 			},
@@ -2809,7 +2809,7 @@ func TestAddSetElements(t *testing.T) {
 			name:      "Add multiple string elements to set",
 			setValues: []string{"value1", "value2", "value3"},
 			colFamily: "test_family",
-			column: types.Column{
+			column: &types.Column{
 				Name:     "test_set",
 				TypeInfo: types.NewSetType(types.TypeVarchar),
 			},
@@ -2831,7 +2831,7 @@ func TestAddSetElements(t *testing.T) {
 			name:      "Add boolean elements to set",
 			setValues: []string{"true", "false"},
 			colFamily: "test_family",
-			column: types.Column{
+			column: &types.Column{
 				Name:     "test_set",
 				TypeInfo: types.NewSetType(types.TypeBoolean),
 			},
@@ -2853,7 +2853,7 @@ func TestAddSetElements(t *testing.T) {
 			name:      "Add elements to empty set",
 			setValues: []string{},
 			colFamily: "test_family",
-			column: types.Column{
+			column: &types.Column{
 				Name:     "test_set",
 				TypeInfo: types.NewSetType(types.TypeVarchar),
 			},
@@ -2868,7 +2868,7 @@ func TestAddSetElements(t *testing.T) {
 			name:      "Add elements with empty column family",
 			setValues: []string{"value1"},
 			colFamily: "",
-			column: types.Column{
+			column: &types.Column{
 				Name:     "test_set",
 				TypeInfo: types.NewSetType(types.TypeVarchar),
 			},
@@ -2887,7 +2887,7 @@ func TestAddSetElements(t *testing.T) {
 			name:      "Add elements with invalid boolean value",
 			setValues: []string{"invalid"},
 			colFamily: "test_family",
-			column: types.Column{
+			column: &types.Column{
 				Name:     "test_set",
 				TypeInfo: types.NewSetType(types.TypeBoolean),
 			},
@@ -2899,7 +2899,7 @@ func TestAddSetElements(t *testing.T) {
 			name:      "Add elements with nil output",
 			setValues: []string{"value1"},
 			colFamily: "test_family",
-			column: types.Column{
+			column: &types.Column{
 				Name:     "test_set",
 				TypeInfo: types.NewSetType(types.TypeVarchar),
 			},
@@ -2911,7 +2911,7 @@ func TestAddSetElements(t *testing.T) {
 			name:      "Add elements with different data types",
 			setValues: []string{"value1", "123", "true"},
 			colFamily: "test_family",
-			column: types.Column{
+			column: &types.Column{
 				Name:     "test_set",
 				TypeInfo: types.NewSetType(types.TypeInt),
 			},
@@ -2923,7 +2923,7 @@ func TestAddSetElements(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := addSetElements(tt.setValues, tt.colFamily, tt.column.TypeInfo.(types.SetType), tt.input, tt.output)
+			err := addSetElements(tt.setValues, tt.colFamily, tt.column.TypeInfo.(*types.SetType), tt.input, tt.output)
 
 			if tt.expectedErr {
 				assert.Error(t, err)
@@ -2940,7 +2940,7 @@ func TestAddSetElements(t *testing.T) {
 func TestHandleListOperation(t *testing.T) {
 	tests := []struct {
 		name      string
-		column    types.Column
+		column    *types.Column
 		input     ProcessRawCollectionsInput
 		operation interface{}
 		wantErr   bool
@@ -2948,7 +2948,7 @@ func TestHandleListOperation(t *testing.T) {
 	}{
 		{
 			name: "Add operation with prepend",
-			column: types.Column{
+			column: &types.Column{
 				Name:     "mylist",
 				TypeInfo: types.NewListType(types.TypeInt),
 			},
@@ -2967,7 +2967,7 @@ func TestHandleListOperation(t *testing.T) {
 		},
 		{
 			name: "Remove operation",
-			column: types.Column{
+			column: &types.Column{
 				Name:     "mylist",
 				TypeInfo: types.NewListType(types.TypeInt),
 			},
@@ -2981,7 +2981,7 @@ func TestHandleListOperation(t *testing.T) {
 		},
 		{
 			name: "Update index operation",
-			column: types.Column{
+			column: &types.Column{
 				Name:     "mylist",
 				TypeInfo: types.NewListType(types.TypeInt),
 			},
@@ -2994,7 +2994,7 @@ func TestHandleListOperation(t *testing.T) {
 		},
 		{
 			name: "Simple assignment",
-			column: types.Column{
+			column: &types.Column{
 				Name:     "mylist",
 				TypeInfo: types.NewListType(types.TypeInt),
 			},
@@ -3009,7 +3009,7 @@ func TestHandleListOperation(t *testing.T) {
 		},
 		{
 			name: "Invalid operation",
-			column: types.Column{
+			column: &types.Column{
 				Name:     "mylist",
 				TypeInfo: types.NewListType(types.TypeInt),
 			},
@@ -3024,7 +3024,7 @@ func TestHandleListOperation(t *testing.T) {
 			output := &ProcessRawCollectionsOutput{
 				ComplexMeta: make(map[string]*ComplexOperation),
 			}
-			err := handleListOperation(tt.operation, tt.column, tt.column.TypeInfo.(types.ListType), tt.column.Name, tt.input, output)
+			err := handleListOperation(tt.operation, tt.column, tt.column.TypeInfo.(*types.ListType), tt.column.Name, tt.input, output)
 			if tt.wantErr {
 				assert.Error(t, err)
 				return
@@ -3040,7 +3040,7 @@ func TestHandleListOperation(t *testing.T) {
 func TestHandleSetOperation(t *testing.T) {
 	tests := []struct {
 		name      string
-		column    types.Column
+		column    *types.Column
 		input     ProcessRawCollectionsInput
 		operation interface{}
 		wantErr   bool
@@ -3048,7 +3048,7 @@ func TestHandleSetOperation(t *testing.T) {
 	}{
 		{
 			name: "Add elements to set",
-			column: types.Column{
+			column: &types.Column{
 				Name:     "myset",
 				TypeInfo: types.NewSetType(types.TypeInt),
 			},
@@ -3066,7 +3066,7 @@ func TestHandleSetOperation(t *testing.T) {
 		},
 		{
 			name: "Remove elements from set",
-			column: types.Column{
+			column: &types.Column{
 				Name:     "myset",
 				TypeInfo: types.NewSetType(types.TypeInt),
 			},
@@ -3081,7 +3081,7 @@ func TestHandleSetOperation(t *testing.T) {
 		},
 		{
 			name: "Simple assignment to set",
-			column: types.Column{
+			column: &types.Column{
 				Name:     "myset",
 				TypeInfo: types.NewSetType(types.TypeInt),
 			},
@@ -3096,7 +3096,7 @@ func TestHandleSetOperation(t *testing.T) {
 		},
 		{
 			name: "Invalid operation",
-			column: types.Column{
+			column: &types.Column{
 				Name:     "myset",
 				TypeInfo: types.NewSetType(types.TypeInt),
 			},
@@ -3111,7 +3111,7 @@ func TestHandleSetOperation(t *testing.T) {
 			output := &ProcessRawCollectionsOutput{
 				ComplexMeta: make(map[string]*ComplexOperation),
 			}
-			err := handleSetOperation(tt.operation, tt.column, tt.column.TypeInfo.(types.SetType), tt.column.Name, tt.input, output)
+			err := handleSetOperation(tt.operation, tt.column, tt.column.TypeInfo.(*types.SetType), tt.column.Name, tt.input, output)
 			if tt.wantErr {
 				assert.Error(t, err)
 				return
@@ -3127,7 +3127,7 @@ func TestHandleSetOperation(t *testing.T) {
 func TestHandleMapOperation(t *testing.T) {
 	tests := []struct {
 		name      string
-		column    types.Column
+		column    *types.Column
 		input     ProcessRawCollectionsInput
 		operation interface{}
 		wantErr   bool
@@ -3135,7 +3135,7 @@ func TestHandleMapOperation(t *testing.T) {
 	}{
 		{
 			name: "Add entries to map",
-			column: types.Column{
+			column: &types.Column{
 				Name:     "mymap",
 				TypeInfo: types.NewMapType(types.TypeVarchar, types.TypeInt),
 			},
@@ -3152,7 +3152,7 @@ func TestHandleMapOperation(t *testing.T) {
 		},
 		{
 			name: "Remove entries from map",
-			column: types.Column{
+			column: &types.Column{
 				Name:     "mymap",
 				TypeInfo: types.NewMapType(types.TypeVarchar, types.TypeInt),
 			},
@@ -3168,7 +3168,7 @@ func TestHandleMapOperation(t *testing.T) {
 		},
 		{
 			name: "Update map index",
-			column: types.Column{
+			column: &types.Column{
 				Name:     "mymap",
 				TypeInfo: types.NewMapType(types.TypeVarchar, types.TypeInt),
 			},
@@ -3182,7 +3182,7 @@ func TestHandleMapOperation(t *testing.T) {
 		},
 		{
 			name: "Simple assignment to map",
-			column: types.Column{
+			column: &types.Column{
 				Name:     "mymap",
 				TypeInfo: types.NewMapType(types.TypeVarchar, types.TypeInt),
 			},
@@ -3197,7 +3197,7 @@ func TestHandleMapOperation(t *testing.T) {
 		},
 		{
 			name: "Invalid map key type",
-			column: types.Column{
+			column: &types.Column{
 				Name:     "mymap",
 				TypeInfo: types.NewMapType(types.TypeInt, types.TypeInt),
 			},
@@ -3212,7 +3212,7 @@ func TestHandleMapOperation(t *testing.T) {
 			output := &ProcessRawCollectionsOutput{
 				ComplexMeta: make(map[string]*ComplexOperation),
 			}
-			err := handleMapOperation(tt.operation, tt.column, tt.column.TypeInfo.(types.MapType), tt.column.Name, tt.input, output)
+			err := handleMapOperation(tt.operation, tt.column, tt.column.TypeInfo.(*types.MapType), tt.column.Name, tt.input, output)
 			if tt.wantErr {
 				assert.Error(t, err)
 				return
@@ -3227,22 +3227,22 @@ func TestHandleMapOperation(t *testing.T) {
 
 func TestProcessCollectionColumnsForRawQueries(t *testing.T) {
 	// Mock key data types for columns
-	colList := types.Column{
+	colList := &types.Column{
 		Name:     "list_text",
 		TypeInfo: types.NewListType(types.TypeVarchar),
 	}
-	colSet := types.Column{
+	colSet := &types.Column{
 		Name:     "column7",
 		TypeInfo: types.NewSetType(types.TypeVarchar),
 	}
-	colMap := types.Column{
+	colMap := &types.Column{
 		Name:     "map_text_text",
 		TypeInfo: types.NewMapType(types.TypeVarchar, types.TypeVarchar),
 	}
 
 	// Mock inputs
 	inputs := ProcessRawCollectionsInput{
-		Columns: []types.Column{colList, colSet, colMap /* add more as needed */},
+		Columns: []*types.Column{colList, colSet, colMap /* add more as needed */},
 		Values: []interface{}{
 			[]string{"hi", "hello"},
 			[]string{"alpha", "beta"},

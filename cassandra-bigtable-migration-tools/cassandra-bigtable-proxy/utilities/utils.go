@@ -542,7 +542,7 @@ func GetClauseByColumn(clause []types.Clause, column string) (types.Clause, erro
 }
 
 func IsSupportedPrimaryKeyType(dt types.CqlDataType) bool {
-	if dt.IsFrozen() {
+	if dt.IsAnyFrozen() {
 		return false
 	}
 
@@ -645,7 +645,7 @@ func ParseCqlType(dtc cql.IDataTypeContext) (types.CqlDataType, error) {
 		if err != nil {
 			return nil, fmt.Errorf("failed to extract type for '%s': %w", dtc.GetText(), err)
 		}
-		if innerType.IsCollection() && !innerType.IsFrozen() {
+		if innerType.IsCollection() && innerType.Code() != types.FROZEN {
 			return nil, fmt.Errorf("lists cannot contain collections unless they are frozen")
 		}
 		return types.NewListType(innerType), nil
@@ -658,7 +658,7 @@ func ParseCqlType(dtc cql.IDataTypeContext) (types.CqlDataType, error) {
 		if err != nil {
 			return nil, fmt.Errorf("failed to extract type for '%s': %w", dtc.GetText(), err)
 		}
-		if innerType.IsCollection() && !innerType.IsFrozen() {
+		if innerType.IsCollection() && innerType.Code() != types.FROZEN {
 			return nil, fmt.Errorf("sets cannot contain collections unless they are frozen")
 		}
 		return types.NewSetType(innerType), nil
@@ -678,7 +678,7 @@ func ParseCqlType(dtc cql.IDataTypeContext) (types.CqlDataType, error) {
 		if err != nil {
 			return nil, fmt.Errorf("failed to extract value type for '%s': %w", dtc.GetText(), err)
 		}
-		if valueType.IsCollection() && !valueType.IsFrozen() {
+		if valueType.IsCollection() && valueType.Code() != types.FROZEN {
 			return nil, fmt.Errorf("map values cannot be collections unless they are frozen")
 		}
 		if err != nil {

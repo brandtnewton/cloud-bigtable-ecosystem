@@ -125,7 +125,7 @@ type ComplexOperation struct {
 	IncrementType    IncrementOperationType // for incrementing a counter
 	IncrementValue   int64                  // how much to increment a counter by
 	UpdateListIndex  string                 // this is for List index
-	ExpectedDatatype datatype.DataType      // this datatype has to be provided in case of change in want datatype.
+	ExpectedDatatype datatype.DataType      // this datatype has to be provided in case of change in wantNewColumns datatype.
 	mapKey           interface{}            // this key is for map key
 	Value            []byte                 // this is value for setting at index for list
 	ListDelete       bool                   // this is for list = list - {value1, value2}

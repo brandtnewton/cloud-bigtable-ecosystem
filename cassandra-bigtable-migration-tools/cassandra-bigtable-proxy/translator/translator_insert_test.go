@@ -197,13 +197,13 @@ func Test_setParamsFromValues(t *testing.T) {
 				return
 			}
 			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("setParamsFromValues() got = %v, want %v", got, tt.want)
+				t.Errorf("setParamsFromValues() got = %v, wantNewColumns %v", got, tt.want)
 			}
 			if !reflect.DeepEqual(got1, tt.want1) {
-				t.Errorf("setParamsFromValues() got1 = %v, want %v", got1, tt.want1)
+				t.Errorf("setParamsFromValues() got1 = %v, wantNewColumns %v", got1, tt.want1)
 			}
 			if !reflect.DeepEqual(got2, tt.want2) {
-				t.Errorf("setParamsFromValues() got2 = %v, want %v", got2, tt.want2)
+				t.Errorf("setParamsFromValues() got2 = %v, wantNewColumns %v", got2, tt.want2)
 			}
 		})
 	}
@@ -798,7 +798,7 @@ func TestTranslator_BuildInsertPrepareQuery(t *testing.T) {
 				return
 			}
 			if got.RowKey != tt.want.RowKey {
-				t.Errorf("Translator.BuildInsertPrepareQuery() RowKey = %v, want %v", got.RowKey, tt.want.RowKey)
+				t.Errorf("Translator.BuildInsertPrepareQuery() RowKey = %v, wantNewColumns %v", got.RowKey, tt.want.RowKey)
 			}
 		})
 	}

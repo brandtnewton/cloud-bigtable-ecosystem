@@ -716,22 +716,22 @@ func TestTranslator_BuildUpdatePrepareQuery(t *testing.T) {
 			// Comparing specific fields as the whole struct comparison might fail due to dynamic parts
 			if got != nil && tt.want != nil {
 				if got.Query != tt.want.Query {
-					t.Errorf("Translator.BuildUpdatePrepareQuery() Query = %v, want %v", got.Query, tt.want.Query)
+					t.Errorf("Translator.BuildUpdatePrepareQuery() Query = %v, wantNewColumns %v", got.Query, tt.want.Query)
 				}
 				if !reflect.DeepEqual(got.PrimaryKeys, tt.want.PrimaryKeys) {
-					t.Errorf("Translator.BuildUpdatePrepareQuery() PrimaryKeys = %v, want %v", got.PrimaryKeys, tt.want.PrimaryKeys)
+					t.Errorf("Translator.BuildUpdatePrepareQuery() PrimaryKeys = %v, wantNewColumns %v", got.PrimaryKeys, tt.want.PrimaryKeys)
 				}
 				if len(got.Clauses) != len(tt.want.Clauses) {
-					t.Errorf("Translator.BuildUpdatePrepareQuery() Clauses length mismatch = %d, want %d", len(got.Clauses), len(tt.want.Clauses))
+					t.Errorf("Translator.BuildUpdatePrepareQuery() Clauses length mismatch = %d, wantNewColumns %d", len(got.Clauses), len(tt.want.Clauses))
 				} else {
 					for i := range got.Clauses {
 						if !reflect.DeepEqual(got.Clauses[i], tt.want.Clauses[i]) {
-							t.Errorf("Translator.BuildUpdatePrepareQuery() Clause[%d] = %v, want %v", i, got.Clauses[i], tt.want.Clauses[i])
+							t.Errorf("Translator.BuildUpdatePrepareQuery() Clause[%d] = %v, wantNewColumns %v", i, got.Clauses[i], tt.want.Clauses[i])
 						}
 					}
 				}
 			} else if !(got == nil && tt.want == nil) {
-				t.Errorf("Translator.BuildUpdatePrepareQuery() = %v, want %v", got, tt.want)
+				t.Errorf("Translator.BuildUpdatePrepareQuery() = %v, wantNewColumns %v", got, tt.want)
 			}
 		})
 	}

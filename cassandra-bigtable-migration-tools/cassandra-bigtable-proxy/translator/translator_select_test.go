@@ -1695,7 +1695,7 @@ func Test_GetBigtableSelectQuery(t *testing.T) {
 				return
 			}
 			if got != tt.want {
-				t.Errorf("getBigtableSelectQuery() = %v, want %v", got, tt.want)
+				t.Errorf("getBigtableSelectQuery() = %v, wantNewColumns %v", got, tt.want)
 			}
 		})
 	}
@@ -1789,7 +1789,7 @@ func Test_parseTableFromSelect(t *testing.T) {
 				return
 			}
 			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("parseTableFromSelect() = %v, want %v", got, tt.want)
+				t.Errorf("parseTableFromSelect() = %v, wantNewColumns %v", got, tt.want)
 			}
 		})
 	}
@@ -1878,7 +1878,7 @@ func Test_parseOrderByFromSelect(t *testing.T) {
 				return
 			}
 			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("parseOrderByFromSelect() = %v, want %v", got, tt.want)
+				t.Errorf("parseOrderByFromSelect() = %v, wantNewColumns %v", got, tt.want)
 			}
 		})
 	}
@@ -2111,7 +2111,7 @@ func Test_processFunctionColumn(t *testing.T) {
 			}
 
 			if !reflect.DeepEqual(gotColumns, tt.wantColumns) {
-				t.Errorf("processFunctionColumn() gotColumns = %v, want %v", gotColumns, tt.wantColumns)
+				t.Errorf("processFunctionColumn() gotColumns = %v, wantNewColumns %v", gotColumns, tt.wantColumns)
 			}
 
 		})
@@ -2219,7 +2219,7 @@ func Test_parseColumnsFromSelectWithParser(t *testing.T) {
 			}
 
 			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("parseColumnsFromSelect() = %v, want %v", got, tt.want)
+				t.Errorf("parseColumnsFromSelect() = %v, wantNewColumns %v", got, tt.want)
 			}
 		})
 	}
@@ -2285,7 +2285,7 @@ func Test_parseGroupByColumn(t *testing.T) {
 
 			got := parseGroupByColumn(groupSpec)
 			if !reflect.DeepEqual(got, tt.expected) {
-				t.Errorf("parseGroupByColumn() = %v, want %v", got, tt.expected)
+				t.Errorf("parseGroupByColumn() = %v, wantNewColumns %v", got, tt.expected)
 			}
 		})
 	}
@@ -2309,7 +2309,7 @@ func Test_dtAllowedInAggregate(t *testing.T) {
 		t.Run(tt.dataType.String(), func(t *testing.T) {
 			got := dtAllowedInAggregate(tt.dataType)
 			if got != tt.expected {
-				t.Errorf("dtAllowedInAggregate(%q) = %v, want %v", tt.dataType, got, tt.expected)
+				t.Errorf("dtAllowedInAggregate(%q) = %v, wantNewColumns %v", tt.dataType, got, tt.expected)
 			}
 		})
 	}
@@ -2388,7 +2388,7 @@ func Test_parseLimitFromSelect(t *testing.T) {
 			}
 
 			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("parseLimitFromSelect() = %v, want %v", got, tt.want)
+				t.Errorf("parseLimitFromSelect() = %v, wantNewColumns %v", got, tt.want)
 			}
 		})
 	}
@@ -2414,7 +2414,7 @@ func Test_funcAllowedInAggregate(t *testing.T) {
 		t.Run(tt.funcName, func(t *testing.T) {
 			got := funcAllowedInAggregate(tt.funcName)
 			if got != tt.expected {
-				t.Errorf("funcAllowedInAggregate(%q) = %v, want %v", tt.funcName, got, tt.expected)
+				t.Errorf("funcAllowedInAggregate(%q) = %v, wantNewColumns %v", tt.funcName, got, tt.expected)
 			}
 		})
 	}
@@ -2553,7 +2553,7 @@ func TestProcessSetStrings(t *testing.T) {
 
 			if !tt.wantErr {
 				if !reflect.DeepEqual(gotColumns, tt.wantColumns) {
-					t.Errorf("processStrings() gotColumns = %v, want %v", gotColumns, tt.wantColumns)
+					t.Errorf("processStrings() gotColumns = %v, wantNewColumns %v", gotColumns, tt.wantColumns)
 				}
 			}
 		})
@@ -2671,7 +2671,7 @@ func Test_processAsColumn(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			got := processAsColumn(tt.columnMetadata, tt.columnFamily, tt.colMeta, tt.columns, tt.isGroupBy)
 			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("processAsColumn() = %v, want %v", got, tt.want)
+				t.Errorf("processAsColumn() = %v, wantNewColumns %v", got, tt.want)
 			}
 		})
 	}

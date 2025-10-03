@@ -384,7 +384,7 @@ func processCollectionColumnsForRawQueries(tableConfig *schemaMapping.TableConfi
 			default:
 				return nil, fmt.Errorf("column %s is not a collection type", column.Name)
 			}
-		} else if column.TypeInfo == types.TypeCounter {
+		} else if column.TypeInfo.Code() == types.COUNTER {
 			if err := handleCounterOperation(val, column, input, output); err != nil {
 				return nil, err
 			}
@@ -575,7 +575,7 @@ func addSetElements(setValues []string, colFamily string, st types.SetType, inpu
 		}
 
 		// For boolean values, we need to convert true/false to 1/0
-		if st.ElementType() == types.TypeBoolean {
+		if st.ElementType().Code() == types.BOOLEAN {
 			strVal, ok := valInInterface.(string)
 			if !ok {
 				return fmt.Errorf("expected string for boolean, got %T", valInInterface)
@@ -661,8 +661,7 @@ func handleMapOperation(val interface{}, column types.Column, mt types.MapType, 
 	}
 
 	// Check if key type is VARCHAR or TIMESTAMP
-	if mt.KeyType().DataType().GetDataTypeCode() == primitive.DataTypeCodeVarchar || mt.KeyType().DataType().GetDataTypeCode() == primitive.DataTypeCodeTimestamp {
-
+	if mt.KeyType().DataType() == datatype.Varchar || mt.KeyType().DataType() == datatype.Timestamp {
 		switch v := val.(type) {
 		case ComplexAssignment:
 			switch v.Operation {
@@ -694,15 +693,15 @@ func addMapEntries(val interface{}, colFamily string, mt types.MapType, column t
 		return fmt.Errorf("expected map[string]interface{} for add operation, got %T", val)
 	}
 
-	cqlType := mt.ValueType()
-	if cqlType == types.TypeBoolean || cqlType == types.TypeInt {
-		cqlType = types.TypeBigint
+	mapValueType := mt.ValueType()
+	if mapValueType.Code() == types.BOOLEAN || mapValueType.Code() == types.INT {
+		mapValueType = types.TypeBigint
 	}
 	for k, v := range mapValue {
 		col := types.Column{
 			Name:         k,
 			ColumnFamily: colFamily,
-			TypeInfo:     cqlType,
+			TypeInfo:     mapValueType,
 		}
 		valueFormatted, err := formatValues(v, mt.ValueType().DataType(), primitive.ProtocolVersion4)
 		if err != nil {
@@ -752,7 +751,7 @@ func updateMapIndex(key interface{}, value interface{}, dt types.MapType, colFam
 	col := types.Column{
 		Name:         k,
 		ColumnFamily: colFamily,
-		TypeInfo:     dt,
+		TypeInfo:     dt.ValueType(),
 	}
 	output.NewColumns = append(output.NewColumns, col)
 	output.NewValues = append(output.NewValues, val)
@@ -777,18 +776,18 @@ func processCollectionColumnsForPrepareQueries(tableConfig *schemaMapping.TableC
 		// todo validate the column exists again, in case the column was dropped after the query was prepared.
 		if column.TypeInfo.IsCollection() {
 			colFamily := tableConfig.GetColumnFamily(column.Name)
-			switch column.TypeInfo.DataType().GetDataTypeCode() {
-			case primitive.DataTypeCodeList:
+			switch column.TypeInfo.Code() {
+			case types.LIST:
 				if err := handlePrepareListOperation(input.Values[i].Contents, column, colFamily, input, output); err != nil {
 					return nil, err
 				}
 				continue
-			case primitive.DataTypeCodeSet:
+			case types.SET:
 				if err := handlePrepareSetOperation(input.Values[i], column, colFamily, input, output); err != nil {
 					return nil, err
 				}
 				continue
-			case primitive.DataTypeCodeMap:
+			case types.MAP:
 				if err := handlePrepareMapOperation(input.Values[i], column, colFamily, input, output); err != nil {
 					return nil, err
 				}
@@ -796,7 +795,7 @@ func processCollectionColumnsForPrepareQueries(tableConfig *schemaMapping.TableC
 			default:
 				return nil, fmt.Errorf("column %s is not a collection type", column.Name)
 			}
-		} else if column.TypeInfo == types.TypeCounter {
+		} else if column.TypeInfo.Code() == types.COUNTER {
 			decodedValue, err := proxycore.DecodeType(datatype.Counter, input.ProtocolV, input.Values[i].Contents)
 			if err != nil {
 				return nil, err
@@ -831,11 +830,11 @@ func processCollectionColumnsForPrepareQueries(tableConfig *schemaMapping.TableC
 // Returns error if value type doesn't match list element type or encoding fails.
 func handlePrepareListOperation(val []byte, column types.Column, colFamily string, input ProcessPrepareCollectionsInput, output *ProcessPrepareCollectionsOutput) error {
 
-	listType, ok := column.TypeInfo.(types.ListType)
+	lt, ok := column.TypeInfo.(types.ListType)
 	if !ok {
 		return fmt.Errorf("failed to assert list type for %s", column.TypeInfo.String())
 	}
-	et := listType.ElementType()
+	et := lt.ElementType()
 
 	if meta, ok := input.ComplexMeta[column.Name]; ok {
 		var complexUpdateMeta *ComplexOperation = meta
@@ -844,15 +843,15 @@ func handlePrepareListOperation(val []byte, column types.Column, colFamily strin
 			// list index operation e.g. list[index]=val
 			valInInterface, err := DataConversionInInsertionIfRequired(val, input.ProtocolV, et.DataType(), "byte")
 			if err != nil {
-				return fmt.Errorf("error while encoding %s value: %w", listType.String(), err)
+				return fmt.Errorf("error while encoding %s value: %w", lt.String(), err)
 			}
 			complexUpdateMeta.Value = valInInterface.([]byte)
 		} else {
-			return preprocessList(val, colFamily, complexUpdateMeta, listType, column, input, output)
+			return preprocessList(val, colFamily, complexUpdateMeta, lt, column, input, output)
 		}
 	} else {
 		output.DelColumnFamily = append(output.DelColumnFamily, column.Name)
-		return preprocessList(val, colFamily, nil, listType, column, input, output)
+		return preprocessList(val, colFamily, nil, lt, column, input, output)
 	}
 	return nil
 }
@@ -862,18 +861,18 @@ func handlePrepareListOperation(val []byte, column types.Column, colFamily strin
 // Returns error if value type doesn't match list element type or conversion fails.
 func preprocessList(val []byte, colFamily string, complexUpdateMeta *ComplexOperation, lt types.ListType, column types.Column, input ProcessPrepareCollectionsInput, output *ProcessPrepareCollectionsOutput) error {
 
-	switch lt.ElementType() {
-	case types.TypeVarchar:
+	switch lt.ElementType().Code() {
+	case types.VARCHAR, types.TEXT, types.ASCII:
 		return processList[string](val, colFamily, complexUpdateMeta, lt, column, input, output)
-	case types.TypeInt:
+	case types.INT:
 		return processList[int32](val, colFamily, complexUpdateMeta, lt, column, input, output)
-	case types.TypeBigint, types.TypeTimestamp:
+	case types.BIGINT, types.TIMESTAMP:
 		return processList[int64](val, colFamily, complexUpdateMeta, lt, column, input, output)
-	case types.TypeFloat:
+	case types.FLOAT:
 		return processList[float32](val, colFamily, complexUpdateMeta, lt, column, input, output)
-	case types.TypeDouble:
+	case types.DOUBLE:
 		return processList[float64](val, colFamily, complexUpdateMeta, lt, column, input, output)
-	case types.TypeBoolean:
+	case types.BOOLEAN:
 		return processList[bool](val, colFamily, complexUpdateMeta, lt, column, input, output)
 	default:
 		return fmt.Errorf("Invalid list value type")
@@ -886,14 +885,14 @@ func preprocessList(val []byte, colFamily string, complexUpdateMeta *ComplexOper
 func processList[V any](val []byte, colFamily string, complexUpdateMeta *ComplexOperation, lt types.ListType, column types.Column, input ProcessPrepareCollectionsInput, output *ProcessPrepareCollectionsOutput) error {
 	listValDatatype := lt.ElementType()
 	listDT := lt
-	if lt.ElementType() == types.TypeTimestamp {
+	if lt.ElementType().Code() == types.TIMESTAMP {
 		listValDatatype = types.TypeBigint
 		listDT = utilities.ListOfBigInt
 	}
 
 	decodedValue, err := collectiondecoder.DecodeCollection(listDT.DataType(), input.ProtocolV, val)
 	if err != nil {
-		return fmt.Errorf("error decoding string to %s value: %w", column.TypeInfo.DataType(), err)
+		return fmt.Errorf("error decoding string to %s value: %w", column.TypeInfo.String(), err)
 	}
 	listValues, ok := decodedValue.([]V)
 	if !ok {
@@ -926,7 +925,7 @@ func processList[V any](val []byte, colFamily string, complexUpdateMeta *Complex
 		c := types.Column{
 			Name:         string(encTime),
 			ColumnFamily: colFamily,
-			TypeInfo:     types.NewListType(listValDatatype),
+			TypeInfo:     listValDatatype,
 		}
 		// The value parameter is intentionally empty because the column identifier has the value
 		val, _ := formatValues(valueStr, listValDatatype.DataType(), input.ProtocolV)
@@ -960,7 +959,7 @@ func handlePrepareMapOperation(val *primitive.Value, column types.Column, colFam
 				expectedDt = column.TypeInfo.DataType()
 			}
 
-			if mapType.KeyType() == types.TypeTimestamp {
+			if mapType.KeyType().Code() == types.TIMESTAMP {
 				expectedDt = utilities.SetOfBigInt.DataType()
 			}
 			return processDeleteOperationForMapAndSet(column, compleUpdateMeta, input, val, output, expectedDt)
@@ -1031,9 +1030,9 @@ func processMap[V any](
 	}
 
 	if mt.KeyType().DataType() == datatype.Varchar {
-		return processVarcharMap[V](correctedMapType, protocolV, val, column, colFamily, output)
+		return processVarcharMap[V](mt, correctedMapType, protocolV, val, column, colFamily, output)
 	} else if mt.KeyType().DataType() == datatype.Timestamp {
-		return processTimestampMap[V](correctedMapType, protocolV, val, column, colFamily, output)
+		return processTimestampMap[V](mt, correctedMapType, protocolV, val, column, colFamily, output)
 	} else {
 		return fmt.Errorf("Invalid map type")
 	}
@@ -1042,7 +1041,7 @@ func processMap[V any](
 // processVarcharMap handles map operations with varchar keys in prepared queries.
 // Processes varchar map operations.
 // Returns error if key type isn't varchar or value encoding fails.
-func processVarcharMap[V any](mapType types.MapType, protocolV primitive.ProtocolVersion, val *primitive.Value, column types.Column, colFamily string, output *ProcessPrepareCollectionsOutput) error {
+func processVarcharMap[V any](originalMapType types.MapType, mapType types.MapType, protocolV primitive.ProtocolVersion, val *primitive.Value, column types.Column, colFamily string, output *ProcessPrepareCollectionsOutput) error {
 	decodedValue, err := proxycore.DecodeType(mapType.DataType(), protocolV, val.Contents)
 	if err != nil {
 		return fmt.Errorf("error decoding string to %s value: %w", column.TypeInfo.DataType(), err)
@@ -1058,7 +1057,7 @@ func processVarcharMap[V any](mapType types.MapType, protocolV primitive.Protoco
 			c := types.Column{
 				Name:         k,
 				ColumnFamily: colFamily,
-				TypeInfo:     mapType.ValueType(),
+				TypeInfo:     originalMapType.ValueType(),
 			}
 			valueStr, err := primitivesToString(v)
 			if err != nil {
@@ -1071,12 +1070,11 @@ func processVarcharMap[V any](mapType types.MapType, protocolV primitive.Protoco
 		}
 		return nil
 	} else {
-		return fmt.Errorf("error decoding string to %s value: %w", column.TypeInfo.DataType(), err)
+		return fmt.Errorf("error decoding string to %s value: %w", column.TypeInfo.String(), err)
 	}
-
 }
 
-func processTimestampMap[V any](mapType types.MapType, protocolV primitive.ProtocolVersion, val *primitive.Value, column types.Column, colFamily string, output *ProcessPrepareCollectionsOutput) error {
+func processTimestampMap[V any](originalMapType types.MapType, mapType types.MapType, protocolV primitive.ProtocolVersion, val *primitive.Value, column types.Column, colFamily string, output *ProcessPrepareCollectionsOutput) error {
 	decodedValue, err := collectiondecoder.DecodeCollection(mapType.DataType(), protocolV, val.Contents)
 	if err != nil {
 		return fmt.Errorf("error decoding string to %s value: %w", column.TypeInfo.DataType(), err)
@@ -1093,7 +1091,7 @@ func processTimestampMap[V any](mapType types.MapType, protocolV primitive.Proto
 			c := types.Column{
 				Name:         strconv.FormatInt(k, 10),
 				ColumnFamily: colFamily,
-				TypeInfo:     mapType.ValueType(),
+				TypeInfo:     originalMapType.ValueType(),
 			}
 			valueStr, err := primitivesToString(v)
 			if err != nil {
@@ -1259,7 +1257,7 @@ func handleSetProcessing(
 	if !ok {
 		return fmt.Errorf("failed to assert set type for %v", column.TypeInfo.DataType())
 	}
-	if setType.ElementType() == types.TypeTimestamp {
+	if setType.ElementType().Code() == types.TIMESTAMP {
 		setType = utilities.SetOfBigInt
 	}
 	switch setType.ElementType().DataType() {
@@ -2378,8 +2376,8 @@ func (t *Translator) ProcessComplexUpdate(columns []types.Column, values []inter
 
 		meta := &ComplexOperation{}
 
-		switch column.TypeInfo.DataType().GetDataTypeCode() {
-		case primitive.DataTypeCodeList:
+		switch column.TypeInfo.Code() {
+		case types.LIST:
 			// a. + operation (append): only set append true
 			if ca.Operation == "+" && ca.Left == column.Name {
 				meta.Append = true
@@ -2404,7 +2402,7 @@ func (t *Translator) ProcessComplexUpdate(columns []types.Column, values []inter
 			}
 			complexMeta[column.Name] = meta
 
-		case primitive.DataTypeCodeMap:
+		case types.MAP:
 			// 1. + operation: only mark append as true
 			if ca.Operation == "+" {
 				meta.Append = true
@@ -2428,12 +2426,12 @@ func (t *Translator) ProcessComplexUpdate(columns []types.Column, values []inter
 				}
 			}
 			complexMeta[column.Name] = meta
-		case primitive.DataTypeCodeSet:
+		case types.SET:
 			if ca.Operation == "-" {
 				meta.Delete = true
 			}
 			complexMeta[column.Name] = meta
-		case primitive.DataTypeCodeCounter:
+		case types.COUNTER:
 			if ca.Operation == "+" || ca.Operation == "-" {
 				var op = Increment
 				if ca.Operation == "-" {

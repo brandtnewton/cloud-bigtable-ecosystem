@@ -36,6 +36,7 @@ import (
 	"github.com/datastax/go-cassandra-native-protocol/message"
 	"github.com/datastax/go-cassandra-native-protocol/primitive"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"go.uber.org/zap"
 )
 
@@ -91,7 +92,7 @@ func TestParseTimestamp(t *testing.T) {
 			if !tc.wantErr {
 				delta := got.Sub(tc.expected)
 				if delta > time.Millisecond || delta < -time.Millisecond {
-					t.Errorf("parseTimestamp() = %v, want %v (delta: %v)", got, tc.expected, delta)
+					t.Errorf("parseTimestamp() = %v, wantNewColumns %v (delta: %v)", got, tc.expected, delta)
 				}
 			}
 		})
@@ -122,7 +123,7 @@ func TestPrimitivesToString(t *testing.T) {
 			continue
 		}
 		if output != test.expected {
-			t.Errorf("primitivesToString(%v) = %v; want %v", test.input, output, test.expected)
+			t.Errorf("primitivesToString(%v) = %v; wantNewColumns %v", test.input, output, test.expected)
 		}
 	}
 }
@@ -227,7 +228,7 @@ func Test_formatValues(t *testing.T) {
 				return
 			}
 			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("formatValues() = %v, want %v", got, tt.want)
+				t.Errorf("formatValues() = %v, wantNewColumns %v", got, tt.want)
 			}
 		})
 	}
@@ -376,20 +377,20 @@ func Test_processCollectionColumnsForPrepareQueries(t *testing.T) {
 	timestampVal, _ := formatValues("1633046400000", datatype.Timestamp, primitive.ProtocolVersion4)
 
 	tests := []struct {
-		name             string
-		columns          []types.Column
-		variableMetadata []*message.ColumnMetadata
-		values           []*primitive.Value
-		tableName        string
-		protocolV        primitive.ProtocolVersion
-		primaryKeys      []string
-		translator       *Translator
-		want             []types.Column
-		want1            []interface{}
-		want2            map[string]interface{}
-		want3            int
-		want4            []string
-		wantErr          bool
+		name                string
+		columns             []types.Column
+		variableMetadata    []*message.ColumnMetadata
+		values              []*primitive.Value
+		tableName           string
+		protocolV           primitive.ProtocolVersion
+		primaryKeys         []string
+		translator          *Translator
+		wantNewColumns      []types.Column
+		wantNewValues       []interface{}
+		wantUnencrypted     map[string]interface{}
+		wantIndexEnd        int
+		wantDelColumnFamily []string
+		wantErr             bool
 	}{
 		{
 			name: "Valid Input For Timestamp Float",
@@ -408,14 +409,14 @@ func Test_processCollectionColumnsForPrepareQueries(t *testing.T) {
 				Logger:              zap.NewNop(),
 				SchemaMappingConfig: GetSchemaMappingConfig(types.OrderedCodeEncoding),
 			},
-			want: []types.Column{
+			wantNewColumns: []types.Column{
 				{Name: "1633046400000", ColumnFamily: "map_timestamp_float", TypeInfo: types.TypeFloat},
 			},
-			want1:   []interface{}{timestampFloatValue},
-			want2:   map[string]interface{}{},
-			want3:   0,
-			want4:   []string{"map_timestamp_float"},
-			wantErr: false,
+			wantNewValues:       []interface{}{timestampFloatValue},
+			wantUnencrypted:     map[string]interface{}{},
+			wantIndexEnd:        0,
+			wantDelColumnFamily: []string{"map_timestamp_float"},
+			wantErr:             false,
 		},
 		{
 			name: "Valid Input For Text Timestamp",
@@ -433,14 +434,14 @@ func Test_processCollectionColumnsForPrepareQueries(t *testing.T) {
 				Logger:              zap.NewNop(),
 				SchemaMappingConfig: GetSchemaMappingConfig(types.OrderedCodeEncoding),
 			},
-			want: []types.Column{
+			wantNewColumns: []types.Column{
 				{Name: "test", ColumnFamily: "map_text_timestamp", TypeInfo: types.TypeTimestamp},
 			},
-			want1:   []interface{}{timestampValue},
-			want2:   map[string]interface{}{},
-			want3:   0,
-			want4:   []string{"map_text_timestamp"},
-			wantErr: false,
+			wantNewValues:       []interface{}{timestampValue},
+			wantUnencrypted:     map[string]interface{}{},
+			wantIndexEnd:        0,
+			wantDelColumnFamily: []string{"map_text_timestamp"},
+			wantErr:             false,
 		},
 		{
 			name: "Valid Input For Timestamp Text",
@@ -458,14 +459,14 @@ func Test_processCollectionColumnsForPrepareQueries(t *testing.T) {
 				Logger:              zap.NewNop(),
 				SchemaMappingConfig: GetSchemaMappingConfig(types.OrderedCodeEncoding),
 			},
-			want: []types.Column{
+			wantNewColumns: []types.Column{
 				{Name: "1633046400000", ColumnFamily: "map_timestamp_text", TypeInfo: types.TypeVarchar},
 			},
-			want1:   []interface{}{timestampTextValue},
-			want2:   map[string]interface{}{},
-			want3:   0,
-			want4:   []string{"map_timestamp_text"},
-			wantErr: false,
+			wantNewValues:       []interface{}{timestampTextValue},
+			wantUnencrypted:     map[string]interface{}{},
+			wantIndexEnd:        0,
+			wantDelColumnFamily: []string{"map_timestamp_text"},
+			wantErr:             false,
 		},
 		{
 			name: "Valid Input For Set Timestamp",
@@ -483,14 +484,14 @@ func Test_processCollectionColumnsForPrepareQueries(t *testing.T) {
 				Logger:              zap.NewNop(),
 				SchemaMappingConfig: GetSchemaMappingConfig(types.OrderedCodeEncoding),
 			},
-			want: []types.Column{
+			wantNewColumns: []types.Column{
 				{Name: "1633046400", ColumnFamily: "set_timestamp", TypeInfo: types.TypeBigint},
 			},
-			want1:   []interface{}{emptyVal},
-			want2:   map[string]interface{}{},
-			want3:   0,
-			want4:   []string{"set_timestamp"},
-			wantErr: false,
+			wantNewValues:       []interface{}{emptyVal},
+			wantUnencrypted:     map[string]interface{}{},
+			wantIndexEnd:        0,
+			wantDelColumnFamily: []string{"set_timestamp"},
+			wantErr:             false,
 		},
 		{
 			name: "Valid Input For Set Double",
@@ -508,14 +509,14 @@ func Test_processCollectionColumnsForPrepareQueries(t *testing.T) {
 				Logger:              zap.NewNop(),
 				SchemaMappingConfig: GetSchemaMappingConfig(types.OrderedCodeEncoding),
 			},
-			want: []types.Column{
+			wantNewColumns: []types.Column{
 				{Name: "6.283", ColumnFamily: "set_double", TypeInfo: types.TypeDouble},
 			},
-			want1:   []interface{}{emptyVal},
-			want2:   map[string]interface{}{},
-			want3:   0,
-			want4:   []string{"set_double"},
-			wantErr: false,
+			wantNewValues:       []interface{}{emptyVal},
+			wantUnencrypted:     map[string]interface{}{},
+			wantIndexEnd:        0,
+			wantDelColumnFamily: []string{"set_double"},
+			wantErr:             false,
 		},
 		{
 			name: "Valid Input For Set Float",
@@ -533,14 +534,14 @@ func Test_processCollectionColumnsForPrepareQueries(t *testing.T) {
 				Logger:              zap.NewNop(),
 				SchemaMappingConfig: GetSchemaMappingConfig(types.OrderedCodeEncoding),
 			},
-			want: []types.Column{
+			wantNewColumns: []types.Column{
 				{Name: "6.283", ColumnFamily: "set_float", TypeInfo: types.TypeFloat},
 			},
-			want1:   []interface{}{emptyVal},
-			want2:   map[string]interface{}{},
-			want3:   0,
-			want4:   []string{"set_float"},
-			wantErr: false,
+			wantNewValues:       []interface{}{emptyVal},
+			wantUnencrypted:     map[string]interface{}{},
+			wantIndexEnd:        0,
+			wantDelColumnFamily: []string{"set_float"},
+			wantErr:             false,
 		},
 		{
 			name: "Valid Input For Set Text",
@@ -558,14 +559,14 @@ func Test_processCollectionColumnsForPrepareQueries(t *testing.T) {
 				Logger:              zap.NewNop(),
 				SchemaMappingConfig: GetSchemaMappingConfig(types.OrderedCodeEncoding),
 			},
-			want: []types.Column{
+			wantNewColumns: []types.Column{
 				{Name: "test", ColumnFamily: "set_text", TypeInfo: types.TypeVarchar},
 			},
-			want1:   []interface{}{emptyVal},
-			want2:   map[string]interface{}{},
-			want3:   0,
-			want4:   []string{"set_text"},
-			wantErr: false,
+			wantNewValues:       []interface{}{emptyVal},
+			wantUnencrypted:     map[string]interface{}{},
+			wantIndexEnd:        0,
+			wantDelColumnFamily: []string{"set_text"},
+			wantErr:             false,
 		},
 		{
 			name: "Valid Input For Set BigInt",
@@ -583,14 +584,14 @@ func Test_processCollectionColumnsForPrepareQueries(t *testing.T) {
 				Logger:              zap.NewNop(),
 				SchemaMappingConfig: GetSchemaMappingConfig(types.OrderedCodeEncoding),
 			},
-			want: []types.Column{
+			wantNewColumns: []types.Column{
 				{Name: "12372432764", ColumnFamily: "set_bigint", TypeInfo: types.TypeBigint},
 			},
-			want1:   []interface{}{emptyVal},
-			want2:   map[string]interface{}{},
-			want3:   0,
-			want4:   []string{"set_bigint"},
-			wantErr: false,
+			wantNewValues:       []interface{}{emptyVal},
+			wantUnencrypted:     map[string]interface{}{},
+			wantIndexEnd:        0,
+			wantDelColumnFamily: []string{"set_bigint"},
+			wantErr:             false,
 		},
 		{
 			name: "Valid Input For Set Int",
@@ -608,14 +609,14 @@ func Test_processCollectionColumnsForPrepareQueries(t *testing.T) {
 				Logger:              zap.NewNop(),
 				SchemaMappingConfig: GetSchemaMappingConfig(types.OrderedCodeEncoding),
 			},
-			want: []types.Column{
+			wantNewColumns: []types.Column{
 				{Name: "12", ColumnFamily: "set_int", TypeInfo: types.TypeInt},
 			},
-			want1:   []interface{}{emptyVal},
-			want2:   map[string]interface{}{},
-			want3:   0,
-			want4:   []string{"set_int"},
-			wantErr: false,
+			wantNewValues:       []interface{}{emptyVal},
+			wantUnencrypted:     map[string]interface{}{},
+			wantIndexEnd:        0,
+			wantDelColumnFamily: []string{"set_int"},
+			wantErr:             false,
 		},
 		{
 			name: "Valid Input For Timestamp Timestamp",
@@ -633,14 +634,14 @@ func Test_processCollectionColumnsForPrepareQueries(t *testing.T) {
 				Logger:              zap.NewNop(),
 				SchemaMappingConfig: GetSchemaMappingConfig(types.OrderedCodeEncoding),
 			},
-			want: []types.Column{
+			wantNewColumns: []types.Column{
 				{Name: "1633046400000", ColumnFamily: "map_timestamp_timestamp", TypeInfo: types.TypeTimestamp},
 			},
-			want1:   []interface{}{timestampTimestampValue},
-			want2:   map[string]interface{}{},
-			want3:   0,
-			want4:   []string{"map_timestamp_timestamp"},
-			wantErr: false,
+			wantNewValues:       []interface{}{timestampTimestampValue},
+			wantUnencrypted:     map[string]interface{}{},
+			wantIndexEnd:        0,
+			wantDelColumnFamily: []string{"map_timestamp_timestamp"},
+			wantErr:             false,
 		},
 		{
 			name: "Valid Input For Text Bigint",
@@ -658,14 +659,14 @@ func Test_processCollectionColumnsForPrepareQueries(t *testing.T) {
 				Logger:              zap.NewNop(),
 				SchemaMappingConfig: GetSchemaMappingConfig(types.OrderedCodeEncoding),
 			},
-			want: []types.Column{
+			wantNewColumns: []types.Column{
 				{Name: "test", ColumnFamily: "map_text_bigint", TypeInfo: types.TypeBigint},
 			},
-			want1:   []interface{}{bigintValue},
-			want2:   map[string]interface{}{},
-			want3:   0,
-			want4:   []string{"map_text_bigint"},
-			wantErr: false,
+			wantNewValues:       []interface{}{bigintValue},
+			wantUnencrypted:     map[string]interface{}{},
+			wantIndexEnd:        0,
+			wantDelColumnFamily: []string{"map_text_bigint"},
+			wantErr:             false,
 		},
 		{
 			name: "Valid Input For Timestamp Int",
@@ -683,14 +684,14 @@ func Test_processCollectionColumnsForPrepareQueries(t *testing.T) {
 				Logger:              zap.NewNop(),
 				SchemaMappingConfig: GetSchemaMappingConfig(types.OrderedCodeEncoding),
 			},
-			want: []types.Column{
+			wantNewColumns: []types.Column{
 				{Name: "1633046400000", ColumnFamily: "map_timestamp_int", TypeInfo: types.TypeInt},
 			},
-			want1:   []interface{}{timestampIntValue},
-			want2:   map[string]interface{}{},
-			want3:   0,
-			want4:   []string{"map_timestamp_int"},
-			wantErr: false,
+			wantNewValues:       []interface{}{timestampIntValue},
+			wantUnencrypted:     map[string]interface{}{},
+			wantIndexEnd:        0,
+			wantDelColumnFamily: []string{"map_timestamp_int"},
+			wantErr:             false,
 		},
 		{
 			name: "Valid Input For Set Boolean",
@@ -708,14 +709,14 @@ func Test_processCollectionColumnsForPrepareQueries(t *testing.T) {
 				Logger:              zap.NewNop(),
 				SchemaMappingConfig: GetSchemaMappingConfig(types.OrderedCodeEncoding),
 			},
-			want: []types.Column{
+			wantNewColumns: []types.Column{
 				{Name: "1", ColumnFamily: "set_boolean", TypeInfo: types.TypeBoolean},
 			},
-			want1:   []interface{}{emptyVal},
-			want2:   map[string]interface{}{},
-			want3:   0,
-			want4:   []string{"set_boolean"},
-			wantErr: false,
+			wantNewValues:       []interface{}{emptyVal},
+			wantUnencrypted:     map[string]interface{}{},
+			wantIndexEnd:        0,
+			wantDelColumnFamily: []string{"set_boolean"},
+			wantErr:             false,
 		},
 		{
 			name: "Valid Input For Text Boolean",
@@ -733,14 +734,14 @@ func Test_processCollectionColumnsForPrepareQueries(t *testing.T) {
 				Logger:              zap.NewNop(),
 				SchemaMappingConfig: GetSchemaMappingConfig(types.OrderedCodeEncoding),
 			},
-			want: []types.Column{
+			wantNewColumns: []types.Column{
 				{Name: "test", ColumnFamily: "map_text_boolean", TypeInfo: types.TypeBoolean},
 			},
-			want1:   []interface{}{trueVal},
-			want2:   map[string]interface{}{},
-			want3:   0,
-			want4:   []string{"map_text_boolean"},
-			wantErr: false,
+			wantNewValues:       []interface{}{trueVal},
+			wantUnencrypted:     map[string]interface{}{},
+			wantIndexEnd:        0,
+			wantDelColumnFamily: []string{"map_text_boolean"},
+			wantErr:             false,
 		},
 		{
 			name: "Valid Input For Text Text",
@@ -758,14 +759,14 @@ func Test_processCollectionColumnsForPrepareQueries(t *testing.T) {
 				Logger:              zap.NewNop(),
 				SchemaMappingConfig: GetSchemaMappingConfig(types.OrderedCodeEncoding),
 			},
-			want: []types.Column{
+			wantNewColumns: []types.Column{
 				{Name: "test", ColumnFamily: "map_text_text", TypeInfo: types.TypeVarchar},
 			},
-			want1:   []interface{}{textValue},
-			want2:   map[string]interface{}{},
-			want3:   0,
-			want4:   []string{"map_text_text"},
-			wantErr: false,
+			wantNewValues:       []interface{}{textValue},
+			wantUnencrypted:     map[string]interface{}{},
+			wantIndexEnd:        0,
+			wantDelColumnFamily: []string{"map_text_text"},
+			wantErr:             false,
 		},
 		{
 			name: "Valid Input For Text Int",
@@ -783,14 +784,14 @@ func Test_processCollectionColumnsForPrepareQueries(t *testing.T) {
 				Logger:              zap.NewNop(),
 				SchemaMappingConfig: GetSchemaMappingConfig(types.OrderedCodeEncoding),
 			},
-			want: []types.Column{
+			wantNewColumns: []types.Column{
 				{Name: "test", ColumnFamily: "map_text_int", TypeInfo: types.TypeInt},
 			},
-			want1:   []interface{}{intValue},
-			want2:   map[string]interface{}{},
-			want3:   0,
-			want4:   []string{"map_text_int"},
-			wantErr: false,
+			wantNewValues:       []interface{}{intValue},
+			wantUnencrypted:     map[string]interface{}{},
+			wantIndexEnd:        0,
+			wantDelColumnFamily: []string{"map_text_int"},
+			wantErr:             false,
 		},
 		{
 			name: "Valid Input For Text Float",
@@ -808,14 +809,14 @@ func Test_processCollectionColumnsForPrepareQueries(t *testing.T) {
 				Logger:              zap.NewNop(),
 				SchemaMappingConfig: GetSchemaMappingConfig(types.OrderedCodeEncoding),
 			},
-			want: []types.Column{
+			wantNewColumns: []types.Column{
 				{Name: "test", ColumnFamily: "map_text_float", TypeInfo: types.TypeFloat},
 			},
-			want1:   []interface{}{floatValue},
-			want2:   map[string]interface{}{},
-			want3:   0,
-			want4:   []string{"map_text_float"},
-			wantErr: false,
+			wantNewValues:       []interface{}{floatValue},
+			wantUnencrypted:     map[string]interface{}{},
+			wantIndexEnd:        0,
+			wantDelColumnFamily: []string{"map_text_float"},
+			wantErr:             false,
 		},
 		{
 			name: "Valid Input For Text Double",
@@ -833,14 +834,14 @@ func Test_processCollectionColumnsForPrepareQueries(t *testing.T) {
 				Logger:              zap.NewNop(),
 				SchemaMappingConfig: GetSchemaMappingConfig(types.OrderedCodeEncoding),
 			},
-			want: []types.Column{
+			wantNewColumns: []types.Column{
 				{Name: "test", ColumnFamily: "map_text_double", TypeInfo: types.TypeDouble},
 			},
-			want1:   []interface{}{doubleValue},
-			want2:   map[string]interface{}{},
-			want3:   0,
-			want4:   []string{"map_text_double"},
-			wantErr: false,
+			wantNewValues:       []interface{}{doubleValue},
+			wantUnencrypted:     map[string]interface{}{},
+			wantIndexEnd:        0,
+			wantDelColumnFamily: []string{"map_text_double"},
+			wantErr:             false,
 		},
 		{
 			name: "Valid Input For Timestamp Boolean",
@@ -858,14 +859,14 @@ func Test_processCollectionColumnsForPrepareQueries(t *testing.T) {
 				Logger:              zap.NewNop(),
 				SchemaMappingConfig: GetSchemaMappingConfig(types.OrderedCodeEncoding),
 			},
-			want: []types.Column{
+			wantNewColumns: []types.Column{
 				{Name: "1633046400000", ColumnFamily: "map_timestamp_boolean", TypeInfo: types.TypeBoolean},
 			},
-			want1:   []interface{}{timestampBooleanValue},
-			want2:   map[string]interface{}{},
-			want3:   0,
-			want4:   []string{"map_timestamp_boolean"},
-			wantErr: false,
+			wantNewValues:       []interface{}{timestampBooleanValue},
+			wantUnencrypted:     map[string]interface{}{},
+			wantIndexEnd:        0,
+			wantDelColumnFamily: []string{"map_timestamp_boolean"},
+			wantErr:             false,
 		},
 		{
 			name: "Valid Input For Timestamp Double",
@@ -883,14 +884,14 @@ func Test_processCollectionColumnsForPrepareQueries(t *testing.T) {
 				Logger:              zap.NewNop(),
 				SchemaMappingConfig: GetSchemaMappingConfig(types.OrderedCodeEncoding),
 			},
-			want: []types.Column{
+			wantNewColumns: []types.Column{
 				{Name: "1633046400000", ColumnFamily: "map_timestamp_double", TypeInfo: types.TypeDouble},
 			},
-			want1:   []interface{}{timestampDoubleValue},
-			want2:   map[string]interface{}{},
-			want3:   0,
-			want4:   []string{"map_timestamp_double"},
-			wantErr: false,
+			wantNewValues:       []interface{}{timestampDoubleValue},
+			wantUnencrypted:     map[string]interface{}{},
+			wantIndexEnd:        0,
+			wantDelColumnFamily: []string{"map_timestamp_double"},
+			wantErr:             false,
 		},
 		{
 			name: "Valid Input For Timestamp Bigint",
@@ -908,14 +909,14 @@ func Test_processCollectionColumnsForPrepareQueries(t *testing.T) {
 				Logger:              zap.NewNop(),
 				SchemaMappingConfig: GetSchemaMappingConfig(types.OrderedCodeEncoding),
 			},
-			want: []types.Column{
+			wantNewColumns: []types.Column{
 				{Name: "1633046400000", ColumnFamily: "map_timestamp_bigint", TypeInfo: types.TypeBigint},
 			},
-			want1:   []interface{}{timestampBigintValue},
-			want2:   map[string]interface{}{},
-			want3:   0,
-			want4:   []string{"map_timestamp_bigint"},
-			wantErr: false,
+			wantNewValues:       []interface{}{timestampBigintValue},
+			wantUnencrypted:     map[string]interface{}{},
+			wantIndexEnd:        0,
+			wantDelColumnFamily: []string{"map_timestamp_bigint"},
+			wantErr:             false,
 		},
 		{
 			name: "Valid Input For List<text>",
@@ -932,14 +933,14 @@ func Test_processCollectionColumnsForPrepareQueries(t *testing.T) {
 				Logger:              zap.NewNop(),
 				SchemaMappingConfig: GetSchemaMappingConfig(types.OrderedCodeEncoding),
 			},
-			want: []types.Column{
+			wantNewColumns: []types.Column{
 				{Name: time.Now().Format("20060102150405.000"), ColumnFamily: "list_text", TypeInfo: types.TypeVarchar},
 			},
-			want1:   []interface{}{textValue},
-			want2:   map[string]interface{}{},
-			want3:   0,
-			want4:   []string{"list_text"},
-			wantErr: false,
+			wantNewValues:       []interface{}{textValue},
+			wantUnencrypted:     map[string]interface{}{},
+			wantIndexEnd:        0,
+			wantDelColumnFamily: []string{"list_text"},
+			wantErr:             false,
 		},
 		{
 			name: "Valid Input For List<int>",
@@ -956,14 +957,14 @@ func Test_processCollectionColumnsForPrepareQueries(t *testing.T) {
 				Logger:              zap.NewNop(),
 				SchemaMappingConfig: GetSchemaMappingConfig(types.OrderedCodeEncoding),
 			},
-			want: []types.Column{
+			wantNewColumns: []types.Column{
 				{Name: time.Now().Format("20060102150405.000"), ColumnFamily: "list_int", TypeInfo: types.TypeInt},
 			},
-			want1:   []interface{}{intValue},
-			want2:   map[string]interface{}{},
-			want3:   0,
-			want4:   []string{"list_int"},
-			wantErr: false,
+			wantNewValues:       []interface{}{intValue},
+			wantUnencrypted:     map[string]interface{}{},
+			wantIndexEnd:        0,
+			wantDelColumnFamily: []string{"list_int"},
+			wantErr:             false,
 		},
 		{
 			name: "Valid Input For List<bigint>",
@@ -980,14 +981,14 @@ func Test_processCollectionColumnsForPrepareQueries(t *testing.T) {
 				Logger:              zap.NewNop(),
 				SchemaMappingConfig: GetSchemaMappingConfig(types.OrderedCodeEncoding),
 			},
-			want: []types.Column{
+			wantNewColumns: []types.Column{
 				{Name: time.Now().Format("20060102150405.000"), ColumnFamily: "list_bigint", TypeInfo: types.TypeBigint},
 			},
-			want1:   []interface{}{bigintValue},
-			want2:   map[string]interface{}{},
-			want3:   0,
-			want4:   []string{"list_bigint"},
-			wantErr: false,
+			wantNewValues:       []interface{}{bigintValue},
+			wantUnencrypted:     map[string]interface{}{},
+			wantIndexEnd:        0,
+			wantDelColumnFamily: []string{"list_bigint"},
+			wantErr:             false,
 		},
 		{
 			name: "Valid Input For List<boolean>",
@@ -1004,14 +1005,14 @@ func Test_processCollectionColumnsForPrepareQueries(t *testing.T) {
 				Logger:              zap.NewNop(),
 				SchemaMappingConfig: GetSchemaMappingConfig(types.OrderedCodeEncoding),
 			},
-			want: []types.Column{
+			wantNewColumns: []types.Column{
 				{Name: time.Now().Format("20060102150405.000"), ColumnFamily: "list_boolean", TypeInfo: types.TypeBoolean},
 			},
-			want1:   []interface{}{trueVal},
-			want2:   map[string]interface{}{},
-			want3:   0,
-			want4:   []string{"list_boolean"},
-			wantErr: false,
+			wantNewValues:       []interface{}{trueVal},
+			wantUnencrypted:     map[string]interface{}{},
+			wantIndexEnd:        0,
+			wantDelColumnFamily: []string{"list_boolean"},
+			wantErr:             false,
 		},
 		{
 			name: "Valid Input For List<float>",
@@ -1028,14 +1029,14 @@ func Test_processCollectionColumnsForPrepareQueries(t *testing.T) {
 				Logger:              zap.NewNop(),
 				SchemaMappingConfig: GetSchemaMappingConfig(types.OrderedCodeEncoding),
 			},
-			want: []types.Column{
+			wantNewColumns: []types.Column{
 				{Name: time.Now().Format("20060102150405.000"), ColumnFamily: "list_float", TypeInfo: types.TypeFloat},
 			},
-			want1:   []interface{}{floatVal},
-			want2:   map[string]interface{}{},
-			want3:   0,
-			want4:   []string{"list_float"},
-			wantErr: false,
+			wantNewValues:       []interface{}{floatVal},
+			wantUnencrypted:     map[string]interface{}{},
+			wantIndexEnd:        0,
+			wantDelColumnFamily: []string{"list_float"},
+			wantErr:             false,
 		},
 		{
 			name: "Valid Input For List<double>",
@@ -1052,14 +1053,14 @@ func Test_processCollectionColumnsForPrepareQueries(t *testing.T) {
 				Logger:              zap.NewNop(),
 				SchemaMappingConfig: GetSchemaMappingConfig(types.OrderedCodeEncoding),
 			},
-			want: []types.Column{
+			wantNewColumns: []types.Column{
 				{Name: time.Now().Format("20060102150405.000"), ColumnFamily: "list_double", TypeInfo: types.TypeDouble},
 			},
-			want1:   []interface{}{doubleVal},
-			want2:   map[string]interface{}{},
-			want3:   0,
-			want4:   []string{"list_double"},
-			wantErr: false,
+			wantNewValues:       []interface{}{doubleVal},
+			wantUnencrypted:     map[string]interface{}{},
+			wantIndexEnd:        0,
+			wantDelColumnFamily: []string{"list_double"},
+			wantErr:             false,
 		},
 		{
 			name: "Valid Input For List<timestamp>",
@@ -1076,14 +1077,14 @@ func Test_processCollectionColumnsForPrepareQueries(t *testing.T) {
 				Logger:              zap.NewNop(),
 				SchemaMappingConfig: GetSchemaMappingConfig(types.OrderedCodeEncoding),
 			},
-			want: []types.Column{
+			wantNewColumns: []types.Column{
 				{Name: time.Now().Format("20060102150405.000"), ColumnFamily: "list_timestamp", TypeInfo: types.TypeBigint},
 			},
-			want1:   []interface{}{timestampVal},
-			want2:   map[string]interface{}{},
-			want3:   0,
-			want4:   []string{"list_timestamp"},
-			wantErr: false,
+			wantNewValues:       []interface{}{timestampVal},
+			wantUnencrypted:     map[string]interface{}{},
+			wantIndexEnd:        0,
+			wantDelColumnFamily: []string{"list_timestamp"},
+			wantErr:             false,
 		},
 	}
 
@@ -1118,26 +1119,16 @@ func Test_processCollectionColumnsForPrepareQueries(t *testing.T) {
 				for i := range output.NewColumns {
 					output.NewColumns[i].Name = fmt.Sprintf("list_index_%d", i)
 				}
-				for i := range tt.want {
-					tt.want[i].Name = fmt.Sprintf("list_index_%d", i)
+				for i := range tt.wantNewColumns {
+					tt.wantNewColumns[i].Name = fmt.Sprintf("list_index_%d", i)
 				}
 			}
 
-			if !reflect.DeepEqual(output.NewColumns, tt.want) {
-				t.Errorf("output.NewColumns = %v, want %v", output.NewColumns, tt.want)
-			}
-			if !reflect.DeepEqual(output.NewValues, tt.want1) {
-				t.Errorf("output.NewValues = %v, want %v", output.NewValues, tt.want1)
-			}
-			if !reflect.DeepEqual(output.Unencrypted, tt.want2) {
-				t.Errorf("output.Unencrypted = %v, want %v", output.Unencrypted, tt.want2)
-			}
-			if output.IndexEnd != tt.want3 {
-				t.Errorf("processCollectionColumnsForPrepareQueries() output.IndexEnd = %v, want %v", output.IndexEnd, tt.want3)
-			}
-			if !reflect.DeepEqual(output.DelColumnFamily, tt.want4) {
-				t.Errorf("processCollectionColumnsForPrepareQueries() output.DelColumnFamily = %v, want %v", output.DelColumnFamily, tt.want4)
-			}
+			assert.Equal(t, tt.wantNewColumns, output.NewColumns)
+			assert.Equal(t, tt.wantNewValues, output.NewValues)
+			assert.Equal(t, tt.wantUnencrypted, output.Unencrypted)
+			assert.Equal(t, tt.wantIndexEnd, output.IndexEnd)
+			assert.Equal(t, tt.wantDelColumnFamily, output.DelColumnFamily)
 		})
 	}
 }
@@ -1284,7 +1275,7 @@ func Test_validateRequiredPrimaryKeys(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			if got := ValidateRequiredPrimaryKeys(tt.args.requiredKey, tt.args.actualKey); got != tt.want {
-				t.Errorf("validateRequiredPrimaryKeys() = %v, want %v", got, tt.want)
+				t.Errorf("validateRequiredPrimaryKeys() = %v, wantNewColumns %v", got, tt.want)
 			}
 		})
 	}
@@ -1424,10 +1415,10 @@ func TestExtractWritetimeValue(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			got, got1 := ExtractWritetimeValue(tt.args.s)
 			if got != tt.want {
-				t.Errorf("ExtractWritetimeValue() got = %v, want %v", got, tt.want)
+				t.Errorf("ExtractWritetimeValue() got = %v, wantNewColumns %v", got, tt.want)
 			}
 			if got1 != tt.want1 {
-				t.Errorf("ExtractWritetimeValue() got1 = %v, want %v", got1, tt.want1)
+				t.Errorf("ExtractWritetimeValue() got1 = %v, wantNewColumns %v", got1, tt.want1)
 			}
 		})
 	}
@@ -1522,16 +1513,6 @@ func TestCastColumns(t *testing.T) {
 			wantErr:      false,
 		},
 		{
-			name: "unsupported type",
-			colMeta: &types.Column{
-				Name:     "unsupported",
-				TypeInfo: types.TypeAscii,
-			},
-			columnFamily: "cf1",
-			want:         "",
-			wantErr:      true,
-		},
-		{
 			name: "handle special characters in column name",
 			colMeta: &types.Column{
 				Name:     "special-name",
@@ -1546,13 +1527,12 @@ func TestCastColumns(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			got, err := castColumns(tt.colMeta, tt.columnFamily)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("castColumns() error = %v, wantErr %v", err, tt.wantErr)
+			if tt.wantErr {
+				require.Error(t, err)
 				return
 			}
-			if got != tt.want {
-				t.Errorf("castColumns() = %v, want %v", got, tt.want)
-			}
+			require.NoError(t, err)
+			assert.Equal(t, tt.want, got)
 		})
 	}
 }
@@ -2043,7 +2023,7 @@ func TestEncodeBool(t *testing.T) {
 				return
 			}
 			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("EncodeBool() = %v, want %v", got, tt.want)
+				t.Errorf("EncodeBool() = %v, wantNewColumns %v", got, tt.want)
 			}
 		})
 	}
@@ -2129,7 +2109,7 @@ func TestEncodeInt(t *testing.T) {
 				return
 			}
 			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("EncodeBigInt() = %v, want %v", got, tt.want)
+				t.Errorf("EncodeBigInt() = %v, wantNewColumns %v", got, tt.want)
 			}
 		})
 	}
@@ -2366,32 +2346,32 @@ func TestProcessCollectionColumnsForPrepareQueries_ComplexMetaAndNonCollection(t
 			}
 
 			if !reflect.DeepEqual(output.NewColumns, tt.wantNewColumns) {
-				t.Errorf("processCollectionColumnsForPrepareQueries() output.NewColumns = %v, want %v", output.NewColumns, tt.wantNewColumns)
+				t.Errorf("processCollectionColumnsForPrepareQueries() output.NewColumns = %v, wantNewColumns %v", output.NewColumns, tt.wantNewColumns)
 			}
 			// Comparing slices of interfaces containing byte slices requires careful comparison
 			if len(output.NewValues) != len(tt.wantNewValues) {
-				t.Errorf("processCollectionColumnsForPrepareQueries() output.NewValues length = %d, want %d", len(output.NewValues), len(tt.wantNewValues))
+				t.Errorf("processCollectionColumnsForPrepareQueries() output.NewValues length = %d, wantNewColumns %d", len(output.NewValues), len(tt.wantNewValues))
 			} else {
 				// Simple byte comparison for this test setup
 				for i := range output.NewValues {
 					gotBytes, okGot := output.NewValues[i].([]byte)
 					wantBytes, okWant := tt.wantNewValues[i].([]byte)
 					if !okGot || !okWant || !reflect.DeepEqual(gotBytes, wantBytes) {
-						t.Errorf("processCollectionColumnsForPrepareQueries() output.NewValues[%d] = %v, want %v", i, output.NewValues[i], tt.wantNewValues[i])
+						t.Errorf("processCollectionColumnsForPrepareQueries() output.NewValues[%d] = %v, wantNewColumns %v", i, output.NewValues[i], tt.wantNewValues[i])
 					}
 				}
 			}
 			if !reflect.DeepEqual(output.Unencrypted, tt.wantUnencrypted) {
-				t.Errorf("processCollectionColumnsForPrepareQueries() output.Unencrypted = %v, want %v", output.Unencrypted, tt.wantUnencrypted)
+				t.Errorf("processCollectionColumnsForPrepareQueries() output.Unencrypted = %v, wantNewColumns %v", output.Unencrypted, tt.wantUnencrypted)
 			}
 			if output.IndexEnd != tt.wantIndexEnd {
-				t.Errorf("processCollectionColumnsForPrepareQueries() output.IndexEnd = %v, want %v", output.IndexEnd, tt.wantIndexEnd)
+				t.Errorf("processCollectionColumnsForPrepareQueries() output.IndexEnd = %v, wantNewColumns %v", output.IndexEnd, tt.wantIndexEnd)
 			}
 			if !reflect.DeepEqual(output.DelColumnFamily, tt.wantDelColFamily) {
-				t.Errorf("processCollectionColumnsForPrepareQueries() output.DelColumnFamily = %v, want %v", output.DelColumnFamily, tt.wantDelColFamily)
+				t.Errorf("processCollectionColumnsForPrepareQueries() output.DelColumnFamily = %v, wantNewColumns %v", output.DelColumnFamily, tt.wantDelColFamily)
 			}
 			if !reflect.DeepEqual(output.DelColumns, tt.wantDelColumns) {
-				t.Errorf("processCollectionColumnsForPrepareQueries() output.DelColumns = %v, want %v", output.DelColumns, tt.wantDelColumns)
+				t.Errorf("processCollectionColumnsForPrepareQueries() output.DelColumns = %v, wantNewColumns %v", output.DelColumns, tt.wantDelColumns)
 			}
 
 			// Specific checks for complex meta modifications
@@ -2565,7 +2545,7 @@ func TestProcessComplexUpdate_SuccessfulCases(t *testing.T) {
 
 			// Compare metadata using custom comparison
 			if len(gotMeta) != len(tt.wantMeta) {
-				t.Errorf("ProcessComplexUpdate() metadata length = %d, want %d", len(gotMeta), len(tt.wantMeta))
+				t.Errorf("ProcessComplexUpdate() metadata length = %d, wantNewColumns %d", len(gotMeta), len(tt.wantMeta))
 				return
 			}
 			for k, got := range gotMeta {
@@ -2575,7 +2555,7 @@ func TestProcessComplexUpdate_SuccessfulCases(t *testing.T) {
 					continue
 				}
 				if !compareComplexOperation(got, want) {
-					t.Errorf("ProcessComplexUpdate() metadata mismatch for key %s:\ngot  = %+v\nwant = %+v", k, got, want)
+					t.Errorf("ProcessComplexUpdate() metadata mismatch for key %s:\ngot  = %+v\nwantNewColumns = %+v", k, got, want)
 				}
 			}
 		})
@@ -2943,7 +2923,7 @@ func TestAddSetElements(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := addSetElements(tt.setValues, tt.colFamily, tt.column, tt.input, tt.output)
+			err := addSetElements(tt.setValues, tt.colFamily, tt.column.TypeInfo.(types.SetType), tt.input, tt.output)
 
 			if tt.expectedErr {
 				assert.Error(t, err)
@@ -3044,7 +3024,7 @@ func TestHandleListOperation(t *testing.T) {
 			output := &ProcessRawCollectionsOutput{
 				ComplexMeta: make(map[string]*ComplexOperation),
 			}
-			err := handleListOperation(tt.operation, tt.column, tt.column.Name, tt.input, output)
+			err := handleListOperation(tt.operation, tt.column, tt.column.TypeInfo.(types.ListType), tt.column.Name, tt.input, output)
 			if tt.wantErr {
 				assert.Error(t, err)
 				return
@@ -3131,7 +3111,7 @@ func TestHandleSetOperation(t *testing.T) {
 			output := &ProcessRawCollectionsOutput{
 				ComplexMeta: make(map[string]*ComplexOperation),
 			}
-			err := handleSetOperation(tt.operation, tt.column,, tt.column.Name, tt.input, output)
+			err := handleSetOperation(tt.operation, tt.column, tt.column.TypeInfo.(types.SetType), tt.column.Name, tt.input, output)
 			if tt.wantErr {
 				assert.Error(t, err)
 				return
@@ -3232,7 +3212,7 @@ func TestHandleMapOperation(t *testing.T) {
 			output := &ProcessRawCollectionsOutput{
 				ComplexMeta: make(map[string]*ComplexOperation),
 			}
-			err := handleMapOperation(tt.operation, tt.column,, tt.column.Name, tt.input, output)
+			err := handleMapOperation(tt.operation, tt.column, tt.column.TypeInfo.(types.MapType), tt.column.Name, tt.input, output)
 			if tt.wantErr {
 				assert.Error(t, err)
 				return

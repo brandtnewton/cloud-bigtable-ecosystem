@@ -1107,12 +1107,12 @@ func Test_processCollectionColumnsForPrepareQueries(t *testing.T) {
 
 			output, err := processCollectionColumnsForPrepareQueries(tc, input)
 
-			if (err != nil) != tt.wantErr {
-				t.Fatalf("error = %v, wantErr %v", err, tt.wantErr)
-			}
 			if tt.wantErr {
-				return // Don't check results if an error was expected
+				require.Error(t, err)
+				return
 			}
+			require.NoError(t, err)
+
 			// For list types, normalize Names for comparison as its a timestamp value based on time.Now()
 			if strings.Contains(tt.name, "List") {
 				// Normalize both output and expected Names for comparison
@@ -1540,12 +1540,12 @@ func TestCastColumns(t *testing.T) {
 // compareComplexOperation checks if two ComplexOperation structures are equal.
 func compareComplexOperation(expected, actual *ComplexOperation) bool {
 	return expected.Append == actual.Append &&
-		expected.mapKey == actual.mapKey &&
-		expected.PrependList == actual.PrependList &&
-		expected.UpdateListIndex == actual.UpdateListIndex &&
-		expected.Delete == actual.Delete &&
-		expected.ListDelete == actual.ListDelete &&
-		reflect.DeepEqual(expected.ExpectedDatatype, actual.ExpectedDatatype)
+			expected.mapKey == actual.mapKey &&
+			expected.PrependList == actual.PrependList &&
+			expected.UpdateListIndex == actual.UpdateListIndex &&
+			expected.Delete == actual.Delete &&
+			expected.ListDelete == actual.ListDelete &&
+			reflect.DeepEqual(expected.ExpectedDatatype, actual.ExpectedDatatype)
 }
 
 func TestCreateOrderedCodeKey(t *testing.T) {

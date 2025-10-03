@@ -22,7 +22,6 @@ import (
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/global/types"
 	schemaMapping "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/schema-mapping"
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/utilities"
-	"github.com/datastax/go-cassandra-native-protocol/datatype"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap"
@@ -31,10 +30,10 @@ import (
 func TestTranslateAlterTableToBigtable(t *testing.T) {
 
 	userInfoTable := schemaMapping.NewTableConfig("test_keyspace", "user_info", "cf1", types.OrderedCodeEncoding, []*types.Column{
-		{Name: "name", TypeInfo: types.NewCqlTypeInfoFromType(datatype.Varchar), KeyType: utilities.KEY_TYPE_PARTITION, PkPrecedence: 1},
-		{Name: "age", TypeInfo: types.NewCqlTypeInfoFromType(datatype.Int), KeyType: utilities.KEY_TYPE_CLUSTERING, PkPrecedence: 2},
-		{Name: "email", TypeInfo: types.NewCqlTypeInfoFromType(datatype.Varchar), KeyType: utilities.KEY_TYPE_REGULAR, PkPrecedence: 0},
-		{Name: "username", TypeInfo: types.NewCqlTypeInfoFromType(datatype.Varchar), KeyType: utilities.KEY_TYPE_REGULAR, PkPrecedence: 0},
+		{Name: "name", TypeInfo: types.TypeVarchar, KeyType: utilities.KEY_TYPE_PARTITION, PkPrecedence: 1},
+		{Name: "age", TypeInfo: types.TypeInt, KeyType: utilities.KEY_TYPE_CLUSTERING, PkPrecedence: 2},
+		{Name: "email", TypeInfo: types.TypeVarchar, KeyType: utilities.KEY_TYPE_REGULAR, PkPrecedence: 0},
+		{Name: "username", TypeInfo: types.TypeVarchar, KeyType: utilities.KEY_TYPE_REGULAR, PkPrecedence: 0},
 	})
 
 	var tests = []struct {
@@ -73,7 +72,7 @@ func TestTranslateAlterTableToBigtable(t *testing.T) {
 				AddColumns: []types.CreateColumn{{
 					Name:     "firstname",
 					Index:    0,
-					TypeInfo: types.NewCqlTypeInfoFromType(datatype.Varchar),
+					TypeInfo: types.TypeVarchar,
 				}},
 			},
 			error:           "",
@@ -110,7 +109,7 @@ func TestTranslateAlterTableToBigtable(t *testing.T) {
 				}, {
 					Name:     "number_of_cats",
 					Index:    1,
-					TypeInfo: types.NewCqlTypeInfoFromType(datatype.Int),
+					TypeInfo: types.TypeInt,
 				}},
 			},
 			error:           "",
@@ -131,7 +130,7 @@ func TestTranslateAlterTableToBigtable(t *testing.T) {
 				}, {
 					Name:     "number_of_toes",
 					Index:    1,
-					TypeInfo: types.NewCqlTypeInfoFromType(datatype.Int),
+					TypeInfo: types.TypeInt,
 				}},
 			},
 			error:           "",

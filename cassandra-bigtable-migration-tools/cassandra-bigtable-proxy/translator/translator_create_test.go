@@ -391,7 +391,7 @@ func TestTranslateCreateTableToBigtable(t *testing.T) {
 			name:            "parser returns error when invalid column type is used",
 			query:           "CREATE TABLE test_keyspace.table1 (column1 int, column10 UUID, column11 int, PRIMARY KEY (column1))",
 			want:            nil,
-			error:           "column type 'UUID' is not supported",
+			error:           "column type 'uuid' is not supported",
 			defaultKeyspace: "test_keyspace",
 		},
 		{

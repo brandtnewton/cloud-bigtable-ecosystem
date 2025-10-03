@@ -81,7 +81,7 @@ func (t *Translator) TranslateCreateTableToBigtable(query, sessionKeyspace strin
 		}
 
 		if !utilities.IsSupportedColumnType(dt) {
-			return nil, fmt.Errorf("column type '%s' is not supported", dt.RawType)
+			return nil, fmt.Errorf("column type '%s' is not supported", dt.String())
 		}
 
 		columns = append(columns, types.CreateColumn{
@@ -190,7 +190,7 @@ func (t *Translator) TranslateCreateTableToBigtable(query, sessionKeyspace strin
 		}
 		col := columns[colIndex]
 		if !utilities.IsSupportedPrimaryKeyType(col.TypeInfo) {
-			return nil, fmt.Errorf("primary key cannot be of type %s", col.TypeInfo.RawType)
+			return nil, fmt.Errorf("primary key cannot be of type %s", col.TypeInfo.String())
 		}
 	}
 

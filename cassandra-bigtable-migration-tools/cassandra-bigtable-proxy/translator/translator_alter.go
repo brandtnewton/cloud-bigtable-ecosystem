@@ -110,7 +110,7 @@ func (t *Translator) TranslateAlterTableToBigtable(query, sessionKeyspace string
 	}
 	for _, addColumn := range addColumns {
 		if !utilities.IsSupportedColumnType(addColumn.TypeInfo) {
-			return nil, fmt.Errorf("column type '%s' is not supported", addColumn.TypeInfo.RawType)
+			return nil, fmt.Errorf("column type '%s' is not supported", addColumn.TypeInfo.String())
 		}
 		if utilities.IsReservedCqlKeyword(addColumn.Name) {
 			return nil, fmt.Errorf("cannot alter a table with reserved keyword as column name: '%s'", addColumn.Name)

@@ -182,7 +182,7 @@ func parseAssignments(assignments []cql.IAssignmentElementContext, tableConfig *
 				return nil, fmt.Errorf("primary key not allowed to assignments")
 			}
 			if value != questionMark {
-				if utilities.IsCollectionColumn(column) {
+				if column.TypeInfo.IsCollection() {
 					val = value
 				} else {
 					val, err = formatValues(fmt.Sprintf("%v", value), column.TypeInfo.DataType(), 4)
@@ -238,7 +238,7 @@ func parseAssignments(assignments []cql.IAssignmentElementContext, tableConfig *
 			return nil, fmt.Errorf("primary key not allowed to assignments")
 		}
 		if !isPreparedQuery {
-			if column.TypeInfo.IsCollection() || column.TypeInfo.IsCounter() {
+			if column.TypeInfo.IsCollection() || column.TypeInfo == types.TypeCounter {
 				val = value
 			} else {
 				val, err = formatValues(fmt.Sprintf("%v", value), column.TypeInfo.DataType(), 4)

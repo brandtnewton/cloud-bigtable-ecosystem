@@ -123,7 +123,7 @@ func (m MapType) ValueType() CqlDataType {
 }
 
 func NewMapType(keyType CqlDataType, valueType CqlDataType) CqlDataType {
-	return &MapType{keyType: keyType, valueType: valueType, dt: datatype.NewMapType(keyType.DataType(), valueType.DataType())}
+	return MapType{keyType: keyType, valueType: valueType, dt: datatype.NewMapType(keyType.DataType(), valueType.DataType())}
 }
 
 func (m MapType) DataType() datatype.DataType {
@@ -159,7 +159,7 @@ func (l ListType) ElementType() CqlDataType {
 }
 
 func NewListType(elementType CqlDataType) CqlDataType {
-	return &ListType{elementType: elementType, dt: datatype.NewListType(elementType.DataType())}
+	return ListType{elementType: elementType, dt: datatype.NewListType(elementType.DataType())}
 }
 
 func (l ListType) DataType() datatype.DataType {
@@ -191,7 +191,7 @@ func (s SetType) IsAnyFrozen() bool {
 }
 
 func NewSetType(elementType CqlDataType) CqlDataType {
-	return &SetType{elementType: elementType, dt: datatype.NewSetType(elementType.DataType())}
+	return SetType{elementType: elementType, dt: datatype.NewSetType(elementType.DataType())}
 }
 
 func (s SetType) DataType() datatype.DataType {

@@ -231,7 +231,7 @@ func TestTimestampInKey(t *testing.T) {
 
 		require.NoError(t, err)
 
-		assert.Equal(t, testTime.UnixMilli(), eventTime)
+		assert.Equal(t, testTime, eventTime)
 		assert.Equal(t, float32(123.45), measurement)
 	})
 }

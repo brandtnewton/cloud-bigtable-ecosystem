@@ -232,7 +232,7 @@ func decodeAndReturnTimestamp(value interface{}, pv primitive.ProtocolVersion) (
 	if err != nil {
 		return time.Time{}, err
 	}
-	return time.UnixMilli(intVal), nil
+	return time.UnixMicro(intVal), nil
 }
 
 /**

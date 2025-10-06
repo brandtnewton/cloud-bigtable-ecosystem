@@ -299,11 +299,12 @@ func stringToPrimitives(value string, col *types.Column) (interface{}, error) {
 		if err != nil {
 			return nil, fmt.Errorf("error converting string to timestamp: %w", err)
 		}
-		if col.IsPrimaryKey {
-			iv = val.UnixMilli()
-		} else {
-			iv = val
-		}
+		//if col.IsPrimaryKey {
+		//	iv = val.UnixMicro()
+		//} else {
+		//	iv = val
+		//}
+		iv = val
 	case datatype.Blob:
 		iv = value
 	case datatype.Varchar:
@@ -2081,11 +2082,11 @@ func convertAllValuesToRowKeyType(primaryKeys []*types.Column, values map[string
 			case int64:
 				result[pmk.Name] = value
 			case time.Time:
-				result[pmk.Name] = v.UnixMilli()
+				result[pmk.Name] = v
 			case string:
-				i, err := strconv.ParseInt(v, 10, 0)
+				i, err := parseTimestamp(v)
 				if err != nil {
-					return nil, fmt.Errorf("failed to convert BigInt value %s for key %s", value.(string), pmk.Name)
+					return nil, fmt.Errorf("failed to convert Timestamp value %s for key %s", v, pmk.Name)
 				}
 				result[pmk.Name] = i
 			default:
@@ -2142,6 +2143,11 @@ func createOrderedCodeKey(tableConfig *schemaMapping.TableConfig, values map[str
 		var orderEncodedField []byte
 		var err error
 		switch v := value.(type) {
+		case time.Time:
+			orderEncodedField, err = encodeInt64Key(v.UnixMicro(), types.OrderedCodeEncoding)
+			if err != nil {
+				return nil, err
+			}
 		case int64:
 			orderEncodedField, err = encodeInt64Key(v, tableConfig.IntRowKeyEncoding)
 			if err != nil {

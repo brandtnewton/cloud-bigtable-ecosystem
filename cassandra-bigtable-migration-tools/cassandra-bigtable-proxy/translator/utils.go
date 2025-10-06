@@ -2080,11 +2080,11 @@ func convertAllValuesToRowKeyType(primaryKeys []*types.Column, values map[string
 		case datatype.Timestamp:
 			switch v := value.(type) {
 			case int:
-				result[pmk.Name] = int64(v)
+				result[pmk.Name] = time.UnixMilli(int64(v))
 			case int32:
-				result[pmk.Name] = int64(v)
+				result[pmk.Name] = time.UnixMilli(int64(v))
 			case int64:
-				result[pmk.Name] = value
+				result[pmk.Name] = time.UnixMilli(v)
 			case time.Time:
 				result[pmk.Name] = v
 			case string:

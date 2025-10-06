@@ -1503,6 +1503,12 @@ func (c *client) handleQuery(raw *frame.RawFrame, msg *partialQuery) {
 				c.sender.Send(raw.Header, &message.Invalid{ErrorMessage: err.Error()})
 				return
 			}
+
+			for _, column := range result.Metadata.Columns {
+				c.proxy.logger.Info("select type:", zap.String("results", column.Type.String()))
+			}
+			c.proxy.logger.Info("select results:", zap.Any("results", result))
+
 			c.sender.Send(raw.Header, result)
 			return
 

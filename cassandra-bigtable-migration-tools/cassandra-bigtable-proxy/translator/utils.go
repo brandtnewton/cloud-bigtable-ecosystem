@@ -252,10 +252,10 @@ func primitivesToString(val interface{}) (string, error) {
 // stringToPrimitives converts a string value to its primitive type based on CQL type.
 // Performs type conversion according to the specified CQL data type.
 // Returns error if value type is invalid or conversion fails.
-func stringToPrimitives(value string, cqlType datatype.DataType) (interface{}, error) {
+func stringToPrimitives(value string, col *types.Column) (interface{}, error) {
 	var iv interface{}
 
-	switch cqlType {
+	switch col.CQLType.DataType() {
 	case datatype.Int:
 		val, err := strconv.ParseInt(value, 10, 32)
 		if err != nil {
@@ -296,18 +296,21 @@ func stringToPrimitives(value string, cqlType datatype.DataType) (interface{}, e
 
 	case datatype.Timestamp:
 		val, err := parseTimestamp(value)
-
 		if err != nil {
 			return nil, fmt.Errorf("error converting string to timestamp: %w", err)
 		}
-		iv = val
+		if col.IsPrimaryKey {
+			iv = val.UnixMilli()
+		} else {
+			iv = val
+		}
 	case datatype.Blob:
 		iv = value
 	case datatype.Varchar:
 		iv = value
 
 	default:
-		return nil, fmt.Errorf("unsupported CQL type: %s", cqlType)
+		return nil, fmt.Errorf("unsupported CQL type: %s", col)
 
 	}
 	return iv, nil
@@ -1386,42 +1389,31 @@ func buildWhereClause(clauses []types.Clause, tableConfig *schemaMapping.TableCo
 // Manages type conversion for column values with validation.
 // Returns error if column type is invalid or conversion fails.
 func castColumns(colMeta *types.Column, columnFamily string) (string, error) {
-	var nc string
+	if colMeta.IsPrimaryKey {
+		return colMeta.Name, nil
+	}
 	switch colMeta.CQLType.DataType() {
 	case datatype.Int:
-		if colMeta.IsPrimaryKey {
-			nc = colMeta.Name
-		} else {
-			nc = fmt.Sprintf("TO_INT64(%s['%s'])", columnFamily, colMeta.Name)
-		}
+		return fmt.Sprintf("TO_INT64(%s['%s'])", columnFamily, colMeta.Name), nil
 	case datatype.Bigint:
-		if colMeta.IsPrimaryKey {
-			nc = colMeta.Name
-		} else {
-			nc = fmt.Sprintf("TO_INT64(%s['%s'])", columnFamily, colMeta.Name)
-		}
+		return fmt.Sprintf("TO_INT64(%s['%s'])", columnFamily, colMeta.Name), nil
 	case datatype.Float:
-		nc = fmt.Sprintf("TO_FLOAT32(%s['%s'])", columnFamily, colMeta.Name)
+		return fmt.Sprintf("TO_FLOAT32(%s['%s'])", columnFamily, colMeta.Name), nil
 	case datatype.Double:
-		nc = fmt.Sprintf("TO_FLOAT64(%s['%s'])", columnFamily, colMeta.Name)
+		return fmt.Sprintf("TO_FLOAT64(%s['%s'])", columnFamily, colMeta.Name), nil
 	case datatype.Boolean:
-		nc = fmt.Sprintf("TO_INT64(%s['%s'])", columnFamily, colMeta.Name)
+		return fmt.Sprintf("TO_INT64(%s['%s'])", columnFamily, colMeta.Name), nil
 	case datatype.Timestamp:
-		nc = fmt.Sprintf("TO_TIME(%s['%s'])", columnFamily, colMeta.Name)
+		return fmt.Sprintf("TO_TIME(%s['%s'])", columnFamily, colMeta.Name), nil
 	case datatype.Counter:
-		nc = fmt.Sprintf("%s['']", colMeta.Name)
+		return fmt.Sprintf("%s['']", colMeta.Name), nil
 	case datatype.Blob:
-		nc = fmt.Sprintf("TO_BLOB(%s['%s'])", columnFamily, colMeta.Name)
+		return fmt.Sprintf("TO_BLOB(%s['%s'])", columnFamily, colMeta.Name), nil
 	case datatype.Varchar:
-		if colMeta.IsPrimaryKey {
-			nc = colMeta.Name
-		} else {
-			nc = fmt.Sprintf("%s['%s']", columnFamily, colMeta.Name)
-		}
+		return fmt.Sprintf("%s['%s']", columnFamily, colMeta.Name), nil
 	default:
 		return "", fmt.Errorf("unsupported CQL type: %s", colMeta.CQLType.DataType())
 	}
-	return nc, nil
 }
 
 // parseWhereByClause parses the WHERE clause from a CQL query.
@@ -1573,11 +1565,11 @@ func parseWhereByClause(input cql.IWhereSpecContext, tableConfig *schemaMapping.
 				value = trimQuotes(value)
 				secondValue = trimQuotes(secondValue)
 				if value != questionMark {
-					val, err := stringToPrimitives(value, column.CQLType.DataType())
+					val, err := stringToPrimitives(value, column)
 					if err != nil {
 						return nil, err
 					}
-					secondVal, err := stringToPrimitives(secondValue, column.CQLType.DataType())
+					secondVal, err := stringToPrimitives(secondValue, column)
 					if err != nil {
 						return nil, err
 					}
@@ -1602,7 +1594,7 @@ func parseWhereByClause(input cql.IWhereSpecContext, tableConfig *schemaMapping.
 
 				if value != questionMark {
 
-					val, err := stringToPrimitives(value, column.CQLType.DataType())
+					val, err := stringToPrimitives(value, column)
 					if err != nil {
 						return nil, err
 					}
@@ -2071,6 +2063,25 @@ func convertAllValuesToRowKeyType(primaryKeys []*types.Column, values map[string
 				result[pmk.Name] = int64(v)
 			case int64:
 				result[pmk.Name] = value
+			case string:
+				i, err := strconv.ParseInt(v, 10, 0)
+				if err != nil {
+					return nil, fmt.Errorf("failed to convert BigInt value %s for key %s", value.(string), pmk.Name)
+				}
+				result[pmk.Name] = i
+			default:
+				return nil, fmt.Errorf("failed to convert %T to BigInt for key %s", value, pmk.Name)
+			}
+		case datatype.Timestamp:
+			switch v := value.(type) {
+			case int:
+				result[pmk.Name] = int64(v)
+			case int32:
+				result[pmk.Name] = int64(v)
+			case int64:
+				result[pmk.Name] = value
+			case time.Time:
+				result[pmk.Name] = v.UnixMilli()
 			case string:
 				i, err := strconv.ParseInt(v, 10, 0)
 				if err != nil {

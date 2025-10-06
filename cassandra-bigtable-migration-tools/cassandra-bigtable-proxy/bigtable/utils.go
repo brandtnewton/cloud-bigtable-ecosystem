@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"reflect"
 	"slices"
+	"time"
 
 	"cloud.google.com/go/bigtable"
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/global/types"
@@ -149,7 +150,7 @@ func inferSQLType(value interface{}) (bigtable.SQLType, error) {
 		return bigtable.StringSQLType{}, nil
 	case []byte:
 		return bigtable.BytesSQLType{}, nil
-	case int, int8, int16, int32, int64:
+	case int, int8, int16, int32, int64, time.Time:
 		return bigtable.Int64SQLType{}, nil
 	case float32:
 		return bigtable.Float32SQLType{}, nil

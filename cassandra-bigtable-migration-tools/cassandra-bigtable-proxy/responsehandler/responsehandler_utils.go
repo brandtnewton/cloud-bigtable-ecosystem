@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"reflect"
 	"strconv"
+	"time"
 
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/third_party/datastax/proxycore"
 	"github.com/datastax/go-cassandra-native-protocol/datatype"
@@ -226,6 +227,14 @@ func decodeAndReturnBigInt(value interface{}, pv primitive.ProtocolVersion) (int
 	}
 }
 
+func decodeAndReturnTimestamp(value interface{}, pv primitive.ProtocolVersion) (time.Time, error) {
+	intVal, err := decodeAndReturnBigInt(value, pv)
+	if err != nil {
+		return time.Time{}, err
+	}
+	return time.UnixMilli(intVal), nil
+}
+
 /**
 * DecodeAndReturnFloat is a function that decodes a value to an int64.
 *
@@ -308,7 +317,9 @@ func HandlePrimitiveEncoding(dt datatype.DataType, value interface{}, protocalVe
 		decodedValue, err = decodeAndReturnBool(value, protocalVersion)
 	} else if dt == datatype.Int {
 		decodedValue, err = decodeAndReturnInt(value, protocalVersion)
-	} else if dt == datatype.Bigint || dt == datatype.Timestamp || dt == datatype.Counter {
+	} else if dt == datatype.Timestamp {
+		decodedValue, err = decodeAndReturnTimestamp(value, protocalVersion)
+	} else if dt == datatype.Bigint || dt == datatype.Counter {
 		decodedValue, err = decodeAndReturnBigInt(value, protocalVersion)
 	} else if dt == datatype.Float {
 		decodedValue, err = decodeAndReturnFloat(value, protocalVersion)
@@ -332,7 +343,10 @@ func HandlePrimitiveEncoding(dt datatype.DataType, value interface{}, protocalVe
 		return nil, err
 	}
 	if encode {
-		encoded, _ := proxycore.EncodeType(dt, protocalVersion, decodedValue)
+		encoded, err := proxycore.EncodeType(dt, protocalVersion, decodedValue)
+		if err != nil {
+			return nil, err
+		}
 		return encoded, nil
 	}
 	return decodedValue, nil

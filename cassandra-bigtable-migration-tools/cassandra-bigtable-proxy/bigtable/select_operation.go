@@ -47,7 +47,7 @@ import (
 func (btc *BigtableClient) SelectStatement(ctx context.Context, query rh.QueryMetadata) (*message.RowsResult, time.Time, error) {
 	preparedStmt, err := btc.PrepareStatement(ctx, query)
 	if err != nil {
-		btc.Logger.Error("Failed to prepare statement", zap.String("query", query.Query), zap.Error(err))
+		btc.Logger.Error("Failed to prepare statement", zap.String("query", query.Query), zap.Any("params", query.ParamValues), zap.Error(err))
 		return nil, time.Now(), fmt.Errorf("failed to prepare statement: %w", err)
 	}
 	return btc.ExecutePreparedStatement(ctx, query, preparedStmt)

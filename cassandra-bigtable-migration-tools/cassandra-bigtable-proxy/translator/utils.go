@@ -299,11 +299,6 @@ func stringToPrimitives(value string, col *types.Column) (interface{}, error) {
 		if err != nil {
 			return nil, fmt.Errorf("error converting string to timestamp: %w", err)
 		}
-		//if col.IsPrimaryKey {
-		//	iv = val.UnixMicro()
-		//} else {
-		//	iv = val
-		//}
 		iv = val
 	case datatype.Blob:
 		iv = value
@@ -1390,13 +1385,16 @@ func buildWhereClause(clauses []types.Clause, tableConfig *schemaMapping.TableCo
 // Manages type conversion for column values with validation.
 // Returns error if column type is invalid or conversion fails.
 func castColumns(colMeta *types.Column, columnFamily string) (string, error) {
-	if colMeta.IsPrimaryKey {
-		return colMeta.Name, nil
-	}
 	switch colMeta.CQLType.DataType() {
 	case datatype.Int:
+		if colMeta.IsPrimaryKey {
+			return colMeta.Name, nil
+		}
 		return fmt.Sprintf("TO_INT64(%s['%s'])", columnFamily, colMeta.Name), nil
 	case datatype.Bigint:
+		if colMeta.IsPrimaryKey {
+			return colMeta.Name, nil
+		}
 		return fmt.Sprintf("TO_INT64(%s['%s'])", columnFamily, colMeta.Name), nil
 	case datatype.Float:
 		return fmt.Sprintf("TO_FLOAT32(%s['%s'])", columnFamily, colMeta.Name), nil
@@ -1405,12 +1403,18 @@ func castColumns(colMeta *types.Column, columnFamily string) (string, error) {
 	case datatype.Boolean:
 		return fmt.Sprintf("TO_INT64(%s['%s'])", columnFamily, colMeta.Name), nil
 	case datatype.Timestamp:
+		if colMeta.IsPrimaryKey {
+			return colMeta.Name, nil
+		}
 		return fmt.Sprintf("TO_TIME(%s['%s'])", columnFamily, colMeta.Name), nil
 	case datatype.Counter:
 		return fmt.Sprintf("%s['']", colMeta.Name), nil
 	case datatype.Blob:
 		return fmt.Sprintf("TO_BLOB(%s['%s'])", columnFamily, colMeta.Name), nil
 	case datatype.Varchar:
+		if colMeta.IsPrimaryKey {
+			return colMeta.Name, nil
+		}
 		return fmt.Sprintf("%s['%s']", columnFamily, colMeta.Name), nil
 	default:
 		return "", fmt.Errorf("unsupported CQL type: %s", colMeta.CQLType.DataType())

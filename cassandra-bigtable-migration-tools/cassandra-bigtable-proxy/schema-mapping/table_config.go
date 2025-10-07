@@ -87,6 +87,31 @@ func (tableConfig *TableConfig) GetPkByTableNameWithFilter(filterPrimaryKeys []s
 	return result
 }
 
+func (tableConfig *TableConfig) GetCassandraPositionForColumn(column string) int {
+	col, err := tableConfig.GetColumn(column)
+	if err != nil {
+		return -1
+	}
+	// regular columns all have a position of -1 in cassandra - position is only used to track primary key position/index.
+	if !col.IsPrimaryKey {
+		return -1
+	}
+	// we need to return the position/index of the column _within_ it's key type.
+	// Example: given PRIMARY KEY((org, user), email, name) org=0, user=1, email=0 and name=1
+	result := 0
+	for _, key := range tableConfig.PrimaryKeys {
+		if key.KeyType != col.KeyType {
+			continue
+		}
+		if key.Name == col.Name {
+			return result
+		}
+		result++
+	}
+	// this shouldn't happen
+	return 0
+}
+
 // GetColumnFamily retrieves the column family for a given column.
 // Returns the column family name from the schema mapping with validation.
 // Returns default column family for primitive types and column name for collections.
@@ -348,18 +373,4 @@ func (tableConfig *TableConfig) handleSpecialSelectedColumn(columnsMap map[strin
 	}
 
 	return columnMd, nil
-}
-
-// GetPkKeyType returns the key type of a primary key column for a given table and keyspace.
-// It takes the table name, keyspace name, and column name as input parameters.
-// Returns the key type as a string if the column is a primary key, or an error if:
-// - There's an error retrieving primary key information
-// - The specified column is not a primary key in the table
-func (tableConfig *TableConfig) GetPkKeyType(columnName string) (string, error) {
-	for _, col := range tableConfig.PrimaryKeys {
-		if col.Name == columnName {
-			return col.KeyType, nil
-		}
-	}
-	return "", fmt.Errorf("column %s is not a primary key in table %s", columnName, tableConfig.Name)
 }

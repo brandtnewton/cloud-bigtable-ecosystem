@@ -236,11 +236,7 @@ func (t *Translator) TranslateInsertQuery(query string, protocolV primitive.Prot
 
 	if !ValidateRequiredPrimaryKeys(primaryKeys, columnsResponse.PrimayColumns) {
 		missingKey := findFirstMissingKey(primaryKeys, columnsResponse.PrimayColumns)
-		missingPkColumnType, err := tableConfig.GetPkKeyType(missingKey)
-		if err != nil {
-			return nil, err
-		}
-		return nil, fmt.Errorf("some %s key parts are missing: %s", missingPkColumnType, missingKey)
+		return nil, fmt.Errorf("some primary key parts are missing: %s", missingKey)
 	}
 
 	if !isPreparedQuery {
@@ -265,7 +261,6 @@ func (t *Translator) TranslateInsertQuery(query string, protocolV primitive.Prot
 		newColumns = rawOutput.NewColumns
 		newValues = rawOutput.NewValues
 		delColumnFamily = rawOutput.DelColumnFamily
-
 	}
 
 	insertQueryData := &InsertQueryMapping{

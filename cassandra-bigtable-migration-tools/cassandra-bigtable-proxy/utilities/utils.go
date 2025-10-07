@@ -30,7 +30,7 @@ import (
 )
 
 const (
-	KEY_TYPE_PARTITION  = "partition"
+	KEY_TYPE_PARTITION  = "partition_key"
 	KEY_TYPE_CLUSTERING = "clustering"
 	KEY_TYPE_REGULAR    = "regular"
 )

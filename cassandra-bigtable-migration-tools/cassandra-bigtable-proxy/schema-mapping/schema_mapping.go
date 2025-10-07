@@ -89,27 +89,25 @@ func (c *SchemaMappingConfig) GetKeyspace(keyspace string) ([]*TableConfig, erro
 	return results, nil
 }
 
-func (c *SchemaMappingConfig) ReplaceTables(tableConfigs []*TableConfig) {
+func (c *SchemaMappingConfig) ReplaceTables(keyspace string, tableConfigs []*TableConfig) error {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
-	// clear the existing tables
-	c.tables = make(map[string]map[string]*TableConfig)
-
+	// clear the keyspace
+	c.tables[keyspace] = make(map[string]*TableConfig)
 	for _, tableConfig := range tableConfigs {
-		if _, exists := c.tables[tableConfig.Keyspace]; !exists {
-			c.tables[tableConfig.Keyspace] = make(map[string]*TableConfig)
+		if tableConfig.Keyspace != keyspace {
+			return fmt.Errorf("cannot replace table with keyspace '%s' because we're only updating keyspace '%s'", tableConfig.Keyspace, keyspace)
 		}
-		c.tables[tableConfig.Keyspace][tableConfig.Name] = tableConfig
+		c.tables[keyspace][tableConfig.Name] = tableConfig
 	}
+	return nil
 }
 
 func (c *SchemaMappingConfig) UpdateTables(tableConfigs []*TableConfig) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	if c.tables == nil {
-		c.tables = make(map[string]map[string]*TableConfig)
-	}
+
 	for _, tableConfig := range tableConfigs {
 		if _, exists := c.tables[tableConfig.Keyspace]; !exists {
 			c.tables[tableConfig.Keyspace] = make(map[string]*TableConfig)

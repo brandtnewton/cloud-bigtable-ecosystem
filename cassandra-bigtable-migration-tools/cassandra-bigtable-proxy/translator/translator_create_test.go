@@ -74,7 +74,7 @@ func TestTranslateCreateTableToBigtable(t *testing.T) {
 				PrimaryKeys: []CreateTablePrimaryKeyConfig{
 					{
 						Name:    "user_id",
-						KeyType: "partition",
+						KeyType: "partition_key",
 					},
 					{
 						Name:    "order_num",
@@ -121,7 +121,7 @@ func TestTranslateCreateTableToBigtable(t *testing.T) {
 				PrimaryKeys: []CreateTablePrimaryKeyConfig{
 					{
 						Name:    "user_id",
-						KeyType: "partition",
+						KeyType: "partition_key",
 					},
 				},
 			},
@@ -207,11 +207,11 @@ func TestTranslateCreateTableToBigtable(t *testing.T) {
 				PrimaryKeys: []CreateTablePrimaryKeyConfig{
 					{
 						Name:    "id",
-						KeyType: "partition",
+						KeyType: "partition_key",
 					},
 					{
 						Name:    "lastname",
-						KeyType: "partition",
+						KeyType: "partition_key",
 					},
 					{
 						Name:    "firstname",
@@ -237,7 +237,7 @@ func TestTranslateCreateTableToBigtable(t *testing.T) {
 					{Keyspace: "test_keyspace", Table: "test_table", Name: "column10", Index: 1, Type: datatype.Int},
 				},
 				PrimaryKeys: []CreateTablePrimaryKeyConfig{
-					{Name: "column1", KeyType: "partition"},
+					{Name: "column1", KeyType: "partition_key"},
 					{Name: "column10", KeyType: "clustering"},
 				},
 			},
@@ -259,7 +259,7 @@ func TestTranslateCreateTableToBigtable(t *testing.T) {
 					{Keyspace: "test_keyspace", Table: "test_table", Name: "column10", Index: 1, Type: datatype.Int},
 				},
 				PrimaryKeys: []CreateTablePrimaryKeyConfig{
-					{Name: "column1", KeyType: "partition"},
+					{Name: "column1", KeyType: "partition_key"},
 					{Name: "column10", KeyType: "clustering"},
 				},
 			},
@@ -281,7 +281,7 @@ func TestTranslateCreateTableToBigtable(t *testing.T) {
 					{Keyspace: "my_keyspace", Table: "test_table", Name: "column10", Index: 1, Type: datatype.Int},
 				},
 				PrimaryKeys: []CreateTablePrimaryKeyConfig{
-					{Name: "column1", KeyType: "partition"},
+					{Name: "column1", KeyType: "partition_key"},
 					{Name: "column10", KeyType: "clustering"},
 				},
 			},
@@ -304,7 +304,7 @@ func TestTranslateCreateTableToBigtable(t *testing.T) {
 					{Keyspace: "my_keyspace", Table: "test_table", Name: "column10", Index: 1, Type: datatype.Int},
 				},
 				PrimaryKeys: []CreateTablePrimaryKeyConfig{
-					{Name: "column1", KeyType: "partition"},
+					{Name: "column1", KeyType: "partition_key"},
 					{Name: "column10", KeyType: "clustering"},
 				},
 			},
@@ -327,7 +327,7 @@ func TestTranslateCreateTableToBigtable(t *testing.T) {
 					{Keyspace: "my_keyspace", Table: "test_table", Name: "column10", Index: 1, Type: datatype.Int},
 				},
 				PrimaryKeys: []CreateTablePrimaryKeyConfig{
-					{Name: "column1", KeyType: "partition"},
+					{Name: "column1", KeyType: "partition_key"},
 					{Name: "column10", KeyType: "clustering"},
 				},
 			},
@@ -350,7 +350,7 @@ func TestTranslateCreateTableToBigtable(t *testing.T) {
 					{Keyspace: "my_keyspace", Table: "test_table", Name: "column10", Index: 1, Type: datatype.Int},
 				},
 				PrimaryKeys: []CreateTablePrimaryKeyConfig{
-					{Name: "column1", KeyType: "partition"},
+					{Name: "column1", KeyType: "partition_key"},
 					{Name: "column10", KeyType: "clustering"},
 				},
 			},

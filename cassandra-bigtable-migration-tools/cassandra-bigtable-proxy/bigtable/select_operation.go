@@ -24,6 +24,7 @@ import (
 	"time"
 
 	"cloud.google.com/go/bigtable"
+	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/utilities"
 	"github.com/datastax/go-cassandra-native-protocol/datatype"
 	"github.com/datastax/go-cassandra-native-protocol/message"
 	"github.com/datastax/go-cassandra-native-protocol/primitive"
@@ -209,7 +210,7 @@ func (btc *BigtableClient) convertResultRowToMap(resultRow bigtable.ResultRow, q
 		case float32:
 			rowMap[colName] = float64(v)
 		case time.Time:
-			encoded, _ := proxycore.EncodeType(datatype.Timestamp, primitive.ProtocolVersion4, v.UnixMicro())
+			encoded, _ := proxycore.EncodeType(datatype.Timestamp, primitive.ProtocolVersion4, utilities.TimeToBigtableBigInt(v))
 			rowMap[colName] = encoded
 		case nil:
 			rowMap[colName] = nil

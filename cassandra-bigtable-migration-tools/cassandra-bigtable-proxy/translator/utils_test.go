@@ -131,29 +131,37 @@ func TestPrimitivesToString(t *testing.T) {
 func TestStringToPrimitives(t *testing.T) {
 	tests := []struct {
 		value    string
-		cqlType  datatype.DataType
+		cqlType  types.ScalarType
 		expected interface{}
 		hasError bool
 	}{
-		{"123", datatype.Int, int32(123), false},
-		{"not_an_int", datatype.Int, nil, true},
-		{"123456789", datatype.Bigint, int64(123456789), false},
-		{"not_a_bigint", datatype.Bigint, nil, true},
-		{"3.14", datatype.Float, float32(3.14), false},
-		{"not_a_float", datatype.Float, nil, true},
-		{"3.1415926535", datatype.Double, float64(3.1415926535), false},
-		{"not_a_double", datatype.Double, nil, true},
-		{"true", datatype.Boolean, int64(1), false},
-		{"false", datatype.Boolean, int64(0), false},
-		{"not_a_boolean", datatype.Boolean, nil, true},
-		{"blob_data", datatype.Blob, "blob_data", false},
-		{"hello", datatype.Varchar, "hello", false},
-		{"123", nil, nil, true},
+		{"123", types.TypeInt, int32(123), false},
+		{"not_an_int", types.TypeInt, nil, true},
+		{"123456789", types.TypeBigint, int64(123456789), false},
+		{"not_a_bigint", types.TypeBigint, nil, true},
+		{"3.14", types.TypeFloat, float32(3.14), false},
+		{"not_a_float", types.TypeFloat, nil, true},
+		{"3.1415926535", types.TypeDouble, float64(3.1415926535), false},
+		{"not_a_double", types.TypeDouble, nil, true},
+		{"true", types.TypeBoolean, int64(1), false},
+		{"false", types.TypeBoolean, int64(0), false},
+		{"not_a_boolean", types.TypeBoolean, nil, true},
+		{"blob_data", types.TypeBlob, "blob_data", false},
+		{"hello", types.TypeVarchar, "hello", false},
+		{"123", types.TypeTinyint, nil, true},
 	}
 
 	for _, tt := range tests {
 		t.Run(fmt.Sprintf("%s_%s", tt.cqlType, tt.value), func(t *testing.T) {
-			result, err := stringToPrimitives(tt.value, tt.cqlType)
+			result, err := stringToPrimitives(tt.value, &types.Column{
+				Name:         "col",
+				ColumnFamily: "cf",
+				CQLType:      tt.cqlType,
+				IsPrimaryKey: false,
+				PkPrecedence: 0,
+				KeyType:      "",
+				Metadata:     message.ColumnMetadata{},
+			})
 			if (err != nil) != tt.hasError {
 				t.Errorf("expected error: %v, got error: %v", tt.hasError, err)
 			}

@@ -549,6 +549,41 @@ func TestTranslator_TranslateInsertQuerytoBigtable(t *testing.T) {
 			wantErr: false,
 		},
 		{
+			name: "timestamp key",
+			args: args{
+				queryStr:        "INSERT INTO test_keyspace.int_row_keys (event_time, event_type) VALUES ('2025-10-06 18:15:35.317000', 'click')",
+				protocolV:       protocolV,
+				isPreparedQuery: false,
+			},
+			fields: fields{
+				SchemaMappingConfig: GetSchemaMappingConfig(types.OrderedCodeEncoding),
+			},
+			want: &InsertQueryMapping{
+				Query:     "INSERT INTO test_keyspace.int_row_keys (event_time, event_type) VALUES ('2025-10-06 18:15:35.317000', 'click')",
+				QueryType: "INSERT",
+				Table:     "int_row_keys",
+				Keyspace:  "test_keyspace",
+				Params: map[string]interface{}{
+					"event_time": []byte(""),
+					"event_type": []byte("click"),
+				},
+				Columns: []*types.Column{
+					{
+						Name:         "event_type",
+						ColumnFamily: "cf1",
+						CQLType:      types.TypeText,
+					},
+				},
+				Values: []interface{}{
+					formatValueUnsafe(t, "click", datatype.Varchar, primitive.ProtocolVersion4),
+				},
+				PrimaryKeys: []string{"event_time"},
+				ParamKeys:   []string{"event_time", "event_type"},
+				RowKey:      "\x00\x00\x00\x01pkval's",
+			},
+			wantErr: false,
+		},
+		{
 			name: "without keyspace in query, with default keyspace",
 			args: args{
 				queryStr:        "INSERT INTO test_table (column1, column10) VALUES ('abc', 'pkval')",

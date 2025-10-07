@@ -306,7 +306,7 @@ func stringToPrimitives(value string, col *types.Column) (interface{}, error) {
 		iv = value
 
 	default:
-		return nil, fmt.Errorf("unsupported CQL type: %s", col)
+		return nil, fmt.Errorf("unsupported CQL type: %s", col.CQLType.String())
 
 	}
 	return iv, nil
@@ -2148,7 +2148,7 @@ func createOrderedCodeKey(tableConfig *schemaMapping.TableConfig, values map[str
 		var err error
 		switch v := value.(type) {
 		case time.Time:
-			orderEncodedField, err = encodeInt64Key(v.UnixMicro(), types.OrderedCodeEncoding)
+			orderEncodedField, err = encodeInt64Key(utilities.TimeToBigtableBigInt(v), types.OrderedCodeEncoding)
 			if err != nil {
 				return nil, err
 			}

@@ -26,6 +26,8 @@ import (
 	"github.com/datastax/go-cassandra-native-protocol/message"
 	"github.com/datastax/go-cassandra-native-protocol/primitive"
 	"github.com/google/go-cmp/cmp"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"go.uber.org/zap"
 )
 
@@ -1338,13 +1340,12 @@ func TestTypeHandler_BuildResponseRow(t *testing.T) {
 				ColumnMetadataCache: tt.fields.ColumnMetadataCache,
 			}
 			got, err := th.BuildResponseRow(tt.args.rowMap, tt.args.query, tt.args.cmd)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("TypeHandler.BuildResponseRow() error = %v, wantErr %v", err, tt.wantErr)
+			if tt.wantErr {
+				require.Error(t, err)
 				return
 			}
-			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("TypeHandler.BuildResponseRow() = %v, want %v", got, tt.want)
-			}
+			require.NoError(t, err)
+			assert.Equal(t, tt.want, got)
 		})
 	}
 }

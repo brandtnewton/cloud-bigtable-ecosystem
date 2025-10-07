@@ -122,6 +122,7 @@ CREATE TABLE IF NOT EXISTS bigtabledevinstance.timestamp_key (
 	region text,
 	event_time timestamp,
 	measurement float,
+	end_time timestamp,
 	PRIMARY KEY (region, event_time)
 );
 `,

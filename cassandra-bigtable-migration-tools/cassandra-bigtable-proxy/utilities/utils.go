@@ -888,7 +888,7 @@ func validateNoDataTypeDefinition(dt cql.IDataTypeContext) error {
 
 func TimeToBigtableBigInt(t time.Time) int64 {
 	// bigtable timestamps are in micros but cassandra is in millis, so we need to truncate to millis
-	return t.Truncate(time.Millisecond).UnixMicro()
+	return t.UTC().Truncate(time.Millisecond).UnixMicro()
 }
 
 func validateDataTypeDefinition(dt cql.IDataTypeContext, expectedTypeCount int) error {

@@ -672,7 +672,7 @@ func TestTranslator_BuildDeletePrepareQuery(t *testing.T) {
 			}
 			got, got1, err := tr.BuildDeletePrepareQuery(tt.args.values, tt.args.st, tt.args.variableColumnMetadata, tt.args.protocolV)
 			if tt.wantErr {
-				assert.Error(t, err, "error expected")
+				assert.Error(t, err, "error want")
 			} else {
 				assert.NoErrorf(t, err, "unexpected error")
 			}
@@ -809,27 +809,27 @@ func TestParseDeleteColumns(t *testing.T) {
 			}
 			if tt.expectNil {
 				if cols != nil {
-					t.Fatalf("expected nil columns, got %v", cols)
+					t.Fatalf("want nil columns, got %v", cols)
 				}
 				return
 			}
 			if len(cols) != len(tt.expectedCols) {
-				t.Fatalf("expected %d columns, got %d", len(tt.expectedCols), len(cols))
+				t.Fatalf("want %d columns, got %d", len(tt.expectedCols), len(cols))
 			}
 			for i := range cols {
 				got := cols[i]
 				exp := tt.expectedCols[i]
 				if got.Name != exp.Name {
-					t.Errorf("expected column name '%s', got '%s'", exp.Name, got.Name)
+					t.Errorf("want column name '%s', got '%s'", exp.Name, got.Name)
 				}
 				// Normalize values: remove any quotes from map keys.
 				gotMapKey := strings.Trim(got.MapKey, "'")
 				expMapKey := strings.Trim(exp.MapKey, "'")
 				if gotMapKey != expMapKey {
-					t.Errorf("expected map key '%s', got '%s'", expMapKey, gotMapKey)
+					t.Errorf("want map key '%s', got '%s'", expMapKey, gotMapKey)
 				}
 				if got.ListIndex != exp.ListIndex {
-					t.Errorf("expected list index '%s', got '%s'", exp.ListIndex, got.ListIndex)
+					t.Errorf("want list index '%s', got '%s'", exp.ListIndex, got.ListIndex)
 				}
 			}
 		})

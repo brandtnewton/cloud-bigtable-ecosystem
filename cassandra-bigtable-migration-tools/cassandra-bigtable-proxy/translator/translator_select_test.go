@@ -45,7 +45,7 @@ func TestTranslator_TranslateSelectQuerytoBigtable(t *testing.T) {
  where column1 = 'test' AND column3='true'
  AND column5 <= '2015-05-03 13:30:54.234' AND column6 >= '123'
  AND column9 > '-10000000' LIMIT 20000;;`
-	timeStamp, _ := parseTimestamp("2015-05-03 13:30:54.234")
+	timeStamp, _ := parseCqlTimestamp("2015-05-03 13:30:54.234")
 
 	inputPreparedQuery := `select column1, column2, column3 from  test_keyspace.test_table
  where column1 = '?' AND column2='?' AND column3='?'

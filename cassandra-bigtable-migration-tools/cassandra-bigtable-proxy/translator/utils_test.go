@@ -40,39 +40,56 @@ import (
 	"go.uber.org/zap"
 )
 
-// TestParseTimestamp tests the parseTimestamp function with various timestamp formats.
+// TestParseTimestamp tests the parseCqlTimestamp function with various timestamp formats.
 func TestParseTimestamp(t *testing.T) {
 	cases := []struct {
-		name     string
-		input    string
-		expected time.Time
-		wantErr  bool
+		name    string
+		input   string
+		want    time.Time
+		wantErr bool
 	}{
 		{
-			name:     "ISO 8601 format",
-			input:    "2024-02-05T14:00:00Z",
-			expected: time.Date(2024, 2, 5, 14, 0, 0, 0, time.UTC),
+			name:  "ISO 8601 format",
+			input: "2024-02-05T14:00:00Z",
+			want:  time.Date(2024, 2, 5, 14, 0, 0, 0, time.UTC),
 		},
 		{
-			name:     "Common date-time format",
-			input:    "2024-02-05 14:00:00",
-			expected: time.Date(2024, 2, 5, 14, 0, 0, 0, time.UTC),
+			name:  "ISO 8601 format",
+			input: "2024-02-05T14:00:00Z",
+			want:  time.Date(2024, 2, 5, 14, 0, 0, 0, time.UTC),
 		},
 		{
-			name:     "Unix timestamp",
-			input:    "1672522562000",
-			expected: time.Unix(1672522562, 0).UTC(),
+			name:  "Common date-time format",
+			input: "2024-02-05 14:00:00",
+			want:  time.Date(2024, 2, 5, 14, 0, 0, 0, time.UTC),
 		},
 		{
-			name:     "Unix timestamp epoch",
-			input:    "0",
-			expected: time.Date(1970, 1, 1, 0, 0, 0, 0, time.UTC),
+			name:  "Unix timestamp",
+			input: "1672522562000",
+			want:  time.Unix(1672522562, 0).UTC(),
 		},
 		{
-			name:     "Unix timestamp negative",
-			input:    "-10000",
-			expected: time.Date(1969, 12, 31, 23, 59, 50, 0, time.UTC),
+			name:  "Unix timestamp epoch",
+			input: "0",
+			want:  time.Date(1970, 1, 1, 0, 0, 0, 0, time.UTC),
 		},
+		{
+			name:  "Unix timestamp negative",
+			input: "-10000",
+			want:  time.Date(1969, 12, 31, 23, 59, 50, 0, time.UTC),
+		},
+		{
+			name:  "Unix timestamp negative",
+			input: "2011-02-03",
+			want:  time.Date(2011, 02, 03, 0, 0, 0, 0, time.UTC),
+		},
+		{name: "march-2-2011", input: "1299038700000", want: time.Date(2011, time.March, 2, 4, 5, 0, 0, time.UTC)},
+		{name: "march-2-2011", input: "2011-03-02 04:05+0000", want: time.Date(2011, time.March, 2, 4, 5, 0, 0, time.UTC)},
+		{name: "march-2-2011", input: "2011-03-02 04:05:00+0000", want: time.Date(2011, time.March, 2, 4, 5, 0, 0, time.UTC)},
+		{name: "march-2-2011", input: "2011-03-02 04:05:00.000+0000", want: time.Date(2011, time.March, 2, 4, 5, 0, 0, time.UTC)},
+		{name: "march-2-2011", input: "2011-03-02T04:05+0000", want: time.Date(2011, time.March, 2, 4, 5, 0, 0, time.UTC)},
+		{name: "march-2-2011", input: "2011-03-02T04:05:00+0000", want: time.Date(2011, time.March, 2, 4, 5, 0, 0, time.UTC)},
+		{name: "march-2-2011", input: "2011-03-02T04:05:00.000+0000", want: time.Date(2011, time.March, 2, 4, 5, 0, 0, time.UTC)},
 		{
 			name:    "Invalid format",
 			input:   "invalid-timestamp",
@@ -82,19 +99,17 @@ func TestParseTimestamp(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			got, err := parseTimestamp(tc.input)
+			got, err := parseCqlTimestamp(tc.input)
 			if (err != nil) != tc.wantErr {
-				t.Errorf("parseTimestamp() error = %v, wantErr %v", err, tc.wantErr)
+				t.Errorf("parseCqlTimestamp() error = %v, wantErr %v", err, tc.wantErr)
 				return
 			}
-
-			// Allow a small margin of error for floating-point timestamp comparisons
-			if !tc.wantErr {
-				delta := got.Sub(tc.expected)
-				if delta > time.Millisecond || delta < -time.Millisecond {
-					t.Errorf("parseTimestamp() = %v, wantNewColumns %v (delta: %v)", got, tc.expected, delta)
-				}
+			if tc.wantErr {
+				require.Error(t, err)
+				return
 			}
+			require.NoError(t, err)
+			assert.Equal(t, tc.want, got)
 		})
 	}
 }
@@ -163,10 +178,10 @@ func TestStringToPrimitives(t *testing.T) {
 				Metadata:     message.ColumnMetadata{},
 			})
 			if (err != nil) != tt.hasError {
-				t.Errorf("expected error: %v, got error: %v", tt.hasError, err)
+				t.Errorf("want error: %v, got error: %v", tt.hasError, err)
 			}
 			if result != tt.expected {
-				t.Errorf("expected result: %v, got result: %v", tt.expected, result)
+				t.Errorf("want result: %v, got result: %v", tt.expected, result)
 			}
 		})
 	}
@@ -1123,7 +1138,7 @@ func Test_processCollectionColumnsForPrepareQueries(t *testing.T) {
 
 			// For list types, normalize Names for comparison as its a timestamp value based on time.Now()
 			if strings.Contains(tt.name, "List") {
-				// Normalize both output and expected Names for comparison
+				// Normalize both output and want Names for comparison
 				for i := range output.NewColumns {
 					output.NewColumns[i].Name = fmt.Sprintf("list_index_%d", i)
 				}
@@ -1211,11 +1226,11 @@ func TestConvertToBigtableTimestamp(t *testing.T) {
 			result, err := convertToBigtableTimestamp(test.input, 0)
 
 			if (err != nil) != test.expectError {
-				t.Errorf("Unexpected error status: got %v, expected error %v", err, test.expectError)
+				t.Errorf("Unexpected error status: got %v, want error %v", err, test.expectError)
 			}
 
 			if !test.expectError && result != test.expected {
-				t.Errorf("Unexpected result: got %+v, expected %+v", result, test.expected)
+				t.Errorf("Unexpected result: got %+v, want %+v", result, test.expected)
 			}
 		})
 	}
@@ -1351,20 +1366,20 @@ func TestProcessComplexUpdate(t *testing.T) {
 			complexMeta, err := translator.ProcessComplexUpdate(tt.columns, tt.values, "test_table", "test_keyspace", tt.prependColumns)
 
 			if err != tt.expectedErr {
-				t.Errorf("expected error %v, got %v", tt.expectedErr, err)
+				t.Errorf("want error %v, got %v", tt.expectedErr, err)
 			}
 
 			if len(complexMeta) != len(tt.expectedMeta) {
-				t.Errorf("expected length %d, got %d", len(tt.expectedMeta), len(complexMeta))
+				t.Errorf("want length %d, got %d", len(tt.expectedMeta), len(complexMeta))
 			}
 
 			for key, expectedComplexUpdate := range tt.expectedMeta {
 				actualComplexUpdate, exists := complexMeta[key]
 				if !exists {
-					t.Errorf("expected key %s to exist in result", key)
+					t.Errorf("want key %s to exist in result", key)
 				} else {
 					if !compareComplexOperation(expectedComplexUpdate, actualComplexUpdate) {
-						t.Errorf("expected meta for key %s: %v, got: %v", key, expectedComplexUpdate, actualComplexUpdate)
+						t.Errorf("want meta for key %s: %v, got: %v", key, expectedComplexUpdate, actualComplexUpdate)
 					}
 				}
 			}
@@ -2331,7 +2346,7 @@ func TestProcessCollectionColumnsForPrepareQueries_ComplexMetaAndNonCollection(t
 				return
 			}
 			if tt.wantErr {
-				return // Don't check results if an error was expected
+				return // Don't check results if an error was want
 			}
 
 			// Sort slices of columns before comparing for deterministic results
@@ -3405,7 +3420,7 @@ func TestCqlTypeToEmptyPrimitive(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			result := cqlTypeToEmptyPrimitive(tt.cqlType, tt.isPrimaryKey)
 			if !reflect.DeepEqual(result, tt.expected) {
-				t.Errorf("For cqlType %v and isPrimaryKey %v, expected %v (%T), but got %v (%T)",
+				t.Errorf("For cqlType %v and isPrimaryKey %v, want %v (%T), but got %v (%T)",
 					tt.cqlType, tt.isPrimaryKey, tt.expected, tt.expected, result, result)
 			}
 		})

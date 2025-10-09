@@ -42,6 +42,10 @@ import (
 
 // TestParseTimestamp tests the parseCqlTimestamp function with various timestamp formats.
 func TestParseTimestamp(t *testing.T) {
+	qctx := &types.QueryContext{
+		Now:       time.Now(),
+		ProtocolV: primitive.ProtocolVersion4,
+	}
 	cases := []struct {
 		name    string
 		input   string
@@ -83,6 +87,7 @@ func TestParseTimestamp(t *testing.T) {
 			input: "2011-02-03",
 			want:  time.Date(2011, 02, 03, 0, 0, 0, 0, time.UTC),
 		},
+		{name: "now", input: "TimEsTamp(nOW())", want: qctx.Now},
 		{name: "march-2-2011", input: "1299038700000", want: time.Date(2011, time.March, 2, 4, 5, 0, 0, time.UTC)},
 		{name: "march-2-2011", input: "2011-03-02 04:05+0000", want: time.Date(2011, time.March, 2, 4, 5, 0, 0, time.UTC)},
 		{name: "march-2-2011", input: "2011-03-02 04:05:00+0000", want: time.Date(2011, time.March, 2, 4, 5, 0, 0, time.UTC)},
@@ -99,7 +104,7 @@ func TestParseTimestamp(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			got, err := parseCqlTimestamp(tc.input)
+			got, err := parseCqlTimestamp(tc.input, qctx)
 			if (err != nil) != tc.wantErr {
 				t.Errorf("parseCqlTimestamp() error = %v, wantErr %v", err, tc.wantErr)
 				return
@@ -144,6 +149,10 @@ func TestPrimitivesToString(t *testing.T) {
 }
 
 func TestStringToPrimitives(t *testing.T) {
+	qctx := &types.QueryContext{
+		Now:       time.Now(),
+		ProtocolV: primitive.ProtocolVersion4,
+	}
 	tests := []struct {
 		value    string
 		cqlType  types.ScalarType
@@ -176,7 +185,7 @@ func TestStringToPrimitives(t *testing.T) {
 				PkPrecedence: 0,
 				KeyType:      "",
 				Metadata:     message.ColumnMetadata{},
-			})
+			}, qctx)
 			if (err != nil) != tt.hasError {
 				t.Errorf("want error: %v, got error: %v", tt.hasError, err)
 			}
@@ -243,9 +252,14 @@ func Test_formatValues(t *testing.T) {
 		},
 	}
 
+	qctx := &types.QueryContext{
+		Now:       time.Now(),
+		ProtocolV: primitive.ProtocolVersion4,
+	}
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := formatValues(tt.args.value, tt.args.cqlType, tt.args.protocolV)
+			got, err := formatValues(tt.args.value, tt.args.cqlType, qctx)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("formatValues() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -280,75 +294,80 @@ func Test_processCollectionColumnsForPrepareQueries(t *testing.T) {
 	setTypeDouble := datatype.NewSetType(datatype.Double)
 	setTypeTimestamp := datatype.NewSetType(datatype.Timestamp)
 
+	qctx := &types.QueryContext{
+		Now:       time.Now(),
+		ProtocolV: primitive.ProtocolVersion4,
+	}
+
 	valuesTextText := map[string]string{"test": "test"}
 	textBytesTextText, _ := proxycore.EncodeType(mapTypeTextText, primitive.ProtocolVersion4, valuesTextText)
-	textValue, _ := formatValues("test", datatype.Varchar, primitive.ProtocolVersion4)
-	trueVal, _ := formatValues("true", datatype.Boolean, primitive.ProtocolVersion4)
+	textValue, _ := formatValues("test", datatype.Varchar, qctx)
+	trueVal, _ := formatValues("true", datatype.Boolean, qctx)
 
 	valuesTextBool := map[string]bool{"test": true}
 	textBytesTextBool, _ := proxycore.EncodeType(mapTypeTextBool, primitive.ProtocolVersion4, valuesTextBool)
 
 	valuesTextInt := map[string]int{"test": 42}
 	textBytesTextInt, _ := proxycore.EncodeType(mapTypeTextInt, primitive.ProtocolVersion4, valuesTextInt)
-	intValue, _ := formatValues("42", datatype.Int, primitive.ProtocolVersion4)
+	intValue, _ := formatValues("42", datatype.Int, qctx)
 
 	valuesTextFloat := map[string]float32{"test": 3.14}
 	textBytesTextFloat, _ := proxycore.EncodeType(mapTypeTextFloat, primitive.ProtocolVersion4, valuesTextFloat)
-	floatValue, _ := formatValues("3.14", datatype.Float, primitive.ProtocolVersion4)
+	floatValue, _ := formatValues("3.14", datatype.Float, qctx)
 
 	valuesTextDouble := map[string]float64{"test": 6.283}
 	textBytesTextDouble, _ := proxycore.EncodeType(mapTypeTextDouble, primitive.ProtocolVersion4, valuesTextDouble)
-	doubleValue, _ := formatValues("6.283", datatype.Double, primitive.ProtocolVersion4)
+	doubleValue, _ := formatValues("6.283", datatype.Double, qctx)
 
 	valuesTextTimestamp := map[string]time.Time{"test": time.Unix(1633046400, 0)} // Example timestamp
 	textBytesTextTimestamp, _ := proxycore.EncodeType(mapTypeTextTimestamp, primitive.ProtocolVersion4, valuesTextTimestamp)
-	timestampValue, _ := formatValues("1633046400000", datatype.Timestamp, primitive.ProtocolVersion4) // Example in milliseconds
+	timestampValue, _ := formatValues("1633046400000", datatype.Timestamp, qctx) // Example in milliseconds
 
 	valuesTimestampBoolean := map[time.Time]bool{
 		time.Unix(1633046400, 0): true,
 	}
 	textBytesTimestampBoolean, _ := proxycore.EncodeType(mapTypeTimestampBoolean, primitive.ProtocolVersion4, valuesTimestampBoolean)
-	timestampBooleanValue, _ := formatValues("true", datatype.Boolean, primitive.ProtocolVersion4)
+	timestampBooleanValue, _ := formatValues("true", datatype.Boolean, qctx)
 
 	valuesTimestampText := map[time.Time]string{
 		time.Unix(1633046400, 0): "example_text", // Example timestamp as key with text value
 	}
 	textBytesTimestampText, _ := proxycore.EncodeType(mapTypeTimestampText, primitive.ProtocolVersion4, valuesTimestampText)
-	timestampTextValue, _ := formatValues("example_text", datatype.Varchar, primitive.ProtocolVersion4)
+	timestampTextValue, _ := formatValues("example_text", datatype.Varchar, qctx)
 
 	valuesTimestampInt := map[time.Time]int{
 		time.Unix(1633046400, 0): 42, // Example timestamp as key with int value
 	}
 	textBytesTimestampInt, _ := proxycore.EncodeType(mapTypeTimestampInt, primitive.ProtocolVersion4, valuesTimestampInt)
-	timestampIntValue, _ := formatValues("42", datatype.Int, primitive.ProtocolVersion4)
+	timestampIntValue, _ := formatValues("42", datatype.Int, qctx)
 
 	valuesTimestampFloat := map[time.Time]float32{
 		time.Unix(1633046400, 0): 3.14, // Example timestamp as key with float value
 	}
 	textBytesTimestampFloat, _ := proxycore.EncodeType(mapTypeTimestampFloat, primitive.ProtocolVersion4, valuesTimestampFloat)
-	timestampFloatValue, _ := formatValues("3.14", datatype.Float, primitive.ProtocolVersion4)
+	timestampFloatValue, _ := formatValues("3.14", datatype.Float, qctx)
 
 	valuesTimestampBigint := map[time.Time]int64{
 		time.Unix(1633046400, 0): 1234567890123, // Example timestamp as key with bigint value
 	}
 	textBytesTimestampBigint, _ := proxycore.EncodeType(mapTypeTimestampBigint, primitive.ProtocolVersion4, valuesTimestampBigint)
-	timestampBigintValue, _ := formatValues("1234567890123", datatype.Bigint, primitive.ProtocolVersion4)
+	timestampBigintValue, _ := formatValues("1234567890123", datatype.Bigint, qctx)
 
 	valuesTimestampDouble := map[time.Time]float64{
 		time.Unix(1633046400, 0): 6.283, // Example timestamp as key with double value
 	}
 	textBytesTimestampDouble, _ := proxycore.EncodeType(mapTypeTimestampDouble, primitive.ProtocolVersion4, valuesTimestampDouble)
-	timestampDoubleValue, _ := formatValues("6.283", datatype.Double, primitive.ProtocolVersion4)
+	timestampDoubleValue, _ := formatValues("6.283", datatype.Double, qctx)
 
 	valuesTimestampTimestamp := map[time.Time]time.Time{
 		time.Unix(1633046400, 0): time.Unix(1633126400, 0), // Example timestamp as key with timestamp value
 	}
 	textBytesTimestampTimestamp, _ := proxycore.EncodeType(mapTypeTimestampTimestamp, primitive.ProtocolVersion4, valuesTimestampTimestamp)
-	timestampTimestampValue, _ := formatValues("1633126400000", datatype.Timestamp, primitive.ProtocolVersion4) // Example in milliseconds
+	timestampTimestampValue, _ := formatValues("1633126400000", datatype.Timestamp, qctx) // Example in milliseconds
 
 	valuesTextBigint := map[string]int64{"test": 1234567890123}
 	textBytesTextBigint, _ := proxycore.EncodeType(mapTypeTextBigint, primitive.ProtocolVersion4, valuesTextBigint)
-	bigintValue, _ := formatValues("1234567890123", datatype.Bigint, primitive.ProtocolVersion4)
+	bigintValue, _ := formatValues("1234567890123", datatype.Bigint, qctx)
 
 	valuesSetBoolean := []bool{true}
 	valuesSetInt := []int32{12}
@@ -366,7 +385,7 @@ func Test_processCollectionColumnsForPrepareQueries(t *testing.T) {
 	setBytesDouble, _ := proxycore.EncodeType(setTypeDouble, primitive.ProtocolVersion4, valuesSetDouble)
 	setBytesTimestamp, _ := proxycore.EncodeType(setTypeTimestamp, primitive.ProtocolVersion4, valuesSetTimestamp)
 
-	emptyVal, _ := formatValues("", datatype.Varchar, primitive.ProtocolVersion4)
+	emptyVal, _ := formatValues("", datatype.Varchar, qctx)
 	listTextType := datatype.NewListType(datatype.Varchar)
 	valuesListText := []string{"test"}
 	listBytesText, _ := proxycore.EncodeType(listTextType, primitive.ProtocolVersion4, valuesListText)
@@ -395,9 +414,9 @@ func Test_processCollectionColumnsForPrepareQueries(t *testing.T) {
 	valuesListTimestamp := []int64{1633046400000}
 	listBytesTimestamp, _ := proxycore.EncodeType(listTimestampType, primitive.ProtocolVersion4, valuesListTimestamp)
 
-	floatVal, _ := formatValues("3.14", datatype.Float, primitive.ProtocolVersion4)
-	doubleVal, _ := formatValues("6.283", datatype.Double, primitive.ProtocolVersion4)
-	timestampVal, _ := formatValues("1633046400000", datatype.Timestamp, primitive.ProtocolVersion4)
+	floatVal, _ := formatValues("3.14", datatype.Float, qctx)
+	doubleVal, _ := formatValues("6.283", datatype.Double, qctx)
+	timestampVal, _ := formatValues("1633046400000", datatype.Timestamp, qctx)
 
 	tests := []struct {
 		name                string
@@ -1572,11 +1591,15 @@ func compareComplexOperation(expected, actual *ComplexOperation) bool {
 }
 
 func TestCreateOrderedCodeKey(t *testing.T) {
+	qctx := &types.QueryContext{
+		Now:       time.Now().UTC(),
+		ProtocolV: primitive.ProtocolVersion4,
+	}
 	tests := []struct {
 		name        string
 		tableConfig *schemaMapping.TableConfig
 		values      map[string]interface{}
-		want        []byte
+		want        string
 		wantErr     bool
 	}{
 		{
@@ -1585,7 +1608,7 @@ func TestCreateOrderedCodeKey(t *testing.T) {
 				{Name: "user_id", CQLType: types.TypeVarchar, KeyType: utilities.KEY_TYPE_PARTITION, PkPrecedence: 1},
 			}),
 			values:  map[string]interface{}{"user_id": "user1"},
-			want:    []byte("user1"),
+			want:    "user1",
 			wantErr: false,
 		},
 		{
@@ -1594,7 +1617,7 @@ func TestCreateOrderedCodeKey(t *testing.T) {
 				{Name: "user_id", CQLType: types.TypeBigint, KeyType: utilities.KEY_TYPE_PARTITION, PkPrecedence: 1},
 			}),
 			values:  map[string]interface{}{"user_id": int64(1)},
-			want:    []byte("\x81"),
+			want:    "\x81",
 			wantErr: false,
 		},
 		{
@@ -1603,7 +1626,7 @@ func TestCreateOrderedCodeKey(t *testing.T) {
 				{Name: "user_id", CQLType: types.TypeInt, KeyType: utilities.KEY_TYPE_PARTITION, PkPrecedence: 1},
 			}),
 			values:  map[string]interface{}{"user_id": int32(1)},
-			want:    []byte("\x81"),
+			want:    "\x81",
 			wantErr: false,
 		},
 		{
@@ -1612,7 +1635,7 @@ func TestCreateOrderedCodeKey(t *testing.T) {
 				{Name: "user_id", CQLType: types.TypeInt, KeyType: utilities.KEY_TYPE_PARTITION, PkPrecedence: 1},
 			}),
 			values:  map[string]interface{}{"user_id": int32(1)},
-			want:    []byte("\x00\xff\x00\xff\x00\xff\x00\xff\x00\xff\x00\xff\x00\xff\x01"),
+			want:    "\x00\xff\x00\xff\x00\xff\x00\xff\x00\xff\x00\xff\x00\xff\x01",
 			wantErr: false,
 		},
 		{
@@ -1621,7 +1644,7 @@ func TestCreateOrderedCodeKey(t *testing.T) {
 				{Name: "user_id", CQLType: types.TypeInt, KeyType: utilities.KEY_TYPE_PARTITION, PkPrecedence: 1},
 			}),
 			values:  map[string]interface{}{"user_id": int32(2147483647)},
-			want:    []byte("\x00\xff\x00\xff\x00\xff\x00\xff\x7f\xff\xff\xff"),
+			want:    "\x00\xff\x00\xff\x00\xff\x00\xff\x7f\xff\xff\xff",
 			wantErr: false,
 		},
 		{
@@ -1630,7 +1653,7 @@ func TestCreateOrderedCodeKey(t *testing.T) {
 				{Name: "user_id", CQLType: types.TypeBigint, KeyType: utilities.KEY_TYPE_PARTITION, PkPrecedence: 1},
 			}),
 			values:  map[string]interface{}{"user_id": int64(9223372036854775807)},
-			want:    []byte("\x7f\xff\xff\xff\xff\xff\xff\xff"),
+			want:    "\x7f\xff\xff\xff\xff\xff\xff\xff",
 			wantErr: false,
 		},
 		{
@@ -1639,7 +1662,7 @@ func TestCreateOrderedCodeKey(t *testing.T) {
 				{Name: "user_id", CQLType: types.TypeBigint, KeyType: utilities.KEY_TYPE_PARTITION, PkPrecedence: 1},
 			}),
 			values:  map[string]interface{}{"user_id": int64(-1)},
-			want:    []byte("\x7f"),
+			want:    "\x7f",
 			wantErr: false,
 		},
 		{
@@ -1657,7 +1680,7 @@ func TestCreateOrderedCodeKey(t *testing.T) {
 				{Name: "user_id", CQLType: types.TypeBigint, KeyType: utilities.KEY_TYPE_PARTITION, PkPrecedence: 1},
 			}),
 			values:  map[string]interface{}{"user_id": int64(0)},
-			want:    []byte("\x80"),
+			want:    "\x80",
 			wantErr: false,
 		},
 		{
@@ -1666,7 +1689,7 @@ func TestCreateOrderedCodeKey(t *testing.T) {
 				{Name: "user_id", CQLType: types.TypeBigint, KeyType: utilities.KEY_TYPE_PARTITION, PkPrecedence: 1},
 			}),
 			values:  map[string]interface{}{"user_id": int64(math.MinInt64)},
-			want:    []byte("\x00\xff\x3f\x80\x00\xff\x00\xff\x00\xff\x00\xff\x00\xff\x00\xff\x00\xff"),
+			want:    "\x00\xff\x3f\x80\x00\xff\x00\xff\x00\xff\x00\xff\x00\xff\x00\xff\x00\xff",
 			wantErr: false,
 		},
 		{
@@ -1675,7 +1698,7 @@ func TestCreateOrderedCodeKey(t *testing.T) {
 				{Name: "user_id", CQLType: types.TypeBigint, KeyType: utilities.KEY_TYPE_PARTITION, PkPrecedence: 1},
 			}),
 			values:  map[string]interface{}{"user_id": int64(-922337203685473)},
-			want:    []byte("\x00\xff\xfc\xb9\x23\xa2\x9c\x77\x9f"),
+			want:    "\x00\xff\xfc\xb9\x23\xa2\x9c\x77\x9f",
 			wantErr: false,
 		},
 		{
@@ -1684,7 +1707,7 @@ func TestCreateOrderedCodeKey(t *testing.T) {
 				{Name: "user_id", CQLType: types.TypeInt, KeyType: utilities.KEY_TYPE_PARTITION, PkPrecedence: 1},
 			}),
 			values:  map[string]interface{}{"user_id": int64(math.MinInt32)},
-			want:    []byte("\x07\x80\x00\xff\x00\xff\x00\xff"),
+			want:    "\x07\x80\x00\xff\x00\xff\x00\xff",
 			wantErr: false,
 		},
 		{
@@ -1695,7 +1718,7 @@ func TestCreateOrderedCodeKey(t *testing.T) {
 				{Name: "yet_another_id", CQLType: types.TypeVarchar, KeyType: utilities.KEY_TYPE_PARTITION, PkPrecedence: 3},
 			}),
 			values:  map[string]interface{}{"user_id": int64(math.MinInt64), "other_id": int64(math.MinInt32), "yet_another_id": "id123"},
-			want:    []byte("\x00\xff\x3f\x80\x00\xff\x00\xff\x00\xff\x00\xff\x00\xff\x00\xff\x00\xff\x00\x01\x07\x80\x00\xff\x00\xff\x00\xff\x00\x01\x69\x64\x31\x32\x33"),
+			want:    "\x00\xff\x3f\x80\x00\xff\x00\xff\x00\xff\x00\xff\x00\xff\x00\xff\x00\xff\x00\x01\x07\x80\x00\xff\x00\xff\x00\xff\x00\x01\x69\x64\x31\x32\x33",
 			wantErr: false,
 		},
 		{
@@ -1705,7 +1728,7 @@ func TestCreateOrderedCodeKey(t *testing.T) {
 				{Name: "other_id", CQLType: types.TypeInt, KeyType: utilities.KEY_TYPE_PARTITION, PkPrecedence: 2},
 			}),
 			values:  map[string]interface{}{"user_id": int64(-43232545), "other_id": int64(-12451)},
-			want:    []byte("\x0d\x6c\x52\xdf\x00\x01\x1f\xcf\x5d"),
+			want:    "\x0d\x6c\x52\xdf\x00\x01\x1f\xcf\x5d",
 			wantErr: false,
 		},
 		{
@@ -1714,7 +1737,7 @@ func TestCreateOrderedCodeKey(t *testing.T) {
 				{Name: "user_id", CQLType: types.TypeBigint, KeyType: utilities.KEY_TYPE_PARTITION, PkPrecedence: 1},
 			}),
 			values:  map[string]interface{}{"user_id": int64(0)},
-			want:    []byte("\x00\xff\x00\xff\x00\xff\x00\xff\x00\xff\x00\xff\x00\xff\x00\xff"),
+			want:    "\x00\xff\x00\xff\x00\xff\x00\xff\x00\xff\x00\xff\x00\xff\x00\xff",
 			wantErr: false,
 		},
 		{
@@ -1729,7 +1752,7 @@ func TestCreateOrderedCodeKey(t *testing.T) {
 				"team_num": int64(1),
 				"city":     "new york",
 			},
-			want:    []byte("user1\x00\x01\x81\x00\x01new york"),
+			want:    "user1\x00\x01\x81\x00\x01new york",
 			wantErr: false,
 		},
 		{
@@ -1744,7 +1767,7 @@ func TestCreateOrderedCodeKey(t *testing.T) {
 				"team_num": int64(1),
 				"city":     "new york",
 			},
-			want:    []byte("user1\x00\x01\x00\xff\x00\xff\x00\xff\x00\xff\x00\xff\x00\xff\x00\xff\x01\x00\x01new york"),
+			want:    "user1\x00\x01\x00\xff\x00\xff\x00\xff\x00\xff\x00\xff\x00\xff\x00\xff\x01\x00\x01new york",
 			wantErr: false,
 		},
 		{
@@ -1776,7 +1799,7 @@ func TestCreateOrderedCodeKey(t *testing.T) {
 				"city":     "",
 				"borough":  "",
 			},
-			want:    []byte("user3\x00\x01\x83"),
+			want:    "user3\x00\x01\x83",
 			wantErr: false,
 		},
 		{
@@ -1793,7 +1816,7 @@ func TestCreateOrderedCodeKey(t *testing.T) {
 				"city":     "",
 				"borough":  "",
 			},
-			want:    []byte("user3\x00\x01\x00\xff\x00\xff\x00\xff\x00\xff\x00\xff\x00\xff\x00\xff\x03"),
+			want:    "user3\x00\x01\x00\xff\x00\xff\x00\xff\x00\xff\x00\xff\x00\xff\x00\xff\x03",
 			wantErr: false,
 		},
 		{
@@ -1808,7 +1831,7 @@ func TestCreateOrderedCodeKey(t *testing.T) {
 				"team_id": "",
 				"city":    "\xb7",
 			},
-			want:    []byte("\xa2\x00\x01\x00\x00\x00\x01\xb7"),
+			want:    "\xa2\x00\x01\x00\x00\x00\x01\xb7",
 			wantErr: false,
 		},
 		{
@@ -1819,7 +1842,7 @@ func TestCreateOrderedCodeKey(t *testing.T) {
 			values: map[string]interface{}{
 				"user_id": "\x80\x00\x01\x81",
 			},
-			want:    []byte("\x80\x00\xff\x01\x81"),
+			want:    "\x80\x00\xff\x01\x81",
 			wantErr: false,
 		},
 		{
@@ -1836,7 +1859,7 @@ func TestCreateOrderedCodeKey(t *testing.T) {
 				"city":     "",
 				"borough":  "\xb7",
 			},
-			want:    []byte("\xa2\x00\x01\x00\x00\x00\x01\x00\x00\x00\x01\xb7"),
+			want:    "\xa2\x00\x01\x00\x00\x00\x01\x00\x00\x00\x01\xb7",
 			wantErr: false,
 		},
 		{
@@ -1849,7 +1872,7 @@ func TestCreateOrderedCodeKey(t *testing.T) {
 				"user_id": "\xa5",
 				"city":    "\x90",
 			},
-			want:    []byte("\xa5\x00\x01\x90"),
+			want:    "\xa5\x00\x01\x90",
 			wantErr: false,
 		},
 		{
@@ -1862,7 +1885,7 @@ func TestCreateOrderedCodeKey(t *testing.T) {
 				"user_id": "",
 				"city":    "\xaa",
 			},
-			want:    []byte("\x00\x00\x00\x01\xaa"),
+			want:    "\x00\x00\x00\x01\xaa",
 			wantErr: false,
 		},
 		{
@@ -1877,7 +1900,7 @@ func TestCreateOrderedCodeKey(t *testing.T) {
 				"city":    "t\x00t",
 				"borough": "end",
 			},
-			want:    []byte("nn\x00\x01t\x00\xfft\x00\x01end"),
+			want:    "nn\x00\x01t\x00\xfft\x00\x01end",
 			wantErr: false,
 		},
 		{
@@ -1892,7 +1915,7 @@ func TestCreateOrderedCodeKey(t *testing.T) {
 				"team_num": int64(45),
 				"city":     "name",
 			},
-			want:    []byte("abcd\x00\x01\x00\xff\x00\xff\x00\xff\x00\xff\x00\xff\x00\xff\x00\xff\x2d\x00\x01name"),
+			want:    "abcd\x00\x01\x00\xff\x00\xff\x00\xff\x00\xff\x00\xff\x00\xff\x00\xff\x2d\x00\x01name",
 			wantErr: false,
 		},
 		{
@@ -1903,7 +1926,7 @@ func TestCreateOrderedCodeKey(t *testing.T) {
 			values: map[string]interface{}{
 				"user_id": string([]uint8{182}),
 			},
-			want:    nil,
+			want:    "",
 			wantErr: true,
 		},
 		{
@@ -1914,13 +1937,13 @@ func TestCreateOrderedCodeKey(t *testing.T) {
 			values: map[string]interface{}{
 				"user_id": "\x00\x01",
 			},
-			want:    []byte("\x00\xff\x01"),
+			want:    "\x00\xff\x01",
 			wantErr: false,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := createOrderedCodeKey(tt.tableConfig, tt.values)
+			got, err := createOrderedCodeKey(tt.tableConfig, tt.values, qctx)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("createOrderedCodeKey() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -2139,24 +2162,27 @@ func TestEncodeInt(t *testing.T) {
 }
 
 func TestProcessCollectionColumnsForPrepareQueries_ComplexMetaAndNonCollection(t *testing.T) {
+	qctx := &types.QueryContext{
+		Now:       time.Now(),
+		ProtocolV: primitive.ProtocolVersion4,
+	}
 	translator := &Translator{
 		Logger:              zap.NewNop(),
 		SchemaMappingConfig: GetSchemaMappingConfig(types.OrderedCodeEncoding),
 	}
-	protocolV := primitive.ProtocolVersion4
 	tableName := "non_primitive_table"
 	keySpace := "test_keyspace"
 
 	// --- Helper data ---
-	textValueBytes, _ := proxycore.EncodeType(datatype.Varchar, protocolV, "testValue")
-	textValue2Bytes, _ := proxycore.EncodeType(datatype.Varchar, protocolV, "testValue2")
-	textValue3Bytes, _ := proxycore.EncodeType(datatype.Varchar, protocolV, "newValue")
-	intValueBytes, _ := proxycore.EncodeType(datatype.Int, protocolV, int32(123))
+	textValueBytes, _ := proxycore.EncodeType(datatype.Varchar, primitive.ProtocolVersion4, "testValue")
+	textValue2Bytes, _ := proxycore.EncodeType(datatype.Varchar, primitive.ProtocolVersion4, "testValue2")
+	textValue3Bytes, _ := proxycore.EncodeType(datatype.Varchar, primitive.ProtocolVersion4, "newValue")
+	intValueBytes, _ := proxycore.EncodeType(datatype.Int, primitive.ProtocolVersion4, int32(123))
 
 	// Set data
 	setTextType := datatype.NewSetType(datatype.Varchar)
 	setValue := []string{"elem1", "elem2"}
-	setValueBytes, _ := proxycore.EncodeType(setTextType, protocolV, setValue)
+	setValueBytes, _ := proxycore.EncodeType(setTextType, primitive.ProtocolVersion4, setValue)
 
 	// --- Test Cases ---
 	tests := []struct {
@@ -2332,14 +2358,13 @@ func TestProcessCollectionColumnsForPrepareQueries_ComplexMetaAndNonCollection(t
 				ColumnsResponse: tt.columnsResponse,
 				Values:          tt.values,
 				TableName:       tableName,
-				ProtocolV:       protocolV,
 				PrimaryKeys:     tt.primaryKeys,
 				Translator:      translator,
 				KeySpace:        keySpace,
 				ComplexMeta:     currentComplexMeta,
 			}
 			tc, _ := translator.SchemaMappingConfig.GetTableConfig(input.KeySpace, input.TableName)
-			output, err := processCollectionColumnsForPrepareQueries(tc, input)
+			output, err := processCollectionColumnsForPrepareQueries(tc, input, qctx)
 
 			if (err != nil) != tt.wantErr {
 				t.Errorf("processCollectionColumnsForPrepareQueries() error = %v, wantErr %v", err, tt.wantErr)
@@ -2799,6 +2824,10 @@ func Test_getTableAndKeyspaceObjects(t *testing.T) {
 }
 
 func TestAddSetElements(t *testing.T) {
+	qctx := &types.QueryContext{
+		Now:       time.Now(),
+		ProtocolV: primitive.ProtocolVersion4,
+	}
 	tests := []struct {
 		name        string
 		setValues   []string
@@ -2946,7 +2975,7 @@ func TestAddSetElements(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := addSetElements(tt.setValues, tt.colFamily, tt.column.CQLType.(*types.SetType), tt.input, tt.output)
+			err := addSetElements(tt.setValues, tt.colFamily, tt.column.CQLType.(*types.SetType), tt.input, tt.output, qctx)
 
 			if tt.expectedErr {
 				assert.Error(t, err)
@@ -2961,6 +2990,10 @@ func TestAddSetElements(t *testing.T) {
 }
 
 func TestHandleListOperation(t *testing.T) {
+	qctx := &types.QueryContext{
+		Now:       time.Now(),
+		ProtocolV: primitive.ProtocolVersion4,
+	}
 	tests := []struct {
 		name      string
 		column    *types.Column
@@ -3047,7 +3080,7 @@ func TestHandleListOperation(t *testing.T) {
 			output := &ProcessRawCollectionsOutput{
 				ComplexMeta: make(map[string]*ComplexOperation),
 			}
-			err := handleListOperation(tt.operation, tt.column, tt.column.CQLType.(*types.ListType), tt.column.Name, tt.input, output)
+			err := handleListOperation(tt.operation, tt.column, tt.column.CQLType.(*types.ListType), tt.column.Name, tt.input, output, qctx)
 			if tt.wantErr {
 				assert.Error(t, err)
 				return
@@ -3061,6 +3094,10 @@ func TestHandleListOperation(t *testing.T) {
 }
 
 func TestHandleSetOperation(t *testing.T) {
+	qctx := &types.QueryContext{
+		Now:       time.Now(),
+		ProtocolV: primitive.ProtocolVersion4,
+	}
 	tests := []struct {
 		name      string
 		column    *types.Column
@@ -3134,7 +3171,7 @@ func TestHandleSetOperation(t *testing.T) {
 			output := &ProcessRawCollectionsOutput{
 				ComplexMeta: make(map[string]*ComplexOperation),
 			}
-			err := handleSetOperation(tt.operation, tt.column, tt.column.CQLType.(*types.SetType), tt.column.Name, tt.input, output)
+			err := handleSetOperation(tt.operation, tt.column, tt.column.CQLType.(*types.SetType), tt.column.Name, tt.input, output, qctx)
 			if tt.wantErr {
 				assert.Error(t, err)
 				return
@@ -3148,6 +3185,10 @@ func TestHandleSetOperation(t *testing.T) {
 }
 
 func TestHandleMapOperation(t *testing.T) {
+	qctx := &types.QueryContext{
+		Now:       time.Now(),
+		ProtocolV: primitive.ProtocolVersion4,
+	}
 	tests := []struct {
 		name      string
 		column    *types.Column
@@ -3235,7 +3276,7 @@ func TestHandleMapOperation(t *testing.T) {
 			output := &ProcessRawCollectionsOutput{
 				ComplexMeta: make(map[string]*ComplexOperation),
 			}
-			err := handleMapOperation(tt.operation, tt.column, tt.column.CQLType.(*types.MapType), tt.column.Name, tt.input, output)
+			err := handleMapOperation(tt.operation, tt.column, tt.column.CQLType.(*types.MapType), tt.column.Name, tt.input, output, qctx)
 			if tt.wantErr {
 				assert.Error(t, err)
 				return
@@ -3249,6 +3290,10 @@ func TestHandleMapOperation(t *testing.T) {
 }
 
 func TestProcessCollectionColumnsForRawQueries(t *testing.T) {
+	qctx := &types.QueryContext{
+		Now:       time.Now(),
+		ProtocolV: primitive.ProtocolVersion4,
+	}
 	// Mock key data types for columns
 	colList := &types.Column{
 		Name:    "list_text",
@@ -3284,7 +3329,7 @@ func TestProcessCollectionColumnsForRawQueries(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed: %v", err)
 	}
-	output, err := processCollectionColumnsForRawQueries(tc, inputs)
+	output, err := processCollectionColumnsForRawQueries(tc, inputs, qctx)
 	if err != nil {
 		t.Fatalf("Failed: %v", err)
 	}
@@ -3296,6 +3341,10 @@ func TestProcessCollectionColumnsForRawQueries(t *testing.T) {
 }
 
 func TestConvertAllValuesToRowKeyType(t *testing.T) {
+	qctx := &types.QueryContext{
+		Now:       time.Now(),
+		ProtocolV: primitive.ProtocolVersion4,
+	}
 	pkCols := []*types.Column{
 		{
 			Name:         "id_int",
@@ -3326,7 +3375,7 @@ func TestConvertAllValuesToRowKeyType(t *testing.T) {
 		"blob_pk":      "blob_data",
 	}
 
-	result, err := convertAllValuesToRowKeyType(pkCols, values)
+	result, err := convertAllValuesToRowKeyType(pkCols, values, qctx)
 	if err != nil {
 		t.Fatalf("Unexpected error: %v", err)
 	}
@@ -3349,7 +3398,7 @@ func TestConvertAllValuesToRowKeyType(t *testing.T) {
 	valuesInvalid := map[string]interface{}{
 		"name_varchar": 12345,
 	}
-	_, err = convertAllValuesToRowKeyType(pkCols, valuesInvalid)
+	_, err = convertAllValuesToRowKeyType(pkCols, valuesInvalid, qctx)
 	if err == nil {
 		t.Errorf("Expected error for invalid varchar input")
 	}
@@ -3359,7 +3408,7 @@ func TestConvertAllValuesToRowKeyType(t *testing.T) {
 		"id_int": "123",
 		// missing "id_bigint"
 	}
-	_, err = convertAllValuesToRowKeyType(pkCols, incompleteValues)
+	_, err = convertAllValuesToRowKeyType(pkCols, incompleteValues, qctx)
 	if err == nil {
 		t.Errorf("Expected error for missing primary key")
 	}

@@ -107,7 +107,7 @@ func GetSchemaMappingConfig(intRowKeyEncoding types.IntRowKeyEncodingType) *sche
 		schemaMapping.NewTableConfig("test_keyspace", "int_table", systemColumnFamily, intRowKeyEncoding, intTableColumns),
 		schemaMapping.NewTableConfig("test_keyspace", "user_info", systemColumnFamily, intRowKeyEncoding, userInfoColumns),
 		schemaMapping.NewTableConfig("test_keyspace", "non_primitive_table", systemColumnFamily, intRowKeyEncoding, nonPrimitiveTableColumns),
-		schemaMapping.NewTableConfig("test_keyspace", "int_row_keys", systemColumnFamily, intRowKeyEncoding, timestampKeyTable),
+		schemaMapping.NewTableConfig("test_keyspace", "timestamp_row_keys", systemColumnFamily, intRowKeyEncoding, timestampKeyTable),
 	}
 
 	return schemaMapping.NewSchemaMappingConfig("schema_mapping", systemColumnFamily, zap.NewNop(), allTableConfigs)

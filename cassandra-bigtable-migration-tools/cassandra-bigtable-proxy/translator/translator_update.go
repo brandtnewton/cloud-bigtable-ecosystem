@@ -185,7 +185,7 @@ func parseAssignments(assignments []cql.IAssignmentElementContext, tableConfig *
 				if column.CQLType.IsCollection() {
 					val = value
 				} else {
-					val, err = formatValues(fmt.Sprintf("%v", value), column.CQLType.DataType(), 4)
+					val, err = encodeValueForBigtable(fmt.Sprintf("%v", value), column.CQLType.DataType(), 4)
 					if err != nil {
 						return nil, err
 					}
@@ -241,7 +241,7 @@ func parseAssignments(assignments []cql.IAssignmentElementContext, tableConfig *
 			if column.CQLType.IsCollection() || column.CQLType == types.TypeCounter {
 				val = value
 			} else {
-				val, err = formatValues(fmt.Sprintf("%v", value), column.CQLType.DataType(), 4)
+				val, err = encodeValueForBigtable(fmt.Sprintf("%v", value), column.CQLType.DataType(), 4)
 				if err != nil {
 					return nil, err
 				}
@@ -365,14 +365,13 @@ func (t *Translator) TranslateUpdateQuerytoBigtable(query string, isPreparedQuer
 	}
 	var primkeyvalues []string
 	var rowKey string
-	var values []interface{}
-	var columns []*types.Column
+	var values []*ColumnAndValue
 	for _, val := range setValues.UpdateSetValues {
-		values = append(values, val.Encrypted)
-		columns = append(columns, &types.Column{Name: val.Column, ColumnFamily: t.SchemaMappingConfig.SystemColumnFamily, CQLType: val.CQLType})
+		values = append(values, &ColumnAndValue{
+			Column: &types.Column{Name: val.Column, ColumnFamily: t.SchemaMappingConfig.SystemColumnFamily, CQLType: val.CQLType},
+			Value:  val.Encrypted,
+		})
 	}
-	var newValues []interface{} = values
-	var newColumns []*types.Column = columns
 	var delColumns []*types.Column
 	var delColumnFamily []string
 	var complexMeta map[string]*ComplexOperation
@@ -407,7 +406,6 @@ func (t *Translator) TranslateUpdateQuerytoBigtable(query string, isPreparedQuer
 
 		// Building new colum family, qualifier and values for collection type of data.
 		rawInput := ProcessRawCollectionsInput{
-			Columns:        columns,
 			Values:         values,
 			TableName:      tableName,
 			Translator:     t,
@@ -418,32 +416,30 @@ func (t *Translator) TranslateUpdateQuerytoBigtable(query string, isPreparedQuer
 		if err != nil {
 			return nil, fmt.Errorf("error processing raw collection columns: %w", err)
 		}
-		newColumns = rawOutput.NewColumns
-		newValues = rawOutput.NewValues
+		values = rawOutput.NewColumns
 		delColumnFamily = rawOutput.DelColumnFamily
 		delColumns = rawOutput.DelColumns
 		complexMeta = rawOutput.ComplexMeta // Assign complexMeta from output
 
 		for _, val := range QueryClauses.Clauses {
-			var column *types.Column
-			if columns, exists := tableConfig.Columns[val.Column]; exists {
-				column = &types.Column{Name: columns.Name, ColumnFamily: tableConfig.SystemColumnFamily, CQLType: columns.CQLType}
+			c, err := tableConfig.GetColumn(val.Column)
+			if err != nil {
+				return nil, err
 			}
-			newColumns = append(newColumns, column)
 
 			pv := val.Value
 			if strings.HasPrefix(val.Value, "@") {
 				pv = val.Value[1:]
 			}
 			value := fmt.Sprintf("%v", QueryClauses.Params[pv])
-			encryVal, err := formatValues(value, column.CQLType.DataType(), 4)
+			encodedValue, err := encodeValueForBigtable(value, c.CQLType.DataType(), 4)
 			if err != nil {
 				return nil, err
 			}
-			newValues = append(newValues, encryVal)
+			values = append(values, &ColumnAndValue{Column: c, Value: encodedValue})
 		}
 	} else {
-		complexMeta, err = t.ProcessComplexUpdate(columns, values, tableName, keyspaceName, PrependColumns)
+		complexMeta, err = t.ProcessComplexUpdate(values)
 		if err != nil {
 			return nil, err
 		}
@@ -454,8 +450,7 @@ func (t *Translator) TranslateUpdateQuerytoBigtable(query string, isPreparedQuer
 		QueryType:             UPDATE,
 		Table:                 tableName,
 		RowKey:                rowKey,
-		Columns:               newColumns,
-		Values:                newValues,
+		Columns:               values,
 		DeleteColumnFamilies:  delColumnFamily,
 		DeleteColumQualifires: delColumns,
 		IfExists:              ifExist,
@@ -487,8 +482,7 @@ func (t *Translator) TranslateUpdateQuerytoBigtable(query string, isPreparedQuer
 //   - An error if any issues arise during processing, such as failure to fetch primary keys or errors
 //     handling column data or timestamp.
 func (t *Translator) BuildUpdatePrepareQuery(columnsResponse []*types.Column, values []*primitive.Value, st *UpdateQueryMapping, protocolV primitive.ProtocolVersion) (*UpdateQueryMapping, error) {
-	var newColumns []*types.Column
-	var newValues []interface{}
+	var newValues []*ColumnAndValue
 	var primaryKeys []string = st.PrimaryKeys
 	var err error
 	var unencrypted map[string]interface{}
@@ -525,7 +519,6 @@ func (t *Translator) BuildUpdatePrepareQuery(columnsResponse []*types.Column, va
 	if err != nil {
 		return nil, err
 	}
-	newColumns = prepareOutput.NewColumns
 	newValues = prepareOutput.NewValues
 	unencrypted = prepareOutput.Unencrypted
 	indexEnd := prepareOutput.IndexEnd
@@ -555,8 +548,7 @@ func (t *Translator) BuildUpdatePrepareQuery(columnsResponse []*types.Column, va
 		Query:                 st.Query,
 		QueryType:             st.QueryType,
 		Keyspace:              st.Keyspace,
-		Columns:               newColumns,
-		Values:                newValues,
+		Columns:               newValues,
 		PrimaryKeys:           primaryKeys,
 		RowKey:                rowKey,
 		Table:                 st.Table,

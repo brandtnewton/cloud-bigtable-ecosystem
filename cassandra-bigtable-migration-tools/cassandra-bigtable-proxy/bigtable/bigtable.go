@@ -167,7 +167,7 @@ func (btc *BigtableClient) tableResourceExists(ctx context.Context, adminClient 
 //
 // Returns:
 //   - error: Error if the mutation fails.
-func (btc *BigtableClient) mutateRow(ctx context.Context, tableName, rowKey string, columns []*types.Column, values []any, deleteColumnFamilies []string, deleteQualifiers []*types.Column, timestamp bigtable.Timestamp, ifSpec translator.IfSpec, keyspace string, ComplexOperation map[string]*translator.ComplexOperation) (*message.RowsResult, error) {
+func (btc *BigtableClient) mutateRow(ctx context.Context, tableName, rowKey string, columns []*translator.ColumnAndValue, deleteColumnFamilies []string, deleteQualifiers []*types.Column, timestamp bigtable.Timestamp, ifSpec translator.IfSpec, keyspace string, ComplexOperation map[string]*translator.ComplexOperation) (*message.RowsResult, error) {
 	otelgo.AddAnnotation(ctx, applyingBigtableMutation)
 	mut := bigtable.NewMutation()
 
@@ -227,12 +227,13 @@ func (btc *BigtableClient) mutateRow(ctx context.Context, tableName, rowKey stri
 	}
 
 	// Set values for columns
-	for i, column := range columns {
-		if bv, ok := values[i].([]byte); ok {
+	for _, cv := range columns {
+		column := cv.Column
+		if bv, ok := cv.Value.([]byte); ok {
 			mut.Set(column.ColumnFamily, column.Name, timestamp, bv)
 			mutationCount++
 		} else {
-			btc.Logger.Error("Value is not of type []byte", zap.String("column", column.Name), zap.Any("value", values[i]))
+			btc.Logger.Error("Value is not of type []byte", zap.String("column", column.Name), zap.Any("value", cv.Value))
 			return nil, fmt.Errorf("value for column %s is not of type []byte", column.Name)
 		}
 	}
@@ -599,7 +600,7 @@ func (btc *BigtableClient) updateTableSchema(ctx context.Context, keyspace strin
 // Returns:
 //   - error: Error if the insertion fails.
 func (btc *BigtableClient) InsertRow(ctx context.Context, insertQueryData *translator.InsertQueryMapping) (*message.RowsResult, error) {
-	return btc.mutateRow(ctx, insertQueryData.Table, insertQueryData.RowKey, insertQueryData.Columns, insertQueryData.Values, insertQueryData.DeleteColumnFamilies, []*types.Column{}, insertQueryData.TimestampInfo.Timestamp, translator.IfSpec{IfNotExists: insertQueryData.IfNotExists}, insertQueryData.Keyspace, nil)
+	return btc.mutateRow(ctx, insertQueryData.Table, insertQueryData.RowKey, insertQueryData.Columns, insertQueryData.DeleteColumnFamilies, []*types.Column{}, insertQueryData.TimestampInfo.Timestamp, translator.IfSpec{IfNotExists: insertQueryData.IfNotExists}, insertQueryData.Keyspace, nil)
 }
 
 // UpdateRow - Updates a row in the specified bigtable table.
@@ -611,7 +612,7 @@ func (btc *BigtableClient) InsertRow(ctx context.Context, insertQueryData *trans
 // Returns:
 //   - error: Error if the update fails.
 func (btc *BigtableClient) UpdateRow(ctx context.Context, updateQueryData *translator.UpdateQueryMapping) (*message.RowsResult, error) {
-	return btc.mutateRow(ctx, updateQueryData.Table, updateQueryData.RowKey, updateQueryData.Columns, updateQueryData.Values, updateQueryData.DeleteColumnFamilies, updateQueryData.DeleteColumQualifires, updateQueryData.TimestampInfo.Timestamp, translator.IfSpec{IfExists: updateQueryData.IfExists}, updateQueryData.Keyspace, updateQueryData.ComplexOperation)
+	return btc.mutateRow(ctx, updateQueryData.Table, updateQueryData.RowKey, updateQueryData.Columns, updateQueryData.DeleteColumnFamilies, updateQueryData.DeleteColumQualifires, updateQueryData.TimestampInfo.Timestamp, translator.IfSpec{IfExists: updateQueryData.IfExists}, updateQueryData.Keyspace, updateQueryData.ComplexOperation)
 }
 
 // DeleteRowNew - Deletes a row in the specified bigtable table.

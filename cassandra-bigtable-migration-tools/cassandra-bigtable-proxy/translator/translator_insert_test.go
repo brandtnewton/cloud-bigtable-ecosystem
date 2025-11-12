@@ -45,8 +45,8 @@ func parseInsertQuery(query string) cql.IInsertContext {
 func Test_setParamsFromValues(t *testing.T) {
 	var protocalV primitive.ProtocolVersion = 4
 	response := make(map[string]interface{})
-	val, _ := formatValues("Test", datatype.Varchar, protocalV)
-	specialCharVal, _ := formatValues("#!@#$%^&*()_+", datatype.Varchar, protocalV)
+	val, _ := encodeValueForBigtable("Test", datatype.Varchar, protocalV)
+	specialCharVal, _ := encodeValueForBigtable("#!@#$%^&*()_+", datatype.Varchar, protocalV)
 	response["name"] = val
 	specialCharResponse := make(map[string]interface{})
 	specialCharResponse["name"] = specialCharVal
@@ -210,7 +210,7 @@ func Test_setParamsFromValues(t *testing.T) {
 }
 
 func formatValueUnsafe(t *testing.T, value string, cqlType datatype.DataType, protocolV primitive.ProtocolVersion) []byte {
-	result, err := formatValues(value, cqlType, protocolV)
+	result, err := encodeValueForBigtable(value, cqlType, protocolV)
 	require.NoError(t, err)
 	return result
 }
@@ -236,13 +236,13 @@ func TestTranslator_TranslateInsertQuerytoBigtable(t *testing.T) {
 	bigIntValue := "1234567890"
 	column10 := "column10"
 
-	formattedText, _ := formatValues(textValue, datatype.Varchar, protocolV)
-	formattedBlob, _ := formatValues(blobValue, datatype.Blob, protocolV)
-	formattedBoolean, _ := formatValues(booleanValue, datatype.Boolean, protocolV)
-	formattedTimestamp, _ := formatValues(timestampValue, datatype.Timestamp, protocolV)
-	formattedInt, _ := formatValues(intValue, datatype.Int, protocolV)
-	formattedBigInt, _ := formatValues(bigIntValue, datatype.Bigint, protocolV)
-	formattedcolumn10text, _ := formatValues(column10, datatype.Varchar, protocolV)
+	formattedText, _ := encodeValueForBigtable(textValue, datatype.Varchar, protocolV)
+	formattedBlob, _ := encodeValueForBigtable(blobValue, datatype.Blob, protocolV)
+	formattedBoolean, _ := encodeValueForBigtable(booleanValue, datatype.Boolean, protocolV)
+	formattedTimestamp, _ := encodeValueForBigtable(timestampValue, datatype.Timestamp, protocolV)
+	formattedInt, _ := encodeValueForBigtable(intValue, datatype.Int, protocolV)
+	formattedBigInt, _ := encodeValueForBigtable(bigIntValue, datatype.Bigint, protocolV)
+	formattedcolumn10text, _ := encodeValueForBigtable(column10, datatype.Varchar, protocolV)
 
 	values := []interface{}{
 		formattedBlob,

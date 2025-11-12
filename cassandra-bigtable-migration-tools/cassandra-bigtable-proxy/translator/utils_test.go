@@ -222,13 +222,13 @@ func Test_formatValues(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := formatValues(tt.args.value, tt.args.cqlType, tt.args.protocolV)
+			got, err := encodeValueForBigtable(tt.args.value, tt.args.cqlType, tt.args.protocolV)
 			if (err != nil) != tt.wantErr {
-				t.Errorf("formatValues() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("encodeValueForBigtable() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
 			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("formatValues() = %v, wantNewColumns %v", got, tt.want)
+				t.Errorf("encodeValueForBigtable() = %v, wantNewColumns %v", got, tt.want)
 			}
 		})
 	}
@@ -259,73 +259,73 @@ func Test_processCollectionColumnsForPrepareQueries(t *testing.T) {
 
 	valuesTextText := map[string]string{"test": "test"}
 	textBytesTextText, _ := proxycore.EncodeType(mapTypeTextText, primitive.ProtocolVersion4, valuesTextText)
-	textValue, _ := formatValues("test", datatype.Varchar, primitive.ProtocolVersion4)
-	trueVal, _ := formatValues("true", datatype.Boolean, primitive.ProtocolVersion4)
+	textValue, _ := encodeValueForBigtable("test", datatype.Varchar, primitive.ProtocolVersion4)
+	trueVal, _ := encodeValueForBigtable("true", datatype.Boolean, primitive.ProtocolVersion4)
 
 	valuesTextBool := map[string]bool{"test": true}
 	textBytesTextBool, _ := proxycore.EncodeType(mapTypeTextBool, primitive.ProtocolVersion4, valuesTextBool)
 
 	valuesTextInt := map[string]int{"test": 42}
 	textBytesTextInt, _ := proxycore.EncodeType(mapTypeTextInt, primitive.ProtocolVersion4, valuesTextInt)
-	intValue, _ := formatValues("42", datatype.Int, primitive.ProtocolVersion4)
+	intValue, _ := encodeValueForBigtable("42", datatype.Int, primitive.ProtocolVersion4)
 
 	valuesTextFloat := map[string]float32{"test": 3.14}
 	textBytesTextFloat, _ := proxycore.EncodeType(mapTypeTextFloat, primitive.ProtocolVersion4, valuesTextFloat)
-	floatValue, _ := formatValues("3.14", datatype.Float, primitive.ProtocolVersion4)
+	floatValue, _ := encodeValueForBigtable("3.14", datatype.Float, primitive.ProtocolVersion4)
 
 	valuesTextDouble := map[string]float64{"test": 6.283}
 	textBytesTextDouble, _ := proxycore.EncodeType(mapTypeTextDouble, primitive.ProtocolVersion4, valuesTextDouble)
-	doubleValue, _ := formatValues("6.283", datatype.Double, primitive.ProtocolVersion4)
+	doubleValue, _ := encodeValueForBigtable("6.283", datatype.Double, primitive.ProtocolVersion4)
 
 	valuesTextTimestamp := map[string]time.Time{"test": time.Unix(1633046400, 0)} // Example timestamp
 	textBytesTextTimestamp, _ := proxycore.EncodeType(mapTypeTextTimestamp, primitive.ProtocolVersion4, valuesTextTimestamp)
-	timestampValue, _ := formatValues("1633046400000", datatype.Timestamp, primitive.ProtocolVersion4) // Example in milliseconds
+	timestampValue, _ := encodeValueForBigtable("1633046400000", datatype.Timestamp, primitive.ProtocolVersion4) // Example in milliseconds
 
 	valuesTimestampBoolean := map[time.Time]bool{
 		time.Unix(1633046400, 0): true,
 	}
 	textBytesTimestampBoolean, _ := proxycore.EncodeType(mapTypeTimestampBoolean, primitive.ProtocolVersion4, valuesTimestampBoolean)
-	timestampBooleanValue, _ := formatValues("true", datatype.Boolean, primitive.ProtocolVersion4)
+	timestampBooleanValue, _ := encodeValueForBigtable("true", datatype.Boolean, primitive.ProtocolVersion4)
 
 	valuesTimestampText := map[time.Time]string{
 		time.Unix(1633046400, 0): "example_text", // Example timestamp as key with text value
 	}
 	textBytesTimestampText, _ := proxycore.EncodeType(mapTypeTimestampText, primitive.ProtocolVersion4, valuesTimestampText)
-	timestampTextValue, _ := formatValues("example_text", datatype.Varchar, primitive.ProtocolVersion4)
+	timestampTextValue, _ := encodeValueForBigtable("example_text", datatype.Varchar, primitive.ProtocolVersion4)
 
 	valuesTimestampInt := map[time.Time]int{
 		time.Unix(1633046400, 0): 42, // Example timestamp as key with int value
 	}
 	textBytesTimestampInt, _ := proxycore.EncodeType(mapTypeTimestampInt, primitive.ProtocolVersion4, valuesTimestampInt)
-	timestampIntValue, _ := formatValues("42", datatype.Int, primitive.ProtocolVersion4)
+	timestampIntValue, _ := encodeValueForBigtable("42", datatype.Int, primitive.ProtocolVersion4)
 
 	valuesTimestampFloat := map[time.Time]float32{
 		time.Unix(1633046400, 0): 3.14, // Example timestamp as key with float value
 	}
 	textBytesTimestampFloat, _ := proxycore.EncodeType(mapTypeTimestampFloat, primitive.ProtocolVersion4, valuesTimestampFloat)
-	timestampFloatValue, _ := formatValues("3.14", datatype.Float, primitive.ProtocolVersion4)
+	timestampFloatValue, _ := encodeValueForBigtable("3.14", datatype.Float, primitive.ProtocolVersion4)
 
 	valuesTimestampBigint := map[time.Time]int64{
 		time.Unix(1633046400, 0): 1234567890123, // Example timestamp as key with bigint value
 	}
 	textBytesTimestampBigint, _ := proxycore.EncodeType(mapTypeTimestampBigint, primitive.ProtocolVersion4, valuesTimestampBigint)
-	timestampBigintValue, _ := formatValues("1234567890123", datatype.Bigint, primitive.ProtocolVersion4)
+	timestampBigintValue, _ := encodeValueForBigtable("1234567890123", datatype.Bigint, primitive.ProtocolVersion4)
 
 	valuesTimestampDouble := map[time.Time]float64{
 		time.Unix(1633046400, 0): 6.283, // Example timestamp as key with double value
 	}
 	textBytesTimestampDouble, _ := proxycore.EncodeType(mapTypeTimestampDouble, primitive.ProtocolVersion4, valuesTimestampDouble)
-	timestampDoubleValue, _ := formatValues("6.283", datatype.Double, primitive.ProtocolVersion4)
+	timestampDoubleValue, _ := encodeValueForBigtable("6.283", datatype.Double, primitive.ProtocolVersion4)
 
 	valuesTimestampTimestamp := map[time.Time]time.Time{
 		time.Unix(1633046400, 0): time.Unix(1633126400, 0), // Example timestamp as key with timestamp value
 	}
 	textBytesTimestampTimestamp, _ := proxycore.EncodeType(mapTypeTimestampTimestamp, primitive.ProtocolVersion4, valuesTimestampTimestamp)
-	timestampTimestampValue, _ := formatValues("1633126400000", datatype.Timestamp, primitive.ProtocolVersion4) // Example in milliseconds
+	timestampTimestampValue, _ := encodeValueForBigtable("1633126400000", datatype.Timestamp, primitive.ProtocolVersion4) // Example in milliseconds
 
 	valuesTextBigint := map[string]int64{"test": 1234567890123}
 	textBytesTextBigint, _ := proxycore.EncodeType(mapTypeTextBigint, primitive.ProtocolVersion4, valuesTextBigint)
-	bigintValue, _ := formatValues("1234567890123", datatype.Bigint, primitive.ProtocolVersion4)
+	bigintValue, _ := encodeValueForBigtable("1234567890123", datatype.Bigint, primitive.ProtocolVersion4)
 
 	valuesSetBoolean := []bool{true}
 	valuesSetInt := []int32{12}
@@ -343,7 +343,7 @@ func Test_processCollectionColumnsForPrepareQueries(t *testing.T) {
 	setBytesDouble, _ := proxycore.EncodeType(setTypeDouble, primitive.ProtocolVersion4, valuesSetDouble)
 	setBytesTimestamp, _ := proxycore.EncodeType(setTypeTimestamp, primitive.ProtocolVersion4, valuesSetTimestamp)
 
-	emptyVal, _ := formatValues("", datatype.Varchar, primitive.ProtocolVersion4)
+	emptyVal, _ := encodeValueForBigtable("", datatype.Varchar, primitive.ProtocolVersion4)
 	listTextType := datatype.NewListType(datatype.Varchar)
 	valuesListText := []string{"test"}
 	listBytesText, _ := proxycore.EncodeType(listTextType, primitive.ProtocolVersion4, valuesListText)
@@ -372,9 +372,9 @@ func Test_processCollectionColumnsForPrepareQueries(t *testing.T) {
 	valuesListTimestamp := []int64{1633046400000}
 	listBytesTimestamp, _ := proxycore.EncodeType(listTimestampType, primitive.ProtocolVersion4, valuesListTimestamp)
 
-	floatVal, _ := formatValues("3.14", datatype.Float, primitive.ProtocolVersion4)
-	doubleVal, _ := formatValues("6.283", datatype.Double, primitive.ProtocolVersion4)
-	timestampVal, _ := formatValues("1633046400000", datatype.Timestamp, primitive.ProtocolVersion4)
+	floatVal, _ := encodeValueForBigtable("3.14", datatype.Float, primitive.ProtocolVersion4)
+	doubleVal, _ := encodeValueForBigtable("6.283", datatype.Double, primitive.ProtocolVersion4)
+	timestampVal, _ := encodeValueForBigtable("1633046400000", datatype.Timestamp, primitive.ProtocolVersion4)
 
 	tests := []struct {
 		name                string

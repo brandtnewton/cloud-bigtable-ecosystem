@@ -243,7 +243,7 @@ func handleColumnType(val cql.IRelationElementContext, columnType *types.Column,
 
 	actualVal := value
 	if value != "?" {
-		formattedVal, err := formatValues(value, columnType.CQLType.DataType(), 4)
+		formattedVal, err := encodeValueForBigtable(value, columnType.CQLType.DataType(), 4)
 		if err != nil {
 			return "", err
 		}

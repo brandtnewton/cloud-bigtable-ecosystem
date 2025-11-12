@@ -101,55 +101,57 @@ func parseColumnsAndValuesFromInsert(input cql.IInsertColumnSpecContext, tableNa
 //   - columns: Array of Column Names
 //
 // Returns: Map Interface for param name as key and its value and error if any
-func setParamsFromValues(input cql.IInsertValuesSpecContext, columns []*types.Column, tableConfig *schemaMapping.TableConfig, protocolV primitive.ProtocolVersion, isPreparedQuery bool) (map[string]interface{}, []interface{}, map[string]interface{}, error) {
-	if input != nil {
-		valuesExpressionList := input.ExpressionList()
-		if valuesExpressionList == nil {
-			return nil, nil, nil, errors.New("setParamsFromValues: error while parsing values")
-		}
-
-		values := valuesExpressionList.AllExpression()
-		if values == nil {
-			return nil, nil, nil, errors.New("setParamsFromValues: error while parsing values")
-		}
-		var respValue []interface{}
-		response := make(map[string]interface{})
-		unencrypted := make(map[string]interface{})
-		for i, col := range columns {
-			if i >= len(values) {
-				return nil, nil, nil, errors.New("setParamsFromValues: mismatch between columns and values")
-			}
-			valExpr := values[i]
-			goValue, err := parseCqlValue(valExpr)
-			if err != nil {
-				return nil, nil, nil, err
-			}
-			colName := col.Name
-			if !isPreparedQuery {
-				var val interface{}
-				var unenVal interface{}
-				column, er := tableConfig.GetColumn(col.Name)
-				if er != nil {
-					return nil, nil, nil, er
-				}
-				if column.CQLType.IsCollection() {
-					val = goValue
-					unenVal = goValue
-				} else {
-					unenVal = goValue
-					val, err = formatValues(fmt.Sprintf("%v", goValue), col.CQLType.DataType(), protocolV)
-					if err != nil {
-						return nil, nil, nil, err
-					}
-				}
-				response[colName] = val
-				unencrypted[colName] = unenVal
-				respValue = append(respValue, val)
-			}
-		}
-		return response, respValue, unencrypted, nil
+func setParamsFromValues(input cql.IInsertValuesSpecContext, columns []*types.Column, tableConfig *schemaMapping.TableConfig, protocolV primitive.ProtocolVersion, isPreparedQuery bool) (map[string]interface{}, []*ColumnAndValue, map[string]interface{}, error) {
+	if input == nil {
+		return nil, nil, nil, errors.New("setParamsFromValues: No Value parameters found")
 	}
-	return nil, nil, nil, errors.New("setParamsFromValues: No Value paramaters found")
+
+	valuesExpressionList := input.ExpressionList()
+	if valuesExpressionList == nil {
+		return nil, nil, nil, errors.New("setParamsFromValues: error while parsing values")
+	}
+
+	values := valuesExpressionList.AllExpression()
+	if values == nil {
+		return nil, nil, nil, errors.New("setParamsFromValues: error while parsing values")
+	}
+	var respValue []*ColumnAndValue
+	response := make(map[string]interface{})
+	unencrypted := make(map[string]interface{})
+	for i, col := range columns {
+		if i >= len(values) {
+			return nil, nil, nil, errors.New("setParamsFromValues: mismatch between columns and values")
+		}
+		valExpr := values[i]
+		goValue, err := parseCqlValue(valExpr)
+		if err != nil {
+			return nil, nil, nil, err
+		}
+		colName := col.Name
+		if !isPreparedQuery {
+			var val interface{}
+			var unenVal interface{}
+			column, er := tableConfig.GetColumn(col.Name)
+			if er != nil {
+				return nil, nil, nil, er
+			}
+			if column.CQLType.IsCollection() {
+				val = goValue
+				unenVal = goValue
+			} else {
+				unenVal = goValue
+				val, err = encodeValueForBigtable(fmt.Sprintf("%v", goValue), col.CQLType.DataType(), protocolV)
+				if err != nil {
+					return nil, nil, nil, err
+				}
+			}
+			response[colName] = val
+			unencrypted[colName] = unenVal
+			respValue = append(respValue, &ColumnAndValue{Column: col, Value: val})
+		}
+	}
+	return response, respValue, unencrypted, nil
+
 }
 
 // TranslateInsertQuerytoBigtable() parses Values from the Insert Query
@@ -217,7 +219,7 @@ func (t *Translator) TranslateInsertQuerytoBigtable(query string, protocolV prim
 		columnsResponse = *resp
 	}
 	var params map[string]interface{}
-	var values []interface{}
+	var values []*ColumnAndValue
 	var unencrypted map[string]interface{}
 
 	if !isPreparedQuery {
@@ -227,14 +229,11 @@ func (t *Translator) TranslateInsertQuerytoBigtable(query string, protocolV prim
 		}
 	}
 
-	timestampInfo, err := GetTimestampInfo(query, insertObj, int32(len(columnsResponse.Columns)))
+	timestampInfo, err := GetTimestampInfo(insertObj, int32(len(columnsResponse.Columns)))
 	if err != nil {
 		return nil, err
 	}
 	var delColumnFamily []string
-	var rowKey string
-	var newValues []interface{} = values
-	var newColumns []*types.Column = columnsResponse.Columns
 	var rawOutput *ProcessRawCollectionsOutput // Declare rawOutput
 
 	primaryKeys := tableConfig.GetPrimaryKeys()
@@ -247,6 +246,8 @@ func (t *Translator) TranslateInsertQuerytoBigtable(query string, protocolV prim
 		return nil, fmt.Errorf("some primary key parts are missing: %s", missingKey)
 	}
 
+	var newValues []*ColumnAndValue
+	var rowKey string
 	if !isPreparedQuery {
 		rowKeyBytes, err := createOrderedCodeKey(tableConfig, unencrypted)
 		if err != nil {
@@ -256,7 +257,6 @@ func (t *Translator) TranslateInsertQuerytoBigtable(query string, protocolV prim
 
 		// Building new colum family, qualifier and values for collection type of data.
 		rawInput := ProcessRawCollectionsInput{
-			Columns:    columnsResponse.Columns,
 			Values:     values,
 			TableName:  tableName,
 			Translator: t,
@@ -266,8 +266,7 @@ func (t *Translator) TranslateInsertQuerytoBigtable(query string, protocolV prim
 		if err != nil {
 			return nil, fmt.Errorf("error processing raw collection columns: %w", err)
 		}
-		newColumns = rawOutput.NewColumns
-		newValues = rawOutput.NewValues
+		newValues = rawOutput.NewColumns
 		delColumnFamily = rawOutput.DelColumnFamily
 	}
 
@@ -276,8 +275,7 @@ func (t *Translator) TranslateInsertQuerytoBigtable(query string, protocolV prim
 		QueryType:            INSERT,
 		Table:                tableName,
 		Keyspace:             keyspaceName,
-		Columns:              newColumns,
-		Values:               newValues,
+		Columns:              newValues,
 		Params:               params,
 		ParamKeys:            columnsResponse.ParamKeys,
 		PrimaryKeys:          resp.PrimayColumns,
@@ -300,19 +298,12 @@ func (t *Translator) TranslateInsertQuerytoBigtable(query string, protocolV prim
 // Returns: InsertQueryMapping, build the InsertQueryMapping and return it with nil value of error. In case of error
 // InsertQueryMapping will return as nil and error will contains the error object
 func (t *Translator) BuildInsertPrepareQuery(columnsResponse []*types.Column, values []*primitive.Value, st *InsertQueryMapping, protocolV primitive.ProtocolVersion) (*InsertQueryMapping, error) {
-	var newColumns []*types.Column
-	var newValues []interface{}
-	var primaryKeys []string = st.PrimaryKeys
-	var delColumnFamily []string
-	var err error
-	var unencrypted map[string]interface{}
-	var prepareOutput *ProcessPrepareCollectionsOutput // Declare prepareOutput
-
 	tableConfig, err := t.SchemaMappingConfig.GetTableConfig(st.Keyspace, st.Table)
 	if err != nil {
 		return nil, err
 	}
 
+	var primaryKeys = st.PrimaryKeys
 	if len(primaryKeys) == 0 {
 		primaryKeys = tableConfig.GetPrimaryKeys()
 	}
@@ -331,28 +322,23 @@ func (t *Translator) BuildInsertPrepareQuery(columnsResponse []*types.Column, va
 		KeySpace:        st.Keyspace,
 		ComplexMeta:     nil, // Assuming nil for insert
 	}
-	prepareOutput, err = processCollectionColumnsForPrepareQueries(tableConfig, prepareInput)
+	prepareOutput, err := processCollectionColumnsForPrepareQueries(tableConfig, prepareInput)
 	if err != nil {
 		fmt.Println("Error processing prepared collection columns:", err)
 		return nil, err
 	}
-	newColumns = prepareOutput.NewColumns
-	newValues = prepareOutput.NewValues
-	unencrypted = prepareOutput.Unencrypted
-	delColumnFamily = prepareOutput.DelColumnFamily
 
-	rowKeyBytes, err := createOrderedCodeKey(tableConfig, unencrypted)
+	rowKeyBytes, err := createOrderedCodeKey(tableConfig, prepareOutput.Unencrypted)
 	if err != nil {
 		return nil, err
 	}
 	rowKey := string(rowKeyBytes)
 
 	insertQueryData := &InsertQueryMapping{
-		Columns:              newColumns,
-		Values:               newValues,
+		Columns:              prepareOutput.NewValues,
 		PrimaryKeys:          primaryKeys,
 		RowKey:               rowKey,
-		DeleteColumnFamilies: delColumnFamily,
+		DeleteColumnFamilies: prepareOutput.DelColumnFamily,
 		TimestampInfo:        timestampInfo,
 		Query:                st.Query,
 		QueryType:            st.QueryType,

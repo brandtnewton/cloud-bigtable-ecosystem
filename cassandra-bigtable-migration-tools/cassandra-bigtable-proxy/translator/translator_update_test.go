@@ -40,32 +40,32 @@ func TestTranslator_TranslateUpdateQuerytoBigtable(t *testing.T) {
 	}
 
 	valueBlob := "0x0000000000000003"
-	setBlob, err := formatValues(valueBlob, datatype.Blob, 4)
+	setBlob, err := encodeValueForBigtable(valueBlob, datatype.Blob, 4)
 	if err != nil {
-		t.Errorf("formatValues() error = %v", err)
+		t.Errorf("encodeValueForBigtable() error = %v", err)
 	}
 
 	valueTimestamp := "2024-08-12T12:34:56Z"
-	setTimestamp, err := formatValues(valueTimestamp, datatype.Timestamp, 4)
+	setTimestamp, err := encodeValueForBigtable(valueTimestamp, datatype.Timestamp, 4)
 	if err != nil {
-		t.Errorf("formatValues() error = %v", err)
+		t.Errorf("encodeValueForBigtable() error = %v", err)
 	}
 
 	valueInt := "123"
-	setInt, err := formatValues(valueInt, datatype.Int, 4)
+	setInt, err := encodeValueForBigtable(valueInt, datatype.Int, 4)
 	if err != nil {
-		t.Errorf("formatValues() error = %v", err)
+		t.Errorf("encodeValueForBigtable() error = %v", err)
 	}
 
 	valueBigInt := "1234567890"
-	setBigInt, err := formatValues(valueBigInt, datatype.Bigint, 4)
+	setBigInt, err := encodeValueForBigtable(valueBigInt, datatype.Bigint, 4)
 	if err != nil {
-		t.Errorf("formatValues() error = %v", err)
+		t.Errorf("encodeValueForBigtable() error = %v", err)
 	}
 
-	setTrueBool, err := formatValues("true", datatype.Boolean, 4)
+	setTrueBool, err := encodeValueForBigtable("true", datatype.Boolean, 4)
 	if err != nil {
-		t.Errorf("formatValues() error = %v", err)
+		t.Errorf("encodeValueForBigtable() error = %v", err)
 	}
 
 	tests := []struct {

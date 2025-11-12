@@ -36,8 +36,8 @@ import (
 func TestTranslator_TranslateDeleteQuerytoBigtable(t *testing.T) {
 	var protocalV primitive.ProtocolVersion = 4
 	params := make(map[string]interface{})
-	formattedValue, _ := formatValues("test", datatype.Varchar, protocalV)
-	formattedValue2, _ := formatValues("15", datatype.Int, protocalV)
+	formattedValue, _ := encodeValueForBigtable("test", datatype.Varchar, protocalV)
+	formattedValue2, _ := encodeValueForBigtable("15", datatype.Int, protocalV)
 	params["value1"] = formattedValue
 	params2 := make(map[string]interface{})
 	params2["value1"] = formattedValue

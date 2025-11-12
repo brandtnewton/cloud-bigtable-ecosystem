@@ -134,12 +134,11 @@ type ComplexOperation struct {
 
 // InsertQueryMapping represents the mapping of an insert query along with its translation details.
 type InsertQueryMapping struct {
-	Query                string                    // Original query string
-	QueryType            QueryTypesEnum            // Type of the query (e.g., INSERT)
-	Table                string                    // Table involved in the query
-	Keyspace             string                    // Keyspace to which the table belongs
-	Columns              []*types.Column           // List of columns involved in the insert operation
-	Values               []interface{}             // Values to be inserted
+	Query                string         // Original query string
+	QueryType            QueryTypesEnum // Type of the query (e.g., INSERT)
+	Table                string         // Table involved in the query
+	Keyspace             string         // Keyspace to which the table belongs
+	Columns              []*ColumnAndValue
 	Params               map[string]interface{}    // Parameters for the query
 	ParamKeys            []string                  // Column names of the parameters
 	PrimaryKeys          []string                  // Primary keys of the table
@@ -225,8 +224,7 @@ type UpdateQueryMapping struct {
 	Params                map[string]interface{}    // Parameters for the query
 	ParamKeys             []string                  // Column names of the parameters
 	PrimaryKeys           []string                  // Primary keys of the table
-	Columns               []*types.Column           // List of columns in update query
-	Values                []interface{}             // values for the update
+	Columns               []*ColumnAndValue         // List of columns in update query
 	RowKey                string                    // Unique rowkey which is required for update operation
 	DeleteColumnFamilies  []string                  // List of all collection type of columns
 	DeleteColumQualifires []*types.Column           // List of all map key deletion in complex update
@@ -258,8 +256,7 @@ type TableObj struct {
 
 // ProcessRawCollectionsInput holds the parameters for processCollectionColumnsForRawQueries.
 type ProcessRawCollectionsInput struct {
-	Columns        []*types.Column
-	Values         []interface{}
+	Values         []*ColumnAndValue
 	TableName      string
 	Translator     *Translator
 	KeySpace       string
@@ -268,8 +265,7 @@ type ProcessRawCollectionsInput struct {
 
 // ProcessRawCollectionsOutput holds the results from processCollectionColumnsForRawQueries.
 type ProcessRawCollectionsOutput struct {
-	NewColumns      []*types.Column
-	NewValues       []interface{}
+	NewColumns      []*ColumnAndValue
 	DelColumnFamily []string
 	DelColumns      []*types.Column
 	ComplexMeta     map[string]*ComplexOperation
@@ -288,10 +284,15 @@ type ProcessPrepareCollectionsInput struct {
 	PrependColumns  []string
 }
 
+type ColumnAndValue struct {
+	Column *types.Column
+	// todo can we make this a []byte?
+	Value interface{}
+}
+
 // ProcessPrepareCollectionsOutput holds the results from processCollectionColumnsForPrepareQueries.
 type ProcessPrepareCollectionsOutput struct {
-	NewColumns      []*types.Column
-	NewValues       []interface{}
+	NewValues       []*ColumnAndValue
 	Unencrypted     map[string]interface{}
 	IndexEnd        int
 	DelColumnFamily []string

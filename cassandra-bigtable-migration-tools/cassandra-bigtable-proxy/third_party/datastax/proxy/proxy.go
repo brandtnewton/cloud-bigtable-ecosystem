@@ -1342,13 +1342,13 @@ func (c *client) prepareUpdateQueryMetadata(raw *frame.RawFrame, paramValues []*
 		return nil, nil, fmt.Errorf("error building update prepare query:%s", iErr)
 	}
 	var mutationData []bigtableModule.ColumnData
-	for index, value := range updateData.Columns {
-		if bv, ok := updateData.Values[index].([]byte); ok {
-			mcd := bigtableModule.ColumnData{ColumnFamily: value.ColumnFamily, Name: value.Name, Contents: bv}
+	for _, cv := range updateData.Columns {
+		if bv, ok := cv.Value.([]byte); ok {
+			mcd := bigtableModule.ColumnData{ColumnFamily: cv.Column.ColumnFamily, Name: cv.Column.Name, Contents: bv}
 			mutationData = append(mutationData, mcd)
 		} else {
-			c.proxy.logger.Error("Value is not of type []byte", zap.String("column", value.Name))
-			return nil, nil, fmt.Errorf("value for column %s is not of type []byte", value.Name)
+			c.proxy.logger.Error("Value is not of type []byte", zap.String("column", cv.Column.Name))
+			return nil, nil, fmt.Errorf("value for column %s is not of type []byte", cv.Column.Name)
 		}
 	}
 	return updateData, mutationData, nil
@@ -1410,13 +1410,13 @@ func (c *client) prepareInsertQueryMetadata(raw *frame.RawFrame, paramValue []*p
 	c.proxy.logger.Debug("Insert PreparedExecute Query", zap.String("TranslatedQuery", "Insert Operation use mutation"))
 
 	var mutationData []bigtableModule.ColumnData
-	for index, value := range insertData.Columns {
-		if bv, ok := insertData.Values[index].([]byte); ok {
-			mcd := bigtableModule.ColumnData{ColumnFamily: value.ColumnFamily, Name: value.Name, Contents: bv}
+	for _, cv := range insertData.Columns {
+		if bv, ok := cv.Value.([]byte); ok {
+			mcd := bigtableModule.ColumnData{ColumnFamily: cv.Column.ColumnFamily, Name: cv.Column.Name, Contents: bv}
 			mutationData = append(mutationData, mcd)
 		} else {
-			c.proxy.logger.Error("Value is not of type []byte", zap.String("column", value.Name))
-			return nil, nil, fmt.Errorf("value for column %s is not of type []byte", value.Name)
+			c.proxy.logger.Error("Value is not of type []byte", zap.String("column", cv.Column.Name))
+			return nil, nil, fmt.Errorf("value for column %s is not of type []byte", cv.Column.Name)
 		}
 
 	}

@@ -62,7 +62,7 @@ type BigtableConfig struct {
 	Instances                map[string]*InstancesMapping
 	SchemaMappingTable       string
 	Session                  *Session
-	DefaultColumnFamily      string
+	DefaultColumnFamily      ColumnFamily
 	DefaultIntRowKeyEncoding IntRowKeyEncodingType
 }
 

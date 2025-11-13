@@ -33,9 +33,9 @@ import (
 type TableConfig struct {
 	Keyspace           string
 	Name               string
-	Columns            map[string]*types.Column
+	Columns            map[types.ColumnName]*types.Column
 	PrimaryKeys        []*types.Column
-	SystemColumnFamily string
+	SystemColumnFamily types.ColumnFamily
 	IntRowKeyEncoding  types.IntRowKeyEncodingType
 }
 
@@ -43,18 +43,18 @@ type TableConfig struct {
 func NewTableConfig(
 	keyspace string,
 	name string,
-	systemColumnFamily string,
+	systemColumnFamily types.ColumnFamily,
 	intRowKeyEncoding types.IntRowKeyEncodingType,
 	columns []*types.Column,
 ) *TableConfig {
-	columnMap := make(map[string]*types.Column)
+	columnMap := make(map[types.ColumnName]*types.Column)
 	var pmks []*types.Column = nil
 
 	for i, column := range columns {
 		column.Metadata = message.ColumnMetadata{
 			Keyspace: keyspace,
 			Table:    name,
-			Name:     column.Name,
+			Name:     string(column.Name),
 			Index:    int32(i),
 			Type:     column.CQLType.DataType(),
 		}
@@ -77,7 +77,7 @@ func NewTableConfig(
 	}
 }
 
-func (tableConfig *TableConfig) GetPkByTableNameWithFilter(filterPrimaryKeys []string) []*types.Column {
+func (tableConfig *TableConfig) GetPkByTableNameWithFilter(filterPrimaryKeys []types.ColumnName) []*types.Column {
 	var result []*types.Column
 	for _, pmk := range tableConfig.PrimaryKeys {
 		if slices.Contains(filterPrimaryKeys, pmk.Name) {
@@ -87,7 +87,7 @@ func (tableConfig *TableConfig) GetPkByTableNameWithFilter(filterPrimaryKeys []s
 	return result
 }
 
-func (tableConfig *TableConfig) GetCassandraPositionForColumn(column string) int {
+func (tableConfig *TableConfig) GetCassandraPositionForColumn(column types.ColumnName) int {
 	col, err := tableConfig.GetColumn(column)
 	if err != nil {
 		return -1
@@ -115,15 +115,15 @@ func (tableConfig *TableConfig) GetCassandraPositionForColumn(column string) int
 // GetColumnFamily retrieves the column family for a given column.
 // Returns the column family name from the schema mapping with validation.
 // Returns default column family for primitive types and column name for collections.
-func (tableConfig *TableConfig) GetColumnFamily(columnName string) string {
+func (tableConfig *TableConfig) GetColumnFamily(columnName types.ColumnName) types.ColumnFamily {
 	colType, err := tableConfig.GetColumnType(columnName)
 	if err == nil && colType.IsCollection() {
-		return columnName
+		return types.ColumnFamily(columnName)
 	}
 	return tableConfig.SystemColumnFamily
 }
 
-func (tableConfig *TableConfig) HasColumn(columnName string) bool {
+func (tableConfig *TableConfig) HasColumn(columnName types.ColumnName) bool {
 	_, ok := tableConfig.Columns[columnName]
 	return ok
 }
@@ -142,7 +142,7 @@ func (tableConfig *TableConfig) Describe() string {
 			return int(a.Metadata.Index - b.Metadata.Index)
 		}
 	})
-	var colNames []string = nil
+	var colNames []types.ColumnName = nil
 	for _, col := range cols {
 		colNames = append(colNames, col.Name)
 	}
@@ -158,9 +158,9 @@ func (tableConfig *TableConfig) Describe() string {
 	var clusteringCols []string = nil
 	for _, key := range tableConfig.PrimaryKeys {
 		if key.KeyType == utilities.KEY_TYPE_PARTITION {
-			pkCols = append(pkCols, key.Name)
+			pkCols = append(pkCols, string(key.Name))
 		} else {
-			clusteringCols = append(clusteringCols, key.Name)
+			clusteringCols = append(clusteringCols, string(key.Name))
 		}
 	}
 
@@ -183,7 +183,7 @@ func (tableConfig *TableConfig) Describe() string {
 	return createTableStmt
 }
 
-func (tableConfig *TableConfig) GetColumn(columnName string) (*types.Column, error) {
+func (tableConfig *TableConfig) GetColumn(columnName types.ColumnName) (*types.Column, error) {
 	col, ok := tableConfig.Columns[columnName]
 	if !ok {
 		return nil, fmt.Errorf("unknown column '%s' in table %s.%s", columnName, tableConfig.Keyspace, tableConfig.Name)
@@ -191,22 +191,22 @@ func (tableConfig *TableConfig) GetColumn(columnName string) (*types.Column, err
 	return col, nil
 }
 
-func (tableConfig *TableConfig) GetPrimaryKeys() []string {
-	var primaryKeys []string
+func (tableConfig *TableConfig) GetPrimaryKeys() []types.ColumnName {
+	var primaryKeys []types.ColumnName
 	for _, pk := range tableConfig.PrimaryKeys {
 		primaryKeys = append(primaryKeys, pk.Name)
 	}
 	return primaryKeys
 }
 
-func (tableConfig *TableConfig) GetColumnDataType(columnName string) (datatype.DataType, error) {
+func (tableConfig *TableConfig) GetColumnDataType(columnName types.ColumnName) (datatype.DataType, error) {
 	col, err := tableConfig.GetColumnType(columnName)
 	if err != nil {
 		return nil, err
 	}
 	return col.DataType(), nil
 }
-func (tableConfig *TableConfig) GetColumnType(columnName string) (types.CqlDataType, error) {
+func (tableConfig *TableConfig) GetColumnType(columnName types.ColumnName) (types.CqlDataType, error) {
 	col, ok := tableConfig.Columns[columnName]
 	if !ok {
 		return nil, fmt.Errorf("undefined column name %s in table %s.%s", columnName, tableConfig.Keyspace, tableConfig.Name)
@@ -230,7 +230,7 @@ func (tableConfig *TableConfig) GetColumnType(columnName string) (types.CqlDataT
 // Returns:
 // - A slice of pointers to ColumnMetadata structs containing metadata for each requested column.
 // - An error if the specified table is not found in the Columns.
-func (tableConfig *TableConfig) GetMetadataForColumns(columnNames []string) ([]*message.ColumnMetadata, error) {
+func (tableConfig *TableConfig) GetMetadataForColumns(columnNames []types.ColumnName) ([]*message.ColumnMetadata, error) {
 	if len(columnNames) == 0 {
 		return getAllColumnsMetadata(tableConfig.Columns), nil
 	}
@@ -270,16 +270,16 @@ func (tableConfig *TableConfig) GetMetadataForSelectedColumns(columnNames []type
 // Returns:
 //   - A slice of pointers to ColumnMetadata, representing the metadata for each selected column.
 //   - An error if a column cannot be found in the map, or if there's an issue handling special columns.
-func (tableConfig *TableConfig) getSpecificColumnsMetadataForSelectedColumns(columnsMap map[string]*types.Column, selectedColumns []types.SelectedColumn) ([]*message.ColumnMetadata, error) {
+func (tableConfig *TableConfig) getSpecificColumnsMetadataForSelectedColumns(columnsMap map[types.ColumnName]*types.Column, selectedColumns []types.SelectedColumn) ([]*message.ColumnMetadata, error) {
 	var columnMetadataList []*message.ColumnMetadata
-	var columnName string
+	var columnName types.ColumnName
 	for i, columnMeta := range selectedColumns {
-		columnName = columnMeta.Name
+		columnName = types.ColumnName(columnMeta.Name)
 
 		if column, ok := columnsMap[columnName]; ok {
 			columnMetadataList = append(columnMetadataList, cloneColumnMetadata(&column.Metadata, int32(i)))
 		} else if columnMeta.IsWriteTimeColumn {
-			metadata, err := handleSpecialColumn(columnsMap, getTimestampColumnName(columnMeta.Alias, columnMeta.ColumnName), int32(i), true)
+			metadata, err := handleSpecialColumn(columnsMap, types.ColumnName(getTimestampColumnName(columnMeta.Alias, columnMeta.ColumnName)), int32(i), true)
 			if err != nil {
 				return nil, err
 			}
@@ -316,7 +316,7 @@ func (tableConfig *TableConfig) getSpecificColumnsMetadataForSelectedColumns(col
 // Returns:
 // - A slice of pointers to ColumnMetadata structs containing metadata for each requested column.
 // - An error
-func (tableConfig *TableConfig) getSpecificColumnsMetadata(columnNames []string) ([]*message.ColumnMetadata, error) {
+func (tableConfig *TableConfig) getSpecificColumnsMetadata(columnNames []types.ColumnName) ([]*message.ColumnMetadata, error) {
 	var columnMetadataList []*message.ColumnMetadata
 	for i, columnName := range columnNames {
 		if column, ok := tableConfig.Columns[columnName]; ok {
@@ -347,7 +347,7 @@ func (tableConfig *TableConfig) getSpecificColumnsMetadata(columnNames []string)
 // Returns:
 //   - *message.ColumnMetadata: Metadata for the processed column
 //   - error: If the column is not found in the provided metadata
-func (tableConfig *TableConfig) handleSpecialSelectedColumn(columnsMap map[string]*types.Column, columnSelected types.SelectedColumn, index int32) (*message.ColumnMetadata, error) {
+func (tableConfig *TableConfig) handleSpecialSelectedColumn(columnsMap map[types.ColumnName]*types.Column, columnSelected types.SelectedColumn, index int32) (*message.ColumnMetadata, error) {
 	var cqlType datatype.DataType
 	if columnSelected.FuncName == "count" || columnSelected.IsWriteTimeColumn {
 		// For count function, the type is always bigint
@@ -356,14 +356,14 @@ func (tableConfig *TableConfig) handleSpecialSelectedColumn(columnsMap map[strin
 			Table:    tableConfig.Name,
 			Type:     datatype.Bigint,
 			Index:    index,
-			Name:     columnSelected.Name,
+			Name:     string(columnSelected.Name),
 		}, nil
 	}
-	lookupColumn := columnSelected.Name
+	lookupColumn := string(columnSelected.Name)
 	if columnSelected.Alias != "" || columnSelected.IsFunc || columnSelected.MapKey != "" {
 		lookupColumn = columnSelected.ColumnName
 	}
-	column, ok := columnsMap[lookupColumn]
+	column, ok := columnsMap[types.ColumnName(lookupColumn)]
 	if !ok {
 		return nil, fmt.Errorf("special column %s not found in provided metadata", lookupColumn)
 	}
@@ -376,7 +376,7 @@ func (tableConfig *TableConfig) handleSpecialSelectedColumn(columnsMap map[strin
 		Table:    tableConfig.Name,
 		Type:     cqlType,
 		Index:    index,
-		Name:     columnSelected.Name,
+		Name:     string(columnSelected.Name),
 	}
 
 	return columnMd, nil

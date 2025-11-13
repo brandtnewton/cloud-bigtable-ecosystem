@@ -34,7 +34,7 @@ const (
 	customWriteTime = "writetime_"
 )
 
-// parseColumnsFromSelect() parse Columns from the Select Query
+// parseColumnsFromSelect() parse Columns from the Select CqlQuery
 //
 // Parameters:
 //   - input: The Select Element context from the antlr Parser.
@@ -156,12 +156,12 @@ func parseColumnsFromSelect(input cql.ISelectElementsContext) (ColumnMeta, error
 	return response, nil
 }
 
-// parseTableFromSelect() parse Table Name from the Select Query
+// parseTableFromSelect() parse Table Column from the Select CqlQuery
 //
 // Parameters:
 //   - input: The From Spec context from the antlr Parser.
 //
-// Returns: Table Name and an error if any.
+// Returns: Table Column and an error if any.
 func parseTableFromSelect(input cql.IFromSpecContext) (*TableObj, error) {
 	if input == nil {
 		return nil, errors.New("no input parameters found for table and keyspace")
@@ -191,7 +191,7 @@ func parseTableFromSelect(input cql.IFromSpecContext) (*TableObj, error) {
 	return &response, nil
 }
 
-// parseOrderByFromSelect() parse Order By from the Select Query
+// parseOrderByFromSelect() parse Order By from the Select CqlQuery
 //
 // Parameters:
 //   - input: The Order Spec context from the antlr Parser.
@@ -242,7 +242,7 @@ func parseOrderByFromSelect(input cql.IOrderSpecContext) (OrderBy, error) {
 	return response, nil
 }
 
-// parseLimitFromSelect() parse Limit from the Select Query
+// parseLimitFromSelect() parse Limit from the Select CqlQuery
 //
 // Parameters:
 //   - input: The Limit Spec context from the antlr Parser.
@@ -346,7 +346,7 @@ func processSetStrings(t *Translator, tableConfig *schemaMapping.TableConfig, se
 // Parameters:
 //   - t: Translator instance containing schema mapping configuration
 //   - columnMetadata: Contains information about the selected column including function name and aliases
-//   - tableName: Name of the table being queried
+//   - tableName: Column of the table being queried
 //   - keySpace: Keyspace name where the table exists
 //   - columns: Slice of strings containing the processed column expressions
 //
@@ -554,7 +554,7 @@ func processRegularColumn(columnMetadata types.SelectedColumn, tableName string,
 // inferDataType() returns the data type based on the name of a function.
 //
 // Parameters:
-//   - methodName: Name of aggregate function
+//   - methodName: Column of aggregate function
 //
 // Returns: Returns datatype of aggregate function.
 func inferDataType(methodName string) (string, error) {
@@ -724,7 +724,7 @@ func (t *Translator) TranslateSelectQuerytoBigtable(query, sessionKeyspace strin
 		return nil, err
 	}
 
-	var QueryClauses QueryClauses
+	var QueryClauses WhereClause
 
 	if selectObj.WhereSpec() != nil {
 		resp, err := parseWhereByClause(selectObj.WhereSpec(), tableConfig)
@@ -781,7 +781,7 @@ func (t *Translator) TranslateSelectQuerytoBigtable(query, sessionKeyspace strin
 		Table:           tableName,
 		Keyspace:        keyspaceName,
 		ColumnMeta:      columns,
-		Clauses:         QueryClauses.Clauses,
+		Clauses:         QueryClauses.Conditions,
 		PrimaryKeys:     pmkNames,
 		Limit:           limit,
 		OrderBy:         orderBy,
@@ -797,4 +797,50 @@ func (t *Translator) TranslateSelectQuerytoBigtable(query, sessionKeyspace strin
 
 	selectQueryData.TranslatedQuery = translatedResult
 	return selectQueryData, nil
+}
+
+func (t *Translator) BindSelect(st *SelectQueryMap, cassandraValues []*primitive.Value) (*types.QueryMetadata, error) {
+	tableConfig, err := t.SchemaMappingConfig.GetTableConfig(st.Keyspace, st.Table)
+	if err != nil {
+		return nil, err
+	}
+
+	values, err := decodePreparedValues(tableConfig, st.Columns, nil, cassandraValues, pv)
+	if err != nil {
+		fmt.Println("Error processing prepared collection columns:", err)
+		return nil, err
+	}
+
+	rowKey, err := createOrderedCodeKey(tableConfig, values.GoValues)
+	if err != nil {
+		return nil, err
+	}
+
+	query := &responsehandler.QueryMetadata{
+		Query:               st.TranslatedQuery,
+		QueryType:           st.QueryType,
+		TableName:           st.Table,
+		KeyspaceName:        st.Keyspace,
+		ProtocalV:           raw.Header.Version,
+		Params:              params,
+		SelectedColumns:     st.ColumnMeta.Column,
+		PrimaryKeys:         st.PrimaryKeys,
+		DefaultColumnFamily: string(c.proxy.translator.SchemaMappingConfig.SystemColumnFamily),
+		IsStar:              st.ColumnMeta.Star,
+		Limit:               st.Limit,
+	}
+
+	return query, nil
+}
+
+const limitValue = "limitValue"
+
+func validateSelectQuery(query types.QueryMetadata) error {
+	// query, err = ReplaceLimitValue(query)
+	if val, exists := query.Params[limitValue]; exists {
+		if val.(int64) <= 0 {
+			return fmt.Errorf("LIMIT must be strictly positive")
+		}
+	}
+	return nil
 }

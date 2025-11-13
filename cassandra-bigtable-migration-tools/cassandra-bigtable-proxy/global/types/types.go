@@ -16,12 +16,38 @@
 package types
 
 import (
+	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/translator"
 	"github.com/datastax/go-cassandra-native-protocol/message"
+	"github.com/datastax/go-cassandra-native-protocol/primitive"
 )
 
+// ColumnFamily a Bigtable Column Family
+type ColumnFamily string
+
+// ColumnName - a Cassandra column name
+type ColumnName string
+
+// ColumnQualifier - a Bigtable column qualifier
+type ColumnQualifier string
+
+// RowKey - a Bigtable row key
+type RowKey string
+
+// BigtableValue - a value serialized to bytes for Bigtable
+type BigtableValue []byte
+
+// GoValue - a plain Golang value
+type GoValue any
+
+type BigtableData struct {
+	Family ColumnFamily
+	Column ColumnQualifier
+	Bytes  BigtableValue
+}
+
 type Column struct {
-	Name         string
-	ColumnFamily string
+	Name         ColumnName
+	ColumnFamily ColumnFamily
 	CQLType      CqlDataType
 	// todo remove this field because it's redundant - you can use PkPrecedence or KeyType to infer this
 	IsPrimaryKey bool
@@ -30,17 +56,44 @@ type Column struct {
 	Metadata     message.ColumnMetadata
 }
 
+type BigtableColumn struct {
+	Family ColumnFamily
+	Column ColumnQualifier
+}
+
 type CreateColumn struct {
-	Name     string
+	Name     ColumnName
 	Index    int32
 	TypeInfo CqlDataType
 }
 
-type Clause struct {
-	Column       string
-	Operator     string
-	Value        string
-	IsPrimaryKey bool
+type Condition struct {
+	Column   *Column
+	Operator string
+	Value    string
+}
+
+type QueryMetadata struct {
+	Query                    string
+	QueryType                string
+	TableName                string
+	KeyspaceName             string
+	ProtocalV                primitive.ProtocolVersion
+	Params                   map[string]interface{}
+	SelectedColumns          []SelectedColumn
+	Paramkeys                []string
+	ParamValues              []interface{}
+	UsingTSCheck             string
+	SelectQueryForDelete     string
+	PrimaryKeys              []string
+	ComplexUpdateSelectQuery string // select Query for complex update Scenario
+	UpdateSetValues          []translator.UpdateSetValue
+	MutationKeyRange         []interface{}
+	DefaultColumnFamily      string
+	IsStar                   bool
+	Limit                    translator.Limit
+	IsGroupBy                bool        // isGroup by Query
+	Clauses                  []Condition // List of clauses in the query
 }
 
 // SelectedColumn describes a column that was selected as part of a query. It's
@@ -48,7 +101,7 @@ type Clause struct {
 type SelectedColumn struct {
 	// Name is the original value of the selected column, including functions. It
 	// does not include the alias. e.g. "region" or "count(*)"
-	Name   string
+	Name   ColumnName
 	IsFunc bool
 	// IsAs is true if an alias is used
 	IsAs      bool

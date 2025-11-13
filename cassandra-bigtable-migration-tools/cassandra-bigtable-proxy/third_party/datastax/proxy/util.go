@@ -535,14 +535,14 @@ func addSystemKeyspacesToMetadata(tableMetadata map[string]map[string]*schemaMap
 // if a timestamp is used in the insert query.
 //
 // Parameters:
-//   - insertQueryMetadata: An InsertQueryMapping containing information about the insert query, including
+//   - insertQueryMetadata: An PreparedInsertQuery containing information about the insert query, including
 //     any timestamp information.
 //   - columnMetadataList: A slice of pointers to ColumnMetadata representing the current list of column metadata.
 //
 // Returns: An updated slice of pointers to ColumnMetadata, including an entry for the timestamp column
 //
 //	if the query uses a timestamp.
-func getTimestampMetadata(insertQueryMetadata translator.InsertQueryMapping, columnMetadataList []*message.ColumnMetadata) []*message.ColumnMetadata {
+func getTimestampMetadata(insertQueryMetadata translator.PreparedInsertQuery, columnMetadataList []*message.ColumnMetadata) []*message.ColumnMetadata {
 	if insertQueryMetadata.TimestampInfo.HasUsingTimestamp {
 		metadata := message.ColumnMetadata{
 			Keyspace: insertQueryMetadata.Keyspace,

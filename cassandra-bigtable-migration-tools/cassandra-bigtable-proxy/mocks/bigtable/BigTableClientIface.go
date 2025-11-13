@@ -215,7 +215,7 @@ func (_m *BigTableClientIface) ReadTableConfigs(_a0 context.Context, _a1 string)
 }
 
 // InsertRow provides a mock function with given fields: _a0, _a1
-func (_m *BigTableClientIface) InsertRow(_a0 context.Context, _a1 *translator.InsertQueryMapping) (*message.RowsResult, error) {
+func (_m *BigTableClientIface) InsertRow(_a0 context.Context, _a1 *translator.PreparedInsertQuery) (*message.RowsResult, error) {
 	ret := _m.Called(_a0, _a1)
 
 	if len(ret) == 0 {
@@ -224,10 +224,10 @@ func (_m *BigTableClientIface) InsertRow(_a0 context.Context, _a1 *translator.In
 
 	var r0 *message.RowsResult
 	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, *translator.InsertQueryMapping) (*message.RowsResult, error)); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, *translator.PreparedInsertQuery) (*message.RowsResult, error)); ok {
 		return rf(_a0, _a1)
 	}
-	if rf, ok := ret.Get(0).(func(context.Context, *translator.InsertQueryMapping) *message.RowsResult); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, *translator.PreparedInsertQuery) *message.RowsResult); ok {
 		r0 = rf(_a0, _a1)
 	} else {
 		if ret.Get(0) != nil {
@@ -235,7 +235,7 @@ func (_m *BigTableClientIface) InsertRow(_a0 context.Context, _a1 *translator.In
 		}
 	}
 
-	if rf, ok := ret.Get(1).(func(context.Context, *translator.InsertQueryMapping) error); ok {
+	if rf, ok := ret.Get(1).(func(context.Context, *translator.PreparedInsertQuery) error); ok {
 		r1 = rf(_a0, _a1)
 	} else {
 		r1 = ret.Error(1)

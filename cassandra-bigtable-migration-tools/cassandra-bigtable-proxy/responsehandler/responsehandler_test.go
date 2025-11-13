@@ -1367,7 +1367,7 @@ func TestGetQueryColumn(t *testing.T) {
 		expectFail bool
 	}{
 		{
-			name:     "Match by Name at index",
+			name:     "Match by Column at index",
 			query:    query,
 			index:    0,
 			key:      "column1",
@@ -1381,14 +1381,14 @@ func TestGetQueryColumn(t *testing.T) {
 			expected: query.SelectedColumns[1],
 		},
 		{
-			name:     "Match by Name in iteration",
+			name:     "Match by Column in iteration",
 			query:    query,
 			index:    2,
 			key:      "column2",
 			expected: query.SelectedColumns[1],
 		},
 		{
-			name:     "Not Match by Name in iteration",
+			name:     "Not Match by Column in iteration",
 			query:    query,
 			index:    2,
 			key:      "random-name",

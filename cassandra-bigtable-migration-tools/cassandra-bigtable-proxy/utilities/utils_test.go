@@ -806,58 +806,58 @@ func TestDataConversionInInsertionIfRequired(t *testing.T) {
 
 func TestGetClauseByValue(t *testing.T) {
 	type args struct {
-		clause []types.Clause
+		clause []types.Condition
 		value  string
 	}
 	tests := []struct {
 		name    string
 		args    args
-		want    types.Clause
+		want    types.Condition
 		wantErr bool
 	}{
 		{
 			name: "Found clause",
 			args: args{
-				clause: []types.Clause{{Value: "@test"}},
+				clause: []types.Condition{{Value: "@test"}},
 				value:  "test",
 			},
-			want:    types.Clause{Value: "@test"},
+			want:    types.Condition{Value: "@test"},
 			wantErr: false,
 		},
 		{
-			name: "Clause not found",
+			name: "Condition not found",
 			args: args{
-				clause: []types.Clause{{Value: "@test"}},
+				clause: []types.Condition{{Value: "@test"}},
 				value:  "notfound",
 			},
-			want:    types.Clause{},
+			want:    types.Condition{},
 			wantErr: true,
 		},
 		{
 			name: "Empty clause slice",
 			args: args{
-				clause: []types.Clause{},
+				clause: []types.Condition{},
 				value:  "test",
 			},
-			want:    types.Clause{},
+			want:    types.Condition{},
 			wantErr: true,
 		},
 		{
 			name: "Multiple clauses, found",
 			args: args{
-				clause: []types.Clause{{Value: "@test1"}, {Value: "@test2"}},
+				clause: []types.Condition{{Value: "@test1"}, {Value: "@test2"}},
 				value:  "test2",
 			},
-			want:    types.Clause{Value: "@test2"},
+			want:    types.Condition{Value: "@test2"},
 			wantErr: false,
 		},
 		{
 			name: "Multiple clauses, not found",
 			args: args{
-				clause: []types.Clause{{Value: "@test1"}, {Value: "@test2"}},
+				clause: []types.Condition{{Value: "@test1"}, {Value: "@test2"}},
 				value:  "test3",
 			},
-			want:    types.Clause{},
+			want:    types.Condition{},
 			wantErr: true,
 		},
 	}
@@ -876,46 +876,46 @@ func TestGetClauseByValue(t *testing.T) {
 }
 func TestGetClauseByColumn(t *testing.T) {
 	type args struct {
-		clause []types.Clause
+		clause []types.Condition
 		column string
 	}
 	tests := []struct {
 		name    string
 		args    args
-		want    types.Clause
+		want    types.Condition
 		wantErr bool
 	}{
 		{
 			name: "Existing column",
 			args: args{
-				clause: []types.Clause{
+				clause: []types.Condition{
 					{Column: "column1", Value: "value1"},
 					{Column: "column2", Value: "value2"},
 				},
 				column: "column1",
 			},
-			want:    types.Clause{Column: "column1", Value: "value1"},
+			want:    types.Condition{Column: "column1", Value: "value1"},
 			wantErr: false,
 		},
 		{
 			name: "Non-existing column",
 			args: args{
-				clause: []types.Clause{
+				clause: []types.Condition{
 					{Column: "column1", Value: "value1"},
 					{Column: "column2", Value: "value2"},
 				},
 				column: "column3",
 			},
-			want:    types.Clause{},
+			want:    types.Condition{},
 			wantErr: true,
 		},
 		{
 			name: "Empty clause slice",
 			args: args{
-				clause: []types.Clause{},
+				clause: []types.Condition{},
 				column: "column1",
 			},
-			want:    types.Clause{},
+			want:    types.Condition{},
 			wantErr: true,
 		},
 	}

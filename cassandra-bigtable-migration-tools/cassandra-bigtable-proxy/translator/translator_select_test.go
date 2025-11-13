@@ -71,7 +71,7 @@ func TestTranslator_TranslateSelectQuerytoBigtable(t *testing.T) {
 				TranslatedQuery: "SELECT cf1['column2'] as name FROM test_table WHERE ARRAY_INCLUDES(MAP_VALUES(`list_text`), @value1);",
 				Table:           "test_table",
 				Keyspace:        "test_keyspace",
-				Clauses: []types.Clause{
+				Clauses: []types.Condition{
 					{
 						Column:   "list_text",
 						Operator: constants.ARRAY_INCLUDES,
@@ -103,7 +103,7 @@ func TestTranslator_TranslateSelectQuerytoBigtable(t *testing.T) {
 				TranslatedQuery: "SELECT cf1['column2'] as name FROM test_table WHERE MAP_CONTAINS_KEY(`column8`, @value1);",
 				Table:           "test_table",
 				Keyspace:        "test_keyspace",
-				Clauses: []types.Clause{
+				Clauses: []types.Condition{
 					{
 						Column:   "column8",
 						Operator: "MAP_CONTAINS_KEY",
@@ -135,7 +135,7 @@ func TestTranslator_TranslateSelectQuerytoBigtable(t *testing.T) {
 				TranslatedQuery: "SELECT cf1['column2'] as name FROM test_table WHERE MAP_CONTAINS_KEY(`column7`, @value1);",
 				Table:           "test_table",
 				Keyspace:        "test_keyspace",
-				Clauses: []types.Clause{
+				Clauses: []types.Condition{
 					{
 						Column:   "column7",
 						Operator: "MAP_CONTAINS_KEY", // We are considering set as map internally
@@ -156,7 +156,7 @@ func TestTranslator_TranslateSelectQuerytoBigtable(t *testing.T) {
 			defaultKeyspace: "test_keyspace",
 		},
 		{
-			name: "Writetime Query without as keyword",
+			name: "Writetime CqlQuery without as keyword",
 			args: args{
 				query: `select column1, WRITETIME(column2) from test_keyspace.test_table where column1 = 'test';`,
 			},
@@ -167,7 +167,7 @@ func TestTranslator_TranslateSelectQuerytoBigtable(t *testing.T) {
 				TranslatedQuery: "SELECT column1,WRITE_TIMESTAMP(cf1, 'column2') FROM test_table WHERE column1 = @value1;",
 				Table:           "test_table",
 				Keyspace:        "test_keyspace",
-				Clauses: []types.Clause{
+				Clauses: []types.Condition{
 					{
 						Column:       "column1",
 						Operator:     "=",
@@ -200,7 +200,7 @@ func TestTranslator_TranslateSelectQuerytoBigtable(t *testing.T) {
 				TranslatedQuery: "SELECT column1 FROM test_table WHERE TO_INT64(cf1['column6']) IN UNNEST(@value1);",
 				Table:           "test_table",
 				Keyspace:        "test_keyspace",
-				Clauses: []types.Clause{
+				Clauses: []types.Condition{
 					{
 						Column:   "column6",
 						Operator: "IN",
@@ -226,7 +226,7 @@ func TestTranslator_TranslateSelectQuerytoBigtable(t *testing.T) {
 				TranslatedQuery: `SELECT column1 FROM test_table WHERE TO_INT64(cf1['column9']) IN UNNEST(@value1);`,
 				Table:           "test_table",
 				Keyspace:        "test_keyspace",
-				Clauses: []types.Clause{
+				Clauses: []types.Condition{
 					{
 						Column:   "column9",
 						Operator: "IN",
@@ -252,7 +252,7 @@ func TestTranslator_TranslateSelectQuerytoBigtable(t *testing.T) {
 				TranslatedQuery: "SELECT column1 FROM test_table WHERE TO_FLOAT32(cf1['float_col']) IN UNNEST(@value1);",
 				Table:           "test_table",
 				Keyspace:        "test_keyspace",
-				Clauses: []types.Clause{
+				Clauses: []types.Condition{
 					{
 						Column:   "float_col",
 						Operator: "IN",
@@ -278,7 +278,7 @@ func TestTranslator_TranslateSelectQuerytoBigtable(t *testing.T) {
 				TranslatedQuery: "SELECT column1 FROM test_table WHERE TO_FLOAT64(cf1['double_col']) IN UNNEST(@value1);",
 				Table:           "test_table",
 				Keyspace:        "test_keyspace",
-				Clauses: []types.Clause{
+				Clauses: []types.Condition{
 					{
 						Column:   "double_col",
 						Operator: "IN",
@@ -304,7 +304,7 @@ func TestTranslator_TranslateSelectQuerytoBigtable(t *testing.T) {
 				TranslatedQuery: "SELECT column1 FROM test_table WHERE TO_INT64(cf1['column3']) IN UNNEST(@value1);",
 				Table:           "test_table",
 				Keyspace:        "test_keyspace",
-				Clauses: []types.Clause{
+				Clauses: []types.Condition{
 					{
 						Column:   "column3",
 						Operator: "IN",
@@ -340,7 +340,7 @@ func TestTranslator_TranslateSelectQuerytoBigtable(t *testing.T) {
 					"value1": []int{},
 				},
 				ParamKeys: []string{"value1"},
-				Clauses: []types.Clause{
+				Clauses: []types.Condition{
 					{
 						Column:   "column6",
 						Operator: "IN",
@@ -363,7 +363,7 @@ func TestTranslator_TranslateSelectQuerytoBigtable(t *testing.T) {
 					"value1": []int64{},
 				},
 				ParamKeys: []string{"value1"},
-				Clauses: []types.Clause{
+				Clauses: []types.Condition{
 					{
 						Column:   "column9",
 						Operator: "IN",
@@ -386,7 +386,7 @@ func TestTranslator_TranslateSelectQuerytoBigtable(t *testing.T) {
 					"value1": []float32{},
 				},
 				ParamKeys: []string{"value1"},
-				Clauses: []types.Clause{
+				Clauses: []types.Condition{
 					{
 						Column:   "float_col",
 						Operator: "IN",
@@ -409,7 +409,7 @@ func TestTranslator_TranslateSelectQuerytoBigtable(t *testing.T) {
 					"value1": []float64{},
 				},
 				ParamKeys: []string{"value1"},
-				Clauses: []types.Clause{
+				Clauses: []types.Condition{
 					{
 						Column:   "double_col",
 						Operator: "IN",
@@ -432,7 +432,7 @@ func TestTranslator_TranslateSelectQuerytoBigtable(t *testing.T) {
 					"value1": []bool{},
 				},
 				ParamKeys: []string{"value1"},
-				Clauses: []types.Clause{
+				Clauses: []types.Condition{
 					{
 						Column:   "column3",
 						Operator: "IN",
@@ -455,7 +455,7 @@ func TestTranslator_TranslateSelectQuerytoBigtable(t *testing.T) {
 					"value1": [][]byte{},
 				},
 				ParamKeys: []string{"value1"},
-				Clauses: []types.Clause{
+				Clauses: []types.Condition{
 					{
 						Column:   "column2",
 						Operator: "IN",
@@ -475,7 +475,7 @@ func TestTranslator_TranslateSelectQuerytoBigtable(t *testing.T) {
 			defaultKeyspace: "test_keyspace",
 		},
 		{
-			name: "Writetime Query with as keyword",
+			name: "Writetime CqlQuery with as keyword",
 			args: args{
 				query: `select column1, WRITETIME(column2) as name from test_keyspace.test_table where column1 = 'test';`,
 			},
@@ -486,7 +486,7 @@ func TestTranslator_TranslateSelectQuerytoBigtable(t *testing.T) {
 				TranslatedQuery: "SELECT column1,WRITE_TIMESTAMP(cf1, 'column2') as name FROM test_table WHERE column1 = @value1;",
 				Table:           "test_table",
 				Keyspace:        "test_keyspace",
-				Clauses: []types.Clause{
+				Clauses: []types.Condition{
 					{
 						Column:       "column1",
 						Operator:     "=",
@@ -508,7 +508,7 @@ func TestTranslator_TranslateSelectQuerytoBigtable(t *testing.T) {
 			defaultKeyspace: "test_keyspace",
 		},
 		{
-			name: "As Query",
+			name: "As CqlQuery",
 			args: args{
 				query: `select column2 as name from test_keyspace.test_table where column1 = 'test';`,
 			},
@@ -519,7 +519,7 @@ func TestTranslator_TranslateSelectQuerytoBigtable(t *testing.T) {
 				TranslatedQuery: "SELECT cf1['column2'] as name FROM test_table WHERE column1 = @value1;",
 				Table:           "test_table",
 				Keyspace:        "test_keyspace",
-				Clauses: []types.Clause{
+				Clauses: []types.Condition{
 					{
 						Column:       "column1",
 						Operator:     "=",
@@ -541,7 +541,7 @@ func TestTranslator_TranslateSelectQuerytoBigtable(t *testing.T) {
 			defaultKeyspace: "test_keyspace",
 		},
 		{
-			name: "Query without Columns",
+			name: "CqlQuery without Columns",
 			args: args{
 				query: `select from key_space.test_table where column1 = 'test'`,
 			},
@@ -559,7 +559,7 @@ func TestTranslator_TranslateSelectQuerytoBigtable(t *testing.T) {
 			defaultKeyspace: "test_keyspace",
 		},
 		{
-			name: "Query without keyspace name",
+			name: "CqlQuery without keyspace name",
 			args: args{
 				query: `select column1, column2 from test_table where column1 = '?' and column1 in ('?', '?');`,
 			},
@@ -587,7 +587,7 @@ func TestTranslator_TranslateSelectQuerytoBigtable(t *testing.T) {
 				TranslatedQuery: "SELECT column1,cf1['column2'],cf1['column3'] FROM test_table WHERE column1 = @value1 AND TO_INT64(cf1['column3']) = @value2 AND TO_TIME(cf1['column5']) <= @value3 AND TO_INT64(cf1['column6']) >= @value4 AND TO_INT64(cf1['column9']) > @value5 AND TO_INT64(cf1['column9']) < @value6 LIMIT 20000;",
 				Table:           "test_table",
 				Keyspace:        "test_keyspace",
-				Clauses: []types.Clause{
+				Clauses: []types.Condition{
 					{
 						Column:       "column1",
 						Operator:     "=",
@@ -651,7 +651,7 @@ func TestTranslator_TranslateSelectQuerytoBigtable(t *testing.T) {
 				TranslatedQuery: "SELECT column1,cf1['column2'],cf1['column3'] FROM test_table WHERE column1 = @value1 AND TO_BLOB(cf1['column2']) = @value2 AND TO_INT64(cf1['column3']) = @value3 AND TO_TIME(cf1['column5']) = @value4 AND TO_INT64(cf1['column6']) = @value5 AND TO_INT64(cf1['column9']) = @value6;",
 				Table:           "test_table",
 				Keyspace:        "test_keyspace",
-				Clauses: []types.Clause{
+				Clauses: []types.Condition{
 					{
 						Column:       "column1",
 						Operator:     "=",
@@ -739,7 +739,7 @@ func TestTranslator_TranslateSelectQuerytoBigtable(t *testing.T) {
 			defaultKeyspace: "test_keyspace",
 		},
 		{
-			name: "error at Clause parsing when column type not found",
+			name: "error at Condition parsing when column type not found",
 			args: args{
 				query: "select * from test_keyspace.table_name where name=test;",
 			},
@@ -748,7 +748,7 @@ func TestTranslator_TranslateSelectQuerytoBigtable(t *testing.T) {
 			defaultKeyspace: "test_keyspace",
 		},
 		{
-			name: "error at Clause parsing when value invalid",
+			name: "error at Condition parsing when value invalid",
 			args: args{
 				query: "select * from test_keyspace.test_table where column1=",
 			},
@@ -770,7 +770,7 @@ func TestTranslator_TranslateSelectQuerytoBigtable(t *testing.T) {
 					"value2": []string{"abc", "xyz"},
 				},
 				ParamKeys: []string{"value1", "value2"},
-				Clauses: []types.Clause{
+				Clauses: []types.Condition{
 					{
 						Column:       "column1",
 						Operator:     "=",
@@ -798,7 +798,7 @@ func TestTranslator_TranslateSelectQuerytoBigtable(t *testing.T) {
 				Keyspace:        "test_keyspace",
 				Params:          map[string]interface{}{"value1": "", "value2": []string{}},
 				ParamKeys:       []string{"value1", "value2"},
-				Clauses: []types.Clause{
+				Clauses: []types.Condition{
 					{
 						Column:       "column1",
 						Operator:     "=",
@@ -826,7 +826,7 @@ func TestTranslator_TranslateSelectQuerytoBigtable(t *testing.T) {
 				Keyspace:        "test_keyspace",
 				Params:          map[string]interface{}{"value1": "test%"},
 				ParamKeys:       []string{"value1"},
-				Clauses: []types.Clause{
+				Clauses: []types.Condition{
 					{
 						Column:       "column1",
 						Operator:     "LIKE",
@@ -847,7 +847,7 @@ func TestTranslator_TranslateSelectQuerytoBigtable(t *testing.T) {
 				Keyspace:        "test_keyspace",
 				Params:          map[string]interface{}{"value1": "te'st", "value2": "test2"},
 				ParamKeys:       []string{"value1", "value2"},
-				Clauses: []types.Clause{
+				Clauses: []types.Condition{
 					{
 						Column:       "column1",
 						Operator:     "BETWEEN",
@@ -882,7 +882,7 @@ func TestTranslator_TranslateSelectQuerytoBigtable(t *testing.T) {
 				Keyspace:        "test_keyspace",
 				Params:          map[string]interface{}{"value1": ""},
 				ParamKeys:       []string{"value1"},
-				Clauses: []types.Clause{
+				Clauses: []types.Condition{
 					{
 						Column:       "column1",
 						Operator:     "LIKE",
@@ -903,7 +903,7 @@ func TestTranslator_TranslateSelectQuerytoBigtable(t *testing.T) {
 				Keyspace:        "test_keyspace",
 				Params:          map[string]interface{}{"value1": "", "value2": ""},
 				ParamKeys:       []string{"value1", "value2"},
-				Clauses: []types.Clause{
+				Clauses: []types.Condition{
 					{
 						Column:       "column1",
 						Operator:     "BETWEEN",
@@ -938,7 +938,7 @@ func TestTranslator_TranslateSelectQuerytoBigtable(t *testing.T) {
 				Keyspace:        "test_keyspace",
 				Params:          map[string]interface{}{"value1": "test%"},
 				ParamKeys:       []string{"value1"},
-				Clauses: []types.Clause{
+				Clauses: []types.Condition{
 					{
 						Column:       "column1",
 						Operator:     "LIKE",
@@ -959,7 +959,7 @@ func TestTranslator_TranslateSelectQuerytoBigtable(t *testing.T) {
 				Keyspace:        "test_keyspace",
 				Params:          map[string]interface{}{"value1": "test", "value2": "test2"},
 				ParamKeys:       []string{"value1", "value2"},
-				Clauses: []types.Clause{
+				Clauses: []types.Condition{
 					{
 						Column:       "column1",
 						Operator:     "BETWEEN",
@@ -984,7 +984,7 @@ func TestTranslator_TranslateSelectQuerytoBigtable(t *testing.T) {
 			want:    nil,
 		},
 		{
-			name: "Empty Query",
+			name: "Empty CqlQuery",
 			args: args{
 				query: "",
 			},
@@ -993,7 +993,7 @@ func TestTranslator_TranslateSelectQuerytoBigtable(t *testing.T) {
 			defaultKeyspace: "test_keyspace",
 		},
 		{
-			name: "Query Without Select Object",
+			name: "CqlQuery Without Select Object",
 			args: args{
 				query: "UPDATE table_name SET column1 = 'new_value1', column2 = 'new_value2' WHERE condition;",
 			},
@@ -1058,7 +1058,7 @@ func TestTranslator_TranslateSelectQuerytoBigtable(t *testing.T) {
 				TranslatedQuery: "SELECT column1 FROM test_table WHERE column1 = @value1;",
 				Params:          map[string]interface{}{"value1": "abc"},
 				ParamKeys:       []string{"value1"},
-				Clauses:         []types.Clause{{Column: "column1", Operator: "=", Value: "@value1", IsPrimaryKey: true}},
+				Clauses:         []types.Condition{{Column: "column1", Operator: "=", Value: "@value1", IsPrimaryKey: true}},
 			},
 			defaultKeyspace: "other_keyspace",
 		},
@@ -1074,7 +1074,7 @@ func TestTranslator_TranslateSelectQuerytoBigtable(t *testing.T) {
 				TranslatedQuery: "SELECT column1 FROM test_table WHERE column1 = @value1;",
 				Params:          map[string]interface{}{"value1": "abc"},
 				ParamKeys:       []string{"value1"},
-				Clauses:         []types.Clause{{Column: "column1", Operator: "=", Value: "@value1", IsPrimaryKey: true}},
+				Clauses:         []types.Condition{{Column: "column1", Operator: "=", Value: "@value1", IsPrimaryKey: true}},
 			},
 			defaultKeyspace: "test_keyspace",
 		},
@@ -1099,7 +1099,7 @@ func TestTranslator_TranslateSelectQuerytoBigtable(t *testing.T) {
 				TranslatedQuery: "SELECT column1 FROM test_table WHERE column1 = @value1;",
 				Params:          map[string]interface{}{"value1": "abc"},
 				ParamKeys:       []string{"value1"},
-				Clauses:         []types.Clause{{Column: "column1", Operator: "=", Value: "@value1", IsPrimaryKey: true}},
+				Clauses:         []types.Condition{{Column: "column1", Operator: "=", Value: "@value1", IsPrimaryKey: true}},
 			},
 			defaultKeyspace: "test_keyspace",
 		},
@@ -1122,7 +1122,7 @@ func TestTranslator_TranslateSelectQuerytoBigtable(t *testing.T) {
 			defaultKeyspace: "test_keyspace",
 		},
 		{
-			name: "Query with only table, no keyspace, and defaultKeyspace is empty (should error)",
+			name: "CqlQuery with only table, no keyspace, and defaultKeyspace is empty (should error)",
 			args: args{
 				query: `select column1 from test_table;`,
 			},
@@ -1131,7 +1131,7 @@ func TestTranslator_TranslateSelectQuerytoBigtable(t *testing.T) {
 			defaultKeyspace: "",
 		},
 		{
-			name: "Query with complex GROUP BY and HAVING",
+			name: "CqlQuery with complex GROUP BY and HAVING",
 			args: args{
 				query: `select column1, count(column2) as count_col2 from test_keyspace.test_table GROUP BY column1 HAVING count(column2) > 5;`,
 			},
@@ -1154,7 +1154,7 @@ func TestTranslator_TranslateSelectQuerytoBigtable(t *testing.T) {
 			defaultKeyspace: "test_keyspace",
 		},
 		{
-			name: "Query with complex WHERE conditions",
+			name: "CqlQuery with complex WHERE conditions",
 			args: args{
 				query: `select column1, column2 from test_keyspace.test_table where column1 = 'test' AND (column2 > 100 OR column2 < 50) AND column3 IN ('a', 'b', 'c');`,
 			},
@@ -1162,7 +1162,7 @@ func TestTranslator_TranslateSelectQuerytoBigtable(t *testing.T) {
 			defaultKeyspace: "test_keyspace",
 		},
 		{
-			name: "Query with multiple aggregate functions",
+			name: "CqlQuery with multiple aggregate functions",
 			args: args{
 				query: `select column1, avg(column2) as avg_col2, max(column3) as max_col3, min(column4) as min_col4 from test_keyspace.test_table GROUP BY column1;`,
 			},
@@ -1170,7 +1170,7 @@ func TestTranslator_TranslateSelectQuerytoBigtable(t *testing.T) {
 			defaultKeyspace: "test_keyspace",
 		},
 		{
-			name: "Query with LIMIT and OFFSET",
+			name: "CqlQuery with LIMIT and OFFSET",
 			args: args{
 				query: `select column1, column2 from test_keyspace.test_table LIMIT 10 OFFSET 20;`,
 			},
@@ -1377,7 +1377,7 @@ func Test_GetBigtableSelectQuery(t *testing.T) {
 							{Name: "column3", ColumnName: "column3"},
 						},
 					},
-					Clauses: []types.Clause{
+					Clauses: []types.Condition{
 						{Column: "column3", Operator: "=", Value: "10"},
 					},
 					GroupByColumns: []string{"column1", "column3"},
@@ -1462,7 +1462,7 @@ func Test_GetBigtableSelectQuery(t *testing.T) {
 							{Name: "COUNT(*)", IsFunc: true, FuncName: "COUNT", ColumnName: "*", IsAs: true, Alias: "total_count"},
 						},
 					},
-					Clauses: []types.Clause{
+					Clauses: []types.Condition{
 						{Column: "column1", Operator: ">", Value: "5"},
 					},
 					Limit: Limit{IsLimit: true, Count: "50"},
@@ -1497,7 +1497,7 @@ func Test_GetBigtableSelectQuery(t *testing.T) {
 							{Name: "MAX(column2)", IsFunc: true, FuncName: "MAX", ColumnName: "column2", IsAs: true, Alias: "max_value"},
 						},
 					},
-					Clauses: []types.Clause{
+					Clauses: []types.Condition{
 						{Column: "column1", Operator: "IN", Value: "@values"},
 					},
 					OrderBy: OrderBy{

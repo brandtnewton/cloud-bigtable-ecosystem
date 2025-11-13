@@ -55,7 +55,7 @@ func getTimestampColumnName(aliasName string, columnName string) string {
 // Returns:
 // - A slice of pointers to ColumnMetadata structs containing metadata for each requested column.
 // - An error
-func getAllColumnsMetadata(columnsMap map[string]*types.Column) []*message.ColumnMetadata {
+func getAllColumnsMetadata(columnsMap map[types.ColumnName]*types.Column) []*message.ColumnMetadata {
 	var columnMetadataList []*message.ColumnMetadata
 	for _, column := range columnsMap {
 		columnMd := column.Metadata.Clone()
@@ -77,7 +77,7 @@ func getAllColumnsMetadata(columnsMap map[string]*types.Column) []*message.Colum
 // Returns:
 // - Pointers to ColumnMetadata structs containing metadata for each requested column.
 // - An error
-func handleSpecialColumn(columnsMap map[string]*types.Column, columnName string, index int32, isWriteTimeFunction bool) (*message.ColumnMetadata, error) {
+func handleSpecialColumn(columnsMap map[types.ColumnName]*types.Column, columnName types.ColumnName, index int32, isWriteTimeFunction bool) (*message.ColumnMetadata, error) {
 	// Validate if the column is a special column
 	if !isSpecialColumn(columnName) && !isWriteTimeFunction {
 		return nil, fmt.Errorf("invalid special column: %s", columnName)
@@ -88,7 +88,7 @@ func handleSpecialColumn(columnsMap map[string]*types.Column, columnName string,
 	for _, column := range columnsMap {
 		columnMd = column.Metadata.Clone()
 		columnMd.Index = index
-		columnMd.Name = columnName
+		columnMd.Name = string(columnName)
 		columnMd.Type = datatype.Bigint
 		break
 	}
@@ -122,7 +122,7 @@ func cloneColumnMetadata(metadata *message.ColumnMetadata, index int32) *message
 //
 // Returns:
 // - boolean
-func isSpecialColumn(columnName string) bool {
+func isSpecialColumn(columnName types.ColumnName) bool {
 	return columnName == LimitValue
 }
 

@@ -1571,7 +1571,7 @@ func Test_sortPrimaryKeysData(t *testing.T) {
 			},
 		},
 		{
-			name: "Same Precedence Values (Unchanged Order)",
+			name: "Same Precedence Columns (Unchanged Order)",
 			args: args{
 				pkMetadata: []*types.Column{
 					{Name: "product_id", PkPrecedence: 1},
@@ -1609,7 +1609,7 @@ func Test_sortPrimaryKeysData(t *testing.T) {
 			want: nil,
 		},
 		{
-			name: "Negative Precedence Values (Still Sorted Correctly)",
+			name: "Negative Precedence Columns (Still Sorted Correctly)",
 			args: args{
 				pkMetadata: []*types.Column{
 					{Name: "col1", PkPrecedence: -1},
@@ -1624,7 +1624,7 @@ func Test_sortPrimaryKeysData(t *testing.T) {
 			},
 		},
 		{
-			name: "Zero Precedence Values (Sorted Normally)",
+			name: "Zero Precedence Columns (Sorted Normally)",
 			args: args{
 				pkMetadata: []*types.Column{
 					{Name: "colA", PkPrecedence: 0},

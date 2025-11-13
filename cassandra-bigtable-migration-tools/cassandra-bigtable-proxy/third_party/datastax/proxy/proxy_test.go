@@ -285,7 +285,7 @@ var mockProxy = &Proxy{
 // Create mock for handleExecutionForDeletePreparedQuery/handleExecutionForSelectPreparedQuery/handleExecutionForInsertPreparedQuery functions.
 type MockBigtableClient struct {
 	bigtableModule.BigtableClient
-	InsertRowFunc          func(ctx context.Context, data *translator.InsertQueryMapping) error
+	InsertRowFunc          func(ctx context.Context, data *translator.PreparedInsertQuery) error
 	UpdateRowFunc          func(ctx context.Context, data *translator.UpdateQueryMapping) error
 	DeleteRowFunc          func(ctx context.Context, data *translator.DeleteQueryMapping) error
 	GetSchemaConfigsFunc   func(ctx context.Context, tableName string) (map[string]map[string]*types.Column, map[string][]types.Column, error)
@@ -293,7 +293,7 @@ type MockBigtableClient struct {
 	ApplyBulkMutationFunc  func(ctx context.Context, tableName string, mutationData []bt.MutationData, ar string) (bt.BulkOperationResponse, error)
 }
 
-func (m *MockBigtableClient) InsertRow(ctx context.Context, data *translator.InsertQueryMapping) error {
+func (m *MockBigtableClient) InsertRow(ctx context.Context, data *translator.PreparedInsertQuery) error {
 	if m.InsertRowFunc != nil {
 		return m.InsertRowFunc(ctx, data)
 	}
@@ -379,7 +379,7 @@ func Test_handleExecutionForDeletePreparedQuery(t *testing.T) {
 		args   args
 	}{
 		{
-			name: "Test handleExecutionForDeletePreparedQuery Query",
+			name: "Test handleExecutionForDeletePreparedQuery CqlQuery",
 			fields: fields{
 				ctx:   context.Background(),
 				proxy: mockProxy,
@@ -402,7 +402,7 @@ func Test_handleExecutionForDeletePreparedQuery(t *testing.T) {
 					ParamKeys: []string{"test_id", "test_hash"},
 					Keyspace:  "key_space",
 					QueryType: "DELETE",
-					Clauses: []types.Clause{{
+					Conditions: []types.Condition{{
 						Column:   "test_id",
 						Operator: "=",
 						Value:    "?",
@@ -434,9 +434,9 @@ type MockTranslator struct {
 	mock.Mock
 }
 
-func (m *MockTranslator) TranslateInsertQuerytoBigtable(queryStr string, protocolV primitive.ProtocolVersion, isPreparedQuery bool) (*translator.InsertQueryMapping, error) {
+func (m *MockTranslator) TranslateInsertQuerytoBigtable(queryStr string, protocolV primitive.ProtocolVersion, isPreparedQuery bool) (*translator.PreparedInsertQuery, error) {
 	args := m.Called(queryStr)
-	return args.Get(0).(*translator.InsertQueryMapping), args.Error(1)
+	return args.Get(0).(*translator.PreparedInsertQuery), args.Error(1)
 }
 
 func (m *MockTranslator) TranslateDeleteQuerytoBigtable(query string, isPreparedQuery bool) (*translator.DeleteQueryMapping, error) {
@@ -468,7 +468,7 @@ func TestHandleExecute(t *testing.T) {
 		wantSendMsg    message.Message
 	}{
 		{
-			name: "System Query Execution",
+			name: "System CqlQuery Execution",
 			raw:  mockRawFrame,
 			msg:  &partialExecute{queryId: []byte("some_prepared_query_id")},
 			setupClient: func(c *client) {
@@ -479,7 +479,7 @@ func TestHandleExecute(t *testing.T) {
 			wantSendCalled: true,
 		},
 		{
-			name: "Prepared Query Execution",
+			name: "Prepared CqlQuery Execution",
 			raw:  mockRawFrame,
 			msg:  &partialExecute{queryId: []byte("some_other_prepared_query_id")},
 			setupClient: func(c *client) {
@@ -539,7 +539,7 @@ func Test_client_handlePrepare(t *testing.T) {
 		wantSendMsg    message.Message
 	}{
 		{
-			name: "Select Query",
+			name: "Select CqlQuery",
 			raw:  mockRawFrame,
 			msg:  selectQuery,
 			setupClient: func(c *client) {
@@ -549,7 +549,7 @@ func Test_client_handlePrepare(t *testing.T) {
 			wantSendCalled: true,
 		},
 		{
-			name: "Use Query",
+			name: "Use CqlQuery",
 			raw:  mockRawFrame,
 			msg:  useQuery,
 			setupClient: func(c *client) {
@@ -559,7 +559,7 @@ func Test_client_handlePrepare(t *testing.T) {
 			wantSendCalled: true,
 		},
 		{
-			name: "Invalid Query",
+			name: "Invalid CqlQuery",
 			raw:  mockRawFrame,
 			msg:  invalidQuery,
 			setupClient: func(c *client) {
@@ -580,7 +580,7 @@ func Test_client_handlePrepare(t *testing.T) {
 			wantSendMsg:    &message.Invalid{},
 		},
 		{
-			name: "Query Parsing Error",
+			name: "CqlQuery Parsing Error",
 			raw:  mockRawFrame,
 			msg:  &message.Prepare{Query: "invalid query syntax"},
 			setupClient: func(c *client) {
@@ -653,7 +653,7 @@ var mockTableSchemaConfig = schemaMapping.NewSchemaMappingConfig(
 
 func Test_detectEmptyPrimaryKey(t *testing.T) {
 	type args struct {
-		query *translator.InsertQueryMapping
+		query *translator.PreparedInsertQuery
 	}
 	tests := []struct {
 		name string
@@ -663,12 +663,12 @@ func Test_detectEmptyPrimaryKey(t *testing.T) {
 		{
 			name: "Primary key present and not null",
 			args: args{
-				query: &translator.InsertQueryMapping{
+				query: &translator.PreparedInsertQuery{
 					Columns: []*types.Column{
 						{Name: "id", IsPrimaryKey: true},
 						{Name: "name", IsPrimaryKey: false},
 					},
-					Values: []interface{}{[]uint8{0, 0, 1}, "Alice"},
+					Columns: []interface{}{[]uint8{0, 0, 1}, "Alice"},
 				},
 			},
 			want: "",
@@ -676,12 +676,12 @@ func Test_detectEmptyPrimaryKey(t *testing.T) {
 		{
 			name: "Primary key missing value",
 			args: args{
-				query: &translator.InsertQueryMapping{
+				query: &translator.PreparedInsertQuery{
 					Columns: []*types.Column{
 						{Name: "id", IsPrimaryKey: true},
 						{Name: "name", IsPrimaryKey: false},
 					},
-					Values: []interface{}{nil, "Bob"},
+					Columns: []interface{}{nil, "Bob"},
 				},
 			},
 			want: "id",
@@ -689,12 +689,12 @@ func Test_detectEmptyPrimaryKey(t *testing.T) {
 		{
 			name: "No primary key column",
 			args: args{
-				query: &translator.InsertQueryMapping{
+				query: &translator.PreparedInsertQuery{
 					Columns: []*types.Column{
 						{Name: "age", IsPrimaryKey: false},
 						{Name: "name", IsPrimaryKey: false},
 					},
-					Values: []interface{}{25, "Eve"},
+					Columns: []interface{}{25, "Eve"},
 				},
 			},
 			want: "",
@@ -702,12 +702,12 @@ func Test_detectEmptyPrimaryKey(t *testing.T) {
 		{
 			name: "Multiple primary keys, one missing value",
 			args: args{
-				query: &translator.InsertQueryMapping{
+				query: &translator.PreparedInsertQuery{
 					Columns: []*types.Column{
 						{Name: "user_id", IsPrimaryKey: true},
 						{Name: "product_id", IsPrimaryKey: true},
 					},
-					Values: []interface{}{nil, 101},
+					Columns: []interface{}{nil, 101},
 				},
 			},
 			want: "user_id",
@@ -788,8 +788,8 @@ func TestGetMetadataFromCache(t *testing.T) {
 	// Case 2: When the query is found for insert query
 	insertQuery := "INSERT INTO products (product_id, product_name, price, category) VALUES (?, ?, ?, ?);"
 	id := md5.Sum([]byte(insertQuery))
-	client.AddQueryToCache(id, &translator.InsertQueryMapping{
-		Query:     insertQuery,
+	client.AddQueryToCache(id, &translator.PreparedInsertQuery{
+		CqlQuery:  insertQuery,
 		QueryType: "insert",
 		Table:     "products",
 		VariableMetadata: []*message.ColumnMetadata{{
@@ -869,7 +869,7 @@ func TestGetMetadataFromCache(t *testing.T) {
 	assert.NotNil(t, variableMeta, "Expected variableMeta to not be nil.")
 	assert.NotNil(t, returnMeta, "Expected returnMeta to not be nil.")
 
-	// Case 6: Invalid Query Type
+	// Case 6: Invalid CqlQuery Type
 	invalidQuery := "Invalid FROM products WHERE product_id = ?;"
 	id = md5.Sum([]byte(invalidQuery))
 	client.AddQueryToCache(id, mockQuery{})
@@ -908,8 +908,8 @@ func TestHandleServerPreparedQuery(t *testing.T) {
 		t.Errorf("Send was not called when expected for test - TestHandleServerPreparedQuery Case 1")
 	}
 	id := md5.Sum([]byte(insertQuery))
-	client.AddQueryToCache(id, &translator.InsertQueryMapping{
-		Query:     insertQuery,
+	client.AddQueryToCache(id, &translator.PreparedInsertQuery{
+		CqlQuery:  insertQuery,
 		QueryType: "insert",
 		Table:     "products",
 		VariableMetadata: []*message.ColumnMetadata{{
@@ -986,7 +986,7 @@ func TestHandleServerPreparedQuery(t *testing.T) {
 		t.Errorf("Send was not called when expected for test - TestHandleServerPreparedQuery Case 5")
 	}
 
-	// Case 5: Invalid Query Type
+	// Case 5: Invalid CqlQuery Type
 	invalidQuery := "Invalid FROM products WHERE product_id = ?;"
 	id = md5.Sum([]byte(invalidQuery))
 	client.AddQueryToCache(id, mockQuery{})
@@ -1049,7 +1049,7 @@ func TestPrepareSelectType(t *testing.T) {
 		IsStar:                   false,
 		Limit:                    translator.Limit{IsLimit: false, Count: ""},
 		IsGroupBy:                false,
-		Clauses:                  []types.Clause{types.Clause{Operator: "=", Column: "name", Value: "@value1", IsPrimaryKey: true}},
+		Clauses:                  []types.Condition{types.Condition{Operator: "=", Column: "name", Value: "@value1", IsPrimaryKey: true}},
 	}
 
 	bigTablemockiface := new(mockbigtable.BigTableClientIface)
@@ -1104,7 +1104,7 @@ func TestPrepareSelectTypeWithClauseFunction(t *testing.T) {
 		IsStar:                   false,
 		Limit:                    translator.Limit{IsLimit: false, Count: ""},
 		IsGroupBy:                false,
-		Clauses:                  []types.Clause{types.Clause{Operator: constants.MAP_CONTAINS_KEY, Column: "column8", Value: "@value1", IsPrimaryKey: false}},
+		Clauses:                  []types.Condition{types.Condition{Operator: constants.MAP_CONTAINS_KEY, Column: "column8", Value: "@value1", IsPrimaryKey: false}},
 	}
 
 	bigTablemockiface := new(mockbigtable.BigTableClientIface)
@@ -1195,11 +1195,11 @@ func TestHandleExecuteForInsert(t *testing.T) {
 	mockSender := &mockSender{}
 
 	bigTablemockiface := new(mockbigtable.BigTableClientIface)
-	bigTablemockiface.On("InsertRow", ctx, &translator.InsertQueryMapping{
-		Query:     "INSERT INTO test_keyspace.user_info (name, age) VALUES (?, ?);",
+	bigTablemockiface.On("InsertRow", ctx, &translator.PreparedInsertQuery{
+		CqlQuery:  "INSERT INTO test_keyspace.user_info (name, age) VALUES (?, ?);",
 		QueryType: "INSERT",
 		Table:     "user_info", Keyspace: "test_keyspace",
-		Columns: []*types.Column{{Name: "name", ColumnFamily: "", CQLType: types.TypeVarchar, IsPrimaryKey: true}, {Name: "age", ColumnFamily: "", CQLType: types.TypeVarchar, IsPrimaryKey: false}}, Values: []interface{}{[]uint8{0x74, 0x65, 0x73, 0x74, 0x73, 0x68, 0x6f, 0x61, 0x69, 0x62}, []uint8{0x32, 0x35}}, Params: map[string]interface{}(nil), ParamKeys: []string(nil), PrimaryKeys: []string{"name"}, RowKey: "testshoaib", DeleteColumnFamilies: []string(nil), ReturnMetadata: []*message.ColumnMetadata(nil), VariableMetadata: []*message.ColumnMetadata(nil), TimestampInfo: translator.TimestampInfo{Timestamp: 0, HasUsingTimestamp: false, Index: 0}, IfNotExists: false}).Return(&message.RowsResult{}, nil)
+		Columns: []*types.Column{{Name: "name", ColumnFamily: "", CQLType: types.TypeVarchar, IsPrimaryKey: true}, {Name: "age", ColumnFamily: "", CQLType: types.TypeVarchar, IsPrimaryKey: false}}, Columns: []interface{}{[]uint8{0x74, 0x65, 0x73, 0x74, 0x73, 0x68, 0x6f, 0x61, 0x69, 0x62}, []uint8{0x32, 0x35}}, Params: map[string]interface{}(nil), ParamKeys: []string(nil), PrimaryKeys: []string{"name"}, RowKey: "testshoaib", DeleteColumnFamilies: []string(nil), ReturnMetadata: []*message.ColumnMetadata(nil), VariableMetadata: []*message.ColumnMetadata(nil), TimestampInfo: translator.TimestampInfo{Timestamp: 0, HasUsingTimestamp: false, Index: 0}, IfNotExists: false}).Return(&message.RowsResult{}, nil)
 	client := client{
 		ctx:            ctx,
 		preparedQuerys: make(map[[16]byte]interface{}),
@@ -1235,8 +1235,8 @@ func TestHandleExecuteForInsert(t *testing.T) {
 				Type:     0,
 				Contents: []byte("25"),
 			}},
-	}, &translator.InsertQueryMapping{
-		Query:     insertQuery,
+	}, &translator.PreparedInsertQuery{
+		CqlQuery:  insertQuery,
 		QueryType: "INSERT",
 		Table:     "user_info",
 		Keyspace:  "test_keyspace",
@@ -1251,7 +1251,7 @@ func TestHandleExecuteForInsert(t *testing.T) {
 			IsPrimaryKey: false}},
 		VariableMetadata: varMeta,
 		ReturnMetadata:   returnMeta,
-		Values:           []interface{}{"testshoaib", "25"},
+		Columns:          []interface{}{"testshoaib", "25"},
 	}, ctx)
 }
 func TestHandleExecuteForSelect(t *testing.T) {
@@ -1490,7 +1490,7 @@ func TestHandleQueryInsert(t *testing.T) {
 	mockSender := &mockSender{}
 
 	bigTablemockiface := new(mockbigtable.BigTableClientIface)
-	bigTablemockiface.On("InsertRow", nil, &translator.InsertQueryMapping{Query: "INSERT INTO test_keyspace.user_info (name, age) VALUES ('shoaib', '32');", QueryType: "INSERT", Table: "user_info", Keyspace: "test_keyspace", Columns: []*types.Column{{Name: "name", ColumnFamily: "cf1", CQLType: types.TypeVarchar, IsPrimaryKey: true}, {Name: "age", ColumnFamily: "cf1", CQLType: types.TypeVarchar, IsPrimaryKey: false}}, Values: []interface{}{[]uint8{0x73, 0x68, 0x6f, 0x61, 0x69, 0x62}, []uint8{0x33, 0x32}}, Params: map[string]interface{}{"age": []uint8{0x33, 0x32}, "name": []uint8{0x73, 0x68, 0x6f, 0x61, 0x69, 0x62}}, ParamKeys: []string{"name", "age"}, PrimaryKeys: []string{"name"}, RowKey: "shoaib", DeleteColumnFamilies: []string(nil), ReturnMetadata: []*message.ColumnMetadata(nil), VariableMetadata: []*message.ColumnMetadata(nil), TimestampInfo: translator.TimestampInfo{Timestamp: 0, HasUsingTimestamp: false, Index: 0}, IfNotExists: false}).Return(&message.RowsResult{}, nil)
+	bigTablemockiface.On("InsertRow", nil, &translator.PreparedInsertQuery{CqlQuery: "INSERT INTO test_keyspace.user_info (name, age) VALUES ('shoaib', '32');", QueryType: "INSERT", Table: "user_info", Keyspace: "test_keyspace", Columns: []*types.Column{{Name: "name", ColumnFamily: "cf1", CQLType: types.TypeVarchar, IsPrimaryKey: true}, {Name: "age", ColumnFamily: "cf1", CQLType: types.TypeVarchar, IsPrimaryKey: false}}, Columns: []interface{}{[]uint8{0x73, 0x68, 0x6f, 0x61, 0x69, 0x62}, []uint8{0x33, 0x32}}, Params: map[string]interface{}{"age": []uint8{0x33, 0x32}, "name": []uint8{0x73, 0x68, 0x6f, 0x61, 0x69, 0x62}}, ParamKeys: []string{"name", "age"}, PrimaryKeys: []string{"name"}, RowKey: "shoaib", DeleteColumnFamilies: []string(nil), ReturnMetadata: []*message.ColumnMetadata(nil), VariableMetadata: []*message.ColumnMetadata(nil), TimestampInfo: translator.TimestampInfo{Timestamp: 0, HasUsingTimestamp: false, Index: 0}, IfNotExists: false}).Return(&message.RowsResult{}, nil)
 	client := client{
 		ctx:            ctx,
 		preparedQuerys: make(map[[16]byte]interface{}),
@@ -1520,7 +1520,7 @@ func TestHandleQueryUpdate(t *testing.T) {
 	mockSender := &mockSender{}
 
 	bigTablemockiface := new(mockbigtable.BigTableClientIface)
-	bigTablemockiface.On("UpdateRow", nil, &translator.UpdateQueryMapping{Query: "UPDATE test_keyspace.user_info SET age = '33' WHERE name = 'ibrahim';", TranslatedQuery: "", QueryType: "UPDATE", Table: "user_info", Keyspace: "test_keyspace", UpdateSetValues: []translator.UpdateSetValue{translator.UpdateSetValue{Column: "age", Value: "@set1", ColumnFamily: "", CQLType: u.ParseCqlTypeOrDie("text"), Encrypted: []uint8{0x33, 0x33}}}, Clauses: []types.Clause{types.Clause{Column: "name", Operator: "=", Value: "@value1", IsPrimaryKey: true}}, Params: map[string]interface{}{"set1": []uint8{0x33, 0x33}, "value1": "ibrahim"}, ParamKeys: []string{"set1", "value1"}, PrimaryKeys: []string{"name"}, Columns: []*types.Column{{Name: "age", ColumnFamily: "cf1", CQLType: types.TypeVarchar, IsPrimaryKey: false}, {Name: "name", ColumnFamily: "cf1", CQLType: types.TypeVarchar, IsPrimaryKey: false}}, Values: []interface{}{[]uint8{0x33, 0x33}, []uint8{0x69, 0x62, 0x72, 0x61, 0x68, 0x69, 0x6d}}, RowKey: "ibrahim", DeleteColumnFamilies: []string(nil), DeleteColumQualifires: []*types.Column(nil), ReturnMetadata: []*message.ColumnMetadata(nil), VariableMetadata: []*message.ColumnMetadata(nil), TimestampInfo: translator.TimestampInfo{Timestamp: 0, HasUsingTimestamp: false, Index: 0}, IfExists: false, ComplexOperation: map[string]*translator.ComplexOperation{}}).Return(&message.RowsResult{}, nil)
+	bigTablemockiface.On("UpdateRow", nil, &translator.UpdateQueryMapping{Query: "UPDATE test_keyspace.user_info SET age = '33' WHERE name = 'ibrahim';", TranslatedQuery: "", QueryType: "UPDATE", Table: "user_info", Keyspace: "test_keyspace", UpdateSetValues: []translator.UpdateSetValue{translator.UpdateSetValue{Column: "age", Value: "@set1", ColumnFamily: "", CQLType: u.ParseCqlTypeOrDie("text"), BigtableValue: []uint8{0x33, 0x33}}}, Clauses: []types.Condition{types.Condition{Column: "name", Operator: "=", Value: "@value1", IsPrimaryKey: true}}, Params: map[string]interface{}{"set1": []uint8{0x33, 0x33}, "value1": "ibrahim"}, ParamKeys: []string{"set1", "value1"}, PrimaryKeys: []string{"name"}, Columns: []*types.Column{{Name: "age", ColumnFamily: "cf1", CQLType: types.TypeVarchar, IsPrimaryKey: false}, {Name: "name", ColumnFamily: "cf1", CQLType: types.TypeVarchar, IsPrimaryKey: false}}, Values: []interface{}{[]uint8{0x33, 0x33}, []uint8{0x69, 0x62, 0x72, 0x61, 0x68, 0x69, 0x6d}}, RowKey: "ibrahim", DeleteColumnFamilies: []string(nil), DeleteColumQualifiers: []*types.Column(nil), ReturnMetadata: []*message.ColumnMetadata(nil), VariableMetadata: []*message.ColumnMetadata(nil), TimestampInfo: translator.TimestampInfo{Timestamp: 0, HasUsingTimestamp: false, Index: 0}, IfExists: false, ComplexOperations: map[string]*translator.ComplexOperation{}}).Return(&message.RowsResult{}, nil)
 	client := client{
 		ctx:            ctx,
 		preparedQuerys: make(map[[16]byte]interface{}),
@@ -1551,7 +1551,7 @@ func TestHandleQueryDelete(t *testing.T) {
 
 	deleteQuery := "DELETE FROM test_keyspace.user_info WHERE name = 'ibrahim';"
 	bigTablemockiface := new(mockbigtable.BigTableClientIface)
-	bigTablemockiface.On("DeleteRowNew", nil, &translator.DeleteQueryMapping{Query: "DELETE FROM test_keyspace.user_info WHERE name = 'ibrahim';", QueryType: "DELETE", Table: "user_info", Keyspace: "test_keyspace", Clauses: []types.Clause{types.Clause{Column: "name", Operator: "=", Value: "ibrahim", IsPrimaryKey: true}}, Params: map[string]interface{}{"value1": []uint8{0x69, 0x62, 0x72, 0x61, 0x68, 0x69, 0x6d}}, ParamKeys: []string{"value1"}, PrimaryKeys: []string{"name"}, RowKey: "ibrahim", ExecuteByMutation: false, VariableMetadata: []*message.ColumnMetadata(nil), ReturnMetadata: []*message.ColumnMetadata(nil), TimestampInfo: translator.TimestampInfo{Timestamp: 0, HasUsingTimestamp: false, Index: 0}, IfExists: false, SelectedColumns: []types.SelectedColumn(nil)}).Return(&message.RowsResult{}, nil)
+	bigTablemockiface.On("DeleteRowNew", nil, &translator.DeleteQueryMapping{Query: "DELETE FROM test_keyspace.user_info WHERE name = 'ibrahim';", QueryType: "DELETE", Table: "user_info", Keyspace: "test_keyspace", Conditions: []types.Condition{types.Condition{Column: "name", Operator: "=", Value: "ibrahim", IsPrimaryKey: true}}, Params: map[string]interface{}{"value1": []uint8{0x69, 0x62, 0x72, 0x61, 0x68, 0x69, 0x6d}}, ParamKeys: []string{"value1"}, PrimaryKeys: []string{"name"}, RowKey: "ibrahim", ExecuteByMutation: false, VariableMetadata: []*message.ColumnMetadata(nil), ReturnMetadata: []*message.ColumnMetadata(nil), TimestampInfo: translator.TimestampInfo{Timestamp: 0, HasUsingTimestamp: false, Index: 0}, IfExists: false, SelectedColumns: []types.SelectedColumn(nil)}).Return(&message.RowsResult{}, nil)
 	client := client{
 		ctx:            ctx,
 		preparedQuerys: make(map[[16]byte]interface{}),
@@ -1580,7 +1580,7 @@ func TestHandleBatchUpdate(t *testing.T) {
 
 	updateQuery := "UPDATE test_keyspace.user_info SET age = ? WHERE name = ?;"
 	bigTablemockiface := new(mockbigtable.BigTableClientIface)
-	bigTablemockiface.On("ApplyBulkMutation", nil, "user_info", []bt.MutationData{bt.MutationData{MutationType: "Update", RowKey: "value2", Columns: []bt.ColumnData{bt.ColumnData{ColumnFamily: "cf1", Name: "age", Contents: []uint8{0x76, 0x61, 0x6c, 0x75, 0x65, 0x31}}}, ColumnFamily: ""}}, "test_keyspace").Return(bt.BulkOperationResponse{}, nil)
+	bigTablemockiface.On("ApplyBulkMutation", nil, "user_info", []bt.MutationData{bt.MutationData{MutationType: "Update", RowKey: "value2", Columns: []bt.BigtableData{bt.BigtableData{ColumnFamily: "cf1", Name: "age", Contents: []uint8{0x76, 0x61, 0x6c, 0x75, 0x65, 0x31}}}, ColumnFamily: ""}}, "test_keyspace").Return(bt.BulkOperationResponse{}, nil)
 	client := client{
 		ctx:            ctx,
 		preparedQuerys: make(map[[16]byte]interface{}),
@@ -1618,7 +1618,7 @@ func TestHandleBatchInsert(t *testing.T) {
 
 	insertQuery := "INSERT INTO test_keyspace.user_info (name, age) VALUES (?, ?);"
 	bigTablemockiface := new(mockbigtable.BigTableClientIface)
-	bigTablemockiface.On("ApplyBulkMutation", nil, "user_info", []bt.MutationData{bt.MutationData{MutationType: "Insert", RowKey: "value1", Columns: []bt.ColumnData{bt.ColumnData{ColumnFamily: "cf1", Name: "name", Contents: []uint8{0x76, 0x61, 0x6c, 0x75, 0x65, 0x31}}, bt.ColumnData{ColumnFamily: "cf1", Name: "age", Contents: []uint8{0x76, 0x61, 0x6c, 0x75, 0x65, 0x32}}}, ColumnFamily: ""}}, "test_keyspace").Return(bt.BulkOperationResponse{}, nil)
+	bigTablemockiface.On("ApplyBulkMutation", nil, "user_info", []bt.MutationData{bt.MutationData{MutationType: "Insert", RowKey: "value1", Columns: []bt.BigtableData{bt.BigtableData{ColumnFamily: "cf1", Name: "name", Contents: []uint8{0x76, 0x61, 0x6c, 0x75, 0x65, 0x31}}, bt.BigtableData{ColumnFamily: "cf1", Name: "age", Contents: []uint8{0x76, 0x61, 0x6c, 0x75, 0x65, 0x32}}}, ColumnFamily: ""}}, "test_keyspace").Return(bt.BulkOperationResponse{}, nil)
 	client := client{
 		ctx:            ctx,
 		preparedQuerys: make(map[[16]byte]interface{}),
@@ -1677,7 +1677,7 @@ func TestHandleBatchSelect(t *testing.T) {
 		IsStar:                   true,
 		Limit:                    translator.Limit{IsLimit: false, Count: ""},
 		IsGroupBy:                false,
-		Clauses:                  []types.Clause{types.Clause{Operator: "=", Column: "name", Value: "@value1", IsPrimaryKey: true}},
+		Clauses:                  []types.Condition{types.Condition{Operator: "=", Column: "name", Value: "@value1", IsPrimaryKey: true}},
 	}).Return(&bigtable.PreparedStatement{}, nil)
 	client := client{
 		ctx:            ctx,
@@ -1716,7 +1716,7 @@ func TestHandleBatchDelete(t *testing.T) {
 
 	deleteQuery := "DELETE FROM test_keyspace.user_info WHERE name = ?;"
 	bigTablemockiface := new(mockbigtable.BigTableClientIface)
-	bigTablemockiface.On("ApplyBulkMutation", nil, "user_info", []bt.MutationData{bt.MutationData{MutationType: "Delete", RowKey: "value1", Columns: []bt.ColumnData{bt.ColumnData{ColumnFamily: "cf1", Name: "name", Contents: []uint8{0x76, 0x61, 0x6c, 0x75, 0x65, 0x31}}, bt.ColumnData{ColumnFamily: "cf1", Name: "age", Contents: []uint8{0x76, 0x61, 0x6c, 0x75, 0x65, 0x32}}}, ColumnFamily: ""}}, "test_keyspace").Return(bt.BulkOperationResponse{}, nil)
+	bigTablemockiface.On("ApplyBulkMutation", nil, "user_info", []bt.MutationData{bt.MutationData{MutationType: "Delete", RowKey: "value1", Columns: []bt.BigtableData{bt.BigtableData{ColumnFamily: "cf1", Name: "name", Contents: []uint8{0x76, 0x61, 0x6c, 0x75, 0x65, 0x31}}, bt.BigtableData{ColumnFamily: "cf1", Name: "age", Contents: []uint8{0x76, 0x61, 0x6c, 0x75, 0x65, 0x32}}}, ColumnFamily: ""}}, "test_keyspace").Return(bt.BulkOperationResponse{}, nil)
 	client := client{
 		ctx:            ctx,
 		preparedQuerys: make(map[[16]byte]interface{}),
@@ -1778,13 +1778,13 @@ func TestGetTimestampMetadata(t *testing.T) {
 	// Test cases
 	tests := []struct {
 		name             string
-		inputMetadata    translator.InsertQueryMapping
+		inputMetadata    translator.PreparedInsertQuery
 		initialMetadata  []*message.ColumnMetadata
 		expectedMetadata []*message.ColumnMetadata
 	}{
 		{
 			name: "With timestamp",
-			inputMetadata: translator.InsertQueryMapping{
+			inputMetadata: translator.PreparedInsertQuery{
 				Keyspace: "test_keyspace",
 				Table:    "test_table",
 				TimestampInfo: translator.TimestampInfo{
@@ -1805,7 +1805,7 @@ func TestGetTimestampMetadata(t *testing.T) {
 		},
 		{
 			name: "Without timestamp",
-			inputMetadata: translator.InsertQueryMapping{
+			inputMetadata: translator.PreparedInsertQuery{
 				Keyspace: "test_keyspace",
 				Table:    "test_table",
 				TimestampInfo: translator.TimestampInfo{

@@ -18,6 +18,7 @@ package schemaMapping
 
 import (
 	"fmt"
+	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/global/types"
 	"sort"
 	"sync"
 
@@ -34,12 +35,12 @@ type SchemaMappingConfig struct {
 	Logger                 *zap.Logger
 	mu                     sync.RWMutex
 	tables                 map[string]map[string]*TableConfig
-	SystemColumnFamily     string
+	SystemColumnFamily     types.ColumnFamily
 	SchemaMappingTableName string
 }
 
 // NewSchemaMappingConfig is a constructor for SchemaMappingConfig. Please use this instead of direct initialization.
-func NewSchemaMappingConfig(schemaMappingTableName, systemColumnFamily string, logger *zap.Logger, tableConfigs []*TableConfig) *SchemaMappingConfig {
+func NewSchemaMappingConfig(schemaMappingTableName string, systemColumnFamily types.ColumnFamily, logger *zap.Logger, tableConfigs []*TableConfig) *SchemaMappingConfig {
 	tablesMap := make(map[string]map[string]*TableConfig)
 	for _, tableConfig := range tableConfigs {
 		if keyspace, exists := tablesMap[tableConfig.Keyspace]; !exists {

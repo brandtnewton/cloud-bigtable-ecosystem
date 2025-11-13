@@ -25,17 +25,11 @@ import (
 	"go.uber.org/zap"
 )
 
-type ColumnData struct {
-	ColumnFamily string
-	Name         string
-	Contents     []byte
-}
-
 type MutationData struct {
 	MutationType string
-	RowKey       string
-	Columns      []ColumnData
-	ColumnFamily string
+	RowKey       types.RowKey
+	Columns      []types.BigtableData
+	ColumnFamily types.ColumnFamily
 	Timestamp    bigtable.Timestamp
 }
 

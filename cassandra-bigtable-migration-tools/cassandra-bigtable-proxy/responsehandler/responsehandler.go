@@ -401,7 +401,7 @@ func ExtractUniqueKeys(rowMap []map[string]interface{}, query QueryMetadata) []s
 // Parameters:
 // - query (QueryMetadata): The metadata object containing information about the selected columns.
 // - index (int): The index of a specific column to check first for a match.
-// - key (string): The key to match against the column's Alias or Name.
+// - key (string): The key to match against the column's Alias or Column.
 //
 // Returns:
 // - types: The column object that matches the key, or an empty object if no match is found.

@@ -95,7 +95,7 @@ func TestTranslator_TranslateDeleteQuerytoBigtable(t *testing.T) {
 				QueryType: "DELETE",
 				Table:     "user_info",
 				Keyspace:  "test_keyspace",
-				Clauses: []types.Clause{
+				Conditions: []types.Condition{
 					{
 						Column:       "name",
 						Operator:     "=",
@@ -130,7 +130,7 @@ func TestTranslator_TranslateDeleteQuerytoBigtable(t *testing.T) {
 				QueryType: "DELETE",
 				Table:     "user_info",
 				Keyspace:  "test_keyspace",
-				Clauses: []types.Clause{
+				Conditions: []types.Condition{
 					{
 						Column:       "name",
 						Operator:     "=",
@@ -189,7 +189,7 @@ func TestTranslator_TranslateDeleteQuerytoBigtable(t *testing.T) {
 				QueryType: "DELETE",
 				Table:     "user_info",
 				Keyspace:  "test_keyspace",
-				Clauses: []types.Clause{
+				Conditions: []types.Condition{
 					{
 						Column:       "name",
 						Operator:     "=",
@@ -225,7 +225,7 @@ func TestTranslator_TranslateDeleteQuerytoBigtable(t *testing.T) {
 				QueryType: "DELETE",
 				Table:     "user_info",
 				Keyspace:  "test_keyspace",
-				Clauses: []types.Clause{
+				Conditions: []types.Condition{
 					{
 						Column:       "name",
 						Operator:     "=",
@@ -276,7 +276,7 @@ func TestTranslator_TranslateDeleteQuerytoBigtable(t *testing.T) {
 				QueryType: "DELETE",
 				Table:     "test_table",
 				Keyspace:  "test_keyspace",
-				Clauses: []types.Clause{
+				Conditions: []types.Condition{
 					{
 						Column:       "column1",
 						Operator:     "=",
@@ -314,7 +314,7 @@ func TestTranslator_TranslateDeleteQuerytoBigtable(t *testing.T) {
 				QueryType: "DELETE",
 				Table:     "test_table",
 				Keyspace:  "test_keyspace",
-				Clauses: []types.Clause{
+				Conditions: []types.Condition{
 					{
 						Column:       "column1",
 						Operator:     "=",
@@ -352,7 +352,7 @@ func TestTranslator_TranslateDeleteQuerytoBigtable(t *testing.T) {
 				QueryType: "DELETE",
 				Table:     "test_table",
 				Keyspace:  "test_keyspace",
-				Clauses: []types.Clause{
+				Conditions: []types.Condition{
 					{
 						Column:       "column1",
 						Operator:     "=",
@@ -390,7 +390,7 @@ func TestTranslator_TranslateDeleteQuerytoBigtable(t *testing.T) {
 				QueryType: "DELETE",
 				Table:     "test_table",
 				Keyspace:  "test_keyspace",
-				Clauses: []types.Clause{
+				Conditions: []types.Condition{
 					{
 						Column:       "column1",
 						Operator:     "=",
@@ -494,9 +494,9 @@ func TestTranslator_TranslateDeleteQuerytoBigtable(t *testing.T) {
 				Logger:              tt.fields.Logger,
 				SchemaMappingConfig: tt.fields.SchemaMappingConfig,
 			}
-			got, err := tr.TranslateDeleteQuerytoBigtable(tt.args.queryStr, false, tt.defaultKeyspace)
+			got, err := tr.TranslateDelete(tt.args.queryStr, false, tt.defaultKeyspace)
 			if (err != nil) != tt.wantErr {
-				t.Errorf("Translator.TranslateDeleteQuerytoBigtable() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("Translator.TranslateDelete() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
 			assert.Equal(t, tt.want, got)
@@ -670,17 +670,17 @@ func TestTranslator_BuildDeletePrepareQuery(t *testing.T) {
 				Logger:              tt.fields.Logger,
 				SchemaMappingConfig: tt.fields.SchemaMappingConfig,
 			}
-			got, got1, err := tr.BuildDeletePrepareQuery(tt.args.values, tt.args.st, tt.args.variableColumnMetadata, tt.args.protocolV)
+			got, got1, err := tr.BindDelete(tt.args.values, tt.args.st, tt.args.variableColumnMetadata, tt.args.protocolV)
 			if tt.wantErr {
 				assert.Error(t, err, "error expected")
 			} else {
 				assert.NoErrorf(t, err, "unexpected error")
 			}
 			if got != tt.want {
-				t.Errorf("Translator.BuildDeletePrepareQuery() got = %v, wantNewColumns %v", got, tt.want)
+				t.Errorf("Translator.BindDelete() got = %v, wantNewColumns %v", got, tt.want)
 			}
 			if !reflect.DeepEqual(got1, tt.want1) {
-				t.Errorf("Translator.BuildDeletePrepareQuery() got1 = %v, wantNewColumns %v", got1, tt.want1)
+				t.Errorf("Translator.BindDelete() got1 = %v, wantNewColumns %v", got1, tt.want1)
 			}
 		})
 	}

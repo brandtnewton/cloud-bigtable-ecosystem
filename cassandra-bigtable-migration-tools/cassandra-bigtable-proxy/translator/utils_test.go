@@ -1105,7 +1105,7 @@ func Test_processCollectionColumnsForPrepareQueries(t *testing.T) {
 				t.Fatalf("error = %v, wantErr %v", err, tt.wantErr)
 			}
 
-			output, err := processCollectionColumnsForPrepareQueries(tc, input)
+			output, err := decodePreparedValues(tc, input)
 
 			if tt.wantErr {
 				require.Error(t, err)
@@ -1116,17 +1116,17 @@ func Test_processCollectionColumnsForPrepareQueries(t *testing.T) {
 			// For list types, normalize Names for comparison as its a timestamp value based on time.Now()
 			if strings.Contains(tt.name, "List") {
 				// Normalize both output and expected Names for comparison
-				for i := range output.NewColumns {
-					output.NewColumns[i].Name = fmt.Sprintf("list_index_%d", i)
+				for i := range output.Data {
+					output.Data[i].Name = fmt.Sprintf("list_index_%d", i)
 				}
 				for i := range tt.wantNewColumns {
 					tt.wantNewColumns[i].Name = fmt.Sprintf("list_index_%d", i)
 				}
 			}
 
-			assert.Equal(t, tt.wantNewColumns, output.NewColumns)
-			assert.Equal(t, tt.wantNewValues, output.NewValues)
-			assert.Equal(t, tt.wantUnencrypted, output.Unencrypted)
+			assert.Equal(t, tt.wantNewColumns, output.Data)
+			assert.Equal(t, tt.wantNewValues, output.Values)
+			assert.Equal(t, tt.wantUnencrypted, output.GoValues)
 			assert.Equal(t, tt.wantIndexEnd, output.IndexEnd)
 			assert.Equal(t, tt.wantDelColumnFamily, output.DelColumnFamily)
 		})
@@ -2017,13 +2017,13 @@ func TestEncodeBool(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := EncodeBool(tt.args.value, tt.args.pv)
+			got, err := encodeBoolForBigtable(tt.args.value, tt.args.pv)
 			if (err != nil) != tt.wantErr {
-				t.Errorf("EncodeBool() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("encodeBoolForBigtable() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
 			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("EncodeBool() = %v, wantNewColumns %v", got, tt.want)
+				t.Errorf("encodeBoolForBigtable() = %v, wantNewColumns %v", got, tt.want)
 			}
 		})
 	}
@@ -2103,13 +2103,13 @@ func TestEncodeInt(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := EncodeBigInt(tt.args.value, tt.args.pv)
+			got, err := encodeBigIntForBigtable(tt.args.value, tt.args.pv)
 			if (err != nil) != tt.wantErr {
-				t.Errorf("EncodeBigInt() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("encodeBigIntForBigtable() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
 			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("EncodeBigInt() = %v, wantNewColumns %v", got, tt.want)
+				t.Errorf("encodeBigIntForBigtable() = %v, wantNewColumns %v", got, tt.want)
 			}
 		})
 	}
@@ -2316,10 +2316,10 @@ func TestProcessCollectionColumnsForPrepareQueries_ComplexMetaAndNonCollection(t
 				ComplexMeta:     currentComplexMeta,
 			}
 			tc, _ := translator.SchemaMappingConfig.GetTableConfig(input.KeySpace, input.TableName)
-			output, err := processCollectionColumnsForPrepareQueries(tc, input)
+			output, err := decodePreparedValues(tc, input)
 
 			if (err != nil) != tt.wantErr {
-				t.Errorf("processCollectionColumnsForPrepareQueries() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("decodePreparedValues() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
 			if tt.wantErr {
@@ -2327,7 +2327,7 @@ func TestProcessCollectionColumnsForPrepareQueries_ComplexMetaAndNonCollection(t
 			}
 
 			// Sort slices of columns before comparing for deterministic results
-			sort.Slice(output.NewColumns, func(i, j int) bool { return output.NewColumns[i].Name < output.NewColumns[j].Name })
+			sort.Slice(output.Data, func(i, j int) bool { return output.Data[i].Name < output.Data[j].Name })
 			sort.Slice(tt.wantNewColumns, func(i, j int) bool { return tt.wantNewColumns[i].Name < tt.wantNewColumns[j].Name })
 			sort.Slice(output.DelColumns, func(i, j int) bool { return output.DelColumns[i].Name < output.DelColumns[j].Name })
 			sort.Slice(tt.wantDelColumns, func(i, j int) bool { return tt.wantDelColumns[i].Name < tt.wantDelColumns[j].Name })
@@ -2336,42 +2336,42 @@ func TestProcessCollectionColumnsForPrepareQueries_ComplexMetaAndNonCollection(t
 
 			// For list types, don't compare Names directly, normalize them for comparison
 			if strings.Contains(tt.name, "List") {
-				// Normalize the Name fields for comparison
-				for i := range output.NewColumns {
-					output.NewColumns[i].Name = fmt.Sprintf("list_index_%d", i)
+				// Normalize the Column fields for comparison
+				for i := range output.Data {
+					output.Data[i].Name = fmt.Sprintf("list_index_%d", i)
 				}
 				for i := range tt.wantNewColumns {
 					tt.wantNewColumns[i].Name = fmt.Sprintf("list_index_%d", i)
 				}
 			}
 
-			if !reflect.DeepEqual(output.NewColumns, tt.wantNewColumns) {
-				t.Errorf("processCollectionColumnsForPrepareQueries() output.NewColumns = %v, wantNewColumns %v", output.NewColumns, tt.wantNewColumns)
+			if !reflect.DeepEqual(output.Data, tt.wantNewColumns) {
+				t.Errorf("decodePreparedValues() output.Data = %v, wantNewColumns %v", output.Data, tt.wantNewColumns)
 			}
 			// Comparing slices of interfaces containing byte slices requires careful comparison
-			if len(output.NewValues) != len(tt.wantNewValues) {
-				t.Errorf("processCollectionColumnsForPrepareQueries() output.NewValues length = %d, wantNewColumns %d", len(output.NewValues), len(tt.wantNewValues))
+			if len(output.Values) != len(tt.wantNewValues) {
+				t.Errorf("decodePreparedValues() output.Values length = %d, wantNewColumns %d", len(output.Values), len(tt.wantNewValues))
 			} else {
 				// Simple byte comparison for this test setup
-				for i := range output.NewValues {
-					gotBytes, okGot := output.NewValues[i].([]byte)
+				for i := range output.Values {
+					gotBytes, okGot := output.Values[i].([]byte)
 					wantBytes, okWant := tt.wantNewValues[i].([]byte)
 					if !okGot || !okWant || !reflect.DeepEqual(gotBytes, wantBytes) {
-						t.Errorf("processCollectionColumnsForPrepareQueries() output.NewValues[%d] = %v, wantNewColumns %v", i, output.NewValues[i], tt.wantNewValues[i])
+						t.Errorf("decodePreparedValues() output.Values[%d] = %v, wantNewColumns %v", i, output.Values[i], tt.wantNewValues[i])
 					}
 				}
 			}
-			if !reflect.DeepEqual(output.Unencrypted, tt.wantUnencrypted) {
-				t.Errorf("processCollectionColumnsForPrepareQueries() output.Unencrypted = %v, wantNewColumns %v", output.Unencrypted, tt.wantUnencrypted)
+			if !reflect.DeepEqual(output.GoValues, tt.wantUnencrypted) {
+				t.Errorf("decodePreparedValues() output.GoValues = %v, wantNewColumns %v", output.GoValues, tt.wantUnencrypted)
 			}
 			if output.IndexEnd != tt.wantIndexEnd {
-				t.Errorf("processCollectionColumnsForPrepareQueries() output.IndexEnd = %v, wantNewColumns %v", output.IndexEnd, tt.wantIndexEnd)
+				t.Errorf("decodePreparedValues() output.IndexEnd = %v, wantNewColumns %v", output.IndexEnd, tt.wantIndexEnd)
 			}
 			if !reflect.DeepEqual(output.DelColumnFamily, tt.wantDelColFamily) {
-				t.Errorf("processCollectionColumnsForPrepareQueries() output.DelColumnFamily = %v, wantNewColumns %v", output.DelColumnFamily, tt.wantDelColFamily)
+				t.Errorf("decodePreparedValues() output.DelColumnFamily = %v, wantNewColumns %v", output.DelColumnFamily, tt.wantDelColFamily)
 			}
 			if !reflect.DeepEqual(output.DelColumns, tt.wantDelColumns) {
-				t.Errorf("processCollectionColumnsForPrepareQueries() output.DelColumns = %v, wantNewColumns %v", output.DelColumns, tt.wantDelColumns)
+				t.Errorf("decodePreparedValues() output.DelColumns = %v, wantNewColumns %v", output.DelColumns, tt.wantDelColumns)
 			}
 
 			// Specific checks for complex meta modifications
@@ -2782,9 +2782,9 @@ func TestAddSetElements(t *testing.T) {
 		colFamily   string
 		column      *types.Column
 		input       ProcessRawCollectionsInput
-		output      *ProcessRawCollectionsOutput
+		output      *AdHocQueryValues
 		expectedErr bool
-		validate    func(t *testing.T, output *ProcessRawCollectionsOutput)
+		validate    func(t *testing.T, output *AdHocQueryValues)
 	}{
 		{
 			name:      "Add single string element to set",
@@ -2795,8 +2795,8 @@ func TestAddSetElements(t *testing.T) {
 				CQLType: types.NewSetType(types.TypeVarchar),
 			},
 			input:  ProcessRawCollectionsInput{},
-			output: &ProcessRawCollectionsOutput{},
-			validate: func(t *testing.T, output *ProcessRawCollectionsOutput) {
+			output: &AdHocQueryValues{},
+			validate: func(t *testing.T, output *AdHocQueryValues) {
 				assert.Len(t, output.NewColumns, 1)
 				assert.Len(t, output.NewValues, 1)
 				assert.Equal(t, "value1", output.NewColumns[0].Name)
@@ -2814,8 +2814,8 @@ func TestAddSetElements(t *testing.T) {
 				CQLType: types.NewSetType(types.TypeVarchar),
 			},
 			input:  ProcessRawCollectionsInput{},
-			output: &ProcessRawCollectionsOutput{},
-			validate: func(t *testing.T, output *ProcessRawCollectionsOutput) {
+			output: &AdHocQueryValues{},
+			validate: func(t *testing.T, output *AdHocQueryValues) {
 				assert.Len(t, output.NewColumns, 3)
 				assert.Len(t, output.NewValues, 3)
 				expectedValues := []string{"value1", "value2", "value3"}
@@ -2836,8 +2836,8 @@ func TestAddSetElements(t *testing.T) {
 				CQLType: types.NewSetType(types.TypeBoolean),
 			},
 			input:  ProcessRawCollectionsInput{},
-			output: &ProcessRawCollectionsOutput{},
-			validate: func(t *testing.T, output *ProcessRawCollectionsOutput) {
+			output: &AdHocQueryValues{},
+			validate: func(t *testing.T, output *AdHocQueryValues) {
 				assert.Len(t, output.NewColumns, 2)
 				assert.Len(t, output.NewValues, 2)
 				expectedValues := []string{"1", "0"}
@@ -2858,8 +2858,8 @@ func TestAddSetElements(t *testing.T) {
 				CQLType: types.NewSetType(types.TypeVarchar),
 			},
 			input:  ProcessRawCollectionsInput{},
-			output: &ProcessRawCollectionsOutput{},
-			validate: func(t *testing.T, output *ProcessRawCollectionsOutput) {
+			output: &AdHocQueryValues{},
+			validate: func(t *testing.T, output *AdHocQueryValues) {
 				assert.Empty(t, output.NewColumns)
 				assert.Empty(t, output.NewValues)
 			},
@@ -2873,8 +2873,8 @@ func TestAddSetElements(t *testing.T) {
 				CQLType: types.NewSetType(types.TypeVarchar),
 			},
 			input:  ProcessRawCollectionsInput{},
-			output: &ProcessRawCollectionsOutput{},
-			validate: func(t *testing.T, output *ProcessRawCollectionsOutput) {
+			output: &AdHocQueryValues{},
+			validate: func(t *testing.T, output *AdHocQueryValues) {
 				assert.Len(t, output.NewColumns, 1)
 				assert.Len(t, output.NewValues, 1)
 				assert.Equal(t, "value1", output.NewColumns[0].Name)
@@ -2892,7 +2892,7 @@ func TestAddSetElements(t *testing.T) {
 				CQLType: types.NewSetType(types.TypeBoolean),
 			},
 			input:       ProcessRawCollectionsInput{},
-			output:      &ProcessRawCollectionsOutput{},
+			output:      &AdHocQueryValues{},
 			expectedErr: true,
 		},
 		{
@@ -2916,7 +2916,7 @@ func TestAddSetElements(t *testing.T) {
 				CQLType: types.NewSetType(types.TypeInt),
 			},
 			input:       ProcessRawCollectionsInput{},
-			output:      &ProcessRawCollectionsOutput{},
+			output:      &AdHocQueryValues{},
 			expectedErr: true,
 		},
 	}
@@ -2944,7 +2944,7 @@ func TestHandleListOperation(t *testing.T) {
 		input     ProcessRawCollectionsInput
 		operation interface{}
 		wantErr   bool
-		validate  func(t *testing.T, output *ProcessRawCollectionsOutput)
+		validate  func(t *testing.T, output *AdHocQueryValues)
 	}{
 		{
 			name: "Add operation with prepend",
@@ -2956,7 +2956,7 @@ func TestHandleListOperation(t *testing.T) {
 				PrependColumns: []string{"mylist"},
 			},
 			operation: ComplexAssignment{Operation: "+", Left: []string{"1", "2"}, Right: []string{"3", "4"}},
-			validate: func(t *testing.T, output *ProcessRawCollectionsOutput) {
+			validate: func(t *testing.T, output *AdHocQueryValues) {
 				assert.Len(t, output.NewValues, 2)
 				assert.Len(t, output.NewColumns, 2)
 				for _, col := range output.NewColumns {
@@ -2973,10 +2973,10 @@ func TestHandleListOperation(t *testing.T) {
 			},
 			operation: ComplexAssignment{Operation: "-", Right: []string{"3", "4"}},
 			input:     ProcessRawCollectionsInput{},
-			validate: func(t *testing.T, output *ProcessRawCollectionsOutput) {
-				assert.NotNil(t, output.ComplexMeta["mylist"])
-				assert.True(t, output.ComplexMeta["mylist"].ListDelete)
-				assert.True(t, output.ComplexMeta["mylist"].Delete)
+			validate: func(t *testing.T, output *AdHocQueryValues) {
+				assert.NotNil(t, output.ComplexOps["mylist"])
+				assert.True(t, output.ComplexOps["mylist"].ListDelete)
+				assert.True(t, output.ComplexOps["mylist"].Delete)
 			},
 		},
 		{
@@ -2987,9 +2987,9 @@ func TestHandleListOperation(t *testing.T) {
 			},
 			operation: ComplexAssignment{Operation: "update_index", Left: "1", Right: "123"},
 			input:     ProcessRawCollectionsInput{},
-			validate: func(t *testing.T, output *ProcessRawCollectionsOutput) {
-				assert.NotNil(t, output.ComplexMeta["mylist"])
-				assert.Equal(t, "1", output.ComplexMeta["mylist"].UpdateListIndex)
+			validate: func(t *testing.T, output *AdHocQueryValues) {
+				assert.NotNil(t, output.ComplexOps["mylist"])
+				assert.Equal(t, "1", output.ComplexOps["mylist"].UpdateListIndex)
 			},
 		},
 		{
@@ -3000,7 +3000,7 @@ func TestHandleListOperation(t *testing.T) {
 			},
 			operation: []string{"1", "2"},
 			input:     ProcessRawCollectionsInput{},
-			validate: func(t *testing.T, output *ProcessRawCollectionsOutput) {
+			validate: func(t *testing.T, output *AdHocQueryValues) {
 				assert.Len(t, output.NewValues, 2)
 				assert.Len(t, output.NewColumns, 2)
 				assert.Len(t, output.DelColumnFamily, 1)
@@ -3021,8 +3021,8 @@ func TestHandleListOperation(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			output := &ProcessRawCollectionsOutput{
-				ComplexMeta: make(map[string]*ComplexOperation),
+			output := &AdHocQueryValues{
+				ComplexOps: make(map[string]*ComplexOperation),
 			}
 			err := handleListOperation(tt.operation, tt.column, tt.column.CQLType.(*types.ListType), tt.column.Name, tt.input, output)
 			if tt.wantErr {
@@ -3044,7 +3044,7 @@ func TestHandleSetOperation(t *testing.T) {
 		input     ProcessRawCollectionsInput
 		operation interface{}
 		wantErr   bool
-		validate  func(t *testing.T, output *ProcessRawCollectionsOutput)
+		validate  func(t *testing.T, output *AdHocQueryValues)
 	}{
 		{
 			name: "Add elements to set",
@@ -3054,7 +3054,7 @@ func TestHandleSetOperation(t *testing.T) {
 			},
 			operation: ComplexAssignment{Operation: "+", Right: []string{"1", "2", "3"}},
 			input:     ProcessRawCollectionsInput{},
-			validate: func(t *testing.T, output *ProcessRawCollectionsOutput) {
+			validate: func(t *testing.T, output *AdHocQueryValues) {
 				assert.Len(t, output.NewColumns, 3)
 				assert.Len(t, output.NewValues, 3)
 				for i, col := range output.NewColumns {
@@ -3072,7 +3072,7 @@ func TestHandleSetOperation(t *testing.T) {
 			},
 			operation: ComplexAssignment{Operation: "-", Right: []string{"1", "2"}},
 			input:     ProcessRawCollectionsInput{},
-			validate: func(t *testing.T, output *ProcessRawCollectionsOutput) {
+			validate: func(t *testing.T, output *AdHocQueryValues) {
 				assert.Len(t, output.DelColumns, 2)
 				for _, col := range output.DelColumns {
 					assert.Equal(t, "myset", col.ColumnFamily)
@@ -3087,7 +3087,7 @@ func TestHandleSetOperation(t *testing.T) {
 			},
 			operation: []string{"1", "2", "3"},
 			input:     ProcessRawCollectionsInput{},
-			validate: func(t *testing.T, output *ProcessRawCollectionsOutput) {
+			validate: func(t *testing.T, output *AdHocQueryValues) {
 				assert.Len(t, output.NewColumns, 3)
 				assert.Len(t, output.NewValues, 3)
 				assert.Len(t, output.DelColumnFamily, 1)
@@ -3108,8 +3108,8 @@ func TestHandleSetOperation(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			output := &ProcessRawCollectionsOutput{
-				ComplexMeta: make(map[string]*ComplexOperation),
+			output := &AdHocQueryValues{
+				ComplexOps: make(map[string]*ComplexOperation),
 			}
 			err := handleSetOperation(tt.operation, tt.column, tt.column.CQLType.(*types.SetType), tt.column.Name, tt.input, output)
 			if tt.wantErr {
@@ -3131,7 +3131,7 @@ func TestHandleMapOperation(t *testing.T) {
 		input     ProcessRawCollectionsInput
 		operation interface{}
 		wantErr   bool
-		validate  func(t *testing.T, output *ProcessRawCollectionsOutput)
+		validate  func(t *testing.T, output *AdHocQueryValues)
 	}{
 		{
 			name: "Add entries to map",
@@ -3141,7 +3141,7 @@ func TestHandleMapOperation(t *testing.T) {
 			},
 			operation: ComplexAssignment{Operation: "+", Right: map[string]string{"key1": "1", "key2": "2"}},
 			input:     ProcessRawCollectionsInput{},
-			validate: func(t *testing.T, output *ProcessRawCollectionsOutput) {
+			validate: func(t *testing.T, output *AdHocQueryValues) {
 				assert.Len(t, output.NewColumns, 2)
 				assert.Len(t, output.NewValues, 2)
 				for _, col := range output.NewColumns {
@@ -3158,7 +3158,7 @@ func TestHandleMapOperation(t *testing.T) {
 			},
 			operation: ComplexAssignment{Operation: "-", Right: []string{"key1", "key2"}},
 			input:     ProcessRawCollectionsInput{},
-			validate: func(t *testing.T, output *ProcessRawCollectionsOutput) {
+			validate: func(t *testing.T, output *AdHocQueryValues) {
 				assert.Len(t, output.DelColumns, 2)
 				for _, col := range output.DelColumns {
 					assert.Equal(t, "mymap", col.ColumnFamily)
@@ -3174,7 +3174,7 @@ func TestHandleMapOperation(t *testing.T) {
 			},
 			operation: ComplexAssignment{Operation: "update_index", Left: "key1", Right: "99"},
 			input:     ProcessRawCollectionsInput{},
-			validate: func(t *testing.T, output *ProcessRawCollectionsOutput) {
+			validate: func(t *testing.T, output *AdHocQueryValues) {
 				assert.Len(t, output.NewColumns, 1)
 				assert.Equal(t, "key1", output.NewColumns[0].Name)
 				assert.Equal(t, "mymap", output.NewColumns[0].ColumnFamily)
@@ -3188,7 +3188,7 @@ func TestHandleMapOperation(t *testing.T) {
 			},
 			operation: map[string]string{"key1": "1", "key2": "2"},
 			input:     ProcessRawCollectionsInput{},
-			validate: func(t *testing.T, output *ProcessRawCollectionsOutput) {
+			validate: func(t *testing.T, output *AdHocQueryValues) {
 				assert.Len(t, output.NewColumns, 2)
 				assert.Len(t, output.NewValues, 2)
 				assert.Len(t, output.DelColumnFamily, 1)
@@ -3209,8 +3209,8 @@ func TestHandleMapOperation(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			output := &ProcessRawCollectionsOutput{
-				ComplexMeta: make(map[string]*ComplexOperation),
+			output := &AdHocQueryValues{
+				ComplexOps: make(map[string]*ComplexOperation),
 			}
 			err := handleMapOperation(tt.operation, tt.column, tt.column.CQLType.(*types.MapType), tt.column.Name, tt.input, output)
 			if tt.wantErr {
@@ -3261,14 +3261,14 @@ func TestProcessCollectionColumnsForRawQueries(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed: %v", err)
 	}
-	output, err := processCollectionColumnsForRawQueries(tc, inputs)
+	output, err := parseComplexOperations(tc, inputs)
 	if err != nil {
 		t.Fatalf("Failed: %v", err)
 	}
 
 	// Verify that output updated accordingly
 	if len(output.NewColumns) == 0 || len(output.NewValues) == 0 {
-		t.Errorf("Expected non-empty NewColumns and NewValues")
+		t.Errorf("Expected non-empty Data and Values")
 	}
 }
 

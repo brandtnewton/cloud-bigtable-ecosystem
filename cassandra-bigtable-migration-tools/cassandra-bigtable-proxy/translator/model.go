@@ -22,7 +22,6 @@ import (
 	schemaMapping "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/schema-mapping"
 	"github.com/datastax/go-cassandra-native-protocol/datatype"
 	"github.com/datastax/go-cassandra-native-protocol/message"
-	"github.com/datastax/go-cassandra-native-protocol/primitive"
 	"go.uber.org/zap"
 )
 
@@ -41,14 +40,14 @@ type SelectQueryMap struct {
 	Table            string                      // Table involved in the query
 	Keyspace         string                      // Keyspace to which the table belongs
 	ColumnMeta       ColumnMeta                  // Translator generated Metadata about the columns involved
-	Clauses          []types.Clause              // List of clauses in the query
+	Clauses          []types.Condition           // List of clauses in the query
 	Limit            Limit                       // Limit clause details
 	OrderBy          OrderBy                     // Order by clause details
 	GroupByColumns   []string                    // Group by Columns
 	Params           map[string]interface{}      // Parameters for the query
 	ParamKeys        []string                    // column_name of the parameters
 	PrimaryKeys      []string                    // Primary keys of the table
-	Columns          []string                    //all columns mentioned in query
+	Columns          []*types.Column             //all columns mentioned in query
 	Conditions       map[string]string           // List of conditions in the query
 	ReturnMetadata   []*message.ColumnMetadata   // Metadata of selected columns in Cassandra format
 	VariableMetadata []*message.ColumnMetadata   // Metadata of variable columns for prepared queries in Cassandra format
@@ -61,15 +60,6 @@ type OrderOperation string
 const (
 	Asc  OrderOperation = "asc"
 	Desc OrderOperation = "desc"
-)
-
-type QueryTypesEnum string
-
-const (
-	INSERT QueryTypesEnum = "INSERT"
-	SELECT QueryTypesEnum = "SELECT"
-	UPDATE QueryTypesEnum = "UPDATE"
-	DELETE QueryTypesEnum = "DELETE"
 )
 
 type OrderBy struct {
@@ -98,10 +88,10 @@ type IfSpec struct {
 }
 
 // This struct will be useful in combining all the clauses into one.
-type QueryClauses struct {
-	Clauses   []types.Clause
-	Params    map[string]interface{}
-	ParamKeys []string
+type WhereClause struct {
+	Conditions []types.Condition
+	Params     map[string]interface{}
+	ParamKeys  []types.ColumnName
 }
 
 type TimestampInfo struct {
@@ -132,41 +122,33 @@ type ComplexOperation struct {
 	ListDeleteValues [][]byte               // this stores the values to be deleted from list
 }
 
-// InsertQueryMapping represents the mapping of an insert query along with its translation details.
-type InsertQueryMapping struct {
-	Query                string         // Original query string
-	QueryType            QueryTypesEnum // Type of the query (e.g., INSERT)
-	Table                string         // Table involved in the query
-	Keyspace             string         // Keyspace to which the table belongs
-	Columns              []*ColumnAndValue
-	Params               map[string]interface{}    // Parameters for the query
-	ParamKeys            []string                  // Column names of the parameters
-	PrimaryKeys          []string                  // Primary keys of the table
-	RowKey               string                    // Unique row key for insert operation
-	DeleteColumnFamilies []string                  // List of Column family which is type of collection type
-	ReturnMetadata       []*message.ColumnMetadata // Metadata of all columns of that table in Cassandra format
-	VariableMetadata     []*message.ColumnMetadata // Metadata of variable columns for prepared queries in Cassandra format
-	TimestampInfo        TimestampInfo
-	IfNotExists          bool
-}
-
-type ColumnsResponse struct {
-	Columns       []*types.Column
-	ParamKeys     []string
-	PrimayColumns []string
+// PreparedInsertQuery represents the mapping of an insert query along with its translation details.
+type PreparedInsertQuery struct {
+	CqlQuery         string
+	Keyspace         string
+	Table            string
+	Columns          []*types.Column
+	ParamKeys        []types.ColumnName        // Column names of the parameters
+	ReturnMetadata   []*message.ColumnMetadata // Metadata of all columns of that table in Cassandra format
+	VariableMetadata []*message.ColumnMetadata // Metadata of variable columns for prepared queries in Cassandra format
+	IfNotExists      bool
+	// =====
+	// == Bound values
+	// =====
+	RowKey        types.RowKey
+	TimestampInfo TimestampInfo
+	Data          []types.BigtableData
 }
 
 // DeleteQueryMapping represents the mapping of a delete query along with its translation details.
 type DeleteQueryMapping struct {
 	Query             string                    // Original query string
-	QueryType         QueryTypesEnum            // Type of the query (e.g., DELETE)
 	Table             string                    // Table involved in the query
 	Keyspace          string                    // Keyspace to which the table belongs
-	Clauses           []types.Clause            // List of clauses in the delete query
+	Conditions        []types.Condition         // List of clauses in the delete query
 	Params            map[string]interface{}    // Parameters for the query
-	ParamKeys         []string                  // Column names of the parameters
-	PrimaryKeys       []string                  // Primary keys of the table
-	RowKey            string                    // Unique rowkey which is required for delete operation
+	ParamKeys         []types.ColumnName        // Column names of the parameters
+	RowKey            types.RowKey              // Unique rowkey which is required for delete operation
 	ExecuteByMutation bool                      // Flag to indicate if the delete should be executed by mutation
 	VariableMetadata  []*message.ColumnMetadata // Metadata of variable columns for prepared queries in Cassandra format
 	ReturnMetadata    []*message.ColumnMetadata // Metadata of all columns of that table in Cassandra format
@@ -186,7 +168,7 @@ type CreateTableStatementMap struct {
 }
 
 type CreateTablePrimaryKeyConfig struct {
-	Name    string
+	Name    types.ColumnName
 	KeyType string
 }
 
@@ -216,36 +198,37 @@ type TruncateTableStatementMap struct {
 type UpdateQueryMapping struct {
 	Query                 string // Original query string
 	TranslatedQuery       string
-	QueryType             QueryTypesEnum            // Type of the query (e.g., UPDATE)
 	Table                 string                    // Table involved in the query
 	Keyspace              string                    // Keyspace to which the table belongs
-	UpdateSetValues       []UpdateSetValue          // Values to be updated
-	Clauses               []types.Clause            // List of clauses in the update query
+	UpdateSetValues       []UpdateSetValue          // Columns to be updated
+	Clauses               []types.Condition         // List of clauses in the update query
 	Params                map[string]interface{}    // Parameters for the query
-	ParamKeys             []string                  // Column names of the parameters
 	PrimaryKeys           []string                  // Primary keys of the table
-	Columns               []*ColumnAndValue         // List of columns in update query
-	RowKey                string                    // Unique rowkey which is required for update operation
-	DeleteColumnFamilies  []string                  // List of all collection type of columns
-	DeleteColumQualifires []*types.Column           // List of all map key deletion in complex update
+	Columns               []*types.Column           // Cassandra columns updated
+	Data                  []types.BigtableData      // values - only defined for adhoc queries
+	RowKey                types.RowKey              // Unique rowkey which is required for update operation
+	DeleteColumnFamilies  []types.ColumnFamily      // List of all collection type of columns
+	DeleteColumQualifiers []*types.Column           // List of all map key deletion in complex update
 	ReturnMetadata        []*message.ColumnMetadata // Metadata of all columns of that table in Cassandra format
 	VariableMetadata      []*message.ColumnMetadata // Metadata of variable columns for prepared queries in Cassandra format
 	TimestampInfo         TimestampInfo
 	IfExists              bool
-	ComplexOperation      map[string]*ComplexOperation
+	ComplexOperations     map[types.ColumnFamily]*ComplexOperation
 }
 
 type UpdateSetValue struct {
-	Column       string
-	Value        string
-	ColumnFamily string
+	Column       types.ColumnName
+	ColumnFamily types.ColumnFamily
 	CQLType      types.CqlDataType
-	Encrypted    interface{}
+	Value        string
+	GoValue      types.GoValue
+	//
+	ComplexAssignment ComplexAssignment
+	BigtableValue     types.BigtableValue
 }
 
 type UpdateSetResponse struct {
 	UpdateSetValues []UpdateSetValue
-	ParamKeys       []string
 	Params          map[string]interface{}
 }
 
@@ -254,50 +237,22 @@ type TableObj struct {
 	KeyspaceName string
 }
 
-// ProcessRawCollectionsInput holds the parameters for processCollectionColumnsForRawQueries.
-type ProcessRawCollectionsInput struct {
-	Values         []*ColumnAndValue
-	TableName      string
-	Translator     *Translator
-	KeySpace       string
-	PrependColumns []string
+// AdHocQueryValues holds the results from parseComplexOperations.
+type AdHocQueryValues struct {
+	Data            []*types.BigtableData
+	DelColumnFamily []types.ColumnFamily
+	DelColumns      []*types.BigtableColumn
+	ComplexOps      map[types.ColumnFamily]*ComplexOperation
 }
 
-// ProcessRawCollectionsOutput holds the results from processCollectionColumnsForRawQueries.
-type ProcessRawCollectionsOutput struct {
-	NewColumns      []*ColumnAndValue
-	DelColumnFamily []string
-	DelColumns      []*types.Column
-	ComplexMeta     map[string]*ComplexOperation
-}
-
-// ProcessPrepareCollectionsInput holds the parameters for processCollectionColumnsForPrepareQueries.
-type ProcessPrepareCollectionsInput struct {
-	ColumnsResponse []*types.Column
-	Values          []*primitive.Value
-	TableName       string
-	ProtocolV       primitive.ProtocolVersion
-	PrimaryKeys     []string
-	Translator      *Translator
-	KeySpace        string
-	ComplexMeta     map[string]*ComplexOperation
-	PrependColumns  []string
-}
-
-type ColumnAndValue struct {
-	Column *types.Column
-	// todo can we make this a []byte?
-	Value interface{}
-}
-
-// ProcessPrepareCollectionsOutput holds the results from processCollectionColumnsForPrepareQueries.
-type ProcessPrepareCollectionsOutput struct {
-	NewValues       []*ColumnAndValue
-	Unencrypted     map[string]interface{}
+// PreparedValues holds the results from decodePreparedValues.
+type PreparedValues struct {
+	Data            []types.BigtableData
+	GoValues        map[types.ColumnName]types.GoValue
 	IndexEnd        int
-	DelColumnFamily []string
+	DelColumnFamily []types.ColumnFamily
 	DelColumns      []*types.Column
-	ComplexMeta     map[string]*ComplexOperation
+	ComplexMeta     map[types.ColumnFamily]*ComplexOperation
 }
 
 type DescribeStatementMap struct {

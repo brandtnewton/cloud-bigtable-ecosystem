@@ -89,9 +89,9 @@ func TestTranslator_TranslateUpdateQuerytoBigtable(t *testing.T) {
 					"value1": "testText",
 					"value2": "column10",
 				},
-				RowKey:           "testText\x00\x01column10",
-				Keyspace:         "test_keyspace",
-				ComplexOperation: map[string]*ComplexOperation{},
+				RowKey:            "testText\x00\x01column10",
+				Keyspace:          "test_keyspace",
+				ComplexOperations: map[string]*ComplexOperation{},
 			},
 		},
 		{
@@ -107,9 +107,9 @@ func TestTranslator_TranslateUpdateQuerytoBigtable(t *testing.T) {
 					"value1": "testText",
 					"value2": "column10",
 				},
-				RowKey:           "testText\x00\x01column10",
-				Keyspace:         "test_keyspace",
-				ComplexOperation: map[string]*ComplexOperation{},
+				RowKey:            "testText\x00\x01column10",
+				Keyspace:          "test_keyspace",
+				ComplexOperations: map[string]*ComplexOperation{},
 			},
 		},
 		{
@@ -125,9 +125,9 @@ func TestTranslator_TranslateUpdateQuerytoBigtable(t *testing.T) {
 					"value1": "testText",
 					"value2": "column10",
 				},
-				RowKey:           "testText\x00\x01column10",
-				Keyspace:         "test_keyspace",
-				ComplexOperation: map[string]*ComplexOperation{},
+				RowKey:            "testText\x00\x01column10",
+				Keyspace:          "test_keyspace",
+				ComplexOperations: map[string]*ComplexOperation{},
 			},
 		},
 		{
@@ -143,9 +143,9 @@ func TestTranslator_TranslateUpdateQuerytoBigtable(t *testing.T) {
 					"value1": "testText",
 					"value2": "column10",
 				},
-				RowKey:           "testText\x00\x01column10",
-				Keyspace:         "test_keyspace",
-				ComplexOperation: map[string]*ComplexOperation{},
+				RowKey:            "testText\x00\x01column10",
+				Keyspace:          "test_keyspace",
+				ComplexOperations: map[string]*ComplexOperation{},
 			},
 		},
 		{
@@ -161,9 +161,9 @@ func TestTranslator_TranslateUpdateQuerytoBigtable(t *testing.T) {
 					"value1": "testText",
 					"value2": "column10",
 				},
-				RowKey:           "testText\x00\x01column10",
-				Keyspace:         "test_keyspace",
-				ComplexOperation: map[string]*ComplexOperation{},
+				RowKey:            "testText\x00\x01column10",
+				Keyspace:          "test_keyspace",
+				ComplexOperations: map[string]*ComplexOperation{},
 			},
 		},
 		{
@@ -179,9 +179,9 @@ func TestTranslator_TranslateUpdateQuerytoBigtable(t *testing.T) {
 					"value1": "testText",
 					"value2": "column10",
 				},
-				RowKey:           "testText\x00\x01column10",
-				Keyspace:         "test_keyspace",
-				ComplexOperation: map[string]*ComplexOperation{},
+				RowKey:            "testText\x00\x01column10",
+				Keyspace:          "test_keyspace",
+				ComplexOperations: map[string]*ComplexOperation{},
 			},
 		},
 		{
@@ -197,9 +197,9 @@ func TestTranslator_TranslateUpdateQuerytoBigtable(t *testing.T) {
 					"value1": "testText",
 					"value2": "column10",
 				},
-				RowKey:           "testText\x00\x01column10",
-				Keyspace:         "test_keyspace",
-				ComplexOperation: map[string]*ComplexOperation{},
+				RowKey:            "testText\x00\x01column10",
+				Keyspace:          "test_keyspace",
+				ComplexOperations: map[string]*ComplexOperation{},
 			},
 		},
 		{
@@ -216,9 +216,9 @@ func TestTranslator_TranslateUpdateQuerytoBigtable(t *testing.T) {
 					"value1": "pkval",
 					"value2": "abc",
 				},
-				RowKey:           "abc\x00\x01pkval",
-				Keyspace:         "test_keyspace",
-				ComplexOperation: map[string]*ComplexOperation{},
+				RowKey:            "abc\x00\x01pkval",
+				Keyspace:          "test_keyspace",
+				ComplexOperations: map[string]*ComplexOperation{},
 			},
 		},
 		{
@@ -239,9 +239,9 @@ func TestTranslator_TranslateUpdateQuerytoBigtable(t *testing.T) {
 					"value1": "testText",
 					"value2": "column10",
 				},
-				RowKey:           "testText\x00\x01column10",
-				Keyspace:         "test_keyspace",
-				ComplexOperation: map[string]*ComplexOperation{},
+				RowKey:            "testText\x00\x01column10",
+				Keyspace:          "test_keyspace",
+				ComplexOperations: map[string]*ComplexOperation{},
 			},
 		},
 		{
@@ -262,9 +262,9 @@ func TestTranslator_TranslateUpdateQuerytoBigtable(t *testing.T) {
 					"value1": "testText",
 					"value2": "column10",
 				},
-				RowKey:           "testText\x00\x01column10",
-				Keyspace:         "test_keyspace",
-				ComplexOperation: map[string]*ComplexOperation{},
+				RowKey:            "testText\x00\x01column10",
+				Keyspace:          "test_keyspace",
+				ComplexOperations: map[string]*ComplexOperation{},
 			},
 		},
 		{
@@ -285,7 +285,7 @@ func TestTranslator_TranslateUpdateQuerytoBigtable(t *testing.T) {
 					"value1": "testText",
 					"value2": "column10",
 				},
-				ComplexOperation: map[string]*ComplexOperation{
+				ComplexOperations: map[string]*ComplexOperation{
 					"counter_col": {
 						IncrementType:  Increment,
 						IncrementValue: 1,
@@ -320,7 +320,7 @@ func TestTranslator_TranslateUpdateQuerytoBigtable(t *testing.T) {
 					"value1": "testText",
 					"value2": "column10",
 				},
-				ComplexOperation: map[string]*ComplexOperation{
+				ComplexOperations: map[string]*ComplexOperation{
 					"counter_col": {
 						IncrementType:  Decrement,
 						IncrementValue: 9,
@@ -348,7 +348,7 @@ func TestTranslator_TranslateUpdateQuerytoBigtable(t *testing.T) {
 					"value1": "testText",
 					"value2": "column10",
 				},
-				ComplexOperation: map[string]*ComplexOperation{
+				ComplexOperations: map[string]*ComplexOperation{
 					"counter_col": {
 						IncrementType:  Increment,
 						IncrementValue: -9,
@@ -372,9 +372,9 @@ func TestTranslator_TranslateUpdateQuerytoBigtable(t *testing.T) {
 					"value1": "pkval",
 					"value2": "abc",
 				},
-				RowKey:           "abc\x00\x01pkval",
-				Keyspace:         "test_keyspace",
-				ComplexOperation: map[string]*ComplexOperation{},
+				RowKey:            "abc\x00\x01pkval",
+				Keyspace:          "test_keyspace",
+				ComplexOperations: map[string]*ComplexOperation{},
 			},
 		},
 		{
@@ -390,9 +390,9 @@ func TestTranslator_TranslateUpdateQuerytoBigtable(t *testing.T) {
 					"value1": "testText",
 					"value2": "column10",
 				},
-				RowKey:           "testText\x00\x01column10",
-				Keyspace:         "test_keyspace",
-				ComplexOperation: map[string]*ComplexOperation{},
+				RowKey:            "testText\x00\x01column10",
+				Keyspace:          "test_keyspace",
+				ComplexOperations: map[string]*ComplexOperation{},
 			},
 		},
 		{
@@ -408,9 +408,9 @@ func TestTranslator_TranslateUpdateQuerytoBigtable(t *testing.T) {
 					"value1": "testText",
 					"value2": "column10",
 				},
-				RowKey:           "testText\x00\x01column10",
-				Keyspace:         "test_keyspace",
-				ComplexOperation: map[string]*ComplexOperation{},
+				RowKey:            "testText\x00\x01column10",
+				Keyspace:          "test_keyspace",
+				ComplexOperations: map[string]*ComplexOperation{},
 			},
 		},
 		{
@@ -425,9 +425,9 @@ func TestTranslator_TranslateUpdateQuerytoBigtable(t *testing.T) {
 					"value1": "testText",
 					"value2": "column10",
 				},
-				RowKey:           "testText\x00\x01column10",
-				Keyspace:         "test_keyspace",
-				ComplexOperation: map[string]*ComplexOperation{},
+				RowKey:            "testText\x00\x01column10",
+				Keyspace:          "test_keyspace",
+				ComplexOperations: map[string]*ComplexOperation{},
 			},
 		},
 		{
@@ -442,9 +442,9 @@ func TestTranslator_TranslateUpdateQuerytoBigtable(t *testing.T) {
 					"value1": "testText",
 					"value2": "column10",
 				},
-				RowKey:           "testText\x00\x01column10",
-				Keyspace:         "test_keyspace",
-				ComplexOperation: map[string]*ComplexOperation{},
+				RowKey:            "testText\x00\x01column10",
+				Keyspace:          "test_keyspace",
+				ComplexOperations: map[string]*ComplexOperation{},
 			},
 		},
 		{
@@ -484,9 +484,9 @@ func TestTranslator_TranslateUpdateQuerytoBigtable(t *testing.T) {
 					"value1": "pkval",
 					"value2": "abc",
 				},
-				RowKey:           "abc\x00\x01pkval",
-				Keyspace:         "test_keyspace",
-				ComplexOperation: map[string]*ComplexOperation{},
+				RowKey:            "abc\x00\x01pkval",
+				Keyspace:          "test_keyspace",
+				ComplexOperations: map[string]*ComplexOperation{},
 			},
 		},
 		{
@@ -518,9 +518,9 @@ func TestTranslator_TranslateUpdateQuerytoBigtable(t *testing.T) {
 					"value1": "pkval",
 					"value2": "abc",
 				},
-				RowKey:           "abc\x00\x01pkval",
-				Keyspace:         "test_keyspace",
-				ComplexOperation: map[string]*ComplexOperation{},
+				RowKey:            "abc\x00\x01pkval",
+				Keyspace:          "test_keyspace",
+				ComplexOperations: map[string]*ComplexOperation{},
 			},
 		},
 		{
@@ -598,7 +598,7 @@ func TestTranslator_TranslateUpdateQuerytoBigtable(t *testing.T) {
 				Logger:              tt.fields.Logger,
 				SchemaMappingConfig: schemaMappingConfig,
 			}
-			got, err := tr.TranslateUpdateQuerytoBigtable(tt.args.query, false, tt.sessionKeyspace)
+			got, err := tr.PrepareUpdateQuery(tt.args.query, false, tt.sessionKeyspace)
 			if tt.wantErr != NO_ERROR_EXPECTED {
 				require.Error(t, err)
 				assert.Contains(t, err.Error(), tt.wantErr)
@@ -607,7 +607,7 @@ func TestTranslator_TranslateUpdateQuerytoBigtable(t *testing.T) {
 			require.NoError(t, err)
 			assert.Equal(t, tt.want.RowKey, got.RowKey)
 			assert.Equal(t, tt.want.Keyspace, got.Keyspace)
-			assert.Equal(t, tt.want.ComplexOperation, got.ComplexOperation)
+			assert.Equal(t, tt.want.ComplexOperations, got.ComplexOperations)
 			assert.Equal(t, tt.want.Params, got.Params)
 		})
 	}
@@ -656,7 +656,7 @@ func TestTranslator_BuildUpdatePrepareQuery(t *testing.T) {
 					Keyspace:    "test_keyspace",
 					PrimaryKeys: []string{"pk_1_text"},
 					RowKey:      "pk_1_text_value", // Example RowKey based on pk_1_text
-					Clauses: []types.Clause{
+					Clauses: []types.Condition{
 						{
 							Column:       "pk_1_text",
 							Operator:     "=",
@@ -683,7 +683,7 @@ func TestTranslator_BuildUpdatePrepareQuery(t *testing.T) {
 				PrimaryKeys: []string{"pk_1_text"},
 				RowKey:      "",
 				Table:       "non_primitive_table",
-				Clauses: []types.Clause{
+				Clauses: []types.Condition{
 					{
 						Column:       "pk_1_text",
 						Operator:     "=",
@@ -709,30 +709,30 @@ func TestTranslator_BuildUpdatePrepareQuery(t *testing.T) {
 				Logger:              tt.fields.Logger,
 				SchemaMappingConfig: tt.fields.SchemaMappingConfig,
 			}
-			got, err := tr.BuildUpdatePrepareQuery(tt.args.columnsResponse, tt.args.values, tt.args.st, tt.args.protocolV)
+			got, err := tr.BindUpdate(tt.args.columnsResponse, tt.args.values, tt.args.st, tt.args.protocolV)
 			if (err != nil) != tt.wantErr {
-				t.Errorf("Translator.BuildUpdatePrepareQuery() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("Translator.BindUpdate() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
 			// Comparing specific fields as the whole struct comparison might fail due to dynamic parts
 			if got != nil && tt.want != nil {
 				if got.Query != tt.want.Query {
-					t.Errorf("Translator.BuildUpdatePrepareQuery() Query = %v, wantNewColumns %v", got.Query, tt.want.Query)
+					t.Errorf("Translator.BindUpdate() CqlQuery = %v, wantNewColumns %v", got.Query, tt.want.Query)
 				}
 				if !reflect.DeepEqual(got.PrimaryKeys, tt.want.PrimaryKeys) {
-					t.Errorf("Translator.BuildUpdatePrepareQuery() PrimaryKeys = %v, wantNewColumns %v", got.PrimaryKeys, tt.want.PrimaryKeys)
+					t.Errorf("Translator.BindUpdate() PrimaryKeys = %v, wantNewColumns %v", got.PrimaryKeys, tt.want.PrimaryKeys)
 				}
 				if len(got.Clauses) != len(tt.want.Clauses) {
-					t.Errorf("Translator.BuildUpdatePrepareQuery() Clauses length mismatch = %d, wantNewColumns %d", len(got.Clauses), len(tt.want.Clauses))
+					t.Errorf("Translator.BindUpdate() Conditions length mismatch = %d, wantNewColumns %d", len(got.Clauses), len(tt.want.Clauses))
 				} else {
 					for i := range got.Clauses {
 						if !reflect.DeepEqual(got.Clauses[i], tt.want.Clauses[i]) {
-							t.Errorf("Translator.BuildUpdatePrepareQuery() Clause[%d] = %v, wantNewColumns %v", i, got.Clauses[i], tt.want.Clauses[i])
+							t.Errorf("Translator.BindUpdate() Condition[%d] = %v, wantNewColumns %v", i, got.Clauses[i], tt.want.Clauses[i])
 						}
 					}
 				}
 			} else if !(got == nil && tt.want == nil) {
-				t.Errorf("Translator.BuildUpdatePrepareQuery() = %v, wantNewColumns %v", got, tt.want)
+				t.Errorf("Translator.BindUpdate() = %v, wantNewColumns %v", got, tt.want)
 			}
 		})
 	}

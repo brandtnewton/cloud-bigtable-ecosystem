@@ -23,7 +23,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/collectiondecoder"
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/global/types"
 	cql "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/third_party/cqlparser"
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/third_party/datastax/proxycore"
@@ -227,55 +226,6 @@ func IsCollection(dt datatype.DataType) bool {
 	}
 }
 
-// DecodeBytesToCassandraColumnType(): Function to decode incoming bytes parameter
-// for handleExecute scenario into corresponding go datatype
-//
-// Parameters:
-//   - b: []byte
-//   - choice:  datatype.DataType
-//   - protocolVersion: primitive.ProtocolVersion
-//
-// Returns: (interface{}, error)
-func DecodeBytesToCassandraColumnType(b []byte, choice datatype.PrimitiveType, protocolVersion primitive.ProtocolVersion) (any, error) {
-	switch choice.GetDataTypeCode() {
-	case primitive.DataTypeCodeVarchar:
-		return proxycore.DecodeType(datatype.Varchar, protocolVersion, b)
-	case primitive.DataTypeCodeDouble:
-		return proxycore.DecodeType(datatype.Double, protocolVersion, b)
-	case primitive.DataTypeCodeFloat:
-		return proxycore.DecodeType(datatype.Float, protocolVersion, b)
-	case primitive.DataTypeCodeBigint, primitive.DataTypeCodeCounter:
-		return proxycore.DecodeType(datatype.Bigint, protocolVersion, b)
-	case primitive.DataTypeCodeTimestamp:
-		return proxycore.DecodeType(datatype.Timestamp, protocolVersion, b)
-	case primitive.DataTypeCodeInt:
-		var decodedInt int64
-		if len(b) == 8 {
-			decoded, err := proxycore.DecodeType(datatype.Bigint, protocolVersion, b)
-			if err != nil {
-				return nil, err
-			}
-			decodedInt = decoded.(int64)
-		} else {
-			decoded, err := proxycore.DecodeType(datatype.Int, protocolVersion, b)
-			if err != nil {
-				return nil, err
-			}
-			decodedInt = int64(decoded.(int32))
-		}
-		return decodedInt, nil
-	case primitive.DataTypeCodeBoolean:
-		return proxycore.DecodeType(datatype.Boolean, protocolVersion, b)
-	case primitive.DataTypeCodeDate:
-		return proxycore.DecodeType(datatype.Date, protocolVersion, b)
-	case primitive.DataTypeCodeBlob:
-		return proxycore.DecodeType(datatype.Blob, protocolVersion, b)
-	default:
-		res, err := decodeNonPrimitive(choice, b)
-		return res, err
-	}
-}
-
 func IsReservedCqlKeyword(s string) bool {
 	// we're opting to treat reserved and "non-reserved" keywords the same, for simplicity
 	_, found := reservedKeywords[strings.ToUpper(s)]
@@ -361,51 +311,6 @@ func FromDataCode(dt datatype.DataType) (types.CqlDataType, error) {
 	default:
 		return nil, fmt.Errorf("unhandled type: %s", dt.String())
 	}
-}
-
-// decodeNonPrimitive() Decodes non-primitive types like list, list, and list from byte data based on the provided datatype choice. Returns the decoded collection or an error if unsupported.
-func decodeNonPrimitive(choice datatype.PrimitiveType, b []byte) (any, error) {
-	var err error
-	// Check if it's a list type
-	if choice.GetDataTypeCode() == primitive.DataTypeCodeList {
-		// Get the element type
-		listType := choice.(datatype.ListType)
-		elementType := listType.GetElementType()
-
-		// Now check the element type's code
-		switch elementType.GetDataTypeCode() {
-		case primitive.DataTypeCodeVarchar:
-			decodedList, err := collectiondecoder.DecodeCollection(ListOfStr.DataType(), primitive.ProtocolVersion4, b)
-			if err != nil {
-				return nil, err
-			}
-			return decodedList, err
-		case primitive.DataTypeCodeInt:
-			decodedList, err := collectiondecoder.DecodeCollection(ListOfInt.DataType(), primitive.ProtocolVersion4, b)
-			if err != nil {
-				return nil, err
-			}
-			return decodedList, err
-		case primitive.DataTypeCodeBigint:
-			decodedList, err := collectiondecoder.DecodeCollection(ListOfBigInt.DataType(), primitive.ProtocolVersion4, b)
-			if err != nil {
-				return nil, err
-			}
-			return decodedList, err
-		case primitive.DataTypeCodeDouble:
-			decodedList, err := collectiondecoder.DecodeCollection(ListOfDouble.DataType(), primitive.ProtocolVersion4, b)
-			if err != nil {
-				return nil, err
-			}
-			return decodedList, err
-		default:
-			err = fmt.Errorf("unsupported list element type to decode - %v", elementType.GetDataTypeCode())
-			return nil, err
-		}
-	}
-
-	err = fmt.Errorf("unsupported Datatype to decode - %v", choice.GetDataTypeCode())
-	return nil, err
 }
 
 // defaultIfEmpty() returns a default string value if the provided value is empty.
@@ -591,35 +496,35 @@ func EncodeInt(value any, pv primitive.ProtocolVersion) ([]byte, error) {
 /*
 GetClauseByValue() returns the clause that matches the value
 Parameters:
-  - clause: []types.Clause
+  - clause: []types.Condition
   - value: string
 
-Returns: types.Clause, error
+Returns: types.Condition, error
 */
-func GetClauseByValue(clause []types.Clause, value string) (types.Clause, error) {
+func GetClauseByValue(clause []types.Condition, value string) (types.Condition, error) {
 	for _, c := range clause {
 		if c.Value == "@"+value {
 			return c, nil
 		}
 	}
-	return types.Clause{}, fmt.Errorf("clause not found")
+	return types.Condition{}, fmt.Errorf("clause not found")
 }
 
 /*
 GetClauseByColumn() returns the clause that matches the column
 Parameters:
-  - clause: []types.Clause
+  - clause: []types.Condition
   - column: string
 
-Returns: types.Clause, error
+Returns: types.Condition, error
 */
-func GetClauseByColumn(clause []types.Clause, column string) (types.Clause, error) {
+func GetClauseByColumn(clause []types.Condition, column types.ColumnName) (types.Condition, error) {
 	for _, c := range clause {
-		if c.Column == column {
+		if c.Column.Name == column {
 			return c, nil
 		}
 	}
-	return types.Clause{}, fmt.Errorf("clause not found")
+	return types.Condition{}, fmt.Errorf("clause not found")
 }
 
 func IsSupportedPrimaryKeyType(dt types.CqlDataType) bool {

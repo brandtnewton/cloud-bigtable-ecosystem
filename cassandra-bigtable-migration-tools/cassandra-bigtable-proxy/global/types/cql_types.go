@@ -20,6 +20,10 @@ type CqlDataType interface {
 	Code() CqlTypeCode
 }
 
+func IsScalar(c CqlDataType) bool {
+	return !c.IsCollection()
+}
+
 type CqlTypeCode int
 
 // Enumeration of all Cassandra scalar types.
@@ -243,7 +247,7 @@ func (f FrozenType) InnerType() CqlDataType {
 }
 
 func (f FrozenType) IsCollection() bool {
-	return f.innerType.IsCollection()
+	return false
 }
 
 func (f FrozenType) DataType() datatype.DataType {

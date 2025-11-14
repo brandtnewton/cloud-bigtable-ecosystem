@@ -16,18 +16,25 @@
 
 package constants
 
+type Operator string
+
 // TODO: we need to move all the constants here.
 // Just to keep the code clean, we have defined the constants here.
 // It will help in reducing the number of magic strings in the code also to avoid the circular dependency.
 const (
-	BETWEEN          = "BETWEEN"
-	LIKE             = "LIKE"
-	BETWEEN_AND      = "BETWEEN-AND"
-	IN               = "IN"
-	ARRAY_INCLUDES   = "ARRAY_INCLUDES"
-	MAP_CONTAINS_KEY = "MAP_CONTAINS_KEY"
-	CONTAINS_KEY     = "CONTAINS KEY"
-	CONTAINS         = "CONTAINS"
+	EQ               Operator = "="
+	GT               Operator = ">"
+	LT               Operator = "<"
+	GTE              Operator = ">="
+	LTE              Operator = "<="
+	BETWEEN          Operator = "BETWEEN"
+	LIKE             Operator = "LIKE"
+	BETWEEN_AND      Operator = "BETWEEN-AND"
+	IN               Operator = "IN"
+	ARRAY_INCLUDES   Operator = "ARRAY_INCLUDES"
+	MAP_CONTAINS_KEY Operator = "MAP_CONTAINS_KEY"
+	CONTAINS_KEY     Operator = "CONTAINS KEY"
+	CONTAINS         Operator = "CONTAINS"
 )
 
 const (

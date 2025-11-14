@@ -649,16 +649,16 @@ func TestGetClauseByValue(t *testing.T) {
 		{
 			name: "Found clause",
 			args: args{
-				clause: []types.Condition{{Value: "@test"}},
+				clause: []types.Condition{{ValuePlaceholder: "@test"}},
 				value:  "test",
 			},
-			want:    types.Condition{Value: "@test"},
+			want:    types.Condition{ValuePlaceholder: "@test"},
 			wantErr: false,
 		},
 		{
 			name: "Condition not found",
 			args: args{
-				clause: []types.Condition{{Value: "@test"}},
+				clause: []types.Condition{{ValuePlaceholder: "@test"}},
 				value:  "notfound",
 			},
 			want:    types.Condition{},
@@ -676,16 +676,16 @@ func TestGetClauseByValue(t *testing.T) {
 		{
 			name: "Multiple clauses, found",
 			args: args{
-				clause: []types.Condition{{Value: "@test1"}, {Value: "@test2"}},
+				clause: []types.Condition{{ValuePlaceholder: "@test1"}, {ValuePlaceholder: "@test2"}},
 				value:  "test2",
 			},
-			want:    types.Condition{Value: "@test2"},
+			want:    types.Condition{ValuePlaceholder: "@test2"},
 			wantErr: false,
 		},
 		{
 			name: "Multiple clauses, not found",
 			args: args{
-				clause: []types.Condition{{Value: "@test1"}, {Value: "@test2"}},
+				clause: []types.Condition{{ValuePlaceholder: "@test1"}, {ValuePlaceholder: "@test2"}},
 				value:  "test3",
 			},
 			want:    types.Condition{},
@@ -720,20 +720,20 @@ func TestGetClauseByColumn(t *testing.T) {
 			name: "Existing column",
 			args: args{
 				clause: []types.Condition{
-					{Column: "column1", Value: "value1"},
-					{Column: "column2", Value: "value2"},
+					{Column: "column1", ValuePlaceholder: "value1"},
+					{Column: "column2", ValuePlaceholder: "value2"},
 				},
 				column: "column1",
 			},
-			want:    types.Condition{Column: "column1", Value: "value1"},
+			want:    types.Condition{Column: "column1", ValuePlaceholder: "value1"},
 			wantErr: false,
 		},
 		{
 			name: "Non-existing column",
 			args: args{
 				clause: []types.Condition{
-					{Column: "column1", Value: "value1"},
-					{Column: "column2", Value: "value2"},
+					{Column: "column1", ValuePlaceholder: "value1"},
+					{Column: "column2", ValuePlaceholder: "value2"},
 				},
 				column: "column3",
 			},
@@ -846,7 +846,7 @@ func TestIsSupportedColumnType(t *testing.T) {
 		{"Unsupported List Element", types.NewListType(types.NewListType(types.TypeInt)), false},
 		{"Unsupported Set Element", ParseCqlTypeOrDie("set<blob>"), false},
 		{"Unsupported Map Key", ParseCqlTypeOrDie("map<blob,text>"), false},
-		{"Unsupported Map Value", ParseCqlTypeOrDie("map<text,uuid>"), false},
+		{"Unsupported Map ValuePlaceholder", ParseCqlTypeOrDie("map<text,uuid>"), false},
 		{"Nested Collection - List of Maps", types.NewListType(types.NewMapType(types.TypeVarchar, types.TypeInt)), false},
 		// --- Negative Cases: Frozen Types ---
 		{"Frozen List", ParseCqlTypeOrDie("frozen<list<int>>"), false},

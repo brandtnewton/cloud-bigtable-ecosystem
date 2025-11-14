@@ -1342,7 +1342,7 @@ func TestInferSQLType(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			sqlType, err := inferSQLType(tt.input)
+			sqlType, err := toBigtableSQLType(tt.input)
 
 			if tt.expectedError != "" {
 				assert.Error(t, err)

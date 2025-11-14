@@ -909,12 +909,12 @@ func (c *client) prepareSelectType(raw *frame.RawFrame, msg *message.Prepare, id
 			columnMeta.Type = datatype.NewListType(columnMeta.Type)
 		}
 	}
-	query := types.QueryMetadata{
-		Query:               translatedSelectQuery.TranslatedQuery,
+	query := types.SelectQuery{
+		BigtableQuery:       translatedSelectQuery.TranslatedQuery,
 		QueryType:           translatedSelectQuery.QueryType,
 		TableName:           translatedSelectQuery.Table,
 		KeyspaceName:        translatedSelectQuery.Keyspace,
-		ProtocalV:           raw.Header.Version,
+		ProtocolVersion:     raw.Header.Version,
 		Params:              translatedSelectQuery.Params,
 		SelectedColumns:     translatedSelectQuery.ColumnMeta.Column,
 		PrimaryKeys:         translatedSelectQuery.PrimaryKeys,
@@ -926,7 +926,7 @@ func (c *client) prepareSelectType(raw *frame.RawFrame, msg *message.Prepare, id
 
 	translatedSelectQuery.CachedBTPrepare, err = c.proxy.bClient.PrepareStatement(c.ctx, query)
 	if err != nil {
-		c.proxy.logger.Error(errorAtBigtable, zap.String(Query, query.Query), zap.Error(err))
+		c.proxy.logger.Error(errorAtBigtable, zap.String(Query, query.BigtableQuery), zap.Error(err))
 		c.sender.Send(raw.Header, &message.Invalid{ErrorMessage: err.Error()})
 		return nil, nil, err
 	}
@@ -1160,7 +1160,7 @@ func (c *client) handleExecuteForSelect(raw *frame.RawFrame, msg *partialExecute
 
 	// Get Decoded parameters
 	otelgo.AddAnnotation(otelCtx, "Decoding Bytes To Cassandra Column Type")
-	query, err := c.proxy.translator.BindSelect(st, msg.PositionalValues)
+	query, err := c.proxy.translator.BindSelect(st, msg.PositionalValues, raw.Header.Version)
 	if err != nil {
 		c.proxy.logger.Error(errorAtBigtable, zap.String(Query, st.Query), zap.Error(err))
 		c.sender.Send(raw.Header, &message.Invalid{ErrorMessage: err.Error()})
@@ -1168,7 +1168,7 @@ func (c *client) handleExecuteForSelect(raw *frame.RawFrame, msg *partialExecute
 		return
 	}
 	otelgo.AddAnnotation(otelCtx, executingBigtableSQLAPIRequestEvent)
-	result, _, err = c.proxy.bClient.ExecutePreparedStatement(otelCtx, query, st.CachedBTPrepare)
+	result, _, err = c.proxy.bClient.ExecutePreparedStatement(otelCtx, *query, st.CachedBTPrepare)
 
 	otelgo.AddAnnotation(otelCtx, bigtableExecutionDoneEvent)
 
@@ -1392,17 +1392,14 @@ func (c *client) handleQuery(raw *frame.RawFrame, msg *partialQuery) {
 			if len(translatedSelectQuery.GroupByColumns) > 0 {
 				isGroupBy = true
 			}
-			queryMeta := types.QueryMetadata{
-				Query:               translatedSelectQuery.TranslatedQuery,
-				TableName:           translatedSelectQuery.Table,
-				KeyspaceName:        translatedSelectQuery.Keyspace,
-				ProtocalV:           raw.Header.Version,
-				Params:              translatedSelectQuery.Params,
-				SelectedColumns:     translatedSelectQuery.ColumnMeta.Column,
-				PrimaryKeys:         translatedSelectQuery.PrimaryKeys,
-				DefaultColumnFamily: string(c.proxy.translator.SchemaMappingConfig.SystemColumnFamily),
-				IsStar:              translatedSelectQuery.ColumnMeta.Star,
-				IsGroupBy:           isGroupBy,
+			queryMeta := types.SelectQuery{
+				BigtableQuery:   translatedSelectQuery.TranslatedQuery,
+				TableName:       translatedSelectQuery.Table,
+				KeyspaceName:    translatedSelectQuery.Keyspace,
+				Params:          translatedSelectQuery.Params,
+				SelectedColumns: translatedSelectQuery.ColumnMeta.Column,
+				IsStar:          translatedSelectQuery.ColumnMeta.Star,
+				IsGroupBy:       isGroupBy,
 			}
 
 			otelgo.AddAnnotation(otelCtx, executingBigtableSQLAPIRequestEvent)

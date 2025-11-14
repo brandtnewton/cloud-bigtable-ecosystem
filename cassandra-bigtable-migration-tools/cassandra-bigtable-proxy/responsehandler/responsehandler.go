@@ -18,8 +18,6 @@ package responsehandler
 
 import (
 	"fmt"
-	"sort"
-
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/global/types"
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/third_party/datastax/proxycore"
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/utilities"
@@ -27,6 +25,7 @@ import (
 	"github.com/datastax/go-cassandra-native-protocol/message"
 	"github.com/datastax/go-cassandra-native-protocol/primitive"
 	"go.uber.org/zap"
+	"sort"
 )
 
 const (
@@ -37,8 +36,8 @@ const (
 )
 
 type ResponseHandlerIface interface {
-	BuildMetadata(rowMap []map[string]interface{}, query types.QueryMetadata) (cmd []*message.ColumnMetadata, err error)
-	BuildResponseRow(rowMap map[string]interface{}, query types.QueryMetadata, cmd []*message.ColumnMetadata) (message.Row, error)
+	BuildMetadata(rowMap []map[string]interface{}, query types.SelectQuery) (cmd []*message.ColumnMetadata, err error)
+	BuildResponseRow(rowMap map[string]interface{}, query types.SelectQuery, cmd []*message.ColumnMetadata) (message.Row, error)
 }
 
 // BuildMetadata constructs metadata for given row data based on query specifications.
@@ -46,7 +45,7 @@ type ResponseHandlerIface interface {
 // Parameters:
 //   - rowMap: A map where the key is a string representing unique columns and the value is another map
 //     representing the column's data.
-//   - query: QueryMetadata containing additional information about the query, such as alias mappings and table details.
+//   - query: SelectQuery containing additional information about the query, such as alias mappings and table details.
 //
 // Returns:
 //   - cmd: A slice of pointers to ColumnMetadata, which describe the columns' metadata like keyspace, table,
@@ -55,7 +54,7 @@ type ResponseHandlerIface interface {
 //   - err: An error if any occurs during the operation, particularly during metadata retrieval.
 //
 // This function uses helper functions to extract unique keys, handle aliases, and determine column types
-func (th *TypeHandler) BuildMetadata(rowMap []map[string]interface{}, query types.QueryMetadata) (cmd []*message.ColumnMetadata, err error) {
+func (th *TypeHandler) BuildMetadata(rowMap []map[string]interface{}, query types.SelectQuery) (cmd []*message.ColumnMetadata, err error) {
 	tableConfig, err := th.SchemaMappingConfig.GetTableConfig(query.KeyspaceName, query.TableName)
 	if err != nil {
 		return nil, err
@@ -80,7 +79,7 @@ func (th *TypeHandler) BuildMetadata(rowMap []map[string]interface{}, query type
 			if columnObj.Alias != "" || columnObj.IsFunc || columnObj.MapKey != "" {
 				lookupColumn = columnObj.ColumnName
 			}
-			cqlType, err = tableConfig.GetColumnDataType(lookupColumn)
+			cqlType, err = tableConfig.GetColumnDataType(types.ColumnName(lookupColumn))
 			if err != nil {
 				return nil, err
 			}
@@ -105,14 +104,14 @@ func (th *TypeHandler) BuildMetadata(rowMap []map[string]interface{}, query type
 //
 // Parameters:
 //   - rowMap: A map with column names as keys and their corresponding data as values.
-//   - query: QueryMetadata containing additional details about the query, such as alias mappings and protocol version.
+//   - query: SelectQuery containing additional details about the query, such as alias mappings and protocol version.
 //   - cmd: A slice of pointers to ColumnMetadata that describe details for each column, such as type and name.
 //   - mapKeyArray: A slice of strings representing keys of the map fields corresponding to the query column names.
 //
 // Returns:
 //   - mr: A message.Row containing the serialized row data.
 //   - err: An error if any occurs during the construction of the row, especially in data retrieval or encoding.
-func (th *TypeHandler) BuildResponseRow(rowMap map[string]interface{}, query types.QueryMetadata, cmd []*message.ColumnMetadata) (message.Row, error) {
+func (th *TypeHandler) BuildResponseRow(rowMap map[string]interface{}, query types.SelectQuery, cmd []*message.ColumnMetadata) (message.Row, error) {
 	tableConfig, err := th.SchemaMappingConfig.GetTableConfig(query.KeyspaceName, query.TableName)
 	if err != nil {
 		return nil, err
@@ -222,7 +221,7 @@ func (th *TypeHandler) BuildResponseRow(rowMap map[string]interface{}, query typ
 					mr = append(mr, nil)
 					continue
 				}
-				err = th.HandleSetType(setval, &mr, setType, query.ProtocalV)
+				err = th.HandleSetType(setval, &mr, setType, query.ProtocolVersion)
 				if err != nil {
 					return nil, err
 				}
@@ -236,7 +235,7 @@ func (th *TypeHandler) BuildResponseRow(rowMap map[string]interface{}, query typ
 					mr = append(mr, nil)
 					continue
 				}
-				err = th.HandleListType(listVal, &mr, listType, query.ProtocalV)
+				err = th.HandleListType(listVal, &mr, listType, query.ProtocolVersion)
 				if err != nil {
 					return nil, err
 				}
@@ -262,9 +261,9 @@ func (th *TypeHandler) BuildResponseRow(rowMap map[string]interface{}, query typ
 				}
 
 				if mapType.GetKeyType() == datatype.Varchar {
-					err = th.HandleMapType(mapData, &mr, mapType, query.ProtocalV)
+					err = th.HandleMapType(mapData, &mr, mapType, query.ProtocolVersion)
 				} else if mapType.GetKeyType() == datatype.Timestamp {
-					err = th.HandleTimestampMap(mapData, &mr, mapType, query.ProtocalV)
+					err = th.HandleTimestampMap(mapData, &mr, mapType, query.ProtocolVersion)
 				}
 				if err != nil {
 					th.Logger.Error("Error while Encoding json->bytes -> ", zap.Error(err))
@@ -272,7 +271,7 @@ func (th *TypeHandler) BuildResponseRow(rowMap map[string]interface{}, query typ
 				}
 			}
 		} else {
-			value, err = HandlePrimitiveEncoding(cqlType, value, query.ProtocalV, true)
+			value, err = HandlePrimitiveEncoding(cqlType, value, query.ProtocolVersion, true)
 			if err != nil {
 				return nil, err
 			}
@@ -371,7 +370,7 @@ func (th *TypeHandler) HandleListType(listData []interface{}, mr *message.Row, l
 }
 
 // ExtractUniqueKeys extracts all unique keys from a nested map and returns them as a set of UniqueKeys
-func ExtractUniqueKeys(rowMap []map[string]interface{}, query types.QueryMetadata) []string {
+func ExtractUniqueKeys(rowMap []map[string]interface{}, query types.SelectQuery) []string {
 	var columns []string
 	if query.IsStar {
 		uniqueKeys := make(map[string]bool)
@@ -396,16 +395,16 @@ func ExtractUniqueKeys(rowMap []map[string]interface{}, query types.QueryMetadat
 	return columns
 }
 
-// GetQueryColumn retrieves a specific column from the QueryMetadata based on a key.
+// GetQueryColumn retrieves a specific column from the SelectQuery based on a key.
 //
 // Parameters:
-// - query (QueryMetadata): The metadata object containing information about the selected columns.
+// - query (SelectQuery): The metadata object containing information about the selected columns.
 // - index (int): The index of a specific column to check first for a match.
 // - key (string): The key to match against the column's Alias or Column.
 //
 // Returns:
 // - types: The column object that matches the key, or an empty object if no match is found.
-func GetQueryColumn(query types.QueryMetadata, index int, key string) types.SelectedColumn {
+func GetQueryColumn(query types.SelectQuery, index int, key string) types.SelectedColumn {
 	if len(query.SelectedColumns) > 0 {
 		selectedColumn := query.SelectedColumns[index]
 		if (selectedColumn.IsWriteTimeColumn && string(selectedColumn.Name) == key) || (selectedColumn.IsWriteTimeColumn && selectedColumn.Alias == key) || string(selectedColumn.Name) == key {

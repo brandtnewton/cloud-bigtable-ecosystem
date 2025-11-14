@@ -82,8 +82,8 @@ var (
 		{Key: "Red", Value: []byte("")},
 	}
 	// list_text = []Maptype{
-	// 	{Key: "Black", Value: []byte("")},
-	// 	{Key: "Red", Value: []byte("")},
+	// 	{Key: "Black", ValuePlaceholder: []byte("")},
+	// 	{Key: "Red", ValuePlaceholder: []byte("")},
 	// }
 )
 var ResponseHandler_Input_Result_Success = &btpb.ExecuteQueryResponse_Results{

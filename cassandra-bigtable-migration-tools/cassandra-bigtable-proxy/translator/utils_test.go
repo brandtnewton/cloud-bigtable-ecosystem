@@ -1526,7 +1526,7 @@ func TestCastColumns(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := castColumns(tt.colMeta, tt.columnFamily)
+			got, err := castScalarColumn(tt.colMeta, tt.columnFamily)
 			if tt.wantErr {
 				require.Error(t, err)
 				return
@@ -2224,7 +2224,7 @@ func TestProcessCollectionColumnsForPrepareQueries_ComplexMetaAndNonCollection(t
 				{Name: "map_text_text", CQLType: utilities.ParseCqlTypeOrDie("map<varchar,varchar>"), ColumnFamily: "map_text_text"},
 			},
 			values: []*primitive.Value{
-				// Value contains the keys to delete, encoded as a set<text>
+				// ValuePlaceholder contains the keys to delete, encoded as a set<text>
 				{Contents: setValueBytes},
 			},
 			complexMeta: map[string]*ComplexOperation{
@@ -2266,7 +2266,7 @@ func TestProcessCollectionColumnsForPrepareQueries_ComplexMetaAndNonCollection(t
 			wantDelColFamily: nil,
 			wantDelColumns:   nil,
 			wantErr:          false,
-			// We also need to check if complexMeta["list_text"].Value was updated, but that's harder in this structure
+			// We also need to check if complexMeta["list_text"].ValuePlaceholder was updated, but that's harder in this structure
 		},
 		{
 			name: "Set delete elements",

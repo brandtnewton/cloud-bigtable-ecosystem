@@ -73,9 +73,9 @@ func TestTranslator_TranslateSelectQuerytoBigtable(t *testing.T) {
 				Keyspace:        "test_keyspace",
 				Clauses: []types.Condition{
 					{
-						Column:   "list_text",
-						Operator: constants.ARRAY_INCLUDES,
-						Value:    "@value1",
+						Column:           "list_text",
+						Operator:         constants.ARRAY_INCLUDES,
+						ValuePlaceholder: "@value1",
 					},
 				},
 				Limit: Limit{
@@ -105,9 +105,9 @@ func TestTranslator_TranslateSelectQuerytoBigtable(t *testing.T) {
 				Keyspace:        "test_keyspace",
 				Clauses: []types.Condition{
 					{
-						Column:   "column8",
-						Operator: "MAP_CONTAINS_KEY",
-						Value:    "@value1",
+						Column:           "column8",
+						Operator:         "MAP_CONTAINS_KEY",
+						ValuePlaceholder: "@value1",
 					},
 				},
 				Limit: Limit{
@@ -137,9 +137,9 @@ func TestTranslator_TranslateSelectQuerytoBigtable(t *testing.T) {
 				Keyspace:        "test_keyspace",
 				Clauses: []types.Condition{
 					{
-						Column:   "column7",
-						Operator: "MAP_CONTAINS_KEY", // We are considering set as map internally
-						Value:    "@value1",
+						Column:           "column7",
+						Operator:         "MAP_CONTAINS_KEY", // We are considering set as map internally
+						ValuePlaceholder: "@value1",
 					},
 				},
 				Limit: Limit{
@@ -169,10 +169,10 @@ func TestTranslator_TranslateSelectQuerytoBigtable(t *testing.T) {
 				Keyspace:        "test_keyspace",
 				Clauses: []types.Condition{
 					{
-						Column:       "column1",
-						Operator:     "=",
-						Value:        "@value1",
-						IsPrimaryKey: true,
+						Column:           "column1",
+						Operator:         "=",
+						ValuePlaceholder: "@value1",
+						IsPrimaryKey:     true,
 					},
 				},
 				Limit: Limit{
@@ -202,9 +202,9 @@ func TestTranslator_TranslateSelectQuerytoBigtable(t *testing.T) {
 				Keyspace:        "test_keyspace",
 				Clauses: []types.Condition{
 					{
-						Column:   "column6",
-						Operator: "IN",
-						Value:    "@value1",
+						Column:           "column6",
+						Operator:         "IN",
+						ValuePlaceholder: "@value1",
 					},
 				},
 				Params: map[string]interface{}{
@@ -228,9 +228,9 @@ func TestTranslator_TranslateSelectQuerytoBigtable(t *testing.T) {
 				Keyspace:        "test_keyspace",
 				Clauses: []types.Condition{
 					{
-						Column:   "column9",
-						Operator: "IN",
-						Value:    "@value1",
+						Column:           "column9",
+						Operator:         "IN",
+						ValuePlaceholder: "@value1",
 					},
 				},
 				Params: map[string]interface{}{
@@ -254,9 +254,9 @@ func TestTranslator_TranslateSelectQuerytoBigtable(t *testing.T) {
 				Keyspace:        "test_keyspace",
 				Clauses: []types.Condition{
 					{
-						Column:   "float_col",
-						Operator: "IN",
-						Value:    "@value1",
+						Column:           "float_col",
+						Operator:         "IN",
+						ValuePlaceholder: "@value1",
 					},
 				},
 				Params: map[string]interface{}{
@@ -280,9 +280,9 @@ func TestTranslator_TranslateSelectQuerytoBigtable(t *testing.T) {
 				Keyspace:        "test_keyspace",
 				Clauses: []types.Condition{
 					{
-						Column:   "double_col",
-						Operator: "IN",
-						Value:    "@value1",
+						Column:           "double_col",
+						Operator:         "IN",
+						ValuePlaceholder: "@value1",
 					},
 				},
 				Params: map[string]interface{}{
@@ -306,9 +306,9 @@ func TestTranslator_TranslateSelectQuerytoBigtable(t *testing.T) {
 				Keyspace:        "test_keyspace",
 				Clauses: []types.Condition{
 					{
-						Column:   "column3",
-						Operator: "IN",
-						Value:    "@value1",
+						Column:           "column3",
+						Operator:         "IN",
+						ValuePlaceholder: "@value1",
 					},
 				},
 				Params: map[string]interface{}{
@@ -342,9 +342,9 @@ func TestTranslator_TranslateSelectQuerytoBigtable(t *testing.T) {
 				ParamKeys: []string{"value1"},
 				Clauses: []types.Condition{
 					{
-						Column:   "column6",
-						Operator: "IN",
-						Value:    "@value1",
+						Column:           "column6",
+						Operator:         "IN",
+						ValuePlaceholder: "@value1",
 					},
 				},
 			},
@@ -365,9 +365,9 @@ func TestTranslator_TranslateSelectQuerytoBigtable(t *testing.T) {
 				ParamKeys: []string{"value1"},
 				Clauses: []types.Condition{
 					{
-						Column:   "column9",
-						Operator: "IN",
-						Value:    "@value1",
+						Column:           "column9",
+						Operator:         "IN",
+						ValuePlaceholder: "@value1",
 					},
 				},
 			},
@@ -388,9 +388,9 @@ func TestTranslator_TranslateSelectQuerytoBigtable(t *testing.T) {
 				ParamKeys: []string{"value1"},
 				Clauses: []types.Condition{
 					{
-						Column:   "float_col",
-						Operator: "IN",
-						Value:    "@value1",
+						Column:           "float_col",
+						Operator:         "IN",
+						ValuePlaceholder: "@value1",
 					},
 				},
 			},
@@ -411,9 +411,9 @@ func TestTranslator_TranslateSelectQuerytoBigtable(t *testing.T) {
 				ParamKeys: []string{"value1"},
 				Clauses: []types.Condition{
 					{
-						Column:   "double_col",
-						Operator: "IN",
-						Value:    "@value1",
+						Column:           "double_col",
+						Operator:         "IN",
+						ValuePlaceholder: "@value1",
 					},
 				},
 			},
@@ -434,9 +434,9 @@ func TestTranslator_TranslateSelectQuerytoBigtable(t *testing.T) {
 				ParamKeys: []string{"value1"},
 				Clauses: []types.Condition{
 					{
-						Column:   "column3",
-						Operator: "IN",
-						Value:    "@value1",
+						Column:           "column3",
+						Operator:         "IN",
+						ValuePlaceholder: "@value1",
 					},
 				},
 			},
@@ -457,9 +457,9 @@ func TestTranslator_TranslateSelectQuerytoBigtable(t *testing.T) {
 				ParamKeys: []string{"value1"},
 				Clauses: []types.Condition{
 					{
-						Column:   "column2",
-						Operator: "IN",
-						Value:    "@value1",
+						Column:           "column2",
+						Operator:         "IN",
+						ValuePlaceholder: "@value1",
 					},
 				},
 			},
@@ -488,10 +488,10 @@ func TestTranslator_TranslateSelectQuerytoBigtable(t *testing.T) {
 				Keyspace:        "test_keyspace",
 				Clauses: []types.Condition{
 					{
-						Column:       "column1",
-						Operator:     "=",
-						Value:        "@value1",
-						IsPrimaryKey: true,
+						Column:           "column1",
+						Operator:         "=",
+						ValuePlaceholder: "@value1",
+						IsPrimaryKey:     true,
 					},
 				},
 				Limit: Limit{
@@ -521,10 +521,10 @@ func TestTranslator_TranslateSelectQuerytoBigtable(t *testing.T) {
 				Keyspace:        "test_keyspace",
 				Clauses: []types.Condition{
 					{
-						Column:       "column1",
-						Operator:     "=",
-						Value:        "@value1",
-						IsPrimaryKey: true,
+						Column:           "column1",
+						Operator:         "=",
+						ValuePlaceholder: "@value1",
+						IsPrimaryKey:     true,
 					},
 				},
 				Limit: Limit{
@@ -589,35 +589,35 @@ func TestTranslator_TranslateSelectQuerytoBigtable(t *testing.T) {
 				Keyspace:        "test_keyspace",
 				Clauses: []types.Condition{
 					{
-						Column:       "column1",
-						Operator:     "=",
-						Value:        "@value1",
-						IsPrimaryKey: true,
+						Column:           "column1",
+						Operator:         "=",
+						ValuePlaceholder: "@value1",
+						IsPrimaryKey:     true,
 					},
 					{
-						Column:   "column3",
-						Operator: "=",
-						Value:    "@value2",
+						Column:           "column3",
+						Operator:         "=",
+						ValuePlaceholder: "@value2",
 					},
 					{
-						Column:   "column5",
-						Operator: "<=",
-						Value:    "@value3",
+						Column:           "column5",
+						Operator:         "<=",
+						ValuePlaceholder: "@value3",
 					},
 					{
-						Column:   "column6",
-						Operator: ">=",
-						Value:    "@value4",
+						Column:           "column6",
+						Operator:         ">=",
+						ValuePlaceholder: "@value4",
 					},
 					{
-						Column:   "column9",
-						Operator: ">",
-						Value:    "@value5",
+						Column:           "column9",
+						Operator:         ">",
+						ValuePlaceholder: "@value5",
 					},
 					{
-						Column:   "column9",
-						Operator: "<",
-						Value:    "@value6",
+						Column:           "column9",
+						Operator:         "<",
+						ValuePlaceholder: "@value6",
 					},
 				},
 				Limit: Limit{
@@ -653,35 +653,35 @@ func TestTranslator_TranslateSelectQuerytoBigtable(t *testing.T) {
 				Keyspace:        "test_keyspace",
 				Clauses: []types.Condition{
 					{
-						Column:       "column1",
-						Operator:     "=",
-						Value:        "@value1",
-						IsPrimaryKey: true,
+						Column:           "column1",
+						Operator:         "=",
+						ValuePlaceholder: "@value1",
+						IsPrimaryKey:     true,
 					},
 					{
-						Column:   "column2",
-						Operator: "=",
-						Value:    "@value2",
+						Column:           "column2",
+						Operator:         "=",
+						ValuePlaceholder: "@value2",
 					},
 					{
-						Column:   "column3",
-						Operator: "=",
-						Value:    "@value3",
+						Column:           "column3",
+						Operator:         "=",
+						ValuePlaceholder: "@value3",
 					},
 					{
-						Column:   "column5",
-						Operator: "=",
-						Value:    "@value4",
+						Column:           "column5",
+						Operator:         "=",
+						ValuePlaceholder: "@value4",
 					},
 					{
-						Column:   "column6",
-						Operator: "=",
-						Value:    "@value5",
+						Column:           "column6",
+						Operator:         "=",
+						ValuePlaceholder: "@value5",
 					},
 					{
-						Column:   "column9",
-						Operator: "=",
-						Value:    "@value6",
+						Column:           "column9",
+						Operator:         "=",
+						ValuePlaceholder: "@value6",
 					},
 				},
 				Params: map[string]interface{}{"value1": "", "value2": []uint8{}, "value3": false, "value4": time.Date(1, time.January, 1, 0, 0, 0, 0, time.UTC), "value5": int32(0), "value6": int64(0)},
@@ -772,16 +772,16 @@ func TestTranslator_TranslateSelectQuerytoBigtable(t *testing.T) {
 				ParamKeys: []string{"value1", "value2"},
 				Clauses: []types.Condition{
 					{
-						Column:       "column1",
-						Operator:     "=",
-						Value:        "@value1",
-						IsPrimaryKey: true,
+						Column:           "column1",
+						Operator:         "=",
+						ValuePlaceholder: "@value1",
+						IsPrimaryKey:     true,
 					},
 					{
-						Column:       "column1",
-						Operator:     "IN",
-						Value:        "@value2",
-						IsPrimaryKey: true,
+						Column:           "column1",
+						Operator:         "IN",
+						ValuePlaceholder: "@value2",
+						IsPrimaryKey:     true,
 					},
 				},
 			},
@@ -800,16 +800,16 @@ func TestTranslator_TranslateSelectQuerytoBigtable(t *testing.T) {
 				ParamKeys:       []string{"value1", "value2"},
 				Clauses: []types.Condition{
 					{
-						Column:       "column1",
-						Operator:     "=",
-						Value:        "@value1",
-						IsPrimaryKey: true,
+						Column:           "column1",
+						Operator:         "=",
+						ValuePlaceholder: "@value1",
+						IsPrimaryKey:     true,
 					},
 					{
-						Column:       "column1",
-						Operator:     "IN",
-						Value:        "@value2",
-						IsPrimaryKey: true,
+						Column:           "column1",
+						Operator:         "IN",
+						ValuePlaceholder: "@value2",
+						IsPrimaryKey:     true,
 					},
 				},
 			},
@@ -828,10 +828,10 @@ func TestTranslator_TranslateSelectQuerytoBigtable(t *testing.T) {
 				ParamKeys:       []string{"value1"},
 				Clauses: []types.Condition{
 					{
-						Column:       "column1",
-						Operator:     "LIKE",
-						Value:        "@value1",
-						IsPrimaryKey: true,
+						Column:           "column1",
+						Operator:         "LIKE",
+						ValuePlaceholder: "@value1",
+						IsPrimaryKey:     true,
 					},
 				},
 			},
@@ -849,16 +849,16 @@ func TestTranslator_TranslateSelectQuerytoBigtable(t *testing.T) {
 				ParamKeys:       []string{"value1", "value2"},
 				Clauses: []types.Condition{
 					{
-						Column:       "column1",
-						Operator:     "BETWEEN",
-						Value:        "@value1",
-						IsPrimaryKey: true,
+						Column:           "column1",
+						Operator:         "BETWEEN",
+						ValuePlaceholder: "@value1",
+						IsPrimaryKey:     true,
 					},
 					{
-						Column:       "column1",
-						Operator:     "BETWEEN-AND",
-						Value:        "@value2",
-						IsPrimaryKey: true,
+						Column:           "column1",
+						Operator:         "BETWEEN-AND",
+						ValuePlaceholder: "@value2",
+						IsPrimaryKey:     true,
 					},
 				},
 			},
@@ -884,10 +884,10 @@ func TestTranslator_TranslateSelectQuerytoBigtable(t *testing.T) {
 				ParamKeys:       []string{"value1"},
 				Clauses: []types.Condition{
 					{
-						Column:       "column1",
-						Operator:     "LIKE",
-						Value:        "@value1",
-						IsPrimaryKey: true,
+						Column:           "column1",
+						Operator:         "LIKE",
+						ValuePlaceholder: "@value1",
+						IsPrimaryKey:     true,
 					},
 				},
 			},
@@ -905,16 +905,16 @@ func TestTranslator_TranslateSelectQuerytoBigtable(t *testing.T) {
 				ParamKeys:       []string{"value1", "value2"},
 				Clauses: []types.Condition{
 					{
-						Column:       "column1",
-						Operator:     "BETWEEN",
-						Value:        "@value1",
-						IsPrimaryKey: true,
+						Column:           "column1",
+						Operator:         "BETWEEN",
+						ValuePlaceholder: "@value1",
+						IsPrimaryKey:     true,
 					},
 					{
-						Column:       "column1",
-						Operator:     "BETWEEN-AND",
-						Value:        "@value2",
-						IsPrimaryKey: true,
+						Column:           "column1",
+						Operator:         "BETWEEN-AND",
+						ValuePlaceholder: "@value2",
+						IsPrimaryKey:     true,
 					},
 				},
 			},
@@ -940,10 +940,10 @@ func TestTranslator_TranslateSelectQuerytoBigtable(t *testing.T) {
 				ParamKeys:       []string{"value1"},
 				Clauses: []types.Condition{
 					{
-						Column:       "column1",
-						Operator:     "LIKE",
-						Value:        "@value1",
-						IsPrimaryKey: true,
+						Column:           "column1",
+						Operator:         "LIKE",
+						ValuePlaceholder: "@value1",
+						IsPrimaryKey:     true,
 					},
 				},
 			},
@@ -961,16 +961,16 @@ func TestTranslator_TranslateSelectQuerytoBigtable(t *testing.T) {
 				ParamKeys:       []string{"value1", "value2"},
 				Clauses: []types.Condition{
 					{
-						Column:       "column1",
-						Operator:     "BETWEEN",
-						Value:        "@value1",
-						IsPrimaryKey: true,
+						Column:           "column1",
+						Operator:         "BETWEEN",
+						ValuePlaceholder: "@value1",
+						IsPrimaryKey:     true,
 					},
 					{
-						Column:       "column1",
-						Operator:     "BETWEEN-AND",
-						Value:        "@value2",
-						IsPrimaryKey: true,
+						Column:           "column1",
+						Operator:         "BETWEEN-AND",
+						ValuePlaceholder: "@value2",
+						IsPrimaryKey:     true,
 					},
 				},
 			},
@@ -1058,7 +1058,7 @@ func TestTranslator_TranslateSelectQuerytoBigtable(t *testing.T) {
 				TranslatedQuery: "SELECT column1 FROM test_table WHERE column1 = @value1;",
 				Params:          map[string]interface{}{"value1": "abc"},
 				ParamKeys:       []string{"value1"},
-				Clauses:         []types.Condition{{Column: "column1", Operator: "=", Value: "@value1", IsPrimaryKey: true}},
+				Clauses:         []types.Condition{{Column: "column1", Operator: "=", ValuePlaceholder: "@value1", IsPrimaryKey: true}},
 			},
 			defaultKeyspace: "other_keyspace",
 		},
@@ -1074,7 +1074,7 @@ func TestTranslator_TranslateSelectQuerytoBigtable(t *testing.T) {
 				TranslatedQuery: "SELECT column1 FROM test_table WHERE column1 = @value1;",
 				Params:          map[string]interface{}{"value1": "abc"},
 				ParamKeys:       []string{"value1"},
-				Clauses:         []types.Condition{{Column: "column1", Operator: "=", Value: "@value1", IsPrimaryKey: true}},
+				Clauses:         []types.Condition{{Column: "column1", Operator: "=", ValuePlaceholder: "@value1", IsPrimaryKey: true}},
 			},
 			defaultKeyspace: "test_keyspace",
 		},
@@ -1099,7 +1099,7 @@ func TestTranslator_TranslateSelectQuerytoBigtable(t *testing.T) {
 				TranslatedQuery: "SELECT column1 FROM test_table WHERE column1 = @value1;",
 				Params:          map[string]interface{}{"value1": "abc"},
 				ParamKeys:       []string{"value1"},
-				Clauses:         []types.Condition{{Column: "column1", Operator: "=", Value: "@value1", IsPrimaryKey: true}},
+				Clauses:         []types.Condition{{Column: "column1", Operator: "=", ValuePlaceholder: "@value1", IsPrimaryKey: true}},
 			},
 			defaultKeyspace: "test_keyspace",
 		},
@@ -1378,7 +1378,7 @@ func Test_GetBigtableSelectQuery(t *testing.T) {
 						},
 					},
 					Clauses: []types.Condition{
-						{Column: "column3", Operator: "=", Value: "10"},
+						{Column: "column3", Operator: "=", ValuePlaceholder: "10"},
 					},
 					GroupByColumns: []string{"column1", "column3"},
 					OrderBy: OrderBy{
@@ -1463,7 +1463,7 @@ func Test_GetBigtableSelectQuery(t *testing.T) {
 						},
 					},
 					Clauses: []types.Condition{
-						{Column: "column1", Operator: ">", Value: "5"},
+						{Column: "column1", Operator: ">", ValuePlaceholder: "5"},
 					},
 					Limit: Limit{IsLimit: true, Count: "50"},
 				},
@@ -1498,7 +1498,7 @@ func Test_GetBigtableSelectQuery(t *testing.T) {
 						},
 					},
 					Clauses: []types.Condition{
-						{Column: "column1", Operator: "IN", Value: "@values"},
+						{Column: "column1", Operator: "IN", ValuePlaceholder: "@values"},
 					},
 					OrderBy: OrderBy{
 						IsOrderBy: true,
@@ -2373,22 +2373,22 @@ func Test_parseLimitFromSelect(t *testing.T) {
 				limitSpec = selectStmt.LimitSpec()
 			}
 
-			got, err := parseLimitFromSelect(limitSpec)
+			got, err := parseLimitClause(limitSpec, nil)
 
 			if (err != nil) != tt.wantErr {
-				t.Errorf("parseLimitFromSelect() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("parseLimitClause() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
 
 			if tt.wantErr {
 				if err == nil || !strings.Contains(err.Error(), tt.errMsg) {
-					t.Errorf("parseLimitFromSelect() error = %v, wantErr containing %q", err, tt.errMsg)
+					t.Errorf("parseLimitClause() error = %v, wantErr containing %q", err, tt.errMsg)
 				}
 				return
 			}
 
 			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("parseLimitFromSelect() = %v, wantNewColumns %v", got, tt.want)
+				t.Errorf("parseLimitClause() = %v, wantNewColumns %v", got, tt.want)
 			}
 		})
 	}

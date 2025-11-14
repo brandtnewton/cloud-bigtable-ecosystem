@@ -18,7 +18,6 @@ package bigtableclient
 import (
 	"encoding/base64"
 	"fmt"
-	"reflect"
 	"slices"
 
 	"cloud.google.com/go/bigtable"
@@ -127,13 +126,13 @@ func createBigtableRowKeySchema(pmks []translator.CreateTablePrimaryKeyConfig, c
 func createBigtableRowKeyField(col types.CreateColumn, intRowKeyEncoding types.IntRowKeyEncodingType) (bigtable.StructField, error) {
 	switch col.TypeInfo.DataType() {
 	case datatype.Varchar:
-		return bigtable.StructField{FieldName: col.Name, FieldType: bigtable.StringType{Encoding: bigtable.StringUtf8BytesEncoding{}}}, nil
+		return bigtable.StructField{FieldName: string(col.Name), FieldType: bigtable.StringType{Encoding: bigtable.StringUtf8BytesEncoding{}}}, nil
 	case datatype.Int, datatype.Bigint, datatype.Timestamp:
 		switch intRowKeyEncoding {
 		case types.OrderedCodeEncoding:
-			return bigtable.StructField{FieldName: col.Name, FieldType: bigtable.Int64Type{Encoding: bigtable.Int64OrderedCodeBytesEncoding{}}}, nil
+			return bigtable.StructField{FieldName: string(col.Name), FieldType: bigtable.Int64Type{Encoding: bigtable.Int64OrderedCodeBytesEncoding{}}}, nil
 		case types.BigEndianEncoding:
-			return bigtable.StructField{FieldName: col.Name, FieldType: bigtable.Int64Type{Encoding: bigtable.BigEndianBytesEncoding{}}}, nil
+			return bigtable.StructField{FieldName: string(col.Name), FieldType: bigtable.Int64Type{Encoding: bigtable.BigEndianBytesEncoding{}}}, nil
 		}
 		return bigtable.StructField{}, fmt.Errorf("unhandled int row key encoding %v", intRowKeyEncoding)
 	default:
@@ -141,39 +140,37 @@ func createBigtableRowKeyField(col types.CreateColumn, intRowKeyEncoding types.I
 	}
 }
 
-// inferSQLType attempts to infer the Bigtable SQLType from a Go interface{} value.
+// toBigtableSQLType attempts to infer the Bigtable SQLType from a Go interface{} value.
 // This is a basic implementation and might need enhancement based on actual data types and schema.
-func inferSQLType(value interface{}) (bigtable.SQLType, error) {
-	switch value.(type) {
-	case string:
+func toBigtableSQLType(value types.CqlDataType) (bigtable.SQLType, error) {
+	switch value.Code() {
+	case types.VARCHAR, types.TEXT, types.ASCII:
 		return bigtable.StringSQLType{}, nil
-	case []byte:
+	case types.BLOB:
 		return bigtable.BytesSQLType{}, nil
-	case int, int8, int16, int32, int64:
+	case types.INT, types.BIGINT, types.TIMESTAMP:
 		return bigtable.Int64SQLType{}, nil
-	case float32:
+	case types.FLOAT:
 		return bigtable.Float32SQLType{}, nil
-	case float64:
+	case types.DOUBLE:
 		return bigtable.Float64SQLType{}, nil
-	case bool:
+	case types.BOOLEAN:
 		return bigtable.Int64SQLType{}, nil
-	case []interface{}:
-		return bigtable.ArraySQLType{}, nil
-	default:
-		v := reflect.ValueOf(value)
-		if v.Kind() != reflect.Slice && v.Kind() != reflect.Array {
-			return nil, fmt.Errorf("unsupported type for SQL parameter inference: %T", value)
-		}
-		elemType := v.Type().Elem()
-		if elemType.Kind() == reflect.Interface {
-			return nil, fmt.Errorf("cannot infer element type for empty interface slice")
-		}
-		zeroValue := reflect.Zero(elemType).Interface()
-		elemSQLType, err := inferSQLType(zeroValue)
+	case types.LIST:
+		lt := value.(types.ListType)
+		innerSqlType, err := toBigtableSQLType(lt.ElementType())
 		if err != nil {
 			return nil, fmt.Errorf("cannot infer type for array element: %w", err)
 		}
-		return bigtable.ArraySQLType{ElemType: elemSQLType}, nil
-
+		return bigtable.ArraySQLType{ElemType: innerSqlType}, nil
+	case types.SET:
+		st := value.(types.SetType)
+		innerSqlType, err := toBigtableSQLType(st.ElementType())
+		if err != nil {
+			return nil, fmt.Errorf("cannot infer type for array element: %w", err)
+		}
+		return bigtable.ArraySQLType{ElemType: innerSqlType}, nil
+	default:
+		return nil, fmt.Errorf("unsupported type for SQL parameter inference: %s", value.String())
 	}
 }

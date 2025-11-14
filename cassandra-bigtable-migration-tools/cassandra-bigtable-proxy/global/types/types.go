@@ -16,9 +16,10 @@
 package types
 
 import (
-	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/translator"
+	"fmt"
+	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/global/constants"
+	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/utilities"
 	"github.com/datastax/go-cassandra-native-protocol/message"
-	"github.com/datastax/go-cassandra-native-protocol/primitive"
 )
 
 // ColumnFamily a Bigtable Column Family
@@ -32,6 +33,7 @@ type ColumnQualifier string
 
 // RowKey - a Bigtable row key
 type RowKey string
+type Placeholder string
 
 // BigtableValue - a value serialized to bytes for Bigtable
 type BigtableValue []byte
@@ -69,30 +71,112 @@ type CreateColumn struct {
 
 type Condition struct {
 	Column   *Column
-	Operator string
-	Value    string
+	Operator constants.Operator
+	// points to a placeholder
+	ValuePlaceholder Placeholder
 }
 
-type QueryMetadata struct {
-	Query                    string
-	QueryType                string
-	TableName                string
-	KeyspaceName             string
-	ProtocalV                primitive.ProtocolVersion
-	Params                   map[string]interface{}
-	SelectedColumns          []SelectedColumn
-	Paramkeys                []string
-	ParamValues              []interface{}
-	UsingTSCheck             string
-	SelectQueryForDelete     string
-	ComplexUpdateSelectQuery string // select Query for complex update Scenario
-	UpdateSetValues          []translator.UpdateSetValue
-	MutationKeyRange         []interface{}
-	DefaultColumnFamily      string
-	IsStar                   bool
-	Limit                    translator.Limit
-	IsGroupBy                bool        // isGroup by Query
-	Clauses                  []Condition // List of clauses in the query
+type WhereClause struct {
+	Conditions []Condition
+	Params     *QueryParameters
+}
+
+func (w *WhereClause) PushCondition(column *Column, op constants.Operator, dt CqlDataType) Placeholder {
+	p := w.Params.PushParameter(dt)
+	w.Conditions = append(w.Conditions, Condition{
+		Column:           column,
+		Operator:         op,
+		ValuePlaceholder: p,
+	})
+	return p
+}
+
+func NewWhereClause() *WhereClause {
+	return &WhereClause{
+		Conditions: nil,
+		Params:     NewQueryParameters(),
+	}
+}
+
+type QueryParameters struct {
+	keys []Placeholder
+	// might be different than the column - like if we're doing a "CONTAINS" on a list, this would be the element type
+	types  map[Placeholder]CqlDataType
+	values map[Placeholder]GoValue
+}
+
+func NewQueryParameters() *QueryParameters {
+	return &QueryParameters{
+		keys:   nil,
+		types:  nil,
+		values: make(map[Placeholder]any),
+	}
+}
+
+func (q *QueryParameters) Copy() *QueryParameters {
+	return &QueryParameters{
+		keys:   q.keys,
+		types:  q.types,
+		values: make(map[Placeholder]any),
+	}
+}
+
+func (q *QueryParameters) AllKeys() []Placeholder {
+	return q.keys
+}
+func (q *QueryParameters) Count() int {
+	return len(q.keys)
+}
+func (q *QueryParameters) GetParameter(i int) Placeholder {
+	return q.keys[i]
+}
+
+func (q *QueryParameters) PushParameterAndValue(dataType CqlDataType, value any) Placeholder {
+	p := q.PushParameter(dataType)
+	q.values[p] = value
+	return p
+}
+func (q *QueryParameters) SetValue(p Placeholder, value any) error {
+	dt, ok := q.types[p]
+	if !ok {
+		return fmt.Errorf("no param type info for %s", p)
+	}
+
+	// ensure the correct type is being set - more for checking internal implementation rather than the user
+	// todo only validate when running in strict mode
+	err := utilities.ValidateGoType(value, dt)
+	if err != nil {
+		return err
+	}
+
+	// todo validate
+	q.values[p] = value
+}
+
+func (q *QueryParameters) GetValue(p Placeholder) (any, error) {
+	if v, ok := q.values[p]; ok {
+		return v, nil
+	}
+	return nil, fmt.Errorf("no query param for %s", p)
+}
+
+func (q *QueryParameters) PushParameter(dataType CqlDataType) Placeholder {
+	p := Placeholder(fmt.Sprintf("value%d", len(q.keys)))
+	q.AddParameter(p, dataType)
+	return p
+}
+
+func (q *QueryParameters) AddParameter(p Placeholder, dataType CqlDataType) {
+	q.keys = append(q.keys, p)
+	q.types[p] = dataType
+}
+
+func (q *QueryParameters) GetDataType(p Placeholder) (CqlDataType, error) {
+	d, ok := q.types[p]
+	if !ok {
+		return nil, fmt.Errorf("no datatype for placeholder %s", p)
+	}
+	return d, nil
 }
 
 // SelectedColumn describes a column that was selected as part of a query. It's
@@ -100,7 +184,7 @@ type QueryMetadata struct {
 type SelectedColumn struct {
 	// Name is the original value of the selected column, including functions. It
 	// does not include the alias. e.g. "region" or "count(*)"
-	Name   ColumnName
+	Name   string
 	IsFunc bool
 	// IsAs is true if an alias is used
 	IsAs      bool

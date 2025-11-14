@@ -91,7 +91,7 @@ func getNodeValue(node antlr.Tree, parent antlr.ParserRuleContext) interface{} {
 
 }
 
-// parseAssignments() processes a list of assignment elements from a CQL update statement,
+// parseSetValues() processes a list of assignment elements from a CQL update statement,
 // generating a structured response that includes the assignments' details and their corresponding
 // placeholder values for parameterized queries.
 //
@@ -107,7 +107,7 @@ func getNodeValue(node antlr.Tree, parent antlr.ParserRuleContext) interface{} {
 //   - An error if invalid input is detected, such as an empty assignment list or issues with assignment syntax,
 //     or if a column type cannot be retrieved from the schema mapping table, or if an attempt is made to assign
 //     a value to a primary key.
-func parseAssignments(assignments []cql.IAssignmentElementContext, tableConfig *schemaMapping.TableConfig) (*UpdateSetResponse, error) {
+func parseSetValues(assignments []cql.IAssignmentElementContext, tableConfig *schemaMapping.TableConfig) (*UpdateSetResponse, error) {
 	if len(assignments) == 0 {
 		return nil, errors.New("invalid input")
 	}
@@ -222,8 +222,8 @@ func parseAssignments(assignments []cql.IAssignmentElementContext, tableConfig *
 		})
 	}
 	return &UpdateSetResponse{
-		UpdateSetValues: setResp,
-		Params:          params,
+		SetValues: setResp,
+		Params:    params,
 	}, nil
 }
 
@@ -282,33 +282,27 @@ func (t *Translator) PrepareUpdateQuery(query string, isPreparedQuery bool, sess
 	if allAssignmentObj == nil {
 		return nil, errors.New("error parsing all the assignment object")
 	}
-	setValues, err := parseAssignments(allAssignmentObj, tableConfig)
+	setValues, err := parseSetValues(allAssignmentObj, tableConfig)
 	if err != nil {
 		return nil, err
 	}
 
-	var clauses WhereClause
 	if updateObj.WhereSpec() != nil {
-		resp, err := parseWhereByClause(updateObj.WhereSpec(), tableConfig)
-		if err != nil {
-			return nil, err
-		}
-		clauses = *resp
-		for k, v := range clauses.Params {
-			setValues.Params[k] = v
-		}
-	}
-	ifExistObj := updateObj.IfExist()
-	var ifExist bool = false
-	if ifExistObj != nil {
-		val := strings.ToLower(ifExistObj.GetText())
-		if val == ifExists {
-			ifExist = true
-		}
+		return nil, errors.New("error parsing update where clause")
 	}
 
+	whereClause, err := parseWhereByClause(updateObj.WhereSpec(), tableConfig)
+	if err != nil {
+		return nil, err
+	}
+	for k, v := range whereClause.Params {
+		setValues.Params[k] = v
+	}
+
+	var ifExist = updateObj.IfExist() != nil
+
 	var actualPrimaryKeys []types.ColumnName
-	for _, val := range clauses.Conditions {
+	for _, val := range whereClause.Conditions {
 		actualPrimaryKeys = append(actualPrimaryKeys, val.Column.Name)
 	}
 	err = ValidateRequiredPrimaryKeysOnly(tableConfig, actualPrimaryKeys)
@@ -319,7 +313,7 @@ func (t *Translator) PrepareUpdateQuery(query string, isPreparedQuery bool, sess
 	var rowKey types.RowKey
 	var columns []*types.Column
 	var values []types.BigtableData
-	for _, val := range setValues.UpdateSetValues {
+	for _, val := range setValues.SetValues {
 		c := &types.Column{Name: val.Column, ColumnFamily: t.SchemaMappingConfig.SystemColumnFamily, CQLType: val.CQLType}
 		columns = append(columns, c)
 		values = append(values, types.BigtableData{
@@ -334,28 +328,20 @@ func (t *Translator) PrepareUpdateQuery(query string, isPreparedQuery bool, sess
 	var rawOutput *AdHocQueryValues // Declare rawOutput here
 
 	if !isPreparedQuery {
-		pkValues := make(map[types.ColumnName]types.GoValue)
-		for _, key := range primaryKeys {
-			for _, clause := range clauses.Conditions {
-				if !clause.Column.IsPrimaryKey {
-					return nil, errors.New("any value other then primary key is not accepted in where clause")
-				}
-				if clause.Column.IsPrimaryKey && clause.Operator == "=" && key == clause.Column {
-					pv := clause.Value
-					if strings.HasPrefix(clause.Value, "@") {
-						pv = clause.Value[1:]
-					}
-					pkValues[clause.Column.Name] = clauses.Params[pv]
-				}
-			}
-		}
+		pkValues := extractValuesFromWhereClause(whereClause)
 
 		rowKey, err = createOrderedCodeKey(tableConfig, pkValues)
 		if err != nil {
 			return nil, err
 		}
 
-		rawOutput, err = parseComplexOperations(tableConfig, complexMeta)
+		var assignments []*ComplexAssignment
+		for _, v := range setValues.SetValues {
+			if v.ComplexAssignment != nil {
+				assignments = append(assignments, v.ComplexAssignment)
+			}
+		}
+		rawOutput, err = parseComplexOperations(tableConfig, assignments)
 		if err != nil {
 			return nil, fmt.Errorf("error processing raw collection columns: %w", err)
 		}
@@ -364,17 +350,17 @@ func (t *Translator) PrepareUpdateQuery(query string, isPreparedQuery bool, sess
 		delColumns = rawOutput.DelColumns
 		complexMeta = rawOutput.ComplexOps // Assign complexMeta from output
 
-		for _, val := range clauses.Conditions {
+		for _, val := range whereClause.Conditions {
 			c, err := tableConfig.GetColumn(val.Column)
 			if err != nil {
 				return nil, err
 			}
 
-			pv := val.Value
-			if strings.HasPrefix(val.Value, "@") {
-				pv = val.Value[1:]
+			pv := val.ValuePlaceholder
+			if strings.HasPrefix(val.ValuePlaceholder, "@") {
+				pv = val.ValuePlaceholder[1:]
 			}
-			value := fmt.Sprintf("%v", clauses.Params[pv])
+			value := fmt.Sprintf("%v", whereClause.Params[pv])
 			encodedValue, err := encodeValueForBigtable(value, c.CQLType.DataType(), 4)
 			if err != nil {
 				return nil, err
@@ -398,9 +384,9 @@ func (t *Translator) PrepareUpdateQuery(query string, isPreparedQuery bool, sess
 		DeleteColumQualifiers: delColumns,
 		IfExists:              ifExist,
 		Keyspace:              keyspaceName,
-		Clauses:               clauses.Conditions,
+		Clauses:               whereClause.Conditions,
 		Params:                setValues.Params,
-		UpdateSetValues:       setValues.UpdateSetValues,
+		UpdateSetValues:       setValues.SetValues,
 		TimestampInfo:         timestampInfo,
 		ComplexOperations:     complexMeta,
 	}

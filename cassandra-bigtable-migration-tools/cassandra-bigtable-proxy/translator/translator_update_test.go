@@ -658,10 +658,10 @@ func TestTranslator_BuildUpdatePrepareQuery(t *testing.T) {
 					RowKey:      "pk_1_text_value", // Example RowKey based on pk_1_text
 					Clauses: []types.Condition{
 						{
-							Column:       "pk_1_text",
-							Operator:     "=",
-							Value:        "",
-							IsPrimaryKey: true,
+							Column:           "pk_1_text",
+							Operator:         "=",
+							ValuePlaceholder: "",
+							IsPrimaryKey:     true,
 						},
 					},
 					VariableMetadata: []*message.ColumnMetadata{
@@ -685,10 +685,10 @@ func TestTranslator_BuildUpdatePrepareQuery(t *testing.T) {
 				Table:       "non_primitive_table",
 				Clauses: []types.Condition{
 					{
-						Column:       "pk_1_text",
-						Operator:     "=",
-						Value:        "",
-						IsPrimaryKey: true,
+						Column:           "pk_1_text",
+						Operator:         "=",
+						ValuePlaceholder: "",
+						IsPrimaryKey:     true,
 					},
 				},
 				Columns: []*types.Column{

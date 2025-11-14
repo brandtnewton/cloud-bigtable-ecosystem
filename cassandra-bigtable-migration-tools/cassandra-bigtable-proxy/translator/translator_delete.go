@@ -117,10 +117,10 @@ func (t *Translator) TranslateDelete(query string, isPreparedQuery bool, session
 		}
 	}
 
-	var QueryClauses WhereClause
+	var whereClause := parseWhereByClause(deleteObj.WhereSpec(), tableConfig)
 
 	if deleteObj.WhereSpec() != nil {
-		resp, err := parseWhereByClause(deleteObj.WhereSpec(), tableConfig)
+		resp, err :=
 		if err != nil {
 			return nil, errors.New("TranslateDeletetQuerytoBigtable: Invalid Where clause condition")
 		}
@@ -136,7 +136,7 @@ func (t *Translator) TranslateDelete(query string, isPreparedQuery bool, session
 		if condition.Operator != "=" {
 			return nil, fmt.Errorf("primary key conditions can only be equals")
 		}
-		pkValues[condition.Column.Name] = condition.Value
+		pkValues[condition.Column.Name] = condition.ValuePlaceholder
 		pkNames = append(pkNames, condition.Column.Name)
 	}
 

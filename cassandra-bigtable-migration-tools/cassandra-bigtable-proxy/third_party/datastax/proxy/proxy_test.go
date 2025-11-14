@@ -403,9 +403,9 @@ func Test_handleExecutionForDeletePreparedQuery(t *testing.T) {
 					Keyspace:  "key_space",
 					QueryType: "DELETE",
 					Conditions: []types.Condition{{
-						Column:   "test_id",
-						Operator: "=",
-						Value:    "?",
+						Column:           "test_id",
+						Operator:         "=",
+						ValuePlaceholder: "?",
 					}},
 				},
 			},
@@ -1049,7 +1049,7 @@ func TestPrepareSelectType(t *testing.T) {
 		IsStar:                   false,
 		Limit:                    translator.Limit{IsLimit: false, Count: ""},
 		IsGroupBy:                false,
-		Clauses:                  []types.Condition{types.Condition{Operator: "=", Column: "name", Value: "@value1", IsPrimaryKey: true}},
+		Clauses:                  []types.Condition{types.Condition{Operator: "=", Column: "name", ValuePlaceholder: "@value1", IsPrimaryKey: true}},
 	}
 
 	bigTablemockiface := new(mockbigtable.BigTableClientIface)
@@ -1104,7 +1104,7 @@ func TestPrepareSelectTypeWithClauseFunction(t *testing.T) {
 		IsStar:                   false,
 		Limit:                    translator.Limit{IsLimit: false, Count: ""},
 		IsGroupBy:                false,
-		Clauses:                  []types.Condition{types.Condition{Operator: constants.MAP_CONTAINS_KEY, Column: "column8", Value: "@value1", IsPrimaryKey: false}},
+		Clauses:                  []types.Condition{types.Condition{Operator: constants.MAP_CONTAINS_KEY, Column: "column8", ValuePlaceholder: "@value1", IsPrimaryKey: false}},
 	}
 
 	bigTablemockiface := new(mockbigtable.BigTableClientIface)
@@ -1263,7 +1263,7 @@ func TestHandleExecuteForSelect(t *testing.T) {
 	bigTablemockiface := new(mockbigtable.BigTableClientIface)
 
 	// PrepareStatement mock
-	bigTablemockiface.On("PrepareStatement", ctx, mock.AnythingOfType("responsehandler.QueryMetadata")).
+	bigTablemockiface.On("PrepareStatement", ctx, mock.AnythingOfType("responsehandler.SelectQueryAndData")).
 		Return(preparedStatement, nil)
 
 	client := client{
@@ -1520,7 +1520,7 @@ func TestHandleQueryUpdate(t *testing.T) {
 	mockSender := &mockSender{}
 
 	bigTablemockiface := new(mockbigtable.BigTableClientIface)
-	bigTablemockiface.On("UpdateRow", nil, &translator.UpdateQueryMapping{Query: "UPDATE test_keyspace.user_info SET age = '33' WHERE name = 'ibrahim';", TranslatedQuery: "", QueryType: "UPDATE", Table: "user_info", Keyspace: "test_keyspace", UpdateSetValues: []translator.UpdateSetValue{translator.UpdateSetValue{Column: "age", Value: "@set1", ColumnFamily: "", CQLType: u.ParseCqlTypeOrDie("text"), BigtableValue: []uint8{0x33, 0x33}}}, Clauses: []types.Condition{types.Condition{Column: "name", Operator: "=", Value: "@value1", IsPrimaryKey: true}}, Params: map[string]interface{}{"set1": []uint8{0x33, 0x33}, "value1": "ibrahim"}, ParamKeys: []string{"set1", "value1"}, PrimaryKeys: []string{"name"}, Columns: []*types.Column{{Name: "age", ColumnFamily: "cf1", CQLType: types.TypeVarchar, IsPrimaryKey: false}, {Name: "name", ColumnFamily: "cf1", CQLType: types.TypeVarchar, IsPrimaryKey: false}}, Values: []interface{}{[]uint8{0x33, 0x33}, []uint8{0x69, 0x62, 0x72, 0x61, 0x68, 0x69, 0x6d}}, RowKey: "ibrahim", DeleteColumnFamilies: []string(nil), DeleteColumQualifiers: []*types.Column(nil), ReturnMetadata: []*message.ColumnMetadata(nil), VariableMetadata: []*message.ColumnMetadata(nil), TimestampInfo: translator.TimestampInfo{Timestamp: 0, HasUsingTimestamp: false, Index: 0}, IfExists: false, ComplexOperations: map[string]*translator.ComplexOperation{}}).Return(&message.RowsResult{}, nil)
+	bigTablemockiface.On("UpdateRow", nil, &translator.UpdateQueryMapping{Query: "UPDATE test_keyspace.user_info SET age = '33' WHERE name = 'ibrahim';", TranslatedQuery: "", QueryType: "UPDATE", Table: "user_info", Keyspace: "test_keyspace", UpdateSetValues: []translator.UpdateSetValue{translator.UpdateSetValue{Column: "age", Value: "@set1", ColumnFamily: "", CQLType: u.ParseCqlTypeOrDie("text"), BigtableValue: []uint8{0x33, 0x33}}}, Clauses: []types.Condition{types.Condition{Column: "name", Operator: "=", ValuePlaceholder: "@value1", IsPrimaryKey: true}}, Params: map[string]interface{}{"set1": []uint8{0x33, 0x33}, "value1": "ibrahim"}, ParamKeys: []string{"set1", "value1"}, PrimaryKeys: []string{"name"}, Columns: []*types.Column{{Name: "age", ColumnFamily: "cf1", CQLType: types.TypeVarchar, IsPrimaryKey: false}, {Name: "name", ColumnFamily: "cf1", CQLType: types.TypeVarchar, IsPrimaryKey: false}}, Values: []interface{}{[]uint8{0x33, 0x33}, []uint8{0x69, 0x62, 0x72, 0x61, 0x68, 0x69, 0x6d}}, RowKey: "ibrahim", DeleteColumnFamilies: []string(nil), DeleteColumQualifiers: []*types.Column(nil), ReturnMetadata: []*message.ColumnMetadata(nil), VariableMetadata: []*message.ColumnMetadata(nil), TimestampInfo: translator.TimestampInfo{Timestamp: 0, HasUsingTimestamp: false, Index: 0}, IfExists: false, ComplexOperations: map[string]*translator.ComplexOperation{}}).Return(&message.RowsResult{}, nil)
 	client := client{
 		ctx:            ctx,
 		preparedQuerys: make(map[[16]byte]interface{}),
@@ -1551,7 +1551,7 @@ func TestHandleQueryDelete(t *testing.T) {
 
 	deleteQuery := "DELETE FROM test_keyspace.user_info WHERE name = 'ibrahim';"
 	bigTablemockiface := new(mockbigtable.BigTableClientIface)
-	bigTablemockiface.On("DeleteRowNew", nil, &translator.DeleteQueryMapping{Query: "DELETE FROM test_keyspace.user_info WHERE name = 'ibrahim';", QueryType: "DELETE", Table: "user_info", Keyspace: "test_keyspace", Conditions: []types.Condition{types.Condition{Column: "name", Operator: "=", Value: "ibrahim", IsPrimaryKey: true}}, Params: map[string]interface{}{"value1": []uint8{0x69, 0x62, 0x72, 0x61, 0x68, 0x69, 0x6d}}, ParamKeys: []string{"value1"}, PrimaryKeys: []string{"name"}, RowKey: "ibrahim", ExecuteByMutation: false, VariableMetadata: []*message.ColumnMetadata(nil), ReturnMetadata: []*message.ColumnMetadata(nil), TimestampInfo: translator.TimestampInfo{Timestamp: 0, HasUsingTimestamp: false, Index: 0}, IfExists: false, SelectedColumns: []types.SelectedColumn(nil)}).Return(&message.RowsResult{}, nil)
+	bigTablemockiface.On("DeleteRowNew", nil, &translator.DeleteQueryMapping{Query: "DELETE FROM test_keyspace.user_info WHERE name = 'ibrahim';", QueryType: "DELETE", Table: "user_info", Keyspace: "test_keyspace", Conditions: []types.Condition{types.Condition{Column: "name", Operator: "=", ValuePlaceholder: "ibrahim", IsPrimaryKey: true}}, Params: map[string]interface{}{"value1": []uint8{0x69, 0x62, 0x72, 0x61, 0x68, 0x69, 0x6d}}, ParamKeys: []string{"value1"}, PrimaryKeys: []string{"name"}, RowKey: "ibrahim", ExecuteByMutation: false, VariableMetadata: []*message.ColumnMetadata(nil), ReturnMetadata: []*message.ColumnMetadata(nil), TimestampInfo: translator.TimestampInfo{Timestamp: 0, HasUsingTimestamp: false, Index: 0}, IfExists: false, SelectedColumns: []types.SelectedColumn(nil)}).Return(&message.RowsResult{}, nil)
 	client := client{
 		ctx:            ctx,
 		preparedQuerys: make(map[[16]byte]interface{}),
@@ -1677,7 +1677,7 @@ func TestHandleBatchSelect(t *testing.T) {
 		IsStar:                   true,
 		Limit:                    translator.Limit{IsLimit: false, Count: ""},
 		IsGroupBy:                false,
-		Clauses:                  []types.Condition{types.Condition{Operator: "=", Column: "name", Value: "@value1", IsPrimaryKey: true}},
+		Clauses:                  []types.Condition{types.Condition{Operator: "=", Column: "name", ValuePlaceholder: "@value1", IsPrimaryKey: true}},
 	}).Return(&bigtable.PreparedStatement{}, nil)
 	client := client{
 		ctx:            ctx,

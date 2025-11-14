@@ -79,7 +79,7 @@ func parseInsertColumns(input cql.IInsertColumnSpecContext, tableConfig *schemaM
 // Returns: Map Interface for param name as key and its value and error if any
 func parseAdHocValues(input cql.IInsertValuesSpecContext, columns []*types.Column, protocolV primitive.ProtocolVersion) ([]types.BigtableData, map[types.ColumnName]types.GoValue, error) {
 	if input == nil {
-		return nil, nil, errors.New("parseAdHocValues: No Value parameters found")
+		return nil, nil, errors.New("parseAdHocValues: No ValuePlaceholder parameters found")
 	}
 
 	valuesExpressionList := input.ExpressionList()

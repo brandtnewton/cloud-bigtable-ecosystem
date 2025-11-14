@@ -36,22 +36,25 @@ type Translator struct {
 type SelectQueryMap struct {
 	Query            string // Original query string
 	TranslatedQuery  string
-	QueryType        string                      // Type of the query (e.g., SELECT)
 	Table            string                      // Table involved in the query
 	Keyspace         string                      // Keyspace to which the table belongs
 	ColumnMeta       ColumnMeta                  // Translator generated Metadata about the columns involved
 	Clauses          []types.Condition           // List of clauses in the query
 	Limit            Limit                       // Limit clause details
 	OrderBy          OrderBy                     // Order by clause details
-	GroupByColumns   []string                    // Group by Columns
-	Params           map[string]interface{}      // Parameters for the query
-	ParamKeys        []types.ColumnName          // column_name of the parameters
+	GroupByColumns   []string                    // Group by Columns - could be a column name or a column index
+	Params           *types.QueryParameters      // Parameters for the query
 	Columns          []*types.Column             //all columns mentioned in query
 	Conditions       map[string]string           // List of conditions in the query
 	ReturnMetadata   []*message.ColumnMetadata   // Metadata of selected columns in Cassandra format
 	VariableMetadata []*message.ColumnMetadata   // Metadata of variable columns for prepared queries in Cassandra format
 	CachedBTPrepare  *bigtable.PreparedStatement // prepared statement object for bigtable
-	ParamTypes       map[string]datatype.DataType
+}
+
+type SelectQueryAndData struct {
+	Query         *SelectQueryMap
+	BigtableQuery string
+	Params        *types.QueryParameters
 }
 
 type OrderOperation string
@@ -84,13 +87,6 @@ type ColumnMeta struct {
 type IfSpec struct {
 	IfExists    bool
 	IfNotExists bool
-}
-
-// This struct will be useful in combining all the clauses into one.
-type WhereClause struct {
-	Conditions []types.Condition
-	Params     map[string]interface{}
-	ParamKeys  []types.ColumnName
 }
 
 type TimestampInfo struct {
@@ -141,12 +137,11 @@ type PreparedInsertQuery struct {
 
 // DeleteQueryMapping represents the mapping of a delete query along with its translation details.
 type DeleteQueryMapping struct {
-	Query             string                    // Original query string
-	Table             string                    // Table involved in the query
-	Keyspace          string                    // Keyspace to which the table belongs
-	Conditions        []types.Condition         // List of clauses in the delete query
-	Params            map[string]interface{}    // Parameters for the query
-	ParamKeys         []types.ColumnName        // Column names of the parameters
+	Query             string            // Original query string
+	Table             string            // Table involved in the query
+	Keyspace          string            // Keyspace to which the table belongs
+	Conditions        []types.Condition // List of clauses in the delete query
+	Params            types.QueryParameters
 	RowKey            types.RowKey              // Unique rowkey which is required for delete operation
 	ExecuteByMutation bool                      // Flag to indicate if the delete should be executed by mutation
 	VariableMetadata  []*message.ColumnMetadata // Metadata of variable columns for prepared queries in Cassandra format
@@ -222,13 +217,13 @@ type UpdateSetValue struct {
 	Value        string
 	GoValue      types.GoValue
 	//
-	ComplexAssignment ComplexAssignment
+	ComplexAssignment *ComplexAssignment
 	BigtableValue     types.BigtableValue
 }
 
 type UpdateSetResponse struct {
-	UpdateSetValues []UpdateSetValue
-	Params          map[string]interface{}
+	SetValues []UpdateSetValue
+	Params    map[string]interface{}
 }
 
 type TableObj struct {
@@ -250,7 +245,7 @@ type PreparedValues struct {
 	GoValues        map[types.ColumnName]types.GoValue
 	IndexEnd        int
 	DelColumnFamily []types.ColumnFamily
-	DelColumns      []*types.BigtableColumng
+	DelColumns      []*types.BigtableColumn
 	ComplexMeta     map[types.ColumnFamily]*ComplexOperation
 }
 

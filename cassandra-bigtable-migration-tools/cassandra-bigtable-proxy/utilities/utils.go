@@ -18,7 +18,9 @@ package utilities
 
 import (
 	"fmt"
+	"reflect"
 	"regexp"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -494,23 +496,6 @@ func EncodeInt(value any, pv primitive.ProtocolVersion) ([]byte, error) {
 }
 
 /*
-GetClauseByValue() returns the clause that matches the value
-Parameters:
-  - clause: []types.Condition
-  - value: string
-
-Returns: types.Condition, error
-*/
-func GetClauseByValue(clause []types.Condition, value string) (types.Condition, error) {
-	for _, c := range clause {
-		if c.Value == "@"+value {
-			return c, nil
-		}
-	}
-	return types.Condition{}, fmt.Errorf("clause not found")
-}
-
-/*
 GetClauseByColumn() returns the clause that matches the column
 Parameters:
   - clause: []types.Condition
@@ -527,6 +512,58 @@ func GetClauseByColumn(clause []types.Condition, column types.ColumnName) (types
 	return types.Condition{}, fmt.Errorf("clause not found")
 }
 
+func GetGoType(dt types.CqlDataType) (reflect.Type, error) {
+	switch dt.Code() {
+	case types.INT:
+		return reflect.TypeOf(int32(0)), nil
+	case types.BIGINT:
+		return reflect.TypeOf(int64(0)), nil
+	case types.VARCHAR, types.TEXT, types.ASCII:
+		return reflect.TypeOf(""), nil
+	case types.BOOLEAN:
+		return reflect.TypeOf(false), nil
+	case types.LIST:
+		lt := dt.(types.ListType)
+		inner, err := GetGoType(lt.ElementType())
+		if err != nil {
+			return nil, err
+		}
+		return reflect.SliceOf(inner), nil
+	case types.SET:
+		lt := dt.(types.SetType)
+		inner, err := GetGoType(lt.ElementType())
+		if err != nil {
+			return nil, err
+		}
+		return reflect.SliceOf(inner), nil
+	case types.MAP:
+		lt := dt.(types.MapType)
+		key, err := GetGoType(lt.KeyType())
+		if err != nil {
+			return nil, err
+		}
+		value, err := GetGoType(lt.ValueType())
+		if err != nil {
+			return nil, err
+		}
+		return reflect.MapOf(key, value), nil
+	default:
+		return nil, fmt.Errorf("unhandled data type: %s", dt.String())
+	}
+}
+func ValidateGoType(v any, dt types.CqlDataType) error {
+	expected, err := GetGoType(dt)
+	if err != nil {
+		return fmt.Errorf("failed to determine expected type: %w", err)
+	}
+
+	if expected != reflect.TypeOf(v) {
+		return fmt.Errorf("got %T, expected %s (%s)", v, dt.String(), expected.String())
+	}
+
+	return nil
+}
+
 func IsSupportedPrimaryKeyType(dt types.CqlDataType) bool {
 	if dt.IsAnyFrozen() {
 		return false
@@ -538,6 +575,12 @@ func IsSupportedPrimaryKeyType(dt types.CqlDataType) bool {
 	default:
 		return false
 	}
+}
+
+func SortColumnNames(cols []types.ColumnName) {
+	slices.SortFunc(cols, func(a, b types.ColumnName) int {
+		return strings.Compare(string(a), string(b))
+	})
 }
 
 func isSupportedCollectionElementType(dt datatype.DataType) bool {

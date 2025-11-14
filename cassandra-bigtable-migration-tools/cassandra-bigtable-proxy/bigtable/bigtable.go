@@ -82,14 +82,14 @@ type BigTableClientIface interface {
 	DeleteRowNew(context.Context, *translator.DeleteQueryMapping) (*message.RowsResult, error)
 	ReadTableConfigs(context.Context, string) ([]*schemaMapping.TableConfig, error)
 	InsertRow(context.Context, *translator.PreparedInsertQuery) (*message.RowsResult, error)
-	SelectStatement(context.Context, types.QueryMetadata) (*message.RowsResult, time.Time, error)
+	SelectStatement(context.Context, *translator.SelectQueryAndData) (*message.RowsResult, time.Time, error)
 	AlterTable(ctx context.Context, data *translator.AlterTableStatementMap) error
 	CreateTable(ctx context.Context, data *translator.CreateTableStatementMap) error
 	DropAllRows(ctx context.Context, data *translator.TruncateTableStatementMap) error
 	DropTable(ctx context.Context, data *translator.DropTableStatementMap) error
 	UpdateRow(context.Context, *translator.UpdateQueryMapping) (*message.RowsResult, error)
-	PrepareStatement(ctx context.Context, query types.QueryMetadata) (*bigtable.PreparedStatement, error)
-	ExecutePreparedStatement(ctx context.Context, query types.QueryMetadata, preparedStmt *bigtable.PreparedStatement) (*message.RowsResult, time.Time, error)
+	PrepareStatement(ctx context.Context, query *translator.SelectQueryAndData) (*bigtable.PreparedStatement, error)
+	ExecutePreparedStatement(ctx context.Context, query *translator.SelectQueryAndData, preparedStmt *bigtable.PreparedStatement) (*message.RowsResult, time.Time, error)
 
 	// Functions realted to updating the intance properties.
 	LoadConfigs(rh *responsehandler.TypeHandler, schemaConfig *schemaMapping.SchemaMappingConfig)
@@ -1029,33 +1029,38 @@ func (btc *BigtableClient) LoadConfigs(rh *responsehandler.TypeHandler, schemaCo
 }
 
 // PrepareStatement prepares a query for execution using the bigtable SQL client.
-func (btc *BigtableClient) PrepareStatement(ctx context.Context, query types.QueryMetadata) (*bigtable.PreparedStatement, error) {
-	client, err := btc.getClient(query.KeyspaceName)
+func (btc *BigtableClient) PrepareStatement(ctx context.Context, query *translator.SelectQueryAndData) (*bigtable.PreparedStatement, error) {
+	client, err := btc.getClient(query.Query.Keyspace)
 	if err != nil {
 		return nil, err
 	}
 
 	paramTypes := make(map[string]bigtable.SQLType)
-	for paramName, paramValue := range query.Params {
-		// Infer SQLType from the Go type. This might need refinement based on schema.
-		// For now, using a basic inference.
-		// We need to pass the where clause to the prepare statement
-		clause, _ := utilities.GetClauseByValue(query.Clauses, paramName)
+	for _, clause := range query.Query.Clauses {
+		paramValue, err := query.Params.GetValue(clause.ValuePlaceholder)
+		if err != nil {
+			return nil, err
+		}
+
+		dt, err := query.Params.GetDataType(clause.ValuePlaceholder)
+		if err != nil {
+			return nil, err
+		}
+
 		if clause.Operator == constants.MAP_CONTAINS_KEY || clause.Operator == constants.ARRAY_INCLUDES {
-			paramTypes[paramName] = bigtable.BytesSQLType{}
-			continue
+			paramTypes[string(clause.ValuePlaceholder)] = bigtable.BytesSQLType{}
 		} else {
-			sqlType, err := inferSQLType(paramValue)
+			sqlType, err := toBigtableSQLType(dt)
 			if err != nil {
-				btc.Logger.Error("Failed to infer SQL type for parameter", zap.String("paramName", paramName), zap.Any("paramValue", paramValue), zap.Error(err))
-				return nil, fmt.Errorf("failed to infer SQL type for parameter %s: %w", paramName, err)
+				btc.Logger.Error("Failed to infer SQL type for parameter", zap.String("paramName", string(clause.ValuePlaceholder)), zap.Any("paramValue", paramValue), zap.Error(err))
+				return nil, fmt.Errorf("failed to infer SQL type for parameter %s: %w", clause.ValuePlaceholder, err)
 			}
-			paramTypes[paramName] = sqlType
+			paramTypes[string(clause.ValuePlaceholder)] = sqlType
 		}
 	}
-	preparedStatement, err := client.PrepareStatement(ctx, query.Query, paramTypes)
+	preparedStatement, err := client.PrepareStatement(ctx, query.BigtableQuery, paramTypes)
 	if err != nil {
-		btc.Logger.Error("Failed to prepare statement", zap.String("query", query.Query), zap.Error(err))
+		btc.Logger.Error("Failed to prepare statement", zap.String("query", query.BigtableQuery), zap.Error(err))
 		return nil, fmt.Errorf("failed to prepare statement: %w", err)
 	}
 

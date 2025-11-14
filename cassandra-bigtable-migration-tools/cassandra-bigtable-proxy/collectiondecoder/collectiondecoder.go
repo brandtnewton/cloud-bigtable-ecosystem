@@ -36,8 +36,8 @@ import (
 // Returns:
 // - An interface{} containing the decoded collection as a slice or map of the appropriate type.
 // - An error if any decoding step fails.
-func DecodeCollection(dt datatype.DataType, version primitive.ProtocolVersion, encoded []byte) (interface{}, error) {
-	reader := bytes.NewReader(encoded)
+func DecodeCollection(dt datatype.DataType, version primitive.ProtocolVersion, encoded *primitive.Value) (interface{}, error) {
+	reader := bytes.NewReader(encoded.Contents)
 	var length int32
 
 	// Read the collection length (4 bytes)

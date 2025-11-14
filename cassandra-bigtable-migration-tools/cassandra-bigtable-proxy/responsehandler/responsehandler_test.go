@@ -33,7 +33,7 @@ func TestExtractUniqueKeys(t *testing.T) {
 	tests := []struct {
 		name     string
 		rowMap   []map[string]interface{}
-		query    QueryMetadata
+		query    types.SelectQuery
 		expected []string
 	}{
 		{
@@ -41,7 +41,7 @@ func TestExtractUniqueKeys(t *testing.T) {
 			rowMap: []map[string]interface{}{
 				{"key1": 1, "key2": 2},
 			},
-			query: QueryMetadata{
+			query: types.SelectQuery{
 				IsStar: true,
 			},
 			expected: []string{"key1", "key2"},
@@ -52,7 +52,7 @@ func TestExtractUniqueKeys(t *testing.T) {
 				{"key1": 1, "key2": 2},
 				{"key2": 3, "key3": 4},
 			},
-			query: QueryMetadata{
+			query: types.SelectQuery{
 				IsStar: true,
 			},
 			expected: []string{"key1", "key2", "key3"},
@@ -62,7 +62,7 @@ func TestExtractUniqueKeys(t *testing.T) {
 			rowMap: []map[string]interface{}{
 				{},
 			},
-			query: QueryMetadata{
+			query: types.SelectQuery{
 				IsStar: true,
 			},
 			expected: []string{},
@@ -70,7 +70,7 @@ func TestExtractUniqueKeys(t *testing.T) {
 		{
 			name:   "Nil input map",
 			rowMap: nil,
-			query: QueryMetadata{
+			query: types.SelectQuery{
 				IsStar: true,
 			},
 			expected: []string{},
@@ -81,7 +81,7 @@ func TestExtractUniqueKeys(t *testing.T) {
 				{"": 1},
 				{"key1": 2, "key2": 3},
 			},
-			query: QueryMetadata{
+			query: types.SelectQuery{
 				IsStar: true,
 			},
 			expected: []string{"", "key1", "key2"},
@@ -91,7 +91,7 @@ func TestExtractUniqueKeys(t *testing.T) {
 			rowMap: []map[string]interface{}{
 				{"key1": 1, "key2": 2},
 			},
-			query: QueryMetadata{
+			query: types.SelectQuery{
 				SelectedColumns: []types.SelectedColumn{
 					{
 						Name: "key1",
@@ -105,7 +105,7 @@ func TestExtractUniqueKeys(t *testing.T) {
 			rowMap: []map[string]interface{}{
 				{"key1": 1, "key2": 2},
 			},
-			query: QueryMetadata{
+			query: types.SelectQuery{
 				SelectedColumns: []types.SelectedColumn{
 					{
 						Name:  "key1",
@@ -812,7 +812,7 @@ func TestTypeHandler_BuildMetadata(t *testing.T) {
 	}
 	type args struct {
 		rowMap []map[string]interface{}
-		query  QueryMetadata
+		query  types.SelectQuery
 	}
 	tests := []struct {
 		name    string
@@ -833,9 +833,9 @@ func TestTypeHandler_BuildMetadata(t *testing.T) {
 						"name": "Bob",
 					},
 				},
-				query: QueryMetadata{
+				query: types.SelectQuery{
 					TableName:           "user_info",
-					Query:               "SELECT name FROM test_keyspace.user_info;",
+					BigtableQuery:       "SELECT name FROM test_keyspace.user_info;",
 					KeyspaceName:        "test_keyspace",
 					IsStar:              false,
 					DefaultColumnFamily: "cf1",
@@ -896,7 +896,7 @@ func TestTypeHandler_BuildResponseRow(t *testing.T) {
 	}
 	type args struct {
 		rowMap map[string]interface{}
-		query  QueryMetadata
+		query  types.SelectQuery
 		cmd    []*message.ColumnMetadata
 	}
 	tests := []struct {
@@ -916,9 +916,9 @@ func TestTypeHandler_BuildResponseRow(t *testing.T) {
 				rowMap: map[string]interface{}{
 					"name": []byte{0x01},
 				},
-				query: QueryMetadata{
+				query: types.SelectQuery{
 					TableName:           "user_info",
-					Query:               "SELECT name FROM test_keyspace.user_info;",
+					BigtableQuery:       "SELECT name FROM test_keyspace.user_info;",
 					KeyspaceName:        "test_keyspace",
 					IsStar:              false,
 					DefaultColumnFamily: "cf1",
@@ -952,9 +952,9 @@ func TestTypeHandler_BuildResponseRow(t *testing.T) {
 				rowMap: map[string]interface{}{
 					"column8['mapKey']": []byte("mapKeyValue"),
 				},
-				query: QueryMetadata{
+				query: types.SelectQuery{
 					TableName:           "test_table",
-					Query:               "SELECT column8['mapKey'] FROM test_table;",
+					BigtableQuery:       "SELECT column8['mapKey'] FROM test_table;",
 					KeyspaceName:        "test_keyspace",
 					IsStar:              false,
 					DefaultColumnFamily: "cf1",
@@ -987,9 +987,9 @@ func TestTypeHandler_BuildResponseRow(t *testing.T) {
 				rowMap: map[string]interface{}{
 					"id": int64(10),
 				},
-				query: QueryMetadata{
+				query: types.SelectQuery{
 					TableName:           "user_info",
-					Query:               "SELECT count(id) FROM test_keyspace.user_info;",
+					BigtableQuery:       "SELECT count(id) FROM test_keyspace.user_info;",
 					KeyspaceName:        "test_keyspace",
 					IsStar:              false,
 					DefaultColumnFamily: "cf1",
@@ -1026,9 +1026,9 @@ func TestTypeHandler_BuildResponseRow(t *testing.T) {
 				rowMap: map[string]interface{}{
 					"id": float64(10),
 				},
-				query: QueryMetadata{
+				query: types.SelectQuery{
 					TableName:           "user_info",
-					Query:               "SELECT count(id) FROM test_keyspace.user_info;",
+					BigtableQuery:       "SELECT count(id) FROM test_keyspace.user_info;",
 					KeyspaceName:        "test_keyspace",
 					IsStar:              false,
 					DefaultColumnFamily: "cf1",
@@ -1064,9 +1064,9 @@ func TestTypeHandler_BuildResponseRow(t *testing.T) {
 				rowMap: map[string]interface{}{
 					"id": int64(20),
 				},
-				query: QueryMetadata{
+				query: types.SelectQuery{
 					TableName:           "user_info",
-					Query:               "SELECT count(id) as id FROM test_keyspace.user_info;",
+					BigtableQuery:       "SELECT count(id) as id FROM test_keyspace.user_info;",
 					KeyspaceName:        "test_keyspace",
 					IsStar:              false,
 					DefaultColumnFamily: "cf1",
@@ -1102,9 +1102,9 @@ func TestTypeHandler_BuildResponseRow(t *testing.T) {
 				rowMap: map[string]interface{}{
 					"abcd": []byte{0, 0, 0, 0, 0, 0, 0, 12},
 				},
-				query: QueryMetadata{
+				query: types.SelectQuery{
 					TableName:           "test_table",
-					Query:               "SELECT writetime(column5) as abcd FROM test_table;",
+					BigtableQuery:       "SELECT writetime(column5) as abcd FROM test_table;",
 					KeyspaceName:        "test_keyspace",
 					IsStar:              false,
 					DefaultColumnFamily: "cf1",
@@ -1142,9 +1142,9 @@ func TestTypeHandler_BuildResponseRow(t *testing.T) {
 				rowMap: map[string]interface{}{
 					"abcd": []byte{0, 0, 0, 0, 0, 0, 0, 12},
 				},
-				query: QueryMetadata{
+				query: types.SelectQuery{
 					TableName:           "test_table",
-					Query:               "SELECT column5 as abcd FROM test_table;",
+					BigtableQuery:       "SELECT column5 as abcd FROM test_table;",
 					KeyspaceName:        "test_keyspace",
 					IsStar:              false,
 					DefaultColumnFamily: "cf1",
@@ -1185,9 +1185,9 @@ func TestTypeHandler_BuildResponseRow(t *testing.T) {
 						{Key: "tag2", Value: ""},
 					},
 				},
-				query: QueryMetadata{
+				query: types.SelectQuery{
 					TableName:           "test_table",
-					Query:               "SELECT column11 FROM test_table;",
+					BigtableQuery:       "SELECT column11 FROM test_table;",
 					KeyspaceName:        "test_keyspace",
 					IsStar:              false,
 					DefaultColumnFamily: "cf1",
@@ -1225,9 +1225,9 @@ func TestTypeHandler_BuildResponseRow(t *testing.T) {
 						{Key: "tag2", Value: ""},
 					},
 				},
-				query: QueryMetadata{
+				query: types.SelectQuery{
 					TableName:           "invalid_types",
-					Query:               "SELECT invalid_set FROM test_table;",
+					BigtableQuery:       "SELECT invalid_set FROM test_table;",
 					KeyspaceName:        "test_keyspace",
 					IsStar:              false,
 					DefaultColumnFamily: "cf1",
@@ -1263,9 +1263,9 @@ func TestTypeHandler_BuildResponseRow(t *testing.T) {
 						{Key: "key2", Value: []byte("tage2")},
 					},
 				},
-				query: QueryMetadata{
+				query: types.SelectQuery{
 					TableName:           "test_table",
-					Query:               "SELECT column4 FROM test_table;",
+					BigtableQuery:       "SELECT column4 FROM test_table;",
 					KeyspaceName:        "test_keyspace",
 					IsStar:              false,
 					DefaultColumnFamily: "cf1",
@@ -1303,9 +1303,9 @@ func TestTypeHandler_BuildResponseRow(t *testing.T) {
 						{Key: "tag2", Value: ""},
 					},
 				},
-				query: QueryMetadata{
+				query: types.SelectQuery{
 					TableName:           "test_table",
-					Query:               "SELECT column4 FROM test_table;",
+					BigtableQuery:       "SELECT column4 FROM test_table;",
 					KeyspaceName:        "test_keyspace",
 					IsStar:              false,
 					DefaultColumnFamily: "cf1",
@@ -1350,7 +1350,7 @@ func TestTypeHandler_BuildResponseRow(t *testing.T) {
 }
 
 func TestGetQueryColumn(t *testing.T) {
-	query := QueryMetadata{
+	query := types.SelectQuery{
 		SelectedColumns: []types.SelectedColumn{
 			{Name: "column1", Alias: "alias1", IsWriteTimeColumn: false},
 			{Name: "column2", Alias: "alias2", IsWriteTimeColumn: true},
@@ -1360,7 +1360,7 @@ func TestGetQueryColumn(t *testing.T) {
 
 	tests := []struct {
 		name       string
-		query      QueryMetadata
+		query      types.SelectQuery
 		index      int
 		key        string
 		expected   types.SelectedColumn

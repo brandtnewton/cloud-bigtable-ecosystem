@@ -85,7 +85,6 @@ type QueryMetadata struct {
 	ParamValues              []interface{}
 	UsingTSCheck             string
 	SelectQueryForDelete     string
-	PrimaryKeys              []string
 	ComplexUpdateSelectQuery string // select Query for complex update Scenario
 	UpdateSetValues          []translator.UpdateSetValue
 	MutationKeyRange         []interface{}

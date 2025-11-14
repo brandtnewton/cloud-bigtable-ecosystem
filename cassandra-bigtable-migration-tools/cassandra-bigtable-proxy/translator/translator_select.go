@@ -782,7 +782,6 @@ func (t *Translator) TranslateSelectQuerytoBigtable(query, sessionKeyspace strin
 		Keyspace:        keyspaceName,
 		ColumnMeta:      columns,
 		Clauses:         QueryClauses.Conditions,
-		PrimaryKeys:     pmkNames,
 		Limit:           limit,
 		OrderBy:         orderBy,
 		GroupByColumns:  groupBy,
@@ -799,32 +798,26 @@ func (t *Translator) TranslateSelectQuerytoBigtable(query, sessionKeyspace strin
 	return selectQueryData, nil
 }
 
-func (t *Translator) BindSelect(st *SelectQueryMap, cassandraValues []*primitive.Value) (*types.QueryMetadata, error) {
+func (t *Translator) BindSelect(st *SelectQueryMap, cassandraValues []*primitive.Value, version primitive.ProtocolVersion) (*types.QueryMetadata, error) {
 	tableConfig, err := t.SchemaMappingConfig.GetTableConfig(st.Keyspace, st.Table)
 	if err != nil {
 		return nil, err
 	}
 
-	values, err := decodePreparedValues(tableConfig, st.Columns, nil, cassandraValues, pv)
+	values, err := decodePreparedValues(tableConfig, st.Columns, nil, cassandraValues, version)
 	if err != nil {
 		fmt.Println("Error processing prepared collection columns:", err)
 		return nil, err
 	}
 
-	rowKey, err := createOrderedCodeKey(tableConfig, values.GoValues)
-	if err != nil {
-		return nil, err
-	}
-
-	query := &responsehandler.QueryMetadata{
+	query := &types.QueryMetadata{
 		Query:               st.TranslatedQuery,
 		QueryType:           st.QueryType,
 		TableName:           st.Table,
 		KeyspaceName:        st.Keyspace,
-		ProtocalV:           raw.Header.Version,
-		Params:              params,
+		ProtocalV:           version,
+		Params:              values.,
 		SelectedColumns:     st.ColumnMeta.Column,
-		PrimaryKeys:         st.PrimaryKeys,
 		DefaultColumnFamily: string(c.proxy.translator.SchemaMappingConfig.SystemColumnFamily),
 		IsStar:              st.ColumnMeta.Star,
 		Limit:               st.Limit,

@@ -45,8 +45,7 @@ type SelectQueryMap struct {
 	OrderBy          OrderBy                     // Order by clause details
 	GroupByColumns   []string                    // Group by Columns
 	Params           map[string]interface{}      // Parameters for the query
-	ParamKeys        []string                    // column_name of the parameters
-	PrimaryKeys      []string                    // Primary keys of the table
+	ParamKeys        []types.ColumnName          // column_name of the parameters
 	Columns          []*types.Column             //all columns mentioned in query
 	Conditions       map[string]string           // List of conditions in the query
 	ReturnMetadata   []*message.ColumnMetadata   // Metadata of selected columns in Cassandra format
@@ -251,7 +250,7 @@ type PreparedValues struct {
 	GoValues        map[types.ColumnName]types.GoValue
 	IndexEnd        int
 	DelColumnFamily []types.ColumnFamily
-	DelColumns      []*types.Column
+	DelColumns      []*types.BigtableColumn
 	ComplexMeta     map[types.ColumnFamily]*ComplexOperation
 }
 

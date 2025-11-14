@@ -37,8 +37,8 @@ const (
 )
 
 type ResponseHandlerIface interface {
-	BuildMetadata(rowMap []map[string]interface{}, query QueryMetadata) (cmd []*message.ColumnMetadata, err error)
-	BuildResponseRow(rowMap map[string]interface{}, query QueryMetadata, cmd []*message.ColumnMetadata) (message.Row, error)
+	BuildMetadata(rowMap []map[string]interface{}, query types.QueryMetadata) (cmd []*message.ColumnMetadata, err error)
+	BuildResponseRow(rowMap map[string]interface{}, query types.QueryMetadata, cmd []*message.ColumnMetadata) (message.Row, error)
 }
 
 // BuildMetadata constructs metadata for given row data based on query specifications.
@@ -55,7 +55,7 @@ type ResponseHandlerIface interface {
 //   - err: An error if any occurs during the operation, particularly during metadata retrieval.
 //
 // This function uses helper functions to extract unique keys, handle aliases, and determine column types
-func (th *TypeHandler) BuildMetadata(rowMap []map[string]interface{}, query QueryMetadata) (cmd []*message.ColumnMetadata, err error) {
+func (th *TypeHandler) BuildMetadata(rowMap []map[string]interface{}, query types.QueryMetadata) (cmd []*message.ColumnMetadata, err error) {
 	tableConfig, err := th.SchemaMappingConfig.GetTableConfig(query.KeyspaceName, query.TableName)
 	if err != nil {
 		return nil, err
@@ -112,7 +112,7 @@ func (th *TypeHandler) BuildMetadata(rowMap []map[string]interface{}, query Quer
 // Returns:
 //   - mr: A message.Row containing the serialized row data.
 //   - err: An error if any occurs during the construction of the row, especially in data retrieval or encoding.
-func (th *TypeHandler) BuildResponseRow(rowMap map[string]interface{}, query QueryMetadata, cmd []*message.ColumnMetadata) (message.Row, error) {
+func (th *TypeHandler) BuildResponseRow(rowMap map[string]interface{}, query types.QueryMetadata, cmd []*message.ColumnMetadata) (message.Row, error) {
 	tableConfig, err := th.SchemaMappingConfig.GetTableConfig(query.KeyspaceName, query.TableName)
 	if err != nil {
 		return nil, err
@@ -135,12 +135,12 @@ func (th *TypeHandler) BuildResponseRow(rowMap map[string]interface{}, query Que
 		} else if col.IsWriteTimeColumn {
 			cqlType = datatype.Timestamp
 		} else if col.IsFunc || col.MapKey != "" || col.IsAs {
-			cqlType, err = tableConfig.GetColumnDataType(col.ColumnName)
+			cqlType, err = tableConfig.GetColumnDataType(types.ColumnName(col.ColumnName))
 			if err != nil {
 				return nil, err
 			}
 		} else {
-			cqlType, err = tableConfig.GetColumnDataType(key)
+			cqlType, err = tableConfig.GetColumnDataType(types.ColumnName(key))
 			if err != nil {
 				return nil, err
 			}
@@ -371,8 +371,8 @@ func (th *TypeHandler) HandleListType(listData []interface{}, mr *message.Row, l
 }
 
 // ExtractUniqueKeys extracts all unique keys from a nested map and returns them as a set of UniqueKeys
-func ExtractUniqueKeys(rowMap []map[string]interface{}, query QueryMetadata) []string {
-	columns := []string{}
+func ExtractUniqueKeys(rowMap []map[string]interface{}, query types.QueryMetadata) []string {
+	var columns []string
 	if query.IsStar {
 		uniqueKeys := make(map[string]bool)
 		for _, nestedMap := range rowMap {
@@ -390,7 +390,7 @@ func ExtractUniqueKeys(rowMap []map[string]interface{}, query QueryMetadata) []s
 		if column.Alias != "" {
 			columns = append(columns, column.Alias)
 		} else {
-			columns = append(columns, column.Name)
+			columns = append(columns, string(column.Name))
 		}
 	}
 	return columns
@@ -405,16 +405,15 @@ func ExtractUniqueKeys(rowMap []map[string]interface{}, query QueryMetadata) []s
 //
 // Returns:
 // - types: The column object that matches the key, or an empty object if no match is found.
-func GetQueryColumn(query QueryMetadata, index int, key string) types.SelectedColumn {
-
+func GetQueryColumn(query types.QueryMetadata, index int, key string) types.SelectedColumn {
 	if len(query.SelectedColumns) > 0 {
 		selectedColumn := query.SelectedColumns[index]
-		if (selectedColumn.IsWriteTimeColumn && selectedColumn.Name == key) || (selectedColumn.IsWriteTimeColumn && selectedColumn.Alias == key) || selectedColumn.Name == key {
+		if (selectedColumn.IsWriteTimeColumn && string(selectedColumn.Name) == key) || (selectedColumn.IsWriteTimeColumn && selectedColumn.Alias == key) || string(selectedColumn.Name) == key {
 			return selectedColumn
 		}
 
 		for _, value := range query.SelectedColumns {
-			if (value.IsWriteTimeColumn && value.Name == key) || (value.IsWriteTimeColumn && value.Alias == key) || (!value.IsWriteTimeColumn && value.Name == key) || (!value.IsWriteTimeColumn && value.Alias == key) {
+			if (value.IsWriteTimeColumn && string(value.Name) == key) || (value.IsWriteTimeColumn && value.Alias == key) || (!value.IsWriteTimeColumn && string(value.Name) == key) || (!value.IsWriteTimeColumn && value.Alias == key) {
 				return value
 			}
 		}

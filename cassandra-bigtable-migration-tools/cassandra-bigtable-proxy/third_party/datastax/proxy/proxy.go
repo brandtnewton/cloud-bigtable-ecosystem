@@ -909,7 +909,7 @@ func (c *client) prepareSelectType(raw *frame.RawFrame, msg *message.Prepare, id
 			columnMeta.Type = datatype.NewListType(columnMeta.Type)
 		}
 	}
-	query := responsehandler.QueryMetadata{
+	query := types.QueryMetadata{
 		Query:               translatedSelectQuery.TranslatedQuery,
 		QueryType:           translatedSelectQuery.QueryType,
 		TableName:           translatedSelectQuery.Table,
@@ -1392,7 +1392,7 @@ func (c *client) handleQuery(raw *frame.RawFrame, msg *partialQuery) {
 			if len(translatedSelectQuery.GroupByColumns) > 0 {
 				isGroupBy = true
 			}
-			queryMeta := responsehandler.QueryMetadata{
+			queryMeta := types.QueryMetadata{
 				Query:               translatedSelectQuery.TranslatedQuery,
 				TableName:           translatedSelectQuery.Table,
 				KeyspaceName:        translatedSelectQuery.Keyspace,

@@ -318,10 +318,15 @@ func (t *Translator) PrepareUpdateQuery(query string, isPreparedQuery bool, sess
 
 	var rowKey types.RowKey
 	var columns []*types.Column
-	var values []types.BigtableValue
+	var values []types.BigtableData
 	for _, val := range setValues.UpdateSetValues {
-		columns = append(columns, &types.Column{Name: val.Column, ColumnFamily: t.SchemaMappingConfig.SystemColumnFamily, CQLType: val.CQLType})
-		values = append(values, val.BigtableValue)
+		c := &types.Column{Name: val.Column, ColumnFamily: t.SchemaMappingConfig.SystemColumnFamily, CQLType: val.CQLType}
+		columns = append(columns, c)
+		values = append(values, types.BigtableData{
+			Family: val.ColumnFamily,
+			Column: types.ColumnQualifier(val.Column),
+			Bytes:  val.BigtableValue,
+		})
 	}
 	var delColumns []*types.Column
 	var delColumnFamily []types.ColumnFamily
@@ -340,7 +345,7 @@ func (t *Translator) PrepareUpdateQuery(query string, isPreparedQuery bool, sess
 					if strings.HasPrefix(clause.Value, "@") {
 						pv = clause.Value[1:]
 					}
-					pkValues[clause.Column] = clauses.Params[pv]
+					pkValues[clause.Column.Name] = clauses.Params[pv]
 				}
 			}
 		}
@@ -387,7 +392,8 @@ func (t *Translator) PrepareUpdateQuery(query string, isPreparedQuery bool, sess
 		Query:                 query,
 		Table:                 tableName,
 		RowKey:                rowKey,
-		Columns:               values,
+		Columns:               columns,
+		Data:                  values,
 		DeleteColumnFamilies:  delColumnFamily,
 		DeleteColumQualifiers: delColumns,
 		IfExists:              ifExist,

@@ -936,16 +936,10 @@ func processList[V any](val []byte, colFamily types.ColumnFamily, complexUpdateM
 		}
 		if complexUpdateMeta != nil {
 			prepend = complexUpdateMeta.PrependList
-
 		}
 
 		encTime := getListIndexColumn(i, len(listValues), prepend)
 
-		c := &types.Column{
-			Name:         types.ColumnName(encTime),
-			ColumnFamily: colFamily,
-			CQLType:      listValDatatype,
-		}
 		// The value parameter is intentionally empty because the column identifier has the value
 		val, err := encodeValueForBigtable(valueStr, listValDatatype.DataType(), pv)
 		if err != nil {
@@ -954,7 +948,7 @@ func processList[V any](val []byte, colFamily types.ColumnFamily, complexUpdateM
 		output.Data = append(output.Data, types.BigtableData{
 			Family: "",
 			Column: encTime,
-			Bytes:  nil,
+			Bytes:  val,
 		})
 	}
 	if len(listDelete) > 0 {
@@ -1014,7 +1008,7 @@ func parsePreparedMap(mapType *types.MapType, protocolV primitive.ProtocolVersio
 	}
 
 	for k, v := range decodedMap {
-		col, err := primitivesToString(k)
+		col, err := collectionElementValueToColumnName(k)
 		if err != nil {
 			return fmt.Errorf("failed to convert value for key '%s': %w", k, err)
 		}
@@ -1219,17 +1213,28 @@ func processSet[V any](
 
 	// Common processing logic for all types
 	for _, elem := range setValues {
-		valueStr, err := primitivesToString(elem)
+		valueStr, err := collectionElementValueToColumnName(elem)
 		if err != nil {
 			return fmt.Errorf("failed to convert element to string: %w", err)
 		}
 		output.Data = append(output.Data, types.BigtableData{
 			Family: colFamily,
-			Column: types.ColumnQualifier(valueStr),
+			Column: valueStr,
 			Bytes:  []byte(""),
 		})
 	}
 	return nil
+}
+
+func collectionElementValueToColumnName(value any) (types.ColumnQualifier, error) {
+	if t, ok := value.(time.Time); ok {
+		value = t.UnixMilli()
+	}
+	result, err := primitivesToString(value)
+	if err != nil {
+		return "", err
+	}
+	return types.ColumnQualifier(result), nil
 }
 
 // buildWhereClause(): takes a slice of Condition structs and returns a string representing the WHERE clause of a bigtable SQL query.

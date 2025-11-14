@@ -250,7 +250,7 @@ type PreparedValues struct {
 	GoValues        map[types.ColumnName]types.GoValue
 	IndexEnd        int
 	DelColumnFamily []types.ColumnFamily
-	DelColumns      []*types.BigtableColumn
+	DelColumns      []*types.BigtableColumng
 	ComplexMeta     map[types.ColumnFamily]*ComplexOperation
 }
 

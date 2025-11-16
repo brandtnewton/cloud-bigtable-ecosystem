@@ -17,6 +17,7 @@
 package translator
 
 import (
+	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/bindings"
 	"reflect"
 	"testing"
 
@@ -40,32 +41,32 @@ func TestTranslator_TranslateUpdateQuerytoBigtable(t *testing.T) {
 	}
 
 	valueBlob := "0x0000000000000003"
-	setBlob, err := encodeValueForBigtable(valueBlob, datatype.Blob, 4)
+	setBlob, err := bindings.encodeScalarForBigtable(valueBlob, datatype.Blob, 4)
 	if err != nil {
-		t.Errorf("encodeValueForBigtable() error = %v", err)
+		t.Errorf("encodeScalarForBigtable() error = %v", err)
 	}
 
 	valueTimestamp := "2024-08-12T12:34:56Z"
-	setTimestamp, err := encodeValueForBigtable(valueTimestamp, datatype.Timestamp, 4)
+	setTimestamp, err := bindings.encodeScalarForBigtable(valueTimestamp, datatype.Timestamp, 4)
 	if err != nil {
-		t.Errorf("encodeValueForBigtable() error = %v", err)
+		t.Errorf("encodeScalarForBigtable() error = %v", err)
 	}
 
 	valueInt := "123"
-	setInt, err := encodeValueForBigtable(valueInt, datatype.Int, 4)
+	setInt, err := bindings.encodeScalarForBigtable(valueInt, datatype.Int, 4)
 	if err != nil {
-		t.Errorf("encodeValueForBigtable() error = %v", err)
+		t.Errorf("encodeScalarForBigtable() error = %v", err)
 	}
 
 	valueBigInt := "1234567890"
-	setBigInt, err := encodeValueForBigtable(valueBigInt, datatype.Bigint, 4)
+	setBigInt, err := bindings.encodeScalarForBigtable(valueBigInt, datatype.Bigint, 4)
 	if err != nil {
-		t.Errorf("encodeValueForBigtable() error = %v", err)
+		t.Errorf("encodeScalarForBigtable() error = %v", err)
 	}
 
-	setTrueBool, err := encodeValueForBigtable("true", datatype.Boolean, 4)
+	setTrueBool, err := bindings.encodeScalarForBigtable("true", datatype.Boolean, 4)
 	if err != nil {
-		t.Errorf("encodeValueForBigtable() error = %v", err)
+		t.Errorf("encodeScalarForBigtable() error = %v", err)
 	}
 
 	tests := []struct {
@@ -230,7 +231,7 @@ func TestTranslator_TranslateUpdateQuerytoBigtable(t *testing.T) {
 			want: &UpdateQueryMapping{
 				ParamKeys: []string{"set1", "value1", "value2"},
 				Params: map[string]interface{}{
-					"set1": ComplexAssignment{
+					"set1": Assignment{
 						Column:    "column7",
 						Operation: "+",
 						Left:      "column7",
@@ -253,7 +254,7 @@ func TestTranslator_TranslateUpdateQuerytoBigtable(t *testing.T) {
 			want: &UpdateQueryMapping{
 				ParamKeys: []string{"set1", "value1", "value2"},
 				Params: map[string]interface{}{
-					"set1": ComplexAssignment{
+					"set1": Assignment{
 						Column:    "column7",
 						Operation: "-",
 						Left:      "column7",
@@ -276,7 +277,7 @@ func TestTranslator_TranslateUpdateQuerytoBigtable(t *testing.T) {
 			want: &UpdateQueryMapping{
 				ParamKeys: []string{"set1", "value1", "value2"},
 				Params: map[string]interface{}{
-					"set1": ComplexAssignment{
+					"set1": Assignment{
 						Column:    "counter_col",
 						Operation: "+",
 						Left:      "counter_col",
@@ -311,7 +312,7 @@ func TestTranslator_TranslateUpdateQuerytoBigtable(t *testing.T) {
 			want: &UpdateQueryMapping{
 				ParamKeys: []string{"set1", "value1", "value2"},
 				Params: map[string]interface{}{
-					"set1": ComplexAssignment{
+					"set1": Assignment{
 						Column:    "counter_col",
 						Operation: "-",
 						Left:      "counter_col",
@@ -339,7 +340,7 @@ func TestTranslator_TranslateUpdateQuerytoBigtable(t *testing.T) {
 			want: &UpdateQueryMapping{
 				ParamKeys: []string{"set1", "value1", "value2"},
 				Params: map[string]interface{}{
-					"set1": ComplexAssignment{
+					"set1": Assignment{
 						Column:    "counter_col",
 						Operation: "+",
 						Left:      "counter_col",

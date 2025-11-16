@@ -23,7 +23,7 @@ which requires all encoded bytes (not just strings) to have their null bytes,
 need string and int encoding at this time.
 */
 
-package translator
+package bindings
 
 import (
 	"fmt"

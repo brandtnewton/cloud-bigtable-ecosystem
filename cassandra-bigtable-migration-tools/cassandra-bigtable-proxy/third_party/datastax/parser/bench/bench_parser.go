@@ -105,7 +105,7 @@ var queries = []struct {
 	{"BEGIN BATCH\n     INSERT INTO mytable (a, b, d) values (7, 7, 'a')\n     UPDATE mytable SET s = 1 WHERE a = 1 IF s = NULL;\nAPPLY BATCH", false, false},
 	{"BEGIN BATCH\n     INSERT INTO mytable (a, b, d) values (7, 7, 'a')\n     UPDATE mytable SET s = 7 WHERE a = 7 IF s = NULL;\nAPPLY BATCH", false, false},
 	{"INSERT INTO cycling.cyclist_name (id, lastname, firstname)\n  VALUES (6ab09bec-e68e-48d9-a5f8-97e6fb4c9b47, 'KRUIKSWIJK','Steven')\n  USING TTL 86400 AND TIMESTAMP 123456789;", false, true},
-	{"INSERT INTO cycling.cyclist_categories (id,lastname,categories)\n  VALUES(\n    '6ab09bec-e68e-48d9-a5f8-97e6fb4c9b47', \n    'KRUIJSWIJK', \n    {'GC', 'Time-trial', 'Sprint'});", false, true},
+	{"INSERT INTO cycling.cyclist_categories (id,lastname,categories)\n  VALUES(\n    '6ab09bec-e68e-48d9-a5f8-97e6fb4c9b47', \n    'KRUIJSWIJK', \n    {'GC', 'timestamp-trial', 'Sprint'});", false, true},
 	{"INSERT INTO cycling.cyclist_teams (id,lastname,teams)\n  VALUES(\n    5b6962dd-3f90-4c93-8f61-eabfa4a803e2, \n    'VOS', \n    { 2015 : 'Rabobank-Liv Woman Cycling Team', \n      2014 : 'Rabobank-Liv Woman Cycling Team' });", false, true},
 	{"INSERT INTO cycling.cyclist_name (id, lastname, firstname) \n   VALUES (c4b65263-fe58-4846-83e8-f0e1c13d518f, 'RATTO', 'Rissella') \nIF NOT EXISTS; ", false, false},
 	{"BEGIN BATCH USING TIMESTAMP 1481124356754405\nINSERT INTO cycling.cyclist_expenses \n   (cyclist_name, expense_id, amount, description, paid) \n   VALUES ('Vera ADRIAN', 2, 13.44, 'Lunch', true);\nINSERT INTO cycling.cyclist_expenses \n   (cyclist_name, expense_id, amount, description, paid) \n   VALUES ('Vera ADRIAN', 3, 25.00, 'Dinner', true);\nAPPLY BATCH;", false, true},

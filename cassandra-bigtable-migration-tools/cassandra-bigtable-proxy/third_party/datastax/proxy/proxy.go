@@ -642,7 +642,7 @@ func (c *client) handlePrepare(raw *frame.RawFrame, msg *message.Prepare) {
 }
 
 // Check if query is already prepared and return response accordingly without re-processing
-// Params: id [16]byte - Unique identifier for the prepared statement.
+// Values: id [16]byte - Unique identifier for the prepared statement.
 // Returns: []*message.ColumnMetadata - Variable metadata, []*message.ColumnMetadata - Column metadata, bool - Exists in cache.
 // Retrieves and returns metadata for Select, Insert, Delete, and Update query maps from the cache, or nil and false if not found.
 func (c *client) getMetadataFromCache(id [16]byte) ([]*message.ColumnMetadata, []*message.ColumnMetadata, bool) {
@@ -812,7 +812,7 @@ func (c *client) prepareInsertType(raw *frame.RawFrame, msg *message.Prepare, id
 	}
 
 	insertQueryMetadata.VariableMetadata, err = tableConfig.GetMetadataForColumns(insertQueryMetadata.ParamKeys)
-	insertQueryMetadata.VariableMetadata = getTimestampMetadata(*insertQueryMetadata, insertQueryMetadata.VariableMetadata)
+	insertQueryMetadata.VariableMetadata = append(insertQueryMetadata.VariableMetadata, getTimestampMetadata(tableConfig, insertQueryMetadata.Params)...)
 	if err != nil {
 		c.proxy.logger.Error(metadataFetchError, zap.String(Query, msg.Query), zap.Error(err))
 		c.sender.Send(raw.Header, &message.ConfigError{ErrorMessage: err.Error()})
@@ -976,7 +976,7 @@ func (c *client) prepareUpdateType(raw *frame.RawFrame, msg *message.Prepare, id
 	if len(variableColumns) > 0 {
 		//Get column metadata for variable fields
 		updateQueryMetadata.VariableMetadata, err = tableConfig.GetMetadataForColumns(variableColumns)
-		updateQueryMetadata.VariableMetadata = getTimestampMetadataForUpdate(*updateQueryMetadata, updateQueryMetadata.VariableMetadata)
+		updateQueryMetadata.VariableMetadata = append(updateQueryMetadata.VariableMetadata, getTimestampMetadata(tableConfig, updateQueryMetadata.Params)...)
 		if err != nil {
 			c.proxy.logger.Error(metadataFetchError, zap.String(Query, msg.Query), zap.Error(err))
 			c.sender.Send(raw.Header, &message.ConfigError{ErrorMessage: err.Error()})
@@ -1168,7 +1168,7 @@ func (c *client) handleExecuteForSelect(raw *frame.RawFrame, msg *partialExecute
 		return
 	}
 	otelgo.AddAnnotation(otelCtx, executingBigtableSQLAPIRequestEvent)
-	result, _, err = c.proxy.bClient.ExecutePreparedStatement(otelCtx, *query, st.CachedBTPrepare)
+	result, _, err = c.proxy.bClient.ExecutePreparedStatement(otelCtx, query, st.CachedBTPrepare)
 
 	otelgo.AddAnnotation(otelCtx, bigtableExecutionDoneEvent)
 
@@ -1239,7 +1239,7 @@ func (c *client) handleExecuteForDelete(raw *frame.RawFrame, msg *partialExecute
 	}
 
 	var resp *message.RowsResult
-	resp, err = c.proxy.bClient.DeleteRowNew(c.proxy.ctx, deleteMetadata)
+	resp, err = c.proxy.bClient.DeleteRow(c.proxy.ctx, deleteMetadata)
 	if err != nil {
 		c.proxy.logger.Error(errorAtBigtable, zap.String(Query, st.Query), zap.Error(err))
 		c.sender.Send(raw.Header, &message.Invalid{ErrorMessage: err.Error()})
@@ -1291,11 +1291,6 @@ func (c *client) prepareUpdateQueryMetadata(raw *frame.RawFrame, paramValues []*
 
 // Prepare delete query metadata
 func (c *client) prepareDeleteQueryMetadata(raw *frame.RawFrame, values []*primitive.Value, st *translator.DeleteQueryMapping) (*translator.DeleteQueryMapping, error) {
-	tableConfig, err := c.proxy.schemaMapping.GetTableConfig(st.Keyspace, st.Table)
-	if err != nil {
-		return nil, err
-	}
-
 	var columnNames []types.ColumnName
 	var columns []*types.Column
 	for _, clause := range st.Conditions {
@@ -1303,13 +1298,11 @@ func (c *client) prepareDeleteQueryMetadata(raw *frame.RawFrame, values []*primi
 		columnNames = append(columnNames, clause.Column.Name)
 	}
 
-	rowKey, timestamp, err := c.proxy.translator.BindDelete(tableConfig, st, columns, values, raw.Header.Version)
+	bound, err := c.proxy.translator.BindDelete(st, values, raw.Header.Version)
 	if err != nil {
 		return nil, fmt.Errorf("error building rowkey for delete prepare query:%w", err)
 	}
-	if timestamp.HasUsingTimestamp {
-		return nil, fmt.Errorf("error delete prepare query: %s", "delete using timestamp is not allowed")
-	}
+
 	c.proxy.logger.Debug("Delete PreparedExecute CqlQuery", zap.String("RowKey", string(rowKey)))
 
 	deleteQueryData := &translator.DeleteQueryMapping{
@@ -1463,7 +1456,7 @@ func (c *client) handleQuery(raw *frame.RawFrame, msg *partialQuery) {
 
 			var dErr error
 			otelgo.AddAnnotation(otelCtx, bigtableExecutionDoneEvent)
-			result, dErr = c.proxy.bClient.DeleteRowNew(c.proxy.ctx, queryMetadata)
+			result, dErr = c.proxy.bClient.DeleteRow(c.proxy.ctx, queryMetadata)
 			if dErr != nil {
 				c.proxy.logger.Error(errorAtBigtable, zap.String(Query, msg.query), zap.Error(dErr))
 				otelErr = dErr

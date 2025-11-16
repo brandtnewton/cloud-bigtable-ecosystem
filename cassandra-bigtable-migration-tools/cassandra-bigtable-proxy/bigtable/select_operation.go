@@ -19,6 +19,7 @@ package bigtableclient
 import (
 	"context"
 	"fmt"
+	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/translator"
 	"slices"
 	"strings"
 	"time"
@@ -44,10 +45,10 @@ import (
 //   - *message.RowsResult: The result of the select statement.
 //   - time.Duration: The total elapsed time for the operation.
 //   - error: Error if the select statement execution fails.
-func (btc *BigtableClient) SelectStatement(ctx context.Context, query rh.QueryMetadata) (*message.RowsResult, time.Time, error) {
-	preparedStmt, err := btc.PrepareStatement(ctx, query)
+func (btc *BigtableClient) SelectStatement(ctx context.Context, query *translator.SelectQueryAndData) (*message.RowsResult, time.Time, error) {
+	preparedStmt, err := btc.PrepareStatement(ctx, query.Query)
 	if err != nil {
-		btc.Logger.Error("Failed to prepare statement", zap.String("query", query.Query), zap.Error(err))
+		btc.Logger.Error("Failed to prepare statement", zap.String("query", query.Query.TranslatedQuery), zap.Error(err))
 		return nil, time.Now(), fmt.Errorf("failed to prepare statement: %w", err)
 	}
 	return btc.ExecutePreparedStatement(ctx, query, preparedStmt)
@@ -63,24 +64,25 @@ func (btc *BigtableClient) SelectStatement(ctx context.Context, query rh.QueryMe
 //   - *message.RowsResult: The result of the select statement.
 //   - time.Duration: The total elapsed time for the operation.
 //   - error: Error if the statement preparation or execution fails.
-func (btc *BigtableClient) ExecutePreparedStatement(ctx context.Context, query rh.QueryMetadata, preparedStmt *bigtable.PreparedStatement) (*message.RowsResult, time.Time, error) {
+func (btc *BigtableClient) ExecutePreparedStatement(ctx context.Context, query *translator.SelectQueryAndData, preparedStmt *bigtable.PreparedStatement) (*message.RowsResult, time.Time, error) {
 	var data message.RowSet
 	var bigtableEnd time.Time
 	var columnMetadata []*message.ColumnMetadata
 	var processingErr error
 
-	boundStmt, err := preparedStmt.Bind(query.Params)
+	params := query.Values.AsMap()
+	boundStmt, err := preparedStmt.Bind(params)
 	if err != nil {
-		btc.Logger.Error("Failed to bind parameters", zap.Any("params", query.Params), zap.Error(err))
+		btc.Logger.Error("Failed to bind parameters", zap.Any("params", params), zap.Error(err))
 		return nil, time.Now(), fmt.Errorf("failed to bind parameters: %w", err)
 	}
 
 	allRowMaps := make([]map[string]interface{}, 0)
 	executeErr := boundStmt.Execute(ctx, func(resultRow bigtable.ResultRow) bool {
-		rowMap, convertErr := btc.convertResultRowToMap(resultRow, query) // Call the implemented helper
+		rowMap, convertErr := btc.convertResultRowToMap(resultRow, query.Query) // Call the implemented helper
 		if convertErr != nil {
 			// Log the error and stop processing
-			btc.Logger.Error("Failed to convert result row", zap.Error(convertErr), zap.String("btql", query.Query))
+			btc.Logger.Error("Failed to convert result row", zap.Error(convertErr), zap.String("btql", query.Query.TranslatedQuery))
 			processingErr = convertErr // Capture the error
 			return false               // Stop execution
 		}
@@ -114,11 +116,11 @@ func (btc *BigtableClient) ExecutePreparedStatement(ctx context.Context, query r
 	}
 
 	if len(allRowMaps) == 0 && len(columnMetadata) == 0 {
-		tableConfig, err := btc.SchemaMappingConfig.GetTableConfig(query.KeyspaceName, query.TableName)
+		tableConfig, err := btc.SchemaMappingConfig.GetTableConfig(query.Query.Keyspace, query.Query.Table)
 		if err != nil {
 			return nil, bigtableEnd, err
 		}
-		columnMetadata, err = tableConfig.GetMetadataForSelectedColumns(query.SelectedColumns)
+		columnMetadata, err = tableConfig.GetMetadataForSelectedColumns(query.Query.SelectedColumns)
 		if err != nil {
 			btc.Logger.Error("Error while fetching columnMetadata from config for empty result", zap.Error(err))
 			columnMetadata = []*message.ColumnMetadata{}
@@ -135,7 +137,12 @@ func (btc *BigtableClient) ExecutePreparedStatement(ctx context.Context, query r
 }
 
 // convertResultRowToMap converts a bigtable.ResultRow into the map format expected by the ResponseHandler.
-func (btc *BigtableClient) convertResultRowToMap(resultRow bigtable.ResultRow, query rh.QueryMetadata) (map[string]interface{}, error) {
+func (btc *BigtableClient) convertResultRowToMap(resultRow bigtable.ResultRow, query *translator.SelectQueryMap) (map[string]interface{}, error) {
+	table, err := btc.SchemaMappingConfig.GetTableConfig(query.Keyspace, query.Table)
+	if err != nil {
+		return nil, err
+	}
+
 	rowMap := make(map[string]interface{})
 	var convertErr error
 
@@ -167,7 +174,7 @@ func (btc *BigtableClient) convertResultRowToMap(resultRow bigtable.ResultRow, q
 				rowMap[colName] = *counterValue
 			}
 		case map[string][]uint8: //specific case of select * column in select
-			if colName == query.DefaultColumnFamily { // default column family e.g cf1
+			if colName == string(table.SystemColumnFamily) { // default column family e.g cf1
 				for k, val := range v {
 					key, err := decodeBase64(k)
 					if err != nil {

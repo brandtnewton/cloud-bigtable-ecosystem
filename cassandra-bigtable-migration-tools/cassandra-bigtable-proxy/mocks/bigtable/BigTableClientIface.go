@@ -105,7 +105,7 @@ func (_m *BigTableClientIface) DeleteRowNew(_a0 context.Context, _a1 *translator
 	ret := _m.Called(_a0, _a1)
 
 	if len(ret) == 0 {
-		panic("no return value specified for DeleteRowNew")
+		panic("no return value specified for DeleteRow")
 	}
 
 	var r0 *message.RowsResult

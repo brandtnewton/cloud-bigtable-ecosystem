@@ -26,7 +26,6 @@ import (
 	schemaMapping "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/schema-mapping"
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/third_party/datastax/parser"
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/third_party/datastax/proxy/config"
-	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/translator"
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/utilities"
 	"github.com/datastax/go-cassandra-native-protocol/datatype"
 	"github.com/datastax/go-cassandra-native-protocol/message"
@@ -60,7 +59,7 @@ func addSecondsToCurrentTimestamp(seconds int64) string {
 
 // unixToISO converts a Unix timestamp (in seconds) to an ISO 8601 formatted string.
 func unixToISO(unixTimestamp int64) string {
-	// Convert the Unix timestamp to a time.Time object
+	// Convert the Unix timestamp to a time.timestamp object
 	t := time.Unix(unixTimestamp, 0).UTC()
 
 	// Format the time as an ISO 8601 string
@@ -531,52 +530,16 @@ func addSystemKeyspacesToMetadata(tableMetadata map[string]map[string]*schemaMap
 	return nil
 }
 
-// getTimestampMetadata appends a metadata entry for a timestamp column to a list of column metadata
-// if a timestamp is used in the insert query.
-//
-// Parameters:
-//   - insertQueryMetadata: An PreparedInsertQuery containing information about the insert query, including
-//     any timestamp information.
-//   - columnMetadataList: A slice of pointers to ColumnMetadata representing the current list of column metadata.
-//
-// Returns: An updated slice of pointers to ColumnMetadata, including an entry for the timestamp column
-//
-//	if the query uses a timestamp.
-func getTimestampMetadata(insertQueryMetadata translator.PreparedInsertQuery, columnMetadataList []*message.ColumnMetadata) []*message.ColumnMetadata {
-	if insertQueryMetadata.TimestampInfo.HasUsingTimestamp {
-		metadata := message.ColumnMetadata{
-			Keyspace: insertQueryMetadata.Keyspace,
-			Table:    insertQueryMetadata.Table,
+func getTimestampMetadata(table *schemaMapping.TableConfig, params *types.QueryParameters) []*message.ColumnMetadata {
+	index := params.Index(types.UsingTimePlaceholder)
+	if index != -1 {
+		return []*message.ColumnMetadata{{
+			Keyspace: table.Keyspace,
+			Table:    table.Name,
 			Name:     config.TimestampColumnName,
-			Index:    insertQueryMetadata.TimestampInfo.Index,
+			Index:    int32(index),
 			Type:     datatype.Bigint,
-		}
-		columnMetadataList = append(columnMetadataList, &metadata)
+		}}
 	}
-	return columnMetadataList
-}
-
-// getTimestampMetadataForUpdate prepends a metadata entry for a timestamp column to a list of column metadata
-// if a timestamp is used in the update query.
-//
-// Parameters:
-//   - updateQueryMetadata: An UpdateQueryMapping containing information about the update query, including
-//     any timestamp information.
-//   - columnMetadataList: A slice of pointers to ColumnMetadata representing the current list of column metadata.
-//
-// Returns: An updated slice of pointers to ColumnMetadata, with an entry for the timestamp column prepended
-//
-//	if the query uses a timestamp.
-func getTimestampMetadataForUpdate(updateQueryMetadata translator.UpdateQueryMapping, columnMetadataList []*message.ColumnMetadata) []*message.ColumnMetadata {
-	if updateQueryMetadata.TimestampInfo.HasUsingTimestamp {
-		metadata := message.ColumnMetadata{
-			Keyspace: updateQueryMetadata.Keyspace,
-			Table:    updateQueryMetadata.Table,
-			Name:     config.TimestampColumnName,
-			Index:    updateQueryMetadata.TimestampInfo.Index,
-			Type:     datatype.Bigint,
-		}
-		columnMetadataList = append([]*message.ColumnMetadata{&metadata}, columnMetadataList...)
-	}
-	return columnMetadataList
+	return nil
 }

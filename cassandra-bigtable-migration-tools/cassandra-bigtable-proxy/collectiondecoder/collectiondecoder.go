@@ -333,7 +333,7 @@ func ConvertToTypedMap(decodedMap map[interface{}]interface{}, keyType, valueTyp
 			for key, value := range decodedMap {
 				timestampKey, ok := key.(time.Time)
 				if !ok {
-					return nil, fmt.Errorf("invalid key type, expect time.Time but got %T", key)
+					return nil, fmt.Errorf("invalid key type, expect time.timestamp but got %T", key)
 				}
 				stringValue, ok := value.(string)
 				if !ok {
@@ -347,7 +347,7 @@ func ConvertToTypedMap(decodedMap map[interface{}]interface{}, keyType, valueTyp
 			for key, value := range decodedMap {
 				timestampKey, ok := key.(time.Time)
 				if !ok {
-					return nil, fmt.Errorf("invalid key type, expect time.Time but got %T", key)
+					return nil, fmt.Errorf("invalid key type, expect time.timestamp but got %T", key)
 				}
 				int32value, ok := value.(int32)
 				if !ok {
@@ -361,7 +361,7 @@ func ConvertToTypedMap(decodedMap map[interface{}]interface{}, keyType, valueTyp
 			for key, value := range decodedMap {
 				timestampKey, ok := key.(time.Time)
 				if !ok {
-					return nil, fmt.Errorf("invalid key type, expect time.Time but got %T", key)
+					return nil, fmt.Errorf("invalid key type, expect time.timestamp but got %T", key)
 				}
 				int64value, ok := value.(int64)
 				if !ok {
@@ -375,7 +375,7 @@ func ConvertToTypedMap(decodedMap map[interface{}]interface{}, keyType, valueTyp
 			for key, value := range decodedMap {
 				timestampKey, ok := key.(time.Time)
 				if !ok {
-					return nil, fmt.Errorf("invalid key type, expect time.Time but got %T", key)
+					return nil, fmt.Errorf("invalid key type, expect time.timestamp but got %T", key)
 				}
 				float32value, ok := value.(float32)
 				if !ok {
@@ -389,7 +389,7 @@ func ConvertToTypedMap(decodedMap map[interface{}]interface{}, keyType, valueTyp
 			for key, value := range decodedMap {
 				timestampKey, ok := key.(time.Time)
 				if !ok {
-					return nil, fmt.Errorf("invalid key type, expect time.Time but got %T", key)
+					return nil, fmt.Errorf("invalid key type, expect time.timestamp but got %T", key)
 				}
 				float64value, ok := value.(float64)
 				if !ok {
@@ -403,7 +403,7 @@ func ConvertToTypedMap(decodedMap map[interface{}]interface{}, keyType, valueTyp
 			for key, value := range decodedMap {
 				timestampKey, ok := key.(time.Time)
 				if !ok {
-					return nil, fmt.Errorf("invalid key type, expect time.Time but got %T", key)
+					return nil, fmt.Errorf("invalid key type, expect time.timestamp but got %T", key)
 				}
 				boolValue, ok := value.(bool)
 				if !ok {
@@ -417,7 +417,7 @@ func ConvertToTypedMap(decodedMap map[interface{}]interface{}, keyType, valueTyp
 			for key, value := range decodedMap {
 				timestampKey, ok := key.(time.Time)
 				if !ok {
-					return nil, fmt.Errorf("invalid key type, expect time.Time but got %T", key)
+					return nil, fmt.Errorf("invalid key type, expect time.timestamp but got %T", key)
 				}
 				timeValue, ok := value.(time.Time)
 				if !ok {

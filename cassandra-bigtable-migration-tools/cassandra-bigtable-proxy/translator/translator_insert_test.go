@@ -17,6 +17,7 @@
 package translator
 
 import (
+	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/bindings"
 	"reflect"
 	"testing"
 
@@ -45,8 +46,8 @@ func parseInsertQuery(query string) cql.IInsertContext {
 func Test_setParamsFromValues(t *testing.T) {
 	var protocalV primitive.ProtocolVersion = 4
 	response := make(map[string]interface{})
-	val, _ := encodeValueForBigtable("Test", datatype.Varchar, protocalV)
-	specialCharVal, _ := encodeValueForBigtable("#!@#$%^&*()_+", datatype.Varchar, protocalV)
+	val, _ := bindings.encodeScalarForBigtable("Test", datatype.Varchar, protocalV)
+	specialCharVal, _ := bindings.encodeScalarForBigtable("#!@#$%^&*()_+", datatype.Varchar, protocalV)
 	response["name"] = val
 	specialCharResponse := make(map[string]interface{})
 	specialCharResponse["name"] = specialCharVal
@@ -210,7 +211,7 @@ func Test_setParamsFromValues(t *testing.T) {
 }
 
 func formatValueUnsafe(t *testing.T, value string, cqlType datatype.DataType, protocolV primitive.ProtocolVersion) []byte {
-	result, err := encodeValueForBigtable(value, cqlType, protocolV)
+	result, err := bindings.encodeScalarForBigtable(value, cqlType, protocolV)
 	require.NoError(t, err)
 	return result
 }
@@ -236,13 +237,13 @@ func TestTranslator_TranslateInsertQuerytoBigtable(t *testing.T) {
 	bigIntValue := "1234567890"
 	column10 := "column10"
 
-	formattedText, _ := encodeValueForBigtable(textValue, datatype.Varchar, protocolV)
-	formattedBlob, _ := encodeValueForBigtable(blobValue, datatype.Blob, protocolV)
-	formattedBoolean, _ := encodeValueForBigtable(booleanValue, datatype.Boolean, protocolV)
-	formattedTimestamp, _ := encodeValueForBigtable(timestampValue, datatype.Timestamp, protocolV)
-	formattedInt, _ := encodeValueForBigtable(intValue, datatype.Int, protocolV)
-	formattedBigInt, _ := encodeValueForBigtable(bigIntValue, datatype.Bigint, protocolV)
-	formattedcolumn10text, _ := encodeValueForBigtable(column10, datatype.Varchar, protocolV)
+	formattedText, _ := bindings.encodeScalarForBigtable(textValue, datatype.Varchar, protocolV)
+	formattedBlob, _ := bindings.encodeScalarForBigtable(blobValue, datatype.Blob, protocolV)
+	formattedBoolean, _ := bindings.encodeScalarForBigtable(booleanValue, datatype.Boolean, protocolV)
+	formattedTimestamp, _ := bindings.encodeScalarForBigtable(timestampValue, datatype.Timestamp, protocolV)
+	formattedInt, _ := bindings.encodeScalarForBigtable(intValue, datatype.Int, protocolV)
+	formattedBigInt, _ := bindings.encodeScalarForBigtable(bigIntValue, datatype.Bigint, protocolV)
+	formattedcolumn10text, _ := bindings.encodeScalarForBigtable(column10, datatype.Varchar, protocolV)
 
 	values := []interface{}{
 		formattedBlob,

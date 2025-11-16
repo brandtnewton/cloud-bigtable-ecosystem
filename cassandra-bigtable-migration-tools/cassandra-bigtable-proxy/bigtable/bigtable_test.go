@@ -302,7 +302,7 @@ func TestDeleteRow(t *testing.T) {
 		RowKey:   "test-row",
 		Keyspace: "ks1",
 	}
-	_, err = btc.DeleteRowNew(ctx, deleteData)
+	_, err = btc.DeleteRow(ctx, deleteData)
 	assert.NoError(t, err)
 
 	// Verify deletion
@@ -426,7 +426,7 @@ func TestDeleteRowsUsingTimestamp(t *testing.T) {
 		Keyspace:      "ks1",
 		TimestampInfo: timestamp,
 	}
-	_, err = btc.DeleteRowNew(ctx, deleteData)
+	_, err = btc.DeleteRow(ctx, deleteData)
 	assert.NoError(t, err)
 
 	// Verify that the columns are deleted
@@ -437,13 +437,13 @@ func TestDeleteRowsUsingTimestamp(t *testing.T) {
 	// Test Case 2: Invalid keyspace
 	deleteData.TimestampInfo.Timestamp = bigtable.Now()
 	deleteData.Keyspace = "invalid-keyspace"
-	_, err = btc.DeleteRowNew(ctx, deleteData)
+	_, err = btc.DeleteRow(ctx, deleteData)
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "keyspace not found: 'invalid-keyspace'")
 
 	// Test Case 3: Attempt to delete non-existent columns (should not error)
 	deleteData.Keyspace = "ks1"
-	_, err = btc.DeleteRowNew(ctx, deleteData)
+	_, err = btc.DeleteRow(ctx, deleteData)
 	assert.NoError(t, err)
 
 	// Verify that nothing breaks or changes for non-existent columns

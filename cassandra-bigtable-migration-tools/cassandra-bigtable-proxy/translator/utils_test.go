@@ -18,6 +18,7 @@ package translator
 
 import (
 	"fmt"
+	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/bindings"
 	"math"
 	"reflect"
 	"sort"
@@ -117,13 +118,13 @@ func TestPrimitivesToString(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		output, err := primitivesToString(test.input)
+		output, err := scalarToString(test.input)
 		if (err != nil) != test.err {
-			t.Errorf("primitivesToString(%v) unexpected error status: %v", test.input, err)
+			t.Errorf("scalarToString(%v) unexpected error status: %v", test.input, err)
 			continue
 		}
 		if output != test.expected {
-			t.Errorf("primitivesToString(%v) = %v; wantNewColumns %v", test.input, output, test.expected)
+			t.Errorf("scalarToString(%v) = %v; wantNewColumns %v", test.input, output, test.expected)
 		}
 	}
 }
@@ -222,13 +223,13 @@ func Test_formatValues(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := encodeValueForBigtable(tt.args.value, tt.args.cqlType, tt.args.protocolV)
+			got, err := bindings.encodeScalarForBigtable(tt.args.value, tt.args.cqlType, tt.args.protocolV)
 			if (err != nil) != tt.wantErr {
-				t.Errorf("encodeValueForBigtable() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("encodeScalarForBigtable() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
 			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("encodeValueForBigtable() = %v, wantNewColumns %v", got, tt.want)
+				t.Errorf("encodeScalarForBigtable() = %v, wantNewColumns %v", got, tt.want)
 			}
 		})
 	}
@@ -259,73 +260,73 @@ func Test_processCollectionColumnsForPrepareQueries(t *testing.T) {
 
 	valuesTextText := map[string]string{"test": "test"}
 	textBytesTextText, _ := proxycore.EncodeType(mapTypeTextText, primitive.ProtocolVersion4, valuesTextText)
-	textValue, _ := encodeValueForBigtable("test", datatype.Varchar, primitive.ProtocolVersion4)
-	trueVal, _ := encodeValueForBigtable("true", datatype.Boolean, primitive.ProtocolVersion4)
+	textValue, _ := bindings.encodeScalarForBigtable("test", datatype.Varchar, primitive.ProtocolVersion4)
+	trueVal, _ := bindings.encodeScalarForBigtable("true", datatype.Boolean, primitive.ProtocolVersion4)
 
 	valuesTextBool := map[string]bool{"test": true}
 	textBytesTextBool, _ := proxycore.EncodeType(mapTypeTextBool, primitive.ProtocolVersion4, valuesTextBool)
 
 	valuesTextInt := map[string]int{"test": 42}
 	textBytesTextInt, _ := proxycore.EncodeType(mapTypeTextInt, primitive.ProtocolVersion4, valuesTextInt)
-	intValue, _ := encodeValueForBigtable("42", datatype.Int, primitive.ProtocolVersion4)
+	intValue, _ := bindings.encodeScalarForBigtable("42", datatype.Int, primitive.ProtocolVersion4)
 
 	valuesTextFloat := map[string]float32{"test": 3.14}
 	textBytesTextFloat, _ := proxycore.EncodeType(mapTypeTextFloat, primitive.ProtocolVersion4, valuesTextFloat)
-	floatValue, _ := encodeValueForBigtable("3.14", datatype.Float, primitive.ProtocolVersion4)
+	floatValue, _ := bindings.encodeScalarForBigtable("3.14", datatype.Float, primitive.ProtocolVersion4)
 
 	valuesTextDouble := map[string]float64{"test": 6.283}
 	textBytesTextDouble, _ := proxycore.EncodeType(mapTypeTextDouble, primitive.ProtocolVersion4, valuesTextDouble)
-	doubleValue, _ := encodeValueForBigtable("6.283", datatype.Double, primitive.ProtocolVersion4)
+	doubleValue, _ := bindings.encodeScalarForBigtable("6.283", datatype.Double, primitive.ProtocolVersion4)
 
 	valuesTextTimestamp := map[string]time.Time{"test": time.Unix(1633046400, 0)} // Example timestamp
 	textBytesTextTimestamp, _ := proxycore.EncodeType(mapTypeTextTimestamp, primitive.ProtocolVersion4, valuesTextTimestamp)
-	timestampValue, _ := encodeValueForBigtable("1633046400000", datatype.Timestamp, primitive.ProtocolVersion4) // Example in milliseconds
+	timestampValue, _ := bindings.encodeScalarForBigtable("1633046400000", datatype.Timestamp, primitive.ProtocolVersion4) // Example in milliseconds
 
 	valuesTimestampBoolean := map[time.Time]bool{
 		time.Unix(1633046400, 0): true,
 	}
 	textBytesTimestampBoolean, _ := proxycore.EncodeType(mapTypeTimestampBoolean, primitive.ProtocolVersion4, valuesTimestampBoolean)
-	timestampBooleanValue, _ := encodeValueForBigtable("true", datatype.Boolean, primitive.ProtocolVersion4)
+	timestampBooleanValue, _ := bindings.encodeScalarForBigtable("true", datatype.Boolean, primitive.ProtocolVersion4)
 
 	valuesTimestampText := map[time.Time]string{
 		time.Unix(1633046400, 0): "example_text", // Example timestamp as key with text value
 	}
 	textBytesTimestampText, _ := proxycore.EncodeType(mapTypeTimestampText, primitive.ProtocolVersion4, valuesTimestampText)
-	timestampTextValue, _ := encodeValueForBigtable("example_text", datatype.Varchar, primitive.ProtocolVersion4)
+	timestampTextValue, _ := bindings.encodeScalarForBigtable("example_text", datatype.Varchar, primitive.ProtocolVersion4)
 
 	valuesTimestampInt := map[time.Time]int{
 		time.Unix(1633046400, 0): 42, // Example timestamp as key with int value
 	}
 	textBytesTimestampInt, _ := proxycore.EncodeType(mapTypeTimestampInt, primitive.ProtocolVersion4, valuesTimestampInt)
-	timestampIntValue, _ := encodeValueForBigtable("42", datatype.Int, primitive.ProtocolVersion4)
+	timestampIntValue, _ := bindings.encodeScalarForBigtable("42", datatype.Int, primitive.ProtocolVersion4)
 
 	valuesTimestampFloat := map[time.Time]float32{
 		time.Unix(1633046400, 0): 3.14, // Example timestamp as key with float value
 	}
 	textBytesTimestampFloat, _ := proxycore.EncodeType(mapTypeTimestampFloat, primitive.ProtocolVersion4, valuesTimestampFloat)
-	timestampFloatValue, _ := encodeValueForBigtable("3.14", datatype.Float, primitive.ProtocolVersion4)
+	timestampFloatValue, _ := bindings.encodeScalarForBigtable("3.14", datatype.Float, primitive.ProtocolVersion4)
 
 	valuesTimestampBigint := map[time.Time]int64{
 		time.Unix(1633046400, 0): 1234567890123, // Example timestamp as key with bigint value
 	}
 	textBytesTimestampBigint, _ := proxycore.EncodeType(mapTypeTimestampBigint, primitive.ProtocolVersion4, valuesTimestampBigint)
-	timestampBigintValue, _ := encodeValueForBigtable("1234567890123", datatype.Bigint, primitive.ProtocolVersion4)
+	timestampBigintValue, _ := bindings.encodeScalarForBigtable("1234567890123", datatype.Bigint, primitive.ProtocolVersion4)
 
 	valuesTimestampDouble := map[time.Time]float64{
 		time.Unix(1633046400, 0): 6.283, // Example timestamp as key with double value
 	}
 	textBytesTimestampDouble, _ := proxycore.EncodeType(mapTypeTimestampDouble, primitive.ProtocolVersion4, valuesTimestampDouble)
-	timestampDoubleValue, _ := encodeValueForBigtable("6.283", datatype.Double, primitive.ProtocolVersion4)
+	timestampDoubleValue, _ := bindings.encodeScalarForBigtable("6.283", datatype.Double, primitive.ProtocolVersion4)
 
 	valuesTimestampTimestamp := map[time.Time]time.Time{
 		time.Unix(1633046400, 0): time.Unix(1633126400, 0), // Example timestamp as key with timestamp value
 	}
 	textBytesTimestampTimestamp, _ := proxycore.EncodeType(mapTypeTimestampTimestamp, primitive.ProtocolVersion4, valuesTimestampTimestamp)
-	timestampTimestampValue, _ := encodeValueForBigtable("1633126400000", datatype.Timestamp, primitive.ProtocolVersion4) // Example in milliseconds
+	timestampTimestampValue, _ := bindings.encodeScalarForBigtable("1633126400000", datatype.Timestamp, primitive.ProtocolVersion4) // Example in milliseconds
 
 	valuesTextBigint := map[string]int64{"test": 1234567890123}
 	textBytesTextBigint, _ := proxycore.EncodeType(mapTypeTextBigint, primitive.ProtocolVersion4, valuesTextBigint)
-	bigintValue, _ := encodeValueForBigtable("1234567890123", datatype.Bigint, primitive.ProtocolVersion4)
+	bigintValue, _ := bindings.encodeScalarForBigtable("1234567890123", datatype.Bigint, primitive.ProtocolVersion4)
 
 	valuesSetBoolean := []bool{true}
 	valuesSetInt := []int32{12}
@@ -343,7 +344,7 @@ func Test_processCollectionColumnsForPrepareQueries(t *testing.T) {
 	setBytesDouble, _ := proxycore.EncodeType(setTypeDouble, primitive.ProtocolVersion4, valuesSetDouble)
 	setBytesTimestamp, _ := proxycore.EncodeType(setTypeTimestamp, primitive.ProtocolVersion4, valuesSetTimestamp)
 
-	emptyVal, _ := encodeValueForBigtable("", datatype.Varchar, primitive.ProtocolVersion4)
+	emptyVal, _ := bindings.encodeScalarForBigtable("", datatype.Varchar, primitive.ProtocolVersion4)
 	listTextType := datatype.NewListType(datatype.Varchar)
 	valuesListText := []string{"test"}
 	listBytesText, _ := proxycore.EncodeType(listTextType, primitive.ProtocolVersion4, valuesListText)
@@ -372,9 +373,9 @@ func Test_processCollectionColumnsForPrepareQueries(t *testing.T) {
 	valuesListTimestamp := []int64{1633046400000}
 	listBytesTimestamp, _ := proxycore.EncodeType(listTimestampType, primitive.ProtocolVersion4, valuesListTimestamp)
 
-	floatVal, _ := encodeValueForBigtable("3.14", datatype.Float, primitive.ProtocolVersion4)
-	doubleVal, _ := encodeValueForBigtable("6.283", datatype.Double, primitive.ProtocolVersion4)
-	timestampVal, _ := encodeValueForBigtable("1633046400000", datatype.Timestamp, primitive.ProtocolVersion4)
+	floatVal, _ := bindings.encodeScalarForBigtable("3.14", datatype.Float, primitive.ProtocolVersion4)
+	doubleVal, _ := bindings.encodeScalarForBigtable("6.283", datatype.Double, primitive.ProtocolVersion4)
+	timestampVal, _ := bindings.encodeScalarForBigtable("1633046400000", datatype.Timestamp, primitive.ProtocolVersion4)
 
 	tests := []struct {
 		name                string
@@ -1105,7 +1106,7 @@ func Test_processCollectionColumnsForPrepareQueries(t *testing.T) {
 				t.Fatalf("error = %v, wantErr %v", err, tt.wantErr)
 			}
 
-			output, err := decodePreparedValues(tc, input)
+			output, err := bindings.bindQueryParams(tc, input)
 
 			if tt.wantErr {
 				require.Error(t, err)
@@ -1301,12 +1302,12 @@ func TestProcessComplexUpdate(t *testing.T) {
 				{Name: "list_text", CQLType: types.NewListType(types.TypeVarchar)},
 			},
 			values: []interface{}{
-				ComplexAssignment{
+				Assignment{
 					Left:      "map_text_bool_col",
 					Operation: "+",
 					Right:     "{key:?}",
 				},
-				ComplexAssignment{
+				Assignment{
 					Left:      "list_text",
 					Operation: "+",
 					Right:     "?",
@@ -1315,11 +1316,11 @@ func TestProcessComplexUpdate(t *testing.T) {
 			prependColumns: []string{"list_text"},
 			expectedMeta: map[string]*ComplexOperation{
 				"map_text_bool_col": {
-					Append: true,
+					bindings.Append: true,
 				},
 				"list_text": {
-					Append:      true,
-					PrependList: false,
+					bindings.Append: true,
+					PrependList:     false,
 				},
 			},
 			expectedErr: nil,
@@ -2202,7 +2203,7 @@ func TestProcessCollectionColumnsForPrepareQueries_ComplexMetaAndNonCollection(t
 			},
 			complexMeta: map[string]*ComplexOperation{
 				"map_text_text": {
-					Append:           true,
+					bindings.Append:  true,
 					mapKey:           "newKey",
 					ExpectedDatatype: datatype.Varchar,
 				},
@@ -2316,10 +2317,10 @@ func TestProcessCollectionColumnsForPrepareQueries_ComplexMetaAndNonCollection(t
 				ComplexMeta:     currentComplexMeta,
 			}
 			tc, _ := translator.SchemaMappingConfig.GetTableConfig(input.KeySpace, input.TableName)
-			output, err := decodePreparedValues(tc, input)
+			output, err := bindings.bindQueryParams(tc, input)
 
 			if (err != nil) != tt.wantErr {
-				t.Errorf("decodePreparedValues() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("bindQueryParams() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
 			if tt.wantErr {
@@ -2346,32 +2347,32 @@ func TestProcessCollectionColumnsForPrepareQueries_ComplexMetaAndNonCollection(t
 			}
 
 			if !reflect.DeepEqual(output.Data, tt.wantNewColumns) {
-				t.Errorf("decodePreparedValues() output.Data = %v, wantNewColumns %v", output.Data, tt.wantNewColumns)
+				t.Errorf("bindQueryParams() output.Data = %v, wantNewColumns %v", output.Data, tt.wantNewColumns)
 			}
 			// Comparing slices of interfaces containing byte slices requires careful comparison
 			if len(output.Values) != len(tt.wantNewValues) {
-				t.Errorf("decodePreparedValues() output.Values length = %d, wantNewColumns %d", len(output.Values), len(tt.wantNewValues))
+				t.Errorf("bindQueryParams() output.Values length = %d, wantNewColumns %d", len(output.Values), len(tt.wantNewValues))
 			} else {
 				// Simple byte comparison for this test setup
 				for i := range output.Values {
 					gotBytes, okGot := output.Values[i].([]byte)
 					wantBytes, okWant := tt.wantNewValues[i].([]byte)
 					if !okGot || !okWant || !reflect.DeepEqual(gotBytes, wantBytes) {
-						t.Errorf("decodePreparedValues() output.Values[%d] = %v, wantNewColumns %v", i, output.Values[i], tt.wantNewValues[i])
+						t.Errorf("bindQueryParams() output.Values[%d] = %v, wantNewColumns %v", i, output.Values[i], tt.wantNewValues[i])
 					}
 				}
 			}
 			if !reflect.DeepEqual(output.GoValues, tt.wantUnencrypted) {
-				t.Errorf("decodePreparedValues() output.GoValues = %v, wantNewColumns %v", output.GoValues, tt.wantUnencrypted)
+				t.Errorf("bindQueryParams() output.GoValues = %v, wantNewColumns %v", output.GoValues, tt.wantUnencrypted)
 			}
 			if output.IndexEnd != tt.wantIndexEnd {
-				t.Errorf("decodePreparedValues() output.IndexEnd = %v, wantNewColumns %v", output.IndexEnd, tt.wantIndexEnd)
+				t.Errorf("bindQueryParams() output.IndexEnd = %v, wantNewColumns %v", output.IndexEnd, tt.wantIndexEnd)
 			}
 			if !reflect.DeepEqual(output.DelColumnFamily, tt.wantDelColFamily) {
-				t.Errorf("decodePreparedValues() output.DelColumnFamily = %v, wantNewColumns %v", output.DelColumnFamily, tt.wantDelColFamily)
+				t.Errorf("bindQueryParams() output.DelColumnFamily = %v, wantNewColumns %v", output.DelColumnFamily, tt.wantDelColFamily)
 			}
 			if !reflect.DeepEqual(output.DelColumns, tt.wantDelColumns) {
-				t.Errorf("decodePreparedValues() output.DelColumns = %v, wantNewColumns %v", output.DelColumns, tt.wantDelColumns)
+				t.Errorf("bindQueryParams() output.DelColumns = %v, wantNewColumns %v", output.DelColumns, tt.wantDelColumns)
 			}
 
 			// Specific checks for complex meta modifications
@@ -2425,7 +2426,7 @@ func TestProcessComplexUpdate_SuccessfulCases(t *testing.T) {
 				{Name: "map_text_text", CQLType: utilities.ParseCqlTypeOrDie("map<varchar,varchar>")},
 			},
 			values: []interface{}{
-				ComplexAssignment{
+				Assignment{
 					Column:    "map_text_text",
 					Operation: "+",
 					Left:      "key",
@@ -2436,7 +2437,7 @@ func TestProcessComplexUpdate_SuccessfulCases(t *testing.T) {
 			prependColumns: []string{},
 			wantMeta: map[string]*ComplexOperation{
 				"map_text_text": {
-					Append: true,
+					bindings.Append: true,
 				},
 			},
 			wantErr: false,
@@ -2447,7 +2448,7 @@ func TestProcessComplexUpdate_SuccessfulCases(t *testing.T) {
 				{Name: "list_text", CQLType: types.NewListType(types.TypeVarchar)},
 			},
 			values: []interface{}{
-				ComplexAssignment{
+				Assignment{
 					Column:    "list_text",
 					Operation: "+",
 					Left:      "key",
@@ -2476,13 +2477,13 @@ func TestProcessComplexUpdate_SuccessfulCases(t *testing.T) {
 			// 	"list_text+?",
 			// },
 			values: []interface{}{
-				ComplexAssignment{
+				Assignment{
 					Column:    "map_text_text",
 					Operation: "+",
 					Left:      "key",
 					Right:     "map_text_text",
 				},
-				ComplexAssignment{
+				Assignment{
 					Column:    "list_text",
 					Operation: "+",
 					Left:      "key",
@@ -2494,8 +2495,8 @@ func TestProcessComplexUpdate_SuccessfulCases(t *testing.T) {
 			prependColumns: []string{"list_text"},
 			wantMeta: map[string]*ComplexOperation{
 				"map_text_text": {
-					Append: true,
-					mapKey: nil,
+					bindings.Append: true,
+					mapKey:          nil,
 				},
 				"list_text": {
 					PrependList: true,
@@ -2782,9 +2783,9 @@ func TestAddSetElements(t *testing.T) {
 		colFamily   string
 		column      *types.Column
 		input       ProcessRawCollectionsInput
-		output      *AdHocQueryValues
+		output      *BigtableMutations
 		expectedErr bool
-		validate    func(t *testing.T, output *AdHocQueryValues)
+		validate    func(t *testing.T, output *BigtableMutations)
 	}{
 		{
 			name:      "Add single string element to set",
@@ -2795,8 +2796,8 @@ func TestAddSetElements(t *testing.T) {
 				CQLType: types.NewSetType(types.TypeVarchar),
 			},
 			input:  ProcessRawCollectionsInput{},
-			output: &AdHocQueryValues{},
-			validate: func(t *testing.T, output *AdHocQueryValues) {
+			output: &BigtableMutations{},
+			validate: func(t *testing.T, output *BigtableMutations) {
 				assert.Len(t, output.NewColumns, 1)
 				assert.Len(t, output.NewValues, 1)
 				assert.Equal(t, "value1", output.NewColumns[0].Name)
@@ -2814,8 +2815,8 @@ func TestAddSetElements(t *testing.T) {
 				CQLType: types.NewSetType(types.TypeVarchar),
 			},
 			input:  ProcessRawCollectionsInput{},
-			output: &AdHocQueryValues{},
-			validate: func(t *testing.T, output *AdHocQueryValues) {
+			output: &BigtableMutations{},
+			validate: func(t *testing.T, output *BigtableMutations) {
 				assert.Len(t, output.NewColumns, 3)
 				assert.Len(t, output.NewValues, 3)
 				expectedValues := []string{"value1", "value2", "value3"}
@@ -2836,8 +2837,8 @@ func TestAddSetElements(t *testing.T) {
 				CQLType: types.NewSetType(types.TypeBoolean),
 			},
 			input:  ProcessRawCollectionsInput{},
-			output: &AdHocQueryValues{},
-			validate: func(t *testing.T, output *AdHocQueryValues) {
+			output: &BigtableMutations{},
+			validate: func(t *testing.T, output *BigtableMutations) {
 				assert.Len(t, output.NewColumns, 2)
 				assert.Len(t, output.NewValues, 2)
 				expectedValues := []string{"1", "0"}
@@ -2858,8 +2859,8 @@ func TestAddSetElements(t *testing.T) {
 				CQLType: types.NewSetType(types.TypeVarchar),
 			},
 			input:  ProcessRawCollectionsInput{},
-			output: &AdHocQueryValues{},
-			validate: func(t *testing.T, output *AdHocQueryValues) {
+			output: &BigtableMutations{},
+			validate: func(t *testing.T, output *BigtableMutations) {
 				assert.Empty(t, output.NewColumns)
 				assert.Empty(t, output.NewValues)
 			},
@@ -2873,8 +2874,8 @@ func TestAddSetElements(t *testing.T) {
 				CQLType: types.NewSetType(types.TypeVarchar),
 			},
 			input:  ProcessRawCollectionsInput{},
-			output: &AdHocQueryValues{},
-			validate: func(t *testing.T, output *AdHocQueryValues) {
+			output: &BigtableMutations{},
+			validate: func(t *testing.T, output *BigtableMutations) {
 				assert.Len(t, output.NewColumns, 1)
 				assert.Len(t, output.NewValues, 1)
 				assert.Equal(t, "value1", output.NewColumns[0].Name)
@@ -2892,7 +2893,7 @@ func TestAddSetElements(t *testing.T) {
 				CQLType: types.NewSetType(types.TypeBoolean),
 			},
 			input:       ProcessRawCollectionsInput{},
-			output:      &AdHocQueryValues{},
+			output:      &BigtableMutations{},
 			expectedErr: true,
 		},
 		{
@@ -2916,14 +2917,14 @@ func TestAddSetElements(t *testing.T) {
 				CQLType: types.NewSetType(types.TypeInt),
 			},
 			input:       ProcessRawCollectionsInput{},
-			output:      &AdHocQueryValues{},
+			output:      &BigtableMutations{},
 			expectedErr: true,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := addSetElements(tt.setValues, tt.colFamily, tt.column.CQLType.(*types.SetType), tt.input, tt.output)
+			err := bindings.addSetElements(tt.setValues, tt.colFamily, tt.column.CQLType.(*types.SetType), tt.input, tt.output)
 
 			if tt.expectedErr {
 				assert.Error(t, err)
@@ -2944,7 +2945,7 @@ func TestHandleListOperation(t *testing.T) {
 		input     ProcessRawCollectionsInput
 		operation interface{}
 		wantErr   bool
-		validate  func(t *testing.T, output *AdHocQueryValues)
+		validate  func(t *testing.T, output *BigtableMutations)
 	}{
 		{
 			name: "Add operation with prepend",
@@ -2955,8 +2956,8 @@ func TestHandleListOperation(t *testing.T) {
 			input: ProcessRawCollectionsInput{
 				PrependColumns: []string{"mylist"},
 			},
-			operation: ComplexAssignment{Operation: "+", Left: []string{"1", "2"}, Right: []string{"3", "4"}},
-			validate: func(t *testing.T, output *AdHocQueryValues) {
+			operation: Assignment{Operation: "+", Left: []string{"1", "2"}, Right: []string{"3", "4"}},
+			validate: func(t *testing.T, output *BigtableMutations) {
 				assert.Len(t, output.NewValues, 2)
 				assert.Len(t, output.NewColumns, 2)
 				for _, col := range output.NewColumns {
@@ -2971,9 +2972,9 @@ func TestHandleListOperation(t *testing.T) {
 				Name:    "mylist",
 				CQLType: types.NewListType(types.TypeInt),
 			},
-			operation: ComplexAssignment{Operation: "-", Right: []string{"3", "4"}},
+			operation: Assignment{Operation: "-", Right: []string{"3", "4"}},
 			input:     ProcessRawCollectionsInput{},
-			validate: func(t *testing.T, output *AdHocQueryValues) {
+			validate: func(t *testing.T, output *BigtableMutations) {
 				assert.NotNil(t, output.ComplexOps["mylist"])
 				assert.True(t, output.ComplexOps["mylist"].ListDelete)
 				assert.True(t, output.ComplexOps["mylist"].Delete)
@@ -2985,9 +2986,9 @@ func TestHandleListOperation(t *testing.T) {
 				Name:    "mylist",
 				CQLType: types.NewListType(types.TypeInt),
 			},
-			operation: ComplexAssignment{Operation: "update_index", Left: "1", Right: "123"},
+			operation: Assignment{Operation: "update_index", Left: "1", Right: "123"},
 			input:     ProcessRawCollectionsInput{},
-			validate: func(t *testing.T, output *AdHocQueryValues) {
+			validate: func(t *testing.T, output *BigtableMutations) {
 				assert.NotNil(t, output.ComplexOps["mylist"])
 				assert.Equal(t, "1", output.ComplexOps["mylist"].UpdateListIndex)
 			},
@@ -3000,7 +3001,7 @@ func TestHandleListOperation(t *testing.T) {
 			},
 			operation: []string{"1", "2"},
 			input:     ProcessRawCollectionsInput{},
-			validate: func(t *testing.T, output *AdHocQueryValues) {
+			validate: func(t *testing.T, output *BigtableMutations) {
 				assert.Len(t, output.NewValues, 2)
 				assert.Len(t, output.NewColumns, 2)
 				assert.Len(t, output.DelColumnFamily, 1)
@@ -3013,7 +3014,7 @@ func TestHandleListOperation(t *testing.T) {
 				Name:    "mylist",
 				CQLType: types.NewListType(types.TypeInt),
 			},
-			operation: ComplexAssignment{Operation: "invalid"},
+			operation: Assignment{Operation: "invalid"},
 			input:     ProcessRawCollectionsInput{},
 			wantErr:   true,
 		},
@@ -3021,7 +3022,7 @@ func TestHandleListOperation(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			output := &AdHocQueryValues{
+			output := &BigtableMutations{
 				ComplexOps: make(map[string]*ComplexOperation),
 			}
 			err := handleListOperation(tt.operation, tt.column, tt.column.CQLType.(*types.ListType), tt.column.Name, tt.input, output)
@@ -3044,7 +3045,7 @@ func TestHandleSetOperation(t *testing.T) {
 		input     ProcessRawCollectionsInput
 		operation interface{}
 		wantErr   bool
-		validate  func(t *testing.T, output *AdHocQueryValues)
+		validate  func(t *testing.T, output *BigtableMutations)
 	}{
 		{
 			name: "Add elements to set",
@@ -3052,9 +3053,9 @@ func TestHandleSetOperation(t *testing.T) {
 				Name:    "myset",
 				CQLType: types.NewSetType(types.TypeInt),
 			},
-			operation: ComplexAssignment{Operation: "+", Right: []string{"1", "2", "3"}},
+			operation: Assignment{Operation: "+", Right: []string{"1", "2", "3"}},
 			input:     ProcessRawCollectionsInput{},
-			validate: func(t *testing.T, output *AdHocQueryValues) {
+			validate: func(t *testing.T, output *BigtableMutations) {
 				assert.Len(t, output.NewColumns, 3)
 				assert.Len(t, output.NewValues, 3)
 				for i, col := range output.NewColumns {
@@ -3070,9 +3071,9 @@ func TestHandleSetOperation(t *testing.T) {
 				Name:    "myset",
 				CQLType: types.NewSetType(types.TypeInt),
 			},
-			operation: ComplexAssignment{Operation: "-", Right: []string{"1", "2"}},
+			operation: Assignment{Operation: "-", Right: []string{"1", "2"}},
 			input:     ProcessRawCollectionsInput{},
-			validate: func(t *testing.T, output *AdHocQueryValues) {
+			validate: func(t *testing.T, output *BigtableMutations) {
 				assert.Len(t, output.DelColumns, 2)
 				for _, col := range output.DelColumns {
 					assert.Equal(t, "myset", col.ColumnFamily)
@@ -3087,7 +3088,7 @@ func TestHandleSetOperation(t *testing.T) {
 			},
 			operation: []string{"1", "2", "3"},
 			input:     ProcessRawCollectionsInput{},
-			validate: func(t *testing.T, output *AdHocQueryValues) {
+			validate: func(t *testing.T, output *BigtableMutations) {
 				assert.Len(t, output.NewColumns, 3)
 				assert.Len(t, output.NewValues, 3)
 				assert.Len(t, output.DelColumnFamily, 1)
@@ -3100,7 +3101,7 @@ func TestHandleSetOperation(t *testing.T) {
 				Name:    "myset",
 				CQLType: types.NewSetType(types.TypeInt),
 			},
-			operation: ComplexAssignment{Operation: "invalid"},
+			operation: Assignment{Operation: "invalid"},
 			input:     ProcessRawCollectionsInput{},
 			wantErr:   true,
 		},
@@ -3108,7 +3109,7 @@ func TestHandleSetOperation(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			output := &AdHocQueryValues{
+			output := &BigtableMutations{
 				ComplexOps: make(map[string]*ComplexOperation),
 			}
 			err := handleSetOperation(tt.operation, tt.column, tt.column.CQLType.(*types.SetType), tt.column.Name, tt.input, output)
@@ -3131,7 +3132,7 @@ func TestHandleMapOperation(t *testing.T) {
 		input     ProcessRawCollectionsInput
 		operation interface{}
 		wantErr   bool
-		validate  func(t *testing.T, output *AdHocQueryValues)
+		validate  func(t *testing.T, output *BigtableMutations)
 	}{
 		{
 			name: "Add entries to map",
@@ -3139,9 +3140,9 @@ func TestHandleMapOperation(t *testing.T) {
 				Name:    "mymap",
 				CQLType: types.NewMapType(types.TypeVarchar, types.TypeInt),
 			},
-			operation: ComplexAssignment{Operation: "+", Right: map[string]string{"key1": "1", "key2": "2"}},
+			operation: Assignment{Operation: "+", Right: map[string]string{"key1": "1", "key2": "2"}},
 			input:     ProcessRawCollectionsInput{},
-			validate: func(t *testing.T, output *AdHocQueryValues) {
+			validate: func(t *testing.T, output *BigtableMutations) {
 				assert.Len(t, output.NewColumns, 2)
 				assert.Len(t, output.NewValues, 2)
 				for _, col := range output.NewColumns {
@@ -3156,9 +3157,9 @@ func TestHandleMapOperation(t *testing.T) {
 				Name:    "mymap",
 				CQLType: types.NewMapType(types.TypeVarchar, types.TypeInt),
 			},
-			operation: ComplexAssignment{Operation: "-", Right: []string{"key1", "key2"}},
+			operation: Assignment{Operation: "-", Right: []string{"key1", "key2"}},
 			input:     ProcessRawCollectionsInput{},
-			validate: func(t *testing.T, output *AdHocQueryValues) {
+			validate: func(t *testing.T, output *BigtableMutations) {
 				assert.Len(t, output.DelColumns, 2)
 				for _, col := range output.DelColumns {
 					assert.Equal(t, "mymap", col.ColumnFamily)
@@ -3172,9 +3173,9 @@ func TestHandleMapOperation(t *testing.T) {
 				Name:    "mymap",
 				CQLType: types.NewMapType(types.TypeVarchar, types.TypeInt),
 			},
-			operation: ComplexAssignment{Operation: "update_index", Left: "key1", Right: "99"},
+			operation: Assignment{Operation: "update_index", Left: "key1", Right: "99"},
 			input:     ProcessRawCollectionsInput{},
-			validate: func(t *testing.T, output *AdHocQueryValues) {
+			validate: func(t *testing.T, output *BigtableMutations) {
 				assert.Len(t, output.NewColumns, 1)
 				assert.Equal(t, "key1", output.NewColumns[0].Name)
 				assert.Equal(t, "mymap", output.NewColumns[0].ColumnFamily)
@@ -3188,7 +3189,7 @@ func TestHandleMapOperation(t *testing.T) {
 			},
 			operation: map[string]string{"key1": "1", "key2": "2"},
 			input:     ProcessRawCollectionsInput{},
-			validate: func(t *testing.T, output *AdHocQueryValues) {
+			validate: func(t *testing.T, output *BigtableMutations) {
 				assert.Len(t, output.NewColumns, 2)
 				assert.Len(t, output.NewValues, 2)
 				assert.Len(t, output.DelColumnFamily, 1)
@@ -3201,7 +3202,7 @@ func TestHandleMapOperation(t *testing.T) {
 				Name:    "mymap",
 				CQLType: types.NewMapType(types.TypeInt, types.TypeInt),
 			},
-			operation: ComplexAssignment{Operation: "+", Right: map[string]string{"key1": "1"}},
+			operation: Assignment{Operation: "+", Right: map[string]string{"key1": "1"}},
 			input:     ProcessRawCollectionsInput{},
 			wantErr:   true,
 		},
@@ -3209,7 +3210,7 @@ func TestHandleMapOperation(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			output := &AdHocQueryValues{
+			output := &BigtableMutations{
 				ComplexOps: make(map[string]*ComplexOperation),
 			}
 			err := handleMapOperation(tt.operation, tt.column, tt.column.CQLType.(*types.MapType), tt.column.Name, tt.input, output)
@@ -3261,7 +3262,7 @@ func TestProcessCollectionColumnsForRawQueries(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed: %v", err)
 	}
-	output, err := parseComplexOperations(tc, inputs)
+	output, err := bindings.bindMutations(tc, inputs)
 	if err != nil {
 		t.Fatalf("Failed: %v", err)
 	}

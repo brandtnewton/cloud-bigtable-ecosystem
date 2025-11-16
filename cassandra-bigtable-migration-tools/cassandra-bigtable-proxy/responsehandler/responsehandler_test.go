@@ -1374,7 +1374,7 @@ func TestGetQueryColumn(t *testing.T) {
 			expected: query.SelectedColumns[0],
 		},
 		{
-			name:     "Match by Alias at index (Write Time Column)",
+			name:     "Match by Alias at index (Write timestamp Column)",
 			query:    query,
 			index:    1,
 			key:      "alias2",

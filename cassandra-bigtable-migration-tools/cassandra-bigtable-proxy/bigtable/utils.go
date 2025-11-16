@@ -18,6 +18,7 @@ package bigtableclient
 import (
 	"encoding/base64"
 	"fmt"
+	schemaMapping "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/schema-mapping"
 	"slices"
 
 	"cloud.google.com/go/bigtable"
@@ -52,7 +53,7 @@ func GetProfileId(profileId string) string {
 // Returns: A pointer to a RowsResult object that contains metadata for a single boolean column denoting
 //
 //	the application status ([applied]) and the corresponding row data indicating true or false.
-func GenerateAppliedRowsResult(keyspace string, tableName string, applied bool) *message.RowsResult {
+func GenerateAppliedRowsResult(table *schemaMapping.TableConfig, applied bool) *message.RowsResult {
 	row := message.Column{0x00}
 	if applied {
 		row = message.Column{0x01}
@@ -62,8 +63,8 @@ func GenerateAppliedRowsResult(keyspace string, tableName string, applied bool) 
 			ColumnCount: 1,
 			Columns: []*message.ColumnMetadata{
 				{
-					Keyspace: keyspace,
-					Table:    tableName,
+					Keyspace: table.Keyspace,
+					Table:    table.Name,
 					Name:     "[applied]",
 					Type:     datatype.Boolean,
 				},

@@ -17,6 +17,7 @@
 package translator
 
 import (
+	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/bindings"
 	"reflect"
 	"strings"
 	"testing"
@@ -36,8 +37,8 @@ import (
 func TestTranslator_TranslateDeleteQuerytoBigtable(t *testing.T) {
 	var protocalV primitive.ProtocolVersion = 4
 	params := make(map[string]interface{})
-	formattedValue, _ := encodeValueForBigtable("test", datatype.Varchar, protocalV)
-	formattedValue2, _ := encodeValueForBigtable("15", datatype.Int, protocalV)
+	formattedValue, _ := bindings.encodeScalarForBigtable("test", datatype.Varchar, protocalV)
+	formattedValue2, _ := bindings.encodeScalarForBigtable("15", datatype.Int, protocalV)
 	params["value1"] = formattedValue
 	params2 := make(map[string]interface{})
 	params2["value1"] = formattedValue

@@ -19,8 +19,8 @@ package translator
 import (
 	"errors"
 	"fmt"
+	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/bindings"
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/global/constants"
-	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/third_party/datastax/proxycore"
 	"strconv"
 	"strings"
 
@@ -252,14 +252,14 @@ const limitPlaceholder types.Placeholder = "limitValue"
 //   - input: The Limit Spec context from the antlr Parser.
 //
 // Returns: Limit struct
-func parseLimitClause(input cql.ILimitSpecContext, params *types.QueryParameters) (Limit, error) {
+func parseLimitClause(input cql.ILimitSpecContext, params *types.QueryParameters, values *types.QueryParameterValues) (Limit, error) {
 	if input == nil {
 		return Limit{IsLimit: false}, nil
 	}
 
 	limit := Limit{IsLimit: true}
 
-	params.AddParameter(limitPlaceholder, types.TypeInt)
+	params.AddParameterWithoutColumn(limitPlaceholder, types.TypeInt)
 
 	if input.DecimalLiteral().DECIMAL_LITERAL() != nil {
 		text := input.DecimalLiteral().DECIMAL_LITERAL().GetText()
@@ -269,7 +269,7 @@ func parseLimitClause(input cql.ILimitSpecContext, params *types.QueryParameters
 		} else if limitValue < 0 {
 			return Limit{}, errors.New("limit must be positive")
 		}
-		err = params.SetValue(limitPlaceholder, limitValue)
+		err = values.SetValue(limitPlaceholder, limitValue)
 		if err != nil {
 			return Limit{}, err
 		}
@@ -332,7 +332,7 @@ func processSetStrings(t *Translator, tableConfig *schemaMapping.TableConfig, se
 			}
 			continue
 		} else {
-			columns, err = processNonFunctionColumn(t, tableConfig, columnMetadata, columnFamily, columns, isGroupBy)
+			columns, err = processNonFunctionColumn(tableConfig, columnMetadata, columnFamily, columns, isGroupBy)
 			if err != nil {
 				return nil, err
 			}
@@ -758,28 +758,14 @@ func (t *Translator) TranslateSelectQuerytoBigtable(query, sessionKeyspace strin
 }
 
 func (t *Translator) BindSelect(st *SelectQueryMap, cassandraValues []*primitive.Value, pv primitive.ProtocolVersion) (*SelectQueryAndData, error) {
-	params := st.Params.Copy()
-	for i, p := range st.Params.AllKeys() {
-		dt, err := st.Params.GetDataType(p)
-		if err != nil {
-			return nil, err
-		}
-		value := cassandraValues[i]
-		val, err := proxycore.DecodeType(dt.DataType(), pv, value.Contents)
-		if err != nil {
-			return nil, err
-		}
-		err = params.SetValue(p, val)
-		if err != nil {
-			return nil, err
-		}
+	values, err := bindings.bindQueryParams(st.Params, cassandraValues, pv)
+	if err != nil {
+		return nil, err
 	}
-
 	query := &SelectQueryAndData{
 		Query:  st,
-		Params: params,
+		Values: values,
 	}
-
 	return query, nil
 }
 

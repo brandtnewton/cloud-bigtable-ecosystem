@@ -992,7 +992,7 @@ func TestFromDataCode(t *testing.T) {
 		{"Timeuuid", datatype.Timeuuid, types.TypeTimeuuid},
 		{"Inet", datatype.Inet, types.TypeInet},
 		{"Date", datatype.Date, types.TypeDate},
-		{"Time", datatype.Time, types.TypeTime},
+		{"timestamp", datatype.Time, types.TypeTime},
 		{"Smallint", datatype.Smallint, types.TypeSmallint},
 		{"Tinyint", datatype.Tinyint, types.TypeTinyint},
 	}

@@ -19,6 +19,7 @@ package translator
 import (
 	"errors"
 	"fmt"
+	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/bindings"
 	types "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/global/types"
 	schemaMapping "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/schema-mapping"
 	cql "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/third_party/cqlparser"
@@ -34,7 +35,7 @@ import (
 //   - schemaMapping: JSON Config which maintains column and its datatypes info.
 //
 // Returns: ColumnsResponse struct and error if any
-func parseInsertColumns(input cql.IInsertColumnSpecContext, tableConfig *schemaMapping.TableConfig) ([]*types.Column, error) {
+func parseInsertColumns(input cql.IInsertColumnSpecContext, tableConfig *schemaMapping.TableConfig, params *types.QueryParameters) ([]Assignment, error) {
 
 	if input == nil {
 		return nil, errors.New("parseInsertColumns: No Input paramaters found for columns")
@@ -53,63 +54,63 @@ func parseInsertColumns(input cql.IInsertColumnSpecContext, tableConfig *schemaM
 		return nil, errors.New("parseInsertColumns: No Columns found in the Insert CqlQuery")
 	}
 
-	var foundColumns []*types.Column
-
+	var assignments []Assignment
 	for _, val := range columns {
 		columnName := types.ColumnName(val.GetText())
-		if columnName == "" {
-			return nil, errors.New("parseInsertColumns: No Columns found in the Insert CqlQuery")
-		}
-		sourceColumn, err := tableConfig.GetColumn(columnName)
+		col, err := tableConfig.GetColumn(columnName)
 		if err != nil {
 			return nil, err
 		}
-		foundColumns = append(foundColumns, sourceColumn)
+		assignments = append(assignments, &ComplexAssignmentSet{
+			column: col,
+			Value:  params.PushParameter(col.Name, col.CQLType),
+		})
 	}
 
-	return foundColumns, nil
+	return assignments, nil
 }
 
-// parseAdHocValues() parses Columns from the Insert CqlQuery
-//
-// Parameters:
-//   - input: Insert Valye Spec Context from antlr parser.
-//   - columns: Array of Column Names
-//
-// Returns: Map Interface for param name as key and its value and error if any
-func parseAdHocValues(input cql.IInsertValuesSpecContext, columns []*types.Column, protocolV primitive.ProtocolVersion) ([]types.BigtableData, map[types.ColumnName]types.GoValue, error) {
+func parseInsertValues(input cql.IInsertValuesSpecContext, columns []Assignment, params *types.QueryParameters, values *types.QueryParameterValues) error {
 	if input == nil {
-		return nil, nil, errors.New("parseAdHocValues: No ValuePlaceholder parameters found")
+		return errors.New("insert values clause missing or malformed")
 	}
 
 	valuesExpressionList := input.ExpressionList()
 	if valuesExpressionList == nil {
-		return nil, nil, errors.New("parseAdHocValues: error while parsing values")
+		return errors.New("setParamsFromValues: error while parsing values")
 	}
 
-	values := valuesExpressionList.AllExpression()
-	if values == nil {
-		return nil, nil, errors.New("parseAdHocValues: error while parsing values")
+	allValues := valuesExpressionList.AllExpression()
+	if allValues == nil {
+		return errors.New("setParamsFromValues: error while parsing values")
 	}
-	var data []types.BigtableData
-	goValues := make(map[types.ColumnName]types.GoValue)
-	for i, col := range columns {
-		if i >= len(values) {
-			return nil, nil, errors.New("parseAdHocValues: mismatch between columns and values")
-		}
-		goValue, err := parseCqlValue(values[i])
-		if err != nil {
-			return nil, nil, err
-		}
-		goValues[col.Name] = goValue
 
-		btValues, err := encodeGoValueToBigtable(col, goValue, protocolV)
-		if err != nil {
-			return nil, nil, err
-		}
-		data = append(data, btValues...)
+	if len(allValues) != len(columns) {
+		return fmt.Errorf("found mismatch between column count (%d) value count (%d)", len(columns), len(allValues))
+
 	}
-	return data, goValues, nil
+
+	for i, value := range allValues {
+		if value.GetText() == "?" {
+			continue
+		}
+
+		column := columns[i].Column()
+		placeholder, ok := params.GetPlaceholderForColumn(column.Name)
+		if !ok {
+			return fmt.Errorf("unhandled error: missing parameter for column '%s'", column.Name)
+		}
+
+		// todo this function doesn't handle collections
+		val, err := stringToPrimitives(trimQuotes(value.GetText()), column.CQLType.DataType())
+
+		err = values.SetValue(placeholder, val)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 // PrepareInsertQuery() parses Columns from the Insert CqlQuery
@@ -121,18 +122,18 @@ func parseAdHocValues(input cql.IInsertValuesSpecContext, columns []*types.Colum
 // Returns: PreparedInsertQuery, build the PreparedInsertQuery and return it with nil value of error. In case of error
 // PreparedInsertQuery will return as nil and error will contains the error object
 
-func (t *Translator) PrepareInsertQuery(query string, protocolV primitive.ProtocolVersion, isPreparedQuery bool, sessionKeyspace string) (*PreparedInsertQuery, error) {
+func (t *Translator) PrepareInsertQuery(query string, isPreparedQuery bool, sessionKeyspace string) (*PreparedInsertQuery, *types.BigtableMutations, error) {
 	lexer := cql.NewCqlLexer(antlr.NewInputStream(query))
 	stream := antlr.NewCommonTokenStream(lexer, antlr.TokenDefaultChannel)
 	p := cql.NewCqlParser(stream)
 
 	insertObj := p.Insert()
 	if insertObj == nil {
-		return nil, errors.New("could not parse insert object")
+		return nil, nil, errors.New("could not parse insert object")
 	}
 	kwInsertObj := insertObj.KwInsert()
 	if kwInsertObj == nil {
-		return nil, errors.New("could not parse insert object")
+		return nil, nil, errors.New("could not parse insert object")
 	}
 	insertObj.KwInto()
 	keyspace := insertObj.Keyspace()
@@ -144,104 +145,93 @@ func (t *Translator) PrepareInsertQuery(query string, protocolV primitive.Protoc
 	} else if sessionKeyspace != "" {
 		keyspaceName = sessionKeyspace
 	} else {
-		return nil, fmt.Errorf("invalid input parameters found for keyspace")
+		return nil, nil, fmt.Errorf("invalid input parameters found for keyspace")
 	}
 
 	var tableName string
 	if table != nil && table.OBJECT_NAME() != nil && table.OBJECT_NAME().GetText() != "" {
 		tableName = table.OBJECT_NAME().GetText()
 	} else {
-		return nil, fmt.Errorf("invalid input paramaters found for table")
+		return nil, nil, fmt.Errorf("invalid input paramaters found for table")
 	}
 
 	tableConfig, err := t.SchemaMappingConfig.GetTableConfig(keyspaceName, tableName)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	ifNotExists := insertObj.IfNotExist() != nil
 
-	columns, err := parseInsertColumns(insertObj.InsertColumnSpec(), tableConfig)
+	params := types.NewQueryParameters()
+	values := types.NewQueryParameterValues(params)
+
+	assignments, err := parseInsertColumns(insertObj.InsertColumnSpec(), tableConfig, params)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
-	var columnNames []types.ColumnName
-	for _, col := range columns {
-		columnNames = append(columnNames, col.Name)
-	}
-
-	timestampInfo, err := GetTimestampInfo(insertObj, int32(len(columns)))
+	err = parseInsertValues(insertObj.InsertValuesSpec(), assignments, params, values)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
-	err = ValidateRequiredPrimaryKeys(tableConfig, columnNames)
+	err = GetTimestampInfo(insertObj.UsingTtlTimestamp(), params, values)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
-	var rowKey types.RowKey
-	var data []types.BigtableData
+	err = ValidateRequiredPrimaryKeys(tableConfig, params)
+	if err != nil {
+		return nil, nil, err
+	}
 
+	st := &PreparedInsertQuery{
+		CqlQuery:    query,
+		Keyspace:    keyspaceName,
+		Table:       tableName,
+		Params:      params,
+		Assignments: assignments,
+		IfNotExists: ifNotExists,
+	}
+	var bound *types.BigtableMutations
 	if !isPreparedQuery {
-		var goValues map[types.ColumnName]types.GoValue
-		data, goValues, err = parseAdHocValues(insertObj.InsertValuesSpec(), columns, protocolV)
+		bound, err = t.doBindInsert(st, values)
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
-
-		rowKey, err = createOrderedCodeKey(tableConfig, goValues)
-		if err != nil {
-			return nil, err
-		}
+	} else {
+		bound = nil
 	}
 
-	insertQueryData := &PreparedInsertQuery{
-		CqlQuery:      query,
-		Table:         tableName,
-		Keyspace:      keyspaceName,
-		Data:          data,
-		RowKey:        rowKey,
-		TimestampInfo: timestampInfo,
-		IfNotExists:   ifNotExists,
-	}
-	return insertQueryData, nil
+	return st, bound, nil
 }
 
-func (t *Translator) BindInsert(cassandraValues []*primitive.Value, preparedQuery *PreparedInsertQuery, pv primitive.ProtocolVersion) (*PreparedInsertQuery, error) {
-	tableConfig, err := t.SchemaMappingConfig.GetTableConfig(preparedQuery.Keyspace, preparedQuery.Table)
+func (t *Translator) BindInsert(st *PreparedInsertQuery, cassandraValues []*primitive.Value, pv primitive.ProtocolVersion) (*types.BigtableMutations, error) {
+	values, err := bindings.BindQueryParams(st.Params, cassandraValues, pv)
+	if err != nil {
+		return nil, err
+	}
+	return t.doBindInsert(st, values)
+}
+
+func (t *Translator) doBindInsert(st *PreparedInsertQuery, values *types.QueryParameterValues) (*types.BigtableMutations, error) {
+	tableConfig, err := t.SchemaMappingConfig.GetTableConfig(st.Keyspace, st.Table)
 	if err != nil {
 		return nil, err
 	}
 
-	timestampInfo, err := getTimestampInfo(preparedQuery, cassandraValues)
+	rowKey, err := bindings.BindRowKey(tableConfig, values)
+	if err != nil {
+		return nil, fmt.Errorf("key encoding failed: %w", err)
+	}
+
+	mutations := types.BigtableMutations{
+		RowKey: rowKey,
+	}
+	err = bindings.BindMutations(tableConfig, st.Assignments, values, &mutations)
 	if err != nil {
 		return nil, err
 	}
 
-	values, err := decodePreparedValues(tableConfig, preparedQuery.Columns, nil, cassandraValues, pv)
-	if err != nil {
-		fmt.Println("Error processing prepared collection columns:", err)
-		return nil, err
-	}
-
-	rowKey, err := createOrderedCodeKey(tableConfig, values.GoValues)
-	if err != nil {
-		return nil, err
-	}
-
-	insertQueryData := &PreparedInsertQuery{
-		Columns:       preparedQuery.Columns,
-		Data:          values.Data,
-		RowKey:        rowKey,
-		TimestampInfo: timestampInfo,
-		CqlQuery:      preparedQuery.CqlQuery,
-		Table:         preparedQuery.Table,
-		Keyspace:      preparedQuery.Keyspace,
-		ParamKeys:     preparedQuery.ParamKeys,
-		IfNotExists:   preparedQuery.IfNotExists,
-	}
-
-	return insertQueryData, nil
+	return &mutations, nil
 }

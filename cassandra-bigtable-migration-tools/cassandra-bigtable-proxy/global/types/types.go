@@ -16,7 +16,6 @@
 package types
 
 import (
-	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/global/constants"
 	"github.com/datastax/go-cassandra-native-protocol/message"
 )
 
@@ -37,6 +36,9 @@ type BigtableValue []byte
 
 // GoValue - a plain Golang value
 type GoValue any
+
+type TableName string
+type Keyspace string
 
 type BigtableData struct {
 	Family ColumnFamily
@@ -66,33 +68,6 @@ type CreateColumn struct {
 	TypeInfo CqlDataType
 }
 
-type Condition struct {
-	Column   *Column
-	Operator constants.Operator
-	// points to a placeholder
-	ValuePlaceholder Placeholder
-}
-
-// SelectedColumn describes a column that was selected as part of a query. It's
-// an output of query translating, and is also used for response construction.
-type SelectedColumn struct {
-	// Name is the original value of the selected column, including functions. It
-	// does not include the alias. e.g. "region" or "count(*)"
-	Name   string
-	IsFunc bool
-	// IsAs is true if an alias is used
-	IsAs      bool
-	FuncName  string
-	Alias     string
-	MapKey    Placeholder
-	ListIndex Placeholder
-	// ColumnName is the name of the underlying column in a function, or map key
-	// access. e.g. the column name of "max(price)" is "price"
-	ColumnName        string
-	KeyType           string
-	IsWriteTimeColumn bool
-}
-
 type IntRowKeyEncodingType int
 
 const (
@@ -100,3 +75,11 @@ const (
 	BigEndianEncoding IntRowKeyEncodingType = iota
 	OrderedCodeEncoding
 )
+
+type SelectResult struct {
+	Rows []*BigtableResultRow
+}
+
+type BigtableResultRow struct {
+	ColumnMap map[string]GoValue
+}

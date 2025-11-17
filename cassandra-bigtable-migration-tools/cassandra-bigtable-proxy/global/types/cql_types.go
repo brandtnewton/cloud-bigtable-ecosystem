@@ -2,7 +2,6 @@ package types
 
 import (
 	"fmt"
-
 	"github.com/datastax/go-cassandra-native-protocol/datatype"
 )
 

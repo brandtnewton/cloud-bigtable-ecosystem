@@ -79,10 +79,10 @@ type Assignment interface {
 type ComplexAssignmentAdd struct {
 	column    *types.Column
 	IsPrepend bool
-	Value     types.Placeholder
+	Value     Placeholder
 }
 
-func NewComplexAssignmentAdd(column *types.Column, isPrepend bool, value types.Placeholder) *ComplexAssignmentAdd {
+func NewComplexAssignmentAdd(column *types.Column, isPrepend bool, value Placeholder) *ComplexAssignmentAdd {
 	return &ComplexAssignmentAdd{column: column, IsPrepend: isPrepend, Value: value}
 }
 
@@ -93,10 +93,10 @@ func (c ComplexAssignmentAdd) Column() *types.Column {
 type AssignmentCounterIncrement struct {
 	column *types.Column
 	Op     IncrementOperationType
-	Value  types.Placeholder
+	Value  Placeholder
 }
 
-func NewAssignmentCounterIncrement(column *types.Column, op IncrementOperationType, value types.Placeholder) *AssignmentCounterIncrement {
+func NewAssignmentCounterIncrement(column *types.Column, op IncrementOperationType, value Placeholder) *AssignmentCounterIncrement {
 	return &AssignmentCounterIncrement{column: column, Op: op, Value: value}
 }
 
@@ -106,10 +106,10 @@ func (c AssignmentCounterIncrement) Column() *types.Column {
 
 type ComplexAssignmentRemove struct {
 	column *types.Column
-	Value  types.Placeholder
+	Value  Placeholder
 }
 
-func NewComplexAssignmentRemove(column *types.Column, value types.Placeholder) *ComplexAssignmentRemove {
+func NewComplexAssignmentRemove(column *types.Column, value Placeholder) *ComplexAssignmentRemove {
 	return &ComplexAssignmentRemove{column: column, Value: value}
 }
 
@@ -120,10 +120,10 @@ func (c ComplexAssignmentRemove) Column() *types.Column {
 type ComplexAssignmentUpdateIndex struct {
 	column *types.Column
 	Index  int64
-	Value  types.Placeholder
+	Value  Placeholder
 }
 
-func NewComplexAssignmentUpdateIndex(column *types.Column, index int64, value types.Placeholder) *ComplexAssignmentUpdateIndex {
+func NewComplexAssignmentUpdateIndex(column *types.Column, index int64, value Placeholder) *ComplexAssignmentUpdateIndex {
 	return &ComplexAssignmentUpdateIndex{column: column, Index: index, Value: value}
 }
 
@@ -133,10 +133,10 @@ func (c ComplexAssignmentUpdateIndex) Column() *types.Column {
 
 type ComplexAssignmentSet struct {
 	column *types.Column
-	Value  types.Placeholder
+	Value  Placeholder
 }
 
-func NewComplexAssignmentSet(column *types.Column, value types.Placeholder) *ComplexAssignmentSet {
+func NewComplexAssignmentSet(column *types.Column, value Placeholder) *ComplexAssignmentSet {
 	return &ComplexAssignmentSet{column: column, Value: value}
 }
 
@@ -265,7 +265,7 @@ func castScalarColumn(colMeta *types.Column) (string, error) {
 	}
 }
 
-func parseDecimalLiteral(d cql.IDecimalLiteralContext, cqlType types.CqlDataType, params *types.QueryParameters, values *types.QueryParameterValues) (types.Placeholder, error) {
+func parseDecimalLiteral(d cql.IDecimalLiteralContext, cqlType types.CqlDataType, params *QueryParameters, values *QueryParameterValues) (Placeholder, error) {
 	if d == nil {
 		return "", nil
 	}
@@ -276,7 +276,7 @@ func parseDecimalLiteral(d cql.IDecimalLiteralContext, cqlType types.CqlDataType
 		return p, nil
 	}
 
-	val, err := stringToPrimitives(d.DECIMAL_LITERAL().GetText(), cqlType.DataType())
+	val, err := utilities.StringToGo(d.DECIMAL_LITERAL().GetText(), cqlType.DataType())
 	if err != nil {
 		return "", err
 	}
@@ -287,14 +287,14 @@ func parseDecimalLiteral(d cql.IDecimalLiteralContext, cqlType types.CqlDataType
 	return p, nil
 }
 
-func parseStringLiteral(d cql.IStringLiteralContext, params *types.QueryParameters, values *types.QueryParameterValues) (types.Placeholder, error) {
+func parseStringLiteral(d cql.IStringLiteralContext, params *QueryParameters, values *QueryParameterValues) (Placeholder, error) {
 	if d == nil {
 		return "", nil
 	}
 
 	p := params.PushParameterWithoutColumn(types.TypeVarchar)
 
-	val, err := stringToPrimitives(trimQuotes(d.STRING_LITERAL().GetText()), datatype.Varchar)
+	val, err := utilities.StringToGo(trimQuotes(d.STRING_LITERAL().GetText()), datatype.Varchar)
 	if err != nil {
 		return "", err
 	}
@@ -305,7 +305,7 @@ func parseStringLiteral(d cql.IStringLiteralContext, params *types.QueryParamete
 	return p, nil
 }
 
-func parseWhereClause(input cql.IWhereSpecContext, tableConfig *schemaMapping.TableConfig, params *types.QueryParameters, values *types.QueryParameterValues) ([]types.Condition, error) {
+func parseWhereClause(input cql.IWhereSpecContext, tableConfig *schemaMapping.TableConfig, params *QueryParameters, values *QueryParameterValues) ([]Condition, error) {
 	if input == nil {
 		return nil, nil
 	}
@@ -319,7 +319,7 @@ func parseWhereClause(input cql.IWhereSpecContext, tableConfig *schemaMapping.Ta
 		return nil, nil
 	}
 
-	var conditions []types.Condition
+	var conditions []Condition
 
 	for _, val := range elements {
 		if val == nil {
@@ -334,7 +334,7 @@ func parseWhereClause(input cql.IWhereSpecContext, tableConfig *schemaMapping.Ta
 
 		if val.OPERATOR_EQ() != nil {
 			p := params.PushParameter(column.Name, column.CQLType)
-			conditions = append(conditions, types.Condition{
+			conditions = append(conditions, Condition{
 				Column:           column,
 				Operator:         constants.EQ,
 				ValuePlaceholder: p,
@@ -351,7 +351,7 @@ func parseWhereClause(input cql.IWhereSpecContext, tableConfig *schemaMapping.Ta
 			}
 		} else if val.OPERATOR_GT() != nil {
 			p := params.PushParameter(column.Name, column.CQLType)
-			conditions = append(conditions, types.Condition{
+			conditions = append(conditions, Condition{
 				Column:           column,
 				Operator:         constants.GT,
 				ValuePlaceholder: p,
@@ -368,7 +368,7 @@ func parseWhereClause(input cql.IWhereSpecContext, tableConfig *schemaMapping.Ta
 			}
 		} else if val.OPERATOR_LT() != nil {
 			p := params.PushParameter(column.Name, column.CQLType)
-			conditions = append(conditions, types.Condition{
+			conditions = append(conditions, Condition{
 				Column:           column,
 				Operator:         constants.LT,
 				ValuePlaceholder: p,
@@ -385,7 +385,7 @@ func parseWhereClause(input cql.IWhereSpecContext, tableConfig *schemaMapping.Ta
 			}
 		} else if val.OPERATOR_GTE() != nil {
 			p := params.PushParameter(column.Name, column.CQLType)
-			conditions = append(conditions, types.Condition{
+			conditions = append(conditions, Condition{
 				Column:           column,
 				Operator:         constants.GTE,
 				ValuePlaceholder: p,
@@ -402,7 +402,7 @@ func parseWhereClause(input cql.IWhereSpecContext, tableConfig *schemaMapping.Ta
 			}
 		} else if val.OPERATOR_LTE() != nil {
 			p := params.PushParameter(column.Name, column.CQLType)
-			conditions = append(conditions, types.Condition{
+			conditions = append(conditions, Condition{
 				Column:           column,
 				Operator:         constants.LTE,
 				ValuePlaceholder: p,
@@ -419,7 +419,7 @@ func parseWhereClause(input cql.IWhereSpecContext, tableConfig *schemaMapping.Ta
 			}
 		} else if val.KwIn() != nil {
 			p := params.PushParameter(column.Name, column.CQLType)
-			conditions = append(conditions, types.Condition{
+			conditions = append(conditions, Condition{
 				Column:           column,
 				Operator:         constants.IN,
 				ValuePlaceholder: p,
@@ -435,7 +435,7 @@ func parseWhereClause(input cql.IWhereSpecContext, tableConfig *schemaMapping.Ta
 				}
 				var inValues []any
 				for _, v := range all {
-					parsed, err := stringToPrimitives(trimQuotes(v.GetText()), column.CQLType.DataType())
+					parsed, err := utilities.StringToGo(trimQuotes(v.GetText()), column.CQLType.DataType())
 					if err != nil {
 						return nil, err
 					}
@@ -461,7 +461,7 @@ func parseWhereClause(input cql.IWhereSpecContext, tableConfig *schemaMapping.Ta
 			}
 
 			p := params.PushParameter(column.Name, elementType)
-			conditions = append(conditions, types.Condition{
+			conditions = append(conditions, Condition{
 				Column:           column,
 				Operator:         operator,
 				ValuePlaceholder: p,
@@ -483,7 +483,7 @@ func parseWhereClause(input cql.IWhereSpecContext, tableConfig *schemaMapping.Ta
 			}
 			keyType := column.CQLType.(types.MapType).KeyType()
 			p := params.PushParameter(column.Name, keyType)
-			conditions = append(conditions, types.Condition{
+			conditions = append(conditions, Condition{
 				Column:           column,
 				Operator:         constants.MAP_CONTAINS_KEY,
 				ValuePlaceholder: p,
@@ -500,7 +500,7 @@ func parseWhereClause(input cql.IWhereSpecContext, tableConfig *schemaMapping.Ta
 			}
 		} else if val.KwLike() != nil {
 			p := params.PushParameter(column.Name, column.CQLType)
-			conditions = append(conditions, types.Condition{
+			conditions = append(conditions, Condition{
 				Column:           column,
 				Operator:         constants.LIKE,
 				ValuePlaceholder: p,
@@ -517,7 +517,7 @@ func parseWhereClause(input cql.IWhereSpecContext, tableConfig *schemaMapping.Ta
 			}
 		} else if val.KwBetween() != nil {
 			p := params.PushParameter(column.Name, column.CQLType)
-			conditions = append(conditions, types.Condition{
+			conditions = append(conditions, Condition{
 				Column:           column,
 				Operator:         constants.BETWEEN,
 				ValuePlaceholder: p,
@@ -548,7 +548,7 @@ func parseConstantValue(col *types.Column, e cql.IRelationElementContext) (any, 
 	if value == "" {
 		return nil, errors.New("could not parse value from query for one of the clauses")
 	}
-	val, err := stringToPrimitives(trimQuotes(value), col.CQLType.DataType())
+	val, err := utilities.StringToGo(trimQuotes(value), col.CQLType.DataType())
 	if err != nil {
 		return nil, err
 	}
@@ -560,7 +560,7 @@ func parseContainsValue(col *types.Column, e cql.IRelalationContainsContext) (an
 		return nil, errors.New("could not parse value from query for one of the clauses")
 	}
 	value := e.Constant().GetText()
-	val, err := stringToPrimitives(trimQuotes(value), col.CQLType.DataType())
+	val, err := utilities.StringToGo(trimQuotes(value), col.CQLType.DataType())
 	if err != nil {
 		return nil, err
 	}
@@ -572,7 +572,7 @@ func parseContainsKeyValue(col *types.Column, e cql.IRelalationContainsKeyContex
 		return nil, errors.New("could not parse value from query for one of the clauses")
 	}
 	value := e.Constant().GetText()
-	val, err := stringToPrimitives(trimQuotes(value), col.CQLType.DataType())
+	val, err := utilities.StringToGo(trimQuotes(value), col.CQLType.DataType())
 	if err != nil {
 		return nil, err
 	}
@@ -638,7 +638,7 @@ func trimQuotes(s string) string {
 	return strings.ReplaceAll(s, `''`, `'`)
 }
 
-func GetTimestampInfo(timestampContext cql.IUsingTtlTimestampContext, params *types.QueryParameters, values *types.QueryParameterValues) error {
+func GetTimestampInfo(timestampContext cql.IUsingTtlTimestampContext, params *QueryParameters, values *QueryParameterValues) error {
 	if timestampContext == nil {
 		return nil
 	}
@@ -650,13 +650,13 @@ func GetTimestampInfo(timestampContext cql.IUsingTtlTimestampContext, params *ty
 	if literal == nil {
 		return nil
 	}
-	params.AddParameterWithoutColumn(types.UsingTimePlaceholder, types.TypeBigint)
+	params.AddParameterWithoutColumn(UsingTimePlaceholder, types.TypeBigint)
 	if literal.DECIMAL_LITERAL() != nil {
-		value, err := stringToPrimitives(literal.DECIMAL_LITERAL().GetText(), datatype.Bigint)
+		value, err := utilities.StringToGo(literal.DECIMAL_LITERAL().GetText(), datatype.Bigint)
 		if err != nil {
 			return err
 		}
-		err = values.SetValue(types.UsingTimePlaceholder, value)
+		err = values.SetValue(UsingTimePlaceholder, value)
 		if err != nil {
 			return err
 		}
@@ -664,7 +664,7 @@ func GetTimestampInfo(timestampContext cql.IUsingTtlTimestampContext, params *ty
 	return nil
 }
 
-func ValidateRequiredPrimaryKeysOnly(tableConfig *schemaMapping.TableConfig, params *types.QueryParameters) error {
+func ValidateRequiredPrimaryKeysOnly(tableConfig *schemaMapping.TableConfig, params *QueryParameters) error {
 	err := ValidateRequiredPrimaryKeys(tableConfig, params)
 	if err != nil {
 		return err
@@ -683,7 +683,7 @@ func ValidateRequiredPrimaryKeysOnly(tableConfig *schemaMapping.TableConfig, par
 
 	return nil
 }
-func ValidateRequiredPrimaryKeys(tableConfig *schemaMapping.TableConfig, params *types.QueryParameters) error {
+func ValidateRequiredPrimaryKeys(tableConfig *schemaMapping.TableConfig, params *QueryParameters) error {
 	// primary key counts are very small for legitimate use cases so greedy iterations are fine
 	for _, wantKey := range tableConfig.PrimaryKeys {
 		_, ok := params.GetPlaceholderForColumn(wantKey.Name)
@@ -922,16 +922,16 @@ func getCqlConstant(c cql.IConstantContext, dt types.CqlDataType) (types.GoValue
 		return nil, fmt.Errorf("cannot get constant from prepared query")
 	}
 	if c.StringLiteral() != nil {
-		return stringToPrimitives(trimQuotes(c.StringLiteral().GetText()), dt.DataType())
+		return utilities.StringToGo(trimQuotes(c.StringLiteral().GetText()), dt.DataType())
 	}
 	if c.DecimalLiteral() != nil {
-		return stringToPrimitives(c.DecimalLiteral().GetText(), dt.DataType())
+		return utilities.StringToGo(c.DecimalLiteral().GetText(), dt.DataType())
 	}
 	if c.FloatLiteral() != nil {
-		return stringToPrimitives(c.FloatLiteral().GetText(), dt.DataType())
+		return utilities.StringToGo(c.FloatLiteral().GetText(), dt.DataType())
 	}
 	if c.BooleanLiteral() != nil {
-		return stringToPrimitives(c.BooleanLiteral().GetText(), dt.DataType())
+		return utilities.StringToGo(c.BooleanLiteral().GetText(), dt.DataType())
 	}
 	if c.KwNull() != nil {
 		return nil, nil
@@ -1033,129 +1033,288 @@ func decodePreparedQueryCollection(choice datatype.PrimitiveType, val *primitive
 	return nil, err
 }
 
-// stringToPrimitives converts a string value to its primitive type based on CQL type.
-// Performs type conversion according to the specified CQL data type.
-// Returns error if value type is invalid or conversion fails.
-func stringToPrimitives(value string, cqlType datatype.DataType) (interface{}, error) {
-	var iv interface{}
+const (
+	bigtableEncodingVersion = primitive.ProtocolVersion4
+	referenceTime           = int64(1262304000000)
+	maxNanos                = int32(9999)
+)
 
-	switch cqlType {
-	case datatype.Int:
-		val, err := strconv.ParseInt(value, 10, 32)
-		if err != nil {
-			return nil, fmt.Errorf("error converting string to int32: %w", err)
-		}
-		iv = int32(val)
-
-	case datatype.Bigint, datatype.Counter:
-		val, err := strconv.ParseInt(value, 10, 64)
-		if err != nil {
-			return nil, fmt.Errorf("error converting string to int64: %w", err)
-		}
-		iv = val
-
-	case datatype.Float:
-		val, err := strconv.ParseFloat(value, 32)
-		if err != nil {
-			return nil, fmt.Errorf("error converting string to float32: %w", err)
-		}
-		iv = float32(val)
-
-	case datatype.Double:
-		val, err := strconv.ParseFloat(value, 64)
-		if err != nil {
-			return nil, fmt.Errorf("error converting string to float64: %w", err)
-		}
-		iv = val
-	case datatype.Boolean:
-		val, err := strconv.ParseBool(value)
-		if err != nil {
-			return nil, fmt.Errorf("error converting string to bool: %w", err)
-		}
-		if val {
-			iv = int64(1)
-		} else {
-			iv = int64(0)
+func encodeGoValueToBigtable(column *types.Column, value types.GoValue) ([]*types.BigtableData, error) {
+	if column.CQLType.Code() == types.MAP {
+		mt := column.CQLType.(types.MapType)
+		mv, ok := value.(map[interface{}]interface{})
+		if !ok {
+			return nil, errors.New("failed to parse map")
 		}
 
-	case datatype.Timestamp:
-		val, err := parseTimestamp(value)
-
-		if err != nil {
-			return nil, fmt.Errorf("error converting string to timestamp: %w", err)
+		var results []*types.BigtableData
+		for k, v := range mv {
+			// todo use key specific encode
+			keyEncoded, err := encodeScalarForBigtable(k, mt.KeyType().DataType())
+			if err != nil {
+				return nil, err
+			}
+			valueBytes, err := encodeScalarForBigtable(v, mt.ValueType().DataType())
+			if err != nil {
+				return nil, err
+			}
+			results = append(results, &types.BigtableData{Family: column.ColumnFamily, Column: types.ColumnQualifier(keyEncoded), Bytes: valueBytes})
 		}
-		iv = val
-	case datatype.Blob:
-		iv = value
-	case datatype.Varchar:
-		iv = value
+		return results, nil
+	} else if column.CQLType.Code() == types.LIST {
+		lt := column.CQLType.(types.ListType)
+		lv, ok := value.([]any)
+		if !ok {
+			return nil, errors.New("failed to parse list")
+		}
 
-	default:
-		return nil, fmt.Errorf("unsupported CQL type: %s", cqlType)
+		var results []*types.BigtableData
+		for i, v := range lv {
+			valueBytes, err := encodeScalarForBigtable(v, lt.ElementType().DataType())
+			if err != nil {
+				return nil, err
+			}
+			// todo use list index encoder
+			results = append(results, &types.BigtableData{Family: column.ColumnFamily, Column: types.ColumnQualifier(fmt.Sprintf("%d", i)), Bytes: valueBytes})
+		}
+		return results, nil
+	} else if column.CQLType.Code() == types.SET {
+		st := column.CQLType.(types.ListType)
+		lv, ok := value.([]any)
+		if !ok {
+			return nil, errors.New("failed to parse list")
+		}
 
+		var results []*types.BigtableData
+		for _, v := range lv {
+			// todo use key specific encode
+			valueBytes, err := encodeScalarForBigtable(v, st.ElementType().DataType())
+			if err != nil {
+				return nil, err
+			}
+			// todo use correct column value
+			results = append(results, &types.BigtableData{Family: column.ColumnFamily, Column: types.ColumnQualifier(fmt.Sprintf("%v", valueBytes)), Bytes: []byte("")})
+		}
+		return results, nil
 	}
-	return iv, nil
+
+	v, err := encodeScalarForBigtable(value, column.CQLType.DataType())
+	if err != nil {
+		return nil, err
+	}
+	return []*types.BigtableData{{Family: column.ColumnFamily, Column: types.ColumnQualifier(column.Name), Bytes: v}}, nil
 }
 
-// parseTimestamp(): Parse a timestamp string in various formats.
-// Supported formats
-// "2024-02-05T14:00:00Z",
-// "2024-02-05 14:00:00",
-// "2024/02/05 14:00:00",
-// "1672522562000",          // Unix timestamp (milliseconds)
-func parseTimestamp(timestampStr string) (time.Time, error) {
-	// Define multiple layouts to try
-	layouts := []string{
-		time.RFC3339,          // ISO 8601 format
-		"2006-01-02 15:04:05", // Common date-time format
-		"2006/01/02 15:04:05", // Common date-time format with slashes
+// encodeScalarForBigtable converts a value to its byte representation based on CQL type.
+// Handles type conversion and encoding according to the protocol version.
+// Returns error if value type is invalid or encoding fails.
+func encodeScalarForBigtable(value types.GoValue, cqlType datatype.DataType) (types.BigtableValue, error) {
+	if value == nil {
+		return nil, nil
 	}
 
-	var parsedTime time.Time
+	var iv interface{}
+	var dt datatype.DataType
+	switch cqlType {
+	case datatype.Int, datatype.Bigint:
+		return encodeBigIntForBigtable(value)
+	case datatype.Float, datatype.Double:
+		return encodeFloat64ForBigtable(value)
+	case datatype.Boolean:
+		return encodeBoolForBigtable(value)
+	case datatype.Timestamp:
+		return encodeTimestampForBigtable(value)
+	case datatype.Blob:
+		iv = value
+		dt = datatype.Blob
+	case datatype.Varchar:
+		iv = value
+		dt = datatype.Varchar
+	default:
+		return nil, fmt.Errorf("unsupported CQL type: %s", cqlType)
+	}
+
+	bd, err := proxycore.EncodeType(dt, bigtableEncodingVersion, iv)
+	if err != nil {
+		return nil, fmt.Errorf("error encoding value: %w", err)
+	}
+
+	return bd, nil
+}
+
+func cassandraValueToGoValue(dt types.CqlDataType, value *primitive.Value, pv primitive.ProtocolVersion) (types.GoValue, error) {
+	goValue, err := proxycore.DecodeType(dt.DataType(), pv, value.Contents)
+	if err != nil {
+		return nil, err
+	}
+	return goValue, nil
+}
+
+// encodeBigIntForBigtable encodes bigint values to bytes.
+// Converts bigint values to byte representation with validation.
+// Returns error if value is invalid or encoding fails.
+func encodeBigIntForBigtable(value interface{}) ([]byte, error) {
+	intVal, err := parseCassandraValueToInt64(value, bigtableEncodingVersion)
+	if err != nil {
+		return nil, err
+	}
+	result, err := proxycore.EncodeType(datatype.Bigint, bigtableEncodingVersion, intVal)
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode bigint: %w", err)
+	}
+	return result, err
+}
+
+// encodeBigIntForBigtable encodes bigint values to bytes.
+// Converts bigint values to byte representation with validation.
+// Returns error if value is invalid or encoding fails.
+func encodeFloat64ForBigtable(value interface{}) ([]byte, error) {
+	var floatVal float64
 	var err error
-
-	// Try to parse the timestamp using each layout
-	for _, layout := range layouts {
-		if timestampStr == "totimestamp(now())" {
-			timestampStr = time.Now().Format(time.RFC3339)
+	switch v := value.(type) {
+	case string:
+		floatVal, err = strconv.ParseFloat(v, 64)
+	case float32:
+		floatVal = float64(v)
+	case float64:
+		floatVal = v
+	case []byte:
+		floatAny, err := proxycore.DecodeType(datatype.Double, bigtableEncodingVersion, v)
+		if err != nil {
+			return nil, err
 		}
-		parsedTime, err = time.Parse(layout, timestampStr)
-		if err == nil {
-			return parsedTime, nil
+		var ok bool
+		floatVal, ok = floatAny.(float64)
+		if !ok {
+			return nil, errors.New("failed to convert float")
 		}
+	default:
+		return nil, fmt.Errorf("unsupported type for bigint conversion: %v", value)
 	}
-	// Try to parse as Unix timestamp (in seconds, milliseconds, or microseconds)
-	if unixTime, err := strconv.ParseInt(timestampStr, 10, 64); err == nil {
-		timestrlen := timestampStr
-		if len(timestampStr) > 0 && timestampStr[0] == '-' {
-			timestrlen = timestampStr[1:]
-		}
-		if len(timestrlen) <= 19 {
-			// Handle timestamps in milliseconds (Cassandra supports millisecond epoch time)
-			secs := unixTime / 1000
-			nanos := (unixTime % 1000) * int64(time.Millisecond)
-			return time.Unix(secs, nanos).UTC(), nil
-		} else {
-			return time.Time{}, fmt.Errorf("invalid unix timestamp: %s", timestampStr)
-		}
-		// checking if value is float
-	} else if floatTime, err := strconv.ParseFloat(timestampStr, 64); err == nil {
-		unixTime := int64(floatTime)
-		unixStr := strconv.FormatInt(unixTime, 10)
-		timestrlen := unixStr
-		if len(unixStr) > 0 && unixStr[0] == '-' {
-			timestrlen = timestampStr[1:]
-		}
-		if len(timestrlen) <= 18 {
-			// Handle timestamps in milliseconds (Cassandra supports millisecond epoch time)
-			secs := unixTime / 1000
-			nanos := (unixTime % 1000) * int64(time.Millisecond)
-			return time.Unix(secs, nanos).UTC(), nil
-		} else {
-			return time.Time{}, fmt.Errorf("invalid unix timestamp: %s", timestampStr)
-		}
+	if err != nil {
+		return nil, err
 	}
+	result, err := proxycore.EncodeType(datatype.Double, bigtableEncodingVersion, floatVal)
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode double: %w", err)
+	}
+	return result, err
+}
 
-	// If all formats fail, return the last error
-	return time.Time{}, err
+// encodeBoolForBigtable encodes boolean values to bytes.
+// Converts boolean values to byte representation with validation.
+// Returns error if value is invalid or encoding fails.
+func encodeBoolForBigtable(value interface{}) ([]byte, error) {
+	switch v := value.(type) {
+	case string:
+		val, err := strconv.ParseBool(v)
+		if err != nil {
+			return nil, err
+		}
+		strVal := "0"
+		if val {
+			strVal = "1"
+		}
+		intVal, err := strconv.ParseInt(strVal, 10, 64)
+		if err != nil {
+			return nil, err
+		}
+		bd, err := proxycore.EncodeType(datatype.Bigint, bigtableEncodingVersion, intVal)
+		if err != nil {
+			return nil, err
+		}
+		return bd, nil
+	case bool:
+		var valInBigint int64
+		if v {
+			valInBigint = 1
+		} else {
+			valInBigint = 0
+		}
+		bd, err := proxycore.EncodeType(datatype.Bigint, bigtableEncodingVersion, valInBigint)
+		if err != nil {
+			return nil, err
+		}
+		return bd, nil
+	case []byte:
+		vaInInterface, err := proxycore.DecodeType(datatype.Boolean, bigtableEncodingVersion, v)
+		if err != nil {
+			return nil, err
+		}
+		if vaInInterface == nil {
+			return nil, nil
+		}
+		if vaInInterface.(bool) {
+			return proxycore.EncodeType(datatype.Bigint, bigtableEncodingVersion, 1)
+		} else {
+			return proxycore.EncodeType(datatype.Bigint, bigtableEncodingVersion, 0)
+		}
+	default:
+		return nil, fmt.Errorf("unsupported type: %v", value)
+	}
+}
+
+func parseCassandraValueToInt64(value interface{}, clientPv primitive.ProtocolVersion) (int64, error) {
+	switch v := value.(type) {
+	case string:
+		return strconv.ParseInt(v, 10, 64)
+	case int32:
+		return int64(v), nil
+	case int64:
+		return v, nil
+	case []byte:
+		if len(v) == 4 {
+			decoded, err := proxycore.DecodeType(datatype.Int, clientPv, v)
+			if err != nil {
+				return 0, err
+			}
+			return int64(decoded.(int32)), nil
+		} else {
+			decoded, err := proxycore.DecodeType(datatype.Bigint, clientPv, v)
+			if err != nil {
+				return 0, err
+			}
+			if decoded == nil {
+				return 0, nil
+			}
+			return decoded.(int64), nil
+		}
+	default:
+		return 0, fmt.Errorf("unsupported type for bigint conversion: %v", value)
+	}
+}
+
+func encodeTimestampForBigtable(value interface{}) (types.BigtableValue, error) {
+	var t time.Time
+	switch v := value.(type) {
+	case int64:
+		t = time.UnixMilli(v)
+	default:
+		return nil, fmt.Errorf("unsupported timestamp type: %T", value)
+	}
+	return proxycore.EncodeType(datatype.Timestamp, bigtableEncodingVersion, t)
+}
+
+// scalarToString converts a primitive value to its string representation.
+// Handles various data types and returns a formatted string.
+// Returns error if value type is invalid or conversion fails.
+func scalarToString(val interface{}) (string, error) {
+	switch v := val.(type) {
+	case string:
+		return v, nil
+	case int32:
+		return strconv.Itoa(int(v)), nil
+	case int:
+		return strconv.Itoa(v), nil
+	case int64:
+		return strconv.FormatInt(v, 10), nil
+	case float32:
+		return strconv.FormatFloat(float64(v), 'f', -1, 32), nil
+	case float64:
+		return strconv.FormatFloat(v, 'f', -1, 64), nil
+	case bool:
+		return strconv.FormatBool(v), nil
+	default:
+		return "", fmt.Errorf("unsupported type: %T", v)
+	}
 }

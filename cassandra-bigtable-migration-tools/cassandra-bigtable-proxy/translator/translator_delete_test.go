@@ -37,8 +37,8 @@ import (
 func TestTranslator_TranslateDeleteQuerytoBigtable(t *testing.T) {
 	var protocalV primitive.ProtocolVersion = 4
 	params := make(map[string]interface{})
-	formattedValue, _ := bindings.encodeScalarForBigtable("test", datatype.Varchar, protocalV)
-	formattedValue2, _ := bindings.encodeScalarForBigtable("15", datatype.Int, protocalV)
+	formattedValue, _ := bindings.encodeScalarForBigtable("test", datatype.Varchar)
+	formattedValue2, _ := bindings.encodeScalarForBigtable("15", datatype.Int)
 	params["value1"] = formattedValue
 	params2 := make(map[string]interface{})
 	params2["value1"] = formattedValue
@@ -56,7 +56,7 @@ func TestTranslator_TranslateDeleteQuerytoBigtable(t *testing.T) {
 		name            string
 		fields          fields
 		args            args
-		want            *DeleteQueryMapping
+		want            *PreparedDeleteQuery
 		wantErr         bool
 		defaultKeyspace string
 	}{
@@ -91,7 +91,7 @@ func TestTranslator_TranslateDeleteQuerytoBigtable(t *testing.T) {
 			fields: fields{
 				SchemaMappingConfig: GetSchemaMappingConfig(types.OrderedCodeEncoding),
 			},
-			want: &DeleteQueryMapping{
+			want: &PreparedDeleteQuery{
 				Query:     "DELETE FROM test_keyspace.user_info WHERE name='test' AND age=15",
 				QueryType: "DELETE",
 				Table:     "user_info",
@@ -126,7 +126,7 @@ func TestTranslator_TranslateDeleteQuerytoBigtable(t *testing.T) {
 			fields: fields{
 				SchemaMappingConfig: GetSchemaMappingConfig(types.BigEndianEncoding),
 			},
-			want: &DeleteQueryMapping{
+			want: &PreparedDeleteQuery{
 				Query:     "DELETE FROM test_keyspace.user_info WHERE name='test' AND age=15",
 				QueryType: "DELETE",
 				Table:     "user_info",
@@ -185,7 +185,7 @@ func TestTranslator_TranslateDeleteQuerytoBigtable(t *testing.T) {
 			fields: fields{
 				SchemaMappingConfig: GetSchemaMappingConfig(types.OrderedCodeEncoding),
 			},
-			want: &DeleteQueryMapping{
+			want: &PreparedDeleteQuery{
 				Query:     `DELETE FROM test_keyspace.user_info WHERE name='test' AND age=15 IF EXISTS`,
 				QueryType: "DELETE",
 				Table:     "user_info",
@@ -221,7 +221,7 @@ func TestTranslator_TranslateDeleteQuerytoBigtable(t *testing.T) {
 			fields: fields{
 				SchemaMappingConfig: GetSchemaMappingConfig(types.OrderedCodeEncoding),
 			},
-			want: &DeleteQueryMapping{
+			want: &PreparedDeleteQuery{
 				Query:     `DELETE FROM test_keyspace.user_info WHERE name='tes''t' AND age=15 IF EXISTS`,
 				QueryType: "DELETE",
 				Table:     "user_info",
@@ -272,7 +272,7 @@ func TestTranslator_TranslateDeleteQuerytoBigtable(t *testing.T) {
 			fields: fields{
 				SchemaMappingConfig: GetSchemaMappingConfig(types.OrderedCodeEncoding),
 			},
-			want: &DeleteQueryMapping{
+			want: &PreparedDeleteQuery{
 				Query:     "DELETE FROM test_keyspace.test_table WHERE column1 = 'abc' AND column10 = 'pkval';",
 				QueryType: "DELETE",
 				Table:     "test_table",
@@ -310,7 +310,7 @@ func TestTranslator_TranslateDeleteQuerytoBigtable(t *testing.T) {
 			fields: fields{
 				SchemaMappingConfig: GetSchemaMappingConfig(types.OrderedCodeEncoding),
 			},
-			want: &DeleteQueryMapping{
+			want: &PreparedDeleteQuery{
 				Query:     "DELETE FROM test_keyspace.test_table WHERE column1 = 'abc' AND column10 = 'pkval';",
 				QueryType: "DELETE",
 				Table:     "test_table",
@@ -348,7 +348,7 @@ func TestTranslator_TranslateDeleteQuerytoBigtable(t *testing.T) {
 			fields: fields{
 				SchemaMappingConfig: GetSchemaMappingConfig(types.OrderedCodeEncoding),
 			},
-			want: &DeleteQueryMapping{
+			want: &PreparedDeleteQuery{
 				Query:     "DELETE FROM test_keyspace.test_table WHERE column1 = '' AND column10 = 'pkval';",
 				QueryType: "DELETE",
 				Table:     "test_table",
@@ -386,7 +386,7 @@ func TestTranslator_TranslateDeleteQuerytoBigtable(t *testing.T) {
 			fields: fields{
 				SchemaMappingConfig: GetSchemaMappingConfig(types.OrderedCodeEncoding),
 			},
-			want: &DeleteQueryMapping{
+			want: &PreparedDeleteQuery{
 				Query:     "DELETE FROM test_table WHERE column1 = 'abc' AND column10 = 'pkval';",
 				QueryType: "DELETE",
 				Table:     "test_table",
@@ -512,7 +512,7 @@ func TestTranslator_BuildDeletePrepareQuery(t *testing.T) {
 	}
 	type args struct {
 		values                 []*primitive.Value
-		st                     *DeleteQueryMapping
+		st                     *PreparedDeleteQuery
 		variableColumnMetadata []*message.ColumnMetadata
 		protocolV              primitive.ProtocolVersion
 	}
@@ -535,7 +535,7 @@ func TestTranslator_BuildDeletePrepareQuery(t *testing.T) {
 					{Contents: []byte("123")},
 					{Contents: []byte("abc")},
 				},
-				st: &DeleteQueryMapping{
+				st: &PreparedDeleteQuery{
 					Query:       "DELETE FROM test_table WHERE column1=? AND column10=?",
 					QueryType:   "DELETE",
 					Table:       "test_table",
@@ -578,7 +578,7 @@ func TestTranslator_BuildDeletePrepareQuery(t *testing.T) {
 				values: []*primitive.Value{
 					{Contents: []byte("123")},
 				},
-				st: &DeleteQueryMapping{
+				st: &PreparedDeleteQuery{
 					Query:       "DELETE FROM test_table WHERE column1=?",
 					QueryType:   "DELETE",
 					Table:       "test_table",
@@ -609,7 +609,7 @@ func TestTranslator_BuildDeletePrepareQuery(t *testing.T) {
 			},
 			args: args{
 				values: []*primitive.Value{},
-				st: &DeleteQueryMapping{
+				st: &PreparedDeleteQuery{
 					Query:       "DELETE FROM test_table WHERE column1=?",
 					QueryType:   "DELETE",
 					Table:       "test_table",
@@ -636,7 +636,7 @@ func TestTranslator_BuildDeletePrepareQuery(t *testing.T) {
 				values: []*primitive.Value{
 					{Contents: []byte("123")},
 				},
-				st: &DeleteQueryMapping{
+				st: &PreparedDeleteQuery{
 					Query:       "DELETE FROM test_table WHERE column1=?",
 					QueryType:   "DELETE",
 					Table:       "test_table",
@@ -723,7 +723,7 @@ func TestParseDeleteColumns(t *testing.T) {
 		name         string
 		query        string
 		expectNil    bool
-		expectedCols []types.SelectedColumn
+		expectedCols []translator.SelectedColumn
 		wantErr      bool
 	}{
 		{
@@ -737,7 +737,7 @@ func TestParseDeleteColumns(t *testing.T) {
 			name:      "Single delete column",
 			query:     "DELETE col1 FROM test_keyspace.testtable",
 			expectNil: false,
-			expectedCols: []types.SelectedColumn{
+			expectedCols: []translator.SelectedColumn{
 				{
 					Name: "col1",
 				},
@@ -748,7 +748,7 @@ func TestParseDeleteColumns(t *testing.T) {
 			name:      "Multiple delete columns",
 			query:     "DELETE col1, col2 FROM test_keyspace.testtable",
 			expectNil: false,
-			expectedCols: []types.SelectedColumn{
+			expectedCols: []translator.SelectedColumn{
 				{
 					Name: "col1",
 				},
@@ -762,7 +762,7 @@ func TestParseDeleteColumns(t *testing.T) {
 			name:      "Delete column with list index",
 			query:     "DELETE col1[1] FROM test_keyspace.testtable",
 			expectNil: false,
-			expectedCols: []types.SelectedColumn{
+			expectedCols: []translator.SelectedColumn{
 				{
 					Name:      "col1",
 					ListIndex: "1",
@@ -774,7 +774,7 @@ func TestParseDeleteColumns(t *testing.T) {
 			name:      "Delete column with map key",
 			query:     "DELETE col1['key'] FROM test_keyspace.testtable",
 			expectNil: false,
-			expectedCols: []types.SelectedColumn{
+			expectedCols: []translator.SelectedColumn{
 				{
 					Name:   "col1",
 					MapKey: "key",

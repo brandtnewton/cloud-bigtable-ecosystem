@@ -246,7 +246,7 @@ func TestUpdateRow(t *testing.T) {
 	assert.NoError(t, err)
 
 	// Update the row
-	updateData := &translator.UpdateQueryMapping{
+	updateData := &translator.PreparedUpdateQuery{
 		Table:                "test-table-update",
 		RowKey:               "test-row",
 		Columns:              []*types.Column{{ColumnFamily: "cf1", Name: "col1"}},
@@ -297,7 +297,7 @@ func TestDeleteRow(t *testing.T) {
 	assert.NoError(t, err)
 
 	// Delete the row
-	deleteData := &translator.DeleteQueryMapping{
+	deleteData := &translator.PreparedDeleteQuery{
 		Table:    "test-table-delete",
 		RowKey:   "test-row",
 		Keyspace: "ks1",
@@ -420,7 +420,7 @@ func TestDeleteRowsUsingTimestamp(t *testing.T) {
 	assert.NotEmpty(t, row[columnFamily], "Expected columns to be present before deletion")
 	// Test Case 1: Successful deletion of columns using a timestamp
 	timestamp.Timestamp = bigtable.Timestamp(time.Now().Day())
-	deleteData := &translator.DeleteQueryMapping{
+	deleteData := &translator.PreparedDeleteQuery{
 		Table:         tableName,
 		RowKey:        rowKey,
 		Keyspace:      "ks1",
@@ -482,7 +482,7 @@ func TestMutateRowDeleteColumnFamily(t *testing.T) {
 	require.NoError(t, err)
 
 	// Delete cf2
-	updateData := &translator.UpdateQueryMapping{
+	updateData := &translator.PreparedUpdateQuery{
 		Table:                tableName,
 		RowKey:               "row1",
 		DeleteColumnFamilies: []string{"cf2"},
@@ -524,7 +524,7 @@ func TestMutateRowDeleteQualifiers(t *testing.T) {
 	require.NoError(t, err)
 
 	// Delete col1
-	updateData := &translator.UpdateQueryMapping{
+	updateData := &translator.PreparedUpdateQuery{
 		Table:                 tableName,
 		RowKey:                "row1",
 		DeleteColumQualifiers: []*types.Column{{ColumnFamily: "cf1", Name: "col1"}},
@@ -569,7 +569,7 @@ func TestMutateRowIfExists(t *testing.T) {
 	require.NoError(t, err)
 
 	// Update the row when it exists
-	updateData := &translator.UpdateQueryMapping{
+	updateData := &translator.PreparedUpdateQuery{
 		Table:    tableName,
 		RowKey:   "row1",
 		Columns:  []*types.Column{{ColumnFamily: "cf1", Name: "col1"}},
@@ -651,7 +651,7 @@ func TestMutateRowNonByteValue(t *testing.T) {
 
 	btc := NewBigtableClient(client, adminClients, zap.NewNop(), bigtableConfig, nil, schemaMapping.NewSchemaMappingConfig("schema_mapping", "cf1", zap.NewNop(), nil))
 
-	updateData := &translator.UpdateQueryMapping{
+	updateData := &translator.PreparedUpdateQuery{
 		Table:    tableName,
 		RowKey:   "row1",
 		Columns:  []*types.Column{{ColumnFamily: "cf1", Name: "col1"}},
@@ -669,7 +669,7 @@ func TestMutateRowInvalidKeyspace(t *testing.T) {
 
 	btc := NewBigtableClient(client, adminClients, zap.NewNop(), bigtableConfig, nil, schemaMapping.NewSchemaMappingConfig("schema_mapping", "cf1", zap.NewNop(), nil))
 
-	updateData := &translator.UpdateQueryMapping{
+	updateData := &translator.PreparedUpdateQuery{
 		Table:    "any-table",
 		RowKey:   "row1",
 		Columns:  []*types.Column{{ColumnFamily: "cf1", Name: "col1"}},
@@ -713,7 +713,7 @@ func TestComplexUpdateWithListIndex(t *testing.T) {
 			Value:           []byte("updated-v2"),
 		},
 	}
-	updateData := &translator.UpdateQueryMapping{
+	updateData := &translator.PreparedUpdateQuery{
 		Table:             tableName,
 		RowKey:            "row1",
 		ComplexOperations: ComplexOperation,
@@ -764,7 +764,7 @@ func TestComplexUpdateWithListDeletion(t *testing.T) {
 			ListDeleteValues: [][]byte{[]byte("v1")}, // Delete the first item in the list
 		},
 	}
-	updateData := &translator.UpdateQueryMapping{
+	updateData := &translator.PreparedUpdateQuery{
 		Table:             tableName,
 		RowKey:            "row1",
 		ComplexOperations: ComplexOperation,
@@ -797,7 +797,7 @@ func TestComplexUpdateInvalidKeyspace(t *testing.T) {
 			Value:           []byte("updated-v1"),
 		},
 	}
-	updateData := &translator.UpdateQueryMapping{
+	updateData := &translator.PreparedUpdateQuery{
 		Table:             "any-table",
 		RowKey:            "row1",
 		ComplexOperations: ComplexOperation,
@@ -841,7 +841,7 @@ func TestComplexUpdateOutOfBoundsIndex(t *testing.T) {
 			Value:           []byte("updated-v2"),
 		},
 	}
-	updateData := &translator.UpdateQueryMapping{
+	updateData := &translator.PreparedUpdateQuery{
 		Table:             tableName,
 		RowKey:            "row1",
 		ComplexOperations: ComplexOperation,

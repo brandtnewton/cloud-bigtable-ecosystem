@@ -38,11 +38,11 @@ import (
 //   - protocolV: The Cassandra protocol version used for encoding.
 //
 // Returns: An error if the encoding fails or if the map type retrieval does not succeed.
-func (th *TypeHandler) HandleTimestampMap(mapData map[string]interface{}, mr *message.Row, mapType datatype.MapType, protocolV primitive.ProtocolVersion) error {
+func HandleTimestampMap(mapData map[string]interface{}, mr *message.Row, mapType datatype.MapType, protocolV primitive.ProtocolVersion) error {
 	var bytes []byte
 	var err error
 
-	detailsField, err := th.decodeMapData(mapData, mapType.GetValueType(), protocolV)
+	detailsField, err := decodeMapData(mapData, mapType.GetValueType(), protocolV)
 	if err != nil {
 		return err
 	}
@@ -67,7 +67,7 @@ func (th *TypeHandler) HandleTimestampMap(mapData map[string]interface{}, mr *me
 // Returns: An interface{} containing the decoded map data, or an error if decoding fails or
 //
 //	if any key can't be parsed to an int64.
-func (th *TypeHandler) decodeMapData(mapData map[string]interface{}, elementType datatype.DataType, protocolV primitive.ProtocolVersion) (interface{}, error) {
+func decodeMapData(mapData map[string]interface{}, elementType datatype.DataType, protocolV primitive.ProtocolVersion) (interface{}, error) {
 	result := make(map[int64]interface{})
 
 	for key, value := range mapData {
@@ -76,7 +76,7 @@ func (th *TypeHandler) decodeMapData(mapData map[string]interface{}, elementType
 			return nil, fmt.Errorf("type assertion to []byte failed")
 		}
 
-		decodedValue, err := th.DecodeValue(byteArray, elementType, protocolV)
+		decodedValue, err := DecodeValue(byteArray, elementType, protocolV)
 		if err != nil {
 			return nil, err
 		}
@@ -102,7 +102,7 @@ func (th *TypeHandler) decodeMapData(mapData map[string]interface{}, elementType
 // Returns: An interface{} containing the decoded value and an error if the decoding fails
 //
 //	or if the element type is unsupported.
-func (th *TypeHandler) DecodeValue(byteArray []byte, elementType datatype.DataType, protocolV primitive.ProtocolVersion) (interface{}, error) {
+func DecodeValue(byteArray []byte, elementType datatype.DataType, protocolV primitive.ProtocolVersion) (interface{}, error) {
 	var decodedValue interface{}
 	var err error
 

@@ -25,14 +25,13 @@ import (
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/utilities"
 	"github.com/datastax/go-cassandra-native-protocol/datatype"
 	"github.com/datastax/go-cassandra-native-protocol/message"
-	"github.com/datastax/go-cassandra-native-protocol/primitive"
 	"golang.org/x/exp/maps"
 )
 
 // TableConfig contains all schema information about a single table
 type TableConfig struct {
-	Keyspace           string
-	Name               string
+	Keyspace           types.Keyspace
+	Name               types.TableName
 	Columns            map[types.ColumnName]*types.Column
 	PrimaryKeys        []*types.Column
 	SystemColumnFamily types.ColumnFamily
@@ -41,8 +40,7 @@ type TableConfig struct {
 
 // NewTableConfig is a constructor for TableConfig. Please use this instead of direct initialization.
 func NewTableConfig(
-	keyspace string,
-	name string,
+	keyspace types.Keyspace, table types.TableName,
 	systemColumnFamily types.ColumnFamily,
 	intRowKeyEncoding types.IntRowKeyEncodingType,
 	columns []*types.Column,
@@ -52,8 +50,8 @@ func NewTableConfig(
 
 	for i, column := range columns {
 		column.Metadata = message.ColumnMetadata{
-			Keyspace: keyspace,
-			Table:    name,
+			Keyspace: string(keyspace),
+			Table:    string(table),
 			Name:     string(column.Name),
 			Index:    int32(i),
 			Type:     column.CQLType.DataType(),
@@ -69,7 +67,7 @@ func NewTableConfig(
 
 	return &TableConfig{
 		Keyspace:           keyspace,
-		Name:               name,
+		Name:               table,
 		Columns:            columnMap,
 		PrimaryKeys:        pmks,
 		SystemColumnFamily: systemColumnFamily,
@@ -216,168 +214,4 @@ func (tableConfig *TableConfig) GetColumnType(columnName types.ColumnName) (type
 		return nil, fmt.Errorf("undefined column name %s in table %s.%s", columnName, tableConfig.Keyspace, tableConfig.Name)
 	}
 	return col.CQLType, nil
-}
-
-// GetMetadataForColumns retrieves metadata for specific columns in a given table.
-// This method is a part of the SchemaMappingConfig struct.
-//
-// Parameters:
-//   - tableName: The name of the table for which column metadata is being requested.
-//   - columnNames(optional):Accepts nil if no columnNames provided or else A slice of strings containing the names of the columns for which
-//     metadata is required. If this slice is empty, metadata for all
-//     columns in the table will be returned.
-//
-// Returns:
-// - A slice of pointers to ColumnMetadata structs containing metadata for each requested column.
-// - An error if the specified table is not found in the Columns.
-func (tableConfig *TableConfig) GetMetadataForColumns(columnNames []types.ColumnName) ([]*message.ColumnMetadata, error) {
-	if len(columnNames) == 0 {
-		return getAllColumnsMetadata(tableConfig.Columns), nil
-	}
-	ff, err := tableConfig.getSpecificColumnsMetadata(columnNames)
-	return ff, err
-}
-
-// GetMetadataForSelectedColumns retrieves metadata for specified columns in a given table.
-// This method fetches metadata for the selected columns from the schema mapping configuration.
-// If no columns are specified, metadata for all columns in the table is returned.
-//
-// Parameters:
-//   - tableName: The name of the table for which column metadata is being requested.
-//   - keySpace: The keyspace where the table resides.
-//   - columnNames: A slice of SelectedColumn specifying the columns for which metadata is required.
-//     If nil or empty, metadata for all columns in the table is returned.
-//
-// Returns:
-//   - []*message.ColumnMetadata: A slice of pointers to ColumnMetadata structs containing metadata
-//     for each requested column.
-//   - error: Returns an error if the specified table is not found in Columns.
-func (tableConfig *TableConfig) GetMetadataForSelectedColumns(columnNames []types.SelectedColumn) ([]*message.ColumnMetadata, error) {
-	if len(columnNames) == 0 {
-		return getAllColumnsMetadata(tableConfig.Columns), nil
-	}
-	return tableConfig.getSpecificColumnsMetadataForSelectedColumns(tableConfig.Columns, columnNames)
-}
-
-// getSpecificColumnsMetadataForSelectedColumns() generates column metadata for specifically selected columns.
-// It handles regular columns, writetime columns, and special columns, and logs an error for invalid configurations.
-//
-// Parameters:
-//   - columnsMap: A map where the keys are column names and the values are pointers to types.Column containing metadata.
-//   - selectedColumns: A slice of SelectedColumn representing columns that have been selected for query.
-//   - tableName: The name of the table from which columns are being selected.
-//
-// Returns:
-//   - A slice of pointers to ColumnMetadata, representing the metadata for each selected column.
-//   - An error if a column cannot be found in the map, or if there's an issue handling special columns.
-func (tableConfig *TableConfig) getSpecificColumnsMetadataForSelectedColumns(columnsMap map[types.ColumnName]*types.Column, selectedColumns []types.SelectedColumn) ([]*message.ColumnMetadata, error) {
-	var columnMetadataList []*message.ColumnMetadata
-	var columnName types.ColumnName
-	for i, columnMeta := range selectedColumns {
-		columnName = types.ColumnName(columnMeta.Name)
-
-		if column, ok := columnsMap[columnName]; ok {
-			columnMetadataList = append(columnMetadataList, cloneColumnMetadata(&column.Metadata, int32(i)))
-		} else if columnMeta.IsWriteTimeColumn {
-			metadata, err := handleSpecialColumn(columnsMap, types.ColumnName(getTimestampColumnName(columnMeta.Alias, columnMeta.ColumnName)), int32(i), true)
-			if err != nil {
-				return nil, err
-			}
-			columnMetadataList = append(columnMetadataList, metadata)
-		} else if isSpecialColumn(columnName) {
-			metadata, err := handleSpecialColumn(columnsMap, columnName, int32(i), false)
-			if err != nil {
-				return nil, err
-			}
-			columnMetadataList = append(columnMetadataList, metadata)
-		} else if columnMeta.IsFunc || columnMeta.MapKey != "" || columnMeta.IsWriteTimeColumn {
-			metadata, err := tableConfig.handleSpecialSelectedColumn(columnsMap, columnMeta, int32(i))
-			if err != nil {
-				return nil, err
-			}
-			columnMetadataList = append(columnMetadataList, metadata)
-		} else {
-			return nil, fmt.Errorf("metadata not found for column `%s` in table `%s`", columnName, tableConfig.Name)
-		}
-		if columnMeta.IsAs {
-			columnMetadataList[i].Name = columnMeta.Alias
-		}
-	}
-	return columnMetadataList, nil
-}
-
-// getSpecificColumnsMetadata() retrieves metadata for specific columns in a given table.
-//
-// Parameters:
-//   - columnsMap: column info for a given table.
-//   - columnNames: column names for which the metadata is required.
-//   - tableName: name of the table
-//
-// Returns:
-// - A slice of pointers to ColumnMetadata structs containing metadata for each requested column.
-// - An error
-func (tableConfig *TableConfig) getSpecificColumnsMetadata(columnNames []types.ColumnName) ([]*message.ColumnMetadata, error) {
-	var columnMetadataList []*message.ColumnMetadata
-	for i, columnName := range columnNames {
-		if column, ok := tableConfig.Columns[columnName]; ok {
-			columnMetadataList = append(columnMetadataList, cloneColumnMetadata(&column.Metadata, int32(i)))
-		} else if isSpecialColumn(columnName) {
-			metadata, err := handleSpecialColumn(tableConfig.Columns, columnName, int32(i), false)
-			if err != nil {
-				return nil, err
-			}
-			columnMetadataList = append(columnMetadataList, metadata)
-		} else {
-			return nil, fmt.Errorf("metadata not found for column `%s` in table `%s`", columnName, tableConfig.Name)
-		}
-	}
-	return columnMetadataList, nil
-}
-
-// handleSpecialSelectedColumn processes special column types and returns corresponding ColumnMetadata.
-// It handles count functions, write time columns, aliased columns, function columns, and map columns.
-//
-// Parameters:
-//   - columnsMap: A map of column names to their types.Column definitions
-//   - columnSelected: Selected column configuration including special attributes
-//   - index: The position index of the column
-//   - tableName: Name of the table containing the column
-//   - keySpace: Keyspace name containing the table
-//
-// Returns:
-//   - *message.ColumnMetadata: Metadata for the processed column
-//   - error: If the column is not found in the provided metadata
-func (tableConfig *TableConfig) handleSpecialSelectedColumn(columnsMap map[types.ColumnName]*types.Column, columnSelected types.SelectedColumn, index int32) (*message.ColumnMetadata, error) {
-	var cqlType datatype.DataType
-	if columnSelected.FuncName == "count" || columnSelected.IsWriteTimeColumn {
-		// For count function, the type is always bigint
-		return &message.ColumnMetadata{
-			Keyspace: tableConfig.Keyspace,
-			Table:    tableConfig.Name,
-			Type:     datatype.Bigint,
-			Index:    index,
-			Name:     string(columnSelected.Name),
-		}, nil
-	}
-	lookupColumn := string(columnSelected.Name)
-	if columnSelected.Alias != "" || columnSelected.IsFunc || columnSelected.MapKey != "" {
-		lookupColumn = columnSelected.ColumnName
-	}
-	column, ok := columnsMap[types.ColumnName(lookupColumn)]
-	if !ok {
-		return nil, fmt.Errorf("special column %s not found in provided metadata", lookupColumn)
-	}
-	cqlType = column.Metadata.Type
-	if columnSelected.MapKey != "" && cqlType.GetDataTypeCode() == primitive.DataTypeCodeMap {
-		cqlType = cqlType.(datatype.MapType).GetValueType() // this gets the type of map value e.g map<varchar,int> -> datatype(int)
-	}
-	columnMd := &message.ColumnMetadata{
-		Keyspace: tableConfig.Keyspace,
-		Table:    tableConfig.Name,
-		Type:     cqlType,
-		Index:    index,
-		Name:     string(columnSelected.Name),
-	}
-
-	return columnMd, nil
 }

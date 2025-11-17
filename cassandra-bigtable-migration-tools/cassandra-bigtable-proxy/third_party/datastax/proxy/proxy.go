@@ -25,7 +25,6 @@ import (
 	"io"
 	"net"
 	"reflect"
-	"slices"
 	"sort"
 	"strings"
 	"sync"
@@ -39,7 +38,6 @@ import (
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/responsehandler"
 	schemaMapping "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/schema-mapping"
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/third_party/datastax/parser"
-	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/third_party/datastax/proxy/config"
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/third_party/datastax/proxycore"
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/translator"
 	"github.com/datastax/go-cassandra-native-protocol/datatype"
@@ -53,7 +51,6 @@ import (
 
 var (
 	encodedOneValue, _ = proxycore.EncodeType(datatype.Int, primitive.ProtocolVersion4, 1)
-	commitTsFn         = "PENDING_COMMIT_TIMESTAMP()"
 )
 
 var ErrProxyClosed = errors.New("proxy closed")
@@ -96,7 +93,7 @@ var (
 	systemSchema        = "system_schema"
 	keyspaces           = "keyspaces"
 	tables              = "tables"
-	columns             = "columns"
+	metaDataColumns     = "metaDataColumns"
 	systemVirtualSchema = "system_virtual_schema"
 	local               = "local"
 )
@@ -162,8 +159,8 @@ func NewProxy(ctx context.Context, logger *zap.Logger, config *types.ProxyInstan
 	if err != nil {
 		return nil, err
 	}
-	smc := schemaMapping.NewSchemaMappingConfig(config.BigtableConfig.SchemaMappingTable, config.BigtableConfig.DefaultColumnFamily, logger, nil)
-	bigtableCl := bigtableModule.NewBigtableClient(bigtableClients, adminClients, logger, config.BigtableConfig, &responsehandler.TypeHandler{}, smc)
+	smc := schemaMapping.NewSchemaMappingConfig(types.TableName(config.BigtableConfig.SchemaMappingTable), config.BigtableConfig.DefaultColumnFamily, logger, nil)
+	bigtableCl := bigtableModule.NewBigtableClient(bigtableClients, adminClients, logger, config.BigtableConfig, smc)
 	for k := range config.BigtableConfig.Instances {
 		tableConfigs, err := bigtableCl.ReadTableConfigs(ctx, k)
 		if err != nil {
@@ -171,12 +168,7 @@ func NewProxy(ctx context.Context, logger *zap.Logger, config *types.ProxyInstan
 		}
 		smc.UpdateTables(tableConfigs)
 	}
-	responseHandler := &responsehandler.TypeHandler{
-		Logger:              logger,
-		SchemaMappingConfig: smc,
-	}
-
-	bigtableCl.LoadConfigs(responseHandler, smc)
+	bigtableCl.LoadConfigs(smc)
 	proxyTranslator := &translator.Translator{
 		Logger:                   logger,
 		SchemaMappingConfig:      smc,
@@ -383,8 +375,9 @@ func (p *Proxy) handle(conn net.Conn) {
 	cl := &client{
 		ctx:                 p.ctx,
 		proxy:               p,
-		preparedSystemQuery: make(map[[preparedIdSize]byte]interface{}),
-		preparedQuerys:      cache,
+		preparedSystemQuery: newProxyCache[any](),
+		preparedQueries:     newProxyCache[translator.IPreparedQuery](),
+		queryMetadataCache:  newProxyCache[message.PreparedResult](),
 	}
 	cl.sender = cl
 	p.addClient(cl)
@@ -495,18 +488,14 @@ type Sender interface {
 	Send(hdr *frame.Header, msg message.Message)
 }
 
-var (
-	cache     = make(map[[16]byte]interface{})
-	cacheLock = sync.RWMutex{}
-)
-
 type client struct {
 	ctx                 context.Context
 	proxy               *Proxy
 	conn                *proxycore.Conn
-	keyspace            string
-	preparedSystemQuery map[[16]byte]interface{}
-	preparedQuerys      map[[16]byte]interface{}
+	keyspace            types.Keyspace
+	preparedSystemQuery *proxyCache[any]
+	preparedQueries     *proxyCache[translator.IPreparedQuery]
+	queryMetadataCache  *proxyCache[*message.PreparedResult]
 	sender              Sender
 }
 
@@ -519,19 +508,6 @@ type PreparedQuery struct {
 type UsePreparedQuery struct {
 	Query string
 	// keyspace string
-}
-
-func (c *client) AddQueryToCache(id [16]byte, parsedQueryMeta interface{}) {
-	cacheLock.Lock() // Lock the cache for writing.
-	c.preparedQuerys[id] = parsedQueryMeta
-	cacheLock.Unlock() // Unlock the cache after writing.
-}
-
-func (c *client) GetQueryFromCache(id [16]byte) (interface{}, bool) {
-	cacheLock.Lock() // Lock the cache for reading.
-	parsedQueryMeta, exists := c.preparedQuerys[id]
-	cacheLock.Unlock() // Unlock the cache after reading.
-	return parsedQueryMeta, exists
 }
 
 func (c *client) Receive(reader io.Reader) error {
@@ -595,74 +571,54 @@ func (c *client) handlePrepare(raw *frame.RawFrame, msg *message.Prepare) {
 
 	keyspace := c.keyspace
 	if len(msg.Keyspace) != 0 {
-		keyspace = msg.Keyspace
+		keyspace = types.Keyspace(msg.Keyspace)
 	}
 
-	handled, stmt, queryType, err := parser.IsQueryHandledWithQueryType(parser.IdentifierFromString(keyspace), msg.Query)
+	handled, stmt, queryType, err := parser.IsQueryHandledWithQueryType(parser.IdentifierFromString(string(keyspace)), msg.Query)
+	if err != nil {
+		c.proxy.logger.Error("error parsing query to see if it's handled", zap.String(Query, msg.Query), zap.Error(err))
+		c.sender.Send(raw.Header, &message.Invalid{ErrorMessage: err.Error()})
+		return
+	}
 	if handled {
-		if err != nil {
-			c.proxy.logger.Error("error parsing query to see if it's handled", zap.String(Query, msg.Query), zap.Error(err))
-			c.sender.Send(raw.Header, &message.Invalid{ErrorMessage: err.Error()})
-		} else {
-			switch s := stmt.(type) {
-			// handling select statement
-			case *parser.SelectStatement:
-				if systemColumns, ok := parser.SystemColumnsByName[s.Table]; ok {
-					if columns, err := parser.FilterColumns(s, systemColumns); err != nil {
-						c.sender.Send(raw.Header, &message.Invalid{ErrorMessage: err.Error()})
-					} else {
-						id := md5.Sum([]byte(msg.Query + keyspace))
-						c.sender.Send(raw.Header, &message.PreparedResult{
-							PreparedQueryId: id[:],
-							ResultMetadata: &message.RowsMetadata{
-								ColumnCount: int32(len(columns)),
-								Columns:     columns,
-							},
-						})
-						c.preparedSystemQuery[id] = stmt
-					}
+		switch s := stmt.(type) {
+		// handling select statement
+		case *parser.SelectStatement:
+			if systemColumns, ok := parser.SystemColumnsByName[s.Table]; ok {
+				if columns, err := parser.FilterColumns(s, systemColumns); err != nil {
+					c.sender.Send(raw.Header, &message.Invalid{ErrorMessage: err.Error()})
 				} else {
-					c.sender.Send(raw.Header, &message.Invalid{ErrorMessage: "system columns doesn't exist"})
+					id := c.getQueryId(msg)
+					c.sender.Send(raw.Header, &message.PreparedResult{
+						PreparedQueryId: id[:],
+						ResultMetadata: &message.RowsMetadata{
+							ColumnCount: int32(len(columns)),
+							Columns:     columns,
+						},
+					})
+					c.preparedSystemQuery.set(id, stmt)
 				}
-				// Prepare Use statement
-			case *parser.UseStatement:
-				id := md5.Sum([]byte(msg.Query))
-				c.preparedSystemQuery[id] = stmt
-				c.sender.Send(raw.Header, &message.PreparedResult{
-					PreparedQueryId: id[:],
-				})
-			default:
-				c.sender.Send(raw.Header, &message.ServerError{ErrorMessage: "Proxy attempted to intercept an unhandled query"})
+			} else {
+				c.sender.Send(raw.Header, &message.Invalid{ErrorMessage: "system metaDataColumns doesn't exist"})
 			}
+			// Prepare Use statement
+		case *parser.UseStatement:
+			id := md5.Sum([]byte(msg.Query))
+			c.preparedSystemQuery.set(id, stmt)
+			c.sender.Send(raw.Header, &message.PreparedResult{
+				PreparedQueryId: id[:],
+			})
+		default:
+			c.sender.Send(raw.Header, &message.ServerError{ErrorMessage: "Proxy attempted to intercept an unhandled query"})
 		}
-
 	} else {
 		c.handleServerPreparedQuery(raw, msg, queryType)
 	}
 }
 
-// Check if query is already prepared and return response accordingly without re-processing
-// Values: id [16]byte - Unique identifier for the prepared statement.
-// Returns: []*message.ColumnMetadata - Variable metadata, []*message.ColumnMetadata - Column metadata, bool - Exists in cache.
-// Retrieves and returns metadata for Select, Insert, Delete, and Update query maps from the cache, or nil and false if not found.
-func (c *client) getMetadataFromCache(id [16]byte) ([]*message.ColumnMetadata, []*message.ColumnMetadata, bool) {
-	preparedStmt, found := c.GetQueryFromCache(id)
-	if !found {
-		return nil, nil, false
-	}
-	switch st := preparedStmt.(type) {
-	case *translator.SelectQueryMap:
-		return st.VariableMetadata, st.ReturnMetadata, true
-	case *translator.PreparedInsertQuery:
-		return st.VariableMetadata, st.ReturnMetadata, true
-	case *translator.DeleteQueryMapping:
-		return st.VariableMetadata, st.ReturnMetadata, true
-	case *translator.UpdateQueryMapping:
-		return st.VariableMetadata, st.ReturnMetadata, true
-	default:
-		return nil, nil, false
-	}
-
+func (c *client) getQueryId(msg *message.Prepare) [16]byte {
+	// Generating unique prepared query_id
+	return md5.Sum([]byte(msg.Query + string(c.keyspace)))
 }
 
 // handleServerPreparedQuery handle prepared query that was supposed to run on cassandra server
@@ -675,462 +631,171 @@ func (c *client) getMetadataFromCache(id [16]byte) ([]*message.ColumnMetadata, [
 //
 // Returns: nil
 func (c *client) handleServerPreparedQuery(raw *frame.RawFrame, msg *message.Prepare, queryType string) {
-	var PkIndices []uint16
+	id := c.getQueryId(msg)
+
+	if response, found := c.queryMetadataCache.get(id); found {
+		c.sender.Send(raw.Header, response)
+		return
+	}
+
+	var preparedQuery translator.IPreparedQuery
+	var response *message.PreparedResult
 	var err error
-	var columns, variableColumnMetadata []*message.ColumnMetadata
-
-	// Generating unique prepared query_id
-	id := md5.Sum([]byte(msg.Query + c.keyspace))
-	variableColumnMetadata, columns, found := c.getMetadataFromCache(id)
-	if !found {
-		switch queryType {
-		case selectType:
-			columns, variableColumnMetadata, err = c.prepareSelectType(raw, msg, id)
-		case insertType:
-			columns, variableColumnMetadata, err = c.prepareInsertType(raw, msg, id)
-		case deleteType:
-			columns, variableColumnMetadata, err = c.prepareDeleteType(raw, msg, id)
-		case updateType:
-			columns, variableColumnMetadata, err = c.prepareUpdateType(raw, msg, id)
-		default:
-			c.proxy.logger.Error("Unhandled Prepared CqlQuery Scenario", zap.String(Query, msg.Query))
-			c.sender.Send(raw.Header, &message.Invalid{ErrorMessage: "Unhandled Prepared CqlQuery Scenario"})
-			return
-		}
-
-		if err != nil {
-			return
-		}
+	switch queryType {
+	case selectType:
+		preparedQuery, response, err = c.prepareSelectType(raw, msg, id)
+	case insertType:
+		preparedQuery, response, err = c.prepareInsertType(raw, msg, id)
+	case deleteType:
+		preparedQuery, response, err = c.prepareDeleteType(raw, msg, id)
+	case updateType:
+		preparedQuery, response, err = c.prepareUpdateType(raw, msg, id)
+	default:
+		c.proxy.logger.Error("Unhandled Prepared CqlQuery Scenario", zap.String(Query, msg.Query))
+		c.sender.Send(raw.Header, &message.Invalid{ErrorMessage: "Unhandled Prepared CqlQuery Scenario"})
+		return
 	}
 
-	// Generating Index array of size of variableMetadata
-	for i := range variableColumnMetadata {
-		PkIndices = append(PkIndices, uint16(i))
+	if err != nil {
+		c.proxy.logger.Error(translatorErrorMessage, zap.String(Query, msg.Query), zap.Error(err))
+		c.sender.Send(raw.Header, &message.Invalid{ErrorMessage: err.Error()})
+		return
 	}
 
-	c.sender.Send(raw.Header, &message.PreparedResult{
-		PreparedQueryId: id[:],
-		ResultMetadata: &message.RowsMetadata{
-			ColumnCount: int32(len(columns)),
-			Columns:     columns,
-		},
-		VariablesMetadata: &message.VariablesMetadata{
-			PkIndices: PkIndices,
-			Columns:   variableColumnMetadata,
-		},
-	})
+	// update caches
+	c.preparedQueries.set(id, preparedQuery)
+	c.queryMetadataCache.set(id, response)
 
+	c.sender.Send(raw.Header, response)
 }
 
 // function to handle and delete query of prepared type
-func (c *client) prepareDeleteType(raw *frame.RawFrame, msg *message.Prepare, id [16]byte) ([]*message.ColumnMetadata, []*message.ColumnMetadata, error) {
-	var returnColumns, variableColumns, columnsWithInOp []types.ColumnName
-	var err error
-
-	deleteQueryMetadata, err := c.proxy.translator.TranslateDelete(msg.Query, true, c.keyspace)
+func (c *client) prepareDeleteType(raw *frame.RawFrame, msg *message.Prepare, id [16]byte) (translator.IPreparedQuery, *message.PreparedResult, error) {
+	deleteQueryMetadata, _, err := c.proxy.translator.TranslateDelete(msg.Query, true, c.keyspace)
 	if err != nil {
 		c.proxy.logger.Error(translatorErrorMessage, zap.String(Query, msg.Query), zap.Error(err))
 		c.sender.Send(raw.Header, &message.Invalid{ErrorMessage: err.Error()})
 		return nil, nil, err
 	}
-
-	tableConfig, err := c.proxy.schemaMapping.GetTableConfig(deleteQueryMetadata.Keyspace, deleteQueryMetadata.Table)
-	if err != nil {
-		c.proxy.logger.Error(metadataFetchError, zap.String(Query, msg.Query), zap.Error(err))
-		c.sender.Send(raw.Header, &message.ConfigError{ErrorMessage: err.Error()})
-		return nil, nil, err
-	}
-
-	if slices.Contains(deleteQueryMetadata.ParamKeys, ts_column) {
-		variableColumns = append(variableColumns, ts_column)
-	}
-
-	// capturing variable columns name assuming all columns are parameterized
-	for _, clause := range deleteQueryMetadata.Conditions {
-		variableColumns = append(variableColumns, clause.Column.Name)
-		// Capture columns with in operator
-		if clause.Operator == "IN" {
-			columnsWithInOp = append(columnsWithInOp, clause.Column.Name)
-		}
-	}
-
-	if len(variableColumns) > 0 {
-		//Get column metadata for variable fields
-		deleteQueryMetadata.VariableMetadata, err = tableConfig.GetMetadataForColumns(variableColumns)
-		if err != nil {
-			c.proxy.logger.Error(metadataFetchError, zap.String(Query, msg.Query), zap.Error(err))
-			c.sender.Send(raw.Header, &message.ConfigError{ErrorMessage: err.Error()})
-			return nil, nil, err
-		}
-
-		if deleteQueryMetadata.TimestampInfo.HasUsingTimestamp {
-			metadata := message.ColumnMetadata{
-				Keyspace: deleteQueryMetadata.Keyspace,
-				Table:    deleteQueryMetadata.Table,
-				Name:     config.TimestampColumnName,
-				Index:    deleteQueryMetadata.TimestampInfo.Index,
-				Type:     datatype.Bigint,
-			}
-			deleteQueryMetadata.VariableMetadata = append([]*message.ColumnMetadata{&metadata}, deleteQueryMetadata.VariableMetadata...)
-		}
-	}
-
-	// Modify type to list type as being used with in operator
-	for _, columnMeta := range deleteQueryMetadata.VariableMetadata {
-		if slices.Contains(columnsWithInOp, types.ColumnName(columnMeta.Name)) {
-			columnMeta.Type = datatype.NewListType(columnMeta.Type)
-		}
-	}
-
-	deleteQueryMetadata.ReturnMetadata, err = tableConfig.GetMetadataForColumns(returnColumns)
-	if err != nil {
-		c.sender.Send(raw.Header, &message.ConfigError{ErrorMessage: err.Error()})
-		return nil, nil, err
-	}
-	// caching CqlQuery info
 	c.AddQueryToCache(id, deleteQueryMetadata)
-
 	return deleteQueryMetadata.ReturnMetadata, deleteQueryMetadata.VariableMetadata, err
 }
 
 // function to handle and insert query of prepared type
-func (c *client) prepareInsertType(raw *frame.RawFrame, msg *message.Prepare, id [16]byte) ([]*message.ColumnMetadata, []*message.ColumnMetadata, error) {
-	var returnColumns []types.ColumnName
-
-	// Get the return columns from the query
-	insertQueryMetadata, err := c.proxy.translator.PrepareInsertQuery(msg.Query, raw.Header.Version, true, c.keyspace)
+func (c *client) prepareInsertType(raw *frame.RawFrame, msg *message.Prepare, id [16]byte) (translator.IPreparedQuery, *message.PreparedResult, error) {
+	insertQueryMetadata, _, err := c.proxy.translator.TranslateInsertQuery(msg.Query, true, c.keyspace)
 	if err != nil {
 		c.proxy.logger.Error(translatorErrorMessage, zap.String(Query, msg.Query), zap.Error(err))
 		c.sender.Send(raw.Header, &message.Invalid{ErrorMessage: err.Error()})
 		return nil, nil, err
 	}
-	tableConfig, err := c.proxy.schemaMapping.GetTableConfig(insertQueryMetadata.Keyspace, insertQueryMetadata.Table)
-	if err != nil {
-		c.proxy.logger.Error(metadataFetchError, zap.String(Query, msg.Query), zap.Error(err))
-		c.sender.Send(raw.Header, &message.ConfigError{ErrorMessage: err.Error()})
-		return nil, nil, err
-	}
-
-	insertQueryMetadata.VariableMetadata, err = tableConfig.GetMetadataForColumns(insertQueryMetadata.ParamKeys)
-	insertQueryMetadata.VariableMetadata = append(insertQueryMetadata.VariableMetadata, getTimestampMetadata(tableConfig, insertQueryMetadata.Params)...)
-	if err != nil {
-		c.proxy.logger.Error(metadataFetchError, zap.String(Query, msg.Query), zap.Error(err))
-		c.sender.Send(raw.Header, &message.ConfigError{ErrorMessage: err.Error()})
-		return nil, nil, err
-	}
-
-	insertQueryMetadata.ReturnMetadata, err = tableConfig.GetMetadataForColumns(returnColumns)
-	if err != nil {
-		c.proxy.logger.Error("error getting column metadata", zap.Error(err))
-		c.sender.Send(raw.Header, &message.ConfigError{ErrorMessage: err.Error()})
-		return nil, nil, err
-	}
-	c.AddQueryToCache(id, insertQueryMetadata)
-
 	return insertQueryMetadata.ReturnMetadata, insertQueryMetadata.VariableMetadata, err
 }
 
 // function to handle and select query of prepared type
-func (c *client) prepareSelectType(raw *frame.RawFrame, msg *message.Prepare, id [16]byte) ([]*message.ColumnMetadata, []*message.ColumnMetadata, error) {
-	var variableColumns, columnsWithInOp []types.ColumnName
-	translatedSelectQuery, _, err := c.proxy.translator.PrepareSelect(msg.Query, c.keyspace, true, raw.Header.Version)
+func (c *client) prepareSelectType(raw *frame.RawFrame, msg *message.Prepare, id [16]byte) (translator.IPreparedQuery, *message.PreparedResult, error) {
+	query, _, err := c.proxy.translator.PrepareSelect(msg.Query, c.keyspace, true, raw.Header.Version)
+	query.CachedBTPrepare, err = c.proxy.bClient.PrepareStatement(c.ctx, query)
 	if err != nil {
-		c.proxy.logger.Error(translatorErrorMessage, zap.String(Query, msg.Query), zap.Error(err))
-		c.sender.Send(raw.Header, &message.Invalid{ErrorMessage: err.Error()})
 		return nil, nil, err
 	}
-	tableConfig, err := c.proxy.schemaMapping.GetTableConfig(translatedSelectQuery.Keyspace, translatedSelectQuery.Table)
+	result, err := buildPreparedResultResponse(id, query.Keyspace(), query.Table(), query.Params, query.SelectedColumns)
 	if err != nil {
-		c.proxy.logger.Error(metadataFetchError, zap.String(Query, msg.Query), zap.Error(err))
-		c.sender.Send(raw.Header, &message.ConfigError{ErrorMessage: err.Error()})
 		return nil, nil, err
 	}
-
-	// Get Column metadata for the table or selected field
-	translatedSelectQuery.ReturnMetadata, err = tableConfig.GetMetadataForSelectedColumns(translatedSelectQuery.ColumnMeta.Column)
-	if err != nil {
-		c.proxy.logger.Error(metadataFetchError, zap.String(Query, msg.Query), zap.Error(err))
-		c.sender.Send(raw.Header, &message.ConfigError{ErrorMessage: err.Error()})
-		return nil, nil, err
-	}
-
-	// Capturing variable columns name assuming all columns are parameterized
-	for _, clause := range translatedSelectQuery.Clauses {
-		variableColumns = append(variableColumns, clause.Column.Name)
-		if clause.Operator == "IN" {
-			columnsWithInOp = append(columnsWithInOp, clause.Column.Name)
-		}
-	}
-
-	if slices.Contains(translatedSelectQuery.ParamKeys, limitValue) {
-		variableColumns = append(variableColumns, limitValue)
-	}
-
-	c.proxy.logger.Debug("Prepare Select CqlQuery ", zap.Any("variableColumns", variableColumns))
-
-	if len(variableColumns) > 0 {
-		// Get column metadata for variable fields
-		translatedSelectQuery.VariableMetadata, err = tableConfig.GetMetadataForColumns(variableColumns)
-		for i, variableColumn := range translatedSelectQuery.VariableMetadata {
-			if i < len(translatedSelectQuery.Clauses) {
-				if variableColumn.Name == string(translatedSelectQuery.Clauses[i].Column.Name) {
-					if translatedSelectQuery.Clauses[i].Operator == constants.MAP_CONTAINS_KEY {
-						typecode := translatedSelectQuery.VariableMetadata[i].Type.GetDataTypeCode()
-						if typecode == primitive.DataTypeCodeMap { // map
-							mapType := translatedSelectQuery.VariableMetadata[i].Type.(datatype.MapType)
-							translatedSelectQuery.VariableMetadata[i].Type = mapType.GetKeyType()
-						} else if typecode == primitive.DataTypeCodeSet { // set
-							setType := translatedSelectQuery.VariableMetadata[i].Type.(datatype.SetType)
-							translatedSelectQuery.VariableMetadata[i].Type = setType.GetElementType()
-						}
-					} else if translatedSelectQuery.Clauses[i].Operator == constants.ARRAY_INCLUDES {
-						typecode := translatedSelectQuery.VariableMetadata[i].Type.GetDataTypeCode()
-						if typecode == primitive.DataTypeCodeList { // list
-							listType := translatedSelectQuery.VariableMetadata[i].Type.(datatype.ListType)
-							translatedSelectQuery.VariableMetadata[i].Type = listType.GetElementType()
-						}
-					}
-				} else {
-					c.proxy.logger.Error("column name mismatch", zap.String("variableColumn", variableColumn.Name), zap.String("clauseColumn", string(translatedSelectQuery.Clauses[i].Column.Name)))
-					return nil, nil, fmt.Errorf("column name mismatch")
-				}
-			}
-		}
-		if err != nil {
-			c.sender.Send(raw.Header, &message.ConfigError{ErrorMessage: err.Error()})
-			c.proxy.logger.Error(metadataFetchError, zap.String(Query, msg.Query), zap.Error(err))
-			return nil, nil, err
-		}
-	}
-
-	// Modify type to list type as being used with in operator
-	for _, columnMeta := range translatedSelectQuery.VariableMetadata {
-		if slices.Contains(columnsWithInOp, types.ColumnName(columnMeta.Name)) {
-			columnMeta.Type = datatype.NewListType(columnMeta.Type)
-		}
-	}
-	query := types.SelectQuery{
-		BigtableQuery:       translatedSelectQuery.TranslatedQuery,
-		QueryType:           translatedSelectQuery.QueryType,
-		TableName:           translatedSelectQuery.Table,
-		KeyspaceName:        translatedSelectQuery.Keyspace,
-		ProtocolVersion:     raw.Header.Version,
-		Params:              translatedSelectQuery.Params,
-		SelectedColumns:     translatedSelectQuery.ColumnMeta.Column,
-		PrimaryKeys:         translatedSelectQuery.PrimaryKeys,
-		DefaultColumnFamily: string(c.proxy.translator.SchemaMappingConfig.SystemColumnFamily),
-		IsStar:              translatedSelectQuery.ColumnMeta.Star,
-		Limit:               translatedSelectQuery.Limit,
-		Clauses:             translatedSelectQuery.Clauses,
-	}
-
-	translatedSelectQuery.CachedBTPrepare, err = c.proxy.bClient.PrepareStatement(c.ctx, query)
-	if err != nil {
-		c.proxy.logger.Error(errorAtBigtable, zap.String(Query, query.BigtableQuery), zap.Error(err))
-		c.sender.Send(raw.Header, &message.Invalid{ErrorMessage: err.Error()})
-		return nil, nil, err
-	}
-	// Caching CqlQuery info
-	c.AddQueryToCache(id, translatedSelectQuery)
-	return translatedSelectQuery.ReturnMetadata, translatedSelectQuery.VariableMetadata, err
+	return query, result, nil
 }
 
 // function to handle update query of prepared type
-func (c *client) prepareUpdateType(raw *frame.RawFrame, msg *message.Prepare, id [16]byte) ([]*message.ColumnMetadata, []*message.ColumnMetadata, error) {
-	var returnColumns, variableColumns, columnsWithInOp []types.ColumnName
-	var err error
-
-	updateQueryMetadata, err := c.proxy.translator.PrepareUpdate(msg.Query, true, c.keyspace)
+func (c *client) prepareUpdateType(raw *frame.RawFrame, msg *message.Prepare, id [16]byte) (translator.IPreparedQuery, *message.PreparedResult, error) {
+	updateQueryMetadata, _, err := c.proxy.translator.PrepareUpdate(msg.Query, true, c.keyspace)
 	if err != nil {
 		c.proxy.logger.Error(translatorErrorMessage, zap.String(Query, msg.Query), zap.Error(err))
 		c.sender.Send(raw.Header, &message.Invalid{ErrorMessage: err.Error()})
-		return nil, nil, err
+		return nil, err
 	}
-
-	tableConfig, err := c.proxy.schemaMapping.GetTableConfig(updateQueryMetadata.Keyspace, updateQueryMetadata.Table)
+	md, err := buildPreparedResultResponse(id, updateQueryMetadata.Keyspace, updateQueryMetadata.Table, updateQueryMetadata.Params, nil)
 	if err != nil {
 		c.proxy.logger.Error(metadataFetchError, zap.String(Query, msg.Query), zap.Error(err))
 		c.sender.Send(raw.Header, &message.ConfigError{ErrorMessage: err.Error()})
-		return nil, nil, err
+		return nil, err
 	}
-
-	// capturing variable columns name assuming all columns are parameterized
-	for _, sets := range updateQueryMetadata.Values {
-		if sets.Value == commitTsFn {
-			continue
-		}
-		variableColumns = append(variableColumns, sets.Column)
-	}
-
-	// capturing variable columns name assuming all columns are parameterized
-	for _, clause := range updateQueryMetadata.Clauses {
-		if ts_column == clause.Column.Name {
-			continue
-		}
-		variableColumns = append(variableColumns, clause.Column.Name)
-		if clause.Operator == "IN" {
-			columnsWithInOp = append(columnsWithInOp, clause.Column.Name)
-		}
-	}
-
-	if len(variableColumns) > 0 {
-		//Get column metadata for variable fields
-		updateQueryMetadata.VariableMetadata, err = tableConfig.GetMetadataForColumns(variableColumns)
-		updateQueryMetadata.VariableMetadata = append(updateQueryMetadata.VariableMetadata, getTimestampMetadata(tableConfig, updateQueryMetadata.Params)...)
-		if err != nil {
-			c.proxy.logger.Error(metadataFetchError, zap.String(Query, msg.Query), zap.Error(err))
-			c.sender.Send(raw.Header, &message.ConfigError{ErrorMessage: err.Error()})
-			return nil, nil, err
-		}
-	}
-
-	// Modify type to list type as being used with in operator
-	for _, columnMeta := range updateQueryMetadata.VariableMetadata {
-		if slices.Contains(columnsWithInOp, types.ColumnName(columnMeta.Name)) {
-			columnMeta.Type = datatype.NewListType(columnMeta.Type)
-		}
-		for k, v := range updateQueryMetadata.ComplexOperations {
-			if types.ColumnFamily(columnMeta.Name) == k && v.ExpectedDatatype != nil {
-				columnMeta.Type = v.ExpectedDatatype
-			}
-
-		}
-
-	}
-
-	updateQueryMetadata.ReturnMetadata, err = tableConfig.GetMetadataForColumns(returnColumns)
-	if err != nil {
-		c.proxy.logger.Error(metadataFetchError, zap.String(Query, msg.Query), zap.Error(err))
-		c.sender.Send(raw.Header, &message.ConfigError{ErrorMessage: err.Error()})
-		return nil, nil, err
-	}
-	// caching CqlQuery info
-	c.AddQueryToCache(id, updateQueryMetadata)
-
-	return updateQueryMetadata.ReturnMetadata, updateQueryMetadata.VariableMetadata, err
+	// cache prepared query
+	c.preparedQueries.set(id, updateQueryMetadata)
+	return md, err
 }
 
 // handleExecute for prepared query
 func (c *client) handleExecute(raw *frame.RawFrame, msg *partialExecute) {
 	ctx := context.Background()
 	id := preparedIdKey(msg.queryId)
-	if stmt, ok := c.preparedSystemQuery[id]; ok {
+
+	if stmt, ok := c.preparedSystemQuery.get(id); ok {
 		c.interceptSystemQuery(raw.Header, stmt)
-	} else if preparedStmt, ok := c.GetQueryFromCache(id); ok {
-		switch st := preparedStmt.(type) {
-		case *translator.SelectQueryMap:
-			c.handleExecuteForSelect(raw, msg, st, ctx)
-		case *translator.PreparedInsertQuery:
-			c.handleExecuteForInsert(raw, msg, st, ctx)
-		case *translator.DeleteQueryMapping:
-			c.handleExecuteForDelete(raw, msg, st, ctx)
-		case *translator.UpdateQueryMapping:
-			c.handleExecuteForUpdate(raw, msg, st, ctx)
-		default:
-			c.proxy.logger.Error("Unhandled Prepare Execute Scenario")
-			c.sender.Send(raw.Header, &message.ServerError{ErrorMessage: "Unhandled Prepared CqlQuery Object"})
-		}
-	} else {
-		c.proxy.logger.Error(unhandledScenario)
-		c.sender.Send(raw.Header, &message.ServerError{ErrorMessage: unhandledScenario})
+		return
 	}
+
+	preparedStmt, ok := c.preparedQueries.get(id)
+	if !ok {
+		c.proxy.logger.Error(errQueryNotPrepared)
+		c.sender.Send(raw.Header, &message.ServerError{ErrorMessage: errQueryNotPrepared})
+		return
+	}
+
+	var boundQuery translator.IBoundQuery
+	var err error
+	switch st := preparedStmt.(type) {
+	case *translator.PreparedSelectQuery:
+		boundQuery, err = c.proxy.translator.BindSelect(st, msg.PositionalValues, raw.Header.Version)
+	case *translator.PreparedInsertQuery:
+		boundQuery, err = c.proxy.translator.BindInsert(st, msg.PositionalValues, raw.Header.Version)
+	case *translator.PreparedDeleteQuery:
+		boundQuery, err = c.proxy.translator.BindDelete(st, msg.PositionalValues, raw.Header.Version)
+	case *translator.PreparedUpdateQuery:
+		boundQuery, err = c.proxy.translator.BindUpdate(st, msg.PositionalValues, raw.Header.Version)
+	default:
+		c.proxy.logger.Error("Unhandled Prepare Execute Scenario")
+		c.sender.Send(raw.Header, &message.ServerError{ErrorMessage: "Unhandled Prepared CqlQuery Object"})
+		return
+	}
+
+	if err != nil {
+		c.proxy.logger.Error(errorWhileDecoding, zap.String(Query, preparedStmt.CqlQuery()), zap.Error(err))
+		c.sender.Send(raw.Header, &message.ConfigError{ErrorMessage: err.Error()})
+		return
+	}
+
+	results, err := c.proxy.bClient.Execute(ctx, boundQuery)
+	if err != nil {
+		c.proxy.logger.Error(errorAtBigtable, zap.String(Query, preparedStmt.CqlQuery()), zap.Error(err))
+		c.sender.Send(raw.Header, &message.ConfigError{ErrorMessage: err.Error()})
+		return
+	}
+	c.sender.Send(raw.Header, results)
 }
 
 // handle batch queries
 func (c *client) handleBatch(raw *frame.RawFrame, msg *partialBatch) {
 	startTime := time.Now()
-	var keySpace string
-	var batchQueriesString []string
-
 	otelCtx, span := c.proxy.otelInst.StartSpan(c.proxy.ctx, handleBatch, []attribute.KeyValue{
 		attribute.Int("Batch Size", len(msg.queryOrIds)),
 	})
 	defer c.proxy.otelInst.EndSpan(span)
 	var otelErr error
 	defer c.proxy.otelInst.RecordMetrics(otelCtx, handleBatch, startTime, handleBatch, c.keyspace, otelErr)
-	tableMutationsMap := make(map[string][]bigtableModule.MutationData)
-	for index, queryId := range msg.queryOrIds {
-		queryOrId, ok := queryId.([]byte)
-		if !ok {
-			otelErr = fmt.Errorf("item is not of type [16]byte")
-			c.proxy.otelInst.RecordError(span, otelErr)
-			c.proxy.logger.Error("Item is not of type [16]byte")
-			continue
-		}
-		id := preparedIdKey(queryOrId)
-		if preparedStmt, ok := c.GetQueryFromCache(id); ok {
-			switch st := preparedStmt.(type) {
-			case *translator.PreparedInsertQuery:
-				queryMetadata, columns, err := c.prepareInsertQueryMetadata(raw, msg.BatchPositionalValues[index], st)
-				keySpace = st.Keyspace
-				if err != nil {
-					c.proxy.logger.Error("Error preparing insert batch query metadata", zap.String(Query, st.CqlQuery), zap.Error(err))
-					c.sender.Send(raw.Header, &message.ConfigError{ErrorMessage: err.Error()})
-					otelErr = err
-					c.proxy.otelInst.RecordError(span, otelErr)
-					return
-				}
-				mutationRow := bigtableModule.MutationData{MutationType: "Insert", RowKey: queryMetadata.RowKey, Columns: columns, Timestamp: queryMetadata.TimestampInfo.Timestamp}
-				if tableMutationsMap[st.Table] == nil {
-					tableMutationsMap[st.Table] = []bigtableModule.MutationData{}
-				}
-				tableMutationsMap[st.Table] = append(tableMutationsMap[st.Table], mutationRow)
-				batchQueriesString = append(batchQueriesString, st.CqlQuery)
-			case *translator.DeleteQueryMapping:
-				keySpace = st.Keyspace
-				queryMetadata, err := c.prepareDeleteQueryMetadata(raw, msg.BatchPositionalValues[index], st)
-				if err != nil {
-					c.proxy.logger.Error("Error preparing delete batch query metadata", zap.String(Query, st.Query), zap.Error(err))
-					c.sender.Send(raw.Header, &message.ConfigError{ErrorMessage: err.Error()})
-					otelErr = err
-					c.proxy.otelInst.RecordError(span, otelErr)
-					return
-				}
-				mutationRow := bigtableModule.MutationData{MutationType: "Delete", RowKey: queryMetadata.RowKey, Columns: nil}
-				if tableMutationsMap[st.Table] == nil {
-					tableMutationsMap[st.Table] = []bigtableModule.MutationData{}
-				}
-				tableMutationsMap[st.Table] = append(tableMutationsMap[st.Table], mutationRow)
-				batchQueriesString = append(batchQueriesString, st.Query)
-			case *translator.UpdateQueryMapping:
-				keySpace = st.Keyspace
-				queryMetadata, mutData, err := c.prepareUpdateQueryMetadata(raw, msg.BatchPositionalValues[index], st)
-				if err != nil {
-					c.proxy.logger.Error("Error preparing updadte batch query metadata", zap.String(Query, st.Query), zap.Error(err))
-					c.sender.Send(raw.Header, &message.ConfigError{ErrorMessage: err.Error()})
-					otelErr = err
-					c.proxy.otelInst.RecordError(span, otelErr)
-					return
-				}
-				if tableMutationsMap[st.Table] == nil {
-					tableMutationsMap[st.Table] = []bigtableModule.MutationData{}
-				}
-				for _, value := range queryMetadata.DeleteColumnFamilies {
-					mutationRow := bigtableModule.MutationData{MutationType: "DeleteColumnFamilies", RowKey: queryMetadata.RowKey, Columns: nil, ColumnFamily: value}
-					tableMutationsMap[st.Table] = append(tableMutationsMap[st.Table], mutationRow)
-				}
-				mutationRow := bigtableModule.MutationData{MutationType: "Update", RowKey: queryMetadata.RowKey, Columns: mutData}
-				tableMutationsMap[st.Table] = append(tableMutationsMap[st.Table], mutationRow)
-				batchQueriesString = append(batchQueriesString, st.Query)
-			default:
-				otelErr = fmt.Errorf("unhandled prepared batch query object")
-				c.sender.Send(raw.Header, &message.ServerError{ErrorMessage: otelErr.Error()})
-				c.proxy.otelInst.RecordError(span, otelErr)
-				c.proxy.logger.Error("Unhandled Prepare Batch Scenario")
-			}
-		} else {
-			c.sender.Send(raw.Header, &message.ServerError{ErrorMessage: otelErr.Error()})
-			otelErr = fmt.Errorf(errQueryNotPrepared)
-			c.proxy.otelInst.RecordError(span, otelErr)
-			c.proxy.logger.Error(otelErr.Error())
-		}
+	bulkMutations, keyspace, err := c.getAllPreparedOps(msg, raw.Header.Version)
+	if err != nil {
+		c.proxy.logger.Error("Error preparing batch query metadata", zap.Error(err))
+		c.sender.Send(raw.Header, &message.ConfigError{ErrorMessage: err.Error()})
+		otelErr = err
+		c.proxy.otelInst.RecordError(span, otelErr)
+		return
 	}
-	c.proxy.logger.Debug("Batch Operation", zap.Strings("Queries", batchQueriesString))
 	otelgo.AddAnnotation(otelCtx, sendingBulkApplyMutation)
 	var errorMessage string
 	hasError := false
-	for tableName, mutations := range tableMutationsMap {
-		res, err := c.proxy.bClient.ApplyBulkMutation(otelCtx, tableName, mutations, keySpace)
+	for tableName, mutations := range bulkMutations.Mutations() {
+		res, err := c.proxy.bClient.ApplyBulkMutation(otelCtx, keyspace, tableName, mutations)
 		if err != nil || res.FailedRows != "" {
 			c.proxy.otelInst.RecordError(span, err)
 			hasError = true
@@ -1144,189 +809,46 @@ func (c *client) handleBatch(raw *frame.RawFrame, msg *partialBatch) {
 	c.sender.Send(raw.Header, &message.VoidResult{})
 }
 
-// handleExecute for Select prepared query
-func (c *client) handleExecuteForSelect(raw *frame.RawFrame, msg *partialExecute, st *translator.SelectQueryMap, ctx context.Context) {
-	startTime := time.Now()
-	var err error
-	var result *message.RowsResult
-	params := make(map[string]interface{})
-
-	otelCtx, span := c.proxy.otelInst.StartSpan(ctx, selectType, []attribute.KeyValue{
-		attribute.String(cassandraQuery, st.Query),
-		attribute.String(rowKey, st.TranslatedQuery),
-	})
-	defer c.proxy.otelInst.EndSpan(span)
-	defer c.proxy.otelInst.RecordMetrics(otelCtx, handleExecuteForSelect, startTime, selectType, c.keyspace, err)
-
-	// Get Decoded parameters
-	otelgo.AddAnnotation(otelCtx, "Decoding Bytes To Cassandra Column Type")
-	query, err := c.proxy.translator.BindSelect(st, msg.PositionalValues, raw.Header.Version)
-	if err != nil {
-		c.proxy.logger.Error(errorAtBigtable, zap.String(Query, st.Query), zap.Error(err))
-		c.sender.Send(raw.Header, &message.Invalid{ErrorMessage: err.Error()})
-		c.proxy.otelInst.RecordError(span, err)
-		return
+func (c *client) getAllPreparedOps(msg *partialBatch, pv primitive.ProtocolVersion) (*bigtableModule.BigtableBulkMutation, types.Keyspace, error) {
+	var keyspace types.Keyspace
+	tableMutationsMap := bigtableModule.BigtableBulkMutation{}
+	for index, queryId := range msg.queryOrIds {
+		queryOrId, ok := queryId.([]byte)
+		if !ok {
+			return nil, "", fmt.Errorf("batch query id malformed")
+		}
+		id := preparedIdKey(queryOrId)
+		if preparedStmt, ok := c.preparedQueries.get(id); ok {
+			switch st := preparedStmt.(type) {
+			case *translator.PreparedInsertQuery:
+				keyspace = st.Keyspace
+				bound, err := c.proxy.translator.BindInsert(st, msg.BatchPositionalValues[index], pv)
+				if err != nil {
+					return nil, "", err
+				}
+				tableMutationsMap.AddMutation(bound)
+			case *translator.PreparedDeleteQuery:
+				keyspace = st.Keyspace
+				bound, err := c.proxy.translator.BindDelete(st, msg.BatchPositionalValues[index], pv)
+				if err != nil {
+					return nil, "", err
+				}
+				tableMutationsMap.AddMutation(bound)
+			case *translator.PreparedUpdateQuery:
+				keyspace = st.Keyspace
+				bound, err := c.proxy.translator.BindUpdate(st, msg.BatchPositionalValues[index], pv)
+				if err != nil {
+					return nil, "", err
+				}
+				tableMutationsMap.AddMutation(bound)
+			default:
+				return nil, "", fmt.Errorf("unhandled prepared batch query object")
+			}
+		} else {
+			return nil, "", fmt.Errorf("prepared query not found in cache")
+		}
 	}
-	otelgo.AddAnnotation(otelCtx, executingBigtableSQLAPIRequestEvent)
-	result, _, err = c.proxy.bClient.ExecutePreparedStatement(otelCtx, query, st.CachedBTPrepare)
-
-	otelgo.AddAnnotation(otelCtx, bigtableExecutionDoneEvent)
-
-	if err != nil {
-		c.proxy.logger.Error(errorAtBigtable, zap.String(Query, st.Query), zap.Error(err))
-		c.sender.Send(raw.Header, &message.Invalid{ErrorMessage: err.Error()})
-		c.proxy.otelInst.RecordError(span, err)
-		return
-	}
-
-	for _, column := range result.Metadata.Columns {
-		c.proxy.logger.Info("select type:", zap.String("results", column.Type.String()))
-	}
-	c.proxy.logger.Info("select results:", zap.Any("results", result))
-	c.sender.Send(raw.Header, result)
-}
-
-// handleExecute for update prepared query
-func (c *client) handleExecuteForUpdate(raw *frame.RawFrame, msg *partialExecute, st *translator.UpdateQueryMapping, ctx context.Context) {
-	startTime := time.Now()
-	var otelErr error
-	otelCtx, span := c.proxy.otelInst.StartSpan(ctx, updateType, []attribute.KeyValue{
-		attribute.String(cassandraQuery, st.Query),
-		attribute.String(rowKey, string(st.RowKey)),
-	})
-	defer c.proxy.otelInst.EndSpan(span)
-	defer c.proxy.otelInst.RecordMetrics(otelCtx, handleExecuteForUpdate, startTime, updateType, c.keyspace, otelErr)
-
-	queryMetadata, _, err := c.prepareUpdateQueryMetadata(raw, msg.PositionalValues, st)
-
-	if err != nil {
-		c.proxy.logger.Error("Error preparing update query metadata", zap.String(Query, st.Query), zap.Error(err))
-		c.sender.Send(raw.Header, &message.ConfigError{ErrorMessage: err.Error()})
-		c.proxy.otelInst.RecordError(span, err)
-		return
-	}
-	otelgo.AddAnnotation(otelCtx, executingBigtableRequestEvent)
-	resp, err := c.proxy.bClient.UpdateRow(otelCtx, queryMetadata)
-	otelgo.AddAnnotation(otelCtx, bigtableExecutionDoneEvent)
-
-	if err != nil {
-		c.proxy.logger.Error(errorAtBigtable, zap.String(Query, st.Query), zap.Error(err))
-		c.sender.Send(raw.Header, &message.Invalid{ErrorMessage: err.Error()})
-		c.proxy.otelInst.RecordError(span, err)
-		return
-	}
-	c.sender.Send(raw.Header, resp)
-}
-
-// handleExecute for delete prepared query
-func (c *client) handleExecuteForDelete(raw *frame.RawFrame, msg *partialExecute, st *translator.DeleteQueryMapping, ctx context.Context) {
-	start := time.Now()
-	var otelErr error
-	otelCtx, span := c.proxy.otelInst.StartSpan(ctx, deleteType, []attribute.KeyValue{
-		attribute.String(cassandraQuery, st.Query),
-		attribute.String(rowKey, string(st.RowKey)),
-	})
-	defer c.proxy.otelInst.EndSpan(span)
-	defer c.proxy.otelInst.RecordMetrics(otelCtx, handleExecuteForDelete, start, deleteType, c.keyspace, otelErr)
-
-	var deleteMetadata *translator.DeleteQueryMapping
-	deleteMetadata, err := c.prepareDeleteQueryMetadata(raw, msg.PositionalValues, st)
-	if err != nil {
-		c.proxy.logger.Error("Error preparing Delete query metadata", zap.String(Query, st.Query), zap.Error(err))
-		c.sender.Send(raw.Header, &message.ConfigError{ErrorMessage: err.Error()})
-		c.proxy.otelInst.RecordError(span, err)
-		return
-	}
-
-	var resp *message.RowsResult
-	resp, err = c.proxy.bClient.DeleteRow(c.proxy.ctx, deleteMetadata)
-	if err != nil {
-		c.proxy.logger.Error(errorAtBigtable, zap.String(Query, st.Query), zap.Error(err))
-		c.sender.Send(raw.Header, &message.Invalid{ErrorMessage: err.Error()})
-		c.proxy.otelInst.RecordError(span, err)
-		return
-	}
-	otelgo.AddAnnotation(otelCtx, bigtableExecutionDoneEvent)
-	c.sender.Send(raw.Header, resp)
-}
-
-// handleExecute for insert prepared query
-func (c *client) handleExecuteForInsert(raw *frame.RawFrame, msg *partialExecute, st *translator.PreparedInsertQuery, ctx context.Context) {
-	start := time.Now()
-	queryMetadata, _, err := c.prepareInsertQueryMetadata(raw, msg.PositionalValues, st)
-	if err != nil {
-		c.proxy.logger.Error("Error preparing insert query metadata", zap.String(Query, st.CqlQuery), zap.Error(err))
-		c.sender.Send(raw.Header, &message.ConfigError{ErrorMessage: err.Error()})
-		return
-	}
-	var otelErr error
-	otelCtx, span := c.proxy.otelInst.StartSpan(ctx, insertType, []attribute.KeyValue{
-		attribute.String(cassandraQuery, queryMetadata.CqlQuery),
-		attribute.String(rowKey, string(queryMetadata.RowKey)),
-	})
-	defer c.proxy.otelInst.EndSpan(span)
-	defer c.proxy.otelInst.RecordMetrics(otelCtx, handleExecuteForDelete, start, deleteType, c.keyspace, otelErr)
-
-	otelgo.AddAnnotation(otelCtx, executingBigtableRequestEvent)
-	resp, iErr := c.proxy.bClient.InsertRow(otelCtx, queryMetadata)
-	otelgo.AddAnnotation(otelCtx, bigtableExecutionDoneEvent)
-
-	if iErr != nil {
-		c.proxy.logger.Error(errorAtBigtable, zap.String(Query, st.CqlQuery), zap.Error(iErr))
-		c.sender.Send(raw.Header, &message.Invalid{ErrorMessage: iErr.Error()})
-		c.proxy.otelInst.RecordError(span, err)
-		return
-	}
-	c.sender.Send(raw.Header, resp)
-}
-
-// Prepare update query metadata
-func (c *client) prepareUpdateQueryMetadata(raw *frame.RawFrame, paramValues []*primitive.Value, st *translator.UpdateQueryMapping) (*translator.UpdateQueryMapping, []types.BigtableData, error) {
-	updateData, iErr := c.proxy.translator.BindUpdate(st.Columns, paramValues, st, raw.Header.Version)
-	if iErr != nil {
-		return nil, nil, fmt.Errorf("error building update prepare query:%s", iErr)
-	}
-	return updateData, updateData.Data, nil
-}
-
-// Prepare delete query metadata
-func (c *client) prepareDeleteQueryMetadata(raw *frame.RawFrame, values []*primitive.Value, st *translator.DeleteQueryMapping) (*translator.DeleteQueryMapping, error) {
-	var columnNames []types.ColumnName
-	var columns []*types.Column
-	for _, clause := range st.Conditions {
-		columns = append(columns, clause.Column)
-		columnNames = append(columnNames, clause.Column.Name)
-	}
-
-	bound, err := c.proxy.translator.BindDelete(st, values, raw.Header.Version)
-	if err != nil {
-		return nil, fmt.Errorf("error building rowkey for delete prepare query:%w", err)
-	}
-
-	c.proxy.logger.Debug("Delete PreparedExecute CqlQuery", zap.String("RowKey", string(rowKey)))
-
-	deleteQueryData := &translator.DeleteQueryMapping{
-		Query:           st.Query,
-		Table:           st.Table,
-		Keyspace:        st.Keyspace,
-		Conditions:      st.Conditions,
-		Params:          st.Params,
-		ParamKeys:       st.ParamKeys,
-		RowKey:          rowKey,
-		TimestampInfo:   timestamp,
-		SelectedColumns: st.SelectedColumns,
-	}
-	return deleteQueryData, nil
-}
-
-// Prepare insert query metadata
-func (c *client) prepareInsertQueryMetadata(raw *frame.RawFrame, paramValue []*primitive.Value, st *translator.PreparedInsertQuery) (*translator.PreparedInsertQuery, []types.BigtableData, error) {
-	insertData, iErr := c.proxy.translator.BindInsert(paramValue, st, raw.Header.Version)
-	if iErr != nil {
-		return nil, nil, fmt.Errorf("error building insert prepare query:%s", iErr)
-	}
-	c.proxy.logger.Debug("Insert PreparedExecute CqlQuery", zap.String("TranslatedQuery", "Insert Operation use mutation"))
-	return insertData, insertData.Data, nil
+	return &tableMutationsMap, keyspace, nil
 }
 
 func (c *client) handleQuery(raw *frame.RawFrame, msg *partialQuery) {
@@ -1349,7 +871,6 @@ func (c *client) handleQuery(raw *frame.RawFrame, msg *partialQuery) {
 		c.interceptSystemQuery(raw.Header, stmt)
 		return
 	} else {
-		var result *message.RowsResult
 		var otelErr error
 		defer c.proxy.otelInst.RecordMetrics(otelCtx, handleQuery, startTime, queryType, c.keyspace, otelErr)
 
@@ -1373,7 +894,7 @@ func (c *client) handleQuery(raw *frame.RawFrame, msg *partialQuery) {
 			}
 			return
 		case selectType:
-			translatedSelectQuery, err := c.proxy.translator.PrepareSelect(msg.query, c.keyspace)
+			_, bound, err := c.proxy.translator.PrepareSelect(msg.query, c.keyspace, false, raw.Header.Version)
 			if err != nil {
 				c.proxy.logger.Error(translatorErrorMessage, zap.String(Query, msg.query), zap.Error(err))
 				otelErr = err
@@ -1381,22 +902,9 @@ func (c *client) handleQuery(raw *frame.RawFrame, msg *partialQuery) {
 				c.sender.Send(raw.Header, &message.Invalid{ErrorMessage: err.Error()})
 				return
 			}
-			isGroupBy := false
-			if len(translatedSelectQuery.GroupByColumns) > 0 {
-				isGroupBy = true
-			}
-			queryMeta := types.SelectQuery{
-				BigtableQuery:   translatedSelectQuery.TranslatedQuery,
-				TableName:       translatedSelectQuery.Table,
-				KeyspaceName:    translatedSelectQuery.Keyspace,
-				Params:          translatedSelectQuery.Params,
-				SelectedColumns: translatedSelectQuery.ColumnMeta.Column,
-				IsStar:          translatedSelectQuery.ColumnMeta.Star,
-				IsGroupBy:       isGroupBy,
-			}
 
 			otelgo.AddAnnotation(otelCtx, executingBigtableSQLAPIRequestEvent)
-			result, _, err = c.proxy.bClient.SelectStatement(otelCtx, queryMeta)
+			selectResult, err := c.proxy.bClient.SelectStatement(otelCtx, bound)
 			otelgo.AddAnnotation(otelCtx, bigtableExecutionDoneEvent)
 
 			if err != nil {
@@ -1406,11 +914,22 @@ func (c *client) handleQuery(raw *frame.RawFrame, msg *partialQuery) {
 				c.sender.Send(raw.Header, &message.Invalid{ErrorMessage: err.Error()})
 				return
 			}
-			c.sender.Send(raw.Header, result)
+
+			response, err := responsehandler.BuildResponse(selectResult)
+
+			if err != nil {
+				c.proxy.logger.Error(errorWhileDecoding, zap.String(Query, msg.query), zap.Error(err))
+				otelErr = err
+				c.proxy.otelInst.RecordError(span, otelErr)
+				c.sender.Send(raw.Header, &message.Invalid{ErrorMessage: err.Error()})
+				return
+			}
+
+			c.sender.Send(raw.Header, response)
 			return
 
 		case insertType:
-			insertData, err := c.proxy.translator.PrepareInsertQuery(msg.query, raw.Header.Version, false, c.keyspace)
+			_, bound, err := c.proxy.translator.TranslateInsertQuery(msg.query, false, c.keyspace)
 			if err != nil {
 				c.proxy.logger.Error(translatorErrorMessage, zap.String(Query, msg.query), zap.Error(err))
 				otelErr = err
@@ -1420,7 +939,7 @@ func (c *client) handleQuery(raw *frame.RawFrame, msg *partialQuery) {
 			}
 
 			otelgo.AddAnnotation(otelCtx, executingBigtableRequestEvent)
-			resp, err := c.proxy.bClient.InsertRow(otelCtx, insertData)
+			resp, err := c.proxy.bClient.InsertRow(otelCtx, bound)
 			otelgo.AddAnnotation(otelCtx, bigtableExecutionDoneEvent)
 
 			if err != nil {
@@ -1431,7 +950,7 @@ func (c *client) handleQuery(raw *frame.RawFrame, msg *partialQuery) {
 				return
 			}
 			c.proxy.logger.Info("Data inserted successfully")
-			if !insertData.IfNotExists {
+			if !bound.IfSpec.IfNotExists {
 				c.sender.Send(raw.Header, &message.VoidResult{})
 				return
 			}
@@ -1439,7 +958,7 @@ func (c *client) handleQuery(raw *frame.RawFrame, msg *partialQuery) {
 			return
 
 		case deleteType:
-			queryMetadata, err := c.proxy.translator.TranslateDelete(msg.query, false, c.keyspace)
+			_, bound, err := c.proxy.translator.TranslateDelete(msg.query, false, c.keyspace)
 			if err != nil {
 				c.proxy.logger.Error(translatorErrorMessage, zap.String(Query, msg.query), zap.Error(err))
 				otelErr = err
@@ -1447,16 +966,9 @@ func (c *client) handleQuery(raw *frame.RawFrame, msg *partialQuery) {
 				c.sender.Send(raw.Header, &message.Invalid{ErrorMessage: err.Error()})
 				return
 			}
-			if queryMetadata.TimestampInfo.HasUsingTimestamp {
-				e := errors.New("delete using timestamp is not allowed")
-				c.proxy.logger.Error(translatorErrorMessage, zap.String(Query, msg.query), zap.Error(e))
-				c.sender.Send(raw.Header, &message.Invalid{ErrorMessage: e.Error()})
-				return
-			}
 
-			var dErr error
 			otelgo.AddAnnotation(otelCtx, bigtableExecutionDoneEvent)
-			result, dErr = c.proxy.bClient.DeleteRow(c.proxy.ctx, queryMetadata)
+			result, dErr := c.proxy.bClient.DeleteRow(c.proxy.ctx, bound)
 			if dErr != nil {
 				c.proxy.logger.Error(errorAtBigtable, zap.String(Query, msg.query), zap.Error(dErr))
 				otelErr = dErr
@@ -1464,7 +976,7 @@ func (c *client) handleQuery(raw *frame.RawFrame, msg *partialQuery) {
 				c.sender.Send(raw.Header, &message.Invalid{ErrorMessage: dErr.Error()})
 				return
 			} else {
-				if !queryMetadata.IfExists {
+				if !bound.IfExists {
 					c.sender.Send(raw.Header, &message.VoidResult{})
 					return
 				}
@@ -1473,7 +985,7 @@ func (c *client) handleQuery(raw *frame.RawFrame, msg *partialQuery) {
 			}
 
 		case updateType:
-			updateQueryMetaData, err := c.proxy.translator.PrepareUpdate(msg.query, false, c.keyspace)
+			_, bound, err := c.proxy.translator.PrepareUpdate(msg.query, false, c.keyspace)
 			if err != nil {
 				c.proxy.logger.Error(translatorErrorMessage, zap.String(Query, msg.query), zap.Error(err))
 				otelErr = err
@@ -1483,7 +995,7 @@ func (c *client) handleQuery(raw *frame.RawFrame, msg *partialQuery) {
 			}
 
 			otelgo.AddAnnotation(otelCtx, executingBigtableRequestEvent)
-			resp, err := c.proxy.bClient.UpdateRow(otelCtx, updateQueryMetaData)
+			resp, err := c.proxy.bClient.UpdateRow(otelCtx, bound)
 			otelgo.AddAnnotation(otelCtx, bigtableExecutionDoneEvent)
 
 			if err != nil {
@@ -1494,7 +1006,7 @@ func (c *client) handleQuery(raw *frame.RawFrame, msg *partialQuery) {
 				return
 			}
 			c.proxy.logger.Info("Data Updated successfully")
-			if !updateQueryMetaData.IfExists {
+			if !bound.IfSpec.IfExists {
 				c.sender.Send(raw.Header, &message.VoidResult{})
 				return
 			}
@@ -1667,7 +1179,7 @@ func (c *client) filterSystemPeerValues(stmt *parser.SelectStatement, filtered [
 // Returns:
 // - []message.Row: Metadata rows for the requested table; empty if keyspace/table is invalid.
 func (c *client) getSystemMetadata(hdr *frame.Header, s *parser.SelectStatement) ([]message.Row, error) {
-	if s.Keyspace != systemSchema || (s.Table != keyspaces && s.Table != tables && s.Table != columns) {
+	if s.Keyspace != systemSchema || (s.Table != keyspaces && s.Table != tables && s.Table != metaDataColumns) {
 		return nil, nil
 	}
 
@@ -1680,7 +1192,7 @@ func (c *client) getSystemMetadata(hdr *frame.Header, s *parser.SelectStatement)
 	case tables:
 		cache = c.proxy.systemQueryMetadataCache.TableSystemQueryMetadataCache
 		errMsg = fmt.Errorf(systemQueryMetadataNotFoundError, "TableSystemQueryMetadataCache", hdr.Version)
-	case columns:
+	case metaDataColumns:
 		cache = c.proxy.systemQueryMetadataCache.ColumnsSystemQueryMetadataCache
 		errMsg = fmt.Errorf(systemQueryMetadataNotFoundError, "ColumnsSystemQueryMetadataCache", hdr.Version)
 	}
@@ -1916,7 +1428,7 @@ func (c *client) handleDescribeTables(hdr *frame.Header) {
 	}{
 		{"system_virtual_schema", "keyspaces"},
 		{"system_virtual_schema", "tables"},
-		{"system_virtual_schema", "columns"},
+		{"system_virtual_schema", "metaDataColumns"},
 	}
 
 	for _, keyspaceTables := range c.proxy.schemaMapping.GetAllTables() {

@@ -154,7 +154,7 @@ func TestStringToPrimitives(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(fmt.Sprintf("%s_%s", tt.cqlType, tt.value), func(t *testing.T) {
-			result, err := stringToPrimitives(tt.value, tt.cqlType)
+			result, err := stringToGo(tt.value, tt.cqlType)
 			if (err != nil) != tt.hasError {
 				t.Errorf("expected error: %v, got error: %v", tt.hasError, err)
 			}
@@ -1316,11 +1316,11 @@ func TestProcessComplexUpdate(t *testing.T) {
 			prependColumns: []string{"list_text"},
 			expectedMeta: map[string]*ComplexOperation{
 				"map_text_bool_col": {
-					bindings.Append: true,
+					Append: true,
 				},
 				"list_text": {
-					bindings.Append: true,
-					PrependList:     false,
+					Append:      true,
+					PrependList: false,
 				},
 			},
 			expectedErr: nil,
@@ -2203,7 +2203,7 @@ func TestProcessCollectionColumnsForPrepareQueries_ComplexMetaAndNonCollection(t
 			},
 			complexMeta: map[string]*ComplexOperation{
 				"map_text_text": {
-					bindings.Append:  true,
+					Append:           true,
 					mapKey:           "newKey",
 					ExpectedDatatype: datatype.Varchar,
 				},
@@ -2437,7 +2437,7 @@ func TestProcessComplexUpdate_SuccessfulCases(t *testing.T) {
 			prependColumns: []string{},
 			wantMeta: map[string]*ComplexOperation{
 				"map_text_text": {
-					bindings.Append: true,
+					Append: true,
 				},
 			},
 			wantErr: false,
@@ -2495,8 +2495,8 @@ func TestProcessComplexUpdate_SuccessfulCases(t *testing.T) {
 			prependColumns: []string{"list_text"},
 			wantMeta: map[string]*ComplexOperation{
 				"map_text_text": {
-					bindings.Append: true,
-					mapKey:          nil,
+					Append: true,
+					mapKey: nil,
 				},
 				"list_text": {
 					PrependList: true,
@@ -2783,9 +2783,9 @@ func TestAddSetElements(t *testing.T) {
 		colFamily   string
 		column      *types.Column
 		input       ProcessRawCollectionsInput
-		output      *BigtableMutations
+		output      *BigtableWriteMutation
 		expectedErr bool
-		validate    func(t *testing.T, output *BigtableMutations)
+		validate    func(t *testing.T, output *BigtableWriteMutation)
 	}{
 		{
 			name:      "Add single string element to set",
@@ -2796,8 +2796,8 @@ func TestAddSetElements(t *testing.T) {
 				CQLType: types.NewSetType(types.TypeVarchar),
 			},
 			input:  ProcessRawCollectionsInput{},
-			output: &BigtableMutations{},
-			validate: func(t *testing.T, output *BigtableMutations) {
+			output: &BigtableWriteMutation{},
+			validate: func(t *testing.T, output *BigtableWriteMutation) {
 				assert.Len(t, output.NewColumns, 1)
 				assert.Len(t, output.NewValues, 1)
 				assert.Equal(t, "value1", output.NewColumns[0].Name)
@@ -2815,8 +2815,8 @@ func TestAddSetElements(t *testing.T) {
 				CQLType: types.NewSetType(types.TypeVarchar),
 			},
 			input:  ProcessRawCollectionsInput{},
-			output: &BigtableMutations{},
-			validate: func(t *testing.T, output *BigtableMutations) {
+			output: &BigtableWriteMutation{},
+			validate: func(t *testing.T, output *BigtableWriteMutation) {
 				assert.Len(t, output.NewColumns, 3)
 				assert.Len(t, output.NewValues, 3)
 				expectedValues := []string{"value1", "value2", "value3"}
@@ -2837,8 +2837,8 @@ func TestAddSetElements(t *testing.T) {
 				CQLType: types.NewSetType(types.TypeBoolean),
 			},
 			input:  ProcessRawCollectionsInput{},
-			output: &BigtableMutations{},
-			validate: func(t *testing.T, output *BigtableMutations) {
+			output: &BigtableWriteMutation{},
+			validate: func(t *testing.T, output *BigtableWriteMutation) {
 				assert.Len(t, output.NewColumns, 2)
 				assert.Len(t, output.NewValues, 2)
 				expectedValues := []string{"1", "0"}
@@ -2859,8 +2859,8 @@ func TestAddSetElements(t *testing.T) {
 				CQLType: types.NewSetType(types.TypeVarchar),
 			},
 			input:  ProcessRawCollectionsInput{},
-			output: &BigtableMutations{},
-			validate: func(t *testing.T, output *BigtableMutations) {
+			output: &BigtableWriteMutation{},
+			validate: func(t *testing.T, output *BigtableWriteMutation) {
 				assert.Empty(t, output.NewColumns)
 				assert.Empty(t, output.NewValues)
 			},
@@ -2874,8 +2874,8 @@ func TestAddSetElements(t *testing.T) {
 				CQLType: types.NewSetType(types.TypeVarchar),
 			},
 			input:  ProcessRawCollectionsInput{},
-			output: &BigtableMutations{},
-			validate: func(t *testing.T, output *BigtableMutations) {
+			output: &BigtableWriteMutation{},
+			validate: func(t *testing.T, output *BigtableWriteMutation) {
 				assert.Len(t, output.NewColumns, 1)
 				assert.Len(t, output.NewValues, 1)
 				assert.Equal(t, "value1", output.NewColumns[0].Name)
@@ -2893,7 +2893,7 @@ func TestAddSetElements(t *testing.T) {
 				CQLType: types.NewSetType(types.TypeBoolean),
 			},
 			input:       ProcessRawCollectionsInput{},
-			output:      &BigtableMutations{},
+			output:      &BigtableWriteMutation{},
 			expectedErr: true,
 		},
 		{
@@ -2917,7 +2917,7 @@ func TestAddSetElements(t *testing.T) {
 				CQLType: types.NewSetType(types.TypeInt),
 			},
 			input:       ProcessRawCollectionsInput{},
-			output:      &BigtableMutations{},
+			output:      &BigtableWriteMutation{},
 			expectedErr: true,
 		},
 	}
@@ -2945,7 +2945,7 @@ func TestHandleListOperation(t *testing.T) {
 		input     ProcessRawCollectionsInput
 		operation interface{}
 		wantErr   bool
-		validate  func(t *testing.T, output *BigtableMutations)
+		validate  func(t *testing.T, output *BigtableWriteMutation)
 	}{
 		{
 			name: "Add operation with prepend",
@@ -2957,7 +2957,7 @@ func TestHandleListOperation(t *testing.T) {
 				PrependColumns: []string{"mylist"},
 			},
 			operation: Assignment{Operation: "+", Left: []string{"1", "2"}, Right: []string{"3", "4"}},
-			validate: func(t *testing.T, output *BigtableMutations) {
+			validate: func(t *testing.T, output *BigtableWriteMutation) {
 				assert.Len(t, output.NewValues, 2)
 				assert.Len(t, output.NewColumns, 2)
 				for _, col := range output.NewColumns {
@@ -2974,7 +2974,7 @@ func TestHandleListOperation(t *testing.T) {
 			},
 			operation: Assignment{Operation: "-", Right: []string{"3", "4"}},
 			input:     ProcessRawCollectionsInput{},
-			validate: func(t *testing.T, output *BigtableMutations) {
+			validate: func(t *testing.T, output *BigtableWriteMutation) {
 				assert.NotNil(t, output.ComplexOps["mylist"])
 				assert.True(t, output.ComplexOps["mylist"].ListDelete)
 				assert.True(t, output.ComplexOps["mylist"].Delete)
@@ -2988,7 +2988,7 @@ func TestHandleListOperation(t *testing.T) {
 			},
 			operation: Assignment{Operation: "update_index", Left: "1", Right: "123"},
 			input:     ProcessRawCollectionsInput{},
-			validate: func(t *testing.T, output *BigtableMutations) {
+			validate: func(t *testing.T, output *BigtableWriteMutation) {
 				assert.NotNil(t, output.ComplexOps["mylist"])
 				assert.Equal(t, "1", output.ComplexOps["mylist"].UpdateListIndex)
 			},
@@ -3001,7 +3001,7 @@ func TestHandleListOperation(t *testing.T) {
 			},
 			operation: []string{"1", "2"},
 			input:     ProcessRawCollectionsInput{},
-			validate: func(t *testing.T, output *BigtableMutations) {
+			validate: func(t *testing.T, output *BigtableWriteMutation) {
 				assert.Len(t, output.NewValues, 2)
 				assert.Len(t, output.NewColumns, 2)
 				assert.Len(t, output.DelColumnFamily, 1)
@@ -3022,7 +3022,7 @@ func TestHandleListOperation(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			output := &BigtableMutations{
+			output := &BigtableWriteMutation{
 				ComplexOps: make(map[string]*ComplexOperation),
 			}
 			err := handleListOperation(tt.operation, tt.column, tt.column.CQLType.(*types.ListType), tt.column.Name, tt.input, output)
@@ -3045,7 +3045,7 @@ func TestHandleSetOperation(t *testing.T) {
 		input     ProcessRawCollectionsInput
 		operation interface{}
 		wantErr   bool
-		validate  func(t *testing.T, output *BigtableMutations)
+		validate  func(t *testing.T, output *BigtableWriteMutation)
 	}{
 		{
 			name: "Add elements to set",
@@ -3055,7 +3055,7 @@ func TestHandleSetOperation(t *testing.T) {
 			},
 			operation: Assignment{Operation: "+", Right: []string{"1", "2", "3"}},
 			input:     ProcessRawCollectionsInput{},
-			validate: func(t *testing.T, output *BigtableMutations) {
+			validate: func(t *testing.T, output *BigtableWriteMutation) {
 				assert.Len(t, output.NewColumns, 3)
 				assert.Len(t, output.NewValues, 3)
 				for i, col := range output.NewColumns {
@@ -3073,7 +3073,7 @@ func TestHandleSetOperation(t *testing.T) {
 			},
 			operation: Assignment{Operation: "-", Right: []string{"1", "2"}},
 			input:     ProcessRawCollectionsInput{},
-			validate: func(t *testing.T, output *BigtableMutations) {
+			validate: func(t *testing.T, output *BigtableWriteMutation) {
 				assert.Len(t, output.DelColumns, 2)
 				for _, col := range output.DelColumns {
 					assert.Equal(t, "myset", col.ColumnFamily)
@@ -3088,7 +3088,7 @@ func TestHandleSetOperation(t *testing.T) {
 			},
 			operation: []string{"1", "2", "3"},
 			input:     ProcessRawCollectionsInput{},
-			validate: func(t *testing.T, output *BigtableMutations) {
+			validate: func(t *testing.T, output *BigtableWriteMutation) {
 				assert.Len(t, output.NewColumns, 3)
 				assert.Len(t, output.NewValues, 3)
 				assert.Len(t, output.DelColumnFamily, 1)
@@ -3109,7 +3109,7 @@ func TestHandleSetOperation(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			output := &BigtableMutations{
+			output := &BigtableWriteMutation{
 				ComplexOps: make(map[string]*ComplexOperation),
 			}
 			err := handleSetOperation(tt.operation, tt.column, tt.column.CQLType.(*types.SetType), tt.column.Name, tt.input, output)
@@ -3132,7 +3132,7 @@ func TestHandleMapOperation(t *testing.T) {
 		input     ProcessRawCollectionsInput
 		operation interface{}
 		wantErr   bool
-		validate  func(t *testing.T, output *BigtableMutations)
+		validate  func(t *testing.T, output *BigtableWriteMutation)
 	}{
 		{
 			name: "Add entries to map",
@@ -3142,7 +3142,7 @@ func TestHandleMapOperation(t *testing.T) {
 			},
 			operation: Assignment{Operation: "+", Right: map[string]string{"key1": "1", "key2": "2"}},
 			input:     ProcessRawCollectionsInput{},
-			validate: func(t *testing.T, output *BigtableMutations) {
+			validate: func(t *testing.T, output *BigtableWriteMutation) {
 				assert.Len(t, output.NewColumns, 2)
 				assert.Len(t, output.NewValues, 2)
 				for _, col := range output.NewColumns {
@@ -3159,7 +3159,7 @@ func TestHandleMapOperation(t *testing.T) {
 			},
 			operation: Assignment{Operation: "-", Right: []string{"key1", "key2"}},
 			input:     ProcessRawCollectionsInput{},
-			validate: func(t *testing.T, output *BigtableMutations) {
+			validate: func(t *testing.T, output *BigtableWriteMutation) {
 				assert.Len(t, output.DelColumns, 2)
 				for _, col := range output.DelColumns {
 					assert.Equal(t, "mymap", col.ColumnFamily)
@@ -3175,7 +3175,7 @@ func TestHandleMapOperation(t *testing.T) {
 			},
 			operation: Assignment{Operation: "update_index", Left: "key1", Right: "99"},
 			input:     ProcessRawCollectionsInput{},
-			validate: func(t *testing.T, output *BigtableMutations) {
+			validate: func(t *testing.T, output *BigtableWriteMutation) {
 				assert.Len(t, output.NewColumns, 1)
 				assert.Equal(t, "key1", output.NewColumns[0].Name)
 				assert.Equal(t, "mymap", output.NewColumns[0].ColumnFamily)
@@ -3189,7 +3189,7 @@ func TestHandleMapOperation(t *testing.T) {
 			},
 			operation: map[string]string{"key1": "1", "key2": "2"},
 			input:     ProcessRawCollectionsInput{},
-			validate: func(t *testing.T, output *BigtableMutations) {
+			validate: func(t *testing.T, output *BigtableWriteMutation) {
 				assert.Len(t, output.NewColumns, 2)
 				assert.Len(t, output.NewValues, 2)
 				assert.Len(t, output.DelColumnFamily, 1)
@@ -3210,7 +3210,7 @@ func TestHandleMapOperation(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			output := &BigtableMutations{
+			output := &BigtableWriteMutation{
 				ComplexOps: make(map[string]*ComplexOperation),
 			}
 			err := handleMapOperation(tt.operation, tt.column, tt.column.CQLType.(*types.MapType), tt.column.Name, tt.input, output)

@@ -59,7 +59,7 @@ type InstancesMapping struct {
 
 type BigtableConfig struct {
 	ProjectID                string
-	Instances                map[string]*InstancesMapping
+	Instances                map[Keyspace]*InstancesMapping
 	SchemaMappingTable       string
 	Session                  *Session
 	DefaultColumnFamily      ColumnFamily

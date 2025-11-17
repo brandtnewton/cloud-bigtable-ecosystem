@@ -19,7 +19,6 @@ package translator
 import (
 	"errors"
 	"fmt"
-	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/bindings"
 	"strings"
 
 	types "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/global/types"
@@ -65,7 +64,7 @@ func parseTableFromDelete(input cql.IFromSpecContext) (*TableObj, error) {
 	return &response, nil
 }
 
-func (t *Translator) TranslateDelete(query string, isPreparedQuery bool, sessionKeyspace string) (*DeleteQueryMapping, *types.BoundDeleteQuery, error) {
+func (t *Translator) TranslateDelete(query string, isPreparedQuery bool, sessionKeyspace string) (*PreparedDeleteQuery, *BoundDeleteQuery, error) {
 	lexer := cql.NewCqlLexer(antlr.NewInputStream(query))
 	stream := antlr.NewCommonTokenStream(lexer, antlr.TokenDefaultChannel)
 	p := cql.NewCqlParser(stream)
@@ -104,8 +103,8 @@ func (t *Translator) TranslateDelete(query string, isPreparedQuery bool, session
 		}
 	}
 
-	params := types.NewQueryParameters()
-	values := types.NewQueryParameterValues(params)
+	params := NewQueryParameters()
+	values := NewQueryParameterValues(params)
 
 	selectedColumns, err := parseDeleteColumns(deleteObj.DeleteColumnList(), tableConfig, params, values)
 	if err != nil {
@@ -128,11 +127,11 @@ func (t *Translator) TranslateDelete(query string, isPreparedQuery bool, session
 		return nil, nil, err
 	}
 
-	if params.Has(types.UsingTimePlaceholder) {
+	if params.Has(UsingTimePlaceholder) {
 		return nil, nil, fmt.Errorf("delete USING TIMESTAMP not supported")
 	}
 
-	st := &DeleteQueryMapping{
+	st := &PreparedDeleteQuery{
 		Query:           query,
 		Table:           tableName,
 		Keyspace:        keyspaceName,
@@ -142,7 +141,7 @@ func (t *Translator) TranslateDelete(query string, isPreparedQuery bool, session
 		SelectedColumns: selectedColumns,
 	}
 
-	var bound *types.BoundDeleteQuery
+	var bound *BoundDeleteQuery
 	if !isPreparedQuery {
 		bound, err = t.doBindDelete(st, values)
 		if err != nil {
@@ -152,11 +151,18 @@ func (t *Translator) TranslateDelete(query string, isPreparedQuery bool, session
 		bound = nil
 	}
 
+	if isPreparedQuery {
+		err = ValidateZeroParamsSet(values)
+		if err != nil {
+			return nil, nil, err
+		}
+	}
+
 	return st, bound, nil
 }
 
-func (t *Translator) BindDelete(st *DeleteQueryMapping, cassandraValues []*primitive.Value, protocolV primitive.ProtocolVersion) (*types.BoundDeleteQuery, error) {
-	values, err := bindings.BindQueryParams(st.Params, cassandraValues, protocolV)
+func (t *Translator) BindDelete(st *PreparedDeleteQuery, cassandraValues []*primitive.Value, protocolV primitive.ProtocolVersion) (*BoundDeleteQuery, error) {
+	values, err := BindQueryParams(st.Params, cassandraValues, protocolV)
 	if err != nil {
 		return nil, err
 	}
@@ -164,22 +170,22 @@ func (t *Translator) BindDelete(st *DeleteQueryMapping, cassandraValues []*primi
 	return t.doBindDelete(st, values)
 }
 
-func (t *Translator) doBindDelete(st *DeleteQueryMapping, values *types.QueryParameterValues) (*types.BoundDeleteQuery, error) {
+func (t *Translator) doBindDelete(st *PreparedDeleteQuery, values *QueryParameterValues) (*BoundDeleteQuery, error) {
 	tableConfig, err := t.SchemaMappingConfig.GetTableConfig(st.Keyspace, st.Table)
 	if err != nil {
 		return nil, err
 	}
 
-	rowKey, err := bindings.BindRowKey(tableConfig, values)
+	rowKey, err := BindRowKey(tableConfig, values)
 	if err != nil {
 		return nil, fmt.Errorf("key encoding failed: %w", err)
 	}
 
-	cols, err := bindings.BindSelectColumns(tableConfig, st.SelectedColumns, values)
+	cols, err := BindSelectColumns(tableConfig, st.SelectedColumns, values)
 	if err != nil {
 		return nil, err
 	}
-	return &types.BoundDeleteQuery{
+	return &BoundDeleteQuery{
 		Keyspace: st.Keyspace,
 		Table:    st.Table,
 		IfExists: st.IfExists,
@@ -189,14 +195,14 @@ func (t *Translator) doBindDelete(st *DeleteQueryMapping, values *types.QueryPar
 }
 
 // Parses the delete columns from a CQL DELETE statement and returns the selected columns with their associated map keys or list indices.
-func parseDeleteColumns(deleteColumns cql.IDeleteColumnListContext, tableConfig *schemaMapping.TableConfig, params *types.QueryParameters, values *types.QueryParameterValues) ([]types.SelectedColumn, error) {
+func parseDeleteColumns(deleteColumns cql.IDeleteColumnListContext, tableConfig *schemaMapping.TableConfig, params *QueryParameters, values *QueryParameterValues) ([]SelectedColumn, error) {
 	if deleteColumns == nil {
 		return nil, nil
 	}
 	cols := deleteColumns.AllDeleteColumnItem()
-	var columns []types.SelectedColumn
+	var columns []SelectedColumn
 	for _, v := range cols {
-		var col types.SelectedColumn
+		var col SelectedColumn
 		col.Name = v.OBJECT_NAME().GetText()
 		if v.LS_BRACKET() != nil {
 			if v.DecimalLiteral() != nil { // for list index

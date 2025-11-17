@@ -14,31 +14,3 @@
  * the License.
  */
 package responsehandler
-
-import (
-	btpb "cloud.google.com/go/bigtable/apiv2/bigtablepb"
-	schemaMapping "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/schema-mapping"
-	"github.com/datastax/go-cassandra-native-protocol/message"
-	"go.uber.org/zap"
-)
-
-type Metadata = *btpb.ResultSetMetadata
-
-type ErrorDetail struct {
-	TableName   string
-	Keyspace    string
-	Query       string
-	ErrorString string
-	ErrorState  string
-}
-
-type TypeHandler struct {
-	Logger              *zap.Logger
-	SchemaMappingConfig *schemaMapping.SchemaMappingConfig
-	ColumnMetadataCache map[string]map[string]message.ColumnMetadata
-}
-
-type Maptype struct {
-	Key   string
-	Value interface{}
-}

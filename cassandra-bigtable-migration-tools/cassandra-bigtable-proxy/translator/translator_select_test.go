@@ -55,7 +55,7 @@ func TestTranslator_TranslateSelectQuerytoBigtable(t *testing.T) {
 		name            string
 		fields          fields
 		args            args
-		want            *SelectQueryMap
+		want            *PreparedSelectQuery
 		wantErr         bool
 		defaultKeyspace string
 	}{
@@ -65,7 +65,7 @@ func TestTranslator_TranslateSelectQuerytoBigtable(t *testing.T) {
 				query: `select column2 as name from test_keyspace.test_table where list_text CONTAINS 'test';`,
 			},
 			wantErr: false,
-			want: &SelectQueryMap{
+			want: &PreparedSelectQuery{
 				Query:           "select column2 as name from test_keyspace.test_table where list_text CONTAINS 'test'",
 				QueryType:       "select",
 				TranslatedQuery: "SELECT cf1['column2'] as name FROM test_table WHERE ARRAY_INCLUDES(MAP_VALUES(`list_text`), @value1);",
@@ -97,7 +97,7 @@ func TestTranslator_TranslateSelectQuerytoBigtable(t *testing.T) {
 				query: `select column2 as name from test_keyspace.test_table where column8 CONTAINS KEY 'test';`,
 			},
 			wantErr: false,
-			want: &SelectQueryMap{
+			want: &PreparedSelectQuery{
 				Query:           "select column2 as name from test_keyspace.test_table where column8 CONTAINS KEY 'test'",
 				QueryType:       "select",
 				TranslatedQuery: "SELECT cf1['column2'] as name FROM test_table WHERE MAP_CONTAINS_KEY(`column8`, @value1);",
@@ -129,7 +129,7 @@ func TestTranslator_TranslateSelectQuerytoBigtable(t *testing.T) {
 				query: `select column2 as name from test_keyspace.test_table where column7 CONTAINS 'test';`,
 			},
 			wantErr: false,
-			want: &SelectQueryMap{
+			want: &PreparedSelectQuery{
 				Query:           "select column2 as name from test_keyspace.test_table where column7 CONTAINS 'test'",
 				QueryType:       "select",
 				TranslatedQuery: "SELECT cf1['column2'] as name FROM test_table WHERE MAP_CONTAINS_KEY(`column7`, @value1);",
@@ -161,7 +161,7 @@ func TestTranslator_TranslateSelectQuerytoBigtable(t *testing.T) {
 				query: `select column1, WRITETIME(column2) from test_keyspace.test_table where column1 = 'test';`,
 			},
 			wantErr: false,
-			want: &SelectQueryMap{
+			want: &PreparedSelectQuery{
 				Query:           "SELECT column1,WRITE_TIMESTAMP(cf1, 'column2') FROM test_table WHERE column1 = @value1;",
 				QueryType:       "select",
 				TranslatedQuery: "SELECT column1,WRITE_TIMESTAMP(cf1, 'column2') FROM test_table WHERE column1 = @value1;",
@@ -194,7 +194,7 @@ func TestTranslator_TranslateSelectQuerytoBigtable(t *testing.T) {
 				query: `select column1 from test_keyspace.test_table where column6 IN (1, 2, 3);`,
 			},
 			wantErr: false,
-			want: &SelectQueryMap{
+			want: &PreparedSelectQuery{
 				Query:           `select column1 from test_keyspace.test_table where column6 IN (1, 2, 3);`,
 				QueryType:       "select",
 				TranslatedQuery: "SELECT column1 FROM test_table WHERE TO_INT64(cf1['column6']) IN UNNEST(@value1);",
@@ -220,7 +220,7 @@ func TestTranslator_TranslateSelectQuerytoBigtable(t *testing.T) {
 				query: `select column1 from test_keyspace.test_table where column9 IN (1234567890, 9876543210);`,
 			},
 			wantErr: false,
-			want: &SelectQueryMap{
+			want: &PreparedSelectQuery{
 				Query:           `select column1 from test_keyspace.test_table where column9 IN (1234567890, 9876543210);`,
 				QueryType:       "select",
 				TranslatedQuery: `SELECT column1 FROM test_table WHERE TO_INT64(cf1['column9']) IN UNNEST(@value1);`,
@@ -246,7 +246,7 @@ func TestTranslator_TranslateSelectQuerytoBigtable(t *testing.T) {
 				query: `select column1 from test_keyspace.test_table where float_col IN (1.5, 2.5, 3.5);`,
 			},
 			wantErr: false,
-			want: &SelectQueryMap{
+			want: &PreparedSelectQuery{
 				Query:           `select column1 from test_keyspace.test_table where float_col IN (1.5, 2.5, 3.5);`,
 				QueryType:       "select",
 				TranslatedQuery: "SELECT column1 FROM test_table WHERE TO_FLOAT32(cf1['float_col']) IN UNNEST(@value1);",
@@ -272,7 +272,7 @@ func TestTranslator_TranslateSelectQuerytoBigtable(t *testing.T) {
 				query: `select column1 from test_keyspace.test_table where double_col IN (3.1415926535, 2.7182818284);`,
 			},
 			wantErr: false,
-			want: &SelectQueryMap{
+			want: &PreparedSelectQuery{
 				Query:           `select column1 from test_keyspace.test_table where double_col IN (3.1415926535, 2.7182818284);`,
 				QueryType:       "select",
 				TranslatedQuery: "SELECT column1 FROM test_table WHERE TO_FLOAT64(cf1['double_col']) IN UNNEST(@value1);",
@@ -298,7 +298,7 @@ func TestTranslator_TranslateSelectQuerytoBigtable(t *testing.T) {
 				query: `select column1 from test_keyspace.test_table where column3 IN (true, false);`,
 			},
 			wantErr: false,
-			want: &SelectQueryMap{
+			want: &PreparedSelectQuery{
 				Query:           `select column1 from test_keyspace.test_table where column3 IN (true, false);`,
 				QueryType:       "select",
 				TranslatedQuery: "SELECT column1 FROM test_table WHERE TO_INT64(cf1['column3']) IN UNNEST(@value1);",
@@ -333,7 +333,7 @@ func TestTranslator_TranslateSelectQuerytoBigtable(t *testing.T) {
 				query: `select column1 from test_keyspace.test_table where column6 IN (?);`,
 			},
 			wantErr: false,
-			want: &SelectQueryMap{
+			want: &PreparedSelectQuery{
 				TranslatedQuery: "SELECT column1 FROM test_table WHERE TO_INT64(cf1['column6']) IN UNNEST(@value1);",
 				Keyspace:        "test_keyspace",
 				Params: map[string]interface{}{
@@ -356,7 +356,7 @@ func TestTranslator_TranslateSelectQuerytoBigtable(t *testing.T) {
 				query: `select column1 from test_keyspace.test_table where column9 IN (?);`,
 			},
 			wantErr: false,
-			want: &SelectQueryMap{
+			want: &PreparedSelectQuery{
 				TranslatedQuery: "SELECT column1 FROM test_table WHERE TO_INT64(cf1['column9']) IN UNNEST(@value1);",
 				Keyspace:        "test_keyspace",
 				Params: map[string]interface{}{
@@ -379,7 +379,7 @@ func TestTranslator_TranslateSelectQuerytoBigtable(t *testing.T) {
 				query: `select column1 from test_keyspace.test_table where float_col IN (?);`,
 			},
 			wantErr: false,
-			want: &SelectQueryMap{
+			want: &PreparedSelectQuery{
 				TranslatedQuery: "SELECT column1 FROM test_table WHERE TO_FLOAT32(cf1['float_col']) IN UNNEST(@value1);",
 				Keyspace:        "test_keyspace",
 				Params: map[string]interface{}{
@@ -402,7 +402,7 @@ func TestTranslator_TranslateSelectQuerytoBigtable(t *testing.T) {
 				query: `select column1 from test_keyspace.test_table where double_col IN (?);`,
 			},
 			wantErr: false,
-			want: &SelectQueryMap{
+			want: &PreparedSelectQuery{
 				TranslatedQuery: "SELECT column1 FROM test_table WHERE TO_FLOAT64(cf1['double_col']) IN UNNEST(@value1);",
 				Keyspace:        "test_keyspace",
 				Params: map[string]interface{}{
@@ -425,7 +425,7 @@ func TestTranslator_TranslateSelectQuerytoBigtable(t *testing.T) {
 				query: `select column1 from test_keyspace.test_table where column3 IN (?);`,
 			},
 			wantErr: false,
-			want: &SelectQueryMap{
+			want: &PreparedSelectQuery{
 				TranslatedQuery: "SELECT column1 FROM test_table WHERE TO_INT64(cf1['column3']) IN UNNEST(@value1);",
 				Keyspace:        "test_keyspace",
 				Params: map[string]interface{}{
@@ -448,7 +448,7 @@ func TestTranslator_TranslateSelectQuerytoBigtable(t *testing.T) {
 				query: `select column1 from test_keyspace.test_table where column2 IN (?);`,
 			},
 			wantErr: false,
-			want: &SelectQueryMap{
+			want: &PreparedSelectQuery{
 				TranslatedQuery: "SELECT column1 FROM test_table WHERE TO_BLOB(cf1['column2']) IN UNNEST(@value1);",
 				Keyspace:        "test_keyspace",
 				Params: map[string]interface{}{
@@ -480,7 +480,7 @@ func TestTranslator_TranslateSelectQuerytoBigtable(t *testing.T) {
 				query: `select column1, WRITETIME(column2) as name from test_keyspace.test_table where column1 = 'test';`,
 			},
 			wantErr: false,
-			want: &SelectQueryMap{
+			want: &PreparedSelectQuery{
 				Query:           "SELECT column1,WRITE_TIMESTAMP(cf1, 'column2') as name FROM test_table WHERE column1 = @value1;",
 				QueryType:       "select",
 				TranslatedQuery: "SELECT column1,WRITE_TIMESTAMP(cf1, 'column2') as name FROM test_table WHERE column1 = @value1;",
@@ -513,7 +513,7 @@ func TestTranslator_TranslateSelectQuerytoBigtable(t *testing.T) {
 				query: `select column2 as name from test_keyspace.test_table where column1 = 'test';`,
 			},
 			wantErr: false,
-			want: &SelectQueryMap{
+			want: &PreparedSelectQuery{
 				Query:           "select column2 as name from test_keyspace.test_table where column1 = 'test'",
 				QueryType:       "select",
 				TranslatedQuery: "SELECT cf1['column2'] as name FROM test_table WHERE column1 = @value1;",
@@ -581,7 +581,7 @@ func TestTranslator_TranslateSelectQuerytoBigtable(t *testing.T) {
 			args: args{
 				query: "select column1, column2, column3 from  test_keyspace.test_table where column1 = 'test' AND column3='true' AND column5 <= '2015-05-03 13:30:54.234' AND column6 >= '123' AND column9 > '-10000000' AND column9 < '10' LIMIT 20000;",
 			},
-			want: &SelectQueryMap{
+			want: &PreparedSelectQuery{
 				Query:           inputRawQuery,
 				QueryType:       "select",
 				TranslatedQuery: "SELECT column1,cf1['column2'],cf1['column3'] FROM test_table WHERE column1 = @value1 AND TO_INT64(cf1['column3']) = @value2 AND TO_TIME(cf1['column5']) <= @value3 AND TO_INT64(cf1['column6']) >= @value4 AND TO_INT64(cf1['column9']) > @value5 AND TO_INT64(cf1['column9']) < @value6 LIMIT 20000;",
@@ -645,7 +645,7 @@ func TestTranslator_TranslateSelectQuerytoBigtable(t *testing.T) {
 			args: args{
 				query: inputPreparedQuery,
 			},
-			want: &SelectQueryMap{
+			want: &PreparedSelectQuery{
 				Query:           inputPreparedQuery,
 				QueryType:       "select",
 				TranslatedQuery: "SELECT column1,cf1['column2'],cf1['column3'] FROM test_table WHERE column1 = @value1 AND TO_BLOB(cf1['column2']) = @value2 AND TO_INT64(cf1['column3']) = @value3 AND TO_TIME(cf1['column5']) = @value4 AND TO_INT64(cf1['column6']) = @value5 AND TO_INT64(cf1['column9']) = @value6;",
@@ -702,15 +702,15 @@ func TestTranslator_TranslateSelectQuerytoBigtable(t *testing.T) {
 			args: args{
 				query: `select column1, column2, column3 from test_keyspace.test_table ORDER BY column1 LIMIT 20000;`,
 			},
-			want: &SelectQueryMap{
+			want: &PreparedSelectQuery{
 				Query:           `select column1, column2, column3 from test_keyspace.test_table ORDER BY column1 LIMIT 20000;`,
 				QueryType:       "select",
 				TranslatedQuery: "SELECT column1,cf1['column2'],cf1['column3'] FROM test_table ORDER BY column1 asc LIMIT 20000;",
 				Table:           "test_table",
 				Keyspace:        "test_keyspace",
 				ColumnMeta: ColumnMeta{
-					Star:   false,
-					Column: []types.SelectedColumn{{Name: "column1"}, {Name: "column2"}, {Name: "column3"}},
+					IsStar: false,
+					Column: []translator.SelectedColumn{{Name: "column1"}, {Name: "column2"}, {Name: "column3"}},
 				},
 				Limit: Limit{
 					IsLimit: true,
@@ -762,7 +762,7 @@ func TestTranslator_TranslateSelectQuerytoBigtable(t *testing.T) {
 				query: `select column1, column2 from test_keyspace.test_table where column1 = 'test' and column1 in ('abc', 'xyz');`,
 			},
 			wantErr: false,
-			want: &SelectQueryMap{
+			want: &PreparedSelectQuery{
 				TranslatedQuery: "SELECT column1,cf1['column2'] FROM test_table WHERE column1 = @value1 AND column1 IN UNNEST(@value2);",
 				Keyspace:        "test_keyspace",
 				Params: map[string]interface{}{
@@ -793,7 +793,7 @@ func TestTranslator_TranslateSelectQuerytoBigtable(t *testing.T) {
 				query: `select column1, column2 from test_keyspace.test_table where column1 = '?' and column1 in ('?', '?');`,
 			},
 			wantErr: false,
-			want: &SelectQueryMap{
+			want: &PreparedSelectQuery{
 				TranslatedQuery: "SELECT column1,cf1['column2'] FROM test_table WHERE column1 = @value1 AND column1 IN UNNEST(@value2);",
 				Keyspace:        "test_keyspace",
 				Params:          map[string]interface{}{"value1": "", "value2": []string{}},
@@ -821,7 +821,7 @@ func TestTranslator_TranslateSelectQuerytoBigtable(t *testing.T) {
 				query: `select column1, column2 from test_keyspace.test_table where column1 like 'test%';`,
 			},
 			wantErr: false,
-			want: &SelectQueryMap{
+			want: &PreparedSelectQuery{
 				TranslatedQuery: "SELECT column1,cf1['column2'] FROM test_table WHERE column1 LIKE @value1;",
 				Keyspace:        "test_keyspace",
 				Params:          map[string]interface{}{"value1": "test%"},
@@ -842,7 +842,7 @@ func TestTranslator_TranslateSelectQuerytoBigtable(t *testing.T) {
 				query: `select column1, column2 from test_keyspace.test_table where column1 between 'te''st' and 'test2';`,
 			},
 			wantErr: false,
-			want: &SelectQueryMap{
+			want: &PreparedSelectQuery{
 				TranslatedQuery: "SELECT column1,cf1['column2'] FROM test_table WHERE column1 BETWEEN @value1 AND @value2;",
 				Keyspace:        "test_keyspace",
 				Params:          map[string]interface{}{"value1": "te'st", "value2": "test2"},
@@ -877,7 +877,7 @@ func TestTranslator_TranslateSelectQuerytoBigtable(t *testing.T) {
 				query: `select column1, column2 from test_keyspace.test_table where column1 like '?';`,
 			},
 			wantErr: false,
-			want: &SelectQueryMap{
+			want: &PreparedSelectQuery{
 				TranslatedQuery: "SELECT column1,cf1['column2'] FROM test_table WHERE column1 LIKE @value1;",
 				Keyspace:        "test_keyspace",
 				Params:          map[string]interface{}{"value1": ""},
@@ -898,7 +898,7 @@ func TestTranslator_TranslateSelectQuerytoBigtable(t *testing.T) {
 				query: `select column1, column2 from test_keyspace.test_table where column1 between ? and ?;`,
 			},
 			wantErr: false,
-			want: &SelectQueryMap{
+			want: &PreparedSelectQuery{
 				TranslatedQuery: "SELECT column1,cf1['column2'] FROM test_table WHERE column1 BETWEEN @value1 AND @value2;",
 				Keyspace:        "test_keyspace",
 				Params:          map[string]interface{}{"value1": "", "value2": ""},
@@ -933,7 +933,7 @@ func TestTranslator_TranslateSelectQuerytoBigtable(t *testing.T) {
 				query: `select column1, column2 from test_keyspace.test_table where column1 like 'test%';`,
 			},
 			wantErr: false,
-			want: &SelectQueryMap{
+			want: &PreparedSelectQuery{
 				TranslatedQuery: "SELECT column1,cf1['column2'] FROM test_table WHERE column1 LIKE @value1;",
 				Keyspace:        "test_keyspace",
 				Params:          map[string]interface{}{"value1": "test%"},
@@ -954,7 +954,7 @@ func TestTranslator_TranslateSelectQuerytoBigtable(t *testing.T) {
 				query: `select column1, column2 from test_keyspace.test_table where column1 between 'test' and 'test2';`,
 			},
 			wantErr: false,
-			want: &SelectQueryMap{
+			want: &PreparedSelectQuery{
 				TranslatedQuery: "SELECT column1,cf1['column2'] FROM test_table WHERE column1 BETWEEN @value1 AND @value2;",
 				Keyspace:        "test_keyspace",
 				Params:          map[string]interface{}{"value1": "test", "value2": "test2"},
@@ -1052,7 +1052,7 @@ func TestTranslator_TranslateSelectQuerytoBigtable(t *testing.T) {
 				query: `select column1 from test_keyspace.test_table where column1 = 'abc';`,
 			},
 			wantErr: false,
-			want: &SelectQueryMap{
+			want: &PreparedSelectQuery{
 				Keyspace:        "test_keyspace",
 				Table:           "test_table",
 				TranslatedQuery: "SELECT column1 FROM test_table WHERE column1 = @value1;",
@@ -1068,7 +1068,7 @@ func TestTranslator_TranslateSelectQuerytoBigtable(t *testing.T) {
 				query: `select column1 from test_table where column1 = 'abc';`,
 			},
 			wantErr: false,
-			want: &SelectQueryMap{
+			want: &PreparedSelectQuery{
 				Keyspace:        "test_keyspace",
 				Table:           "test_table",
 				TranslatedQuery: "SELECT column1 FROM test_table WHERE column1 = @value1;",
@@ -1093,7 +1093,7 @@ func TestTranslator_TranslateSelectQuerytoBigtable(t *testing.T) {
 				query: `select column1 from test_keyspace.test_table where column1 = 'abc';`,
 			},
 			wantErr: false,
-			want: &SelectQueryMap{
+			want: &PreparedSelectQuery{
 				Keyspace:        "test_keyspace",
 				Table:           "test_table",
 				TranslatedQuery: "SELECT column1 FROM test_table WHERE column1 = @value1;",
@@ -1136,15 +1136,15 @@ func TestTranslator_TranslateSelectQuerytoBigtable(t *testing.T) {
 				query: `select column1, count(column2) as count_col2 from test_keyspace.test_table GROUP BY column1 HAVING count(column2) > 5;`,
 			},
 			wantErr: false,
-			want: &SelectQueryMap{
+			want: &PreparedSelectQuery{
 				Query:           `select column1, count(column2) as count_col2 from test_keyspace.test_table GROUP BY column1 HAVING count(column2) > 5;`,
 				QueryType:       "select",
 				TranslatedQuery: "SELECT column1,count(TO_BLOB(cf1['column2'])) as count_col2 FROM test_table GROUP BY column1;",
 				Table:           "test_table",
 				Keyspace:        "test_keyspace",
 				ColumnMeta: ColumnMeta{
-					Star: false,
-					Column: []types.SelectedColumn{
+					IsStar: false,
+					Column: []translator.SelectedColumn{
 						{Name: "column1"},
 						{Name: "count_col2", IsFunc: true, FuncName: "count", ColumnName: "column2", IsAs: true, Alias: "count_col2"},
 					},
@@ -1175,7 +1175,7 @@ func TestTranslator_TranslateSelectQuerytoBigtable(t *testing.T) {
 				query: `select column1, column2 from test_keyspace.test_table LIMIT 10 OFFSET 20;`,
 			},
 			wantErr: false,
-			want: &SelectQueryMap{
+			want: &PreparedSelectQuery{
 				Query:           `select column1, column2 from test_keyspace.test_table LIMIT 10 OFFSET 20;`,
 				QueryType:       "select",
 				TranslatedQuery: "SELECT column1,cf1['column2'] FROM test_table LIMIT 10;",
@@ -1236,7 +1236,7 @@ func Test_GetBigtableSelectQuery(t *testing.T) {
 	}
 
 	type args struct {
-		data *SelectQueryMap
+		data *PreparedSelectQuery
 	}
 	tests := []struct {
 		name       string
@@ -1248,12 +1248,12 @@ func Test_GetBigtableSelectQuery(t *testing.T) {
 		{
 			name: "It should fail because order by not support map data type",
 			args: args{
-				data: &SelectQueryMap{
+				data: &PreparedSelectQuery{
 					QueryType: "select",
 					Table:     "test_table",
 					Keyspace:  "test_keyspace",
 					ColumnMeta: ColumnMeta{
-						Star: true,
+						IsStar: true,
 					},
 					Limit: Limit{
 						IsLimit: true,
@@ -1276,12 +1276,12 @@ func Test_GetBigtableSelectQuery(t *testing.T) {
 		{
 			name: "It should pass with @limit value",
 			args: args{
-				data: &SelectQueryMap{
+				data: &PreparedSelectQuery{
 					QueryType: "select",
 					Table:     "test_table",
 					Keyspace:  "test_keyspace",
 					ColumnMeta: ColumnMeta{
-						Star: true,
+						IsStar: true,
 					},
 					Limit: Limit{
 						IsLimit: true,
@@ -1295,12 +1295,12 @@ func Test_GetBigtableSelectQuery(t *testing.T) {
 		{
 			name: "success",
 			args: args{
-				data: &SelectQueryMap{
+				data: &PreparedSelectQuery{
 					QueryType: "select",
 					Keyspace:  "test_keyspace",
 					Table:     "test_table",
 					ColumnMeta: ColumnMeta{
-						Star: true,
+						IsStar: true,
 					},
 					Limit: Limit{
 						IsLimit: true,
@@ -1317,13 +1317,13 @@ func Test_GetBigtableSelectQuery(t *testing.T) {
 		{
 			name: "GROUP BY with multiple columns",
 			args: args{
-				data: &SelectQueryMap{
+				data: &PreparedSelectQuery{
 					QueryType: "select",
 					Table:     "test_table",
 					Keyspace:  "test_keyspace",
 					ColumnMeta: ColumnMeta{
-						Star: false,
-						Column: []types.SelectedColumn{
+						IsStar: false,
+						Column: []translator.SelectedColumn{
 							{Name: "column1"},
 							{Name: "column6"},
 						},
@@ -1337,13 +1337,13 @@ func Test_GetBigtableSelectQuery(t *testing.T) {
 		{
 			name: "GROUP BY with unsupported collection type",
 			args: args{
-				data: &SelectQueryMap{
+				data: &PreparedSelectQuery{
 					QueryType: "select",
 					Table:     "test_table",
 					Keyspace:  "test_keyspace",
 					ColumnMeta: ColumnMeta{
-						Star: false,
-						Column: []types.SelectedColumn{
+						IsStar: false,
+						Column: []translator.SelectedColumn{
 							{Name: "column1"},
 							{Name: "map_text_text"},
 						},
@@ -1357,7 +1357,7 @@ func Test_GetBigtableSelectQuery(t *testing.T) {
 		{
 			name: "error",
 			args: args{
-				data: &SelectQueryMap{},
+				data: &PreparedSelectQuery{},
 			},
 			want:    "",
 			wantErr: true,
@@ -1365,13 +1365,13 @@ func Test_GetBigtableSelectQuery(t *testing.T) {
 		{
 			name: "All clauses: WHERE, GROUP BY, ORDER BY, LIMIT, AGGREGATE, AS",
 			args: args{
-				data: &SelectQueryMap{
+				data: &PreparedSelectQuery{
 					QueryType: "select",
 					Table:     "test_table",
 					Keyspace:  "test_keyspace",
 					ColumnMeta: ColumnMeta{
-						Star: false,
-						Column: []types.SelectedColumn{
+						IsStar: false,
+						Column: []translator.SelectedColumn{
 							{Name: "column1", ColumnName: "column1"},
 							{Name: "SUM(column2)", IsFunc: true, FuncName: "SUM", ColumnName: "column2", IsAs: true, Alias: "total"},
 							{Name: "column3", ColumnName: "column3"},
@@ -1411,13 +1411,13 @@ func Test_GetBigtableSelectQuery(t *testing.T) {
 		{
 			name: "Multiple aggregates with GROUP BY and ORDER BY",
 			args: args{
-				data: &SelectQueryMap{
+				data: &PreparedSelectQuery{
 					QueryType: "select",
 					Table:     "test_table",
 					Keyspace:  "test_keyspace",
 					ColumnMeta: ColumnMeta{
-						Star: false,
-						Column: []types.SelectedColumn{
+						IsStar: false,
+						Column: []translator.SelectedColumn{
 							{Name: "column1", ColumnName: "column1"},
 							{Name: "AVG(column2)", IsFunc: true, FuncName: "AVG", ColumnName: "column2", IsAs: true, Alias: "avg_value"},
 							{Name: "MAX(column3)", IsFunc: true, FuncName: "MAX", ColumnName: "column3", IsAs: true, Alias: "max_value"},
@@ -1452,13 +1452,13 @@ func Test_GetBigtableSelectQuery(t *testing.T) {
 		{
 			name: "COUNT with WHERE and LIMIT",
 			args: args{
-				data: &SelectQueryMap{
+				data: &PreparedSelectQuery{
 					QueryType: "select",
 					Table:     "test_table",
 					Keyspace:  "test_keyspace",
 					ColumnMeta: ColumnMeta{
-						Star: false,
-						Column: []types.SelectedColumn{
+						IsStar: false,
+						Column: []translator.SelectedColumn{
 							{Name: "COUNT(*)", IsFunc: true, FuncName: "COUNT", ColumnName: "*", IsAs: true, Alias: "total_count"},
 						},
 					},
@@ -1486,13 +1486,13 @@ func Test_GetBigtableSelectQuery(t *testing.T) {
 		{
 			name: "MIN and MAX with WHERE and ORDER BY",
 			args: args{
-				data: &SelectQueryMap{
+				data: &PreparedSelectQuery{
 					QueryType: "select",
 					Table:     "test_table",
 					Keyspace:  "test_keyspace",
 					ColumnMeta: ColumnMeta{
-						Star: false,
-						Column: []types.SelectedColumn{
+						IsStar: false,
+						Column: []translator.SelectedColumn{
 							{Name: "MIN(column2)", IsFunc: true, FuncName: "MIN", ColumnName: "column2", IsAs: true, Alias: "min_value"},
 							{Name: "MAX(column2)", IsFunc: true, FuncName: "MAX", ColumnName: "column2", IsAs: true, Alias: "max_value"},
 						},
@@ -1527,13 +1527,13 @@ func Test_GetBigtableSelectQuery(t *testing.T) {
 		{
 			name: "SUM with GROUP BY",
 			args: args{
-				data: &SelectQueryMap{
+				data: &PreparedSelectQuery{
 					QueryType: "select",
 					Table:     "test_table",
 					Keyspace:  "test_keyspace",
 					ColumnMeta: ColumnMeta{
-						Star: false,
-						Column: []types.SelectedColumn{
+						IsStar: false,
+						Column: []translator.SelectedColumn{
 							{Name: "column1", ColumnName: "column1"},
 							{Name: "SUM(column2)", IsFunc: true, FuncName: "SUM", ColumnName: "column2", IsAs: true, Alias: "total_sum"},
 						},
@@ -1560,13 +1560,13 @@ func Test_GetBigtableSelectQuery(t *testing.T) {
 		{
 			name: "Invalid ORDER BY with non-grouped column",
 			args: args{
-				data: &SelectQueryMap{
+				data: &PreparedSelectQuery{
 					QueryType: "select",
 					Table:     "test_table",
 					Keyspace:  "test_keyspace",
 					ColumnMeta: ColumnMeta{
-						Star: false,
-						Column: []types.SelectedColumn{
+						IsStar: false,
+						Column: []translator.SelectedColumn{
 							{Name: "name", ColumnName: "name"},
 							{Name: "age", ColumnName: "age"},
 							{Name: "MAX(code)", IsFunc: true, FuncName: "MAX", ColumnName: "code", IsAs: true, Alias: "max_code"},
@@ -1602,13 +1602,13 @@ func Test_GetBigtableSelectQuery(t *testing.T) {
 		{
 			name: "Invalid SELECT with non-grouped column",
 			args: args{
-				data: &SelectQueryMap{
+				data: &PreparedSelectQuery{
 					QueryType: "select",
 					Table:     "test_table",
 					Keyspace:  "test_keyspace",
 					ColumnMeta: ColumnMeta{
-						Star: false,
-						Column: []types.SelectedColumn{
+						IsStar: false,
+						Column: []translator.SelectedColumn{
 							{Name: "name", ColumnName: "name"},
 							{Name: "age", ColumnName: "age"},
 							{Name: "code", ColumnName: "code"},
@@ -1643,13 +1643,13 @@ func Test_GetBigtableSelectQuery(t *testing.T) {
 		{
 			name: "Valid GROUP BY with aggregate and ORDER BY",
 			args: args{
-				data: &SelectQueryMap{
+				data: &PreparedSelectQuery{
 					QueryType: "select",
 					Table:     "test_table",
 					Keyspace:  "test_keyspace",
 					ColumnMeta: ColumnMeta{
-						Star: false,
-						Column: []types.SelectedColumn{
+						IsStar: false,
+						Column: []translator.SelectedColumn{
 							{Name: "name", ColumnName: "name"},
 							{Name: "age", ColumnName: "age"},
 							{Name: "MAX(code)", IsFunc: true, FuncName: "MAX", ColumnName: "code", IsAs: true, Alias: "max_code"},
@@ -1918,7 +1918,7 @@ type mockKwDescContext struct {
 func Test_processFunctionColumn(t *testing.T) {
 	tests := []struct {
 		name           string
-		columnMetadata types.SelectedColumn
+		columnMetadata translator.SelectedColumn
 		tableName      string
 		keySpace       string
 		inputColumns   []string
@@ -1928,7 +1928,7 @@ func Test_processFunctionColumn(t *testing.T) {
 	}{
 		{
 			name: "COUNT(*)",
-			columnMetadata: types.SelectedColumn{
+			columnMetadata: translator.SelectedColumn{
 				FuncName:   "count",
 				ColumnName: "*",
 				IsFunc:     true,
@@ -1943,7 +1943,7 @@ func Test_processFunctionColumn(t *testing.T) {
 		},
 		{
 			name: "AVG with numeric column",
-			columnMetadata: types.SelectedColumn{
+			columnMetadata: translator.SelectedColumn{
 				FuncName:   "avg",
 				ColumnName: "age",
 				IsFunc:     true,
@@ -1958,7 +1958,7 @@ func Test_processFunctionColumn(t *testing.T) {
 		},
 		{
 			name: "SUM with alias",
-			columnMetadata: types.SelectedColumn{
+			columnMetadata: translator.SelectedColumn{
 				FuncName:   "sum",
 				ColumnName: "balance",
 				IsFunc:     true,
@@ -1975,7 +1975,7 @@ func Test_processFunctionColumn(t *testing.T) {
 		},
 		{
 			name: "Invalid function",
-			columnMetadata: types.SelectedColumn{
+			columnMetadata: translator.SelectedColumn{
 				FuncName:   "invalid_func",
 				ColumnName: "age",
 				IsFunc:     true,
@@ -1988,7 +1988,7 @@ func Test_processFunctionColumn(t *testing.T) {
 		},
 		{
 			name: "Non-numeric column in aggregate",
-			columnMetadata: types.SelectedColumn{
+			columnMetadata: translator.SelectedColumn{
 				FuncName:   "sum",
 				ColumnName: "name",
 				IsFunc:     true,
@@ -2001,7 +2001,7 @@ func Test_processFunctionColumn(t *testing.T) {
 		},
 		{
 			name: "AVG with float column",
-			columnMetadata: types.SelectedColumn{
+			columnMetadata: translator.SelectedColumn{
 				FuncName:   "avg",
 				ColumnName: "balance",
 				IsFunc:     true,
@@ -2016,7 +2016,7 @@ func Test_processFunctionColumn(t *testing.T) {
 		},
 		{
 			name: "MIN with int column",
-			columnMetadata: types.SelectedColumn{
+			columnMetadata: translator.SelectedColumn{
 				FuncName:   "min",
 				ColumnName: "code",
 				IsFunc:     true,
@@ -2031,7 +2031,7 @@ func Test_processFunctionColumn(t *testing.T) {
 		},
 		{
 			name: "MAX with alias",
-			columnMetadata: types.SelectedColumn{
+			columnMetadata: translator.SelectedColumn{
 				FuncName:   "max",
 				ColumnName: "age",
 				IsFunc:     true,
@@ -2048,7 +2048,7 @@ func Test_processFunctionColumn(t *testing.T) {
 		},
 		{
 			name: "Missing column metadata",
-			columnMetadata: types.SelectedColumn{
+			columnMetadata: translator.SelectedColumn{
 				FuncName:   "avg",
 				ColumnName: "nonexistent",
 				IsFunc:     true,
@@ -2061,7 +2061,7 @@ func Test_processFunctionColumn(t *testing.T) {
 		},
 		{
 			name: "Empty function name",
-			columnMetadata: types.SelectedColumn{
+			columnMetadata: translator.SelectedColumn{
 				FuncName:   "",
 				ColumnName: "age",
 				IsFunc:     true,
@@ -2128,14 +2128,14 @@ func Test_parseColumnsFromSelectWithParser(t *testing.T) {
 		{
 			name:    "star query",
 			query:   "SELECT * FROM test_table",
-			want:    ColumnMeta{Star: true},
+			want:    ColumnMeta{IsStar: true},
 			wantErr: false,
 		},
 		{
 			name:  "single column",
 			query: "SELECT pk_1_text FROM test_table",
 			want: ColumnMeta{
-				Column: []types.SelectedColumn{
+				Column: []translator.SelectedColumn{
 					{Name: "pk_1_text", ColumnName: "pk_1_text"},
 				},
 			},
@@ -2145,7 +2145,7 @@ func Test_parseColumnsFromSelectWithParser(t *testing.T) {
 			name:  "multiple columns",
 			query: "SELECT pk_1_text, blob_col, bool_col FROM test_table",
 			want: ColumnMeta{
-				Column: []types.SelectedColumn{
+				Column: []translator.SelectedColumn{
 					{Name: "pk_1_text", ColumnName: "pk_1_text"},
 					{Name: "blob_col", ColumnName: "blob_col"},
 					{Name: "bool_col", ColumnName: "bool_col"},
@@ -2157,7 +2157,7 @@ func Test_parseColumnsFromSelectWithParser(t *testing.T) {
 			name:  "column with alias",
 			query: "SELECT pk_1_text AS alias1 FROM test_table",
 			want: ColumnMeta{
-				Column: []types.SelectedColumn{
+				Column: []translator.SelectedColumn{
 					{Name: "pk_1_text", IsAs: true, Alias: "alias1", ColumnName: "pk_1_text"},
 				},
 			},
@@ -2167,7 +2167,7 @@ func Test_parseColumnsFromSelectWithParser(t *testing.T) {
 			name:  "function with star",
 			query: "SELECT COUNT(*) FROM test_table",
 			want: ColumnMeta{
-				Column: []types.SelectedColumn{
+				Column: []translator.SelectedColumn{
 					{Name: "system.count(*)", IsFunc: true, FuncName: "count", Alias: "", ColumnName: "*"},
 				},
 			},
@@ -2177,7 +2177,7 @@ func Test_parseColumnsFromSelectWithParser(t *testing.T) {
 			name:  "writetime function",
 			query: "SELECT name,WRITETIME(pk_1_text) AS wt FROM test_table",
 			want: ColumnMeta{
-				Column: []types.SelectedColumn{
+				Column: []translator.SelectedColumn{
 					{Name: "name", ColumnName: "name"},
 					{
 						Name:              "writetime(pk_1_text)",
@@ -2194,7 +2194,7 @@ func Test_parseColumnsFromSelectWithParser(t *testing.T) {
 			name:  "map access",
 			query: "SELECT map_col['key1'] FROM test_table",
 			want: ColumnMeta{
-				Column: []types.SelectedColumn{
+				Column: []translator.SelectedColumn{
 					{Name: "map_col['key1']", MapKey: "key1", Alias: "", ColumnName: "map_col"},
 				},
 			},
@@ -2423,7 +2423,7 @@ func Test_funcAllowedInAggregate(t *testing.T) {
 func TestProcessSetStrings(t *testing.T) {
 	tests := []struct {
 		name            string
-		selectedColumns []types.SelectedColumn
+		selectedColumns []translator.SelectedColumn
 		tableName       string
 		keySpace        string
 		isGroupBy       bool
@@ -2432,7 +2432,7 @@ func TestProcessSetStrings(t *testing.T) {
 	}{
 		{
 			name: "Simple column selection",
-			selectedColumns: []types.SelectedColumn{
+			selectedColumns: []translator.SelectedColumn{
 				{Name: "name"},
 				{Name: "age"},
 			},
@@ -2447,7 +2447,7 @@ func TestProcessSetStrings(t *testing.T) {
 		},
 		{
 			name: "Column with alias",
-			selectedColumns: []types.SelectedColumn{
+			selectedColumns: []translator.SelectedColumn{
 				{Name: "name", IsAs: true, Alias: "username"},
 				{Name: "age"},
 			},
@@ -2462,7 +2462,7 @@ func TestProcessSetStrings(t *testing.T) {
 		},
 		{
 			name: "Aggregate function",
-			selectedColumns: []types.SelectedColumn{
+			selectedColumns: []translator.SelectedColumn{
 				{
 					Name:       "count_age",
 					IsFunc:     true,
@@ -2480,7 +2480,7 @@ func TestProcessSetStrings(t *testing.T) {
 		},
 		{
 			name: "Invalid column",
-			selectedColumns: []types.SelectedColumn{
+			selectedColumns: []translator.SelectedColumn{
 				{Name: "invalid_column"},
 			},
 			tableName: "user_info",
@@ -2490,7 +2490,7 @@ func TestProcessSetStrings(t *testing.T) {
 		},
 		{
 			name: "Regular column with alias",
-			selectedColumns: []types.SelectedColumn{
+			selectedColumns: []translator.SelectedColumn{
 				{Name: "age", IsAs: true, Alias: "user_age"},
 			},
 			tableName:   "user_info",
@@ -2501,7 +2501,7 @@ func TestProcessSetStrings(t *testing.T) {
 		},
 		{
 			name: "Collection column with alias",
-			selectedColumns: []types.SelectedColumn{
+			selectedColumns: []translator.SelectedColumn{
 				{Name: "map_col", IsAs: true, Alias: "renamed_map"},
 			},
 			tableName:   "user_info",
@@ -2512,7 +2512,7 @@ func TestProcessSetStrings(t *testing.T) {
 		},
 		{
 			name: "Column with alias in GROUP BY",
-			selectedColumns: []types.SelectedColumn{
+			selectedColumns: []translator.SelectedColumn{
 				{Name: "age", IsAs: true, Alias: "user_age"},
 			},
 			tableName:   "user_info",
@@ -2563,7 +2563,7 @@ func TestProcessSetStrings(t *testing.T) {
 func Test_processAsColumn(t *testing.T) {
 	tests := []struct {
 		name           string
-		columnMetadata types.SelectedColumn
+		columnMetadata translator.SelectedColumn
 		tableName      string
 		columnFamily   string
 		colMeta        *types.Column
@@ -2573,7 +2573,7 @@ func Test_processAsColumn(t *testing.T) {
 	}{
 		{
 			name: "Non-collection column with GROUP BY",
-			columnMetadata: types.SelectedColumn{
+			columnMetadata: translator.SelectedColumn{
 				Name:  "pk_1_text",
 				Alias: "col1",
 			},
@@ -2589,7 +2589,7 @@ func Test_processAsColumn(t *testing.T) {
 		},
 		{
 			name: "Non-collection column without GROUP BY",
-			columnMetadata: types.SelectedColumn{
+			columnMetadata: translator.SelectedColumn{
 				Name:  "pk_1_text",
 				Alias: "col1",
 			},
@@ -2605,7 +2605,7 @@ func Test_processAsColumn(t *testing.T) {
 		},
 		{
 			name: "counter column",
-			columnMetadata: types.SelectedColumn{
+			columnMetadata: translator.SelectedColumn{
 				Name:  "likes",
 				Alias: "l",
 			},
@@ -2621,7 +2621,7 @@ func Test_processAsColumn(t *testing.T) {
 		},
 		{
 			name: "Collection column without GROUP BY",
-			columnMetadata: types.SelectedColumn{
+			columnMetadata: translator.SelectedColumn{
 				Name:  "map_column",
 				Alias: "map1",
 			},
@@ -2636,7 +2636,7 @@ func Test_processAsColumn(t *testing.T) {
 		},
 		{
 			name: "With existing columns",
-			columnMetadata: types.SelectedColumn{
+			columnMetadata: translator.SelectedColumn{
 				Name:  "pk_1_text",
 				Alias: "col1",
 			},
@@ -2651,7 +2651,7 @@ func Test_processAsColumn(t *testing.T) {
 		},
 		{
 			name: "WriteTime column",
-			columnMetadata: types.SelectedColumn{
+			columnMetadata: translator.SelectedColumn{
 				Name:              "test_table",
 				Alias:             "wt",
 				IsWriteTimeColumn: true,

@@ -21,6 +21,8 @@ import (
 	"context"
 	"encoding/hex"
 	"fmt"
+	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/global/constants"
+	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/global/types"
 	"slices"
 	"sort"
 	"strconv"
@@ -31,11 +33,7 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
-	constants "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/global/constants"
-	types "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/global/types"
 	otelgo "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/otel"
-	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/responsehandler"
-	rh "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/responsehandler"
 	schemaMapping "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/schema-mapping"
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/translator"
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/utilities"
@@ -77,22 +75,22 @@ const (
 )
 
 type BigTableClientIface interface {
-	ApplyBulkMutation(context.Context, string, []MutationData, string) (BulkOperationResponse, error)
+	ApplyBulkMutation(context.Context, types.Keyspace, types.TableName, []translator.IBigtableMutation) (BulkOperationResponse, error)
 	Close()
+	Execute(ctx context.Context, query translator.IBoundQuery) (*message.RowsResult, error)
 	DeleteRow(context.Context, *translator.BoundDeleteQuery) (*message.RowsResult, error)
-	ReadTableConfigs(context.Context, string) ([]*schemaMapping.TableConfig, error)
-	InsertRow(ctx context.Context, table *schemaMapping.TableConfig, input *translator.BigtableMutations) (*message.RowsResult, error)
-	SelectStatement(context.Context, *translator.SelectQueryAndData) (*message.RowsResult, time.Time, error)
+	ReadTableConfigs(context.Context, types.Keyspace) ([]*schemaMapping.TableConfig, error)
+	InsertRow(ctx context.Context, input *translator.BigtableWriteMutation) (*message.RowsResult, error)
+	SelectStatement(context.Context, *translator.BoundSelectQuery) (*message.RowsResult, error)
 	AlterTable(ctx context.Context, data *translator.AlterTableStatementMap) error
 	CreateTable(ctx context.Context, data *translator.CreateTableStatementMap) error
 	DropAllRows(ctx context.Context, data *translator.TruncateTableStatementMap) error
 	DropTable(ctx context.Context, data *translator.DropTableStatementMap) error
-	UpdateRow(ctx context.Context, table *schemaMapping.TableConfig, input *translator.BigtableMutations) (*message.RowsResult, error)
-	PrepareStatement(ctx context.Context, query *translator.SelectQueryMap) (*bigtable.PreparedStatement, error)
-	ExecutePreparedStatement(ctx context.Context, query *translator.SelectQueryAndData, preparedStmt *bigtable.PreparedStatement) (*message.RowsResult, time.Time, error)
-
+	UpdateRow(ctx context.Context, input *translator.BigtableWriteMutation) (*message.RowsResult, error)
+	PrepareStatement(ctx context.Context, query *translator.PreparedSelectQuery) (*bigtable.PreparedStatement, error)
+	ExecutePreparedStatement(ctx context.Context, query *translator.BoundSelectQuery) (*message.RowsResult, error)
 	// Functions realted to updating the intance properties.
-	LoadConfigs(rh *responsehandler.TypeHandler, schemaConfig *schemaMapping.SchemaMappingConfig)
+	LoadConfigs(schemaConfig *schemaMapping.SchemaMappingConfig)
 }
 
 // NewBigtableClient - Creates a new instance of BigtableClient.
@@ -102,24 +100,35 @@ type BigTableClientIface interface {
 //   - logger: Logger instance.
 //   - sqlClient: Bigtable SQL client.
 //   - config: BigtableConfig configuration object.
-//   - responseHandler: TypeHandler for response handling.
 //   - grpcConn: grpcConn for calling apis.
 //   - schemaMapping: schema mapping for response handling.
 //
 // Returns:
 //   - BigtableClient: New instance of BigtableClient
-var NewBigtableClient = func(client map[string]*bigtable.Client, adminClients map[string]*bigtable.AdminClient, logger *zap.Logger, config *types.BigtableConfig, responseHandler rh.ResponseHandlerIface, schemaMapping *schemaMapping.SchemaMappingConfig) BigTableClientIface {
+var NewBigtableClient = func(client map[string]*bigtable.Client, adminClients map[string]*bigtable.AdminClient, logger *zap.Logger, config *types.BigtableConfig, schemaMapping *schemaMapping.SchemaMappingConfig) BigTableClientIface {
 	return &BigtableClient{
 		Clients:             client,
 		AdminClients:        adminClients,
 		Logger:              logger,
 		BigtableConfig:      config,
-		ResponseHandler:     responseHandler,
 		SchemaMappingConfig: schemaMapping,
 	}
 }
 
-func (btc *BigtableClient) reloadSchemaMappings(ctx context.Context, keyspace string) error {
+func (btc *BigtableClient) Execute(ctx context.Context, query translator.IBoundQuery) (*message.RowsResult, error) {
+	switch q := query.(type) {
+	case *translator.BoundDeleteQuery:
+		return btc.DeleteRow(ctx, q)
+	case *translator.BigtableWriteMutation:
+		return btc.mutateRow(ctx, q)
+	case *translator.BoundSelectQuery:
+		return btc.ExecutePreparedStatement(ctx, q)
+	default:
+		return nil, fmt.Errorf("unhandled prepared query type: %T", query)
+	}
+}
+
+func (btc *BigtableClient) reloadSchemaMappings(ctx context.Context, keyspace types.Keyspace) error {
 	tableConfigs, err := btc.ReadTableConfigs(ctx, keyspace)
 	if err != nil {
 		return fmt.Errorf("error when reloading schema mappings for %s.%s: %w", keyspace, btc.SchemaMappingConfig.SchemaMappingTableName, err)
@@ -132,18 +141,18 @@ func (btc *BigtableClient) reloadSchemaMappings(ctx context.Context, keyspace st
 }
 
 // scan the schema mapping table to determine if the table exists
-func (btc *BigtableClient) tableSchemaExists(ctx context.Context, client *bigtable.Client, tableName string) (bool, error) {
-	table := client.Open(btc.SchemaMappingConfig.SchemaMappingTableName)
+func (btc *BigtableClient) tableSchemaExists(ctx context.Context, client *bigtable.Client, tableName types.TableName) (bool, error) {
+	table := client.Open(string(btc.SchemaMappingConfig.SchemaMappingTableName))
 	exists := false
-	err := table.ReadRows(ctx, bigtable.PrefixRange(tableName+"#"), func(row bigtable.Row) bool {
+	err := table.ReadRows(ctx, bigtable.PrefixRange(string(tableName)+"#"), func(row bigtable.Row) bool {
 		exists = true
 		return false
 	}, bigtable.LimitRows(1))
 	return exists, err
 }
 
-func (btc *BigtableClient) tableResourceExists(ctx context.Context, adminClient *bigtable.AdminClient, table string) (bool, error) {
-	_, err := adminClient.TableInfo(ctx, table)
+func (btc *BigtableClient) tableResourceExists(ctx context.Context, adminClient *bigtable.AdminClient, table types.TableName) (bool, error) {
+	_, err := adminClient.TableInfo(ctx, string(table))
 	// todo figure out which error message is for table doesn't exist yet or find better check
 	if status.Code(err) == codes.NotFound || status.Code(err) == codes.InvalidArgument {
 		return false, nil
@@ -167,66 +176,24 @@ func (btc *BigtableClient) tableResourceExists(ctx context.Context, adminClient 
 //
 // Returns:
 //   - error: Error if the mutation fails.
-func (btc *BigtableClient) mutateRow(ctx context.Context, table *schemaMapping.TableConfig, input *translator.BigtableMutations) (*message.RowsResult, error) {
+func (btc *BigtableClient) mutateRow(ctx context.Context, input *translator.BigtableWriteMutation) (*message.RowsResult, error) {
+	table, err := btc.SchemaMappingConfig.GetTableConfig(input.Keyspace(), input.Table())
+	if err != nil {
+		return nil, err
+	}
 	otelgo.AddAnnotation(ctx, applyingBigtableMutation)
 	mut := bigtable.NewMutation()
 
-	btc.Logger.Info("mutating row", zap.String("key", hex.EncodeToString([]byte(input.RowKey))))
+	btc.Logger.Info("mutating row", zap.String("key", hex.EncodeToString([]byte(input.RowKey()))))
 
 	client, err := btc.getClient(table.Keyspace)
 	if err != nil {
 		return nil, err
 	}
 
-	tbl := client.Open(table.Name)
+	tbl := client.Open(string(table.Name))
 
-	var mutationCount = 0
-	// Delete column families
-	for _, cf := range input.DelColumnFamily {
-		mut.DeleteCellsInFamily(string(cf))
-		mutationCount++
-	}
-
-	for _, counterOp := range input.Counters {
-		mut.AddIntToCell(string(counterOp.Family), "", counterTimestamp, counterOp.Value)
-		mutationCount++
-	}
-
-	var timestamp bigtable.Timestamp
-	if input.UsingTimestamp.HasUsingTimestamp {
-		timestamp = bigtable.Time(input.UsingTimestamp.Timestamp)
-	} else {
-		timestamp = bigtable.Time(time.Now())
-	}
-
-	for _, indexOp := range input.SetIndexOps {
-		reqTimestamp, err := btc.getIndexOpTimestamp(ctx, table, input.RowKey, indexOp.Family, indexOp.Index)
-		if err != nil {
-			return nil, err
-		}
-		mut.Set(string(indexOp.Family), reqTimestamp, timestamp, indexOp.Value)
-		mutationCount++
-	}
-
-	for _, deleteOp := range input.DeleteListElementsOps {
-		err := btc.setMutationForListDelete(ctx, table, input.RowKey, deleteOp.Family, deleteOp.Values, mut)
-		if err != nil {
-			return nil, err
-		}
-		mutationCount++
-	}
-
-	// Delete specific column qualifiers
-	for _, q := range input.DelColumns {
-		mut.DeleteCellsInColumn(string(q.Family), string(q.Column))
-		mutationCount++
-	}
-
-	// Set values for columns
-	for _, d := range input.Data {
-		mut.Set(string(d.Family), string(d.Column), timestamp, d.Bytes)
-		mutationCount++
-	}
+	mutationCount, err := btc.buildMutation(ctx, table, input, mut)
 
 	if input.IfSpec.IfExists || input.IfSpec.IfNotExists {
 		predicateFilter := bigtable.CellsPerRowLimitFilter(1)
@@ -236,7 +203,7 @@ func (btc *BigtableClient) mutateRow(ctx context.Context, table *schemaMapping.T
 			conditionalMutation = bigtable.NewCondMutation(predicateFilter, nil, mut)
 		}
 
-		err := tbl.Apply(ctx, string(input.RowKey), conditionalMutation, bigtable.GetCondMutationResult(&matched))
+		err := tbl.Apply(ctx, string(input.RowKey()), conditionalMutation, bigtable.GetCondMutationResult(&matched))
 		otelgo.AddAnnotation(ctx, bigtableMutationApplied)
 		if err != nil {
 			return nil, err
@@ -255,7 +222,7 @@ func (btc *BigtableClient) mutateRow(ctx context.Context, table *schemaMapping.T
 	}
 
 	// If no conditions, apply the mutation directly
-	err = tbl.Apply(ctx, string(input.RowKey), mut)
+	err = tbl.Apply(ctx, string(input.RowKey()), mut)
 	otelgo.AddAnnotation(ctx, bigtableMutationApplied)
 	if err != nil {
 		return nil, err
@@ -266,6 +233,57 @@ func (btc *BigtableClient) mutateRow(ctx context.Context, table *schemaMapping.T
 			LastContinuousPage: true,
 		},
 	}, nil
+}
+
+func (btc *BigtableClient) buildMutation(ctx context.Context, table *schemaMapping.TableConfig, input *translator.BigtableWriteMutation, mut *bigtable.Mutation) (int, error) {
+	var mutationCount = 0
+	// Delete column families
+	for _, cf := range input.DelColumnFamily {
+		mut.DeleteCellsInFamily(string(cf))
+		mutationCount++
+	}
+
+	for _, counterOp := range input.CounterOps {
+		mut.AddIntToCell(string(counterOp.Family), "", counterTimestamp, counterOp.Value)
+		mutationCount++
+	}
+
+	var timestamp bigtable.Timestamp
+	if input.UsingTimestamp.HasUsingTimestamp {
+		timestamp = bigtable.Time(input.UsingTimestamp.Timestamp)
+	} else {
+		timestamp = bigtable.Time(time.Now())
+	}
+
+	for _, indexOp := range input.SetIndexOps {
+		reqTimestamp, err := btc.getIndexOpTimestamp(ctx, table, input.RowKey(), indexOp.Family, indexOp.Index)
+		if err != nil {
+			return 0, err
+		}
+		mut.Set(string(indexOp.Family), reqTimestamp, timestamp, indexOp.Value)
+		mutationCount++
+	}
+
+	for _, deleteOp := range input.DeleteListElementsOps {
+		err := btc.setMutationForListDelete(ctx, table, input.RowKey(), deleteOp.Family, deleteOp.Values, mut)
+		if err != nil {
+			return 0, err
+		}
+		mutationCount++
+	}
+
+	// Delete specific column qualifiers
+	for _, q := range input.DelColumns {
+		mut.DeleteCellsInColumn(string(q.Family), string(q.Column))
+		mutationCount++
+	}
+
+	// Set values for columns
+	for _, d := range input.Data {
+		mut.Set(string(d.Family), string(d.Column), timestamp, d.Bytes)
+		mutationCount++
+	}
+	return mutationCount, nil
 }
 
 func (btc *BigtableClient) DropAllRows(ctx context.Context, data *translator.TruncateTableStatementMap) error {
@@ -280,10 +298,10 @@ func (btc *BigtableClient) DropAllRows(ctx context.Context, data *translator.Tru
 	}
 
 	btc.Logger.Info("truncate table: dropping all bigtable rows")
-	err = adminClient.DropAllRows(ctx, data.Table)
+	err = adminClient.DropAllRows(ctx, string(data.Table))
 	if status.Code(err) == codes.NotFound {
 		// Table doesn't exist in BigtableConfig, which is fine for a truncate.
-		btc.Logger.Info("truncate table: table not found in bigtable, nothing to drop", zap.String("table", data.Table))
+		btc.Logger.Info("truncate table: table not found in bigtable, nothing to drop", zap.String("table", string(data.Table)))
 		return nil
 	}
 	if err != nil {
@@ -310,10 +328,10 @@ func (btc *BigtableClient) DropTable(ctx context.Context, data *translator.DropT
 	}
 
 	// first clean up table from schema mapping table because that's the SoT
-	tbl := client.Open(btc.SchemaMappingConfig.SchemaMappingTableName)
+	tbl := client.Open(string(btc.SchemaMappingConfig.SchemaMappingTableName))
 	var deleteMuts []*bigtable.Mutation
 	var rowKeysToDelete []string
-	err = tbl.ReadRows(ctx, bigtable.PrefixRange(data.Table+"#"), func(row bigtable.Row) bool {
+	err = tbl.ReadRows(ctx, bigtable.PrefixRange(string(data.Table)+"#"), func(row bigtable.Row) bool {
 		mut := bigtable.NewMutation()
 		mut.DeleteRow()
 		deleteMuts = append(deleteMuts, mut)
@@ -338,7 +356,7 @@ func (btc *BigtableClient) DropTable(ctx context.Context, data *translator.DropT
 	}
 	if exists {
 		btc.Logger.Info("drop table: deleting bigtable table")
-		err = adminClient.DeleteTable(ctx, data.Table)
+		err = adminClient.DeleteTable(ctx, string(data.Table))
 	}
 	if err != nil {
 		return err
@@ -360,8 +378,8 @@ func (btc *BigtableClient) DropTable(ctx context.Context, data *translator.DropT
 	return nil
 }
 
-func (btc *BigtableClient) createSchemaMappingTableMaybe(ctx context.Context, keyspace string) error {
-	btc.Logger.Info("ensuring schema mapping table exists for keyspace", zap.String("schema_mapping_table", btc.SchemaMappingConfig.SchemaMappingTableName), zap.String("keyspace", keyspace))
+func (btc *BigtableClient) createSchemaMappingTableMaybe(ctx context.Context, keyspace types.Keyspace) error {
+	btc.Logger.Info("ensuring schema mapping table exists for keyspace", zap.String("schema_mapping_table", string(btc.SchemaMappingConfig.SchemaMappingTableName)), zap.String("keyspace", string(keyspace)))
 	adminClient, err := btc.getAdminClient(keyspace)
 	if err != nil {
 		return err
@@ -374,7 +392,7 @@ func (btc *BigtableClient) createSchemaMappingTableMaybe(ctx context.Context, ke
 	}
 	if !exists {
 		btc.Logger.Info("schema mapping table not found. Automatically creating it...")
-		err = adminClient.CreateTable(ctx, btc.SchemaMappingConfig.SchemaMappingTableName)
+		err = adminClient.CreateTable(ctx, string(btc.SchemaMappingConfig.SchemaMappingTableName))
 		if status.Code(err) == codes.AlreadyExists {
 			// continue - maybe another Proxy instance raced, and created it instead
 		} else if err != nil {
@@ -384,7 +402,7 @@ func (btc *BigtableClient) createSchemaMappingTableMaybe(ctx context.Context, ke
 		btc.Logger.Info("schema mapping table created.")
 	}
 
-	err = adminClient.CreateColumnFamily(ctx, btc.SchemaMappingConfig.SchemaMappingTableName, schemaMappingTableColumnFamily)
+	err = adminClient.CreateColumnFamily(ctx, string(btc.SchemaMappingConfig.SchemaMappingTableName), schemaMappingTableColumnFamily)
 	if status.Code(err) == codes.AlreadyExists {
 		err = nil
 	}
@@ -423,7 +441,7 @@ func (btc *BigtableClient) CreateTable(ctx context.Context, data *translator.Cre
 	// create the table conf first, here because it should exist before any reference to it in the schema mapping table is added, otherwise another concurrent request could try to load it and fail.
 	btc.Logger.Info("creating bigtable table")
 	err = adminClient.CreateTableFromConf(ctx, &bigtable.TableConf{
-		TableID:        data.Table,
+		TableID:        string(data.Table),
 		ColumnFamilies: columnFamilies,
 		RowKeySchema:   rowKeySchema,
 	})
@@ -477,7 +495,7 @@ func (btc *BigtableClient) AlterTable(ctx context.Context, data *translator.Alte
 	}
 
 	for family, config := range columnFamilies {
-		err = adminClient.CreateColumnFamilyWithConfig(ctx, data.Table, family, config)
+		err = adminClient.CreateColumnFamilyWithConfig(ctx, string(data.Table), family, config)
 		if status.Code(err) == codes.AlreadyExists {
 			// This can happen if the ALTER TABLE statement is run more than once.
 			continue
@@ -525,7 +543,7 @@ func (btc *BigtableClient) addColumnFamilies(columns []types.CreateColumn) (map[
 	return columnFamilies, nil
 }
 
-func (btc *BigtableClient) updateTableSchema(ctx context.Context, keyspace string, tableName string, pmks []translator.CreateTablePrimaryKeyConfig, addCols []types.CreateColumn, dropCols []string) error {
+func (btc *BigtableClient) updateTableSchema(ctx context.Context, keyspace types.Keyspace, tableName types.TableName, pmks []translator.CreateTablePrimaryKeyConfig, addCols []types.CreateColumn, dropCols []string) error {
 	client, err := btc.getClient(keyspace)
 	if err != nil {
 		return err
@@ -559,18 +577,18 @@ func (btc *BigtableClient) updateTableSchema(ctx context.Context, keyspace strin
 		mut.Set(schemaMappingTableColumnFamily, smColPKPrecedence, ts, []byte(strconv.Itoa(pmkIndex+1)))
 		mut.Set(schemaMappingTableColumnFamily, smColTableName, ts, []byte(tableName))
 		muts = append(muts, mut)
-		rowKeys = append(rowKeys, tableName+"#"+string(col.Name))
+		rowKeys = append(rowKeys, string(tableName)+"#"+string(col.Name))
 	}
 	// note: we only remove the column from the schema mapping table and don't actually delete any data from the data table
 	for _, col := range dropCols {
 		mut := bigtable.NewMutation()
 		mut.DeleteRow()
 		muts = append(muts, mut)
-		rowKeys = append(rowKeys, tableName+"#"+col)
+		rowKeys = append(rowKeys, string(tableName)+"#"+col)
 	}
 
 	btc.Logger.Info("updating schema mapping table")
-	table := client.Open(btc.SchemaMappingConfig.SchemaMappingTableName)
+	table := client.Open(string(btc.SchemaMappingConfig.SchemaMappingTableName))
 	_, err = table.ApplyBulk(ctx, rowKeys, muts)
 
 	if err != nil {
@@ -589,60 +607,45 @@ func (btc *BigtableClient) updateTableSchema(ctx context.Context, keyspace strin
 //
 // Returns:
 //   - error: Error if the insertion fails.
-func (btc *BigtableClient) InsertRow(ctx context.Context, table *schemaMapping.TableConfig, input *translator.BigtableMutations) (*message.RowsResult, error) {
-	return btc.mutateRow(ctx, table, input)
+func (btc *BigtableClient) InsertRow(ctx context.Context, input *translator.BigtableWriteMutation) (*message.RowsResult, error) {
+	return btc.mutateRow(ctx, input)
 }
 
 // UpdateRow - Updates a row in the specified bigtable table.
 //
 // Parameters:
 //   - ctx: Context for the operation, used for cancellation and deadlines.
-//   - data: UpdateQueryMapping object containing the table, row key, columns, values, and DeleteColumnFamilies.
+//   - data: PreparedUpdateQuery object containing the table, row key, columns, values, and DeleteColumnFamilies.
 //
 // Returns:
 //   - error: Error if the update fails.
-func (btc *BigtableClient) UpdateRow(ctx context.Context, table *schemaMapping.TableConfig, input *translator.BigtableMutations) (*message.RowsResult, error) {
-	return btc.mutateRow(ctx, table, input)
+func (btc *BigtableClient) UpdateRow(ctx context.Context, input *translator.BigtableWriteMutation) (*message.RowsResult, error) {
+	return btc.mutateRow(ctx, input)
 }
 
 func (btc *BigtableClient) DeleteRow(ctx context.Context, deleteQueryData *translator.BoundDeleteQuery) (*message.RowsResult, error) {
 	otelgo.AddAnnotation(ctx, applyingDeleteMutation)
-	client, err := btc.getClient(deleteQueryData.Keyspace)
+	client, err := btc.getClient(deleteQueryData.Keyspace())
 	if err != nil {
 		return nil, err
 	}
-	tbl := client.Open(deleteQueryData.Table)
+	tbl := client.Open(string(deleteQueryData.Table()))
 	mut := bigtable.NewMutation()
 
-	table, err := btc.SchemaMappingConfig.GetTableConfig(deleteQueryData.Keyspace, deleteQueryData.Table)
+	table, err := btc.SchemaMappingConfig.GetTableConfig(deleteQueryData.Keyspace(), deleteQueryData.Table())
 	if err != nil {
 		return nil, err
 	}
 
-	if len(deleteQueryData.Columns) > 0 {
-		for _, column := range deleteQueryData.Columns {
-			switch c := column.(type) {
-			case *translator.BoundIndexColumn:
-				reqTimestamp, err := btc.getIndexOpTimestamp(ctx, table, deleteQueryData.RowKey, c.Column().ColumnFamily, c.Index)
-				if err != nil {
-					return nil, err
-				}
-				mut.DeleteCellsInColumn(string(c.Column().ColumnFamily), reqTimestamp)
-			case *translator.BoundKeyColumn:
-				mut.DeleteCellsInColumn(string(c.Column().ColumnFamily), string(c.Key))
-			default:
-				return nil, fmt.Errorf("unhandled delete query column %T", c)
-			}
-		}
-	} else {
-		mut.DeleteRow()
+	err = btc.buildDeleteMutation(ctx, table, deleteQueryData, mut)
+	if err != nil {
+		return nil, err
 	}
-
 	if deleteQueryData.IfExists {
 		predicateFilter := bigtable.CellsPerRowLimitFilter(1)
 		conditionalMutation := bigtable.NewCondMutation(predicateFilter, mut, nil)
 		matched := true
-		if err := tbl.Apply(ctx, string(deleteQueryData.RowKey), conditionalMutation, bigtable.GetCondMutationResult(&matched)); err != nil {
+		if err := tbl.Apply(ctx, string(deleteQueryData.RowKey()), conditionalMutation, bigtable.GetCondMutationResult(&matched)); err != nil {
 			return nil, err
 		}
 
@@ -652,7 +655,7 @@ func (btc *BigtableClient) DeleteRow(ctx context.Context, deleteQueryData *trans
 			return GenerateAppliedRowsResult(table, true), nil
 		}
 	} else {
-		if err := tbl.Apply(ctx, string(deleteQueryData.RowKey), mut); err != nil {
+		if err := tbl.Apply(ctx, string(deleteQueryData.RowKey()), mut); err != nil {
 			return nil, err
 		}
 	}
@@ -665,6 +668,28 @@ func (btc *BigtableClient) DeleteRow(ctx context.Context, deleteQueryData *trans
 	return &response, nil
 }
 
+func (btc *BigtableClient) buildDeleteMutation(ctx context.Context, table *schemaMapping.TableConfig, deleteQueryData *translator.BoundDeleteQuery, mut *bigtable.Mutation) error {
+	if len(deleteQueryData.Columns) > 0 {
+		for _, column := range deleteQueryData.Columns {
+			switch c := column.(type) {
+			case *translator.BoundIndexColumn:
+				reqTimestamp, err := btc.getIndexOpTimestamp(ctx, table, deleteQueryData.RowKey(), c.Column().ColumnFamily, c.Index)
+				if err != nil {
+					return err
+				}
+				mut.DeleteCellsInColumn(string(c.Column().ColumnFamily), reqTimestamp)
+			case *translator.BoundKeyColumn:
+				mut.DeleteCellsInColumn(string(c.Column().ColumnFamily), string(c.Key))
+			default:
+				return fmt.Errorf("unhandled delete query column %T", c)
+			}
+		}
+	} else {
+		mut.DeleteRow()
+	}
+	return nil
+}
+
 // ReadTableConfigs - Retrieves schema mapping configurations from the specified config table.
 //
 // Parameters:
@@ -675,7 +700,7 @@ func (btc *BigtableClient) DeleteRow(ctx context.Context, deleteQueryData *trans
 //   - map[string]map[string]*Column: Table metadata.
 //   - map[string][]Column: Primary key metadata.
 //   - error: Error if the retrieval fails.
-func (btc *BigtableClient) ReadTableConfigs(ctx context.Context, keyspace string) ([]*schemaMapping.TableConfig, error) {
+func (btc *BigtableClient) ReadTableConfigs(ctx context.Context, keyspace types.Keyspace) ([]*schemaMapping.TableConfig, error) {
 	// if this is the first time we're getting table configs, ensure the schema mapping table exists
 	if btc.SchemaMappingConfig == nil || btc.SchemaMappingConfig.CountTables() == 0 {
 		err := btc.createSchemaMappingTableMaybe(ctx, keyspace)
@@ -690,22 +715,23 @@ func (btc *BigtableClient) ReadTableConfigs(ctx context.Context, keyspace string
 		return nil, err
 	}
 
-	table := client.Open(btc.SchemaMappingConfig.SchemaMappingTableName)
+	table := client.Open(string(btc.SchemaMappingConfig.SchemaMappingTableName))
 	filter := bigtable.LatestNFilter(1)
 
-	allColumns := make(map[string][]*types.Column)
+	allColumns := make(map[types.TableName][]*types.Column)
 
 	var readErr error
 	err = table.ReadRows(ctx, bigtable.InfiniteRange(""), func(row bigtable.Row) bool {
 		// Extract the row key and column values
-		var tableName, columnName, columnType, keyType string
+		var tableName types.TableName
+		var columnName, columnType, keyType string
 		var isPrimaryKey bool
 		var pkPrecedence int
 		// Extract column values
 		for _, item := range row[schemaMappingTableColumnFamily] {
 			switch item.Column {
 			case smFullQualifierTableName:
-				tableName = string(item.Value)
+				tableName = types.TableName(item.Value)
 			case smFullQualifierColumnName:
 				columnName = string(item.Value)
 			case smFullQualifierColumnType:
@@ -768,7 +794,7 @@ func (btc *BigtableClient) ReadTableConfigs(ctx context.Context, keyspace string
 			intRowKeyEncoding = existingTable.IntRowKeyEncoding
 		} else {
 			btc.Logger.Info(fmt.Sprintf("loading table info for table %s.%s", keyspace, tableName))
-			tableInfo, err := adminClient.TableInfo(ctx, tableName)
+			tableInfo, err := adminClient.TableInfo(ctx, string(tableName))
 			if err != nil {
 				return nil, err
 			}
@@ -785,7 +811,7 @@ func (btc *BigtableClient) ReadTableConfigs(ctx context.Context, keyspace string
 }
 
 // This parsing logic defaults the primary key types, because older versions of the proxy set keyType to an empty string. The only key type that we're guessing about is whether the key is a clustering key or not which, for the purposes of the proxy, doesn't matter.
-func (btc *BigtableClient) parseKeyType(keyspace, table, column, keyType string, pkPrecedence int) string {
+func (btc *BigtableClient) parseKeyType(keyspace types.Keyspace, table types.TableName, column, keyType string, pkPrecedence int) string {
 	keyType = strings.ToLower(keyType)
 
 	// we used to write 'partition' for partition keys but Cassandra calls it 'partition_key'
@@ -829,43 +855,41 @@ func (btc *BigtableClient) parseKeyType(keyspace, table, column, keyType string,
 // Returns:
 //   - BulkOperationResponse: Response indicating the result of the bulk operation.
 //   - error: Error if the bulk mutation fails.
-func (btc *BigtableClient) ApplyBulkMutation(ctx context.Context, tableName string, mutationData []MutationData, keyspace string) (BulkOperationResponse, error) {
+func (btc *BigtableClient) ApplyBulkMutation(ctx context.Context, keyspace types.Keyspace, tableName types.TableName, mutationData []translator.IBigtableMutation) (BulkOperationResponse, error) {
+	table, err := btc.SchemaMappingConfig.GetTableConfig(keyspace, tableName)
+	if err != nil {
+		return BulkOperationResponse{
+			FailedRows: "All Rows are failed",
+		}, err
+	}
+
 	rowKeyToMutationMap := make(map[types.RowKey]*bigtable.Mutation)
 	for _, md := range mutationData {
-		btc.Logger.Info("mutating row BULK", zap.String("key", hex.EncodeToString([]byte(md.RowKey))))
-		if _, exists := rowKeyToMutationMap[md.RowKey]; !exists {
-			rowKeyToMutationMap[md.RowKey] = bigtable.NewMutation()
+		rowKey := md.RowKey()
+		btc.Logger.Info("mutating row BULK", zap.String("key", hex.EncodeToString([]byte(rowKey))))
+		if _, exists := rowKeyToMutationMap[rowKey]; !exists {
+			rowKeyToMutationMap[rowKey] = bigtable.NewMutation()
 		}
-		mut := rowKeyToMutationMap[md.RowKey]
-		switch md.MutationType {
-		case mutationTypeInsert:
-			{
-				for _, column := range md.Columns {
-					if md.Timestamp != 0 {
-						mut.Set(string(column.Family), string(column.Column), md.Timestamp, column.Bytes)
-					} else {
-						mut.Set(string(column.Family), string(column.Column), bigtable.Now(), column.Bytes)
-					}
-				}
+		mut := rowKeyToMutationMap[rowKey]
+		switch v := md.(type) {
+		case translator.BigtableWriteMutation:
+			_, err := btc.buildMutation(ctx, table, &v, mut)
+			if err != nil {
+				return BulkOperationResponse{
+					FailedRows: "All Rows are failed",
+				}, err
 			}
-		case mutationTypeDelete:
-			{
-				mut.DeleteRow()
-			}
-		case mutationTypeDeleteColumnFamily:
-			{
-				mut.DeleteCellsInFamily(string(md.ColumnFamily))
-			}
-		case mutationTypeUpdate:
-			{
-				for _, column := range md.Columns {
-					mut.Set(string(column.Family), string(column.Column), bigtable.Now(), column.Bytes)
-				}
+		case translator.BoundDeleteQuery:
+			err := btc.buildDeleteMutation(ctx, table, &v, mut)
+			if err != nil {
+				return BulkOperationResponse{
+					FailedRows: "All Rows are failed",
+				}, err
 			}
 		default:
 			return BulkOperationResponse{
-				FailedRows: "",
-			}, fmt.Errorf("invalid mutation type `%s`", md.MutationType)
+				FailedRows: "All Rows are failed",
+			}, fmt.Errorf("unhandled bulk mutation type %T", md)
 		}
 	}
 	// create mutations from mutation data
@@ -885,7 +909,7 @@ func (btc *BigtableClient) ApplyBulkMutation(ctx context.Context, tableName stri
 		}, err
 	}
 
-	tbl := client.Open(tableName)
+	tbl := client.Open(string(tableName))
 	errs, err := tbl.ApplyBulk(ctx, rowKeys, mutations)
 
 	if err != nil {
@@ -941,7 +965,7 @@ func (btc *BigtableClient) getIndexOpTimestamp(ctx context.Context, table *schem
 	if err != nil {
 		return "", err
 	}
-	tbl := client.Open(table.Name)
+	tbl := client.Open(string(table.Name))
 	row, err := tbl.ReadRow(ctx, string(rowKey), bigtable.RowFilter(bigtable.ChainFilters(
 		bigtable.FamilyFilter(string(columnFamily)),
 		bigtable.LatestNFilter(1), // this filter is so that we fetch only the latest timestamp value
@@ -986,7 +1010,7 @@ func (btc *BigtableClient) setMutationForListDelete(ctx context.Context, table *
 		return err
 	}
 
-	tbl := client.Open(table.Name)
+	tbl := client.Open(string(table.Name))
 	row, err := tbl.ReadRow(ctx, string(rowKey), bigtable.RowFilter(bigtable.ChainFilters(
 		bigtable.FamilyFilter(string(columnFamily)),
 		bigtable.LatestNFilter(1), // this filter is so that we fetch only the latest timestamp value
@@ -1013,16 +1037,14 @@ func (btc *BigtableClient) setMutationForListDelete(ctx context.Context, table *
 
 // LoadConfigs initializes the BigtableClient with the provided response handler
 // and schema mapping configuration.
-func (btc *BigtableClient) LoadConfigs(rh *responsehandler.TypeHandler, schemaConfig *schemaMapping.SchemaMappingConfig) {
-	// Set the ResponseHandler for the BigtableClient to handle responses.
-	btc.ResponseHandler = rh
+func (btc *BigtableClient) LoadConfigs(schemaConfig *schemaMapping.SchemaMappingConfig) {
 
 	// Set the SchemaMappingConfig to define how data mapping will be handled in bigtable.
 	btc.SchemaMappingConfig = schemaConfig
 }
 
 // PrepareStatement prepares a query for execution using the bigtable SQL client.
-func (btc *BigtableClient) PrepareStatement(ctx context.Context, query *translator.SelectQueryMap) (*bigtable.PreparedStatement, error) {
+func (btc *BigtableClient) PrepareStatement(ctx context.Context, query *translator.PreparedSelectQuery) (*bigtable.PreparedStatement, error) {
 	client, err := btc.getClient(query.Keyspace)
 	if err != nil {
 		return nil, err
@@ -1030,12 +1052,12 @@ func (btc *BigtableClient) PrepareStatement(ctx context.Context, query *translat
 
 	paramTypes := make(map[string]bigtable.SQLType)
 	for _, clause := range query.Conditions {
-		dt := query.Params.GetDataType(clause.ValuePlaceholder)
+		md := query.Params.GetMetadata(clause.ValuePlaceholder)
 
 		if clause.Operator == constants.MAP_CONTAINS_KEY || clause.Operator == constants.ARRAY_INCLUDES {
 			paramTypes[string(clause.ValuePlaceholder)] = bigtable.BytesSQLType{}
 		} else {
-			sqlType, err := toBigtableSQLType(dt)
+			sqlType, err := toBigtableSQLType(md.Type)
 			if err != nil {
 				btc.Logger.Error("Failed to infer SQL type for parameter", zap.String("paramName", string(clause.ValuePlaceholder)), zap.Error(err))
 				return nil, fmt.Errorf("failed to infer SQL type for parameter %s: %w", clause.ValuePlaceholder, err)
@@ -1063,7 +1085,7 @@ func (btc *BigtableClient) PrepareStatement(ctx context.Context, query *translat
 //   - *bigtable.Client: the bigtable client instance associated with the keyspace
 //   - error: returns an error if either the keyspace is not found in InstancesMap
 //     or if no client exists for the corresponding bigtable instance
-func (btc *BigtableClient) getClient(keyspace string) (*bigtable.Client, error) {
+func (btc *BigtableClient) getClient(keyspace types.Keyspace) (*bigtable.Client, error) {
 	instanceInfo, ok := btc.BigtableConfig.Instances[keyspace]
 	if !ok {
 		return nil, fmt.Errorf("keyspace not found: '%s'", keyspace)
@@ -1087,7 +1109,7 @@ func (btc *BigtableClient) getClient(keyspace string) (*bigtable.Client, error) 
 // Returns:
 //   - *bigtable.AdminClient: The admin client associated with the keyspace.
 //   - error: An error if the keyspace or admin client is not found.
-func (btc *BigtableClient) getAdminClient(keyspace string) (*bigtable.AdminClient, error) {
+func (btc *BigtableClient) getAdminClient(keyspace types.Keyspace) (*bigtable.AdminClient, error) {
 	instanceInfo, ok := btc.BigtableConfig.Instances[keyspace]
 	if !ok {
 		return nil, fmt.Errorf("keyspace not found: '%s'", keyspace)

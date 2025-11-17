@@ -19,7 +19,6 @@ package translator
 import (
 	"errors"
 	"fmt"
-	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/bindings"
 	types "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/global/types"
 	schemaMapping "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/schema-mapping"
 	cql "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/third_party/cqlparser"
@@ -35,7 +34,7 @@ import (
 //   - schemaMapping: JSON Config which maintains column and its datatypes info.
 //
 // Returns: ColumnsResponse struct and error if any
-func parseInsertColumns(input cql.IInsertColumnSpecContext, tableConfig *schemaMapping.TableConfig, params *types.QueryParameters) ([]Assignment, error) {
+func parseInsertColumns(input cql.IInsertColumnSpecContext, tableConfig *schemaMapping.TableConfig, params *QueryParameters) ([]Assignment, error) {
 
 	if input == nil {
 		return nil, errors.New("parseInsertColumns: No Input paramaters found for columns")
@@ -70,7 +69,7 @@ func parseInsertColumns(input cql.IInsertColumnSpecContext, tableConfig *schemaM
 	return assignments, nil
 }
 
-func parseInsertValues(input cql.IInsertValuesSpecContext, columns []Assignment, params *types.QueryParameters, values *types.QueryParameterValues) error {
+func parseInsertValues(input cql.IInsertValuesSpecContext, columns []Assignment, params *QueryParameters, values *QueryParameterValues) error {
 	if input == nil {
 		return errors.New("insert values clause missing or malformed")
 	}
@@ -102,7 +101,7 @@ func parseInsertValues(input cql.IInsertValuesSpecContext, columns []Assignment,
 		}
 
 		// todo this function doesn't handle collections
-		val, err := stringToPrimitives(trimQuotes(value.GetText()), column.CQLType.DataType())
+		val, err := stringToGo(trimQuotes(value.GetText()), column.CQLType.DataType())
 
 		err = values.SetValue(placeholder, val)
 		if err != nil {
@@ -113,7 +112,7 @@ func parseInsertValues(input cql.IInsertValuesSpecContext, columns []Assignment,
 	return nil
 }
 
-// PrepareInsertQuery() parses Columns from the Insert CqlQuery
+// TranslateInsertQuery() parses Columns from the Insert CqlQuery
 //
 // Parameters:
 //   - queryStr: Read the query, parse its columns, values, table name, type of query and keyspaces etc.
@@ -122,7 +121,7 @@ func parseInsertValues(input cql.IInsertValuesSpecContext, columns []Assignment,
 // Returns: PreparedInsertQuery, build the PreparedInsertQuery and return it with nil value of error. In case of error
 // PreparedInsertQuery will return as nil and error will contains the error object
 
-func (t *Translator) PrepareInsertQuery(query string, isPreparedQuery bool, sessionKeyspace string) (*PreparedInsertQuery, *types.BigtableMutations, error) {
+func (t *Translator) TranslateInsertQuery(query string, isPreparedQuery bool, sessionKeyspace string) (*PreparedInsertQuery, *BigtableWriteMutation, error) {
 	lexer := cql.NewCqlLexer(antlr.NewInputStream(query))
 	stream := antlr.NewCommonTokenStream(lexer, antlr.TokenDefaultChannel)
 	p := cql.NewCqlParser(stream)
@@ -162,8 +161,8 @@ func (t *Translator) PrepareInsertQuery(query string, isPreparedQuery bool, sess
 
 	ifNotExists := insertObj.IfNotExist() != nil
 
-	params := types.NewQueryParameters()
-	values := types.NewQueryParameterValues(params)
+	params := NewQueryParameters()
+	values := NewQueryParameterValues(params)
 
 	assignments, err := parseInsertColumns(insertObj.InsertColumnSpec(), tableConfig, params)
 	if err != nil {
@@ -193,7 +192,7 @@ func (t *Translator) PrepareInsertQuery(query string, isPreparedQuery bool, sess
 		Assignments: assignments,
 		IfNotExists: ifNotExists,
 	}
-	var bound *types.BigtableMutations
+	var bound *BigtableWriteMutation
 	if !isPreparedQuery {
 		bound, err = t.doBindInsert(st, values)
 		if err != nil {
@@ -203,32 +202,39 @@ func (t *Translator) PrepareInsertQuery(query string, isPreparedQuery bool, sess
 		bound = nil
 	}
 
+	if isPreparedQuery {
+		err = ValidateZeroParamsSet(values)
+		if err != nil {
+			return nil, nil, err
+		}
+	}
+
 	return st, bound, nil
 }
 
-func (t *Translator) BindInsert(st *PreparedInsertQuery, cassandraValues []*primitive.Value, pv primitive.ProtocolVersion) (*types.BigtableMutations, error) {
-	values, err := bindings.BindQueryParams(st.Params, cassandraValues, pv)
+func (t *Translator) BindInsert(st *PreparedInsertQuery, cassandraValues []*primitive.Value, pv primitive.ProtocolVersion) (*BigtableWriteMutation, error) {
+	values, err := BindQueryParams(st.Params, cassandraValues, pv)
 	if err != nil {
 		return nil, err
 	}
 	return t.doBindInsert(st, values)
 }
 
-func (t *Translator) doBindInsert(st *PreparedInsertQuery, values *types.QueryParameterValues) (*types.BigtableMutations, error) {
+func (t *Translator) doBindInsert(st *PreparedInsertQuery, values *QueryParameterValues) (*BigtableWriteMutation, error) {
 	tableConfig, err := t.SchemaMappingConfig.GetTableConfig(st.Keyspace, st.Table)
 	if err != nil {
 		return nil, err
 	}
 
-	rowKey, err := bindings.BindRowKey(tableConfig, values)
+	rowKey, err := BindRowKey(tableConfig, values)
 	if err != nil {
 		return nil, fmt.Errorf("key encoding failed: %w", err)
 	}
 
-	mutations := types.BigtableMutations{
+	mutations := BigtableWriteMutation{
 		RowKey: rowKey,
 	}
-	err = bindings.BindMutations(tableConfig, st.Assignments, values, &mutations)
+	err = BindMutations(st.Assignments, values, &mutations)
 	if err != nil {
 		return nil, err
 	}

@@ -19,7 +19,8 @@ package schemaMapping
 import (
 	"fmt"
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/global/types"
-	"sort"
+	"slices"
+	"strings"
 	"sync"
 
 	"go.uber.org/zap"
@@ -34,17 +35,17 @@ const (
 type SchemaMappingConfig struct {
 	Logger                 *zap.Logger
 	mu                     sync.RWMutex
-	tables                 map[string]map[string]*TableConfig
+	tables                 map[types.Keyspace]map[types.TableName]*TableConfig
 	SystemColumnFamily     types.ColumnFamily
-	SchemaMappingTableName string
+	SchemaMappingTableName types.TableName
 }
 
 // NewSchemaMappingConfig is a constructor for SchemaMappingConfig. Please use this instead of direct initialization.
-func NewSchemaMappingConfig(schemaMappingTableName string, systemColumnFamily types.ColumnFamily, logger *zap.Logger, tableConfigs []*TableConfig) *SchemaMappingConfig {
-	tablesMap := make(map[string]map[string]*TableConfig)
+func NewSchemaMappingConfig(schemaMappingTableName types.TableName, systemColumnFamily types.ColumnFamily, logger *zap.Logger, tableConfigs []*TableConfig) *SchemaMappingConfig {
+	tablesMap := make(map[types.Keyspace]map[types.TableName]*TableConfig)
 	for _, tableConfig := range tableConfigs {
 		if keyspace, exists := tablesMap[tableConfig.Keyspace]; !exists {
-			keyspace = make(map[string]*TableConfig)
+			keyspace = make(map[types.TableName]*TableConfig)
 			tablesMap[tableConfig.Keyspace] = keyspace
 		}
 		tablesMap[tableConfig.Keyspace][tableConfig.Name] = tableConfig
@@ -58,15 +59,15 @@ func NewSchemaMappingConfig(schemaMappingTableName string, systemColumnFamily ty
 }
 
 // GetAllTables DEPRECATED - will be removed in the future
-func (c *SchemaMappingConfig) GetAllTables() map[string]map[string]*TableConfig {
+func (c *SchemaMappingConfig) GetAllTables() map[types.Keyspace]map[types.TableName]*TableConfig {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
 
 	// make a new shallow copy to ensure that read is thread safe
-	tablesCopy := make(map[string]map[string]*TableConfig, len(c.tables))
+	tablesCopy := make(map[types.Keyspace]map[types.TableName]*TableConfig, len(c.tables))
 
 	for keyspace, tables := range c.tables {
-		innerCopy := make(map[string]*TableConfig, len(tables))
+		innerCopy := make(map[types.TableName]*TableConfig, len(tables))
 		for name, config := range tables {
 			innerCopy[name] = config
 		}
@@ -76,7 +77,7 @@ func (c *SchemaMappingConfig) GetAllTables() map[string]map[string]*TableConfig 
 	return tablesCopy
 }
 
-func (c *SchemaMappingConfig) GetKeyspace(keyspace string) ([]*TableConfig, error) {
+func (c *SchemaMappingConfig) GetKeyspace(keyspace types.Keyspace) ([]*TableConfig, error) {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
 	tables, ok := c.tables[keyspace]
@@ -90,12 +91,12 @@ func (c *SchemaMappingConfig) GetKeyspace(keyspace string) ([]*TableConfig, erro
 	return results, nil
 }
 
-func (c *SchemaMappingConfig) ReplaceTables(keyspace string, tableConfigs []*TableConfig) error {
+func (c *SchemaMappingConfig) ReplaceTables(keyspace types.Keyspace, tableConfigs []*TableConfig) error {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
 	// clear the keyspace
-	c.tables[keyspace] = make(map[string]*TableConfig)
+	c.tables[keyspace] = make(map[types.TableName]*TableConfig)
 	for _, tableConfig := range tableConfigs {
 		if tableConfig.Keyspace != keyspace {
 			return fmt.Errorf("cannot replace table with keyspace '%s' because we're only updating keyspace '%s'", tableConfig.Keyspace, keyspace)
@@ -111,7 +112,7 @@ func (c *SchemaMappingConfig) UpdateTables(tableConfigs []*TableConfig) {
 
 	for _, tableConfig := range tableConfigs {
 		if _, exists := c.tables[tableConfig.Keyspace]; !exists {
-			c.tables[tableConfig.Keyspace] = make(map[string]*TableConfig)
+			c.tables[tableConfig.Keyspace] = make(map[types.TableName]*TableConfig)
 		}
 		c.tables[tableConfig.Keyspace][tableConfig.Name] = tableConfig
 	}
@@ -122,22 +123,22 @@ func (c *SchemaMappingConfig) UpdateTables(tableConfigs []*TableConfig) {
 // This method looks up the cached primary key metadata and returns the relevant columns.
 //
 // Parameters:
-//   - keySpace: The name of the keyspace where the table resides.
+//   - keyspace: The name of the keyspace where the table resides.
 //   - tableName: The name of the table for which primary key metadata is requested.
 //
 // Returns:
 //   - []types.Column: A slice of types.Column structs representing the primary keys of the table.
 //   - error: Returns an error if the primary key metadata is not found.
-func (c *SchemaMappingConfig) GetTableConfig(keySpace string, tableName string) (*TableConfig, error) {
+func (c *SchemaMappingConfig) GetTableConfig(k types.Keyspace, t types.TableName) (*TableConfig, error) {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
-	keyspace, ok := c.tables[keySpace]
+	keyspace, ok := c.tables[k]
 	if !ok {
-		return nil, fmt.Errorf("keyspace '%s' does not exist", keySpace)
+		return nil, fmt.Errorf("keyspace '%s' does not exist", k)
 	}
-	tableConfig, ok := keyspace[tableName]
+	tableConfig, ok := keyspace[t]
 	if !ok {
-		return nil, fmt.Errorf("table %s does not exist", tableName)
+		return nil, fmt.Errorf("table %s does not exist", t)
 	}
 	return tableConfig, nil
 }
@@ -153,13 +154,15 @@ func (c *SchemaMappingConfig) CountTables() int {
 }
 
 // ListKeyspaces returns a sorted list of all keyspace names in the schema mapping.
-func (c *SchemaMappingConfig) ListKeyspaces() []string {
+func (c *SchemaMappingConfig) ListKeyspaces() []types.Keyspace {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
-	keyspaces := make([]string, 0, len(c.tables))
+	keyspaces := make([]types.Keyspace, 0, len(c.tables))
 	for ks := range c.tables {
 		keyspaces = append(keyspaces, ks)
 	}
-	sort.Strings(keyspaces)
+	slices.SortFunc(keyspaces, func(a, b types.Keyspace) int {
+		return strings.Compare(string(a), string(b))
+	})
 	return keyspaces
 }

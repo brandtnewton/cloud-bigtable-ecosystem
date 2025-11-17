@@ -14,7 +14,7 @@
  * the License.
  */
 
-package bindings
+package translator
 
 import (
 	"testing"

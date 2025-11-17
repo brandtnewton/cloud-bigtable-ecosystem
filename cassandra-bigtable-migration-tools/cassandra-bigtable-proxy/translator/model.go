@@ -18,9 +18,10 @@ package translator
 
 import (
 	"cloud.google.com/go/bigtable"
+	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/global/constants"
 	types "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/global/types"
 	schemaMapping "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/schema-mapping"
-	"github.com/datastax/go-cassandra-native-protocol/message"
+	"github.com/datastax/go-cassandra-native-protocol/primitive"
 	"go.uber.org/zap"
 	"time"
 )
@@ -32,27 +33,46 @@ type Translator struct {
 	DefaultIntRowKeyEncoding types.IntRowKeyEncodingType
 }
 
-// SelectQueryMap represents the mapping of a select query along with its translation details.
-type SelectQueryMap struct {
-	Query            string     // Original query string
-	TranslatedQuery  string     // btql
-	Table            string     // Table involved in the query
-	Keyspace         string     // Keyspace to which the table belongs
-	ColumnMeta       ColumnMeta // Translator generated Metadata about the columns involved
-	SelectedColumns  []types.SelectedColumn
-	Conditions       []types.Condition
-	Params           *types.QueryParameters      // Parameters for the query
-	Columns          []*types.Column             //all columns mentioned in query
-	ReturnMetadata   []*message.ColumnMetadata   // Metadata of selected columns in Cassandra format
-	VariableMetadata []*message.ColumnMetadata   // Metadata of variable columns for prepared queries in Cassandra format
-	CachedBTPrepare  *bigtable.PreparedStatement // prepared statement object for bigtable
-	OrderBy          OrderBy                     // Order by clause details
-	GroupByColumns   []string                    // Group by Columns - could be a column name or a column index
+// PreparedSelectQuery represents the mapping of a select query along with its translation details.
+type PreparedSelectQuery struct {
+	keyspace        types.Keyspace  // Keyspace to which the table belongs
+	table           types.TableName // Table involved in the query
+	cqlQuery        string          // Original query string
+	TranslatedQuery string          // btql
+	ColumnMeta      ColumnMeta      // Translator generated Metadata about the columns involved
+	SelectedColumns []SelectedColumn
+	Conditions      []Condition
+	Params          *QueryParameters            // Parameters for the query
+	Columns         []*types.Column             //all columns mentioned in query
+	CachedBTPrepare *bigtable.PreparedStatement // prepared statement object for bigtable
+	OrderBy         OrderBy                     // Order by clause details
+	GroupByColumns  []string                    // Group by Columns - could be a column name or a column index
 }
 
-type SelectQueryAndData struct {
-	Query  *SelectQueryMap
-	Values *types.QueryParameterValues
+func (p PreparedSelectQuery) Keyspace() types.Keyspace {
+	return p.keyspace
+}
+
+func (p PreparedSelectQuery) Table() types.TableName {
+	return p.table
+}
+
+func (p PreparedSelectQuery) CqlQuery() string {
+	return p.cqlQuery
+}
+
+type BoundSelectQuery struct {
+	Query           *PreparedSelectQuery
+	ProtocolVersion primitive.ProtocolVersion
+	Values          *QueryParameterValues
+}
+
+func (b BoundSelectQuery) Keyspace() types.Keyspace {
+	return b.Query.Keyspace()
+}
+
+func (b BoundSelectQuery) Table() types.TableName {
+	return b.Query.Table()
 }
 
 type OrderOperation string
@@ -73,8 +93,8 @@ type OrderByColumn struct {
 }
 
 type ColumnMeta struct {
-	Star   bool
-	Column []types.SelectedColumn
+	IsStar bool
+	Column []SelectedColumn
 }
 
 type IfSpec struct {
@@ -90,36 +110,65 @@ const (
 	Decrement
 )
 
-// PreparedInsertQuery represents the mapping of an insert query along with its translation details.
-type PreparedInsertQuery struct {
-	CqlQuery         string
-	Keyspace         string
-	Table            string
-	Params           *types.QueryParameters
-	Assignments      []Assignment
-	ReturnMetadata   []*message.ColumnMetadata // Metadata of all columns of that table in Cassandra format
-	VariableMetadata []*message.ColumnMetadata // Metadata of variable columns for prepared queries in Cassandra format
-	IfNotExists      bool
+type IBoundQuery interface {
+	Keyspace() types.Keyspace
+	Table() types.TableName
+}
+type IPreparedQuery interface {
+	Keyspace() types.Keyspace
+	Table() types.TableName
+	CqlQuery() string
 }
 
-// DeleteQueryMapping represents the mapping of a delete query along with its translation details.
-type DeleteQueryMapping struct {
-	Query             string            // Original query string
-	Table             string            // Table involved in the query
-	Keyspace          string            // Keyspace to which the table belongs
-	Conditions        []types.Condition // List of clauses in the delete query
-	Params            *types.QueryParameters
-	ExecuteByMutation bool                      // Flag to indicate if the delete should be executed by mutation
-	VariableMetadata  []*message.ColumnMetadata // Metadata of variable columns for prepared queries in Cassandra format
-	ReturnMetadata    []*message.ColumnMetadata // Metadata of all columns of that table in Cassandra format
+// PreparedInsertQuery represents the mapping of an insert query along with its translation details.
+type PreparedInsertQuery struct {
+	cqlQuery    string
+	keyspace    types.Keyspace
+	table       types.TableName
+	Params      *QueryParameters
+	Assignments []Assignment
+	IfNotExists bool
+}
+
+func (p PreparedInsertQuery) Keyspace() types.Keyspace {
+	return p.keyspace
+}
+
+func (p PreparedInsertQuery) Table() types.TableName {
+	return p.table
+}
+
+func (p PreparedInsertQuery) CqlQuery() string {
+	return p.cqlQuery
+}
+
+// PreparedDeleteQuery represents the mapping of a delete query along with its translation details.
+type PreparedDeleteQuery struct {
+	keyspace          types.Keyspace  // Keyspace to which the table belongs
+	table             types.TableName // Table involved in the query
+	cqlQuery          string          // Original query string
+	Conditions        []Condition     // List of clauses in the delete query
+	Params            *QueryParameters
+	ExecuteByMutation bool // Flag to indicate if the delete should be executed by mutation
 	IfExists          bool
-	SelectedColumns   []types.SelectedColumn
+	SelectedColumns   []SelectedColumn
+}
+
+func (p PreparedDeleteQuery) Keyspace() types.Keyspace {
+	return p.keyspace
+}
+
+func (p PreparedDeleteQuery) Table() types.TableName {
+	return p.table
+}
+
+func (p PreparedDeleteQuery) CqlQuery() string {
+	return p.cqlQuery
 }
 
 type CreateTableStatementMap struct {
-	QueryType         string
-	Keyspace          string
-	Table             string
+	Keyspace          types.Keyspace
+	Table             types.TableName
 	IfNotExists       bool
 	Columns           []types.CreateColumn
 	PrimaryKeys       []CreateTablePrimaryKeyConfig
@@ -133,8 +182,8 @@ type CreateTablePrimaryKeyConfig struct {
 
 type AlterTableStatementMap struct {
 	QueryType   string
-	Keyspace    string
-	Table       string
+	Keyspace    types.Keyspace
+	Table       types.TableName
 	IfNotExists bool
 	AddColumns  []types.CreateColumn
 	DropColumns []string
@@ -142,29 +191,39 @@ type AlterTableStatementMap struct {
 
 type DropTableStatementMap struct {
 	QueryType string
-	Keyspace  string
-	Table     string
+	Keyspace  types.Keyspace
+	Table     types.TableName
 	IfExists  bool
 }
 
 type TruncateTableStatementMap struct {
 	QueryType string
-	Keyspace  string
-	Table     string
+	Keyspace  types.Keyspace
+	Table     types.TableName
 }
 
-// UpdateQueryMapping represents the mapping of an update query along with its translation details.
-type UpdateQueryMapping struct {
-	Query            string                    // Original query string
-	Table            string                    // Table involved in the query
-	Keyspace         string                    // Keyspace to which the table belongs
-	Values           []Assignment              // Columns to be updated
-	Clauses          []types.Condition         // List of clauses in the update query
-	Params           *types.QueryParameters    // Parameters for the query
-	Columns          []*types.Column           // Cassandra columns updated
-	ReturnMetadata   []*message.ColumnMetadata // Metadata of all columns of that table in Cassandra format
-	VariableMetadata []*message.ColumnMetadata // Metadata of variable columns for prepared queries in Cassandra format
-	IfExists         bool
+type PreparedUpdateQuery struct {
+	keyspace     types.Keyspace   // Keyspace to which the table belongs
+	table        types.TableName  // Table involved in the query
+	cqlQuery     string           // Original query string
+	Values       []Assignment     // Columns to be updated
+	Clauses      []Condition      // List of clauses in the update query
+	Params       *QueryParameters // Parameters for the query
+	Columns      []*types.Column  // Cassandra columns updated
+	IfExists     bool
+	ExpectedType types.CqlDataType
+}
+
+func (p PreparedUpdateQuery) Keyspace() types.Keyspace {
+	return p.keyspace
+}
+
+func (p PreparedUpdateQuery) Table() types.TableName {
+	return p.table
+}
+
+func (p PreparedUpdateQuery) CqlQuery() string {
+	return p.cqlQuery
 }
 
 type UpdateSetResponse struct {
@@ -172,13 +231,8 @@ type UpdateSetResponse struct {
 }
 
 type TableObj struct {
-	TableName    string
-	KeyspaceName string
-}
-
-type DescribeStatementMap struct {
-	Keyspace string
-	Table    string
+	TableName    types.TableName
+	KeyspaceName types.Keyspace
 }
 
 type BoundSelectColumn interface {
@@ -216,25 +270,57 @@ type BoundTimestampInfo struct {
 	HasUsingTimestamp bool
 }
 
+type IBigtableMutation interface {
+	Keyspace() types.Keyspace
+	Table() types.TableName
+	RowKey() types.RowKey
+}
+
 type BoundDeleteQuery struct {
-	Keyspace string
-	Table    string
-	RowKey   types.RowKey
+	keyspace types.Keyspace
+	table    types.TableName
+	rowKey   types.RowKey
 	IfExists bool
 	Columns  []BoundSelectColumn
 }
 
-// BigtableMutations holds the results from parseComplexOperations.
-type BigtableMutations struct {
-	RowKey                types.RowKey
+func (b BoundDeleteQuery) Keyspace() types.Keyspace {
+	return b.keyspace
+}
+
+func (b BoundDeleteQuery) Table() types.TableName {
+	return b.table
+}
+
+func (b BoundDeleteQuery) RowKey() types.RowKey {
+	return b.rowKey
+}
+
+// BigtableWriteMutation holds the results from parseComplexOperations.
+type BigtableWriteMutation struct {
+	keyspace              types.Keyspace
+	table                 types.TableName
+	rowKey                types.RowKey
 	IfSpec                IfSpec
 	UsingTimestamp        *BoundTimestampInfo
 	Data                  []*types.BigtableData
 	DelColumnFamily       []types.ColumnFamily
 	DelColumns            []*types.BigtableColumn
-	Counters              []BigtableCounterOp
+	CounterOps            []BigtableCounterOp
 	SetIndexOps           []BigtableSetIndexOp
 	DeleteListElementsOps []BigtableDeleteListElementsOp
+}
+
+func (b BigtableWriteMutation) Keyspace() types.Keyspace {
+	return b.keyspace
+}
+
+func (b BigtableWriteMutation) Table() types.TableName {
+	return b.table
+}
+
+func (b BigtableWriteMutation) RowKey() types.RowKey {
+	return b.rowKey
 }
 
 type BigtableCounterOp struct {
@@ -249,4 +335,32 @@ type BigtableSetIndexOp struct {
 type BigtableDeleteListElementsOp struct {
 	Family types.ColumnFamily
 	Values []types.BigtableValue
+}
+
+type Condition struct {
+	Column   *types.Column
+	Operator constants.Operator
+	// points to a placeholder
+	ValuePlaceholder Placeholder
+}
+
+// SelectedColumn describes a column that was selected as part of a query. It's
+// an output of query translating, and is also used for response construction.
+type SelectedColumn struct {
+	// Name is the original value of the selected column, including functions. It
+	// does not include the alias. e.g. "region" or "count(*)"
+	Name   string
+	IsFunc bool
+	// IsAs is true if an alias is used
+	IsAs      bool
+	FuncName  string
+	Alias     string
+	MapKey    Placeholder
+	ListIndex Placeholder
+	// ColumnName is the name of the underlying column in a function, or map key
+	// access. e.g. the column name of "max(price)" is "price"
+	ColumnName        string
+	KeyType           string
+	IsWriteTimeColumn bool
+	ResultType        types.CqlDataType
 }

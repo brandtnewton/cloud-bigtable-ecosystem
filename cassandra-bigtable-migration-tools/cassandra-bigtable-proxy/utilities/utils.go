@@ -18,6 +18,7 @@ package utilities
 
 import (
 	"fmt"
+	"reflect"
 	"regexp"
 	"slices"
 	"strconv"
@@ -494,22 +495,6 @@ func EncodeInt(value any, pv primitive.ProtocolVersion) ([]byte, error) {
 	}
 }
 
-/*
-GetClauseByColumn() returns the clause that matches the column
-Parameters:
-  - clause: []types.Condition
-  - column: string
-
-Returns: types.Condition, error
-*/
-func GetClauseByColumn(clause []types.Condition, column types.ColumnName) (types.Condition, error) {
-	for _, c := range clause {
-		if c.Column.Name == column {
-			return c, nil
-		}
-	}
-	return types.Condition{}, fmt.Errorf("clause not found")
-}
 func IsSupportedPrimaryKeyType(dt types.CqlDataType) bool {
 	if dt.IsAnyFrozen() {
 		return false
@@ -521,6 +506,130 @@ func IsSupportedPrimaryKeyType(dt types.CqlDataType) bool {
 	default:
 		return false
 	}
+}
+
+func StringToGo(value string, cqlType datatype.DataType) (types.GoValue, error) {
+	var iv interface{}
+
+	switch cqlType {
+	case datatype.Int:
+		val, err := strconv.ParseInt(value, 10, 32)
+		if err != nil {
+			return nil, fmt.Errorf("error converting string to int32: %w", err)
+		}
+		iv = int32(val)
+
+	case datatype.Bigint, datatype.Counter:
+		val, err := strconv.ParseInt(value, 10, 64)
+		if err != nil {
+			return nil, fmt.Errorf("error converting string to int64: %w", err)
+		}
+		iv = val
+
+	case datatype.Float:
+		val, err := strconv.ParseFloat(value, 32)
+		if err != nil {
+			return nil, fmt.Errorf("error converting string to float32: %w", err)
+		}
+		iv = float32(val)
+
+	case datatype.Double:
+		val, err := strconv.ParseFloat(value, 64)
+		if err != nil {
+			return nil, fmt.Errorf("error converting string to float64: %w", err)
+		}
+		iv = val
+	case datatype.Boolean:
+		val, err := strconv.ParseBool(value)
+		if err != nil {
+			return nil, fmt.Errorf("error converting string to bool: %w", err)
+		}
+		if val {
+			iv = int64(1)
+		} else {
+			iv = int64(0)
+		}
+
+	case datatype.Timestamp:
+		val, err := parseTimestamp(value)
+
+		if err != nil {
+			return nil, fmt.Errorf("error converting string to timestamp: %w", err)
+		}
+		iv = val
+	case datatype.Blob:
+		iv = value
+	case datatype.Varchar:
+		iv = value
+
+	default:
+		return nil, fmt.Errorf("unsupported CQL type: %s", cqlType)
+
+	}
+	return iv, nil
+}
+
+// parseTimestamp(): Parse a timestamp string in various formats.
+// Supported formats
+// "2024-02-05T14:00:00Z",
+// "2024-02-05 14:00:00",
+// "2024/02/05 14:00:00",
+// "1672522562000",          // Unix timestamp (milliseconds)
+func parseTimestamp(timestampStr string) (time.Time, error) {
+	// Define multiple layouts to try
+	layouts := []string{
+		time.RFC3339,          // ISO 8601 format
+		"2006-01-02 15:04:05", // Common date-time format
+		"2006/01/02 15:04:05", // Common date-time format with slashes
+	}
+
+	var parsedTime time.Time
+	var err error
+
+	// Try to parse the timestamp using each layout
+	for _, layout := range layouts {
+		if timestampStr == "totimestamp(now())" {
+			timestampStr = time.Now().Format(time.RFC3339)
+		}
+		parsedTime, err = time.Parse(layout, timestampStr)
+		if err == nil {
+			return parsedTime, nil
+		}
+	}
+	// Try to parse as Unix timestamp (in seconds, milliseconds, or microseconds)
+	if unixTime, err := strconv.ParseInt(timestampStr, 10, 64); err == nil {
+		timestrlen := timestampStr
+		if len(timestampStr) > 0 && timestampStr[0] == '-' {
+			timestrlen = timestampStr[1:]
+		}
+		if len(timestrlen) <= 19 {
+			// Handle timestamps in milliseconds (Cassandra supports millisecond epoch time)
+			secs := unixTime / 1000
+			nanos := (unixTime % 1000) * int64(time.Millisecond)
+			return time.Unix(secs, nanos).UTC(), nil
+		} else {
+			return time.Time{}, fmt.Errorf("invalid unix timestamp: %s", timestampStr)
+		}
+		// checking if value is float
+	} else if floatTime, err := strconv.ParseFloat(timestampStr, 64); err == nil {
+		unixTime := int64(floatTime)
+		unixStr := strconv.FormatInt(unixTime, 10)
+		timestrlen := unixStr
+		if len(unixStr) > 0 && unixStr[0] == '-' {
+			timestrlen = timestampStr[1:]
+		}
+		if len(timestrlen) <= 18 {
+			// Handle timestamps in milliseconds (Cassandra supports millisecond epoch time)
+			secs := unixTime / 1000
+			nanos := (unixTime % 1000) * int64(time.Millisecond)
+			return time.Unix(secs, nanos).UTC(), nil
+		} else {
+			return time.Time{}, fmt.Errorf("invalid unix timestamp: %s", timestampStr)
+		}
+	}
+
+	// If all formats fail, return the last error
+	return time.Time{}, err
 }
 
 func SortColumnNames(cols []types.ColumnName) {
@@ -797,4 +906,58 @@ func validateDataTypeDefinition(dt cql.IDataTypeContext, expectedTypeCount int) 
 		return fmt.Errorf("missing closing type bracket in: '%s'", dt.GetText())
 	}
 	return nil
+}
+
+// todo unit test
+func ValidateGoType(v any, dt types.CqlDataType) error {
+	expected, err := getGoType(dt)
+	if err != nil {
+		return fmt.Errorf("failed to determine expected type: %w", err)
+	}
+
+	if expected != reflect.TypeOf(v) {
+		return fmt.Errorf("got %T, expected %s (%s)", v, dt.String(), expected.String())
+	}
+
+	return nil
+}
+
+func getGoType(dt types.CqlDataType) (reflect.Type, error) {
+	switch dt.Code() {
+	case types.INT:
+		return reflect.TypeOf(int32(0)), nil
+	case types.BIGINT:
+		return reflect.TypeOf(int64(0)), nil
+	case types.VARCHAR, types.TEXT, types.ASCII:
+		return reflect.TypeOf(""), nil
+	case types.BOOLEAN:
+		return reflect.TypeOf(false), nil
+	case types.LIST:
+		lt := dt.(types.ListType)
+		inner, err := getGoType(lt.ElementType())
+		if err != nil {
+			return nil, err
+		}
+		return reflect.SliceOf(inner), nil
+	case types.SET:
+		lt := dt.(types.SetType)
+		inner, err := getGoType(lt.ElementType())
+		if err != nil {
+			return nil, err
+		}
+		return reflect.SliceOf(inner), nil
+	case types.MAP:
+		lt := dt.(types.MapType)
+		key, err := getGoType(lt.KeyType())
+		if err != nil {
+			return nil, err
+		}
+		value, err := getGoType(lt.ValueType())
+		if err != nil {
+			return nil, err
+		}
+		return reflect.MapOf(key, value), nil
+	default:
+		return nil, fmt.Errorf("unhandled data type: %s", dt.String())
+	}
 }

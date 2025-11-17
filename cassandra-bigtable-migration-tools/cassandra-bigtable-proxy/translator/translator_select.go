@@ -19,7 +19,6 @@ package translator
 import (
 	"errors"
 	"fmt"
-	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/bindings"
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/global/constants"
 	"strconv"
 	"strings"
@@ -41,8 +40,8 @@ const (
 // Parameters:
 //   - query: CQL Select statement
 //
-// Returns: SelectQueryMap struct and error if any
-func (t *Translator) PrepareSelect(query, sessionKeyspace string, isPreparedQuery bool, pv primitive.ProtocolVersion) (*SelectQueryMap, *SelectQueryAndData, error) {
+// Returns: PreparedSelectQuery struct and error if any
+func (t *Translator) PrepareSelect(query string, sessionKeyspace types.Keyspace, isPreparedQuery bool, pv primitive.ProtocolVersion) (*PreparedSelectQuery, *BoundSelectQuery, error) {
 	p, err := NewCqlParser(query, false)
 	if err != nil {
 		return nil, nil, err
@@ -78,8 +77,8 @@ func (t *Translator) PrepareSelect(query, sessionKeyspace string, isPreparedQuer
 		return nil, nil, err
 	}
 
-	params := types.NewQueryParameters()
-	values := types.NewQueryParameterValues(params)
+	params := NewQueryParameters()
+	values := NewQueryParameterValues(params)
 
 	conditions, err := parseWhereClause(selectObj.WhereSpec(), tableConfig, params, values)
 	if err != nil {
@@ -101,9 +100,12 @@ func (t *Translator) PrepareSelect(query, sessionKeyspace string, isPreparedQuer
 		orderBy.IsOrderBy = false
 	}
 
-	err := parseLimitClause(selectObj.LimitSpec(), params, values)
+	err = parseLimitClause(selectObj.LimitSpec(), params, values)
+	if err != nil {
+		return nil, nil, err
+	}
 
-	st := &SelectQueryMap{
+	st := &PreparedSelectQuery{
 		Query:           query,
 		TranslatedQuery: "", // created later
 		Table:           tableName,
@@ -119,10 +121,11 @@ func (t *Translator) PrepareSelect(query, sessionKeyspace string, isPreparedQuer
 	if err != nil {
 		return nil, nil, err
 	}
+	st.TranslatedQuery = translatedResult
 
-	var bound *SelectQueryAndData
+	var bound *BoundSelectQuery
 	if !isPreparedQuery {
-		bound, err = t.doBindSelect(st, values)
+		bound, err = t.doBindSelect(st, values, pv)
 		if err != nil {
 			return nil, nil, err
 		}
@@ -130,36 +133,29 @@ func (t *Translator) PrepareSelect(query, sessionKeyspace string, isPreparedQuer
 		bound = nil
 	}
 
-	st.TranslatedQuery = translatedResult
+	if isPreparedQuery {
+		err = ValidateZeroParamsSet(values)
+		if err != nil {
+			return nil, nil, err
+		}
+	}
+
 	return st, bound, nil
 }
 
-func (t *Translator) BindSelect(st *SelectQueryMap, cassandraValues []*primitive.Value, pv primitive.ProtocolVersion) (*SelectQueryAndData, error) {
-	values, err := bindings.BindQueryParams(st.Params, cassandraValues, pv)
+func (t *Translator) BindSelect(st *PreparedSelectQuery, cassandraValues []*primitive.Value, pv primitive.ProtocolVersion) (*BoundSelectQuery, error) {
+	values, err := BindQueryParams(st.Params, cassandraValues, pv)
 	if err != nil {
 		return nil, err
 	}
-	return t.doBindSelect(st, values)
+	return t.doBindSelect(st, values, pv)
 }
 
-func (t *Translator) doBindSelect(st *SelectQueryMap, values *types.QueryParameterValues) (*SelectQueryAndData, error) {
-	tableConfig, err := t.SchemaMappingConfig.GetTableConfig(st.Keyspace, st.Table)
-	if err != nil {
-		return nil, err
-	}
-
-	if err != nil {
-		return nil, err
-	}
-
-	cols, err := bindings.BindSelectColumns(tableConfig, st.SelectedColumns, values)
-	if err != nil {
-		return nil, err
-	}
-
-	query := &SelectQueryAndData{
-		Query:  st,
-		Values: values,
+func (t *Translator) doBindSelect(st *PreparedSelectQuery, values *QueryParameterValues, pv primitive.ProtocolVersion) (*BoundSelectQuery, error) {
+	query := &BoundSelectQuery{
+		Query:           st,
+		ProtocolVersion: pv,
+		Values:          values,
 	}
 	return query, nil
 }
@@ -179,7 +175,7 @@ func parseColumnsFromSelect(input cql.ISelectElementsContext) (ColumnMeta, error
 	}
 
 	if input.STAR() != nil {
-		response.Star = true
+		response.IsStar = true
 	} else {
 		columns := input.AllSelectElement()
 		if len(columns) == 0 {
@@ -187,7 +183,7 @@ func parseColumnsFromSelect(input cql.ISelectElementsContext) (ColumnMeta, error
 			return response, errors.New("no column parameters found in the query")
 		}
 		for _, val := range columns {
-			var selectedColumns types.SelectedColumn
+			var selectedColumns SelectedColumn
 			if val == nil {
 				return response, errors.New("error while parsing the values")
 			}
@@ -372,9 +368,7 @@ func parseOrderByFromSelect(input cql.IOrderSpecContext) (OrderBy, error) {
 	return response, nil
 }
 
-const limitPlaceholder types.Placeholder = "limitValue"
-
-func parseLimitClause(input cql.ILimitSpecContext, params *types.QueryParameters, values *types.QueryParameterValues) error {
+func parseLimitClause(input cql.ILimitSpecContext, params *QueryParameters, values *QueryParameterValues) error {
 	if input == nil {
 		return nil
 	}
@@ -438,7 +432,7 @@ func parseGroupByColumn(input cql.IGroupSpecContext) []string {
 // Returns:
 //   - []string column containing formatted selected columns for bigtable query
 //   - error if any
-func processSetStrings(t *Translator, tableConfig *schemaMapping.TableConfig, selectedColumns []types.SelectedColumn, isGroupBy bool) ([]string, error) {
+func processSetStrings(t *Translator, tableConfig *schemaMapping.TableConfig, selectedColumns []SelectedColumn, isGroupBy bool) ([]string, error) {
 	var columns = make([]string, 0)
 	columnFamily := t.SchemaMappingConfig.SystemColumnFamily
 	var err error
@@ -451,7 +445,7 @@ func processSetStrings(t *Translator, tableConfig *schemaMapping.TableConfig, se
 			}
 			continue
 		} else {
-			columns, err = processNonFunctionColumn(tableConfig, columnMetadata, columnFamily, columns, isGroupBy)
+			columns, err = processNonFunctionColumn(tableConfig, columnMetadata, columns, isGroupBy)
 			if err != nil {
 				return nil, err
 			}
@@ -483,7 +477,7 @@ func processSetStrings(t *Translator, tableConfig *schemaMapping.TableConfig, se
 //  4. Validates if the aggregate function is supported
 //  5. Applies any necessary type casting (converting cql select columns to respective bigtable columns)
 //  6. Formats the column expression with function and alias if specified
-func processFunctionColumn(t *Translator, columnMetadata types.SelectedColumn, tableConfig *schemaMapping.TableConfig, columns []string) ([]string, error) {
+func processFunctionColumn(t *Translator, columnMetadata SelectedColumn, tableConfig *schemaMapping.TableConfig, columns []string) ([]string, error) {
 
 	if columnMetadata.ColumnName == STAR && strings.ToLower(columnMetadata.FuncName) == "count" {
 		if columnMetadata.Alias != "" {
@@ -554,7 +548,7 @@ func funcAllowedInAggregate(s string) bool {
 	return allowedFunctions[s]
 }
 
-func processNonFunctionColumn(tableConfig *schemaMapping.TableConfig, selectedColumn types.SelectedColumn, columns []string, isGroupBy bool) ([]string, error) {
+func processNonFunctionColumn(tableConfig *schemaMapping.TableConfig, selectedColumn SelectedColumn, columns []string, isGroupBy bool) ([]string, error) {
 	colName := selectedColumn.Name
 	if selectedColumn.IsWriteTimeColumn || selectedColumn.MapKey != "" {
 		colName = selectedColumn.ColumnName
@@ -585,7 +579,7 @@ func processNonFunctionColumn(tableConfig *schemaMapping.TableConfig, selectedCo
 	return columns, nil
 }
 
-func processWriteTimeColumn(columnMetadata types.SelectedColumn, col *types.Column) string {
+func processWriteTimeColumn(columnMetadata SelectedColumn, col *types.Column) string {
 	aliasColumnName := customWriteTime + columnMetadata.ColumnName + ""
 	if columnMetadata.Alias == customWriteTime+columnMetadata.ColumnName {
 		return fmt.Sprintf("WRITE_TIMESTAMP(%s, '%s') as %s", col.ColumnFamily, columnMetadata.ColumnName, aliasColumnName)
@@ -596,7 +590,7 @@ func processWriteTimeColumn(columnMetadata types.SelectedColumn, col *types.Colu
 	}
 }
 
-func processAsColumn(selectedColumn types.SelectedColumn, column *types.Column, isGroupBy bool) (string, error) {
+func processAsColumn(selectedColumn SelectedColumn, column *types.Column, isGroupBy bool) (string, error) {
 	var columnFamily types.ColumnFamily
 	if !column.CQLType.IsCollection() {
 		var columnName = selectedColumn.Name
@@ -647,7 +641,7 @@ Returns:
 
 	An updated slice of strings with the new formatted column reference appended.
 */
-func processRegularColumn(selectedColumn types.SelectedColumn, col *types.Column, isGroupBy bool) (string, error) {
+func processRegularColumn(selectedColumn SelectedColumn, col *types.Column, isGroupBy bool) (string, error) {
 	if !col.CQLType.IsCollection() {
 		return castScalarColumn(col)
 	} else {
@@ -682,8 +676,8 @@ func inferDataType(methodName string) (string, error) {
 // getBigtableSelectQuery() Returns Bigtable Select query using Parsed information.
 //
 // Parameters:
-//   - data: SelectQueryMap struct with all select query info from CQL query
-func getBigtableSelectQuery(t *Translator, data *SelectQueryMap) (string, error) {
+//   - data: PreparedSelectQuery struct with all select query info from CQL query
+func getBigtableSelectQuery(t *Translator, data *PreparedSelectQuery) (string, error) {
 	column := ""
 	var columns []string
 	var err error
@@ -693,7 +687,7 @@ func getBigtableSelectQuery(t *Translator, data *SelectQueryMap) (string, error)
 		return "", err
 	}
 
-	if data.ColumnMeta.Star {
+	if data.ColumnMeta.IsStar {
 		column = STAR
 	} else {
 		isGroupBy := false

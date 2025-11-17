@@ -69,7 +69,7 @@ func (m *MockResponseHandler) BuildResponseForSystemQueries(rows [][]interface{}
 func TestGetSystemQueryMetadataCache_Success(t *testing.T) {
 	protocolVersion := primitive.ProtocolVersion4
 
-	// Sample metadata rows for keyspace, table, and columns
+	// Sample metadata rows for keyspace, table, and metaDataColumns
 	keyspaceMetadata := [][]interface{}{
 		{"keyspace1", true, map[string]string{"class": "SimpleStrategy", "replication_factor": "1"}},
 	}

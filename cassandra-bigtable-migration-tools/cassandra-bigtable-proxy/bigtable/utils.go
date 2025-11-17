@@ -63,8 +63,8 @@ func GenerateAppliedRowsResult(table *schemaMapping.TableConfig, applied bool) *
 			ColumnCount: 1,
 			Columns: []*message.ColumnMetadata{
 				{
-					Keyspace: table.Keyspace,
-					Table:    table.Name,
+					Keyspace: string(table.Keyspace),
+					Table:    string(table.Name),
 					Name:     "[applied]",
 					Type:     datatype.Boolean,
 				},

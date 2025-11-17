@@ -101,7 +101,7 @@ func (_m *BigTableClientIface) CreateTable(ctx context.Context, data *translator
 }
 
 // DeleteRowNew provides a mock function with given fields: _a0, _a1
-func (_m *BigTableClientIface) DeleteRowNew(_a0 context.Context, _a1 *translator.DeleteQueryMapping) (*message.RowsResult, error) {
+func (_m *BigTableClientIface) DeleteRowNew(_a0 context.Context, _a1 *translator.PreparedDeleteQuery) (*message.RowsResult, error) {
 	ret := _m.Called(_a0, _a1)
 
 	if len(ret) == 0 {
@@ -110,10 +110,10 @@ func (_m *BigTableClientIface) DeleteRowNew(_a0 context.Context, _a1 *translator
 
 	var r0 *message.RowsResult
 	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, *translator.DeleteQueryMapping) (*message.RowsResult, error)); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, *translator.PreparedDeleteQuery) (*message.RowsResult, error)); ok {
 		return rf(_a0, _a1)
 	}
-	if rf, ok := ret.Get(0).(func(context.Context, *translator.DeleteQueryMapping) *message.RowsResult); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, *translator.PreparedDeleteQuery) *message.RowsResult); ok {
 		r0 = rf(_a0, _a1)
 	} else {
 		if ret.Get(0) != nil {
@@ -121,7 +121,7 @@ func (_m *BigTableClientIface) DeleteRowNew(_a0 context.Context, _a1 *translator
 		}
 	}
 
-	if rf, ok := ret.Get(1).(func(context.Context, *translator.DeleteQueryMapping) error); ok {
+	if rf, ok := ret.Get(1).(func(context.Context, *translator.PreparedDeleteQuery) error); ok {
 		r1 = rf(_a0, _a1)
 	} else {
 		r1 = ret.Error(1)
@@ -317,7 +317,7 @@ func (_m *BigTableClientIface) SelectStatement(_a0 context.Context, _a1 response
 }
 
 // UpdateRow provides a mock function with given fields: _a0, _a1
-func (_m *BigTableClientIface) UpdateRow(_a0 context.Context, _a1 *translator.UpdateQueryMapping) (*message.RowsResult, error) {
+func (_m *BigTableClientIface) UpdateRow(_a0 context.Context, _a1 *translator.PreparedUpdateQuery) (*message.RowsResult, error) {
 	ret := _m.Called(_a0, _a1)
 
 	if len(ret) == 0 {
@@ -326,10 +326,10 @@ func (_m *BigTableClientIface) UpdateRow(_a0 context.Context, _a1 *translator.Up
 
 	var r0 *message.RowsResult
 	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, *translator.UpdateQueryMapping) (*message.RowsResult, error)); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, *translator.PreparedUpdateQuery) (*message.RowsResult, error)); ok {
 		return rf(_a0, _a1)
 	}
-	if rf, ok := ret.Get(0).(func(context.Context, *translator.UpdateQueryMapping) *message.RowsResult); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, *translator.PreparedUpdateQuery) *message.RowsResult); ok {
 		r0 = rf(_a0, _a1)
 	} else {
 		if ret.Get(0) != nil {
@@ -337,7 +337,7 @@ func (_m *BigTableClientIface) UpdateRow(_a0 context.Context, _a1 *translator.Up
 		}
 	}
 
-	if rf, ok := ret.Get(1).(func(context.Context, *translator.UpdateQueryMapping) error); ok {
+	if rf, ok := ret.Get(1).(func(context.Context, *translator.PreparedUpdateQuery) error); ok {
 		r1 = rf(_a0, _a1)
 	} else {
 		r1 = ret.Error(1)

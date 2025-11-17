@@ -1,24 +1,35 @@
-package placeholders
+package translator
 
 import (
 	"fmt"
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/global/types"
+	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/utilities"
 )
+
+const limitPlaceholder Placeholder = "limitValue"
 
 type Placeholder string
 
+type PlaceholderMetadata struct {
+	Key Placeholder
+	// nil if limit or collection index/key
+	Column *types.Column
+	Type   types.CqlDataType
+}
+
 type QueryParameters struct {
-	keys []Placeholder
+	ordered []Placeholder
 	// note: not all placeholders will be associated with a column - e.g. limit ?
 	columnLookup map[types.ColumnName]Placeholder
-	// might be different than the column - like if we're doing a "CONTAINS" on a list, this would be the element type
-	types map[Placeholder]types.CqlDataType
+	// might be different from the column - like if we're doing a "CONTAINS" on a list, this would be the element type
+	metadata map[Placeholder]PlaceholderMetadata
 }
 
 func NewQueryParameters() *QueryParameters {
 	return &QueryParameters{
-		keys:  nil,
-		types: nil,
+		ordered:      nil,
+		columnLookup: make(map[types.ColumnName]Placeholder),
+		metadata:     make(map[Placeholder]PlaceholderMetadata),
 	}
 }
 
@@ -30,16 +41,16 @@ func (q *QueryParameters) AllColumns() []types.ColumnName {
 	return names
 }
 func (q *QueryParameters) AllKeys() []Placeholder {
-	return q.keys
+	return q.ordered
 }
 
 func (q *QueryParameters) Count() int {
-	return len(q.keys)
+	return len(q.ordered)
 }
 
 func (q *QueryParameters) Index(p Placeholder) int {
-	for i := range q.keys {
-		if q.keys[i] == p {
+	for i := range q.ordered {
+		if q.ordered[i] == p {
 			return i
 		}
 	}
@@ -51,7 +62,7 @@ func (q *QueryParameters) Has(p Placeholder) bool {
 }
 
 func (q *QueryParameters) GetParameter(i int) Placeholder {
-	return q.keys[i]
+	return q.ordered[i]
 }
 
 func (q *QueryParameters) GetPlaceholderForColumn(c types.ColumnName) (Placeholder, bool) {
@@ -60,10 +71,10 @@ func (q *QueryParameters) GetPlaceholderForColumn(c types.ColumnName) (Placehold
 }
 
 func (q *QueryParameters) getNextParameter() Placeholder {
-	return Placeholder(fmt.Sprintf("value%d", len(q.keys)))
+	return Placeholder(fmt.Sprintf("value%d", len(q.ordered)))
 }
 
-func (q *QueryParameters) PushParameter(c types.ColumnName, dataType types.CqlDataType) Placeholder {
+func (q *QueryParameters) PushParameter(c *types.Column, dataType types.CqlDataType) Placeholder {
 	p := q.getNextParameter()
 	q.AddParameter(c, p, dataType)
 	return p
@@ -74,22 +85,30 @@ func (q *QueryParameters) PushParameterWithoutColumn(dataType types.CqlDataType)
 	return p
 }
 
-func (q *QueryParameters) AddParameter(c types.ColumnName, p Placeholder, dataType types.CqlDataType) {
-	q.keys = append(q.keys, p)
-	q.types[p] = dataType
-	q.columnLookup[c] = p
+func (q *QueryParameters) AddParameter(c *types.Column, p Placeholder, dt types.CqlDataType) {
+	q.ordered = append(q.ordered, p)
+	q.metadata[p] = PlaceholderMetadata{
+		Key:    p,
+		Column: c,
+		Type:   dt,
+	}
+	q.columnLookup[c.Name] = p
 }
 
-func (q *QueryParameters) AddParameterWithoutColumn(p Placeholder, dataType types.CqlDataType) {
-	q.keys = append(q.keys, p)
-	q.types[p] = dataType
+func (q *QueryParameters) AddParameterWithoutColumn(p Placeholder, dt types.CqlDataType) {
+	q.ordered = append(q.ordered, p)
+	q.metadata[p] = PlaceholderMetadata{
+		Key:    p,
+		Column: nil,
+		Type:   dt,
+	}
 }
 
 const UsingTimePlaceholder Placeholder = "usingTimeValue"
 
-func (q *QueryParameters) GetDataType(p Placeholder) types.CqlDataType {
+func (q *QueryParameters) GetMetadata(p Placeholder) PlaceholderMetadata {
 	// assume you are passing in a valid placeholder
-	d, _ := q.types[p]
+	d, _ := q.metadata[p]
 	return d
 }
 
@@ -106,7 +125,7 @@ func NewQueryParameterValues(params *QueryParameters) *QueryParameterValues {
 	return &QueryParameterValues{params: params, values: make(map[Placeholder]types.GoValue)}
 }
 
-func (q *QueryParameterValues) PushParameterAndValue(c types.ColumnName, dataType types.CqlDataType, value any) Placeholder {
+func (q *QueryParameterValues) PushParameterAndValue(c *types.Column, dataType types.CqlDataType, value any) Placeholder {
 	p := q.params.PushParameter(c, dataType)
 	q.values[p] = value
 	return p
@@ -117,14 +136,14 @@ func (q *QueryParameterValues) Has(p Placeholder) bool {
 }
 
 func (q *QueryParameterValues) SetValue(p Placeholder, value any) error {
-	dt, ok := q.params.types[p]
+	md, ok := q.params.metadata[p]
 	if !ok {
-		return fmt.Errorf("no param type info for %s", p)
+		return fmt.Errorf("no param metadata for %s", p)
 	}
 
 	// ensure the correct type is being set - more for checking internal implementation rather than the user
 	// todo only validate when running in strict mode
-	err := validateGoType(value, dt)
+	err := utilities.ValidateGoType(value, md.Type)
 	if err != nil {
 		return err
 	}

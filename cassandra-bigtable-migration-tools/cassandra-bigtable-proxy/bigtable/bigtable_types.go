@@ -20,18 +20,10 @@ import (
 	"cloud.google.com/go/bigtable"
 	btpb "cloud.google.com/go/bigtable/apiv2/bigtablepb"
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/global/types"
-	rh "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/responsehandler"
 	schemaMapping "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/schema-mapping"
+	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/translator"
 	"go.uber.org/zap"
 )
-
-type MutationData struct {
-	MutationType string
-	RowKey       types.RowKey
-	Columns      []types.BigtableData
-	ColumnFamily types.ColumnFamily
-	Timestamp    bigtable.Timestamp
-}
 
 type BulkOperationResponse struct {
 	FailedRows string
@@ -43,6 +35,20 @@ type BigtableClient struct {
 	Logger              *zap.Logger
 	SqlClient           btpb.BigtableClient
 	BigtableConfig      *types.BigtableConfig
-	ResponseHandler     rh.ResponseHandlerIface
 	SchemaMappingConfig *schemaMapping.SchemaMappingConfig
+}
+
+type BigtableBulkMutation struct {
+	mutations map[types.TableName][]translator.IBigtableMutation
+}
+
+func (b *BigtableBulkMutation) Mutations() map[types.TableName][]translator.IBigtableMutation {
+	return b.mutations
+}
+
+func (b *BigtableBulkMutation) AddMutation(mut translator.IBigtableMutation) {
+	if b.mutations[mut.Table()] == nil {
+		b.mutations[mut.Table()] = []translator.IBigtableMutation{}
+	}
+	b.mutations[mut.Table()] = append(b.mutations[mut.Table()], mut)
 }

@@ -387,8 +387,8 @@ func BindQueryParams(params *QueryParameters, values []*primitive.Value, pv prim
 
 	for i, param := range params.AllKeys() {
 		value := values[i]
-		paramType := params.GetMetadata(param)
-		goVal, err := cassandraValueToGoValue(paramType, value, pv)
+		md := params.GetMetadata(param)
+		goVal, err := cassandraValueToGoValue(md.Type, value, pv)
 		if err != nil {
 			return nil, err
 		}

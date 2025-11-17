@@ -33,7 +33,7 @@ const (
 	intRowKeyEncodingOptionValueOrderedCode = "ordered_code"
 )
 
-func (t *Translator) TranslateCreateTableToBigtable(query, sessionKeyspace string) (*CreateTableStatementMap, error) {
+func (t *Translator) TranslateCreateTableToBigtable(query string, sessionKeyspace types.Keyspace) (*CreateTableStatementMap, error) {
 	lexer := cql.NewCqlLexer(antlr.NewInputStream(query))
 	stream := antlr.NewCommonTokenStream(lexer, antlr.TokenDefaultChannel)
 	p := cql.NewCqlParser(stream)
@@ -44,13 +44,18 @@ func (t *Translator) TranslateCreateTableToBigtable(query, sessionKeyspace strin
 		return nil, errors.New("error while parsing create object")
 	}
 
-	var tableName, keyspaceName string
+	var keyspaceName types.Keyspace
+	var tableName types.TableName
 
 	if createTableObj != nil && createTableObj.Table() != nil && createTableObj.Table().GetText() != "" {
-		tableName = createTableObj.Table().GetText()
-		if !validTableName.MatchString(tableName) {
+		tableNameString := createTableObj.Table().GetText()
+		if !validTableName.MatchString(tableNameString) {
 			return nil, errors.New("invalid table name parsed from query")
 		}
+		if utilities.IsReservedCqlKeyword(tableNameString) {
+			return nil, fmt.Errorf("cannot create a table with reserved keyword as name: '%s'", tableNameString)
+		}
+		tableName = types.TableName(tableNameString)
 	} else {
 		return nil, errors.New("invalid input parameters found for table")
 	}
@@ -60,7 +65,7 @@ func (t *Translator) TranslateCreateTableToBigtable(query, sessionKeyspace strin
 	}
 
 	if createTableObj != nil && createTableObj.Keyspace() != nil && createTableObj.Keyspace().GetText() != "" {
-		keyspaceName = createTableObj.Keyspace().GetText()
+		keyspaceName = types.Keyspace(createTableObj.Keyspace().GetText())
 	} else if sessionKeyspace != "" {
 		keyspaceName = sessionKeyspace
 	} else {
@@ -86,13 +91,13 @@ func (t *Translator) TranslateCreateTableToBigtable(query, sessionKeyspace strin
 
 		columns = append(columns, types.CreateColumn{
 			TypeInfo: dt,
-			Name:     col.Column().GetText(),
+			Name:     types.ColumnName(col.Column().GetText()),
 			Index:    int32(i),
 		})
 
 		if col.PrimaryKeyColumn() != nil {
 			pmks = append(pmks, CreateTablePrimaryKeyConfig{
-				Name:    col.Column().GetText(),
+				Name:    types.ColumnName(col.Column().GetText()),
 				KeyType: utilities.KEY_TYPE_PARTITION,
 			})
 		}
@@ -136,43 +141,39 @@ func (t *Translator) TranslateCreateTableToBigtable(query, sessionKeyspace strin
 		if singleKey != nil {
 			pmks = []CreateTablePrimaryKeyConfig{
 				{
-					Name:    singleKey.GetText(),
+					Name:    types.ColumnName(singleKey.GetText()),
 					KeyType: utilities.KEY_TYPE_PARTITION,
 				},
 			}
 		} else if compoundKey != nil {
 			pmks = append(pmks, CreateTablePrimaryKeyConfig{
-				Name:    compoundKey.PartitionKey().GetText(),
+				Name:    types.ColumnName(compoundKey.PartitionKey().GetText()),
 				KeyType: utilities.KEY_TYPE_PARTITION,
 			})
 			for _, clusterKey := range compoundKey.ClusteringKeyList().AllClusteringKey() {
 				pmks = append(pmks, CreateTablePrimaryKeyConfig{
-					Name:    clusterKey.Column().GetText(),
+					Name:    types.ColumnName(clusterKey.Column().GetText()),
 					KeyType: utilities.KEY_TYPE_CLUSTERING,
 				})
 			}
 		} else if compositeKey != nil {
 			for _, partitionKey := range compositeKey.PartitionKeyList().AllPartitionKey() {
 				pmks = append(pmks, CreateTablePrimaryKeyConfig{
-					Name:    partitionKey.Column().GetText(),
+					Name:    types.ColumnName(partitionKey.Column().GetText()),
 					KeyType: utilities.KEY_TYPE_PARTITION,
 				})
 			}
 			for _, clusterKey := range compositeKey.ClusteringKeyList().AllClusteringKey() {
 				pmks = append(pmks, CreateTablePrimaryKeyConfig{
-					Name:    clusterKey.Column().GetText(),
+					Name:    types.ColumnName(clusterKey.Column().GetText()),
 					KeyType: utilities.KEY_TYPE_CLUSTERING,
 				})
 			}
 		}
 	}
 
-	if utilities.IsReservedCqlKeyword(tableName) {
-		return nil, fmt.Errorf("cannot create a table with reserved keyword as name: '%s'", tableName)
-	}
-
 	for _, column := range columns {
-		if utilities.IsReservedCqlKeyword(column.Name) {
+		if utilities.IsReservedCqlKeyword(string(column.Name)) {
 			return nil, fmt.Errorf("cannot create a table with reserved keyword as column name: '%s'", column.Name)
 		}
 	}
@@ -198,7 +199,6 @@ func (t *Translator) TranslateCreateTableToBigtable(query, sessionKeyspace strin
 		Table:             tableName,
 		IfNotExists:       createTableObj.IfNotExist() != nil,
 		Keyspace:          keyspaceName,
-		QueryType:         "create",
 		Columns:           columns,
 		PrimaryKeys:       pmks,
 		IntRowKeyEncoding: rowKeyEncoding,

@@ -37,13 +37,15 @@ func (t *Translator) TranslateAlterTableToBigtable(query string, sessionKeyspace
 		return nil, errors.New("error while parsing alter statement")
 	}
 
-	var tableName, keyspaceName string
+	var keyspaceName types.Keyspace
+	var tableName types.TableName
 
 	if alterTable != nil && alterTable.Table() != nil && alterTable.Table().GetText() != "" {
-		tableName = alterTable.Table().GetText()
-		if !validTableName.MatchString(tableName) {
+		tableNameString := alterTable.Table().GetText()
+		if !validTableName.MatchString(tableNameString) {
 			return nil, errors.New("invalid table name parsed from query")
 		}
+		tableName = types.TableName(tableNameString)
 	} else {
 		return nil, errors.New("invalid input paramaters found for table")
 	}
@@ -53,7 +55,7 @@ func (t *Translator) TranslateAlterTableToBigtable(query string, sessionKeyspace
 	}
 
 	if alterTable != nil && alterTable.Keyspace() != nil && alterTable.Keyspace().GetText() != "" {
-		keyspaceName = alterTable.Keyspace().GetText()
+		keyspaceName = types.Keyspace(alterTable.Keyspace().GetText())
 	} else if sessionKeyspace != "" {
 		keyspaceName = sessionKeyspace
 	} else {
@@ -73,10 +75,10 @@ func (t *Translator) TranslateAlterTableToBigtable(query string, sessionKeyspace
 		return nil, errors.New("table property operations are not supported")
 	}
 
-	var dropColumns []string
+	var dropColumns []types.ColumnName
 	if alterTable.AlterTableOperation().AlterTableDropColumns() != nil {
 		for _, dropColumn := range alterTable.AlterTableOperation().AlterTableDropColumns().AlterTableDropColumnList().AllColumn() {
-			dropColumns = append(dropColumns, dropColumn.GetText())
+			dropColumns = append(dropColumns, types.ColumnName(dropColumn.GetText()))
 		}
 	}
 	var addColumns []types.CreateColumn
@@ -89,7 +91,7 @@ func (t *Translator) TranslateAlterTableToBigtable(query string, sessionKeyspace
 
 			addColumns = append(addColumns, types.CreateColumn{
 				TypeInfo: dt,
-				Name:     addColumn.GetText(),
+				Name:     types.ColumnName(addColumn.GetText()),
 				Index:    int32(i),
 			})
 		}
@@ -112,7 +114,7 @@ func (t *Translator) TranslateAlterTableToBigtable(query string, sessionKeyspace
 		if !utilities.IsSupportedColumnType(addColumn.TypeInfo) {
 			return nil, fmt.Errorf("column type '%s' is not supported", addColumn.TypeInfo.String())
 		}
-		if utilities.IsReservedCqlKeyword(addColumn.Name) {
+		if utilities.IsReservedCqlKeyword(string(addColumn.Name)) {
 			return nil, fmt.Errorf("cannot alter a table with reserved keyword as column name: '%s'", addColumn.Name)
 		}
 		if tableConfig.HasColumn(addColumn.Name) {
@@ -123,7 +125,6 @@ func (t *Translator) TranslateAlterTableToBigtable(query string, sessionKeyspace
 	var stmt = AlterTableStatementMap{
 		Table:       tableName,
 		Keyspace:    keyspaceName,
-		QueryType:   "alter",
 		DropColumns: dropColumns,
 		AddColumns:  addColumns,
 	}

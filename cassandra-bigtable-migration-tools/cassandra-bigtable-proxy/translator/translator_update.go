@@ -109,11 +109,11 @@ func (t *Translator) TranslateUpdate(query string, sessionKeyspace types.Keyspac
 	}
 
 	st := &PreparedUpdateQuery{
-		Query:    query,
-		Table:    tableName,
+		cqlQuery: query,
+		table:    tableName,
 		Columns:  columns,
 		IfExists: ifExist,
-		Keyspace: keyspaceName,
+		keyspace: keyspaceName,
 		Clauses:  whereClause,
 		Params:   params,
 		Values:   assignments,
@@ -432,7 +432,7 @@ func parseUpdateValues(assignments []cql.IAssignmentElementContext, tableConfig 
 }
 
 func (t *Translator) doBindUpdate(st *PreparedUpdateQuery, values *QueryParameterValues) (*BigtableWriteMutation, error) {
-	tableConfig, err := t.SchemaMappingConfig.GetTableConfig(st.Keyspace, st.Table)
+	tableConfig, err := t.SchemaMappingConfig.GetTableConfig(st.Keyspace(), st.Table())
 	if err != nil {
 		return nil, err
 	}

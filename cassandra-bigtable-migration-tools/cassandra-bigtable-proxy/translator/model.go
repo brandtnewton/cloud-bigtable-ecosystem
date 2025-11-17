@@ -190,7 +190,7 @@ type AlterTableStatementMap struct {
 	Table       types.TableName
 	IfNotExists bool
 	AddColumns  []types.CreateColumn
-	DropColumns []string
+	DropColumns []types.ColumnName
 }
 
 type DropTableStatementMap struct {

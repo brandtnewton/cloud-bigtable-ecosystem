@@ -17,16 +17,14 @@
 package schemaMapping
 
 import (
-	"fmt"
 	"sort"
 
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/global/types"
-	"github.com/datastax/go-cassandra-native-protocol/datatype"
 	"github.com/datastax/go-cassandra-native-protocol/message"
 )
 
-func CreateTableMap(tables []*TableConfig) map[string]*TableConfig {
-	var result = make(map[string]*TableConfig)
+func CreateTableMap(tables []*TableConfig) map[types.TableName]*TableConfig {
+	var result = make(map[types.TableName]*TableConfig)
 	for _, table := range tables {
 		result[table.Name] = table
 	}
@@ -47,60 +45,6 @@ func getTimestampColumnName(aliasName string, columnName string) string {
 	return aliasName
 }
 
-// getAllColumnsMetadata() retrieves metadata for all columns in a given table.
-//
-// Parameters:
-//   - columnsMap: column info for a given table.
-//
-// Returns:
-// - A slice of pointers to ColumnMetadata structs containing metadata for each requested column.
-// - An error
-func getAllColumnsMetadata(columnsMap map[types.ColumnName]*types.Column) []*message.ColumnMetadata {
-	var columnMetadataList []*message.ColumnMetadata
-	for _, column := range columnsMap {
-		columnMd := column.Metadata.Clone()
-		columnMetadataList = append(columnMetadataList, columnMd)
-	}
-	sort.Slice(columnMetadataList, func(i, j int) bool {
-		return columnMetadataList[i].Index < columnMetadataList[j].Index
-	})
-	return columnMetadataList
-}
-
-// handleSpecialColumn() retrieves metadata for special columns.
-//
-// Parameters:
-//   - columnsMap: column info for a given table.
-//   - columnName: column name for which the metadata is required.
-//   - index: Index for the column
-//
-// Returns:
-// - Pointers to ColumnMetadata structs containing metadata for each requested column.
-// - An error
-func handleSpecialColumn(columnsMap map[types.ColumnName]*types.Column, columnName types.ColumnName, index int32, isWriteTimeFunction bool) (*message.ColumnMetadata, error) {
-	// Validate if the column is a special column
-	if !isSpecialColumn(columnName) && !isWriteTimeFunction {
-		return nil, fmt.Errorf("invalid special column: %s", columnName)
-	}
-
-	// Retrieve the first available column in the map
-	var columnMd *message.ColumnMetadata
-	for _, column := range columnsMap {
-		columnMd = column.Metadata.Clone()
-		columnMd.Index = index
-		columnMd.Name = string(columnName)
-		columnMd.Type = datatype.Bigint
-		break
-	}
-
-	// No matching column found
-	if columnMd == nil {
-		return nil, fmt.Errorf("special column %s not found in provided metadata", columnName)
-	}
-
-	return columnMd, nil
-}
-
 // cloneColumnMetadata() clones the metadata from cache.
 //
 // Parameters:
@@ -113,17 +57,6 @@ func cloneColumnMetadata(metadata *message.ColumnMetadata, index int32) *message
 	columnMd := metadata.Clone()
 	columnMd.Index = index
 	return columnMd
-}
-
-// isSpecialColumn() to check if its a special column.
-//
-// Parameters:
-//   - columnName: name of special column
-//
-// Returns:
-// - boolean
-func isSpecialColumn(columnName types.ColumnName) bool {
-	return columnName == LimitValue
 }
 
 // sortPrimaryKeys sorts the primary key columns of each table based on their precedence.

@@ -17,6 +17,7 @@ package schemaMapping
 
 import (
 	"fmt"
+	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/translator"
 	"reflect"
 	"testing"
 
@@ -128,12 +129,12 @@ func Test_GetColumn(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			tc, err := tt.fields.GetTableConfig("keyspace", tt.args.tableName)
+			tc, err := tt.fields.GetTableConfig("keyspace", types.TableName(tt.args.tableName))
 			if err != nil {
 				t.Errorf("table config error: %v", err)
 				return
 			}
-			got, err := tc.GetColumn(tt.args.columnName)
+			got, err := tc.GetColumn(types.ColumnName(tt.args.columnName))
 			if tt.wantErr {
 				assert.Error(t, err)
 			} else {
@@ -142,251 +143,6 @@ func Test_GetColumn(t *testing.T) {
 				assert.Equal(t, tt.want.ColumnFamily, got.ColumnFamily)
 				assert.Equal(t, tt.want.IsPrimaryKey, got.IsPrimaryKey)
 				assert.Equal(t, tt.want.CQLType, got.CQLType)
-			}
-		})
-	}
-}
-
-func Test_GetMetadataForColumns(t *testing.T) {
-	tests := []struct {
-		name   string
-		fields *SchemaMappingConfig
-		args   struct {
-			tableName   string
-			columnNames []string
-		}
-		want    []*message.ColumnMetadata
-		wantErr bool
-	}{
-		{
-			name:   "Success - Single regular column",
-			fields: getSchemaMappingConfig(),
-			args: struct {
-				tableName   string
-				columnNames []string
-			}{
-				tableName:   "table1",
-				columnNames: []string{"column1"},
-			},
-			want:    expectedResponse,
-			wantErr: false,
-		},
-		{
-			name:   "Success - Multiple regular columns",
-			fields: getSchemaMappingConfig(),
-			args: struct {
-				tableName   string
-				columnNames []string
-			}{
-				tableName:   "table1",
-				columnNames: []string{"column1", "column2"},
-			},
-			want: []*message.ColumnMetadata{
-				{Name: "column1", Type: datatype.Varchar, Index: 0},
-				{Name: "column2", Type: datatype.Int, Index: 1},
-			},
-			wantErr: false,
-		},
-		{
-			name:   "Success - Special column (LimitValue)",
-			fields: getSchemaMappingConfig(),
-			args: struct {
-				tableName   string
-				columnNames []string
-			}{
-				tableName:   "table1",
-				columnNames: []string{LimitValue},
-			},
-			want: []*message.ColumnMetadata{
-				{
-					Type:  datatype.Bigint,
-					Index: 0,
-					Name:  LimitValue,
-				},
-			},
-			wantErr: false,
-		},
-		{
-			name:   "Success - Mixed column types",
-			fields: getSchemaMappingConfig(),
-			args: struct {
-				tableName   string
-				columnNames []string
-			}{
-				tableName:   "table1",
-				columnNames: []string{"column1", LimitValue},
-			},
-			want: []*message.ColumnMetadata{
-				{Type: datatype.Varchar, Index: 0, Name: "column1"},
-				{
-					Type:  datatype.Bigint,
-					Index: 1,
-					Name:  LimitValue,
-				},
-			},
-			wantErr: false,
-		},
-		{
-			name:   "Error - types.Column not found in metadata",
-			fields: getSchemaMappingConfig(),
-			args: struct {
-				tableName   string
-				columnNames []string
-			}{
-				tableName:   "table1",
-				columnNames: []string{"nonexistent_column"},
-			},
-			want:    nil,
-			wantErr: true,
-		},
-		{
-			name:   "Empty column names",
-			fields: getSchemaMappingConfig(),
-			args: struct {
-				tableName   string
-				columnNames []string
-			}{
-				tableName:   "table1",
-				columnNames: []string{},
-			},
-			want: []*message.ColumnMetadata{
-				{Keyspace: "keyspace", Name: "column1", Table: "table1", Type: datatype.Varchar, Index: 0},
-				{Keyspace: "keyspace", Name: "column2", Table: "table1", Type: datatype.Int, Index: 1},
-			},
-			wantErr: false,
-		},
-		{
-			name:   "Success - Multiple special columns",
-			fields: getSchemaMappingConfig(),
-			args: struct {
-				tableName   string
-				columnNames []string
-			}{
-				tableName:   "table1",
-				columnNames: []string{LimitValue, LimitValue},
-			},
-			want: []*message.ColumnMetadata{
-				{
-					Type:  datatype.Bigint,
-					Index: 0,
-					Name:  LimitValue,
-				},
-				{
-					Type:  datatype.Bigint,
-					Index: 1,
-					Name:  LimitValue,
-				},
-			},
-			wantErr: false,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			tc, err := tt.fields.GetTableConfig("keyspace", tt.args.tableName)
-			if err != nil {
-				t.Errorf("table config error: %v", err)
-				return
-			}
-			got, err := tc.GetMetadataForColumns(tt.args.columnNames)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("GetMetadataForColumns() error = %v, wantErr %v", err, tt.wantErr)
-				return
-			}
-
-			// Compare metadata content instead of memory addresses
-			if tt.want == nil {
-				assert.Nil(t, got)
-			} else {
-				assert.NotNil(t, got)
-				assert.Equal(t, len(tt.want), len(got))
-
-				for i, expected := range tt.want {
-					assert.Equal(t, expected.Type, got[i].Type)
-					assert.Equal(t, expected.Index, got[i].Index)
-					assert.Equal(t, expected.Name, got[i].Name)
-				}
-			}
-		})
-	}
-}
-
-func Test_GetMetadataForSelectedColumns(t *testing.T) {
-	tests := []struct {
-		name   string
-		fields *SchemaMappingConfig
-		args   struct {
-			tableName   string
-			columnNames []translator.SelectedColumn
-			keySpace    string
-		}
-		want    []*message.ColumnMetadata
-		wantErr bool
-	}{
-		{
-			name:   "Successfully retrieve metadata for specific column",
-			fields: getSchemaMappingConfig(),
-			args: struct {
-				tableName   string
-				columnNames []translator.SelectedColumn
-				keySpace    string
-			}{
-				tableName:   "table1",
-				columnNames: []translator.SelectedColumn{{Name: "column1"}},
-				keySpace:    "keyspace",
-			},
-			want:    expectedResponse,
-			wantErr: false,
-		},
-		{
-			name:   "Return all columns when no specific columns provided",
-			fields: getSchemaMappingConfig(),
-			args: struct {
-				tableName   string
-				columnNames []translator.SelectedColumn
-				keySpace    string
-			}{
-				tableName:   "table1",
-				columnNames: []translator.SelectedColumn{},
-				keySpace:    "keyspace",
-			},
-			want: []*message.ColumnMetadata{
-				{Keyspace: "keyspace", Name: "column1", Table: "table1", Type: datatype.Varchar, Index: 0},
-				{Keyspace: "keyspace", Name: "column2", Table: "table1", Type: datatype.Int, Index: 1},
-			},
-			wantErr: false,
-		},
-		{
-			name:   "Error when column is not found",
-			fields: getSchemaMappingConfig(),
-			args: struct {
-				tableName   string
-				columnNames []translator.SelectedColumn
-				keySpace    string
-			}{
-				tableName:   "table1",
-				columnNames: []translator.SelectedColumn{{Name: "nonexistent_column"}},
-				keySpace:    "keyspace",
-			},
-			want:    nil,
-			wantErr: true,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			tc, err := tt.fields.GetTableConfig("keyspace", tt.args.tableName)
-			if err != nil {
-				t.Errorf("table config error: %v", err)
-				return
-			}
-			got, err := tc.GetMetadataForSelectedColumns(tt.args.columnNames)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("GetMetadataForSelectedColumns() error = %v, wantErr %v", err, tt.wantErr)
-				return
-			}
-			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("GetMetadataForSelectedColumns() = %v, want %v", got, tt.want)
 			}
 		})
 	}

@@ -27,7 +27,7 @@ import (
 	"strconv"
 )
 
-func (t *Translator) PrepareUpdate(query string, isPreparedQuery bool, sessionKeyspace types.Keyspace) (*PreparedUpdateQuery, *BigtableWriteMutation, error) {
+func (t *Translator) TranslateUpdate(query string, sessionKeyspace types.Keyspace, isPreparedQuery bool) (*PreparedUpdateQuery, *BigtableWriteMutation, error) {
 	lexer := cql.NewCqlLexer(antlr.NewInputStream(query))
 	stream := antlr.NewCommonTokenStream(lexer, antlr.TokenDefaultChannel)
 	p := cql.NewCqlParser(stream)

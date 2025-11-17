@@ -1045,7 +1045,7 @@ func (btc *BigtableClient) LoadConfigs(schemaConfig *schemaMapping.SchemaMapping
 
 // PrepareStatement prepares a query for execution using the bigtable SQL client.
 func (btc *BigtableClient) PrepareStatement(ctx context.Context, query *translator.PreparedSelectQuery) (*bigtable.PreparedStatement, error) {
-	client, err := btc.getClient(query.Keyspace)
+	client, err := btc.getClient(query.Keyspace())
 	if err != nil {
 		return nil, err
 	}

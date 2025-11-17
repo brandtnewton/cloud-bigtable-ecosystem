@@ -68,10 +68,10 @@ func unixToISO(unixTimestamp int64) string {
 }
 
 // GetSystemQueryMetadataCache converts structured metadata rows into a SystemQueryMetadataCache.
-// It encodes keyspace, table, and column metadata into a format compatible with Cassandra system queries.
+// It encodes sessionKeyspace, table, and column metadata into a format compatible with Cassandra system queries.
 //
 // Parameters:
-// - keyspaceMetadataRows: Slice of keyspace metadata in [][]interface{} format.
+// - keyspaceMetadataRows: Slice of sessionKeyspace metadata in [][]interface{} format.
 // - tableMetadataRows: Slice of table metadata in [][]interface{} format.
 // - columnsMetadataRows: Slice of column metadata in [][]interface{} format.
 //
@@ -104,7 +104,7 @@ func getSystemQueryMetadataCache(keyspaceMetadataRows, tableMetadataRows, column
 	return systemQueryMetadataCache, nil
 }
 
-// getKeyspaceMetadata converts table metadata into keyspace metadata rows
+// getKeyspaceMetadata converts table metadata into sessionKeyspace metadata rows
 func getKeyspaceMetadata(tableMetadata map[types.Keyspace]map[types.TableName]*schemaMapping.TableConfig) [][]interface{} {
 	// Replication settings for system and example keyspaces, matching Cassandra output
 	replicationMap := map[types.Keyspace]map[string]string{
@@ -123,7 +123,7 @@ func getKeyspaceMetadata(tableMetadata map[types.Keyspace]map[types.TableName]*s
 		if val, ok := replicationMap[keyspace]; ok {
 			repl = val
 		}
-		// Add keyspace metadata
+		// Add sessionKeyspace metadata
 		keyspaceMetadataRows = append(keyspaceMetadataRows, []interface{}{
 			keyspace, true, repl,
 		})
@@ -170,7 +170,7 @@ func getColumnMetadata(tableMetadata map[types.Keyspace]map[types.TableName]*sch
 			}
 		}
 	}
-	// sort by keyspace, table name and column name for deterministic output
+	// sort by sessionKeyspace, table name and column name for deterministic output
 	slices.SortFunc(columnsMetadataRows, func(a, b []interface{}) int {
 		if res := strings.Compare(a[0].(string), b[0].(string)); res != 0 {
 			return res

@@ -418,7 +418,7 @@ func Test_handleExecutionForDeletePreparedQuery(t *testing.T) {
 				ctx:                 tt.fields.ctx,
 				proxy:               tt.fields.proxy,
 				conn:                tt.fields.conn,
-				keyspace:            tt.fields.keyspace,
+				sessionKeyspace:     tt.fields.keyspace,
 				preparedSystemQuery: tt.fields.preparedSystemQuery,
 				preparedQueries:     tt.fields.preparedQuerys,
 				sender:              mockSender,
@@ -523,7 +523,7 @@ func Test_client_handlePrepare(t *testing.T) {
 		Query: "SELECT * FROM system.local WHERE key = 'local'",
 	}
 	useQuery := &message.Prepare{
-		Query: "USE keyspace",
+		Query: "USE sessionKeyspace",
 	}
 	invalidQuery := &message.Prepare{
 		Query: "INVALID QUERY",
@@ -625,7 +625,7 @@ var mockTableSchemaConfig = schemaMapping.NewSchemaMappingConfig(
 	zap.NewNop(),
 	[]*schemaMapping.TableConfig{
 		schemaMapping.NewTableConfig(
-			"keyspace",
+			"sessionKeyspace",
 			"test_table",
 			"cf1", // SystemColumnFamily from the original struct
 			types.OrderedCodeEncoding,
@@ -639,7 +639,7 @@ var mockTableSchemaConfig = schemaMapping.NewSchemaMappingConfig(
 			},
 		),
 		schemaMapping.NewTableConfig(
-			"keyspace",
+			"sessionKeyspace",
 			"user_info",
 			"cf1", // Assuming a default column family
 			types.OrderedCodeEncoding,
@@ -2158,8 +2158,8 @@ func TestHandleDescribeTables(t *testing.T) {
 				"system_virtual_schema.keyspaces",
 				"system_virtual_schema.tables",
 				"system_virtual_schema.metaDataColumns",
-				"keyspace.test_table",
-				"keyspace.user_info",
+				"sessionKeyspace.test_table",
+				"sessionKeyspace.user_info",
 			},
 		},
 	}

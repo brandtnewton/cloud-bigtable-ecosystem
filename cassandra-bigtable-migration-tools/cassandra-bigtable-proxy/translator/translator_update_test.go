@@ -599,7 +599,7 @@ func TestTranslator_TranslateUpdateQuerytoBigtable(t *testing.T) {
 				Logger:              tt.fields.Logger,
 				SchemaMappingConfig: schemaMappingConfig,
 			}
-			got, err := tr.PrepareUpdate(tt.args.query, false, tt.sessionKeyspace)
+			got, err := tr.TranslateUpdate(tt.args.query, false, tt.sessionKeyspace)
 			if tt.wantErr != NO_ERROR_EXPECTED {
 				require.Error(t, err)
 				assert.Contains(t, err.Error(), tt.wantErr)

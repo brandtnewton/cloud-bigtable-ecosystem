@@ -63,14 +63,34 @@ const (
 	AssignIndex  AssignmentOperation = "update_index"
 )
 
-// Assignment represents a complex update operation on a column.
-// It contains the column name, operation type, and left/right operands for the operation.
-//type Assignment struct {
-//	Column    types.ColumnName
-//	Operation AssignmentOperation
-//	IsPrepend bool
-//	Values     interface{}
-//}
+func (t *Translator) TranslateQuery(queryType, query string, isPrepared bool, sessionKeyspace types.Keyspace) (IPreparedQuery, IBoundQuery, error) {
+	switch queryType {
+	case "select":
+		return t.TranslateSelect(query, sessionKeyspace, isPrepared)
+	case "insert":
+		return t.TranslateInsert(query, sessionKeyspace, isPrepared)
+	case "update":
+		return t.TranslateUpdate(query, sessionKeyspace, isPrepared)
+	case "delete":
+		return t.TranslateDelete(query, sessionKeyspace, isPrepared)
+	default:
+		return nil, nil, fmt.Errorf("unhandled query type '%s'", queryType)
+	}
+}
+func (t *Translator) BindQuery(st IPreparedQuery, cassandraValues []*primitive.Value, pv primitive.ProtocolVersion) (IBoundQuery, error) {
+	switch v := st.(type) {
+	case *PreparedSelectQuery:
+		return t.BindSelect(v, cassandraValues, pv)
+	case *PreparedInsertQuery:
+		return t.BindInsert(v, cassandraValues, pv)
+	case *PreparedUpdateQuery:
+		return t.BindUpdate(v, cassandraValues, pv)
+	case *PreparedDeleteQuery:
+		return t.BindDelete(v, cassandraValues, pv)
+	default:
+		return nil, fmt.Errorf("unhandled query type '%T'", st)
+	}
+}
 
 type Assignment interface {
 	Column() *types.Column
@@ -333,7 +353,7 @@ func parseWhereClause(input cql.IWhereSpecContext, tableConfig *schemaMapping.Ta
 		}
 
 		if val.OPERATOR_EQ() != nil {
-			p := params.PushParameter(column.Name, column.CQLType)
+			p := params.PushParameter(column, column.CQLType)
 			conditions = append(conditions, Condition{
 				Column:           column,
 				Operator:         constants.EQ,
@@ -350,7 +370,7 @@ func parseWhereClause(input cql.IWhereSpecContext, tableConfig *schemaMapping.Ta
 				}
 			}
 		} else if val.OPERATOR_GT() != nil {
-			p := params.PushParameter(column.Name, column.CQLType)
+			p := params.PushParameter(column, column.CQLType)
 			conditions = append(conditions, Condition{
 				Column:           column,
 				Operator:         constants.GT,
@@ -367,7 +387,7 @@ func parseWhereClause(input cql.IWhereSpecContext, tableConfig *schemaMapping.Ta
 				}
 			}
 		} else if val.OPERATOR_LT() != nil {
-			p := params.PushParameter(column.Name, column.CQLType)
+			p := params.PushParameter(column, column.CQLType)
 			conditions = append(conditions, Condition{
 				Column:           column,
 				Operator:         constants.LT,
@@ -384,7 +404,7 @@ func parseWhereClause(input cql.IWhereSpecContext, tableConfig *schemaMapping.Ta
 				}
 			}
 		} else if val.OPERATOR_GTE() != nil {
-			p := params.PushParameter(column.Name, column.CQLType)
+			p := params.PushParameter(column, column.CQLType)
 			conditions = append(conditions, Condition{
 				Column:           column,
 				Operator:         constants.GTE,
@@ -401,7 +421,7 @@ func parseWhereClause(input cql.IWhereSpecContext, tableConfig *schemaMapping.Ta
 				}
 			}
 		} else if val.OPERATOR_LTE() != nil {
-			p := params.PushParameter(column.Name, column.CQLType)
+			p := params.PushParameter(column, column.CQLType)
 			conditions = append(conditions, Condition{
 				Column:           column,
 				Operator:         constants.LTE,
@@ -418,7 +438,7 @@ func parseWhereClause(input cql.IWhereSpecContext, tableConfig *schemaMapping.Ta
 				}
 			}
 		} else if val.KwIn() != nil {
-			p := params.PushParameter(column.Name, column.CQLType)
+			p := params.PushParameter(column, column.CQLType)
 			conditions = append(conditions, Condition{
 				Column:           column,
 				Operator:         constants.IN,
@@ -460,7 +480,7 @@ func parseWhereClause(input cql.IWhereSpecContext, tableConfig *schemaMapping.Ta
 				return nil, errors.New("CONTAINS are only supported for set and list")
 			}
 
-			p := params.PushParameter(column.Name, elementType)
+			p := params.PushParameter(column, elementType)
 			conditions = append(conditions, Condition{
 				Column:           column,
 				Operator:         operator,
@@ -482,7 +502,7 @@ func parseWhereClause(input cql.IWhereSpecContext, tableConfig *schemaMapping.Ta
 				return nil, errors.New("CONTAINS KEY are only supported for map")
 			}
 			keyType := column.CQLType.(types.MapType).KeyType()
-			p := params.PushParameter(column.Name, keyType)
+			p := params.PushParameter(column, keyType)
 			conditions = append(conditions, Condition{
 				Column:           column,
 				Operator:         constants.MAP_CONTAINS_KEY,
@@ -499,7 +519,7 @@ func parseWhereClause(input cql.IWhereSpecContext, tableConfig *schemaMapping.Ta
 				}
 			}
 		} else if val.KwLike() != nil {
-			p := params.PushParameter(column.Name, column.CQLType)
+			p := params.PushParameter(column, column.CQLType)
 			conditions = append(conditions, Condition{
 				Column:           column,
 				Operator:         constants.LIKE,
@@ -516,7 +536,7 @@ func parseWhereClause(input cql.IWhereSpecContext, tableConfig *schemaMapping.Ta
 				}
 			}
 		} else if val.KwBetween() != nil {
-			p := params.PushParameter(column.Name, column.CQLType)
+			p := params.PushParameter(column, column.CQLType)
 			conditions = append(conditions, Condition{
 				Column:           column,
 				Operator:         constants.BETWEEN,
@@ -601,31 +621,6 @@ func parseColumn(tableConfig *schemaMapping.TableConfig, e cql.IRelationElementC
 	} else {
 		return nil, fmt.Errorf("unable to determine column from clause")
 	}
-}
-
-// getTimestampValue extracts timestamp value from a query.
-// Parses timestamp specifications in USING TIMESTAMP clauses with validation.
-// Returns error if timestamp format is invalid or parsing fails.
-func getTimestampValue(spec cql.IUsingTtlTimestampContext) (string, error) {
-	if spec == nil {
-		return "", errors.New("invalid input")
-	}
-
-	spec.KwUsing()
-	tsSpec := spec.Timestamp()
-
-	if tsSpec == nil {
-		return questionMark, nil
-	}
-	tsSpec.KwTimestamp()
-	valLiteral := tsSpec.DecimalLiteral()
-
-	if valLiteral == nil {
-		return "", errors.New("no value found for Timestamp")
-	}
-
-	resp := trimQuotes(valLiteral.GetText())
-	return resp, nil
 }
 
 func trimQuotes(s string) string {
@@ -823,7 +818,7 @@ func getAllObjectNames(fromSpec cql.IFromSpecElementContext) ([]antlr.TerminalNo
 // getTableAndKeyspaceObjects extracts table and keyspace names.
 // Parses and returns the table and keyspace names from object names with validation.
 // Returns error if names are invalid or parsing fails.
-func getTableAndKeyspaceObjects(allObj []antlr.TerminalNode) (string, string, error) {
+func getTableAndKeyspaceObjects(allObj []antlr.TerminalNode) (types.Keyspace, types.TableName, error) {
 	var keyspaceName, tableName string
 
 	if len(allObj) == 2 {
@@ -840,7 +835,7 @@ func getTableAndKeyspaceObjects(allObj []antlr.TerminalNode) (string, string, er
 		return "", "", fmt.Errorf("table is missing")
 	}
 
-	return keyspaceName, tableName, nil
+	return types.Keyspace(keyspaceName), types.TableName(tableName), nil
 }
 
 // NewCqlParser creates a new CQL parser instance.

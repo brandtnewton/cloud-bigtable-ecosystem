@@ -19,6 +19,7 @@ package parser
 
 import (
 	"errors"
+	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/global/types"
 )
 
 type Selector interface {
@@ -75,8 +76,8 @@ func (u UseStatement) isStatement() {}
 type DescribeStatement struct {
 	Keyspaces    bool
 	Tables       bool
-	TableName    string
-	KeyspaceName string
+	TableName    types.TableName
+	KeyspaceName types.Keyspace
 }
 
 func (d DescribeStatement) isStatement() {}

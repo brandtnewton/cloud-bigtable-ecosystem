@@ -64,7 +64,7 @@ func parseTableFromDelete(input cql.IFromSpecContext) (*TableObj, error) {
 	return &response, nil
 }
 
-func (t *Translator) TranslateDelete(query string, isPreparedQuery bool, sessionKeyspace string) (*PreparedDeleteQuery, *BoundDeleteQuery, error) {
+func (t *Translator) TranslateDelete(query string, sessionKeyspace types.Keyspace, isPreparedQuery bool) (*PreparedDeleteQuery, *BoundDeleteQuery, error) {
 	lexer := cql.NewCqlLexer(antlr.NewInputStream(query))
 	stream := antlr.NewCommonTokenStream(lexer, antlr.TokenDefaultChannel)
 	p := cql.NewCqlParser(stream)
@@ -132,9 +132,9 @@ func (t *Translator) TranslateDelete(query string, isPreparedQuery bool, session
 	}
 
 	st := &PreparedDeleteQuery{
-		Query:           query,
-		Table:           tableName,
-		Keyspace:        keyspaceName,
+		cqlQuery:        query,
+		table:           tableName,
+		keyspace:        keyspaceName,
 		Conditions:      conditions,
 		Params:          params,
 		IfExists:        ifExist,
@@ -171,7 +171,7 @@ func (t *Translator) BindDelete(st *PreparedDeleteQuery, cassandraValues []*prim
 }
 
 func (t *Translator) doBindDelete(st *PreparedDeleteQuery, values *QueryParameterValues) (*BoundDeleteQuery, error) {
-	tableConfig, err := t.SchemaMappingConfig.GetTableConfig(st.Keyspace, st.Table)
+	tableConfig, err := t.SchemaMappingConfig.GetTableConfig(st.Keyspace(), st.Table())
 	if err != nil {
 		return nil, err
 	}
@@ -186,10 +186,10 @@ func (t *Translator) doBindDelete(st *PreparedDeleteQuery, values *QueryParamete
 		return nil, err
 	}
 	return &BoundDeleteQuery{
-		Keyspace: st.Keyspace,
-		Table:    st.Table,
+		keyspace: st.Keyspace(),
+		table:    st.Table(),
 		IfExists: st.IfExists,
-		RowKey:   rowKey,
+		rowKey:   rowKey,
 		Columns:  cols,
 	}, nil
 }

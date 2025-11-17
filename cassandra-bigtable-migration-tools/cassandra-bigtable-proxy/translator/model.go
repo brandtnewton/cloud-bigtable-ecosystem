@@ -67,6 +67,10 @@ type BoundSelectQuery struct {
 	Values          *QueryParameterValues
 }
 
+func (b BoundSelectQuery) SelectedColumns() []SelectedColumn {
+	return b.Query.SelectedColumns
+}
+
 func (b BoundSelectQuery) Keyspace() types.Keyspace {
 	return b.Query.Keyspace()
 }
@@ -113,6 +117,7 @@ const (
 type IBoundQuery interface {
 	Keyspace() types.Keyspace
 	Table() types.TableName
+	SelectedColumns() []SelectedColumn
 }
 type IPreparedQuery interface {
 	Keyspace() types.Keyspace
@@ -181,7 +186,6 @@ type CreateTablePrimaryKeyConfig struct {
 }
 
 type AlterTableStatementMap struct {
-	QueryType   string
 	Keyspace    types.Keyspace
 	Table       types.TableName
 	IfNotExists bool
@@ -190,16 +194,14 @@ type AlterTableStatementMap struct {
 }
 
 type DropTableStatementMap struct {
-	QueryType string
-	Keyspace  types.Keyspace
-	Table     types.TableName
-	IfExists  bool
+	Keyspace types.Keyspace
+	Table    types.TableName
+	IfExists bool
 }
 
 type TruncateTableStatementMap struct {
-	QueryType string
-	Keyspace  types.Keyspace
-	Table     types.TableName
+	Keyspace types.Keyspace
+	Table    types.TableName
 }
 
 type PreparedUpdateQuery struct {
@@ -284,6 +286,10 @@ type BoundDeleteQuery struct {
 	Columns  []BoundSelectColumn
 }
 
+func (b BoundDeleteQuery) SelectedColumns() []SelectedColumn {
+	return nil
+}
+
 func (b BoundDeleteQuery) Keyspace() types.Keyspace {
 	return b.keyspace
 }
@@ -309,6 +315,10 @@ type BigtableWriteMutation struct {
 	CounterOps            []BigtableCounterOp
 	SetIndexOps           []BigtableSetIndexOp
 	DeleteListElementsOps []BigtableDeleteListElementsOp
+}
+
+func (b BigtableWriteMutation) SelectedColumns() []SelectedColumn {
+	return nil
 }
 
 func (b BigtableWriteMutation) Keyspace() types.Keyspace {

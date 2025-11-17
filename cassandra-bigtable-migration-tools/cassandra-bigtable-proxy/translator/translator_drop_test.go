@@ -149,7 +149,7 @@ func TestTranslateDropTableToBigtable(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := tr.TranslateDropTableToBigtable(tt.query, tt.defaultKeyspace)
+			got, err := tr.TranslateDrop(tt.query, tt.defaultKeyspace)
 			if tt.hasError {
 				assert.Error(t, err)
 			} else {

@@ -22,6 +22,7 @@ import (
 	types "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/global/types"
 	schemaMapping "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/schema-mapping"
 	cql "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/third_party/cqlparser"
+	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/utilities"
 	"github.com/antlr4-go/antlr/v4"
 	"github.com/datastax/go-cassandra-native-protocol/primitive"
 )
@@ -62,16 +63,20 @@ func parseInsertColumns(input cql.IInsertColumnSpecContext, tableConfig *schemaM
 		}
 		assignments = append(assignments, &ComplexAssignmentSet{
 			column: col,
-			Value:  params.PushParameter(col.Name, col.CQLType),
+			Value:  params.PushParameter(col, col.CQLType),
 		})
 	}
 
 	return assignments, nil
 }
 
-func parseInsertValues(input cql.IInsertValuesSpecContext, columns []Assignment, params *QueryParameters, values *QueryParameterValues) error {
+func parseInsertValues(input cql.IInsertValuesSpecContext, columns []Assignment, params *QueryParameters, values *QueryParameterValues, isPrepared bool) error {
 	if input == nil {
 		return errors.New("insert values clause missing or malformed")
+	}
+
+	if isPrepared {
+		return nil
 	}
 
 	valuesExpressionList := input.ExpressionList()
@@ -90,19 +95,13 @@ func parseInsertValues(input cql.IInsertValuesSpecContext, columns []Assignment,
 	}
 
 	for i, value := range allValues {
-		if value.GetText() == "?" {
-			continue
-		}
-
 		column := columns[i].Column()
 		placeholder, ok := params.GetPlaceholderForColumn(column.Name)
 		if !ok {
 			return fmt.Errorf("unhandled error: missing parameter for column '%s'", column.Name)
 		}
 
-		// todo this function doesn't handle collections
-		val, err := stringToGo(trimQuotes(value.GetText()), column.CQLType.DataType())
-
+		val, err := utilities.StringToGo(trimQuotes(value.GetText()), column.CQLType.DataType())
 		err = values.SetValue(placeholder, val)
 		if err != nil {
 			return err
@@ -112,7 +111,7 @@ func parseInsertValues(input cql.IInsertValuesSpecContext, columns []Assignment,
 	return nil
 }
 
-// TranslateInsertQuery() parses Columns from the Insert CqlQuery
+// TranslateInsert() parses Columns from the Insert CqlQuery
 //
 // Parameters:
 //   - queryStr: Read the query, parse its columns, values, table name, type of query and keyspaces etc.
@@ -121,7 +120,7 @@ func parseInsertValues(input cql.IInsertValuesSpecContext, columns []Assignment,
 // Returns: PreparedInsertQuery, build the PreparedInsertQuery and return it with nil value of error. In case of error
 // PreparedInsertQuery will return as nil and error will contains the error object
 
-func (t *Translator) TranslateInsertQuery(query string, isPreparedQuery bool, sessionKeyspace string) (*PreparedInsertQuery, *BigtableWriteMutation, error) {
+func (t *Translator) TranslateInsert(query string, sessionKeyspace types.Keyspace, isPreparedQuery bool) (*PreparedInsertQuery, *BigtableWriteMutation, error) {
 	lexer := cql.NewCqlLexer(antlr.NewInputStream(query))
 	stream := antlr.NewCommonTokenStream(lexer, antlr.TokenDefaultChannel)
 	p := cql.NewCqlParser(stream)
@@ -138,18 +137,18 @@ func (t *Translator) TranslateInsertQuery(query string, isPreparedQuery bool, se
 	keyspace := insertObj.Keyspace()
 	table := insertObj.Table()
 
-	var keyspaceName string
+	var keyspaceName types.Keyspace
 	if keyspace != nil && keyspace.OBJECT_NAME() != nil && keyspace.OBJECT_NAME().GetText() != "" {
-		keyspaceName = keyspace.OBJECT_NAME().GetText()
+		keyspaceName = types.Keyspace(keyspace.OBJECT_NAME().GetText())
 	} else if sessionKeyspace != "" {
 		keyspaceName = sessionKeyspace
 	} else {
 		return nil, nil, fmt.Errorf("invalid input parameters found for keyspace")
 	}
 
-	var tableName string
+	var tableName types.TableName
 	if table != nil && table.OBJECT_NAME() != nil && table.OBJECT_NAME().GetText() != "" {
-		tableName = table.OBJECT_NAME().GetText()
+		tableName = types.TableName(table.OBJECT_NAME().GetText())
 	} else {
 		return nil, nil, fmt.Errorf("invalid input paramaters found for table")
 	}
@@ -169,7 +168,7 @@ func (t *Translator) TranslateInsertQuery(query string, isPreparedQuery bool, se
 		return nil, nil, err
 	}
 
-	err = parseInsertValues(insertObj.InsertValuesSpec(), assignments, params, values)
+	err = parseInsertValues(insertObj.InsertValuesSpec(), assignments, params, values, isPreparedQuery)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -185,9 +184,9 @@ func (t *Translator) TranslateInsertQuery(query string, isPreparedQuery bool, se
 	}
 
 	st := &PreparedInsertQuery{
-		CqlQuery:    query,
-		Keyspace:    keyspaceName,
-		Table:       tableName,
+		cqlQuery:    query,
+		keyspace:    keyspaceName,
+		table:       tableName,
 		Params:      params,
 		Assignments: assignments,
 		IfNotExists: ifNotExists,
@@ -221,7 +220,7 @@ func (t *Translator) BindInsert(st *PreparedInsertQuery, cassandraValues []*prim
 }
 
 func (t *Translator) doBindInsert(st *PreparedInsertQuery, values *QueryParameterValues) (*BigtableWriteMutation, error) {
-	tableConfig, err := t.SchemaMappingConfig.GetTableConfig(st.Keyspace, st.Table)
+	tableConfig, err := t.SchemaMappingConfig.GetTableConfig(st.Keyspace(), st.Table())
 	if err != nil {
 		return nil, err
 	}
@@ -232,7 +231,7 @@ func (t *Translator) doBindInsert(st *PreparedInsertQuery, values *QueryParamete
 	}
 
 	mutations := BigtableWriteMutation{
-		RowKey: rowKey,
+		rowKey: rowKey,
 	}
 	err = BindMutations(st.Assignments, values, &mutations)
 	if err != nil {

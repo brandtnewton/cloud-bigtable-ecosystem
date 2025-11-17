@@ -69,7 +69,7 @@ func (m *MockResponseHandler) BuildResponseForSystemQueries(rows [][]interface{}
 func TestGetSystemQueryMetadataCache_Success(t *testing.T) {
 	protocolVersion := primitive.ProtocolVersion4
 
-	// Sample metadata rows for keyspace, table, and metaDataColumns
+	// Sample metadata rows for sessionKeyspace, table, and metaDataColumns
 	keyspaceMetadata := [][]interface{}{
 		{"keyspace1", true, map[string]string{"class": "SimpleStrategy", "replication_factor": "1"}},
 	}
@@ -92,7 +92,7 @@ func TestGetSystemQueryMetadataCache_Success(t *testing.T) {
 	assert.NotEmpty(t, result.ColumnsSystemQueryMetadataCache[protocolVersion])
 }
 
-// Test case: Failure in keyspace metadata conversion
+// Test case: Failure in sessionKeyspace metadata conversion
 func TestGetSystemQueryMetadataCache_KeyspaceFailure(t *testing.T) {
 	protocolVersion := primitive.ProtocolVersion4
 
@@ -107,7 +107,7 @@ func TestGetSystemQueryMetadataCache_KeyspaceFailure(t *testing.T) {
 	result, err := getSystemQueryMetadataCache(keyspaceMetadata, tableMetadata, columnMetadata)
 
 	// Assertions
-	assert.Error(t, err, "Expected error for keyspace metadata failure")
+	assert.Error(t, err, "Expected error for sessionKeyspace metadata failure")
 	assert.Nil(t, result.KeyspaceSystemQueryMetadataCache[protocolVersion])
 }
 
@@ -115,7 +115,7 @@ func TestGetSystemQueryMetadataCache_KeyspaceFailure(t *testing.T) {
 func TestGetSystemQueryMetadataCache_TableFailure(t *testing.T) {
 	protocolVersion := primitive.ProtocolVersion4
 
-	// Sample metadata (valid keyspace but invalid table metadata)
+	// Sample metadata (valid sessionKeyspace but invalid table metadata)
 	keyspaceMetadata := [][]interface{}{
 		{"keyspace1", true, map[string]string{"class": "SimpleStrategy", "replication_factor": "1"}},
 	}
@@ -136,7 +136,7 @@ func TestGetSystemQueryMetadataCache_TableFailure(t *testing.T) {
 func TestGetSystemQueryMetadataCache_ColumnFailure(t *testing.T) {
 	protocolVersion := primitive.ProtocolVersion4
 
-	// Sample metadata (valid keyspace and table but invalid column metadata)
+	// Sample metadata (valid sessionKeyspace and table but invalid column metadata)
 	keyspaceMetadata := [][]interface{}{
 		{"keyspace1", true, map[string]string{"class": "SimpleStrategy", "replication_factor": "1"}},
 	}
@@ -215,7 +215,7 @@ func TestConstructSystemMetadataRows(t *testing.T) {
 			if tt.expectedEmpty {
 				// Check that we have the expected system metadata
 				if len(cache.KeyspaceSystemQueryMetadataCache) == 0 {
-					t.Error("Expected system keyspace metadata")
+					t.Error("Expected system sessionKeyspace metadata")
 				}
 				if len(cache.TableSystemQueryMetadataCache) == 0 {
 					t.Error("Expected system table metadata")
@@ -228,7 +228,7 @@ func TestConstructSystemMetadataRows(t *testing.T) {
 
 			// For non-empty metadata, verify the cache is populated
 			if len(cache.KeyspaceSystemQueryMetadataCache) == 0 {
-				t.Error("Expected non-empty keyspace metadata cache")
+				t.Error("Expected non-empty sessionKeyspace metadata cache")
 			}
 			if len(cache.TableSystemQueryMetadataCache) == 0 {
 				t.Error("Expected non-empty table metadata cache")
@@ -290,7 +290,7 @@ func TestGetKeyspaceMetadata(t *testing.T) {
 			for _, row := range result {
 				assert.Equal(t, 3, len(row), "Each row should have 3 elements")
 				keyspace := row[0].(string)
-				assert.Contains(t, tt.expectedKeyspaces, keyspace, "Unexpected keyspace: %s", keyspace)
+				assert.Contains(t, tt.expectedKeyspaces, keyspace, "Unexpected sessionKeyspace: %s", keyspace)
 				assert.True(t, row[1].(bool), "durable_writes should be true")
 				replication := row[2].(map[string]string)
 				assert.Contains(t, replication, "class", "Replication map should contain 'class'")

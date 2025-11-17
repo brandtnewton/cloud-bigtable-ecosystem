@@ -19,6 +19,7 @@ package translator
 import (
 	"errors"
 	"fmt"
+	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/global/types"
 
 	cql "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/third_party/cqlparser"
 	"github.com/antlr4-go/antlr/v4"
@@ -34,7 +35,7 @@ func (l *antlrErrorListener) SyntaxError(recognizer antlr.Recognizer, offendingS
 	l.errors = append(l.errors, msg)
 }
 
-func (t *Translator) TranslateDropTableToBigtable(query string, sessionKeyspace string) (*DropTableStatementMap, error) {
+func (t *Translator) TranslateDrop(query string, sessionKeyspace types.Keyspace) (*DropTableStatementMap, error) {
 	lexer := cql.NewCqlLexer(antlr.NewInputStream(query))
 	errListener := &antlrErrorListener{}
 	lexer.RemoveErrorListeners()
@@ -55,13 +56,15 @@ func (t *Translator) TranslateDropTableToBigtable(query string, sessionKeyspace 
 		return nil, errors.New("error while parsing drop table object")
 	}
 
-	var tableName, keyspaceName string
+	var keyspaceName types.Keyspace
+	var tableName types.TableName
 
 	if dropTableObj != nil && dropTableObj.Table() != nil && dropTableObj.Table().GetText() != "" {
-		tableName = dropTableObj.Table().GetText()
-		if !validTableName.MatchString(tableName) {
+		tableNameString := dropTableObj.Table().GetText()
+		if !validTableName.MatchString(tableNameString) {
 			return nil, fmt.Errorf("invalid table name parsed from query")
 		}
+		tableName = types.TableName(tableNameString)
 	} else {
 		return nil, fmt.Errorf("invalid input paramaters found for table")
 	}
@@ -71,7 +74,7 @@ func (t *Translator) TranslateDropTableToBigtable(query string, sessionKeyspace 
 	}
 
 	if dropTableObj != nil && dropTableObj.Keyspace() != nil && dropTableObj.Keyspace().GetText() != "" {
-		keyspaceName = dropTableObj.Keyspace().GetText()
+		keyspaceName = types.Keyspace(dropTableObj.Keyspace().GetText())
 	} else if sessionKeyspace != "" {
 		keyspaceName = sessionKeyspace
 	} else {
@@ -79,10 +82,9 @@ func (t *Translator) TranslateDropTableToBigtable(query string, sessionKeyspace 
 	}
 
 	var stmt = DropTableStatementMap{
-		Table:     tableName,
-		IfExists:  dropTableObj.IfExist() != nil,
-		Keyspace:  keyspaceName,
-		QueryType: "drop",
+		Keyspace: keyspaceName,
+		Table:    tableName,
+		IfExists: dropTableObj.IfExist() != nil,
 	}
 
 	return &stmt, nil

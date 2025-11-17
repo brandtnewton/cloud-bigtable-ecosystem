@@ -35,13 +35,13 @@ const (
 	customWriteTime = "writetime_"
 )
 
-// PrepareSelect() Translates Cassandra select statement into a compatible Cloud Bigtable select query.
+// TranslateSelect() Translates Cassandra select statement into a compatible Cloud Bigtable select query.
 //
 // Parameters:
 //   - query: CQL Select statement
 //
 // Returns: PreparedSelectQuery struct and error if any
-func (t *Translator) PrepareSelect(query string, sessionKeyspace types.Keyspace, isPreparedQuery bool, pv primitive.ProtocolVersion) (*PreparedSelectQuery, *BoundSelectQuery, error) {
+func (t *Translator) TranslateSelect(query string, sessionKeyspace types.Keyspace, isPreparedQuery bool) (*PreparedSelectQuery, *BoundSelectQuery, error) {
 	p, err := NewCqlParser(query, false)
 	if err != nil {
 		return nil, nil, err
@@ -106,10 +106,10 @@ func (t *Translator) PrepareSelect(query string, sessionKeyspace types.Keyspace,
 	}
 
 	st := &PreparedSelectQuery{
-		Query:           query,
+		cqlQuery:        query,
 		TranslatedQuery: "", // created later
-		Table:           tableName,
-		Keyspace:        keyspaceName,
+		table:           tableName,
+		keyspace:        keyspaceName,
 		ColumnMeta:      columns,
 		Conditions:      conditions,
 		OrderBy:         orderBy,
@@ -125,7 +125,7 @@ func (t *Translator) PrepareSelect(query string, sessionKeyspace types.Keyspace,
 
 	var bound *BoundSelectQuery
 	if !isPreparedQuery {
-		bound, err = t.doBindSelect(st, values, pv)
+		bound, err = t.doBindSelect(st, values, primitive.ProtocolVersion4)
 		if err != nil {
 			return nil, nil, err
 		}

@@ -673,7 +673,7 @@ func TestTranslator_TranslateInsertQuerytoBigtable(t *testing.T) {
 				Logger:              zap.NewNop(),
 				SchemaMappingConfig: tt.fields.SchemaMappingConfig,
 			}
-			got, err := tr.TranslateInsertQuery(tt.args.queryStr, tt.args.protocolV, tt.args.isPreparedQuery, "test_keyspace")
+			got, err := tr.TranslateInsert(tt.args.queryStr, tt.args.protocolV, tt.args.isPreparedQuery, "test_keyspace")
 			if tt.wantErr {
 				require.Error(t, err)
 				return

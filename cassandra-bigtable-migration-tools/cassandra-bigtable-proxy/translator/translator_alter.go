@@ -26,7 +26,7 @@ import (
 	"github.com/antlr4-go/antlr/v4"
 )
 
-func (t *Translator) TranslateAlterTableToBigtable(query, sessionKeyspace string) (*AlterTableStatementMap, error) {
+func (t *Translator) TranslateAlterTableToBigtable(query string, sessionKeyspace types.Keyspace) (*AlterTableStatementMap, error) {
 	lexer := cql.NewCqlLexer(antlr.NewInputStream(query))
 	stream := antlr.NewCommonTokenStream(lexer, antlr.TokenDefaultChannel)
 	p := cql.NewCqlParser(stream)

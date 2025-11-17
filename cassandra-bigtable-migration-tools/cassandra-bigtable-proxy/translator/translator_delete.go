@@ -95,14 +95,6 @@ func (t *Translator) TranslateDelete(query string, isPreparedQuery bool, session
 		return nil, nil, err
 	}
 
-	selectedColumns, err := parseDeleteColumns(deleteObj.DeleteColumnList(), tableConfig)
-	if err != nil {
-		return nil, nil, err
-	}
-	timestampInfo, err := GetTimestampInfoForRawDelete(deleteObj)
-	if err != nil {
-		return nil, nil, err
-	}
 	ifExistObj := deleteObj.IfExist()
 	var ifExist = false
 	if ifExistObj != nil {
@@ -115,12 +107,17 @@ func (t *Translator) TranslateDelete(query string, isPreparedQuery bool, session
 	params := types.NewQueryParameters()
 	values := types.NewQueryParameterValues(params)
 
-	whereClause, err := parseWhereByClause(deleteObj.WhereSpec(), tableConfig, params, values)
+	selectedColumns, err := parseDeleteColumns(deleteObj.DeleteColumnList(), tableConfig, params, values)
 	if err != nil {
 		return nil, nil, err
 	}
 
-	for _, condition := range whereClause.Conditions {
+	conditions, err := parseWhereClause(deleteObj.WhereSpec(), tableConfig, params, values)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	for _, condition := range conditions {
 		if condition.Operator != "=" {
 			return nil, nil, fmt.Errorf("primary key conditions can only be equals")
 		}
@@ -139,8 +136,8 @@ func (t *Translator) TranslateDelete(query string, isPreparedQuery bool, session
 		Query:           query,
 		Table:           tableName,
 		Keyspace:        keyspaceName,
-		Conditions:      whereClause.Conditions,
-		Params:          whereClause.Params,
+		Conditions:      conditions,
+		Params:          params,
 		IfExists:        ifExist,
 		SelectedColumns: selectedColumns,
 	}
@@ -183,31 +180,39 @@ func (t *Translator) doBindDelete(st *DeleteQueryMapping, values *types.QueryPar
 		return nil, err
 	}
 	return &types.BoundDeleteQuery{
-		RowKey:  rowKey,
-		Columns: cols,
+		Keyspace: st.Keyspace,
+		Table:    st.Table,
+		IfExists: st.IfExists,
+		RowKey:   rowKey,
+		Columns:  cols,
 	}, nil
 }
 
 // Parses the delete columns from a CQL DELETE statement and returns the selected columns with their associated map keys or list indices.
-func parseDeleteColumns(deleteColumns cql.IDeleteColumnListContext, tableConfig *schemaMapping.TableConfig) ([]types.SelectedColumn, error) {
+func parseDeleteColumns(deleteColumns cql.IDeleteColumnListContext, tableConfig *schemaMapping.TableConfig, params *types.QueryParameters, values *types.QueryParameterValues) ([]types.SelectedColumn, error) {
 	if deleteColumns == nil {
 		return nil, nil
 	}
 	cols := deleteColumns.AllDeleteColumnItem()
 	var columns []types.SelectedColumn
-	var decimalLiteral, stringLiteral string
 	for _, v := range cols {
 		var col types.SelectedColumn
 		col.Name = v.OBJECT_NAME().GetText()
 		if v.LS_BRACKET() != nil {
 			if v.DecimalLiteral() != nil { // for list index
-				decimalLiteral = v.DecimalLiteral().GetText()
-				col.ListIndex = decimalLiteral
-			}
-			if v.StringLiteral() != nil { //for map Key
-				stringLiteral = v.StringLiteral().GetText()
-				stringLiteral = strings.Trim(stringLiteral, "'")
-				col.MapKey = stringLiteral
+				p, err := parseDecimalLiteral(v.DecimalLiteral(), types.TypeInt, params, values)
+				if err != nil {
+					return nil, err
+				}
+				col.ListIndex = p
+			} else if v.StringLiteral() != nil { //for map Key
+				p, err := parseStringLiteral(v.StringLiteral(), params, values)
+				if err != nil {
+					return nil, err
+				}
+				col.MapKey = p
+			} else {
+				return nil, errors.New("unhandled delete column clause")
 			}
 		}
 		if !tableConfig.HasColumn(types.ColumnName(col.Name)) {

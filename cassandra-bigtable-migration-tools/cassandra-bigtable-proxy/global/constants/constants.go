@@ -16,6 +16,8 @@
 
 package constants
 
+import "github.com/datastax/go-cassandra-native-protocol/primitive"
+
 type Operator string
 
 // TODO: we need to move all the constants here.
@@ -39,4 +41,8 @@ const (
 
 const (
 	ProxyReleaseVersion = "v0.2.3"
+)
+
+const (
+	BigtableEncodingVersion = primitive.ProtocolVersion4
 )

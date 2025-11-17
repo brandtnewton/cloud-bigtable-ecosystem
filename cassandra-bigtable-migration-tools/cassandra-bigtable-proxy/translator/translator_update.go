@@ -20,15 +20,125 @@ import (
 	"errors"
 	"fmt"
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/bindings"
-	schemaMapping "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/schema-mapping"
-	"strconv"
-	"strings"
-
 	types "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/global/types"
+	schemaMapping "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/schema-mapping"
 	cql "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/third_party/cqlparser"
 	"github.com/antlr4-go/antlr/v4"
 	"github.com/datastax/go-cassandra-native-protocol/primitive"
+	"strconv"
 )
+
+func (t *Translator) PrepareUpdate(query string, isPreparedQuery bool, sessionKeyspace string) (*UpdateQueryMapping, *types.BigtableMutations, error) {
+	lexer := cql.NewCqlLexer(antlr.NewInputStream(query))
+	stream := antlr.NewCommonTokenStream(lexer, antlr.TokenDefaultChannel)
+	p := cql.NewCqlParser(stream)
+	updateObj := p.Update()
+
+	if updateObj == nil || updateObj.KwUpdate() == nil {
+		return nil, nil, errors.New("error parsing the update object")
+	}
+
+	keyspace := updateObj.Keyspace()
+	updateObj.DOT()
+	table := updateObj.Table()
+
+	var keyspaceName, tableName string
+
+	if table != nil && table.OBJECT_NAME() != nil && table.OBJECT_NAME().GetText() != "" {
+		tableName = table.OBJECT_NAME().GetText()
+	} else {
+		return nil, nil, fmt.Errorf("invalid input paramaters found for table")
+	}
+
+	if keyspace != nil && keyspace.OBJECT_NAME() != nil && keyspace.OBJECT_NAME().GetText() != "" {
+		keyspaceName = keyspace.OBJECT_NAME().GetText()
+	} else if sessionKeyspace != "" {
+		keyspaceName = sessionKeyspace
+	} else {
+		return nil, nil, fmt.Errorf("invalid input parameters found for keyspace")
+	}
+
+	tableConfig, err := t.SchemaMappingConfig.GetTableConfig(keyspaceName, tableName)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	updateObj.KwSet()
+	if updateObj.Assignments() == nil || updateObj.Assignments().AllAssignmentElement() == nil {
+		return nil, nil, errors.New("error parsing the assignment object")
+	}
+
+	assignmentObj := updateObj.Assignments()
+	allAssignmentObj := assignmentObj.AllAssignmentElement()
+	if allAssignmentObj == nil {
+		return nil, nil, errors.New("error parsing all the assignment object")
+	}
+
+	params := types.NewQueryParameters()
+	values := types.NewQueryParameterValues(params)
+
+	assignments, err := parseUpdateValues(allAssignmentObj, tableConfig, params, values)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	if updateObj.WhereSpec() != nil {
+		return nil, nil, errors.New("error parsing update where clause")
+	}
+
+	whereClause, err := parseWhereClause(updateObj.WhereSpec(), tableConfig, params, values)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	err = GetTimestampInfo(updateObj.UsingTtlTimestamp(), params, values)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	var ifExist = updateObj.IfExist() != nil
+
+	err = ValidateRequiredPrimaryKeysOnly(tableConfig, params)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	var columns []*types.Column
+	for _, assignment := range assignments {
+		columns = append(columns, assignment.Column())
+	}
+
+	st := &UpdateQueryMapping{
+		Query:    query,
+		Table:    tableName,
+		Columns:  columns,
+		IfExists: ifExist,
+		Keyspace: keyspaceName,
+		Clauses:  whereClause,
+		Params:   params,
+		Values:   assignments,
+	}
+
+	var bound *types.BigtableMutations
+	if !isPreparedQuery {
+		bound, err = t.doBindUpdate(st, values)
+		if err != nil {
+			return nil, nil, err
+		}
+	} else {
+		bound = nil
+	}
+
+	return st, bound, nil
+}
+
+func (t *Translator) BindUpdate(st *UpdateQueryMapping, cassandraValues []*primitive.Value, pv primitive.ProtocolVersion) (*types.BigtableMutations, error) {
+	values, err := bindings.BindQueryParams(st.Params, cassandraValues, pv)
+	if err != nil {
+		return nil, err
+	}
+	return t.doBindUpdate(st, values)
+}
 
 // Helper function to check if a node is a column reference
 func isColumn(node antlr.Tree, colName types.ColumnName) bool {
@@ -58,22 +168,22 @@ func isCounter(node antlr.Tree) bool {
 }
 
 // Helper function to get value from a node
-func getNodeValue(node antlr.Tree, parent antlr.ParserRuleContext) (types.GoValue, error) {
+func getNodeValue(node antlr.Tree, parent antlr.ParserRuleContext, expectedType types.CqlDataType) (types.GoValue, error) {
 	switch v := node.(type) {
 	case cql.IAssignmentListContext:
-		val, err := parseCqlValue(v)
+		val, err := parseCqlValue(v, expectedType)
 		if err != nil {
 			return nil, err
 		}
 		return val, nil
 	case cql.IAssignmentSetContext:
-		val, err := parseCqlValue(v)
+		val, err := parseCqlValue(v, expectedType)
 		if err != nil {
 			return nil, err
 		}
 		return val, nil
 	case cql.IAssignmentMapContext:
-		val, err := parseCqlValue(v)
+		val, err := parseCqlValue(v, expectedType)
 		if err != nil {
 			return nil, err
 		}
@@ -89,6 +199,22 @@ func getNodeValue(node antlr.Tree, parent antlr.ParserRuleContext) (types.GoValu
 		return antlr.TreesGetNodeText(node, nil, nil), nil
 	}
 
+}
+
+func getAppendType(dt types.CqlDataType) (types.CqlDataType, error) {
+	if dt.Code() == types.MAP {
+		return dt, nil
+	} else if dt.Code() == types.LIST {
+		st := dt.(types.ListType)
+		return types.NewListType(st.ElementType()), nil
+	} else if dt.Code() == types.SET {
+		st := dt.(types.SetType)
+		return types.NewListType(st.ElementType()), nil
+	} else if dt.Code() == types.COUNTER {
+		return types.TypeBigint, nil
+	} else {
+		return nil, fmt.Errorf("cannot append to column of type %s", dt.String())
+	}
 }
 
 // parseUpdateValues() processes a list of assignment elements from a CQL update statement,
@@ -152,10 +278,17 @@ func parseUpdateValues(assignments []cql.IAssignmentElementContext, tableConfig 
 			right := setVal.GetChild(opIndex + 1)
 			if isColumn(left, columnName) && (isCollection(right) || isCounter(right)) && op == "+" {
 				// Append: col = col + [values]
-				// todo handle prepared vs. adhoc
-				p := params.PushParameter(col.Name, col.CQLType)
+				at, err := getAppendType(col.CQLType)
+				if err != nil {
+					return nil, err
+				}
+				p := params.PushParameter(col.Name, at)
 				if hasValue {
-					val, err := getNodeValue(right, setVal)
+					at, err := getAppendType(col.CQLType)
+					if err != nil {
+						return nil, err
+					}
+					val, err := getNodeValue(right, setVal, at)
 					if err != nil {
 						return nil, err
 					}
@@ -167,10 +300,13 @@ func parseUpdateValues(assignments []cql.IAssignmentElementContext, tableConfig 
 				assignment = NewComplexAssignmentAdd(col, false, p)
 			} else if (isCollection(left) || isCounter(left)) && isColumn(right, col.Name) && op == "+" {
 				// Prepend: col = [values] + col
-				// todo handle prepared vs. adhoc
-				p := params.PushParameter(col.Name, col.CQLType)
+				at, err := getAppendType(col.CQLType)
+				if err != nil {
+					return nil, err
+				}
+				p := params.PushParameter(col.Name, at)
 				if hasValue {
-					val, err := getNodeValue(left, setVal)
+					val, err := getNodeValue(left, setVal, at)
 					if err != nil {
 						return nil, err
 					}
@@ -183,7 +319,7 @@ func parseUpdateValues(assignments []cql.IAssignmentElementContext, tableConfig 
 			} else if op == "-" {
 				p := params.PushParameter(col.Name, col.CQLType)
 				if hasValue {
-					val, err := getNodeValue(right, setVal)
+					val, err := getNodeValue(right, setVal, col.CQLType)
 					if err != nil {
 						return nil, err
 					}
@@ -192,14 +328,17 @@ func parseUpdateValues(assignments []cql.IAssignmentElementContext, tableConfig 
 						return nil, err
 					}
 				}
-
 				assignment = NewComplexAssignmentRemove(col, p)
 			} else {
 				return nil, fmt.Errorf("unhandled operation type %s", op)
 			}
 		} else if setVal.SyntaxBracketLs() != nil && setVal.DecimalLiteral() != nil && setVal.SyntaxBracketRs() != nil && setVal.Constant() != nil {
+			lt, ok := col.CQLType.(types.ListType)
+			if !ok {
+				return nil, fmt.Errorf("expected index operation to be on a list but got %s", lt.String())
+			}
 			// i.e. marks[1] = 99 (index update)
-			indexStr := trimQuotes(setVal.DecimalLiteral().GetText())
+			indexStr := setVal.DecimalLiteral().GetText()
 			index, err := strconv.ParseInt(indexStr, 10, 64)
 			if err != nil {
 				return nil, err
@@ -208,7 +347,7 @@ func parseUpdateValues(assignments []cql.IAssignmentElementContext, tableConfig 
 			p := params.PushParameter(col.Name, col.CQLType)
 
 			if hasValue {
-				valueRaw, err := parseCqlConstant(setVal.Constant())
+				valueRaw, err := getCqlConstant(setVal.Constant(), lt.ElementType())
 				if err != nil {
 					return nil, err
 				}
@@ -220,7 +359,7 @@ func parseUpdateValues(assignments []cql.IAssignmentElementContext, tableConfig 
 
 			assignment = NewComplexAssignmentUpdateIndex(col, index, p)
 		} else if setVal.Constant() != nil { // set a scalar value
-			goValue, err := parseCqlConstant(setVal.Constant())
+			goValue, err := getCqlConstant(setVal.Constant(), col.CQLType)
 			if err != nil {
 				return nil, err
 			}
@@ -235,7 +374,7 @@ func parseUpdateValues(assignments []cql.IAssignmentElementContext, tableConfig 
 			assignment = NewComplexAssignmentSet(col, p)
 
 			if hasValue {
-				goValue, err := parseCqlMapAssignment(setVal.AssignmentMap())
+				goValue, err := parseCqlMapAssignment(setVal.AssignmentMap(), col.CQLType)
 				if err != nil {
 					return nil, err
 				}
@@ -248,7 +387,7 @@ func parseUpdateValues(assignments []cql.IAssignmentElementContext, tableConfig 
 			p := params.PushParameter(col.Name, col.CQLType)
 			assignment = NewComplexAssignmentSet(col, p)
 			if hasValue {
-				goValue, err := parseCqlSetAssignment(setVal.AssignmentSet())
+				goValue, err := parseCqlSetAssignment(setVal.AssignmentSet(), col.CQLType)
 				if err != nil {
 					return nil, err
 				}
@@ -261,7 +400,7 @@ func parseUpdateValues(assignments []cql.IAssignmentElementContext, tableConfig 
 			p := params.PushParameter(col.Name, col.CQLType)
 			assignment = NewComplexAssignmentSet(col, p)
 			if hasValue {
-				goValue, err := parseCqlListAssignment(setVal.AssignmentList())
+				goValue, err := parseCqlListAssignment(setVal.AssignmentList(), col.CQLType)
 				if err != nil {
 					return nil, err
 				}
@@ -285,181 +424,8 @@ func parseUpdateValues(assignments []cql.IAssignmentElementContext, tableConfig 
 	return parsed, nil
 }
 
-// PrepareUpdateQuery() frames UpdateQueryMapping which translates the update to bigtable mutation
-//
-// Parameters:
-//   - query: CQL Update query
-//
-// Returns: UpdateQueryMapping struct and error if any
-func (t *Translator) PrepareUpdateQuery(query string, isPreparedQuery bool, sessionKeyspace string) (*UpdateQueryMapping, error) {
-	lexer := cql.NewCqlLexer(antlr.NewInputStream(query))
-	stream := antlr.NewCommonTokenStream(lexer, antlr.TokenDefaultChannel)
-	p := cql.NewCqlParser(stream)
-	updateObj := p.Update()
-
-	if updateObj == nil || updateObj.KwUpdate() == nil {
-		return nil, errors.New("error parsing the update object")
-	}
-
-	keyspace := updateObj.Keyspace()
-	updateObj.DOT()
-	table := updateObj.Table()
-
-	var keyspaceName, tableName string
-
-	if table != nil && table.OBJECT_NAME() != nil && table.OBJECT_NAME().GetText() != "" {
-		tableName = table.OBJECT_NAME().GetText()
-	} else {
-		return nil, fmt.Errorf("invalid input paramaters found for table")
-	}
-
-	if keyspace != nil && keyspace.OBJECT_NAME() != nil && keyspace.OBJECT_NAME().GetText() != "" {
-		keyspaceName = keyspace.OBJECT_NAME().GetText()
-	} else if sessionKeyspace != "" {
-		keyspaceName = sessionKeyspace
-	} else {
-		return nil, fmt.Errorf("invalid input parameters found for keyspace")
-	}
-
-	tableConfig, err := t.SchemaMappingConfig.GetTableConfig(keyspaceName, tableName)
-	if err != nil {
-		return nil, err
-	}
-
-	timestampInfo, err := GetTimestampInfoByUpdate(updateObj)
-	if err != nil {
-		return nil, err
-	}
-	updateObj.KwSet()
-	if updateObj.Assignments() == nil || updateObj.Assignments().AllAssignmentElement() == nil {
-		return nil, errors.New("error parsing the assignment object")
-	}
-
-	assignmentObj := updateObj.Assignments()
-	allAssignmentObj := assignmentObj.AllAssignmentElement()
-	if allAssignmentObj == nil {
-		return nil, errors.New("error parsing all the assignment object")
-	}
-
-	params := types.NewQueryParameters()
-
-	assignments, err := parseUpdateValues(allAssignmentObj, tableConfig, params)
-	if err != nil {
-		return nil, err
-	}
-
-	if updateObj.WhereSpec() != nil {
-		return nil, errors.New("error parsing update where clause")
-	}
-
-	whereClause, err := parseWhereByClause(updateObj.WhereSpec(), tableConfig, params)
-	if err != nil {
-		return nil, err
-	}
-	for k, v := range whereClause.Params {
-		setValues.Params[k] = v
-	}
-
-	var ifExist = updateObj.IfExist() != nil
-
-	var actualPrimaryKeys []types.ColumnName
-	for _, val := range whereClause.Conditions {
-		actualPrimaryKeys = append(actualPrimaryKeys, val.Column.Name)
-	}
-	err = ValidateRequiredPrimaryKeysOnly(tableConfig, actualPrimaryKeys)
-	if err != nil {
-		return nil, err
-	}
-
-	var rowKey types.RowKey
-	var columns []*types.Column
-	var values []types.BigtableData
-	for _, val := range setValues.Assignments {
-		c := &types.Column{Name: val.Column, ColumnFamily: t.SchemaMappingConfig.SystemColumnFamily, CQLType: val.CQLType}
-		columns = append(columns, c)
-		values = append(values, types.BigtableData{
-			Family: val.ColumnFamily,
-			Column: types.ColumnQualifier(val.Column),
-			Bytes:  val.BigtableValue,
-		})
-	}
-	var delColumns []*types.Column
-	var delColumnFamily []types.ColumnFamily
-	var complexMeta map[types.ColumnFamily]*ComplexOperation
-	var rawOutput *BigtableMutations // Declare rawOutput here
-
-	if !isPreparedQuery {
-		pkValues := extractValuesFromWhereClause(whereClause)
-
-		rowKey, err = createOrderedCodeKey(tableConfig, pkValues)
-		if err != nil {
-			return nil, err
-		}
-
-		var assignments []*Assignment
-		for _, v := range setValues.Assignments {
-			if v.ComplexAssignment != nil {
-				assignments = append(assignments, v.ComplexAssignment)
-			}
-		}
-		rawOutput, err = bindings.bindMutations(tableConfig, assignments)
-		if err != nil {
-			return nil, fmt.Errorf("error processing raw collection columns: %w", err)
-		}
-		values = rawOutput.NewColumns
-		delColumnFamily = rawOutput.DelColumnFamily
-		delColumns = rawOutput.DelColumns
-		complexMeta = rawOutput.ComplexOps // Assign complexMeta from output
-
-		for _, val := range whereClause.Conditions {
-			c, err := tableConfig.GetColumn(val.Column)
-			if err != nil {
-				return nil, err
-			}
-
-			pv := val.ValuePlaceholder
-			if strings.HasPrefix(val.ValuePlaceholder, "@") {
-				pv = val.ValuePlaceholder[1:]
-			}
-			value := fmt.Sprintf("%v", whereClause.Params[pv])
-			encodedValue, err := bindings.encodeScalarForBigtable(value, c.CQLType.DataType(), 4)
-			if err != nil {
-				return nil, err
-			}
-			values = append(values, &ColumnAndValue{Column: c, Value: encodedValue})
-		}
-	} else {
-		complexMeta, err = t.ProcessComplexUpdate(columns, values)
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	updateQueryData := &UpdateQueryMapping{
-		Query:                 query,
-		Table:                 tableName,
-		RowKey:                rowKey,
-		Columns:               columns,
-		DeleteColumnFamilies:  delColumnFamily,
-		DeleteColumQualifiers: delColumns,
-		IfExists:              ifExist,
-		Keyspace:              keyspaceName,
-		Clauses:               whereClause.Conditions,
-		Params:                params,
-		UpdateSetValues:       assignments,
-		TimestampInfo:         timestampInfo,
-	}
-
-	return updateQueryData, nil
-}
-
-func (t *Translator) BindUpdate(st *UpdateQueryMapping, cassandraValues []*primitive.Value, pv primitive.ProtocolVersion) (*types.BigtableMutations, error) {
+func (t *Translator) doBindUpdate(st *UpdateQueryMapping, values *types.QueryParameterValues) (*types.BigtableMutations, error) {
 	tableConfig, err := t.SchemaMappingConfig.GetTableConfig(st.Keyspace, st.Table)
-	if err != nil {
-		return nil, err
-	}
-
-	values, err := bindings.BindQueryParams(st.Params, cassandraValues, pv)
 	if err != nil {
 		return nil, err
 	}
@@ -470,7 +436,7 @@ func (t *Translator) BindUpdate(st *UpdateQueryMapping, cassandraValues []*primi
 	}
 
 	mutations := &types.BigtableMutations{RowKey: rowKey}
-	err = bindings.BindMutations(tableConfig, st.UpdateSetValues, values, mutations)
+	err = bindings.BindMutations(tableConfig, st.Values, values, mutations)
 	if err != nil {
 		return nil, err
 	}

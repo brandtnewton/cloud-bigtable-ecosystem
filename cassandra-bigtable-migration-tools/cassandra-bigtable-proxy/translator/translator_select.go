@@ -36,6 +36,134 @@ const (
 	customWriteTime = "writetime_"
 )
 
+// PrepareSelect() Translates Cassandra select statement into a compatible Cloud Bigtable select query.
+//
+// Parameters:
+//   - query: CQL Select statement
+//
+// Returns: SelectQueryMap struct and error if any
+func (t *Translator) PrepareSelect(query, sessionKeyspace string, isPreparedQuery bool, pv primitive.ProtocolVersion) (*SelectQueryMap, *SelectQueryAndData, error) {
+	p, err := NewCqlParser(query, false)
+	if err != nil {
+		return nil, nil, err
+	}
+	selectObj := p.Select_()
+	if selectObj == nil || selectObj.KwSelect() == nil {
+		return nil, nil, errors.New("ToBigtableSelect: Could not parse select object")
+	}
+
+	columns, err := parseColumnsFromSelect(selectObj.SelectElements())
+	if err != nil {
+		return nil, nil, err
+	}
+
+	tableSpec, err := parseTableFromSelect(selectObj.FromSpec())
+	if err != nil {
+		return nil, nil, err
+	}
+
+	keyspaceName := tableSpec.KeyspaceName
+	tableName := tableSpec.TableName
+
+	if keyspaceName == "" {
+		if sessionKeyspace != "" {
+			keyspaceName = sessionKeyspace
+		} else {
+			return nil, nil, fmt.Errorf("invalid input parameters found for keyspace")
+		}
+	}
+
+	tableConfig, err := t.SchemaMappingConfig.GetTableConfig(keyspaceName, tableName)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	params := types.NewQueryParameters()
+	values := types.NewQueryParameterValues(params)
+
+	conditions, err := parseWhereClause(selectObj.WhereSpec(), tableConfig, params, values)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	var groupBy []string
+	if selectObj.GroupSpec() != nil {
+		groupBy = parseGroupByColumn(selectObj.GroupSpec())
+	}
+	var orderBy OrderBy
+	if selectObj.OrderSpec() != nil {
+		orderBy, err = parseOrderByFromSelect(selectObj.OrderSpec())
+		if err != nil {
+			// pass the original error to provide proper root cause of error.
+			return nil, nil, err
+		}
+	} else {
+		orderBy.IsOrderBy = false
+	}
+
+	err := parseLimitClause(selectObj.LimitSpec(), params, values)
+
+	st := &SelectQueryMap{
+		Query:           query,
+		TranslatedQuery: "", // created later
+		Table:           tableName,
+		Keyspace:        keyspaceName,
+		ColumnMeta:      columns,
+		Conditions:      conditions,
+		OrderBy:         orderBy,
+		GroupByColumns:  groupBy,
+		Params:          params,
+	}
+
+	translatedResult, err := getBigtableSelectQuery(t, st)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	var bound *SelectQueryAndData
+	if !isPreparedQuery {
+		bound, err = t.doBindSelect(st, values)
+		if err != nil {
+			return nil, nil, err
+		}
+	} else {
+		bound = nil
+	}
+
+	st.TranslatedQuery = translatedResult
+	return st, bound, nil
+}
+
+func (t *Translator) BindSelect(st *SelectQueryMap, cassandraValues []*primitive.Value, pv primitive.ProtocolVersion) (*SelectQueryAndData, error) {
+	values, err := bindings.BindQueryParams(st.Params, cassandraValues, pv)
+	if err != nil {
+		return nil, err
+	}
+	return t.doBindSelect(st, values)
+}
+
+func (t *Translator) doBindSelect(st *SelectQueryMap, values *types.QueryParameterValues) (*SelectQueryAndData, error) {
+	tableConfig, err := t.SchemaMappingConfig.GetTableConfig(st.Keyspace, st.Table)
+	if err != nil {
+		return nil, err
+	}
+
+	if err != nil {
+		return nil, err
+	}
+
+	cols, err := bindings.BindSelectColumns(tableConfig, st.SelectedColumns, values)
+	if err != nil {
+		return nil, err
+	}
+
+	query := &SelectQueryAndData{
+		Query:  st,
+		Values: values,
+	}
+	return query, nil
+}
+
 // parseColumnsFromSelect() parse Columns from the Select CqlQuery
 //
 // Parameters:
@@ -246,18 +374,10 @@ func parseOrderByFromSelect(input cql.IOrderSpecContext) (OrderBy, error) {
 
 const limitPlaceholder types.Placeholder = "limitValue"
 
-// parseLimitClause() parse Limit from the Select CqlQuery
-//
-// Parameters:
-//   - input: The Limit Spec context from the antlr Parser.
-//
-// Returns: Limit struct
-func parseLimitClause(input cql.ILimitSpecContext, params *types.QueryParameters, values *types.QueryParameterValues) (Limit, error) {
+func parseLimitClause(input cql.ILimitSpecContext, params *types.QueryParameters, values *types.QueryParameterValues) error {
 	if input == nil {
-		return Limit{IsLimit: false}, nil
+		return nil
 	}
-
-	limit := Limit{IsLimit: true}
 
 	params.AddParameterWithoutColumn(limitPlaceholder, types.TypeInt)
 
@@ -265,18 +385,17 @@ func parseLimitClause(input cql.ILimitSpecContext, params *types.QueryParameters
 		text := input.DecimalLiteral().DECIMAL_LITERAL().GetText()
 		limitValue, err := strconv.Atoi(text)
 		if err != nil {
-			return Limit{}, errors.New("failed to parse limit")
+			return errors.New("failed to parse limit")
 		} else if limitValue < 0 {
-			return Limit{}, errors.New("limit must be positive")
+			return errors.New("limit must be positive")
 		}
 		err = values.SetValue(limitPlaceholder, limitValue)
 		if err != nil {
-			return Limit{}, err
+			return err
 		}
-		limit.Count = text
 	}
 
-	return limit, nil
+	return nil
 }
 
 func parseGroupByColumn(input cql.IGroupSpecContext) []string {
@@ -669,104 +788,6 @@ func getBigtableSelectQuery(t *Translator, data *SelectQueryMap) (string, error)
 	}
 	btQuery += ";"
 	return btQuery, nil
-}
-
-// TranslateSelectQuerytoBigtable() Translates Cassandra select statement into a compatible Cloud Bigtable select query.
-//
-// Parameters:
-//   - query: CQL Select statement
-//
-// Returns: SelectQueryMap struct and error if any
-func (t *Translator) TranslateSelectQuerytoBigtable(query, sessionKeyspace string) (*SelectQueryMap, error) {
-	p, err := NewCqlParser(query, false)
-	if err != nil {
-		return nil, err
-	}
-	selectObj := p.Select_()
-	if selectObj == nil || selectObj.KwSelect() == nil {
-		return nil, errors.New("ToBigtableSelect: Could not parse select object")
-	}
-
-	columns, err := parseColumnsFromSelect(selectObj.SelectElements())
-	if err != nil {
-		return nil, err
-	}
-
-	tableSpec, err := parseTableFromSelect(selectObj.FromSpec())
-	if err != nil {
-		return nil, err
-	}
-
-	keyspaceName := tableSpec.KeyspaceName
-	tableName := tableSpec.TableName
-
-	if keyspaceName == "" {
-		if sessionKeyspace != "" {
-			keyspaceName = sessionKeyspace
-		} else {
-			return nil, fmt.Errorf("invalid input parameters found for keyspace")
-		}
-	}
-
-	tableConfig, err := t.SchemaMappingConfig.GetTableConfig(keyspaceName, tableName)
-	if err != nil {
-		return nil, err
-	}
-
-	whereClause, err := parseWhereByClause(selectObj.WhereSpec(), tableConfig)
-	if err != nil {
-		return nil, err
-	}
-
-	var groupBy []string
-	if selectObj.GroupSpec() != nil {
-		groupBy = parseGroupByColumn(selectObj.GroupSpec())
-	}
-	var orderBy OrderBy
-	if selectObj.OrderSpec() != nil {
-		orderBy, err = parseOrderByFromSelect(selectObj.OrderSpec())
-		if err != nil {
-			// pass the original error to provide proper root cause of error.
-			return nil, err
-		}
-	} else {
-		orderBy.IsOrderBy = false
-	}
-
-	limit, err := parseLimitClause(selectObj.LimitSpec(), whereClause.Params)
-
-	selectQueryData := &SelectQueryMap{
-		Query:           query,
-		TranslatedQuery: "", // created later
-		Table:           tableName,
-		Keyspace:        keyspaceName,
-		ColumnMeta:      columns,
-		Clauses:         whereClause.Conditions,
-		Limit:           limit,
-		OrderBy:         orderBy,
-		GroupByColumns:  groupBy,
-		Params:          whereClause.Params,
-	}
-
-	translatedResult, err := getBigtableSelectQuery(t, selectQueryData)
-	if err != nil {
-		return nil, err
-	}
-
-	selectQueryData.TranslatedQuery = translatedResult
-	return selectQueryData, nil
-}
-
-func (t *Translator) BindSelect(st *SelectQueryMap, cassandraValues []*primitive.Value, pv primitive.ProtocolVersion) (*SelectQueryAndData, error) {
-	values, err := bindings.bindQueryParams(st.Params, cassandraValues, pv)
-	if err != nil {
-		return nil, err
-	}
-	query := &SelectQueryAndData{
-		Query:  st,
-		Values: values,
-	}
-	return query, nil
 }
 
 // buildWhereClause(): takes a slice of Condition structs and returns a string representing the WHERE clause of a bigtable SQL query.

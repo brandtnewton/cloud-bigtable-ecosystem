@@ -22,6 +22,7 @@ import (
 	schemaMapping "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/schema-mapping"
 	"github.com/datastax/go-cassandra-native-protocol/message"
 	"go.uber.org/zap"
+	"time"
 )
 
 type Translator struct {
@@ -33,23 +34,20 @@ type Translator struct {
 
 // SelectQueryMap represents the mapping of a select query along with its translation details.
 type SelectQueryMap struct {
-	Query           string     // Original query string
-	TranslatedQuery string     // btql
-	Table           string     // Table involved in the query
-	Keyspace        string     // Keyspace to which the table belongs
-	ColumnMeta      ColumnMeta // Translator generated Metadata about the columns involved
-	SelectedColumns []types.SelectedColumn
-	Clauses         []types.Condition // List of clauses in the query
-
+	Query            string     // Original query string
+	TranslatedQuery  string     // btql
+	Table            string     // Table involved in the query
+	Keyspace         string     // Keyspace to which the table belongs
+	ColumnMeta       ColumnMeta // Translator generated Metadata about the columns involved
+	SelectedColumns  []types.SelectedColumn
+	Conditions       []types.Condition
 	Params           *types.QueryParameters      // Parameters for the query
 	Columns          []*types.Column             //all columns mentioned in query
-	Conditions       map[string]string           // List of conditions in the query
 	ReturnMetadata   []*message.ColumnMetadata   // Metadata of selected columns in Cassandra format
 	VariableMetadata []*message.ColumnMetadata   // Metadata of variable columns for prepared queries in Cassandra format
 	CachedBTPrepare  *bigtable.PreparedStatement // prepared statement object for bigtable
 	OrderBy          OrderBy                     // Order by clause details
 	GroupByColumns   []string                    // Group by Columns - could be a column name or a column index
-	Limit            Limit                       // Limit clause details
 }
 
 type SelectQueryAndData struct {
@@ -72,11 +70,6 @@ type OrderBy struct {
 type OrderByColumn struct {
 	Column    string
 	Operation OrderOperation
-}
-
-type Limit struct {
-	IsLimit bool
-	Count   string
 }
 
 type ColumnMeta struct {
@@ -162,19 +155,16 @@ type TruncateTableStatementMap struct {
 
 // UpdateQueryMapping represents the mapping of an update query along with its translation details.
 type UpdateQueryMapping struct {
-	Query                 string                    // Original query string
-	Table                 string                    // Table involved in the query
-	Keyspace              string                    // Keyspace to which the table belongs
-	UpdateSetValues       []Assignment              // Columns to be updated
-	Clauses               []types.Condition         // List of clauses in the update query
-	Params                *types.QueryParameters    // Parameters for the query
-	Columns               []*types.Column           // Cassandra columns updated
-	RowKey                types.RowKey              // Unique rowkey which is required for update operation
-	DeleteColumnFamilies  []types.ColumnFamily      // List of all collection type of columns
-	DeleteColumQualifiers []*types.Column           // List of all map key deletion in complex update
-	ReturnMetadata        []*message.ColumnMetadata // Metadata of all columns of that table in Cassandra format
-	VariableMetadata      []*message.ColumnMetadata // Metadata of variable columns for prepared queries in Cassandra format
-	IfExists              bool
+	Query            string                    // Original query string
+	Table            string                    // Table involved in the query
+	Keyspace         string                    // Keyspace to which the table belongs
+	Values           []Assignment              // Columns to be updated
+	Clauses          []types.Condition         // List of clauses in the update query
+	Params           *types.QueryParameters    // Parameters for the query
+	Columns          []*types.Column           // Cassandra columns updated
+	ReturnMetadata   []*message.ColumnMetadata // Metadata of all columns of that table in Cassandra format
+	VariableMetadata []*message.ColumnMetadata // Metadata of variable columns for prepared queries in Cassandra format
+	IfExists         bool
 }
 
 type UpdateSetResponse struct {
@@ -189,4 +179,74 @@ type TableObj struct {
 type DescribeStatementMap struct {
 	Keyspace string
 	Table    string
+}
+
+type BoundSelectColumn interface {
+	Column() *types.Column
+}
+
+type BoundIndexColumn struct {
+	column *types.Column
+	Index  int
+}
+
+func NewBoundIndexColumn(column *types.Column, index int) *BoundIndexColumn {
+	return &BoundIndexColumn{column: column, Index: index}
+}
+
+func (b *BoundIndexColumn) Column() *types.Column {
+	return b.column
+}
+
+type BoundKeyColumn struct {
+	column *types.Column
+	Key    types.ColumnQualifier
+}
+
+func NewBoundKeyColumn(column *types.Column, key types.ColumnQualifier) *BoundKeyColumn {
+	return &BoundKeyColumn{column: column, Key: key}
+}
+
+func (b *BoundKeyColumn) Column() *types.Column {
+	return b.column
+}
+
+type BoundTimestampInfo struct {
+	Timestamp         time.Time
+	HasUsingTimestamp bool
+}
+
+type BoundDeleteQuery struct {
+	Keyspace string
+	Table    string
+	RowKey   types.RowKey
+	IfExists bool
+	Columns  []BoundSelectColumn
+}
+
+// BigtableMutations holds the results from parseComplexOperations.
+type BigtableMutations struct {
+	RowKey                types.RowKey
+	IfSpec                IfSpec
+	UsingTimestamp        *BoundTimestampInfo
+	Data                  []*types.BigtableData
+	DelColumnFamily       []types.ColumnFamily
+	DelColumns            []*types.BigtableColumn
+	Counters              []BigtableCounterOp
+	SetIndexOps           []BigtableSetIndexOp
+	DeleteListElementsOps []BigtableDeleteListElementsOp
+}
+
+type BigtableCounterOp struct {
+	Family types.ColumnFamily
+	Value  int64
+}
+type BigtableSetIndexOp struct {
+	Family types.ColumnFamily
+	Index  int
+	Value  types.BigtableValue
+}
+type BigtableDeleteListElementsOp struct {
+	Family types.ColumnFamily
+	Values []types.BigtableValue
 }

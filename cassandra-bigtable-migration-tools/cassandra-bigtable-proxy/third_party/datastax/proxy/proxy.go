@@ -833,7 +833,7 @@ func (c *client) prepareInsertType(raw *frame.RawFrame, msg *message.Prepare, id
 // function to handle and select query of prepared type
 func (c *client) prepareSelectType(raw *frame.RawFrame, msg *message.Prepare, id [16]byte) ([]*message.ColumnMetadata, []*message.ColumnMetadata, error) {
 	var variableColumns, columnsWithInOp []types.ColumnName
-	translatedSelectQuery, err := c.proxy.translator.TranslateSelectQuerytoBigtable(msg.Query, c.keyspace)
+	translatedSelectQuery, _, err := c.proxy.translator.PrepareSelect(msg.Query, c.keyspace, true, raw.Header.Version)
 	if err != nil {
 		c.proxy.logger.Error(translatorErrorMessage, zap.String(Query, msg.Query), zap.Error(err))
 		c.sender.Send(raw.Header, &message.Invalid{ErrorMessage: err.Error()})
@@ -940,7 +940,7 @@ func (c *client) prepareUpdateType(raw *frame.RawFrame, msg *message.Prepare, id
 	var returnColumns, variableColumns, columnsWithInOp []types.ColumnName
 	var err error
 
-	updateQueryMetadata, err := c.proxy.translator.PrepareUpdateQuery(msg.Query, true, c.keyspace)
+	updateQueryMetadata, err := c.proxy.translator.PrepareUpdate(msg.Query, true, c.keyspace)
 	if err != nil {
 		c.proxy.logger.Error(translatorErrorMessage, zap.String(Query, msg.Query), zap.Error(err))
 		c.sender.Send(raw.Header, &message.Invalid{ErrorMessage: err.Error()})
@@ -955,7 +955,7 @@ func (c *client) prepareUpdateType(raw *frame.RawFrame, msg *message.Prepare, id
 	}
 
 	// capturing variable columns name assuming all columns are parameterized
-	for _, sets := range updateQueryMetadata.UpdateSetValues {
+	for _, sets := range updateQueryMetadata.Values {
 		if sets.Value == commitTsFn {
 			continue
 		}
@@ -1373,7 +1373,7 @@ func (c *client) handleQuery(raw *frame.RawFrame, msg *partialQuery) {
 			}
 			return
 		case selectType:
-			translatedSelectQuery, err := c.proxy.translator.TranslateSelectQuerytoBigtable(msg.query, c.keyspace)
+			translatedSelectQuery, err := c.proxy.translator.PrepareSelect(msg.query, c.keyspace)
 			if err != nil {
 				c.proxy.logger.Error(translatorErrorMessage, zap.String(Query, msg.query), zap.Error(err))
 				otelErr = err
@@ -1473,7 +1473,7 @@ func (c *client) handleQuery(raw *frame.RawFrame, msg *partialQuery) {
 			}
 
 		case updateType:
-			updateQueryMetaData, err := c.proxy.translator.PrepareUpdateQuery(msg.query, false, c.keyspace)
+			updateQueryMetaData, err := c.proxy.translator.PrepareUpdate(msg.query, false, c.keyspace)
 			if err != nil {
 				c.proxy.logger.Error(translatorErrorMessage, zap.String(Query, msg.query), zap.Error(err))
 				otelErr = err

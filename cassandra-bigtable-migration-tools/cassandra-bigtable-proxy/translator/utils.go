@@ -19,7 +19,6 @@ package translator
 import (
 	"errors"
 	"fmt"
-	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/bindings"
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/collectiondecoder"
 	constants "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/global/constants"
 	types "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/global/types"
@@ -30,7 +29,6 @@ import (
 	"github.com/antlr4-go/antlr/v4"
 	"github.com/datastax/go-cassandra-native-protocol/datatype"
 	"github.com/datastax/go-cassandra-native-protocol/primitive"
-	"reflect"
 	"regexp"
 	"strconv"
 	"strings"
@@ -175,47 +173,43 @@ func cqlTypeToEmptyPrimitive(cqlType datatype.DataType, isPrimaryKey bool) inter
 // parseCqlValue parses a CQL value expression.
 // Converts CQL value expressions to their corresponding Go types with validation.
 // Returns error if expression is invalid or conversion fails.
-func parseCqlValue(expr antlr.ParserRuleContext) (types.GoValue, error) {
+func parseCqlValue(expr antlr.ParserRuleContext, expectedType types.CqlDataType) (types.GoValue, error) {
 	// If this is an expression context, check for subcontexts
 	if e, ok := expr.(cql.IExpressionContext); ok {
 		if m := e.AssignmentMap(); m != nil {
-			return parseCqlValue(m)
+			return parseCqlValue(m, expectedType)
 		}
 		if l := e.AssignmentList(); l != nil {
-			return parseCqlValue(l)
+			return parseCqlValue(l, expectedType)
 		}
 		if s := e.AssignmentSet(); s != nil {
-			return parseCqlValue(s)
+			return parseCqlValue(s, expectedType)
 		}
 		if c := e.Constant(); c != nil {
-			return parseCqlConstant(c)
+			return getCqlConstant(c, expectedType)
 		}
 		// Optionally handle tuple, function call, etc.
 		return e.GetText(), nil // fallback
 	}
 	// Handle map context
 	if m, ok := expr.(cql.IAssignmentMapContext); ok {
-		return parseCqlMapAssignment(m)
+		return parseCqlMapAssignment(m, expectedType)
 	}
 	// Handle list context
 	if l, ok := expr.(cql.IAssignmentListContext); ok {
-		var result []string
+		var result []types.GoValue
 		for _, c := range l.AllConstant() {
-			val, err := parseCqlConstant(c)
+			val, err := getCqlConstant(c, expectedType)
 			if err != nil {
 				return nil, err
 			}
-			strval, err := scalarToString(val)
-			if err != nil {
-				return nil, err
-			}
-			result = append(result, strval)
+			result = append(result, val)
 		}
 		return result, nil
 	}
 	// Handle set context
 	if s, ok := expr.(cql.IAssignmentSetContext); ok {
-		var result []string
+		var result []types.GoValue
 		all := s.AllConstant()
 		if len(all) == 0 {
 			return result, nil
@@ -224,306 +218,15 @@ func parseCqlValue(expr antlr.ParserRuleContext) (types.GoValue, error) {
 			if c == nil {
 				continue
 			}
-			val, err := parseCqlConstant(c)
+			val, err := getCqlConstant(c, expectedType)
 			if err != nil {
 				return nil, err
 			}
-			strval, err := scalarToString(val)
-			if err != nil {
-				return nil, err
-			}
-			result = append(result, strval)
+			result = append(result, val)
 		}
 		return result, nil
 	}
 	return expr.GetText(), nil // fallback
-}
-
-func extractValuesFromWhereClause(whereClause *types.WhereClause) map[types.ColumnName]types.GoValue {
-	valueMap := make(map[types.ColumnName]types.GoValue)
-	for _, clause := range whereClause.Conditions {
-		v, _ := whereClause.Params.GetValue(clause.ValuePlaceholder)
-		valueMap[clause.Column.Name] = v
-	}
-	return valueMap
-}
-
-// handlePrepareMapOperation processes map operations in prepared queries.
-// Manages map operations, append, delete, and update at index and simple assignment.
-// Returns error if value type doesn't match map key/value types or encoding fails.
-func handlePrepareMapOperation(complexOps map[types.ColumnName]*ComplexOperation, val *primitive.Value, column *types.Column, pv primitive.ProtocolVersion, output *PreparedValues) error {
-	mapType, ok := column.CQLType.(*types.MapType)
-	if !ok {
-		return fmt.Errorf("failed to assert map type for %s", column.CQLType.String())
-	}
-	if meta, ok := complexOps[column.Name]; ok {
-		if meta.Append && meta.mapKey != nil { //handling update for specific key e.g map[key]=val
-			return processMapKeyAppend(column, meta, pv, val, output, mapType)
-
-		} else if meta.Delete { //handling Delete for specific key e.g map=map-['key1','key2']
-			expectedDt := meta.ExpectedDatatype
-			if expectedDt == nil {
-				expectedDt = column.CQLType.DataType()
-			}
-
-			if mapType.KeyType().Code() == types.TIMESTAMP {
-				expectedDt = utilities.SetOfBigInt.DataType()
-			}
-			return processDeleteOperationForMapAndSet(column, val, pv, output, expectedDt)
-		} else {
-			if err := parsePreparedMap(mapType, pv, val, column, output); err != nil {
-				return err
-			}
-		}
-	} else {
-		// case of when new value is being set for collection type {e.g collection=newCollection}
-		output.DelColumnFamily = append(output.DelColumnFamily, column.ColumnFamily)
-		if err := parsePreparedMap(mapType, pv, val, column, output); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-// processVarcharMap handles map operations with varchar keys in prepared queries.
-// Processes varchar map operations.
-// Returns error if key type isn't varchar or value encoding fails.
-func parsePreparedMap(mapType *types.MapType, protocolV primitive.ProtocolVersion, val *primitive.Value, column *types.Column, output *PreparedValues) error {
-	decodedValue, err := proxycore.DecodeType(mapType.DataType(), protocolV, val.Contents)
-	if err != nil {
-		return fmt.Errorf("error decoding string to %s value: %w", column.CQLType.DataType(), err)
-	}
-	decodedMap, ok := decodedValue.(map[any]any)
-	if !ok {
-		return fmt.Errorf("error decoding string to %s value: %w", column.CQLType.String(), err)
-	}
-
-	for k, v := range decodedMap {
-		col, err := collectionElementValueToColumnName(k)
-		if err != nil {
-			return fmt.Errorf("failed to convert value for key '%s': %w", k, err)
-		}
-
-		val, err := bindings.encodeScalarForBigtable(v, mapType.ValueType().DataType(), protocolV)
-		if err != nil {
-			return fmt.Errorf("failed to convert value for map value: %w", err)
-		}
-		output.Data = append(output.Data, types.BigtableData{
-			Family: column.ColumnFamily,
-			Column: col,
-			Bytes:  val,
-		})
-	}
-	return nil
-}
-
-// processDeleteOperationForMapAndSet handles delete operations for maps and sets in prepared queries.
-// Processes deletion of map entries and set elements with type validation.
-// Returns error if value type doesn't match collection element type or deletion fails.
-func processDeleteOperationForMapAndSet(
-	column *types.Column,
-	val *primitive.Value,
-	pv primitive.ProtocolVersion,
-	output *PreparedValues,
-	expectedDt datatype.DataType,
-) error {
-	var err error
-
-	decodedValue, err := collectiondecoder.DecodeCollection(expectedDt, pv, val)
-	if err != nil {
-		return fmt.Errorf("error decoding string to %s value: %w", column.CQLType.DataType(), err)
-	}
-	setValue, err := convertToInterfaceSlice(decodedValue)
-	if err != nil {
-		return err
-	}
-	for _, v := range setValue {
-		setVal, err := scalarToString(v)
-		if err != nil {
-			return fmt.Errorf("failed to convert value: %w", err)
-		}
-		output.DelColumns = append(output.DelColumns, &types.BigtableColumn{
-			Family: column.ColumnFamily,
-			Column: types.ColumnQualifier(setVal),
-		})
-	}
-	return nil
-}
-
-// convertToInterfaceSlice converts a value to a slice of interfaces.
-// Handles type conversion for collection operations with validation.
-// Returns error if value cannot be converted to a slice.
-func convertToInterfaceSlice(decodedValue interface{}) ([]interface{}, error) {
-	val := reflect.ValueOf(decodedValue)
-	if val.Kind() != reflect.Slice {
-		return nil, fmt.Errorf("expected a slice type, got %T", decodedValue)
-	}
-
-	setValue := make([]interface{}, val.Len())
-	for i := 0; i < val.Len(); i++ {
-		setValue[i] = val.Index(i).Interface()
-	}
-	return setValue, nil
-}
-
-// processMapKeyAppend handles map key updates operations in prepared queries.
-// Processes updation at index and simple assignment.
-// Returns error if key/value types don't match map types or encoding fails.
-func processMapKeyAppend(
-	column *types.Column,
-	meta *ComplexOperation,
-	pv primitive.ProtocolVersion,
-	val *primitive.Value,
-	output *PreparedValues,
-	mt *types.MapType,
-) error {
-	expectedDT := meta.ExpectedDatatype
-	//if expected datatype is timestamp, convert it to bigint
-	if meta.ExpectedDatatype == datatype.Timestamp {
-		expectedDT = datatype.Bigint
-	}
-	decodedValue, err := proxycore.DecodeType(expectedDT, pv, val.Contents)
-
-	if err != nil {
-		return fmt.Errorf("error decoding string to %s value: %w", column.CQLType.DataType(), err)
-	}
-	mpKey := meta.mapKey
-
-	//if key is timestamp, convert it to unix milliseconds
-	if mt.KeyType().DataType() == datatype.Timestamp {
-		mp, err := parseTimestamp(mpKey.(string))
-		if err != nil {
-			return fmt.Errorf("error while typecasting to timestamp %v, -> %s", mpKey.(string), err)
-		}
-		mpKey = mp.UnixMilli()
-	}
-
-	setKey, err := scalarToString(mpKey)
-	if err != nil {
-		return fmt.Errorf("failed to convert/read key: %w", err)
-	}
-	setValue, err := scalarToString(decodedValue)
-	if err != nil {
-		return fmt.Errorf("failed to convert value for key '%s': %w", setKey, err)
-	}
-
-	formattedValue, err := bindings.encodeScalarForBigtable(setValue, mt.ValueType().DataType(), pv)
-	if err != nil {
-		return fmt.Errorf("failed to format value: %w", err)
-	}
-	output.Data = append(output.Data, types.BigtableData{
-		Family: column.ColumnFamily,
-		Column: types.ColumnQualifier(setKey),
-		Bytes:  formattedValue,
-	})
-
-	return nil
-}
-
-// handlePrepareSetOperation processes set operations in prepared queries.
-// Manages set operations with protocol version-specific value encoding.
-// Returns error if value type doesn't match set element type or encoding fails.
-func handlePrepareSetOperation(complexOps map[types.ColumnName]*ComplexOperation, val *primitive.Value, column *types.Column, pv primitive.ProtocolVersion, output *PreparedValues) error {
-	if op, ok := complexOps[column.Name]; ok {
-		//handling Delete for specific key e.g map=map-['key1','key2']
-		if op.Delete {
-			setType, ok := column.CQLType.(*types.SetType)
-			if !ok {
-				return fmt.Errorf("failed to assert set type for %s", column.CQLType.String())
-			}
-			if setType.ElementType().DataType() == datatype.Timestamp {
-				setType = utilities.SetOfBigInt
-			}
-			return processDeleteOperationForMapAndSet(column, val, pv, output, setType.DataType())
-		}
-		// handling set operations for append.
-		return handleSetProcessing(val, column, pv, output)
-	} else {
-		// case of when new value is being set for collection type {e.g collection=newCollection}
-		output.DelColumnFamily = append(output.DelColumnFamily, column.ColumnFamily)
-		return handleSetProcessing(val, column, pv, output)
-	}
-}
-
-// handleSetProcessing processes set values for prepared queries.
-// Handles set operations for append, delete, and update at index and simple assignment.
-// Returns error if value type doesn't match set element type or encoding fails.
-func handleSetProcessing(
-	val *primitive.Value,
-	column *types.Column,
-	protocolV primitive.ProtocolVersion,
-	output *PreparedValues,
-) error {
-	setType, ok := column.CQLType.(*types.SetType)
-	if !ok {
-		return fmt.Errorf("failed to assert set type for %s", column.CQLType.String())
-	}
-	if setType.ElementType().Code() == types.TIMESTAMP {
-		setType = utilities.SetOfBigInt
-	}
-	switch setType.ElementType().DataType() {
-	case datatype.Varchar:
-		return processSet[string](val, column, protocolV, setType, output)
-	case datatype.Int:
-		return processSet[int32](val, column, protocolV, setType, output)
-	case datatype.Bigint, datatype.Timestamp:
-		return processSet[int64](val, column, protocolV, setType, output)
-	case datatype.Float:
-		return processSet[float32](val, column, protocolV, setType, output)
-	case datatype.Double:
-		return processSet[float64](val, column, protocolV, setType, output)
-	case datatype.Boolean:
-		return processSet[bool](val, column, protocolV, setType, output)
-	default:
-		return fmt.Errorf("unexpected set element type: %T", column.CQLType.DataType())
-	}
-}
-
-// processSet handles generic set processing operations in prepared queries.
-// Manages set operations with type-specific handling and protocol version encoding.
-// Returns error if value type doesn't match set element type or encoding fails.
-func processSet(
-	val *primitive.Value,
-	column *types.Column,
-	protocolV primitive.ProtocolVersion,
-	setType *types.SetType,
-	output *PreparedValues,
-
-) error {
-	decodedValue, err := collectiondecoder.DecodeCollection(setType.DataType(), protocolV, val)
-	if err != nil {
-		return fmt.Errorf("error decoding string to %s value: %w", column.CQLType.DataType(), err)
-	}
-
-	setValues, ok := decodedValue.([]any)
-	if !ok {
-		return fmt.Errorf("unexpected set element type: %T", decodedValue)
-	}
-
-	// Common processing logic for all types
-	for _, elem := range setValues {
-		valueStr, err := collectionElementValueToColumnName(elem)
-		if err != nil {
-			return fmt.Errorf("failed to convert element to string: %w", err)
-		}
-		output.Data = append(output.Data, types.BigtableData{
-			Family: column.ColumnFamily,
-			Column: valueStr,
-			Bytes:  []byte(""),
-		})
-	}
-	return nil
-}
-
-func collectionElementValueToColumnName(value any) (types.ColumnQualifier, error) {
-	if t, ok := value.(time.Time); ok {
-		value = t.UnixMilli()
-	}
-	result, err := scalarToString(value)
-	if err != nil {
-		return "", err
-	}
-	return types.ColumnQualifier(result), nil
 }
 
 // castScalarColumn handles column type casting in queries.
@@ -562,10 +265,47 @@ func castScalarColumn(colMeta *types.Column) (string, error) {
 	}
 }
 
-// parseWhereByClause parses the WHERE clause from a CQL query.
-// Extracts and processes WHERE conditions with type validation.
-// Returns error if clause parsing fails or invalid conditions are found.
-func parseWhereByClause(input cql.IWhereSpecContext, tableConfig *schemaMapping.TableConfig, params *types.QueryParameters, values *types.QueryParameterValues) (*types.WhereClause, error) {
+func parseDecimalLiteral(d cql.IDecimalLiteralContext, cqlType types.CqlDataType, params *types.QueryParameters, values *types.QueryParameterValues) (types.Placeholder, error) {
+	if d == nil {
+		return "", nil
+	}
+
+	p := params.PushParameterWithoutColumn(cqlType)
+
+	if d.QUESTION_MARK() != nil {
+		return p, nil
+	}
+
+	val, err := stringToPrimitives(d.DECIMAL_LITERAL().GetText(), cqlType.DataType())
+	if err != nil {
+		return "", err
+	}
+	err = values.SetValue(p, val)
+	if err != nil {
+		return "", err
+	}
+	return p, nil
+}
+
+func parseStringLiteral(d cql.IStringLiteralContext, params *types.QueryParameters, values *types.QueryParameterValues) (types.Placeholder, error) {
+	if d == nil {
+		return "", nil
+	}
+
+	p := params.PushParameterWithoutColumn(types.TypeVarchar)
+
+	val, err := stringToPrimitives(trimQuotes(d.STRING_LITERAL().GetText()), datatype.Varchar)
+	if err != nil {
+		return "", err
+	}
+	err = values.SetValue(p, val)
+	if err != nil {
+		return "", err
+	}
+	return p, nil
+}
+
+func parseWhereClause(input cql.IWhereSpecContext, tableConfig *schemaMapping.TableConfig, params *types.QueryParameters, values *types.QueryParameterValues) ([]types.Condition, error) {
 	if input == nil {
 		return nil, nil
 	}
@@ -578,7 +318,8 @@ func parseWhereByClause(input cql.IWhereSpecContext, tableConfig *schemaMapping.
 	if len(elements) == 0 {
 		return nil, nil
 	}
-	response := types.NewWhereClause(params)
+
+	var conditions []types.Condition
 
 	for _, val := range elements {
 		if val == nil {
@@ -592,7 +333,12 @@ func parseWhereByClause(input cql.IWhereSpecContext, tableConfig *schemaMapping.
 		}
 
 		if val.OPERATOR_EQ() != nil {
-			p := response.PushCondition(column, constants.EQ, column.CQLType)
+			p := params.PushParameter(column.Name, column.CQLType)
+			conditions = append(conditions, types.Condition{
+				Column:           column,
+				Operator:         constants.EQ,
+				ValuePlaceholder: p,
+			})
 			if hasValue {
 				val, err := parseConstantValue(column, val)
 				if err != nil {
@@ -604,7 +350,12 @@ func parseWhereByClause(input cql.IWhereSpecContext, tableConfig *schemaMapping.
 				}
 			}
 		} else if val.OPERATOR_GT() != nil {
-			p := response.PushCondition(column, constants.GT, column.CQLType)
+			p := params.PushParameter(column.Name, column.CQLType)
+			conditions = append(conditions, types.Condition{
+				Column:           column,
+				Operator:         constants.GT,
+				ValuePlaceholder: p,
+			})
 			if hasValue {
 				val, err := parseConstantValue(column, val)
 				if err != nil {
@@ -616,7 +367,12 @@ func parseWhereByClause(input cql.IWhereSpecContext, tableConfig *schemaMapping.
 				}
 			}
 		} else if val.OPERATOR_LT() != nil {
-			p := response.PushCondition(column, constants.LT, column.CQLType)
+			p := params.PushParameter(column.Name, column.CQLType)
+			conditions = append(conditions, types.Condition{
+				Column:           column,
+				Operator:         constants.LT,
+				ValuePlaceholder: p,
+			})
 			if hasValue {
 				val, err := parseConstantValue(column, val)
 				if err != nil {
@@ -628,7 +384,12 @@ func parseWhereByClause(input cql.IWhereSpecContext, tableConfig *schemaMapping.
 				}
 			}
 		} else if val.OPERATOR_GTE() != nil {
-			p := response.PushCondition(column, constants.GTE, column.CQLType)
+			p := params.PushParameter(column.Name, column.CQLType)
+			conditions = append(conditions, types.Condition{
+				Column:           column,
+				Operator:         constants.GTE,
+				ValuePlaceholder: p,
+			})
 			if hasValue {
 				val, err := parseConstantValue(column, val)
 				if err != nil {
@@ -640,7 +401,12 @@ func parseWhereByClause(input cql.IWhereSpecContext, tableConfig *schemaMapping.
 				}
 			}
 		} else if val.OPERATOR_LTE() != nil {
-			p := response.PushCondition(column, constants.LTE, column.CQLType)
+			p := params.PushParameter(column.Name, column.CQLType)
+			conditions = append(conditions, types.Condition{
+				Column:           column,
+				Operator:         constants.LTE,
+				ValuePlaceholder: p,
+			})
 			if hasValue {
 				val, err := parseConstantValue(column, val)
 				if err != nil {
@@ -652,7 +418,12 @@ func parseWhereByClause(input cql.IWhereSpecContext, tableConfig *schemaMapping.
 				}
 			}
 		} else if val.KwIn() != nil {
-			p := response.PushCondition(column, constants.IN, column.CQLType)
+			p := params.PushParameter(column.Name, column.CQLType)
+			conditions = append(conditions, types.Condition{
+				Column:           column,
+				Operator:         constants.IN,
+				ValuePlaceholder: p,
+			})
 			if hasValue {
 				valueFn := val.FunctionArgs()
 				if valueFn == nil {
@@ -689,7 +460,12 @@ func parseWhereByClause(input cql.IWhereSpecContext, tableConfig *schemaMapping.
 				return nil, errors.New("CONTAINS are only supported for set and list")
 			}
 
-			p := response.PushCondition(column, operator, elementType)
+			p := params.PushParameter(column.Name, elementType)
+			conditions = append(conditions, types.Condition{
+				Column:           column,
+				Operator:         operator,
+				ValuePlaceholder: p,
+			})
 			if hasValue {
 				value, err := parseContainsValue(column, relContains)
 				if err != nil {
@@ -706,7 +482,12 @@ func parseWhereByClause(input cql.IWhereSpecContext, tableConfig *schemaMapping.
 				return nil, errors.New("CONTAINS KEY are only supported for map")
 			}
 			keyType := column.CQLType.(types.MapType).KeyType()
-			p := response.PushCondition(column, constants.MAP_CONTAINS_KEY, keyType)
+			p := params.PushParameter(column.Name, keyType)
+			conditions = append(conditions, types.Condition{
+				Column:           column,
+				Operator:         constants.MAP_CONTAINS_KEY,
+				ValuePlaceholder: p,
+			})
 			if hasValue {
 				value, err := parseContainsKeyValue(column, relContains)
 				if err != nil {
@@ -718,7 +499,12 @@ func parseWhereByClause(input cql.IWhereSpecContext, tableConfig *schemaMapping.
 				}
 			}
 		} else if val.KwLike() != nil {
-			p := response.PushCondition(column, constants.LIKE, column.CQLType)
+			p := params.PushParameter(column.Name, column.CQLType)
+			conditions = append(conditions, types.Condition{
+				Column:           column,
+				Operator:         constants.LIKE,
+				ValuePlaceholder: p,
+			})
 			if hasValue {
 				value, err := parseConstantValue(column, val)
 				if err != nil {
@@ -730,7 +516,12 @@ func parseWhereByClause(input cql.IWhereSpecContext, tableConfig *schemaMapping.
 				}
 			}
 		} else if val.KwBetween() != nil {
-			p := response.PushCondition(column, constants.BETWEEN, column.CQLType)
+			p := params.PushParameter(column.Name, column.CQLType)
+			conditions = append(conditions, types.Condition{
+				Column:           column,
+				Operator:         constants.BETWEEN,
+				ValuePlaceholder: p,
+			})
 			if hasValue {
 				value, err := parseConstantValue(column, val)
 				if err != nil {
@@ -745,7 +536,7 @@ func parseWhereByClause(input cql.IWhereSpecContext, tableConfig *schemaMapping.
 			return nil, errors.New("no supported operator found")
 		}
 	}
-	return response, nil
+	return conditions, nil
 }
 
 func parseConstantValue(col *types.Column, e cql.IRelationElementContext) (any, error) {
@@ -921,85 +712,85 @@ func ExtractWritetimeValue(s string) (string, bool) {
 // ProcessComplexUpdate processes complex update operations.
 // Handles complex column updates including collections and counters with validation.
 // Returns error if update type is invalid or processing fails.
-func (t *Translator) ProcessComplexUpdate(columns []*types.Column, values []Assignment) (map[types.ColumnFamily]*ComplexOperation, error) {
-	complexMeta := make(map[types.ColumnFamily]*ComplexOperation)
-	for i, col := range columns {
-		ca := values[i]
-		meta := &ComplexOperation{}
-
-		switch col.CQLType.Code() {
-		case types.LIST:
-			// a. + operation (append): only set append true
-			if ca.Operation == "+" && ca.Left == col.Name {
-				meta.Append = true
-			}
-			// b. + operation (prepend): only set prepend true
-			if ca.Operation == "+" && ca.Right == col.Name {
-				meta.PrependList = true
-			}
-			// c. marks[1]=? (update for index): set updateListIndex, set expected datatype as value type
-			if ca.Operation == "update_index" {
-				if idx, ok := ca.Left.(string); ok {
-					meta.UpdateListIndex = idx
-				}
-				if listType, ok := col.CQLType.DataType().(datatype.ListType); ok {
-					meta.ExpectedDatatype = listType.GetElementType()
-				}
-			}
-			// d. - operation: just mark listDelete and delete as true
-			if ca.Operation == "-" {
-				meta.ListDelete = true
-				meta.Delete = true
-			}
-			complexMeta[col.ColumnFamily] = meta
-
-		case types.MAP:
-			// 1. + operation: only mark append as true
-			if ca.Operation == "+" {
-				meta.Append = true
-			}
-			// 2. - operation: set expected datatype as SET<value_datatype>, mark delete as true
-			if ca.Operation == "-" {
-				meta.Delete = true
-				// get map value datatype
-				if mapType, ok := col.CQLType.DataType().(datatype.MapType); ok {
-					meta.ExpectedDatatype = datatype.NewSetType(mapType.GetKeyType())
-				}
-			}
-			// 3. map[key]=? (update for particular key): set updateMapKey, set expected datatype as value type, mark append as true
-			if ca.Operation == "update_key" || ca.Operation == "update_index" {
-				meta.Append = true
-				if mapType, ok := col.CQLType.DataType().(datatype.MapType); ok {
-					meta.ExpectedDatatype = mapType.GetValueType()
-				}
-				if key, ok := ca.Left.(string); ok {
-					meta.mapKey = key
-				}
-			}
-			complexMeta[col.ColumnFamily] = meta
-		case types.SET:
-			if ca.Operation == "-" {
-				meta.Delete = true
-			}
-			complexMeta[col.ColumnFamily] = meta
-		case types.COUNTER:
-			if ca.Operation == "+" || ca.Operation == "-" {
-				var op = Increment
-				if ca.Operation == "-" {
-					op = Decrement
-				}
-				meta.IncrementType = op
-				meta.ExpectedDatatype = datatype.Bigint
-				complexMeta[col.ColumnFamily] = meta
-			} else {
-				return nil, fmt.Errorf("unsupported counter operation: `%s`", ca.Operation)
-			}
-		default:
-			return nil, fmt.Errorf("column %s is not a collection type", col.Name)
-		}
-	}
-	return complexMeta, nil
-}
+//func (t *Translator) ProcessComplexUpdate(columns []*types.Column, values []Assignment) (map[types.ColumnFamily]*ComplexOperation, error) {
+//	complexMeta := make(map[types.ColumnFamily]*ComplexOperation)
+//	for i, col := range columns {
+//		ca := values[i]
+//		meta := &ComplexOperation{}
+//
+//		switch col.CQLType.Code() {
+//		case types.LIST:
+//			// a. + operation (append): only set append true
+//			if ca.Operation == "+" && ca.Left == col.Name {
+//				meta.Append = true
+//			}
+//			// b. + operation (prepend): only set prepend true
+//			if ca.Operation == "+" && ca.Right == col.Name {
+//				meta.PrependList = true
+//			}
+//			// c. marks[1]=? (update for index): set updateListIndex, set expected datatype as value type
+//			if ca.Operation == "update_index" {
+//				if idx, ok := ca.Left.(string); ok {
+//					meta.UpdateListIndex = idx
+//				}
+//				if listType, ok := col.CQLType.DataType().(datatype.ListType); ok {
+//					meta.ExpectedDatatype = listType.GetElementType()
+//				}
+//			}
+//			// d. - operation: just mark listDelete and delete as true
+//			if ca.Operation == "-" {
+//				meta.ListDelete = true
+//				meta.Delete = true
+//			}
+//			complexMeta[col.ColumnFamily] = meta
+//
+//		case types.MAP:
+//			// 1. + operation: only mark append as true
+//			if ca.Operation == "+" {
+//				meta.Append = true
+//			}
+//			// 2. - operation: set expected datatype as SET<value_datatype>, mark delete as true
+//			if ca.Operation == "-" {
+//				meta.Delete = true
+//				// get map value datatype
+//				if mapType, ok := col.CQLType.DataType().(datatype.MapType); ok {
+//					meta.ExpectedDatatype = datatype.NewSetType(mapType.GetKeyType())
+//				}
+//			}
+//			// 3. map[key]=? (update for particular key): set updateMapKey, set expected datatype as value type, mark append as true
+//			if ca.Operation == "update_key" || ca.Operation == "update_index" {
+//				meta.Append = true
+//				if mapType, ok := col.CQLType.DataType().(datatype.MapType); ok {
+//					meta.ExpectedDatatype = mapType.GetValueType()
+//				}
+//				if key, ok := ca.Left.(string); ok {
+//					meta.mapKey = key
+//				}
+//			}
+//			complexMeta[col.ColumnFamily] = meta
+//		case types.SET:
+//			if ca.Operation == "-" {
+//				meta.Delete = true
+//			}
+//			complexMeta[col.ColumnFamily] = meta
+//		case types.COUNTER:
+//			if ca.Operation == "+" || ca.Operation == "-" {
+//				var op = Increment
+//				if ca.Operation == "-" {
+//					op = Decrement
+//				}
+//				meta.IncrementType = op
+//				meta.ExpectedDatatype = datatype.Bigint
+//				complexMeta[col.ColumnFamily] = meta
+//			} else {
+//				return nil, fmt.Errorf("unsupported counter operation: `%s`", ca.Operation)
+//			}
+//		default:
+//			return nil, fmt.Errorf("column %s is not a collection type", col.Name)
+//		}
+//	}
+//	return complexMeta, nil
+//}
 
 // getFromSpecElement extracts the FROM clause element from a query.
 // Parses and returns the FROM specification element with validation.
@@ -1073,47 +864,39 @@ func NewCqlParser(cqlQuery string, isDebug bool) (*cql.CqlParser, error) {
 	return p, nil
 }
 
-func parseCqlListAssignment(l cql.IAssignmentListContext) ([]string, error) {
-	var result []string
+func parseCqlListAssignment(l cql.IAssignmentListContext, dt types.CqlDataType) ([]types.GoValue, error) {
+	lt := dt.(types.ListType)
+	var result []types.GoValue
 	for _, c := range l.AllConstant() {
-		val, err := parseCqlConstant(c)
+		val, err := getCqlConstant(c, lt.ElementType())
 		if err != nil {
 			return nil, err
 		}
-		strval, err := scalarToString(val)
-		if err != nil {
-			return nil, err
-		}
-		result = append(result, strval)
+		result = append(result, val)
 	}
 	return result, nil
 }
-func parseCqlMapAssignment(m cql.IAssignmentMapContext) (map[string]string, error) {
-	result := make(map[string]string)
+
+func parseCqlMapAssignment(m cql.IAssignmentMapContext, dt types.CqlDataType) (map[types.GoValue]types.GoValue, error) {
+	result := make(map[types.GoValue]types.GoValue)
 	all := m.AllConstant()
 	for i := 0; i+1 < len(all); i += 2 {
-		keyRaw, err := parseCqlConstant(all[i])
+		key, err := getCqlConstant(all[i], dt)
 		if err != nil {
 			return nil, err
 		}
-		val, err := parseCqlConstant(all[i+1])
+		val, err := getCqlConstant(all[i+1], dt)
 		if err != nil {
 			return nil, err
 		}
-		key, err := scalarToString(keyRaw)
-		if err != nil {
-			return nil, err
-		}
-		strval, err := scalarToString(val)
-		if err != nil {
-			return nil, err
-		}
-		result[key] = strval
+		result[key] = val
 	}
 	return result, nil
 }
-func parseCqlSetAssignment(s cql.IAssignmentSetContext) ([]string, error) {
-	var result []string
+
+func parseCqlSetAssignment(s cql.IAssignmentSetContext, dt types.CqlDataType) ([]types.GoValue, error) {
+	st := dt.(types.SetType)
+	var result []types.GoValue
 	all := s.AllConstant()
 	if len(all) == 0 {
 		return result, nil
@@ -1122,50 +905,38 @@ func parseCqlSetAssignment(s cql.IAssignmentSetContext) ([]string, error) {
 		if c == nil {
 			continue
 		}
-		val, err := parseCqlConstant(c)
+		val, err := getCqlConstant(c, st.ElementType())
 		if err != nil {
 			return nil, err
 		}
-		strval, err := scalarToString(val)
-		if err != nil {
-			return nil, err
-		}
-		result = append(result, strval)
+		result = append(result, val)
 	}
 	return result, nil
 }
 
-// parseCqlConstant parses a CQL constant value.
+// getCqlConstant parses a CQL constant value.
 // Converts CQL constant values to their corresponding Go types with validation.
 // Returns error if constant is invalid or conversion fails.
-func parseCqlConstant(c cql.IConstantContext) (interface{}, error) {
-
-	if c.StringLiteral() != nil {
-		return trimQuotes(c.StringLiteral().GetText()), nil
+func getCqlConstant(c cql.IConstantContext, dt types.CqlDataType) (types.GoValue, error) {
+	if c.QUESTION_MARK() != nil {
+		return nil, fmt.Errorf("cannot get constant from prepared query")
 	}
-
+	if c.StringLiteral() != nil {
+		return stringToPrimitives(trimQuotes(c.StringLiteral().GetText()), dt.DataType())
+	}
 	if c.DecimalLiteral() != nil {
-		if c.DecimalLiteral().GetText() == "?" {
-			return "?", nil
-		}
-		return strconv.Atoi(c.DecimalLiteral().GetText())
+		return stringToPrimitives(c.DecimalLiteral().GetText(), dt.DataType())
 	}
 	if c.FloatLiteral() != nil {
-		return strconv.ParseFloat(c.FloatLiteral().GetText(), 64)
+		return stringToPrimitives(c.FloatLiteral().GetText(), dt.DataType())
 	}
 	if c.BooleanLiteral() != nil {
-		val := c.BooleanLiteral().GetText()
-		if val == "true" {
-			return true, nil
-		} else if val == "false" {
-			return false, nil
-		}
-		return nil, fmt.Errorf("unknown boolean literal: %s", val)
+		return stringToPrimitives(c.BooleanLiteral().GetText(), dt.DataType())
 	}
 	if c.KwNull() != nil {
 		return nil, nil
 	}
-	return nil, fmt.Errorf("unknown constant: %s", c.GetText())
+	return nil, fmt.Errorf("unhandled constant: %s", c.GetText())
 }
 
 // DecodeBytesToCassandraColumnType(): Function to decode incoming bytes parameter
@@ -1229,25 +1000,25 @@ func decodePreparedQueryCollection(choice datatype.PrimitiveType, val *primitive
 		// Now check the element type's code
 		switch elementType.GetDataTypeCode() {
 		case primitive.DataTypeCodeVarchar:
-			decodedList, err := collectiondecoder.DecodeCollection(utilities.ListOfStr.DataType(), bigtableEncodingVersion, val)
+			decodedList, err := collectiondecoder.DecodeCollection(utilities.ListOfStr.DataType(), constants.BigtableEncodingVersion, val)
 			if err != nil {
 				return nil, err
 			}
 			return decodedList, err
 		case primitive.DataTypeCodeInt:
-			decodedList, err := collectiondecoder.DecodeCollection(utilities.ListOfInt.DataType(), bigtableEncodingVersion, val)
+			decodedList, err := collectiondecoder.DecodeCollection(utilities.ListOfInt.DataType(), constants.BigtableEncodingVersion, val)
 			if err != nil {
 				return nil, err
 			}
 			return decodedList, err
 		case primitive.DataTypeCodeBigint:
-			decodedList, err := collectiondecoder.DecodeCollection(utilities.ListOfBigInt.DataType(), bigtableEncodingVersion, val)
+			decodedList, err := collectiondecoder.DecodeCollection(utilities.ListOfBigInt.DataType(), constants.BigtableEncodingVersion, val)
 			if err != nil {
 				return nil, err
 			}
 			return decodedList, err
 		case primitive.DataTypeCodeDouble:
-			decodedList, err := collectiondecoder.DecodeCollection(utilities.ListOfDouble.DataType(), bigtableEncodingVersion, val)
+			decodedList, err := collectiondecoder.DecodeCollection(utilities.ListOfDouble.DataType(), constants.BigtableEncodingVersion, val)
 			if err != nil {
 				return nil, err
 			}

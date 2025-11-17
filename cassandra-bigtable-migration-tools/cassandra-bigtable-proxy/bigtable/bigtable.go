@@ -79,15 +79,15 @@ const (
 type BigTableClientIface interface {
 	ApplyBulkMutation(context.Context, string, []MutationData, string) (BulkOperationResponse, error)
 	Close()
-	DeleteRow(context.Context, *translator.DeleteQueryMapping) (*message.RowsResult, error)
+	DeleteRow(context.Context, *translator.BoundDeleteQuery) (*message.RowsResult, error)
 	ReadTableConfigs(context.Context, string) ([]*schemaMapping.TableConfig, error)
-	InsertRow(ctx context.Context, table *schemaMapping.TableConfig, input *types.BigtableMutations) (*message.RowsResult, error)
+	InsertRow(ctx context.Context, table *schemaMapping.TableConfig, input *translator.BigtableMutations) (*message.RowsResult, error)
 	SelectStatement(context.Context, *translator.SelectQueryAndData) (*message.RowsResult, time.Time, error)
 	AlterTable(ctx context.Context, data *translator.AlterTableStatementMap) error
 	CreateTable(ctx context.Context, data *translator.CreateTableStatementMap) error
 	DropAllRows(ctx context.Context, data *translator.TruncateTableStatementMap) error
 	DropTable(ctx context.Context, data *translator.DropTableStatementMap) error
-	UpdateRow(ctx context.Context, table *schemaMapping.TableConfig, input *types.BigtableMutations) (*message.RowsResult, error)
+	UpdateRow(ctx context.Context, table *schemaMapping.TableConfig, input *translator.BigtableMutations) (*message.RowsResult, error)
 	PrepareStatement(ctx context.Context, query *translator.SelectQueryMap) (*bigtable.PreparedStatement, error)
 	ExecutePreparedStatement(ctx context.Context, query *translator.SelectQueryAndData, preparedStmt *bigtable.PreparedStatement) (*message.RowsResult, time.Time, error)
 
@@ -167,7 +167,7 @@ func (btc *BigtableClient) tableResourceExists(ctx context.Context, adminClient 
 //
 // Returns:
 //   - error: Error if the mutation fails.
-func (btc *BigtableClient) mutateRow(ctx context.Context, table *schemaMapping.TableConfig, input *types.BigtableMutations) (*message.RowsResult, error) {
+func (btc *BigtableClient) mutateRow(ctx context.Context, table *schemaMapping.TableConfig, input *translator.BigtableMutations) (*message.RowsResult, error) {
 	otelgo.AddAnnotation(ctx, applyingBigtableMutation)
 	mut := bigtable.NewMutation()
 
@@ -192,12 +192,19 @@ func (btc *BigtableClient) mutateRow(ctx context.Context, table *schemaMapping.T
 		mutationCount++
 	}
 
+	var timestamp bigtable.Timestamp
+	if input.UsingTimestamp.HasUsingTimestamp {
+		timestamp = bigtable.Time(input.UsingTimestamp.Timestamp)
+	} else {
+		timestamp = bigtable.Time(time.Now())
+	}
+
 	for _, indexOp := range input.SetIndexOps {
 		reqTimestamp, err := btc.getIndexOpTimestamp(ctx, table, input.RowKey, indexOp.Family, indexOp.Index)
 		if err != nil {
 			return nil, err
 		}
-		mut.Set(string(indexOp.Family), reqTimestamp, input.Timestamp, indexOp.Value)
+		mut.Set(string(indexOp.Family), reqTimestamp, timestamp, indexOp.Value)
 		mutationCount++
 	}
 
@@ -217,7 +224,7 @@ func (btc *BigtableClient) mutateRow(ctx context.Context, table *schemaMapping.T
 
 	// Set values for columns
 	for _, d := range input.Data {
-		mut.Set(string(d.Family), string(d.Column), input.Timestamp, d.Bytes)
+		mut.Set(string(d.Family), string(d.Column), timestamp, d.Bytes)
 		mutationCount++
 	}
 
@@ -582,7 +589,7 @@ func (btc *BigtableClient) updateTableSchema(ctx context.Context, keyspace strin
 //
 // Returns:
 //   - error: Error if the insertion fails.
-func (btc *BigtableClient) InsertRow(ctx context.Context, table *schemaMapping.TableConfig, input *types.BigtableMutations) (*message.RowsResult, error) {
+func (btc *BigtableClient) InsertRow(ctx context.Context, table *schemaMapping.TableConfig, input *translator.BigtableMutations) (*message.RowsResult, error) {
 	return btc.mutateRow(ctx, table, input)
 }
 
@@ -594,11 +601,11 @@ func (btc *BigtableClient) InsertRow(ctx context.Context, table *schemaMapping.T
 //
 // Returns:
 //   - error: Error if the update fails.
-func (btc *BigtableClient) UpdateRow(ctx context.Context, table *schemaMapping.TableConfig, input *types.BigtableMutations) (*message.RowsResult, error) {
+func (btc *BigtableClient) UpdateRow(ctx context.Context, table *schemaMapping.TableConfig, input *translator.BigtableMutations) (*message.RowsResult, error) {
 	return btc.mutateRow(ctx, table, input)
 }
 
-func (btc *BigtableClient) DeleteRow(ctx context.Context, deleteQueryData *translator.DeleteQueryMapping) (*message.RowsResult, error) {
+func (btc *BigtableClient) DeleteRow(ctx context.Context, deleteQueryData *translator.BoundDeleteQuery) (*message.RowsResult, error) {
 	otelgo.AddAnnotation(ctx, applyingDeleteMutation)
 	client, err := btc.getClient(deleteQueryData.Keyspace)
 	if err != nil {
@@ -612,25 +619,25 @@ func (btc *BigtableClient) DeleteRow(ctx context.Context, deleteQueryData *trans
 		return nil, err
 	}
 
-	if len(deleteQueryData.SelectedColumns) > 0 {
-		for _, v := range deleteQueryData.SelectedColumns {
-			if v.ListIndex != "" { //handle list delete Items
-				index, err := strconv.Atoi(v.ListIndex)
+	if len(deleteQueryData.Columns) > 0 {
+		for _, column := range deleteQueryData.Columns {
+			switch c := column.(type) {
+			case *translator.BoundIndexColumn:
+				reqTimestamp, err := btc.getIndexOpTimestamp(ctx, table, deleteQueryData.RowKey, c.Column().ColumnFamily, c.Index)
 				if err != nil {
 					return nil, err
 				}
-				reqTimestamp, err := btc.getIndexOpTimestamp(ctx, table, deleteQueryData.RowKey, types.ColumnFamily(v.Name), deleteQueryData.Keyspace, index)
-				if err != nil {
-					return nil, err
-				}
-				mut.DeleteCellsInColumn(string(v.Name), reqTimestamp)
-			} else if v.MapKey != "" { // Handle map delete Items
-				mut.DeleteCellsInColumn(string(v.Name), v.MapKey)
+				mut.DeleteCellsInColumn(string(c.Column().ColumnFamily), reqTimestamp)
+			case *translator.BoundKeyColumn:
+				mut.DeleteCellsInColumn(string(c.Column().ColumnFamily), string(c.Key))
+			default:
+				return nil, fmt.Errorf("unhandled delete query column %T", c)
 			}
 		}
 	} else {
 		mut.DeleteRow()
 	}
+
 	if deleteQueryData.IfExists {
 		predicateFilter := bigtable.CellsPerRowLimitFilter(1)
 		conditionalMutation := bigtable.NewCondMutation(predicateFilter, mut, nil)
@@ -1022,7 +1029,7 @@ func (btc *BigtableClient) PrepareStatement(ctx context.Context, query *translat
 	}
 
 	paramTypes := make(map[string]bigtable.SQLType)
-	for _, clause := range query.Clauses {
+	for _, clause := range query.Conditions {
 		dt := query.Params.GetDataType(clause.ValuePlaceholder)
 
 		if clause.Operator == constants.MAP_CONTAINS_KEY || clause.Operator == constants.ARRAY_INCLUDES {

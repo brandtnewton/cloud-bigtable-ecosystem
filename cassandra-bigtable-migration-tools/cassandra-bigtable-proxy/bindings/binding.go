@@ -440,6 +440,21 @@ func BindSelectColumns(table *schemaMapping.TableConfig, selectedColumns []types
 	return boundColumns, nil
 }
 
+func ValidateZeroParamsSet(q *types.QueryParameterValues) error {
+	var setParams []string
+	keys := q.Params().AllKeys()
+	for _, p := range keys {
+		_, err := q.GetValue(p)
+		if err == nil {
+			setParams = append(setParams, string(p))
+		}
+	}
+	if len(setParams) > 0 {
+		return fmt.Errorf("expected no set params but found %d parameters: %s", len(setParams), strings.Join(setParams, ", "))
+	}
+	return nil
+}
+
 func ValidateAllParamsSet(q *types.QueryParameterValues) error {
 	var missingParams []string
 	keys := q.Params().AllKeys()

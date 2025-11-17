@@ -1212,9 +1212,9 @@ func TestTranslator_TranslateSelectQuerytoBigtable(t *testing.T) {
 				Logger:              tt.fields.Logger,
 				SchemaMappingConfig: schemaMappingConfig,
 			}
-			got, err := tr.TranslateSelectQuerytoBigtable(tt.args.query, tt.defaultKeyspace)
+			got, err := tr.PrepareSelect(tt.args.query, tt.defaultKeyspace)
 			if (err != nil) != tt.wantErr {
-				t.Errorf("Translator.TranslateSelectQuerytoBigtable() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("Translator.PrepareSelect() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
 			if tt.want != nil {

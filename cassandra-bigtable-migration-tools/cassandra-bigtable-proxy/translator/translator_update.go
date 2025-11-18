@@ -37,25 +37,9 @@ func (t *Translator) TranslateUpdate(query string, sessionKeyspace types.Keyspac
 		return nil, nil, errors.New("error parsing the update object")
 	}
 
-	keyspace := updateObj.Keyspace()
-	updateObj.DOT()
-	table := updateObj.Table()
-
-	var keyspaceName types.Keyspace
-	var tableName types.TableName
-
-	if table != nil && table.OBJECT_NAME() != nil && table.OBJECT_NAME().GetText() != "" {
-		tableName = types.TableName(table.OBJECT_NAME().GetText())
-	} else {
-		return nil, nil, fmt.Errorf("invalid input paramaters found for table")
-	}
-
-	if keyspace != nil && keyspace.OBJECT_NAME() != nil && keyspace.OBJECT_NAME().GetText() != "" {
-		keyspaceName = types.Keyspace(keyspace.OBJECT_NAME().GetText())
-	} else if sessionKeyspace != "" {
-		keyspaceName = sessionKeyspace
-	} else {
-		return nil, nil, fmt.Errorf("invalid input parameters found for keyspace")
+	keyspaceName, tableName, err := parseTarget(updateObj, sessionKeyspace, t.SchemaMappingConfig)
+	if err != nil {
+		return nil, nil, err
 	}
 
 	tableConfig, err := t.SchemaMappingConfig.GetTableConfig(keyspaceName, tableName)

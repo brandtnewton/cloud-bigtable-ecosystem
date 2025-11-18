@@ -2337,7 +2337,7 @@ func TestProcessCollectionColumnsForPrepareQueries_ComplexMetaAndNonCollection(t
 
 			// For list types, don't compare Names directly, normalize them for comparison
 			if strings.Contains(tt.name, "List") {
-				// Normalize the Column fields for comparison
+				// Normalize the Columns fields for comparison
 				for i := range output.Data {
 					output.Data[i].Name = fmt.Sprintf("list_index_%d", i)
 				}

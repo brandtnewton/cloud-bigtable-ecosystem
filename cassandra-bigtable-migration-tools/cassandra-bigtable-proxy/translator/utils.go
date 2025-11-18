@@ -689,155 +689,6 @@ func ValidateRequiredPrimaryKeys(tableConfig *schemaMapping.TableConfig, params 
 	return nil
 }
 
-// ExtractWritetimeValue extracts writetime value from a string.
-// Parses and extracts writetime specifications with validation.
-// Returns error if format is invalid or extraction fails.
-func ExtractWritetimeValue(s string) (string, bool) {
-	s = strings.ToLower(s)
-	// Check if the input starts with "writetime(" and ends with ")"
-	if strings.HasPrefix(s, "writetime(") && strings.HasSuffix(s, ")") {
-		// Extract the content between "writetime(" and ")"
-		value := s[len("writetime(") : len(s)-1]
-		return value, true
-	}
-	// Return empty string and false if the format is incorrect
-	return "", false
-}
-
-// ProcessComplexUpdate processes complex update operations.
-// Handles complex column updates including collections and counters with validation.
-// Returns error if update type is invalid or processing fails.
-//func (t *Translator) ProcessComplexUpdate(columns []*types.Column, values []Assignment) (map[types.ColumnFamily]*ComplexOperation, error) {
-//	complexMeta := make(map[types.ColumnFamily]*ComplexOperation)
-//	for i, col := range columns {
-//		ca := values[i]
-//		meta := &ComplexOperation{}
-//
-//		switch col.CQLType.Code() {
-//		case types.LIST:
-//			// a. + operation (append): only set append true
-//			if ca.Operation == "+" && ca.Left == col.Name {
-//				meta.Append = true
-//			}
-//			// b. + operation (prepend): only set prepend true
-//			if ca.Operation == "+" && ca.Right == col.Name {
-//				meta.PrependList = true
-//			}
-//			// c. marks[1]=? (update for index): set updateListIndex, set expected datatype as value type
-//			if ca.Operation == "update_index" {
-//				if idx, ok := ca.Left.(string); ok {
-//					meta.UpdateListIndex = idx
-//				}
-//				if listType, ok := col.CQLType.DataType().(datatype.ListType); ok {
-//					meta.ExpectedDatatype = listType.GetElementType()
-//				}
-//			}
-//			// d. - operation: just mark listDelete and delete as true
-//			if ca.Operation == "-" {
-//				meta.ListDelete = true
-//				meta.Delete = true
-//			}
-//			complexMeta[col.ColumnFamily] = meta
-//
-//		case types.MAP:
-//			// 1. + operation: only mark append as true
-//			if ca.Operation == "+" {
-//				meta.Append = true
-//			}
-//			// 2. - operation: set expected datatype as SET<value_datatype>, mark delete as true
-//			if ca.Operation == "-" {
-//				meta.Delete = true
-//				// get map value datatype
-//				if mapType, ok := col.CQLType.DataType().(datatype.MapType); ok {
-//					meta.ExpectedDatatype = datatype.NewSetType(mapType.GetKeyType())
-//				}
-//			}
-//			// 3. map[key]=? (update for particular key): set updateMapKey, set expected datatype as value type, mark append as true
-//			if ca.Operation == "update_key" || ca.Operation == "update_index" {
-//				meta.Append = true
-//				if mapType, ok := col.CQLType.DataType().(datatype.MapType); ok {
-//					meta.ExpectedDatatype = mapType.GetValueType()
-//				}
-//				if key, ok := ca.Left.(string); ok {
-//					meta.mapKey = key
-//				}
-//			}
-//			complexMeta[col.ColumnFamily] = meta
-//		case types.SET:
-//			if ca.Operation == "-" {
-//				meta.Delete = true
-//			}
-//			complexMeta[col.ColumnFamily] = meta
-//		case types.COUNTER:
-//			if ca.Operation == "+" || ca.Operation == "-" {
-//				var op = Increment
-//				if ca.Operation == "-" {
-//					op = Decrement
-//				}
-//				meta.IncrementType = op
-//				meta.ExpectedDatatype = datatype.Bigint
-//				complexMeta[col.ColumnFamily] = meta
-//			} else {
-//				return nil, fmt.Errorf("unsupported counter operation: `%s`", ca.Operation)
-//			}
-//		default:
-//			return nil, fmt.Errorf("column %s is not a collection type", col.Name)
-//		}
-//	}
-//	return complexMeta, nil
-//}
-
-// getFromSpecElement extracts the FROM clause element from a query.
-// Parses and returns the FROM specification element with validation.
-// Returns error if FROM clause is invalid or parsing fails.
-func getFromSpecElement(input cql.IFromSpecContext) (cql.IFromSpecElementContext, error) {
-	if input == nil {
-		return nil, errors.New("input context is nil")
-	}
-	fromSpec := input.FromSpecElement()
-	if fromSpec == nil {
-		return nil, errors.New("error while parsing fromSpec")
-	}
-	return fromSpec, nil
-}
-
-// getAllObjectNames extracts all object names from a FROM clause.
-// Returns a list of all object names in the FROM specification with validation.
-// Returns error if no objects found or parsing fails.
-func getAllObjectNames(fromSpec cql.IFromSpecElementContext) ([]antlr.TerminalNode, error) {
-	allObj := fromSpec.AllOBJECT_NAME()
-	if allObj == nil {
-		return nil, errors.New("error while parsing all objects from the fromSpec")
-	}
-	if len(allObj) == 0 {
-		return nil, errors.New("could not find table and keyspace name")
-	}
-	return allObj, nil
-}
-
-// getTableAndKeyspaceObjects extracts table and keyspace names.
-// Parses and returns the table and keyspace names from object names with validation.
-// Returns error if names are invalid or parsing fails.
-func getTableAndKeyspaceObjects(allObj []antlr.TerminalNode) (types.Keyspace, types.TableName, error) {
-	var keyspaceName, tableName string
-
-	if len(allObj) == 2 {
-		keyspaceName = allObj[0].GetText()
-		tableName = allObj[1].GetText()
-	} else if len(allObj) == 1 {
-		keyspaceName = ""
-		tableName = allObj[0].GetText()
-	} else {
-		return "", "", errors.New("could not find table or keyspace name or some extra parameter provided")
-	}
-
-	if tableName == "" {
-		return "", "", fmt.Errorf("table is missing")
-	}
-
-	return types.Keyspace(keyspaceName), types.TableName(tableName), nil
-}
-
 // NewCqlParser creates a new CQL parser instance.
 // Initializes and returns a parser for CQL queries with validation.
 // Returns error if query is invalid or parser initialization fails.
@@ -1312,4 +1163,39 @@ func scalarToString(val interface{}) (string, error) {
 	default:
 		return "", fmt.Errorf("unsupported type: %T", v)
 	}
+}
+
+type TableOperation interface {
+	Table() cql.ITableContext
+	Keyspace() cql.IKeyspaceContext
+}
+
+func parseTarget(op TableOperation, sessionKeyspace types.Keyspace, config *schemaMapping.SchemaMappingConfig) (types.Keyspace, types.TableName, error) {
+	if op.Table() == nil || op.Table().GetText() == "" {
+		return "", "", errors.New("invalid input parameters found for table")
+	}
+
+	tableNameString := op.Table().GetText()
+	if !validTableName.MatchString(tableNameString) {
+		return "", "", errors.New("invalid table name parsed from query")
+	}
+	if utilities.IsReservedCqlKeyword(tableNameString) {
+		return "", "", fmt.Errorf("table name cannot be reserved cql word: '%s'", tableNameString)
+	}
+	tableName := types.TableName(tableNameString)
+
+	if tableName == config.SchemaMappingTableName {
+		return "", "", fmt.Errorf("table name cannot be the same as the configured schema mapping table name '%s'", tableName)
+	}
+
+	keyspaceName := sessionKeyspace
+	if op.Keyspace() != nil && op.Keyspace().GetText() != "" {
+		keyspaceName = types.Keyspace(op.Keyspace().GetText())
+	}
+
+	if keyspaceName == "" {
+		return "", "", errors.New("missing keyspace. keyspace is required")
+	}
+
+	return keyspaceName, tableName, nil
 }

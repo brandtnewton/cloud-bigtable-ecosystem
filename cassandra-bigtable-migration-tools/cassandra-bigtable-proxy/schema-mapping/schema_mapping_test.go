@@ -102,7 +102,7 @@ func Test_GetColumn(t *testing.T) {
 		wantErr bool
 	}{
 		{
-			name:   "types.Column exists",
+			name:   "types.Columns exists",
 			fields: getSchemaMappingConfig(),
 			args: struct {
 				tableName  string
@@ -120,7 +120,7 @@ func Test_GetColumn(t *testing.T) {
 			wantErr: false,
 		},
 		{
-			name:    "types.Column exists in different table",
+			name:    "types.Columns exists in different table",
 			fields:  getSchemaMappingConfig(),
 			args:    columnExistsInDifferentTableArgs,
 			wantErr: true,
@@ -313,7 +313,7 @@ func Test_GetSpecificColumnsMetadataForSelectedColumns(t *testing.T) {
 			},
 			selectedCols: []translator.SelectedColumn{
 				{
-					Name: "column1",
+					Sql: "column1",
 				},
 			},
 			tableName: "table1",
@@ -344,7 +344,7 @@ func Test_GetSpecificColumnsMetadataForSelectedColumns(t *testing.T) {
 			},
 			selectedCols: []translator.SelectedColumn{
 				{
-					Name:              "writetime_column",
+					Sql:               "writetime_column",
 					IsWriteTimeColumn: true,
 					ColumnName:        "column1",
 				},
@@ -377,7 +377,7 @@ func Test_GetSpecificColumnsMetadataForSelectedColumns(t *testing.T) {
 			},
 			selectedCols: []translator.SelectedColumn{
 				{
-					Name: LimitValue,
+					Sql: LimitValue,
 				},
 			},
 			tableName: "table1",
@@ -408,7 +408,7 @@ func Test_GetSpecificColumnsMetadataForSelectedColumns(t *testing.T) {
 			},
 			selectedCols: []translator.SelectedColumn{
 				{
-					Name:   "column1",
+					Sql:    "column1",
 					IsFunc: true,
 				},
 			},
@@ -417,7 +417,7 @@ func Test_GetSpecificColumnsMetadataForSelectedColumns(t *testing.T) {
 			expectedError: nil,
 		},
 		{
-			name:   "Error - types.Column not found",
+			name:   "Error - types.Columns not found",
 			fields: getSchemaMappingConfig(),
 			columnsMap: map[string]*types.Column{
 				"column1": {
@@ -432,7 +432,7 @@ func Test_GetSpecificColumnsMetadataForSelectedColumns(t *testing.T) {
 			},
 			selectedCols: []translator.SelectedColumn{
 				{
-					Name: "nonexistent_column",
+					Sql: "nonexistent_column",
 				},
 			},
 			tableName:     "table1",
@@ -455,7 +455,7 @@ func Test_GetSpecificColumnsMetadataForSelectedColumns(t *testing.T) {
 			},
 			selectedCols: []translator.SelectedColumn{
 				{
-					Name: "invalid_special_column",
+					Sql: "invalid_special_column",
 				},
 			},
 			tableName:     "table1",
@@ -468,7 +468,7 @@ func Test_GetSpecificColumnsMetadataForSelectedColumns(t *testing.T) {
 			columnsMap: map[string]*types.Column{},
 			selectedCols: []translator.SelectedColumn{
 				{
-					Name: "column1",
+					Sql: "column1",
 				},
 			},
 			tableName:     "table1",
@@ -481,7 +481,7 @@ func Test_GetSpecificColumnsMetadataForSelectedColumns(t *testing.T) {
 			columnsMap: map[string]*types.Column{},
 			selectedCols: []translator.SelectedColumn{
 				{
-					Name:              "no_write_time_column",
+					Sql:               "no_write_time_column",
 					IsWriteTimeColumn: true,
 					ColumnName:        "nonexistent_column",
 				},
@@ -496,7 +496,7 @@ func Test_GetSpecificColumnsMetadataForSelectedColumns(t *testing.T) {
 			columnsMap: map[string]*types.Column{},
 			selectedCols: []translator.SelectedColumn{
 				{
-					Name: LimitValue,
+					Sql: LimitValue,
 				},
 			},
 			tableName:     "table1",
@@ -624,7 +624,7 @@ func Test_GetSpecificColumnsMetadata(t *testing.T) {
 			expectedError: nil,
 		},
 		{
-			name:          "Error - types.Column not found",
+			name:          "Error - types.Columns not found",
 			fields:        getSchemaMappingConfig(),
 			columnNames:   []string{"nonexistent_column"},
 			tableName:     "table1",
@@ -1095,7 +1095,7 @@ func Test_HandleSpecialSelectedColumn(t *testing.T) {
 			fields:     getSchemaMappingConfig(),
 			columnsMap: map[string]*types.Column{},
 			columnSelected: translator.SelectedColumn{
-				Name:     "count_col",
+				Sql:      "count_col",
 				FuncName: "count",
 			},
 			index:     0,
@@ -1115,7 +1115,7 @@ func Test_HandleSpecialSelectedColumn(t *testing.T) {
 			fields:     getSchemaMappingConfig(),
 			columnsMap: map[string]*types.Column{},
 			columnSelected: translator.SelectedColumn{
-				Name:              "wt_col",
+				Sql:               "wt_col",
 				IsWriteTimeColumn: true,
 			},
 			index:     1,
@@ -1141,7 +1141,7 @@ func Test_HandleSpecialSelectedColumn(t *testing.T) {
 				},
 			},
 			columnSelected: translator.SelectedColumn{
-				Name:       "alias_col",
+				Sql:        "alias_col",
 				Alias:      "alias_col",
 				ColumnName: "original_col",
 			},
@@ -1168,7 +1168,7 @@ func Test_HandleSpecialSelectedColumn(t *testing.T) {
 				},
 			},
 			columnSelected: translator.SelectedColumn{
-				Name:       "map_value",
+				Sql:        "map_value",
 				ColumnName: "map_col",
 				MapKey:     "key1",
 			},
@@ -1185,11 +1185,11 @@ func Test_HandleSpecialSelectedColumn(t *testing.T) {
 			expectedError: nil,
 		},
 		{
-			name:       "Error - types.Column not found",
+			name:       "Error - types.Columns not found",
 			fields:     getSchemaMappingConfig(),
 			columnsMap: map[string]*types.Column{},
 			columnSelected: translator.SelectedColumn{
-				Name:       "nonexistent",
+				Sql:        "nonexistent",
 				ColumnName: "nonexistent",
 			},
 			index:         4,
@@ -1209,7 +1209,7 @@ func Test_HandleSpecialSelectedColumn(t *testing.T) {
 				},
 			},
 			columnSelected: translator.SelectedColumn{
-				Name:       "func_result",
+				Sql:        "func_result",
 				IsFunc:     true,
 				ColumnName: "func_col",
 			},
@@ -1340,7 +1340,7 @@ func Test_sortPrimaryKeysData(t *testing.T) {
 			},
 		},
 		{
-			name: "Single types.Column (No Sorting Needed)",
+			name: "Single types.Columns (No Sorting Needed)",
 			args: args{
 				pkMetadata: []*types.Column{
 					{Name: "category_id", PkPrecedence: 1},

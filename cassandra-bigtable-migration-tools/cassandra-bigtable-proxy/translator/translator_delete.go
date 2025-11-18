@@ -28,42 +28,6 @@ import (
 	"github.com/datastax/go-cassandra-native-protocol/primitive"
 )
 
-// parseTableFromDelete() extracts the table and keyspace information from the input context of a DELETE query.
-//
-// Parameters:
-//   - input: A context interface representing the FROM specification of a CQL DELETE query.
-//
-// Returns:
-//   - A pointer to a TableObj containing the extracted table and keyspace names.
-//   - An error if the input is nil, or if there are issues in parsing the table or keyspace names.
-func parseTableFromDelete(input cql.IFromSpecContext) (*TableObj, error) {
-	if input == nil {
-		return nil, errors.New("no input parameters found for table and keyspace")
-	}
-
-	fromSpec, err := getFromSpecElement(input)
-	if err != nil {
-		return nil, err
-	}
-
-	allObj, err := getAllObjectNames(fromSpec)
-	if err != nil {
-		return nil, err
-	}
-
-	keyspaceName, tableName, err := getTableAndKeyspaceObjects(allObj)
-	if err != nil {
-		return nil, err
-	}
-
-	response := TableObj{
-		TableName:    tableName,
-		KeyspaceName: keyspaceName,
-	}
-
-	return &response, nil
-}
-
 func (t *Translator) TranslateDelete(query string, sessionKeyspace types.Keyspace, isPreparedQuery bool) (*PreparedDeleteQuery, *BoundDeleteQuery, error) {
 	lexer := cql.NewCqlLexer(antlr.NewInputStream(query))
 	stream := antlr.NewCommonTokenStream(lexer, antlr.TokenDefaultChannel)
@@ -74,19 +38,9 @@ func (t *Translator) TranslateDelete(query string, sessionKeyspace types.Keyspac
 		return nil, nil, errors.New("error while parsing delete object")
 	}
 
-	tableSpec, err := parseTableFromDelete(deleteObj.FromSpec())
+	keyspaceName, tableName, err := parseTarget(deleteObj.FromSpec(), sessionKeyspace, t.SchemaMappingConfig)
 	if err != nil {
 		return nil, nil, err
-	}
-	keyspaceName := tableSpec.KeyspaceName
-	tableName := tableSpec.TableName
-
-	if keyspaceName == "" {
-		if sessionKeyspace != "" {
-			keyspaceName = sessionKeyspace
-		} else {
-			return nil, nil, fmt.Errorf("invalid input parameters found for keyspace")
-		}
 	}
 
 	tableConfig, err := t.SchemaMappingConfig.GetTableConfig(keyspaceName, tableName)
@@ -203,7 +157,7 @@ func parseDeleteColumns(deleteColumns cql.IDeleteColumnListContext, tableConfig 
 	var columns []SelectedColumn
 	for _, v := range cols {
 		var col SelectedColumn
-		col.Name = v.OBJECT_NAME().GetText()
+		col.Sql = v.OBJECT_NAME().GetText()
 		if v.LS_BRACKET() != nil {
 			if v.DecimalLiteral() != nil { // for list index
 				p, err := parseDecimalLiteral(v.DecimalLiteral(), types.TypeInt, params, values)
@@ -221,8 +175,8 @@ func parseDeleteColumns(deleteColumns cql.IDeleteColumnListContext, tableConfig 
 				return nil, errors.New("unhandled delete column clause")
 			}
 		}
-		if !tableConfig.HasColumn(types.ColumnName(col.Name)) {
-			return nil, fmt.Errorf("unknown column `%s`", col.Name)
+		if !tableConfig.HasColumn(types.ColumnName(col.Sql)) {
+			return nil, fmt.Errorf("unknown column `%s`", col.Sql)
 		}
 		columns = append(columns, col)
 	}

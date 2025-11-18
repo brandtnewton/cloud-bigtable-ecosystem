@@ -22,6 +22,7 @@ import (
 	"fmt"
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/global/constants"
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/global/types"
+	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/responsehandler"
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/third_party/datastax/proxycore"
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/translator"
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/utilities"
@@ -44,11 +45,12 @@ import (
 //   - error: Error if the select statement execution fails.
 func (btc *BigtableClient) SelectStatement(ctx context.Context, query *translator.BoundSelectQuery) (*message.RowsResult, error) {
 	preparedStmt, err := btc.PrepareStatement(ctx, query.Query)
+	query.Query.CachedBTPrepare = preparedStmt
 	if err != nil {
 		btc.Logger.Error("Failed to prepare statement", zap.String("query", query.Query.TranslatedQuery), zap.Error(err))
 		return nil, fmt.Errorf("failed to prepare statement: %w", err)
 	}
-	return btc.ExecutePreparedStatement(ctx, query, preparedStmt)
+	return btc.ExecutePreparedStatement(ctx, query)
 }
 
 // ExecutePreparedStatement -  Executes a prepared statement on Bigtable and returns the result.
@@ -70,15 +72,15 @@ func (btc *BigtableClient) ExecutePreparedStatement(ctx context.Context, query *
 	}
 
 	var processingErr error
-	var allRowMaps []*types.BigtableResultRow
+	var rows []*types.BigtableResultRow
 	executeErr := boundStmt.Execute(ctx, func(resultRow bigtable.ResultRow) bool {
-		rowMap, convertErr := btc.convertResultRow(resultRow, query.Query) // Call the implemented helper
+		r, convertErr := btc.convertResultRow(resultRow, query.Query) // Call the implemented helper
 		if convertErr != nil {
 			btc.Logger.Error("Failed to convert result row", zap.Error(convertErr), zap.String("btql", query.Query.TranslatedQuery))
 			processingErr = convertErr // Capture the error
 			return false               // Stop execution
 		}
-		allRowMaps = append(allRowMaps, rowMap)
+		rows = append(rows, r)
 		return true // Continue processing
 	})
 	if executeErr != nil {
@@ -88,12 +90,13 @@ func (btc *BigtableClient) ExecutePreparedStatement(ctx context.Context, query *
 	if processingErr != nil { // Check for error during row conversion/processing
 		return nil, fmt.Errorf("failed during row processing: %w", processingErr)
 	}
-	return &types.SelectResult{Rows: allRowMaps}, nil
+
+	return responsehandler.BuildRowsResultResponse(query.Keyspace(), query.Table(), query.Query.SelectedColumns, rows)
 }
 
 // convertResultRow converts a bigtable.ResultRow into the map format expected by the ResponseHandler.
 func (btc *BigtableClient) convertResultRow(resultRow bigtable.ResultRow, query *translator.PreparedSelectQuery) (*types.BigtableResultRow, error) {
-	table, err := btc.SchemaMappingConfig.GetTableConfig(query.Keyspace, query.Table)
+	table, err := btc.SchemaMappingConfig.GetTableConfig(query.Keyspace(), query.Table())
 	if err != nil {
 		return nil, err
 	}
@@ -114,7 +117,7 @@ func (btc *BigtableClient) convertResultRow(resultRow bigtable.ResultRow, query 
 			continue
 		}
 		if strings.Contains(resultKey, "$col") {
-			resultKey = query.SelectedColumns[i].Name
+			resultKey = query.SelectedColumns[i].Sql
 		}
 		switch value := resultValue.(type) {
 		case string:

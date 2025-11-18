@@ -102,7 +102,7 @@ func TestNegativeDeleteCases(t *testing.T) {
 		{"Missing PK Part", `DELETE FROM user_info WHERE name = ? IF EXISTS`, []interface{}{"Michael"}, "some primary key parts are missing: age"},
 		{"Condition on Non-PK Only", `DELETE FROM user_info WHERE credited = ? IF EXISTS`, []interface{}{5000.0}, "non PRIMARY KEY columns found in where clause: credited"},
 		{"Invalid Data Type", `DELETE FROM user_info WHERE name = ? AND age = ?`, []interface{}{"Michael", "invalid_age"}, "can not marshal string to bigint"},
-		{"Invalid Table Column", `DELETE FROM non_existent_table WHERE name = ? AND age = ?`, []interface{}{"Michael", int64(45)}, "table non_existent_table does not exist"},
+		{"Invalid Table Columns", `DELETE FROM non_existent_table WHERE name = ? AND age = ?`, []interface{}{"Michael", int64(45)}, "table non_existent_table does not exist"},
 		{"Invalid Keyspace", `DELETE FROM invalid_keyspace.user_info WHERE name = ? AND age = ?`, []interface{}{"Michael", int64(45)}, "keyspace 'invalid_keyspace' does not exist"},
 	}
 

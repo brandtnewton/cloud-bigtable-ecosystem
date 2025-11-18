@@ -44,32 +44,9 @@ func (t *Translator) TranslateCreateTableToBigtable(query string, sessionKeyspac
 		return nil, errors.New("error while parsing create object")
 	}
 
-	var keyspaceName types.Keyspace
-	var tableName types.TableName
-
-	if createTableObj != nil && createTableObj.Table() != nil && createTableObj.Table().GetText() != "" {
-		tableNameString := createTableObj.Table().GetText()
-		if !validTableName.MatchString(tableNameString) {
-			return nil, errors.New("invalid table name parsed from query")
-		}
-		if utilities.IsReservedCqlKeyword(tableNameString) {
-			return nil, fmt.Errorf("cannot create a table with reserved keyword as name: '%s'", tableNameString)
-		}
-		tableName = types.TableName(tableNameString)
-	} else {
-		return nil, errors.New("invalid input parameters found for table")
-	}
-
-	if tableName == t.SchemaMappingConfig.SchemaMappingTableName {
-		return nil, fmt.Errorf("cannot create a table with the configured schema mapping table name '%s'", tableName)
-	}
-
-	if createTableObj != nil && createTableObj.Keyspace() != nil && createTableObj.Keyspace().GetText() != "" {
-		keyspaceName = types.Keyspace(createTableObj.Keyspace().GetText())
-	} else if sessionKeyspace != "" {
-		keyspaceName = sessionKeyspace
-	} else {
-		return nil, errors.New("missing keyspace. keyspace is required")
+	keyspaceName, tableName, err := parseTarget(createTableObj, sessionKeyspace, t.SchemaMappingConfig)
+	if err != nil {
+		return nil, err
 	}
 
 	var pmks []CreateTablePrimaryKeyConfig

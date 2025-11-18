@@ -94,7 +94,7 @@ func TestExtractUniqueKeys(t *testing.T) {
 			query: translator.PreparedSelectQuery{
 				SelectedColumns: []translator.SelectedColumn{
 					{
-						Name: "key1",
+						Sql: "key1",
 					},
 				},
 			},
@@ -108,7 +108,7 @@ func TestExtractUniqueKeys(t *testing.T) {
 			query: translator.PreparedSelectQuery{
 				SelectedColumns: []translator.SelectedColumn{
 					{
-						Name:  "key1",
+						Sql:   "key1",
 						Alias: "key1_alias",
 					},
 				},
@@ -841,7 +841,7 @@ func TestTypeHandler_BuildMetadata(t *testing.T) {
 					DefaultColumnFamily: "cf1",
 					SelectedColumns: []translator.SelectedColumn{
 						{
-							Name: "name",
+							Sql: "name",
 						},
 					},
 				},
@@ -924,7 +924,7 @@ func TestTypeHandler_BuildResponseRow(t *testing.T) {
 					DefaultColumnFamily: "cf1",
 					SelectedColumns: []translator.SelectedColumn{
 						{
-							Name: "name",
+							Sql: "name",
 						},
 					},
 				},
@@ -960,7 +960,7 @@ func TestTypeHandler_BuildResponseRow(t *testing.T) {
 					DefaultColumnFamily: "cf1",
 					SelectedColumns: []translator.SelectedColumn{
 						{
-							Name: "column8['mapKey']", MapKey: "mapKey", ColumnName: "column8",
+							Sql: "column8['mapKey']", MapKey: "mapKey", ColumnName: "column8",
 						},
 					},
 				},
@@ -995,7 +995,7 @@ func TestTypeHandler_BuildResponseRow(t *testing.T) {
 					DefaultColumnFamily: "cf1",
 					SelectedColumns: []translator.SelectedColumn{
 						{
-							Name:     "id",
+							Sql:      "id",
 							IsFunc:   true,
 							FuncName: "count",
 						},
@@ -1034,7 +1034,7 @@ func TestTypeHandler_BuildResponseRow(t *testing.T) {
 					DefaultColumnFamily: "cf1",
 					SelectedColumns: []translator.SelectedColumn{
 						{
-							Name:     "id",
+							Sql:      "id",
 							IsFunc:   true,
 							FuncName: "count",
 						},
@@ -1072,7 +1072,7 @@ func TestTypeHandler_BuildResponseRow(t *testing.T) {
 					DefaultColumnFamily: "cf1",
 					SelectedColumns: []translator.SelectedColumn{
 						{
-							Name:     "id",
+							Sql:      "id",
 							IsFunc:   true,
 							FuncName: "count",
 							Alias:    "id",
@@ -1110,7 +1110,7 @@ func TestTypeHandler_BuildResponseRow(t *testing.T) {
 					DefaultColumnFamily: "cf1",
 					SelectedColumns: []translator.SelectedColumn{
 						{
-							Name:              "writetime(column5)",
+							Sql:               "writetime(column5)",
 							ColumnName:        "column5",
 							IsWriteTimeColumn: true,
 							Alias:             "abcd",
@@ -1150,7 +1150,7 @@ func TestTypeHandler_BuildResponseRow(t *testing.T) {
 					DefaultColumnFamily: "cf1",
 					SelectedColumns: []translator.SelectedColumn{
 						{
-							Name:       "column5",
+							Sql:        "column5",
 							Alias:      "abcd",
 							ColumnName: "column5",
 							IsAs:       true,
@@ -1193,7 +1193,7 @@ func TestTypeHandler_BuildResponseRow(t *testing.T) {
 					DefaultColumnFamily: "cf1",
 					SelectedColumns: []translator.SelectedColumn{
 						{
-							Name: "column11",
+							Sql: "column11",
 						},
 					},
 				},
@@ -1233,7 +1233,7 @@ func TestTypeHandler_BuildResponseRow(t *testing.T) {
 					DefaultColumnFamily: "cf1",
 					SelectedColumns: []translator.SelectedColumn{
 						{
-							Name: "column7",
+							Sql: "column7",
 						},
 					},
 				},
@@ -1271,7 +1271,7 @@ func TestTypeHandler_BuildResponseRow(t *testing.T) {
 					DefaultColumnFamily: "cf1",
 					SelectedColumns: []translator.SelectedColumn{
 						{
-							Name: "column4",
+							Sql: "column4",
 						},
 					},
 				},
@@ -1311,7 +1311,7 @@ func TestTypeHandler_BuildResponseRow(t *testing.T) {
 					DefaultColumnFamily: "cf1",
 					SelectedColumns: []translator.SelectedColumn{
 						{
-							Name: "column4",
+							Sql: "column4",
 						},
 					},
 				},
@@ -1352,9 +1352,9 @@ func TestTypeHandler_BuildResponseRow(t *testing.T) {
 func TestGetQueryColumn(t *testing.T) {
 	query := translator.PreparedSelectQuery{
 		SelectedColumns: []translator.SelectedColumn{
-			{Name: "column1", Alias: "alias1", IsWriteTimeColumn: false},
-			{Name: "column2", Alias: "alias2", IsWriteTimeColumn: true},
-			{Name: "column3", Alias: "alias3", IsWriteTimeColumn: false},
+			{Sql: "column1", Alias: "alias1", IsWriteTimeColumn: false},
+			{Sql: "column2", Alias: "alias2", IsWriteTimeColumn: true},
+			{Sql: "column3", Alias: "alias3", IsWriteTimeColumn: false},
 		},
 	}
 
@@ -1367,28 +1367,28 @@ func TestGetQueryColumn(t *testing.T) {
 		expectFail bool
 	}{
 		{
-			name:     "Match by Column at index",
+			name:     "Match by Columns at index",
 			query:    query,
 			index:    0,
 			key:      "column1",
 			expected: query.SelectedColumns[0],
 		},
 		{
-			name:     "Match by Alias at index (Write timestamp Column)",
+			name:     "Match by Alias at index (Write timestamp Columns)",
 			query:    query,
 			index:    1,
 			key:      "alias2",
 			expected: query.SelectedColumns[1],
 		},
 		{
-			name:     "Match by Column in iteration",
+			name:     "Match by Columns in iteration",
 			query:    query,
 			index:    2,
 			key:      "column2",
 			expected: query.SelectedColumns[1],
 		},
 		{
-			name:     "Not Match by Column in iteration",
+			name:     "Not Match by Columns in iteration",
 			query:    query,
 			index:    2,
 			key:      "random-name",
@@ -1664,7 +1664,7 @@ func TestBuildResponseForSystemQueries(t *testing.T) {
 			expectedRows: 6,
 		},
 		{
-			name: "Valid Column Metadata Encoding",
+			name: "Valid Columns Metadata Encoding",
 			rows: [][]any{
 				{"keyspace1", "table1", "column1", "none", "regular", 0, "text"},
 			},

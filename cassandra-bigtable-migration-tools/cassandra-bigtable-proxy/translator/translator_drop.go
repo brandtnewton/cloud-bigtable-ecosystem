@@ -18,7 +18,6 @@ package translator
 
 import (
 	"errors"
-	"fmt"
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/global/types"
 
 	cql "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/third_party/cqlparser"
@@ -37,48 +36,18 @@ func (l *antlrErrorListener) SyntaxError(recognizer antlr.Recognizer, offendingS
 
 func (t *Translator) TranslateDrop(query string, sessionKeyspace types.Keyspace) (*DropTableStatementMap, error) {
 	lexer := cql.NewCqlLexer(antlr.NewInputStream(query))
-	errListener := &antlrErrorListener{}
-	lexer.RemoveErrorListeners()
-	lexer.AddErrorListener(errListener)
 	stream := antlr.NewCommonTokenStream(lexer, antlr.TokenDefaultChannel)
 	p := cql.NewCqlParser(stream)
-	p.RemoveErrorListeners()
-	p.AddErrorListener(errListener)
 
 	dropTableObj := p.DropTable()
-
-	// Check for syntax errors after parsing
-	if len(errListener.errors) > 0 {
-		return nil, errors.New("syntax error in DROP TABLE statement: " + errListener.errors[0])
-	}
 
 	if dropTableObj == nil || dropTableObj.Table() == nil {
 		return nil, errors.New("error while parsing drop table object")
 	}
 
-	var keyspaceName types.Keyspace
-	var tableName types.TableName
-
-	if dropTableObj != nil && dropTableObj.Table() != nil && dropTableObj.Table().GetText() != "" {
-		tableNameString := dropTableObj.Table().GetText()
-		if !validTableName.MatchString(tableNameString) {
-			return nil, fmt.Errorf("invalid table name parsed from query")
-		}
-		tableName = types.TableName(tableNameString)
-	} else {
-		return nil, fmt.Errorf("invalid input paramaters found for table")
-	}
-
-	if tableName == t.SchemaMappingConfig.SchemaMappingTableName {
-		return nil, fmt.Errorf("cannot drop the configured schema mapping table name '%s'", tableName)
-	}
-
-	if dropTableObj != nil && dropTableObj.Keyspace() != nil && dropTableObj.Keyspace().GetText() != "" {
-		keyspaceName = types.Keyspace(dropTableObj.Keyspace().GetText())
-	} else if sessionKeyspace != "" {
-		keyspaceName = sessionKeyspace
-	} else {
-		return nil, fmt.Errorf("missing keyspace. keyspace is required")
+	keyspaceName, tableName, err := parseTarget(dropTableObj, sessionKeyspace, t.SchemaMappingConfig)
+	if err != nil {
+		return nil, err
 	}
 
 	var stmt = DropTableStatementMap{

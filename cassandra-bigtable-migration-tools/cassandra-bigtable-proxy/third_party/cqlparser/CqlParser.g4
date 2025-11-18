@@ -696,12 +696,7 @@ kwLike
    ;
 
 fromSpec
-   : kwFrom fromSpecElement
-   ;
-
-fromSpecElement
-   : OBJECT_NAME
-   | OBJECT_NAME '.' OBJECT_NAME
+   : kwFrom (keyspace DOT)? table
    ;
 
 orderSpec
@@ -726,13 +721,17 @@ selectElements
 
 selectElement
    : OBJECT_NAME '.' '*'                              // Table wildcard
-   | OBJECT_NAME (kwAs OBJECT_NAME)?                  // Column with optional alias
-   | functionCall (kwAs OBJECT_NAME)?                 // Function call with optional alias
+   | OBJECT_NAME asSpec?                  // Column with optional alias
+   | functionCall asSpec?                 // Function call with optional alias
    | mapAccess                                        // Map access (alias handled in mapAccess rule)
    ;
 
+asSpec
+   : kwAs OBJECT_NAME
+   ;
+
 mapAccess
-   : OBJECT_NAME '[' constant ']' (kwAs OBJECT_NAME)?  // Rule to handle map accessor with optional alias
+   : OBJECT_NAME '[' constant ']' asSpec?  // Rule to handle map accessor with optional alias
    ;
 
 

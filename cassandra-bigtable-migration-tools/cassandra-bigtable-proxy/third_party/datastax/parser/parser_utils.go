@@ -17,6 +17,7 @@ package parser
 import (
 	"errors"
 	"fmt"
+	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/global/types"
 
 	cql "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/third_party/cqlparser"
 	"github.com/antlr4-go/antlr/v4"
@@ -211,7 +212,7 @@ func isHandledDescribeStmt(query string, sessionKeyspace Identifier) (stmt State
 	if target.KwKeyspaces() != nil { // "DESC KEYSPACES;"
 		return &DescribeStatement{Keyspaces: true}, nil
 	} else if target.KwTables() != nil { // "DESC TABLES;"
-		return &DescribeStatement{Tables: true, KeyspaceName: sessionKeyspace.id}, nil
+		return &DescribeStatement{Tables: true, KeyspaceName: types.Keyspace(sessionKeyspace.id)}, nil
 	} else if target.KwTable() != nil { // "DESC TABLE [$KEYSPACE.]$TABLE;"
 		if target.Table() == nil {
 			return nil, errors.New("invalid describe command. table name required")
@@ -221,7 +222,7 @@ func isHandledDescribeStmt(query string, sessionKeyspace Identifier) (stmt State
 		if target.Keyspace() != nil {
 			keyspace = target.Keyspace().GetText()
 		}
-		return &DescribeStatement{KeyspaceName: keyspace, TableName: table}, nil
+		return &DescribeStatement{KeyspaceName: types.Keyspace(keyspace), TableName: types.TableName(table)}, nil
 	} else if target.KwKeyspace() != nil { // "DESC KEYSPACE $KEYSPACE;"
 		keyspace := sessionKeyspace.id
 		if target.Keyspace() != nil {
@@ -230,7 +231,7 @@ func isHandledDescribeStmt(query string, sessionKeyspace Identifier) (stmt State
 		if keyspace == "" {
 			return nil, errors.New("expected keyspace name after DESCRIBE KEYSPACE")
 		}
-		return &DescribeStatement{KeyspaceName: keyspace}, nil
+		return &DescribeStatement{KeyspaceName: types.Keyspace(keyspace)}, nil
 	}
 	return nil, errors.New("invalid DESCRIBE statement")
 }

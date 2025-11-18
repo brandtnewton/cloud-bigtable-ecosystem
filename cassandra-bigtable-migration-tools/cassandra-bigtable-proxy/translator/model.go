@@ -23,6 +23,7 @@ import (
 	schemaMapping "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/schema-mapping"
 	"github.com/datastax/go-cassandra-native-protocol/primitive"
 	"go.uber.org/zap"
+	"strings"
 	"time"
 )
 
@@ -39,7 +40,7 @@ type PreparedSelectQuery struct {
 	table           types.TableName // Table involved in the query
 	cqlQuery        string          // Original query string
 	TranslatedQuery string          // btql
-	ColumnMeta      ColumnMeta      // Translator generated Metadata about the columns involved
+	SelectClause    ColumnMeta      // Translator generated Metadata about the columns involved
 	SelectedColumns []SelectedColumn
 	Conditions      []Condition
 	Params          *QueryParameters            // Parameters for the query
@@ -97,8 +98,8 @@ type OrderByColumn struct {
 }
 
 type ColumnMeta struct {
-	IsStar bool
-	Column []SelectedColumn
+	IsStar  bool
+	Columns []SelectedColumn
 }
 
 type IfSpec struct {
@@ -232,11 +233,6 @@ type UpdateSetResponse struct {
 	Assignments []Assignment
 }
 
-type TableObj struct {
-	TableName    types.TableName
-	KeyspaceName types.Keyspace
-}
-
 type BoundSelectColumn interface {
 	Column() *types.Column
 }
@@ -354,23 +350,67 @@ type Condition struct {
 	ValuePlaceholder Placeholder
 }
 
+type BtqlFunc int
+
+const (
+	FuncUnknown BtqlFunc = iota
+	FuncWriteTime
+	FuncCount
+
+	FuncAvg
+	FuncSum
+	FuncMin
+	FuncMax
+)
+
+func (f BtqlFunc) String() string {
+	switch f {
+	case FuncWriteTime:
+		return "WRITETIME"
+	case FuncCount:
+		return "COUNT"
+	case FuncAvg:
+		return "AVG"
+	case FuncSum:
+		return "SUM"
+	case FuncMin:
+		return "MIN"
+	case FuncMax:
+		return "MAX"
+	default:
+		return "UNKNOWN"
+	}
+}
+func ParseCqlFunc(s string) BtqlFunc {
+	switch strings.ToLower(s) {
+	case "writetime":
+		return FuncWriteTime
+	case "count":
+		return FuncCount
+	case "avg":
+		return FuncAvg
+	case "sum":
+		return FuncSum
+	case "min":
+		return FuncMin
+	case "max":
+		return FuncMax
+	default:
+		return FuncUnknown
+	}
+}
+
 // SelectedColumn describes a column that was selected as part of a query. It's
 // an output of query translating, and is also used for response construction.
 type SelectedColumn struct {
-	// Name is the original value of the selected column, including functions. It
-	// does not include the alias. e.g. "region" or "count(*)"
-	Name   string
-	IsFunc bool
-	// IsAs is true if an alias is used
-	IsAs      bool
-	FuncName  string
+	// Sql is the original value of the selected column, including functions, not including alias. e.g. "region" or "count(*)"
+	Sql       string
+	Func      BtqlFunc
 	Alias     string
 	MapKey    Placeholder
 	ListIndex Placeholder
 	// ColumnName is the name of the underlying column in a function, or map key
 	// access. e.g. the column name of "max(price)" is "price"
-	ColumnName        string
-	KeyType           string
-	IsWriteTimeColumn bool
-	ResultType        types.CqlDataType
+	ColumnName string
+	ResultType types.CqlDataType
 }

@@ -376,7 +376,7 @@ func TestGetColumnMetadata(t *testing.T) {
 			expectedColumns: [][]interface{}{},
 		},
 		{
-			name: "Single Column",
+			name: "Single Columns",
 			tableConfigs: []*schemaMapping.TableConfig{
 				schemaMapping.NewTableConfig("test_keyspace", "test_table", "cf1", types.OrderedCodeEncoding, []*types.Column{
 					{Name: "id", CQLType: types.TypeUuid, IsPrimaryKey: true, KeyType: "partition_key", PkPrecedence: 1},

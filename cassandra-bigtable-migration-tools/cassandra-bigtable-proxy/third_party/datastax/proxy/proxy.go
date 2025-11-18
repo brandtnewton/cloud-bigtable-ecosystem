@@ -19,12 +19,11 @@ import (
 	"context"
 	"crypto"
 	"crypto/md5"
-	"encoding/hex"
 	"errors"
 	"fmt"
+	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/responsehandler"
 	"io"
 	"net"
-	"reflect"
 	"sort"
 	"strings"
 	"sync"
@@ -118,8 +117,9 @@ type Proxy struct {
 	clients                  map[*client]struct{}
 	listeners                map[*net.Listener]struct{}
 	eventClients             sync.Map
-	preparedCache            proxycore.PreparedCache
-	preparedIdempotence      sync.Map
+	preparedQueryCache       proxycore.PreparedCache[translator.IPreparedQuery]
+	preparedSystemQueryCache proxycore.PreparedCache[any]
+	queryMetadataCache       proxycore.PreparedCache[*message.PreparedResult]
 	systemLocalValues        map[string]message.Column
 	closed                   chan struct{}
 	localNode                *node
@@ -230,9 +230,18 @@ func (p *Proxy) Connect() error {
 	}
 
 	var err error
-	p.preparedCache, err = NewDefaultPreparedCache(1e8 / 256) // ~100MB with an average query size of 256 bytes
+	const cacheSize = 1e8 / 256 // ~100MB with an average query size of 256 bytes
+	p.preparedQueryCache, err = NewDefaultPreparedCache[translator.IPreparedQuery](cacheSize)
 	if err != nil {
-		return fmt.Errorf("unable to create prepared cache %w", err)
+		return fmt.Errorf("unable to create cache: %w", err)
+	}
+	p.preparedSystemQueryCache, err = NewDefaultPreparedCache[any](cacheSize)
+	if err != nil {
+		return fmt.Errorf("unable to create cache: %w", err)
+	}
+	p.queryMetadataCache, err = NewDefaultPreparedCache[*message.PreparedResult](cacheSize)
+	if err != nil {
+		return fmt.Errorf("unable to create cache: %w", err)
 	}
 
 	//  connecting to cassandra cluster
@@ -254,16 +263,15 @@ func (p *Proxy) Connect() error {
 
 	// Create cassandra session
 	sess, err := proxycore.ConnectSession(p.ctx, p.cluster, proxycore.SessionConfig{
-		Version:       p.cluster.NegotiatedVersion,
-		PreparedCache: p.preparedCache,
-		Logger:        p.logger,
+		Version: p.cluster.NegotiatedVersion,
+		Logger:  p.logger,
 	})
 
 	if err != nil {
 		return fmt.Errorf("unable to connect session %w", err)
 	}
 
-	p.sessions[p.cluster.NegotiatedVersion].Store("", sess) // No sessionKeyspace
+	p.sessions[p.cluster.NegotiatedVersion].Store("", sess)
 
 	p.isConnected = true
 	return nil
@@ -372,11 +380,8 @@ func (p *Proxy) handle(conn net.Conn) {
 	}
 
 	cl := &client{
-		ctx:                 p.ctx,
-		proxy:               p,
-		preparedSystemQuery: newProxyCache[any](),
-		preparedQueries:     newProxyCache[translator.IPreparedQuery](),
-		queryMetadataCache:  newProxyCache[*message.PreparedResult](),
+		ctx:   p.ctx,
+		proxy: p,
 	}
 	cl.sender = cl
 	p.addClient(cl)
@@ -428,42 +433,6 @@ func (p *Proxy) encodeTypeFatal(dt datatype.DataType, val interface{}) []byte {
 	return encoded
 }
 
-// isIdempotent checks whether a prepared ID is idempotent.
-// If the proxy receives a query that it's never prepared then this will also return false.
-func (p *Proxy) IsIdempotent(id []byte) bool {
-	if val, ok := p.preparedIdempotence.Load(preparedIdKey(id)); !ok {
-		// This should only happen if the proxy has never had a "PREPARE" request for this query ID.
-		p.logger.Error("unable to determine if prepared statement is idempotent",
-			zap.String("preparedID", hex.EncodeToString(id)))
-		return false
-	} else {
-		return val.(bool)
-	}
-}
-
-// MaybeStorePreparedIdempotence stores the idempotence of a "PREPARE" request's query.
-// This information is used by future "EXECUTE" requests when they need to be retried.
-func (p *Proxy) MaybeStorePreparedIdempotence(raw *frame.RawFrame, msg message.Message) {
-	if prepareMsg, ok := msg.(*message.Prepare); ok && raw.Header.OpCode == primitive.OpCodeResult { // Prepared result
-		frm, err := codec.ConvertFromRawFrame(raw)
-		if err != nil {
-			p.logger.Error("error attempting to decode prepared result message")
-		} else if _, ok = frm.Body.Message.(*message.PreparedResult); !ok { // TODO: Use prepared type data to disambiguate idempotency
-			p.logger.Error("expected prepared result message, but got something else")
-		} else {
-			idempotent, err := parser.IsQueryIdempotent(prepareMsg.Query)
-			if err != nil {
-				p.logger.Error("error parsing query for idempotence", zap.Error(err))
-			} else if result, ok := frm.Body.Message.(*message.PreparedResult); ok {
-				p.preparedIdempotence.Store(preparedIdKey(result.PreparedQueryId), idempotent)
-			} else {
-				p.logger.Error("expected prepared result, but got some other type of message",
-					zap.Stringer("type", reflect.TypeOf(frm.Body.Message)))
-			}
-		}
-	}
-}
-
 func (p *Proxy) addClient(cl *client) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
@@ -488,14 +457,11 @@ type Sender interface {
 }
 
 type client struct {
-	ctx                 context.Context
-	proxy               *Proxy
-	conn                *proxycore.Conn
-	sessionKeyspace     types.Keyspace
-	preparedSystemQuery *proxyCache[any]
-	preparedQueries     *proxyCache[translator.IPreparedQuery]
-	queryMetadataCache  *proxyCache[*message.PreparedResult]
-	sender              Sender
+	sessionKeyspace types.Keyspace
+	ctx             context.Context
+	proxy           *Proxy
+	conn            *proxycore.Conn
+	sender          Sender
 }
 
 type PreparedQuery struct {
@@ -506,7 +472,6 @@ type PreparedQuery struct {
 
 type UsePreparedQuery struct {
 	Query string
-	// sessionKeyspace string
 }
 
 func (c *client) Receive(reader io.Reader) error {
@@ -595,7 +560,7 @@ func (c *client) handlePrepare(raw *frame.RawFrame, msg *message.Prepare) {
 							Columns:     columns,
 						},
 					})
-					c.preparedSystemQuery.set(id, stmt)
+					c.proxy.preparedSystemQueryCache.Store(id, stmt)
 				}
 			} else {
 				c.sender.Send(raw.Header, &message.Invalid{ErrorMessage: "system metaDataColumns doesn't exist"})
@@ -603,7 +568,7 @@ func (c *client) handlePrepare(raw *frame.RawFrame, msg *message.Prepare) {
 			// Prepare Use statement
 		case *parser.UseStatement:
 			id := md5.Sum([]byte(msg.Query))
-			c.preparedSystemQuery.set(id, stmt)
+			c.proxy.preparedSystemQueryCache.Store(id, stmt)
 			c.sender.Send(raw.Header, &message.PreparedResult{
 				PreparedQueryId: id[:],
 			})
@@ -632,7 +597,7 @@ func (c *client) getQueryId(msg *message.Prepare) [16]byte {
 func (c *client) handleServerPreparedQuery(raw *frame.RawFrame, msg *message.Prepare, queryType string) {
 	id := c.getQueryId(msg)
 
-	if response, found := c.queryMetadataCache.get(id); found {
+	if response, found := c.proxy.queryMetadataCache.Load(id); found {
 		c.sender.Send(raw.Header, response)
 		return
 	}
@@ -662,8 +627,8 @@ func (c *client) handleServerPreparedQuery(raw *frame.RawFrame, msg *message.Pre
 	}
 
 	// update caches
-	c.preparedQueries.set(id, preparedQuery)
-	c.queryMetadataCache.set(id, response)
+	c.proxy.preparedQueryCache.Store(id, preparedQuery)
+	c.proxy.queryMetadataCache.Store(id, response)
 
 	c.sender.Send(raw.Header, response)
 }
@@ -674,7 +639,7 @@ func (c *client) prepareDeleteType(raw *frame.RawFrame, msg *message.Prepare, id
 	if err != nil {
 		return nil, nil, err
 	}
-	response, err := buildPreparedResultResponse(id, st.Keyspace(), st.Table(), st.Params, nil)
+	response, err := responsehandler.BuildPreparedResultResponse(id, st.Keyspace(), st.Table(), st.Params, nil)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -687,7 +652,7 @@ func (c *client) prepareInsertType(raw *frame.RawFrame, msg *message.Prepare, id
 	if err != nil {
 		return nil, nil, err
 	}
-	response, err := buildPreparedResultResponse(id, st.Keyspace(), st.Table(), st.Params, nil)
+	response, err := responsehandler.BuildPreparedResultResponse(id, st.Keyspace(), st.Table(), st.Params, nil)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -701,7 +666,7 @@ func (c *client) prepareSelectType(raw *frame.RawFrame, msg *message.Prepare, id
 	if err != nil {
 		return nil, nil, err
 	}
-	result, err := buildPreparedResultResponse(id, query.Keyspace(), query.Table(), query.Params, query.SelectedColumns)
+	result, err := responsehandler.BuildPreparedResultResponse(id, query.Keyspace(), query.Table(), query.Params, query.SelectedColumns)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -714,7 +679,7 @@ func (c *client) prepareUpdateType(raw *frame.RawFrame, msg *message.Prepare, id
 	if err != nil {
 		return nil, nil, err
 	}
-	response, err := buildPreparedResultResponse(id, st.Keyspace(), st.Table(), st.Params, nil)
+	response, err := responsehandler.BuildPreparedResultResponse(id, st.Keyspace(), st.Table(), st.Params, nil)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -726,12 +691,12 @@ func (c *client) handleExecute(raw *frame.RawFrame, msg *partialExecute) {
 	ctx := context.Background()
 	id := preparedIdKey(msg.queryId)
 
-	if stmt, ok := c.preparedSystemQuery.get(id); ok {
+	if stmt, ok := c.proxy.preparedSystemQueryCache.Load(id); ok {
 		c.interceptSystemQuery(raw.Header, stmt)
 		return
 	}
 
-	preparedStmt, ok := c.preparedQueries.get(id)
+	preparedStmt, ok := c.proxy.preparedQueryCache.Load(id)
 	if !ok {
 		c.proxy.logger.Error(errQueryNotPrepared)
 		c.sender.Send(raw.Header, &message.ServerError{ErrorMessage: errQueryNotPrepared})
@@ -798,7 +763,7 @@ func (c *client) getAllPreparedOps(msg *partialBatch, pv primitive.ProtocolVersi
 			return nil, "", fmt.Errorf("batch query id malformed")
 		}
 		id := preparedIdKey(queryOrId)
-		preparedStmt, ok := c.preparedQueries.get(id)
+		preparedStmt, ok := c.proxy.preparedQueryCache.Load(id)
 		if !ok {
 			return nil, "", fmt.Errorf("prepared query not found in cache")
 		}
@@ -1111,27 +1076,27 @@ func (c *client) Closing(_ error) {
 }
 
 // NewDefaultPreparedCache creates a new default prepared cache capping the max item capacity to `size`.
-func NewDefaultPreparedCache(size int) (proxycore.PreparedCache, error) {
+func NewDefaultPreparedCache[T any](size int) (proxycore.PreparedCache[T], error) {
 	cache, err := lru.New(size)
 	if err != nil {
 		return nil, err
 	}
-	return &defaultPreparedCache{cache}, nil
+	return &defaultPreparedCache[T]{cache}, nil
 }
 
-type defaultPreparedCache struct {
+type defaultPreparedCache[T any] struct {
 	cache *lru.Cache
 }
 
-func (d defaultPreparedCache) Store(id string, entry *proxycore.PreparedEntry) {
+func (d defaultPreparedCache[T]) Store(id [16]byte, entry T) {
 	d.cache.Add(id, entry)
 }
 
-func (d defaultPreparedCache) Load(id string) (entry *proxycore.PreparedEntry, ok bool) {
+func (d defaultPreparedCache[T]) Load(id [16]byte) (entry T, ok bool) {
 	if val, ok := d.cache.Get(id); ok {
-		return val.(*proxycore.PreparedEntry), true
+		return val.(T), true
 	}
-	return nil, false
+	return *new(T), false
 }
 
 func preparedIdKey(bytes []byte) [preparedIdSize]byte {

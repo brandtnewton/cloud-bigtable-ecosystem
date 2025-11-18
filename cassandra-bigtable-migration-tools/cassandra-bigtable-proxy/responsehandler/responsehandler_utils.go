@@ -18,6 +18,9 @@ package responsehandler
 
 import (
 	"fmt"
+	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/global/types"
+	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/translator"
+	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/utilities"
 	"reflect"
 	"strconv"
 
@@ -90,6 +93,88 @@ func decodeMapData(mapData map[string]interface{}, elementType datatype.DataType
 	}
 
 	return result, nil
+}
+
+func SelectedColumnsToMetadata(keyspace types.Keyspace, table types.TableName, selectedColumns []translator.SelectedColumn) []*message.ColumnMetadata {
+	var resultColumns []*message.ColumnMetadata
+	for i, c := range selectedColumns {
+		var col = message.ColumnMetadata{
+			Keyspace: string(keyspace),
+			Table:    string(table),
+			Name:     c.ColumnName,
+			Index:    int32(i),
+			Type:     c.ResultType.DataType(),
+		}
+		resultColumns = append(resultColumns, &col)
+	}
+	return resultColumns
+}
+
+func BuildRowsResultResponse(keyspace types.Keyspace, table types.TableName, selectedColumns []translator.SelectedColumn, rows []*types.BigtableResultRow) (*message.RowsResult, error) {
+	resultColumns := SelectedColumnsToMetadata(keyspace, table, selectedColumns)
+
+	return &message.RowsResult{
+		Metadata: &message.RowsMetadata{
+			// todo implement pagination?
+			LastContinuousPage: true,
+			ColumnCount:        int32(len(resultColumns)),
+			Columns:            resultColumns,
+		},
+		Data: []message.Row{
+			// todo
+		},
+	}, nil
+}
+
+func BuildPreparedResultResponse(id [16]byte, keyspace types.Keyspace, table types.TableName, params *translator.QueryParameters, selectedColumns []translator.SelectedColumn) (*message.PreparedResult, error) {
+	var pkIndices []uint16
+	var variableMetadata []*message.ColumnMetadata
+	for i, p := range params.AllKeys() {
+		md := params.GetMetadata(p)
+
+		var col = message.ColumnMetadata{
+			Keyspace: string(keyspace),
+			Table:    string(table),
+			Name:     string(md.Column.Name),
+			Index:    int32(i),
+			Type:     md.Column.CQLType.DataType(),
+		}
+		variableMetadata = append(variableMetadata, &col)
+
+		if md.Column.IsPrimaryKey {
+			pkIndices = append(pkIndices, uint16(i))
+		}
+	}
+
+	resultColumns := SelectedColumnsToMetadata(keyspace, table, selectedColumns)
+
+	return &message.PreparedResult{
+		PreparedQueryId: id[:],
+		ResultMetadata: &message.RowsMetadata{
+			ColumnCount: int32(len(resultColumns)),
+			Columns:     resultColumns,
+		},
+		VariablesMetadata: &message.VariablesMetadata{
+			PkIndices: pkIndices,
+			Columns:   variableMetadata,
+		},
+	}, nil
+}
+
+func BuildResponseForSystemQueries(rows [][]interface{}, protocalV primitive.ProtocolVersion) ([]message.Row, error) {
+	var allRows []message.Row
+	for _, row := range rows {
+		var mr message.Row
+		for _, val := range row {
+			encodedByte, err := utilities.TypeConversion(val, protocalV)
+			if err != nil {
+				return allRows, err
+			}
+			mr = append(mr, encodedByte)
+		}
+		allRows = append(allRows, mr)
+	}
+	return allRows, nil
 }
 
 // DecodeValue decodes a byte slice into a specified data type based on the element type and protocol version.

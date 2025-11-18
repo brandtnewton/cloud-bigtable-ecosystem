@@ -168,11 +168,11 @@ func (btc *BigtableClient) tableResourceExists(ctx context.Context, adminClient 
 //
 // Parameters:
 //   - ctx: Context for the operation, used for cancellation and deadlines.
-//   - tableName: Column of the table where the row exists.
+//   - tableName: Columns of the table where the row exists.
 //   - rowKey: Row key of the row to mutate.
 //   - columns: Columns to mutate.
 //   - values: Columns to set in the columns.
-//   - deleteColumnFamilies: Column families to delete.
+//   - deleteColumnFamilies: Columns families to delete.
 //
 // Returns:
 //   - error: Error if the mutation fails.
@@ -543,7 +543,7 @@ func (btc *BigtableClient) addColumnFamilies(columns []types.CreateColumn) (map[
 	return columnFamilies, nil
 }
 
-func (btc *BigtableClient) updateTableSchema(ctx context.Context, keyspace types.Keyspace, tableName types.TableName, pmks []translator.CreateTablePrimaryKeyConfig, addCols []types.CreateColumn, dropCols []string) error {
+func (btc *BigtableClient) updateTableSchema(ctx context.Context, keyspace types.Keyspace, tableName types.TableName, pmks []translator.CreateTablePrimaryKeyConfig, addCols []types.CreateColumn, dropCols []types.ColumnName) error {
 	client, err := btc.getClient(keyspace)
 	if err != nil {
 		return err
@@ -584,7 +584,7 @@ func (btc *BigtableClient) updateTableSchema(ctx context.Context, keyspace types
 		mut := bigtable.NewMutation()
 		mut.DeleteRow()
 		muts = append(muts, mut)
-		rowKeys = append(rowKeys, string(tableName)+"#"+col)
+		rowKeys = append(rowKeys, fmt.Sprintf("%s#%s", tableName, col))
 	}
 
 	btc.Logger.Info("updating schema mapping table")
@@ -694,11 +694,11 @@ func (btc *BigtableClient) buildDeleteMutation(ctx context.Context, table *schem
 //
 // Parameters:
 //   - ctx: Context for the operation, used for cancellation and deadlines.
-//   - schemaMappingTable: Column of the table containing the configuration.
+//   - schemaMappingTable: Columns of the table containing the configuration.
 //
 // Returns:
-//   - map[string]map[string]*Column: Table metadata.
-//   - map[string][]Column: Primary key metadata.
+//   - map[string]map[string]*Columns: Table metadata.
+//   - map[string][]Columns: Primary key metadata.
 //   - error: Error if the retrieval fails.
 func (btc *BigtableClient) ReadTableConfigs(ctx context.Context, keyspace types.Keyspace) ([]*schemaMapping.TableConfig, error) {
 	// if this is the first time we're getting table configs, ensure the schema mapping table exists
@@ -849,7 +849,7 @@ func (btc *BigtableClient) parseKeyType(keyspace types.Keyspace, table types.Tab
 //
 // Parameters:
 //   - ctx: Context for the operation, used for cancellation and deadlines.
-//   - tableName: Column of the table to apply bulk mutations to.
+//   - tableName: Columns of the table to apply bulk mutations to.
 //   - mutationData: Slice of MutationData objects containing mutation details.
 //
 // Returns:

@@ -424,9 +424,6 @@ type CqlParserListener interface {
 	// EnterFromSpec is called when entering the fromSpec production.
 	EnterFromSpec(c *FromSpecContext)
 
-	// EnterFromSpecElement is called when entering the fromSpecElement production.
-	EnterFromSpecElement(c *FromSpecElementContext)
-
 	// EnterOrderSpec is called when entering the orderSpec production.
 	EnterOrderSpec(c *OrderSpecContext)
 
@@ -444,6 +441,9 @@ type CqlParserListener interface {
 
 	// EnterSelectElement is called when entering the selectElement production.
 	EnterSelectElement(c *SelectElementContext)
+
+	// EnterAsSpec is called when entering the asSpec production.
+	EnterAsSpec(c *AsSpecContext)
 
 	// EnterMapAccess is called when entering the mapAccess production.
 	EnterMapAccess(c *MapAccessContext)
@@ -1291,9 +1291,6 @@ type CqlParserListener interface {
 	// ExitFromSpec is called when exiting the fromSpec production.
 	ExitFromSpec(c *FromSpecContext)
 
-	// ExitFromSpecElement is called when exiting the fromSpecElement production.
-	ExitFromSpecElement(c *FromSpecElementContext)
-
 	// ExitOrderSpec is called when exiting the orderSpec production.
 	ExitOrderSpec(c *OrderSpecContext)
 
@@ -1311,6 +1308,9 @@ type CqlParserListener interface {
 
 	// ExitSelectElement is called when exiting the selectElement production.
 	ExitSelectElement(c *SelectElementContext)
+
+	// ExitAsSpec is called when exiting the asSpec production.
+	ExitAsSpec(c *AsSpecContext)
 
 	// ExitMapAccess is called when exiting the mapAccess production.
 	ExitMapAccess(c *MapAccessContext)

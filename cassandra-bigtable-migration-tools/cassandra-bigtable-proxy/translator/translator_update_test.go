@@ -17,7 +17,6 @@
 package translator
 
 import (
-	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/bindings"
 	"reflect"
 	"testing"
 
@@ -41,30 +40,30 @@ func TestTranslator_TranslateUpdateQuerytoBigtable(t *testing.T) {
 	}
 
 	valueBlob := "0x0000000000000003"
-	setBlob, err := bindings.encodeScalarForBigtable(valueBlob, datatype.Blob, 4)
+	setBlob, err := encodeScalarForBigtable(valueBlob, datatype.Blob)
 	if err != nil {
 		t.Errorf("encodeScalarForBigtable() error = %v", err)
 	}
 
 	valueTimestamp := "2024-08-12T12:34:56Z"
-	setTimestamp, err := bindings.encodeScalarForBigtable(valueTimestamp, datatype.Timestamp, 4)
+	setTimestamp, err := encodeScalarForBigtable(valueTimestamp, datatype.Timestamp)
 	if err != nil {
 		t.Errorf("encodeScalarForBigtable() error = %v", err)
 	}
 
 	valueInt := "123"
-	setInt, err := bindings.encodeScalarForBigtable(valueInt, datatype.Int, 4)
+	setInt, err := encodeScalarForBigtable(valueInt, datatype.Int)
 	if err != nil {
 		t.Errorf("encodeScalarForBigtable() error = %v", err)
 	}
 
 	valueBigInt := "1234567890"
-	setBigInt, err := bindings.encodeScalarForBigtable(valueBigInt, datatype.Bigint, 4)
+	setBigInt, err := encodeScalarForBigtable(valueBigInt, datatype.Bigint)
 	if err != nil {
 		t.Errorf("encodeScalarForBigtable() error = %v", err)
 	}
 
-	setTrueBool, err := bindings.encodeScalarForBigtable("true", datatype.Boolean, 4)
+	setTrueBool, err := encodeScalarForBigtable("true", datatype.Boolean)
 	if err != nil {
 		t.Errorf("encodeScalarForBigtable() error = %v", err)
 	}

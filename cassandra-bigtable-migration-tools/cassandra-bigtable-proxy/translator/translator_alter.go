@@ -37,29 +37,9 @@ func (t *Translator) TranslateAlterTableToBigtable(query string, sessionKeyspace
 		return nil, errors.New("error while parsing alter statement")
 	}
 
-	var keyspaceName types.Keyspace
-	var tableName types.TableName
-
-	if alterTable != nil && alterTable.Table() != nil && alterTable.Table().GetText() != "" {
-		tableNameString := alterTable.Table().GetText()
-		if !validTableName.MatchString(tableNameString) {
-			return nil, errors.New("invalid table name parsed from query")
-		}
-		tableName = types.TableName(tableNameString)
-	} else {
-		return nil, errors.New("invalid input paramaters found for table")
-	}
-
-	if tableName == t.SchemaMappingConfig.SchemaMappingTableName {
-		return nil, fmt.Errorf("cannot alter schema mapping table with configured name '%s'", tableName)
-	}
-
-	if alterTable != nil && alterTable.Keyspace() != nil && alterTable.Keyspace().GetText() != "" {
-		keyspaceName = types.Keyspace(alterTable.Keyspace().GetText())
-	} else if sessionKeyspace != "" {
-		keyspaceName = sessionKeyspace
-	} else {
-		return nil, errors.New("missing keyspace. keyspace is required")
+	keyspaceName, tableName, err := parseTarget(alterTable, sessionKeyspace, t.SchemaMappingConfig)
+	if err != nil {
+		return nil, err
 	}
 
 	tableConfig, err := t.SchemaMappingConfig.GetTableConfig(keyspaceName, tableName)

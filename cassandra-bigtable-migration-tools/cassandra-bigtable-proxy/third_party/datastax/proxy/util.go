@@ -71,14 +71,14 @@ func unixToISO(unixTimestamp int64) string {
 // It encodes sessionKeyspace, table, and column metadata into a format compatible with Cassandra system queries.
 //
 // Parameters:
-// - keyspaceMetadataRows: Slice of sessionKeyspace metadata in [][]interface{} format.
-// - tableMetadataRows: Slice of table metadata in [][]interface{} format.
-// - columnsMetadataRows: Slice of column metadata in [][]interface{} format.
+// - keyspaceMetadataRows: Slice of sessionKeyspace metadata inany format.
+// - tableMetadataRows: Slice of table metadata inany format.
+// - columnsMetadataRows: Slice of column metadata inany format.
 //
 // Returns:
 // - *SystemQueryMetadataCache: A pointer to a structured metadata cache containing keyspaces, tables, and metaDataColumns.
 // - error: Returns an error if metadata conversion fails at any step.
-func getSystemQueryMetadataCache(keyspaceMetadataRows, tableMetadataRows, columnsMetadataRows [][]interface{}) (*SystemQueryMetadataCache, error) {
+func getSystemQueryMetadataCache(keyspaceMetadataRows, tableMetadataRows, columnsMetadataRows [][]any) (*SystemQueryMetadataCache, error) {
 	var err error
 	protocolIV := primitive.ProtocolVersion4
 
@@ -105,7 +105,7 @@ func getSystemQueryMetadataCache(keyspaceMetadataRows, tableMetadataRows, column
 }
 
 // getKeyspaceMetadata converts table metadata into sessionKeyspace metadata rows
-func getKeyspaceMetadata(tableMetadata map[types.Keyspace]map[types.TableName]*schemaMapping.TableConfig) [][]interface{} {
+func getKeyspaceMetadata(tableMetadata map[types.Keyspace]map[types.TableName]*schemaMapping.TableConfig) [][]any {
 	// Replication settings for system and example keyspaces, matching Cassandra output
 	replicationMap := map[types.Keyspace]map[string]string{
 		"system":                {"class": "org.apache.cassandra.locator.LocalStrategy"},
@@ -117,28 +117,28 @@ func getKeyspaceMetadata(tableMetadata map[types.Keyspace]map[types.TableName]*s
 		"system_virtual_schema": {"class": "org.apache.cassandra.locator.LocalStrategy"},
 	}
 
-	keyspaceMetadataRows := [][]interface{}{}
+	var keyspaceMetadataRows [][]any
 	for keyspace := range tableMetadata {
 		repl := map[string]string{"class": "org.apache.cassandra.locator.SimpleStrategy", "replication_factor": "1"}
 		if val, ok := replicationMap[keyspace]; ok {
 			repl = val
 		}
 		// Add sessionKeyspace metadata
-		keyspaceMetadataRows = append(keyspaceMetadataRows, []interface{}{
-			keyspace, true, repl,
+		keyspaceMetadataRows = append(keyspaceMetadataRows, []any{
+			string(keyspace), true, repl,
 		})
 	}
 	return keyspaceMetadataRows
 }
 
 // getTableMetadata converts table metadata into table metadata rows
-func getTableMetadata(tableMetadata map[types.Keyspace]map[types.TableName]*schemaMapping.TableConfig) [][]interface{} {
-	tableMetadataRows := [][]interface{}{}
+func getTableMetadata(tableMetadata map[types.Keyspace]map[types.TableName]*schemaMapping.TableConfig) [][]any {
+	tableMetadataRows := [][]any{}
 	for keyspace, tables := range tableMetadata {
 		for tableName := range tables {
 			// Add table metadata
-			tableMetadataRows = append(tableMetadataRows, []interface{}{
-				keyspace, tableName, "99p", 0.01, map[string]string{
+			tableMetadataRows = append(tableMetadataRows, []any{
+				string(keyspace), string(tableName), "99p", 0.01, map[string]string{
 					"keys":               "ALL",
 					"rows_per_partition": "NONE",
 				},
@@ -150,8 +150,8 @@ func getTableMetadata(tableMetadata map[types.Keyspace]map[types.TableName]*sche
 }
 
 // getColumnMetadata converts table metadata into column metadata rows
-func getColumnMetadata(tableMetadata map[types.Keyspace]map[types.TableName]*schemaMapping.TableConfig) [][]interface{} {
-	var columnsMetadataRows [][]interface{}
+func getColumnMetadata(tableMetadata map[types.Keyspace]map[types.TableName]*schemaMapping.TableConfig) [][]any {
+	var columnsMetadataRows [][]any
 	for keyspace, tables := range tableMetadata {
 		for tableName, table := range tables {
 			for columnName, column := range table.Columns {
@@ -164,14 +164,14 @@ func getColumnMetadata(tableMetadata map[types.Keyspace]map[types.TableName]*sch
 				}
 
 				// Add column metadata
-				columnsMetadataRows = append(columnsMetadataRows, []interface{}{
-					keyspace, tableName, columnName, clusteringOrder, column.KeyType, position, column.CQLType.String(),
+				columnsMetadataRows = append(columnsMetadataRows, []any{
+					string(keyspace), string(tableName), string(columnName), clusteringOrder, column.KeyType, position, column.CQLType.String(),
 				})
 			}
 		}
 	}
 	// sort by sessionKeyspace, table name and column name for deterministic output
-	slices.SortFunc(columnsMetadataRows, func(a, b []interface{}) int {
+	slices.SortFunc(columnsMetadataRows, func(a, b []any) int {
 		if res := strings.Compare(a[0].(string), b[0].(string)); res != 0 {
 			return res
 		}
@@ -236,72 +236,6 @@ func ConstructSystemMetadataRows(tableMetadata map[types.Keyspace]map[types.Tabl
 	}
 
 	return systemQueryMetadataCache, nil
-}
-
-func buildRowsResultResponse(keyspace types.Keyspace, table types.TableName, selectedColumns []translator.SelectedColumn, rows []*types.BigtableResultRow) (*message.RowsResult, error) {
-	resultColumns := selectedColumnsToMetadata(keyspace, table, selectedColumns)
-
-	return &message.RowsResult{
-		Metadata: &message.RowsMetadata{
-			// todo implement pagination?
-			LastContinuousPage: true,
-			ColumnCount:        int32(len(resultColumns)),
-			Columns:            resultColumns,
-		},
-		Data: []message.Row{
-			// todo
-		},
-	}, nil
-}
-
-func selectedColumnsToMetadata(keyspace types.Keyspace, table types.TableName, selectedColumns []translator.SelectedColumn) []*message.ColumnMetadata {
-	var resultColumns []*message.ColumnMetadata
-	for i, c := range selectedColumns {
-		var col = message.ColumnMetadata{
-			Keyspace: string(keyspace),
-			Table:    string(table),
-			Name:     c.ColumnName,
-			Index:    int32(i),
-			Type:     c.ResultType.DataType(),
-		}
-		resultColumns = append(resultColumns, &col)
-	}
-	return resultColumns
-}
-
-func buildPreparedResultResponse(id [16]byte, keyspace types.Keyspace, table types.TableName, params *translator.QueryParameters, selectedColumns []translator.SelectedColumn) (*message.PreparedResult, error) {
-	var pkIndices []uint16
-	var variableMetadata []*message.ColumnMetadata
-	for i, p := range params.AllKeys() {
-		md := params.GetMetadata(p)
-
-		var col = message.ColumnMetadata{
-			Keyspace: string(keyspace),
-			Table:    string(table),
-			Name:     string(md.Column.Name),
-			Index:    int32(i),
-			Type:     md.Column.CQLType.DataType(),
-		}
-		variableMetadata = append(variableMetadata, &col)
-
-		if md.Column.IsPrimaryKey {
-			pkIndices = append(pkIndices, uint16(i))
-		}
-	}
-
-	resultColumns := selectedColumnsToMetadata(keyspace, table, selectedColumns)
-
-	return &message.PreparedResult{
-		PreparedQueryId: id[:],
-		ResultMetadata: &message.RowsMetadata{
-			ColumnCount: int32(len(resultColumns)),
-			Columns:     resultColumns,
-		},
-		VariablesMetadata: &message.VariablesMetadata{
-			PkIndices: pkIndices,
-			Columns:   variableMetadata,
-		},
-	}, nil
 }
 
 // Add system keyspaces, tables, and metaDataColumns to the schema mapping before system cache construction

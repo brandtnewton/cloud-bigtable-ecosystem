@@ -76,10 +76,6 @@ const (
 	OrderedCodeEncoding
 )
 
-type SelectResult struct {
-	Rows []*BigtableResultRow
-}
-
 type BigtableResultRow struct {
 	ColumnMap map[string]GoValue
 }

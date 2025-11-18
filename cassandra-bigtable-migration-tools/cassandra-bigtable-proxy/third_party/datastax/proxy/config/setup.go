@@ -149,11 +149,11 @@ func maybeParseQuickStartArgs(args *types.CliArgs) (*types.ProxyInstanceConfig, 
 	}
 
 	// use keyspace-id but fallback to the bigtable instance id.
-	keyspace := assignWithFallbacks(args.QuickStartKeyspaceId, args.QuickStartInstanceId)
+	keyspace := types.Keyspace(assignWithFallbacks(args.QuickStartKeyspaceId, args.QuickStartInstanceId))
 
 	bigtableConfig := &types.BigtableConfig{
 		ProjectID: args.QuickStartProjectId,
-		Instances: map[string]*types.InstancesMapping{
+		Instances: map[types.Keyspace]*types.InstancesMapping{
 			keyspace: {
 				BigtableInstance: args.QuickStartInstanceId,
 				Keyspace:         keyspace,
@@ -164,7 +164,7 @@ func maybeParseQuickStartArgs(args *types.CliArgs) (*types.ProxyInstanceConfig, 
 		Session: &types.Session{
 			GrpcChannels: DefaultBigtableGrpcChannels,
 		},
-		DefaultColumnFamily:      args.QuickStartDefaultColumnFamily,
+		DefaultColumnFamily:      types.ColumnFamily(args.QuickStartDefaultColumnFamily),
 		DefaultIntRowKeyEncoding: types.OrderedCodeEncoding,
 	}
 

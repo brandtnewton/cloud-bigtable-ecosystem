@@ -95,23 +95,25 @@ func loadListenerConfig(args *types.CliArgs, l *yamlListener, config *yamlProxyC
 	if instanceIdsDefined && instancesDefined {
 		return nil, fmt.Errorf("only one of 'instances' or 'instance_ids' should be set for listener %s on port %d", l.Name, l.Port)
 	}
-	var instances = make(map[string]*types.InstancesMapping)
+	var instances = make(map[types.Keyspace]*types.InstancesMapping)
 	if len(l.Bigtable.Instances) != 0 {
 		for _, i := range l.Bigtable.Instances {
 			appProfileId := assignWithFallbacks(i.AppProfileID, defaultAppProfileId)
-			instances[i.Keyspace] = &types.InstancesMapping{
+			keyspace := types.Keyspace(i.Keyspace)
+			instances[keyspace] = &types.InstancesMapping{
 				BigtableInstance: i.BigtableInstance,
-				Keyspace:         i.Keyspace,
+				Keyspace:         keyspace,
 				AppProfileID:     appProfileId,
 			}
 		}
 	} else {
 		instanceIds := strings.Split(l.Bigtable.InstanceIDs, ",")
 		for _, id := range instanceIds {
-			id := strings.TrimSpace(id)
-			instances[id] = &types.InstancesMapping{
+			id = strings.TrimSpace(id)
+			keyspace := types.Keyspace(id)
+			instances[keyspace] = &types.InstancesMapping{
 				BigtableInstance: id,
-				Keyspace:         id,
+				Keyspace:         keyspace,
 				AppProfileID:     defaultAppProfileId,
 			}
 		}
@@ -129,7 +131,7 @@ func loadListenerConfig(args *types.CliArgs, l *yamlListener, config *yamlProxyC
 		Session: &types.Session{
 			GrpcChannels: l.Bigtable.Session.GrpcChannels,
 		},
-		DefaultColumnFamily:      l.Bigtable.DefaultColumnFamily,
+		DefaultColumnFamily:      types.ColumnFamily(l.Bigtable.DefaultColumnFamily),
 		DefaultIntRowKeyEncoding: intRowKeyEncoding,
 	}
 

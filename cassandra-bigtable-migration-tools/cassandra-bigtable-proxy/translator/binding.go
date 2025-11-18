@@ -80,7 +80,7 @@ func BindMutations(assignments []Assignment, values *QueryParameterValues, b *Bi
 // handleListOperation processes list operations in raw queries.
 // Manages simple assignment, append, prepend, and index-based operations on list columns.
 // Returns error if operation type is invalid or value type doesn't match expected type.
-//func handleListOperation(val interface{}, column *types.Column, lt *types.ListType, colFamily types.ColumnFamily, output *AdHocQueryValues) error {
+//func handleListOperation(val interface{}, column *types.Columns, lt *types.ListType, colFamily types.ColumnFamily, output *AdHocQueryValues) error {
 //	switch v := val.(type) {
 //	case ComplexAssignment:
 //		switch v.Operation {
@@ -172,7 +172,7 @@ func encodeTimestampIndex(millis int64, nanos int32) []byte {
 // removeListElements removes elements from a list column in raw queries.
 // Processes element removal by index with validation of index bounds.
 // Returns error if index is invalid or out of bounds.
-//func removeListElements(keys []string, colFamily types.ColumnFamily, column *types.Column, output *AdHocQueryValues) error {
+//func removeListElements(keys []string, colFamily types.ColumnFamily, column *types.Columns, output *AdHocQueryValues) error {
 //	var listDelete [][]byte
 //	listType, ok := column.CQLType.DataType().(datatype.ListType)
 //	if !ok {
@@ -227,7 +227,7 @@ func encodeTimestampIndex(millis int64, nanos int32) []byte {
 // handleSetOperation processes set operations in raw queries.
 // Manages simple assignment, add, and remove operations on set columns.
 // Returns error if operation type is invalid or value type doesn't match set element type.
-//func handleSetOperation(val interface{}, column *types.Column, st *SetType, colFamily types.ColumnFamily, output *AdHocQueryValues) error {
+//func handleSetOperation(val interface{}, column *types.Columns, st *SetType, colFamily types.ColumnFamily, output *AdHocQueryValues) error {
 //	switch v := val.(type) {
 //	case ComplexAssignment:
 //		switch v.Operation {
@@ -293,7 +293,7 @@ func removeSetElements(keys []types.GoValue, colFamily types.ColumnFamily, outpu
 // handleMapOperation processes map operations in raw queries.
 // Manages simple assignment/replace complete map, add, remove, and update at index operations on map columns.
 // Returns error if operation type is invalid or value type doesn't match map key/value
-//func handleMapOperation(val interface{}, column *types.Column, mt *types.MapType, colFamily types.ColumnFamily, output *BigtableWriteMutation) error {
+//func handleMapOperation(val interface{}, column *types.Columns, mt *types.MapType, colFamily types.ColumnFamily, output *BigtableWriteMutation) error {
 //	// Check if key type is VARCHAR or TIMESTAMP
 //	if mt.KeyType().DataType() == datatype.Varchar || mt.KeyType().DataType() == datatype.Timestamp {
 //		switch v := val.(type) {

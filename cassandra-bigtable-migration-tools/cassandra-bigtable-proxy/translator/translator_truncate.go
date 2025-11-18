@@ -18,50 +18,31 @@ package translator
 
 import (
 	"errors"
-	"fmt"
+	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/global/types"
 
 	cql "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/third_party/cqlparser"
 	"github.com/antlr4-go/antlr/v4"
 )
 
-func (t *Translator) TranslateTruncateTableToBigtable(query, sessionKeyspace string) (*TruncateTableStatementMap, error) {
+func (t *Translator) TranslateTruncateTableToBigtable(query string, sessionKeyspace types.Keyspace) (*TruncateTableStatementMap, error) {
 	lexer := cql.NewCqlLexer(antlr.NewInputStream(query))
 	stream := antlr.NewCommonTokenStream(lexer, antlr.TokenDefaultChannel)
 	p := cql.NewCqlParser(stream)
 
 	truncateTableObj := p.Truncate()
 
-	if truncateTableObj == nil || truncateTableObj.Table() == nil {
+	if truncateTableObj == nil {
 		return nil, errors.New("error while parsing truncate query")
 	}
 
-	var tableName, keyspaceName string
-
-	if truncateTableObj.Table() != nil && truncateTableObj.Table().GetText() != "" {
-		tableName = truncateTableObj.Table().GetText()
-		if !validTableName.MatchString(tableName) {
-			return nil, errors.New("invalid table name parsed from query")
-		}
-	} else {
-		return nil, errors.New("invalid truncate table query: table missing")
-	}
-
-	if tableName == t.SchemaMappingConfig.SchemaMappingTableName {
-		return nil, fmt.Errorf("cannot truncate the configured schema mapping table name '%s'", tableName)
-	}
-
-	if truncateTableObj.Keyspace() != nil && truncateTableObj.Keyspace().GetText() != "" {
-		keyspaceName = truncateTableObj.Keyspace().GetText()
-	} else if sessionKeyspace != "" {
-		keyspaceName = sessionKeyspace
-	} else {
-		return nil, errors.New("missing keyspace. keyspace is required")
+	keyspaceName, tableName, err := parseTarget(truncateTableObj, sessionKeyspace, t.SchemaMappingConfig)
+	if err != nil {
+		return nil, err
 	}
 
 	var stmt = TruncateTableStatementMap{
-		QueryType: "truncate",
-		Keyspace:  keyspaceName,
-		Table:     tableName,
+		Keyspace: keyspaceName,
+		Table:    tableName,
 	}
 
 	return &stmt, nil

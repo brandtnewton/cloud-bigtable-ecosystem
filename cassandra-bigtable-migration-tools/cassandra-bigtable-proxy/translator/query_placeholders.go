@@ -6,7 +6,7 @@ import (
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/utilities"
 )
 
-const limitPlaceholder Placeholder = "limitValue"
+const limitPlaceholder Placeholder = "@limitValue"
 
 type Placeholder string
 
@@ -71,7 +71,7 @@ func (q *QueryParameters) GetPlaceholderForColumn(c types.ColumnName) (Placehold
 }
 
 func (q *QueryParameters) getNextParameter() Placeholder {
-	return Placeholder(fmt.Sprintf("value%d", len(q.ordered)))
+	return Placeholder(fmt.Sprintf("@value%d", len(q.ordered)))
 }
 
 func (q *QueryParameters) PushParameter(c *types.Column, dataType types.CqlDataType) Placeholder {
@@ -104,7 +104,7 @@ func (q *QueryParameters) AddParameterWithoutColumn(p Placeholder, dt types.CqlD
 	}
 }
 
-const UsingTimePlaceholder Placeholder = "usingTimeValue"
+const UsingTimePlaceholder Placeholder = "@usingTimeValue"
 
 func (q *QueryParameters) GetMetadata(p Placeholder) PlaceholderMetadata {
 	// assume you are passing in a valid placeholder
@@ -142,7 +142,6 @@ func (q *QueryParameterValues) SetValue(p Placeholder, value any) error {
 	}
 
 	// ensure the correct type is being set - more for checking internal implementation rather than the user
-	// todo only validate when running in strict mode
 	err := utilities.ValidateGoType(value, md.Type)
 	if err != nil {
 		return err

@@ -864,12 +864,6 @@ func (s *BaseCqlParserListener) EnterFromSpec(ctx *FromSpecContext) {}
 // ExitFromSpec is called when production fromSpec is exited.
 func (s *BaseCqlParserListener) ExitFromSpec(ctx *FromSpecContext) {}
 
-// EnterFromSpecElement is called when production fromSpecElement is entered.
-func (s *BaseCqlParserListener) EnterFromSpecElement(ctx *FromSpecElementContext) {}
-
-// ExitFromSpecElement is called when production fromSpecElement is exited.
-func (s *BaseCqlParserListener) ExitFromSpecElement(ctx *FromSpecElementContext) {}
-
 // EnterOrderSpec is called when production orderSpec is entered.
 func (s *BaseCqlParserListener) EnterOrderSpec(ctx *OrderSpecContext) {}
 
@@ -905,6 +899,12 @@ func (s *BaseCqlParserListener) EnterSelectElement(ctx *SelectElementContext) {}
 
 // ExitSelectElement is called when production selectElement is exited.
 func (s *BaseCqlParserListener) ExitSelectElement(ctx *SelectElementContext) {}
+
+// EnterAsSpec is called when production asSpec is entered.
+func (s *BaseCqlParserListener) EnterAsSpec(ctx *AsSpecContext) {}
+
+// ExitAsSpec is called when production asSpec is exited.
+func (s *BaseCqlParserListener) ExitAsSpec(ctx *AsSpecContext) {}
 
 // EnterMapAccess is called when production mapAccess is entered.
 func (s *BaseCqlParserListener) EnterMapAccess(ctx *MapAccessContext) {}

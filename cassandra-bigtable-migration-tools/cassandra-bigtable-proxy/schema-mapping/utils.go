@@ -48,7 +48,7 @@ func getTimestampColumnName(aliasName string, columnName string) string {
 // cloneColumnMetadata() clones the metadata from cache.
 //
 // Parameters:
-//   - metadata: Column metadata from cache
+//   - metadata: Columns metadata from cache
 //   - index: Index for the column
 //
 // Returns:
@@ -64,8 +64,8 @@ func cloneColumnMetadata(metadata *message.ColumnMetadata, index int32) *message
 // It returns the same map with the columns sorted by their primary key precedence.
 //
 // Parameters:
-//   - pkMetadata: A map where keys are table names (strings) and values are slices of Column structs.
-//     Each Column struct contains metadata about the columns, including primary key precedence.
+//   - pkMetadata: A map where keys are table names (strings) and values are slices of Columns structs.
+//     Each Columns struct contains metadata about the columns, including primary key precedence.
 //
 // Returns:
 // - A map with the same structure as the input, but with the columns sorted by primary key precedence.

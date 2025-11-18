@@ -340,33 +340,33 @@ func defaultIfZero(value, defaultValue int) int {
 //   - protocalV: Cassandra protocol version.
 //
 // Returns: Byte array in Cassandra protocol format or an error if conversion fails.
-func TypeConversion(s any, protocalV primitive.ProtocolVersion) ([]byte, error) {
+func TypeConversion(s any, pv primitive.ProtocolVersion) ([]byte, error) {
 	var bytes []byte
 	var err error
 	switch v := s.(type) {
 	case string:
-		bytes, err = proxycore.EncodeType(datatype.Varchar, protocalV, v)
+		bytes, err = proxycore.EncodeType(datatype.Varchar, pv, v)
 	case time.Time:
-		bytes, err = proxycore.EncodeType(datatype.Timestamp, protocalV, v)
+		bytes, err = proxycore.EncodeType(datatype.Timestamp, pv, v)
 	case []byte:
-		bytes, err = proxycore.EncodeType(datatype.Blob, protocalV, v)
+		bytes, err = proxycore.EncodeType(datatype.Blob, pv, v)
 	case int64:
-		bytes, err = proxycore.EncodeType(datatype.Bigint, protocalV, v)
+		bytes, err = proxycore.EncodeType(datatype.Bigint, pv, v)
 	case int:
-		bytes, err = proxycore.EncodeType(datatype.Int, protocalV, v)
+		bytes, err = proxycore.EncodeType(datatype.Int, pv, v)
 	case bool:
-		bytes, err = proxycore.EncodeType(datatype.Boolean, protocalV, v)
+		bytes, err = proxycore.EncodeType(datatype.Boolean, pv, v)
 	case map[string]string:
-		bytes, err = proxycore.EncodeType(MapOfStrToStr.DataType(), protocalV, v)
+		bytes, err = proxycore.EncodeType(MapOfStrToStr.DataType(), pv, v)
 	case float64:
-		bytes, err = proxycore.EncodeType(datatype.Double, protocalV, v)
+		bytes, err = proxycore.EncodeType(datatype.Double, pv, v)
 	case float32:
-		bytes, err = proxycore.EncodeType(datatype.Float, protocalV, v)
+		bytes, err = proxycore.EncodeType(datatype.Float, pv, v)
 	case []string:
-		bytes, err = proxycore.EncodeType(SetOfStr.DataType(), protocalV, v)
+		bytes, err = proxycore.EncodeType(SetOfStr.DataType(), pv, v)
 	case datatype.DataType:
 		cqlTypeInString := fmt.Sprintf("%v", v)
-		bytes, err = proxycore.EncodeType(datatype.Varchar, protocalV, cqlTypeInString)
+		bytes, err = proxycore.EncodeType(datatype.Varchar, pv, cqlTypeInString)
 	default:
 		err = fmt.Errorf("%v - %v", "Unknown Datatype Identified", s)
 	}

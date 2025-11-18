@@ -783,7 +783,7 @@ func TestParseDeleteColumns(t *testing.T) {
 			wantErr: false,
 		},
 		{
-			name: "Column missing in schema mapping table",
+			name: "Columns missing in schema mapping table",
 			// using a column name that doesn't exist in schema mapping table.
 			query:     "DELETE unknown FROM test_keyspace.testtable",
 			expectNil: false,
@@ -820,8 +820,8 @@ func TestParseDeleteColumns(t *testing.T) {
 			for i := range cols {
 				got := cols[i]
 				exp := tt.expectedCols[i]
-				if got.Name != exp.Name {
-					t.Errorf("expected column name '%s', got '%s'", exp.Name, got.Name)
+				if got.Sql != exp.Name {
+					t.Errorf("expected column name '%s', got '%s'", exp.Name, got.Sql)
 				}
 				// Normalize values: remove any quotes from map keys.
 				gotMapKey := strings.Trim(got.MapKey, "'")

@@ -53,7 +53,7 @@ type OtelConfig struct {
 
 type InstancesMapping struct {
 	BigtableInstance string
-	Keyspace         string
+	Keyspace         Keyspace
 	AppProfileID     string
 }
 

@@ -30,8 +30,8 @@ import (
 // parseInsertColumns() parses columns and values from the Insert query
 //
 // Parameters:
-//   - input: Insert Column Spec Context from antlr parser.
-//   - tableName: Table Column
+//   - input: Insert Columns Spec Context from antlr parser.
+//   - tableName: Table Columns
 //   - schemaMapping: JSON Config which maintains column and its datatypes info.
 //
 // Returns: ColumnsResponse struct and error if any
@@ -115,7 +115,7 @@ func parseInsertValues(input cql.IInsertValuesSpecContext, columns []Assignment,
 //
 // Parameters:
 //   - queryStr: Read the query, parse its columns, values, table name, type of query and keyspaces etc.
-//   - protocolV: Array of Column Names
+//   - protocolV: Array of Columns Names
 //
 // Returns: PreparedInsertQuery, build the PreparedInsertQuery and return it with nil value of error. In case of error
 // PreparedInsertQuery will return as nil and error will contains the error object
@@ -134,23 +134,10 @@ func (t *Translator) TranslateInsert(query string, sessionKeyspace types.Keyspac
 		return nil, nil, errors.New("could not parse insert object")
 	}
 	insertObj.KwInto()
-	keyspace := insertObj.Keyspace()
-	table := insertObj.Table()
 
-	var keyspaceName types.Keyspace
-	if keyspace != nil && keyspace.OBJECT_NAME() != nil && keyspace.OBJECT_NAME().GetText() != "" {
-		keyspaceName = types.Keyspace(keyspace.OBJECT_NAME().GetText())
-	} else if sessionKeyspace != "" {
-		keyspaceName = sessionKeyspace
-	} else {
-		return nil, nil, fmt.Errorf("invalid input parameters found for keyspace")
-	}
-
-	var tableName types.TableName
-	if table != nil && table.OBJECT_NAME() != nil && table.OBJECT_NAME().GetText() != "" {
-		tableName = types.TableName(table.OBJECT_NAME().GetText())
-	} else {
-		return nil, nil, fmt.Errorf("invalid input paramaters found for table")
+	keyspaceName, tableName, err := parseTarget(insertObj, sessionKeyspace, t.SchemaMappingConfig)
+	if err != nil {
+		return nil, nil, err
 	}
 
 	tableConfig, err := t.SchemaMappingConfig.GetTableConfig(keyspaceName, tableName)

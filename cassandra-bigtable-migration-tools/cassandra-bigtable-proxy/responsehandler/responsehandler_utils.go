@@ -19,6 +19,7 @@ package responsehandler
 import (
 	"fmt"
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/global/types"
+	schemaMapping "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/schema-mapping"
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/translator"
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/utilities"
 	"reflect"
@@ -95,13 +96,16 @@ func decodeMapData(mapData map[string]interface{}, elementType datatype.DataType
 	return result, nil
 }
 
-func SelectedColumnsToMetadata(keyspace types.Keyspace, table types.TableName, selectedColumns []translator.SelectedColumn) []*message.ColumnMetadata {
+func SelectedColumnsToMetadata(table *schemaMapping.TableConfig, selectClause translator.SelectClause) []*message.ColumnMetadata {
+	if selectClause.IsStar {
+		return table.GetMetadata()
+	}
 	var resultColumns []*message.ColumnMetadata
-	for i, c := range selectedColumns {
+	for i, c := range selectClause.Columns {
 		var col = message.ColumnMetadata{
-			Keyspace: string(keyspace),
-			Table:    string(table),
-			Name:     c.ColumnName,
+			Keyspace: string(table.Keyspace),
+			Table:    string(table.Name),
+			Name:     string(c.ColumnName),
 			Index:    int32(i),
 			Type:     c.ResultType.DataType(),
 		}
@@ -110,8 +114,23 @@ func SelectedColumnsToMetadata(keyspace types.Keyspace, table types.TableName, s
 	return resultColumns
 }
 
-func BuildRowsResultResponse(keyspace types.Keyspace, table types.TableName, selectedColumns []translator.SelectedColumn, rows []*types.BigtableResultRow) (*message.RowsResult, error) {
-	resultColumns := SelectedColumnsToMetadata(keyspace, table, selectedColumns)
+func BuildRowsResultResponse(table *schemaMapping.TableConfig, selectedColumns translator.SelectClause, rows []*types.BigtableResultRow, pv primitive.ProtocolVersion) (*message.RowsResult, error) {
+	resultColumns := SelectedColumnsToMetadata(table, selectedColumns)
+
+	var outputRows []message.Row
+	// todo handle select star
+	for _, row := range rows {
+		var outputRow []message.Column
+		for i, c := range resultColumns {
+			val := row.Values[i]
+			encoded, err := proxycore.EncodeType(c.Type, pv, val)
+			if err != nil {
+				return nil, fmt.Errorf("error encoding column '%s' to %s: %w", c.Name, c.Type.String(), err)
+			}
+			outputRow = append(outputRow, encoded)
+		}
+		outputRows = append(outputRows, outputRow)
+	}
 
 	return &message.RowsResult{
 		Metadata: &message.RowsMetadata{
@@ -120,9 +139,7 @@ func BuildRowsResultResponse(keyspace types.Keyspace, table types.TableName, sel
 			ColumnCount:        int32(len(resultColumns)),
 			Columns:            resultColumns,
 		},
-		Data: []message.Row{
-			// todo
-		},
+		Data: outputRows,
 	}, nil
 }
 

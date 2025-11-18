@@ -77,5 +77,5 @@ const (
 )
 
 type BigtableResultRow struct {
-	ColumnMap map[string]GoValue
+	Values []GoValue
 }

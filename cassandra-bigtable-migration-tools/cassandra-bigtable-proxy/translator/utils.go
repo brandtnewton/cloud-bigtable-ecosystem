@@ -1000,9 +1000,14 @@ func cassandraValueToGoValue(dt types.CqlDataType, value *primitive.Value, pv pr
 // Converts bigint values to byte representation with validation.
 // Returns error if value is invalid or encoding fails.
 func encodeBigIntForBigtable(value interface{}) ([]byte, error) {
-	intVal, err := parseCassandraValueToInt64(value, bigtableEncodingVersion)
-	if err != nil {
-		return nil, err
+	var intVal int64
+	switch v := value.(type) {
+	case int32:
+		intVal = int64(v)
+	case int64:
+		intVal = v
+	default:
+		return nil, fmt.Errorf("unsupported type for bigint: %T", value)
 	}
 	result, err := proxycore.EncodeType(datatype.Bigint, bigtableEncodingVersion, intVal)
 	if err != nil {
@@ -1018,24 +1023,12 @@ func encodeFloat64ForBigtable(value interface{}) ([]byte, error) {
 	var floatVal float64
 	var err error
 	switch v := value.(type) {
-	case string:
-		floatVal, err = strconv.ParseFloat(v, 64)
 	case float32:
 		floatVal = float64(v)
 	case float64:
 		floatVal = v
-	case []byte:
-		floatAny, err := proxycore.DecodeType(datatype.Double, bigtableEncodingVersion, v)
-		if err != nil {
-			return nil, err
-		}
-		var ok bool
-		floatVal, ok = floatAny.(float64)
-		if !ok {
-			return nil, errors.New("failed to convert float")
-		}
 	default:
-		return nil, fmt.Errorf("unsupported type for bigint conversion: %v", value)
+		return nil, fmt.Errorf("unsupported type for float: %T", value)
 	}
 	if err != nil {
 		return nil, err
@@ -1052,24 +1045,6 @@ func encodeFloat64ForBigtable(value interface{}) ([]byte, error) {
 // Returns error if value is invalid or encoding fails.
 func encodeBoolForBigtable(value interface{}) ([]byte, error) {
 	switch v := value.(type) {
-	case string:
-		val, err := strconv.ParseBool(v)
-		if err != nil {
-			return nil, err
-		}
-		strVal := "0"
-		if val {
-			strVal = "1"
-		}
-		intVal, err := strconv.ParseInt(strVal, 10, 64)
-		if err != nil {
-			return nil, err
-		}
-		bd, err := proxycore.EncodeType(datatype.Bigint, bigtableEncodingVersion, intVal)
-		if err != nil {
-			return nil, err
-		}
-		return bd, nil
 	case bool:
 		var valInBigint int64
 		if v {
@@ -1082,51 +1057,8 @@ func encodeBoolForBigtable(value interface{}) ([]byte, error) {
 			return nil, err
 		}
 		return bd, nil
-	case []byte:
-		vaInInterface, err := proxycore.DecodeType(datatype.Boolean, bigtableEncodingVersion, v)
-		if err != nil {
-			return nil, err
-		}
-		if vaInInterface == nil {
-			return nil, nil
-		}
-		if vaInInterface.(bool) {
-			return proxycore.EncodeType(datatype.Bigint, bigtableEncodingVersion, 1)
-		} else {
-			return proxycore.EncodeType(datatype.Bigint, bigtableEncodingVersion, 0)
-		}
 	default:
-		return nil, fmt.Errorf("unsupported type: %v", value)
-	}
-}
-
-func parseCassandraValueToInt64(value interface{}, clientPv primitive.ProtocolVersion) (int64, error) {
-	switch v := value.(type) {
-	case string:
-		return strconv.ParseInt(v, 10, 64)
-	case int32:
-		return int64(v), nil
-	case int64:
-		return v, nil
-	case []byte:
-		if len(v) == 4 {
-			decoded, err := proxycore.DecodeType(datatype.Int, clientPv, v)
-			if err != nil {
-				return 0, err
-			}
-			return int64(decoded.(int32)), nil
-		} else {
-			decoded, err := proxycore.DecodeType(datatype.Bigint, clientPv, v)
-			if err != nil {
-				return 0, err
-			}
-			if decoded == nil {
-				return 0, nil
-			}
-			return decoded.(int64), nil
-		}
-	default:
-		return 0, fmt.Errorf("unsupported type for bigint conversion: %v", value)
+		return nil, fmt.Errorf("unsupported type: %T", value)
 	}
 }
 

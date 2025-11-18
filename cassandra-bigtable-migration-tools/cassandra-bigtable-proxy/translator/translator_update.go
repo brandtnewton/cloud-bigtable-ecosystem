@@ -426,16 +426,11 @@ func (t *Translator) doBindUpdate(st *PreparedUpdateQuery, values *QueryParamete
 		return nil, err
 	}
 
-	mutations := BigtableWriteMutation{rowKey: rowKey}
-	err = BindMutations(st.Values, values, &mutations)
+	mutations := NewBigtableWriteMutation(st.keyspace, st.table, rowKey)
+	err = BindMutations(st.Values, values, mutations)
 	if err != nil {
 		return nil, err
 	}
 
-	mutations.UsingTimestamp, err = BindUsingTimestamp(values)
-	if err != nil {
-		return nil, err
-	}
-
-	return &mutations, err
+	return mutations, err
 }

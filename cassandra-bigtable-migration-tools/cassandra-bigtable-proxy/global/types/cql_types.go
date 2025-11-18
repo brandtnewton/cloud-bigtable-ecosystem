@@ -17,10 +17,7 @@ type CqlDataType interface {
 	IsCollection() bool
 	IsAnyFrozen() bool
 	Code() CqlTypeCode
-}
-
-func IsScalar(c CqlDataType) bool {
-	return !c.IsCollection()
+	BigtableStorageType() CqlDataType
 }
 
 type CqlTypeCode int
@@ -61,6 +58,15 @@ type ScalarType struct {
 	code CqlTypeCode
 	dt   datatype.DataType
 	name string
+}
+
+func (s ScalarType) BigtableStorageType() CqlDataType {
+	switch s.code {
+	case INT, TINYINT:
+		return TypeBigint
+	default:
+		return s
+	}
 }
 
 func (s ScalarType) Code() CqlTypeCode {
@@ -123,6 +129,15 @@ type MapType struct {
 	dt        datatype.DataType
 }
 
+func (m MapType) BigtableStorageType() CqlDataType {
+	kt := m.keyType.BigtableStorageType()
+	vt := m.valueType.BigtableStorageType()
+	if m.keyType == kt && m.valueType == vt {
+		return m
+	}
+	return NewMapType(kt, vt)
+}
+
 func (m MapType) Code() CqlTypeCode {
 	return MAP
 }
@@ -163,6 +178,14 @@ type ListType struct {
 	dt          datatype.DataType
 }
 
+func (l ListType) BigtableStorageType() CqlDataType {
+	dt := l.elementType.BigtableStorageType()
+	if dt != l.elementType {
+		return NewSetType(dt)
+	}
+	return l
+}
+
 func (l ListType) Code() CqlTypeCode {
 	return LIST
 }
@@ -199,6 +222,14 @@ type SetType struct {
 	dt          datatype.DataType
 }
 
+func (s SetType) BigtableStorageType() CqlDataType {
+	dt := s.elementType.BigtableStorageType()
+	if dt != s.elementType {
+		return NewSetType(dt)
+	}
+	return s
+}
+
 func (s SetType) Code() CqlTypeCode {
 	return SET
 }
@@ -231,6 +262,10 @@ func (s SetType) IsCollection() bool {
 
 type FrozenType struct {
 	innerType CqlDataType
+}
+
+func (f FrozenType) BigtableStorageType() CqlDataType {
+	return f
 }
 
 func (f FrozenType) Code() CqlTypeCode {

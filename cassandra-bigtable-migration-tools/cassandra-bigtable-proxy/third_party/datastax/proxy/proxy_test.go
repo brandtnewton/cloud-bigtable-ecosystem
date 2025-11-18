@@ -1336,7 +1336,7 @@ func TestHandleExecuteForSelect(t *testing.T) {
 		ParamKeys:        make([]string, len(varMeta)),
 		VariableMetadata: varMeta,
 		ReturnMetadata:   returnMeta,
-		SelectClause:     translator.ColumnMeta{IsStar: true},
+		SelectClause:     translator.SelectClause{IsStar: true},
 		TranslatedQuery:  "SELECT * FROM user_info WHERE name = @value1;",
 		PrimaryKeys:      []string{"name"},
 		CachedBTPrepare:  preparedStatement,

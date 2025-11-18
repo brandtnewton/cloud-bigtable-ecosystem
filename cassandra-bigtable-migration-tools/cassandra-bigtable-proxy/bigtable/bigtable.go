@@ -122,7 +122,7 @@ func (btc *BigtableClient) Execute(ctx context.Context, query translator.IBoundQ
 	case *translator.BigtableWriteMutation:
 		return btc.mutateRow(ctx, q)
 	case *translator.BoundSelectQuery:
-		return btc.ExecutePreparedStatement(ctx, q)
+		return btc.SelectStatement(ctx, q)
 	default:
 		return nil, fmt.Errorf("unhandled prepared query type: %T", query)
 	}
@@ -249,7 +249,7 @@ func (btc *BigtableClient) buildMutation(ctx context.Context, table *schemaMappi
 	}
 
 	var timestamp bigtable.Timestamp
-	if input.UsingTimestamp.HasUsingTimestamp {
+	if input.UsingTimestamp != nil && input.UsingTimestamp.HasUsingTimestamp {
 		timestamp = bigtable.Time(input.UsingTimestamp.Timestamp)
 	} else {
 		timestamp = bigtable.Time(time.Now())

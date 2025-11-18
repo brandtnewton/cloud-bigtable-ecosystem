@@ -708,7 +708,7 @@ func TestTranslator_TranslateSelectQuerytoBigtable(t *testing.T) {
 				TranslatedQuery: "SELECT column1,cf1['column2'],cf1['column3'] FROM test_table ORDER BY column1 asc LIMIT 20000;",
 				Table:           "test_table",
 				Keyspace:        "test_keyspace",
-				SelectClause: ColumnMeta{
+				SelectClause: SelectClause{
 					IsStar:  false,
 					Columns: []translator.SelectedColumn{{Name: "column1"}, {Name: "column2"}, {Name: "column3"}},
 				},
@@ -1142,7 +1142,7 @@ func TestTranslator_TranslateSelectQuerytoBigtable(t *testing.T) {
 				TranslatedQuery: "SELECT column1,count(TO_BLOB(cf1['column2'])) as count_col2 FROM test_table GROUP BY column1;",
 				Table:           "test_table",
 				Keyspace:        "test_keyspace",
-				SelectClause: ColumnMeta{
+				SelectClause: SelectClause{
 					IsStar: false,
 					Columns: []translator.SelectedColumn{
 						{Name: "column1"},
@@ -1252,7 +1252,7 @@ func Test_GetBigtableSelectQuery(t *testing.T) {
 					QueryType: "select",
 					Table:     "test_table",
 					Keyspace:  "test_keyspace",
-					SelectClause: ColumnMeta{
+					SelectClause: SelectClause{
 						IsStar: true,
 					},
 					Limit: Limit{
@@ -1280,7 +1280,7 @@ func Test_GetBigtableSelectQuery(t *testing.T) {
 					QueryType: "select",
 					Table:     "test_table",
 					Keyspace:  "test_keyspace",
-					SelectClause: ColumnMeta{
+					SelectClause: SelectClause{
 						IsStar: true,
 					},
 					Limit: Limit{
@@ -1299,7 +1299,7 @@ func Test_GetBigtableSelectQuery(t *testing.T) {
 					QueryType: "select",
 					Keyspace:  "test_keyspace",
 					Table:     "test_table",
-					SelectClause: ColumnMeta{
+					SelectClause: SelectClause{
 						IsStar: true,
 					},
 					Limit: Limit{
@@ -1321,7 +1321,7 @@ func Test_GetBigtableSelectQuery(t *testing.T) {
 					QueryType: "select",
 					Table:     "test_table",
 					Keyspace:  "test_keyspace",
-					SelectClause: ColumnMeta{
+					SelectClause: SelectClause{
 						IsStar: false,
 						Columns: []translator.SelectedColumn{
 							{Name: "column1"},
@@ -1341,7 +1341,7 @@ func Test_GetBigtableSelectQuery(t *testing.T) {
 					QueryType: "select",
 					Table:     "test_table",
 					Keyspace:  "test_keyspace",
-					SelectClause: ColumnMeta{
+					SelectClause: SelectClause{
 						IsStar: false,
 						Columns: []translator.SelectedColumn{
 							{Name: "column1"},
@@ -1369,7 +1369,7 @@ func Test_GetBigtableSelectQuery(t *testing.T) {
 					QueryType: "select",
 					Table:     "test_table",
 					Keyspace:  "test_keyspace",
-					SelectClause: ColumnMeta{
+					SelectClause: SelectClause{
 						IsStar: false,
 						Columns: []translator.SelectedColumn{
 							{Name: "column1", ColumnName: "column1"},
@@ -1415,7 +1415,7 @@ func Test_GetBigtableSelectQuery(t *testing.T) {
 					QueryType: "select",
 					Table:     "test_table",
 					Keyspace:  "test_keyspace",
-					SelectClause: ColumnMeta{
+					SelectClause: SelectClause{
 						IsStar: false,
 						Columns: []translator.SelectedColumn{
 							{Name: "column1", ColumnName: "column1"},
@@ -1456,7 +1456,7 @@ func Test_GetBigtableSelectQuery(t *testing.T) {
 					QueryType: "select",
 					Table:     "test_table",
 					Keyspace:  "test_keyspace",
-					SelectClause: ColumnMeta{
+					SelectClause: SelectClause{
 						IsStar: false,
 						Columns: []translator.SelectedColumn{
 							{Name: "COUNT(*)", IsFunc: true, FuncName: "COUNT", ColumnName: "*", IsAs: true, Alias: "total_count"},
@@ -1490,7 +1490,7 @@ func Test_GetBigtableSelectQuery(t *testing.T) {
 					QueryType: "select",
 					Table:     "test_table",
 					Keyspace:  "test_keyspace",
-					SelectClause: ColumnMeta{
+					SelectClause: SelectClause{
 						IsStar: false,
 						Columns: []translator.SelectedColumn{
 							{Name: "MIN(column2)", IsFunc: true, FuncName: "MIN", ColumnName: "column2", IsAs: true, Alias: "min_value"},
@@ -1531,7 +1531,7 @@ func Test_GetBigtableSelectQuery(t *testing.T) {
 					QueryType: "select",
 					Table:     "test_table",
 					Keyspace:  "test_keyspace",
-					SelectClause: ColumnMeta{
+					SelectClause: SelectClause{
 						IsStar: false,
 						Columns: []translator.SelectedColumn{
 							{Name: "column1", ColumnName: "column1"},
@@ -1564,7 +1564,7 @@ func Test_GetBigtableSelectQuery(t *testing.T) {
 					QueryType: "select",
 					Table:     "test_table",
 					Keyspace:  "test_keyspace",
-					SelectClause: ColumnMeta{
+					SelectClause: SelectClause{
 						IsStar: false,
 						Columns: []translator.SelectedColumn{
 							{Name: "name", ColumnName: "name"},
@@ -1606,7 +1606,7 @@ func Test_GetBigtableSelectQuery(t *testing.T) {
 					QueryType: "select",
 					Table:     "test_table",
 					Keyspace:  "test_keyspace",
-					SelectClause: ColumnMeta{
+					SelectClause: SelectClause{
 						IsStar: false,
 						Columns: []translator.SelectedColumn{
 							{Name: "name", ColumnName: "name"},
@@ -1647,7 +1647,7 @@ func Test_GetBigtableSelectQuery(t *testing.T) {
 					QueryType: "select",
 					Table:     "test_table",
 					Keyspace:  "test_keyspace",
-					SelectClause: ColumnMeta{
+					SelectClause: SelectClause{
 						IsStar: false,
 						Columns: []translator.SelectedColumn{
 							{Name: "name", ColumnName: "name"},
@@ -2056,19 +2056,19 @@ func Test_parseColumnsFromSelectWithParser(t *testing.T) {
 	tests := []struct {
 		name    string
 		query   string
-		want    ColumnMeta
+		want    SelectClause
 		wantErr bool
 	}{
 		{
 			name:    "star query",
 			query:   "SELECT * FROM test_table",
-			want:    ColumnMeta{IsStar: true},
+			want:    SelectClause{IsStar: true},
 			wantErr: false,
 		},
 		{
 			name:  "single column",
 			query: "SELECT pk_1_text FROM test_table",
-			want: ColumnMeta{
+			want: SelectClause{
 				Columns: []translator.SelectedColumn{
 					{Name: "pk_1_text", ColumnName: "pk_1_text"},
 				},
@@ -2078,7 +2078,7 @@ func Test_parseColumnsFromSelectWithParser(t *testing.T) {
 		{
 			name:  "multiple columns",
 			query: "SELECT pk_1_text, blob_col, bool_col FROM test_table",
-			want: ColumnMeta{
+			want: SelectClause{
 				Columns: []translator.SelectedColumn{
 					{Name: "pk_1_text", ColumnName: "pk_1_text"},
 					{Name: "blob_col", ColumnName: "blob_col"},
@@ -2090,7 +2090,7 @@ func Test_parseColumnsFromSelectWithParser(t *testing.T) {
 		{
 			name:  "column with alias",
 			query: "SELECT pk_1_text AS alias1 FROM test_table",
-			want: ColumnMeta{
+			want: SelectClause{
 				Columns: []translator.SelectedColumn{
 					{Name: "pk_1_text", IsAs: true, Alias: "alias1", ColumnName: "pk_1_text"},
 				},
@@ -2100,7 +2100,7 @@ func Test_parseColumnsFromSelectWithParser(t *testing.T) {
 		{
 			name:  "function with star",
 			query: "SELECT COUNT(*) FROM test_table",
-			want: ColumnMeta{
+			want: SelectClause{
 				Columns: []translator.SelectedColumn{
 					{Name: "system.count(*)", IsFunc: true, FuncName: "count", Alias: "", ColumnName: "*"},
 				},
@@ -2110,7 +2110,7 @@ func Test_parseColumnsFromSelectWithParser(t *testing.T) {
 		{
 			name:  "writetime function",
 			query: "SELECT name,WRITETIME(pk_1_text) AS wt FROM test_table",
-			want: ColumnMeta{
+			want: SelectClause{
 				Columns: []translator.SelectedColumn{
 					{Name: "name", ColumnName: "name"},
 					{
@@ -2127,7 +2127,7 @@ func Test_parseColumnsFromSelectWithParser(t *testing.T) {
 		{
 			name:  "map access",
 			query: "SELECT map_col['key1'] FROM test_table",
-			want: ColumnMeta{
+			want: SelectClause{
 				Columns: []translator.SelectedColumn{
 					{Name: "map_col['key1']", MapKey: "key1", Alias: "", ColumnName: "map_col"},
 				},

@@ -24,23 +24,13 @@ import (
 	"strings"
 
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/global/types"
-	schemaMapping "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/schema-mapping"
+	sm "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/schema-mapping"
 	cql "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/third_party/cqlparser"
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/utilities"
 	"github.com/datastax/go-cassandra-native-protocol/datatype"
 	"github.com/datastax/go-cassandra-native-protocol/primitive"
 )
 
-const (
-	customWriteTime = "writetime_"
-)
-
-// TranslateSelect() Translates Cassandra select statement into a compatible Cloud Bigtable select query.
-//
-// Parameters:
-//   - query: CQL Select statement
-//
-// Returns: PreparedSelectQuery struct and error if any
 func (t *Translator) TranslateSelect(query string, sessionKeyspace types.Keyspace, isPreparedQuery bool) (*PreparedSelectQuery, *BoundSelectQuery, error) {
 	p, err := NewCqlParser(query, false)
 	if err != nil {
@@ -51,17 +41,17 @@ func (t *Translator) TranslateSelect(query string, sessionKeyspace types.Keyspac
 		return nil, nil, errors.New("ToBigtableSelect: Could not parse select object")
 	}
 
-	columns, err := parseSelectClause(selectObj.SelectElements())
-	if err != nil {
-		return nil, nil, err
-	}
-
 	keyspaceName, tableName, err := parseTarget(selectObj.FromSpec(), sessionKeyspace, t.SchemaMappingConfig)
 	if err != nil {
 		return nil, nil, err
 	}
 
 	tableConfig, err := t.SchemaMappingConfig.GetTableConfig(keyspaceName, tableName)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	columns, err := parseSelectClause(selectObj.SelectElements(), tableConfig)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -155,18 +145,22 @@ func (t *Translator) doBindSelect(st *PreparedSelectQuery, values *QueryParamete
 //   - input: The Select Element context from the antlr Parser.
 //
 // Returns: Columns Meta and an error if any.
-func parseSelectClause(input cql.ISelectElementsContext) (*ColumnMeta, error) {
-	if input == nil || len(input.AllSelectElement()) == 0 {
+func parseSelectClause(input cql.ISelectElementsContext, table *sm.TableConfig) (*SelectClause, error) {
+	if input == nil {
 		return nil, errors.New("select clause empty")
 	}
 
 	if input.STAR() != nil {
-		return &ColumnMeta{
+		return &SelectClause{
 			IsStar: true,
 		}, nil
 	}
 
-	var selectedSolumns []SelectedColumn
+	if len(input.AllSelectElement()) == 0 {
+		return nil, errors.New("select clause empty")
+	}
+
+	var selectedColumns []SelectedColumn
 	for _, val := range input.AllSelectElement() {
 		selected := SelectedColumn{
 			Sql: val.GetText(),
@@ -176,31 +170,14 @@ func parseSelectClause(input cql.ISelectElementsContext) (*ColumnMeta, error) {
 			return nil, err
 		}
 		selected.Alias = alias
-		funcCall := val.FunctionCall()
-		if funcCall == nil {
-			selected.Sql = val.GetText()
-			selected.ColumnName = val.GetText()
-			// Handle map access
-			mapAccess := val.MapAccess()
-
-			if mapAccess != nil {
-				objectName := mapAccess.OBJECT_NAME().GetText()
-				mapKey := mapAccess.Constant().GetText()
-
-				// Remove surrounding quotes from mapKey
-				mapKey = trimQuotes(mapKey)
-
-				// Populate the selected column
-				selected.Sql = fmt.Sprintf("%s['%s']", objectName, mapKey)
-				selected.ColumnName = objectName
-			}
-		} else {
+		if val.FunctionCall() != nil {
+			funcCall := val.FunctionCall()
 			if funcCall.OBJECT_NAME() == nil {
 				return nil, errors.New("function call object is nil")
 			}
-			f := ParseCqlFunc(funcCall.OBJECT_NAME().GetText())
-			if f == FuncUnknown {
-				return nil, fmt.Errorf("unhandled cql function type: '%s'", funcCall.OBJECT_NAME().GetText())
+			f, err := ParseCqlFunc(funcCall.OBJECT_NAME().GetText())
+			if err != nil {
+				return nil, err
 			}
 
 			var argument string
@@ -213,13 +190,41 @@ func parseSelectClause(input cql.ISelectElementsContext) (*ColumnMeta, error) {
 				argument = funcCall.FunctionArgs().GetText()
 			}
 			selected.Func = f
-			selected.ColumnName = argument
+			selected.ResultType = f.ReturnType()
+			selected.ColumnName = types.ColumnName(argument)
+		} else {
+			selected.Sql = val.GetText()
+			selected.ColumnName = types.ColumnName(val.GetText())
+			col, err := table.GetColumn(selected.ColumnName)
+			if err != nil {
+				return nil, err
+			}
+			selected.ResultType = col.CQLType
+
+			if val.MapAccess() != nil {
+				mapAccess := val.MapAccess()
+				objectName := mapAccess.OBJECT_NAME().GetText()
+				mapKey := mapAccess.Constant().GetText()
+
+				// Remove surrounding quotes from mapKey
+				mapKey = trimQuotes(mapKey)
+
+				// Populate the selected column
+				selected.Sql = fmt.Sprintf("%s['%s']", objectName, mapKey)
+				selected.ColumnName = types.ColumnName(objectName)
+				mt := col.CQLType.(types.MapType)
+				selected.ResultType = mt.ValueType()
+			}
 		}
 
-		selectedSolumns = append(selectedSolumns, selected)
+		if selected.ResultType == nil {
+			return nil, fmt.Errorf("unhandled result type")
+		}
+
+		selectedColumns = append(selectedColumns, selected)
 	}
 
-	return &ColumnMeta{Columns: selectedSolumns}, nil
+	return &SelectClause{Columns: selectedColumns}, nil
 }
 
 func parseAs(a cql.IAsSpecContext) (string, error) {
@@ -350,14 +355,13 @@ func parseGroupByColumn(input cql.IGroupSpecContext) []string {
 // Returns:
 //   - []string column containing formatted selected columns for bigtable query
 //   - error if any
-func createBtqlSelectClause(tableConfig *schemaMapping.TableConfig, s ColumnMeta, isGroupBy bool) (string, error) {
+func createBtqlSelectClause(tableConfig *sm.TableConfig, s SelectClause, isGroupBy bool) (string, error) {
 	if s.IsStar {
 		return STAR, nil
 	}
 	var columns []string
 	for _, col := range s.Columns {
-		if col.Func != FuncUnknown {
-			//todo: implement genereralized handling of writetime with rest of the aggregate functions
+		if col.Func != nil {
 			c, err := createBtqlFunc(col, tableConfig)
 			if err != nil {
 				return "", err
@@ -397,8 +401,8 @@ func createBtqlSelectClause(tableConfig *schemaMapping.TableConfig, s ColumnMeta
 //  4. Validates if the aggregate function is supported
 //  5. Applies any necessary type casting (converting cql select columns to respective bigtable columns)
 //  6. Formats the column expression with function and alias if specified
-func createBtqlFunc(col SelectedColumn, tableConfig *schemaMapping.TableConfig) (string, error) {
-	if col.Func == FuncCount && col.ColumnName == STAR {
+func createBtqlFunc(col SelectedColumn, tableConfig *sm.TableConfig) (string, error) {
+	if col.Func.Code() == FuncCodeCount && col.ColumnName == STAR {
 		if col.Alias != "" {
 			return "count(*) as " + col.Alias, nil
 		}
@@ -415,13 +419,11 @@ func createBtqlFunc(col SelectedColumn, tableConfig *schemaMapping.TableConfig) 
 		}
 	}
 
-	if !funcAllowedInAggregate(col.Func) {
+	if !funcAllowedInAggregate(col.Func.Code()) {
 		return "", fmt.Errorf("unknown function '%s'", col.Func.String())
 	}
-	if col.Func != FuncCount {
-		if !isTypeAllowedInAggregate(colMeta.CQLType.DataType()) {
-			return "", fmt.Errorf("column not supported for aggregate")
-		}
+	if !isTypeAllowedInAggregate(colMeta.CQLType.DataType()) {
+		return "", fmt.Errorf("column not supported for aggregate")
 	}
 	castValue, castErr := castScalarColumn(colMeta)
 	if castErr != nil {
@@ -448,17 +450,14 @@ func isTypeAllowedInAggregate(dt datatype.DataType) bool {
 }
 
 // funcAllowedInAggregate checks if a given function name is allowed within an aggregate function.
-// It converts the input string to lowercase and checks if it exists as a key in the allowedFunctions map.
-// The allowed functions are "avg", "sum", "min", "max", and "count".
-// It returns true if the function is allowed, and false otherwise.
-func funcAllowedInAggregate(f BtqlFunc) bool {
-	return f == FuncAvg || f == FuncSum || f == FuncMin || f == FuncMax || f == FuncCount
+func funcAllowedInAggregate(f BtqlFuncCode) bool {
+	return f == FuncCodeAvg || f == FuncCodeSum || f == FuncCodeMin || f == FuncCodeMax || f == FuncCodeCount
 }
 
-func createBtqlSelectCol(tableConfig *schemaMapping.TableConfig, selectedColumn SelectedColumn, isGroupBy bool) (string, error) {
+func createBtqlSelectCol(tableConfig *sm.TableConfig, selectedColumn SelectedColumn, isGroupBy bool) (string, error) {
 	colName := selectedColumn.Sql
 	if selectedColumn.MapKey != "" {
-		colName = selectedColumn.ColumnName
+		colName = string(selectedColumn.ColumnName)
 	}
 	col, err := tableConfig.GetColumn(types.ColumnName(colName))
 	if err != nil {
@@ -595,7 +594,7 @@ func getBigtableSelectQuery(t *Translator, st *PreparedSelectQuery) (string, err
 	aliasToColumn := make(map[string]string)
 	for _, col := range st.SelectClause.Columns {
 		if col.Alias != "" {
-			aliasToColumn[col.Alias] = col.ColumnName
+			aliasToColumn[col.Alias] = string(col.ColumnName)
 		}
 	}
 
@@ -661,7 +660,7 @@ func getBigtableSelectQuery(t *Translator, st *PreparedSelectQuery) (string, err
 // It iterates over the clauses and constructs the WHERE clause by combining the column name, operator, and value of each clause.
 // If the operator is "IN", the value is wrapped with the UNNEST function.
 // The constructed WHERE clause is returned as a string.
-func createBtqlWhereClause(clauses []Condition, tableConfig *schemaMapping.TableConfig) (string, error) {
+func createBtqlWhereClause(clauses []Condition, tableConfig *sm.TableConfig) (string, error) {
 	whereClause := ""
 	for _, val := range clauses {
 		column := "`" + string(val.Column.Name) + "`"

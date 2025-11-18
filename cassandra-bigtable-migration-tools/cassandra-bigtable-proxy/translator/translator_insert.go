@@ -217,13 +217,11 @@ func (t *Translator) doBindInsert(st *PreparedInsertQuery, values *QueryParamete
 		return nil, fmt.Errorf("key encoding failed: %w", err)
 	}
 
-	mutations := BigtableWriteMutation{
-		rowKey: rowKey,
-	}
-	err = BindMutations(st.Assignments, values, &mutations)
+	mutations := NewBigtableWriteMutation(st.keyspace, st.table, rowKey)
+	err = BindMutations(st.Assignments, values, mutations)
 	if err != nil {
 		return nil, err
 	}
 
-	return &mutations, nil
+	return mutations, nil
 }

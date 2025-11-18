@@ -12,8 +12,12 @@ import (
 
 func BindMutations(assignments []Assignment, values *QueryParameterValues, b *BigtableWriteMutation) error {
 	for _, assignment := range assignments {
+		// skip primary keys because those are part of the row key which is handled separately
+		if assignment.Column().IsPrimaryKey {
+			continue
+		}
 		switch v := assignment.(type) {
-		case AssignmentCounterIncrement:
+		case *AssignmentCounterIncrement:
 			value, err := values.GetValueInt64(v.Value)
 			if err != nil {
 				return err
@@ -22,7 +26,7 @@ func BindMutations(assignments []Assignment, values *QueryParameterValues, b *Bi
 				Family: v.Column().ColumnFamily,
 				Value:  value,
 			})
-		case ComplexAssignmentSet:
+		case *ComplexAssignmentSet:
 			value, err := values.GetValue(v.Value)
 			if err != nil {
 				return err
@@ -33,7 +37,7 @@ func BindMutations(assignments []Assignment, values *QueryParameterValues, b *Bi
 			}
 			data, err := encodeGoValueToBigtable(v.Column(), value)
 			b.Data = append(b.Data, data...)
-		case ComplexAssignmentAdd:
+		case *ComplexAssignmentAdd:
 			colType := v.Column().CQLType.Code()
 			if colType == types.LIST {
 				lt := v.Column().CQLType.(types.ListType)
@@ -73,6 +77,12 @@ func BindMutations(assignments []Assignment, values *QueryParameterValues, b *Bi
 			return fmt.Errorf("unhandled assignment op type %T", v)
 		}
 		return nil
+	}
+
+	var err error
+	b.UsingTimestamp, err = BindUsingTimestamp(values)
+	if err != nil {
+		return err
 	}
 	return nil
 }

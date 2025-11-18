@@ -17,7 +17,6 @@ package proxycore
 import (
 	"context"
 	"encoding/binary"
-	"encoding/hex"
 	"errors"
 	"fmt"
 	"io"
@@ -50,30 +49,27 @@ func (f EventHandlerFunc) OnEvent(frm *frame.Frame) {
 }
 
 type ClientConnConfig struct {
-	PreparedCache PreparedCache
-	Handler       EventHandler
-	Logger        *zap.Logger
+	Handler EventHandler
+	Logger  *zap.Logger
 }
 
 type ClientConn struct {
-	conn          *Conn
-	inflight      int32
-	pending       *pendingRequests
-	eventHandler  EventHandler
-	preparedCache PreparedCache
-	logger        *zap.Logger
-	closing       bool
-	closingMu     *sync.RWMutex
+	conn         *Conn
+	inflight     int32
+	pending      *pendingRequests
+	eventHandler EventHandler
+	logger       *zap.Logger
+	closing      bool
+	closingMu    *sync.RWMutex
 }
 
 // ConnectClient creates a new connection to an endpoint within a downstream cluster using TLS if specified.
 func ConnectClient(ctx context.Context, endpoint Endpoint, config ClientConnConfig) (*ClientConn, error) {
 	c := &ClientConn{
-		pending:       newPendingRequests(MaxStreams),
-		eventHandler:  config.Handler,
-		closingMu:     &sync.RWMutex{},
-		preparedCache: config.PreparedCache,
-		logger:        GetOrCreateNopLogger(config.Logger),
+		pending:      newPendingRequests(MaxStreams),
+		eventHandler: config.Handler,
+		closingMu:    &sync.RWMutex{},
+		logger:       GetOrCreateNopLogger(config.Logger),
 	}
 	var err error
 	c.conn, err = Connect(ctx, endpoint, c)
@@ -269,89 +265,10 @@ func (c *ClientConn) Receive(reader io.Reader) error {
 			return errors.New("invalid stream")
 		}
 		atomic.AddInt32(&c.inflight, -1)
-
-		handled := false
-
-		// If we have a prepared cache attempt to recover from unprepared errors and cache previously seen prepared
-		// requests (so they can be used to prepare other nodes).
-		if c.preparedCache != nil {
-			switch raw.Header.OpCode {
-			case primitive.OpCodeError:
-				handled = c.maybePrepareAndExecute(request, raw)
-			case primitive.OpCodeResult:
-				c.maybeCachePrepared(request, raw)
-			}
-		}
-
-		if !handled {
-			request.OnResult(raw)
-		}
+		request.OnResult(raw)
 	}
 
 	return nil
-}
-
-// maybePrepareAndExecute checks the response looking for unprepared errors and attempts to prepare them.
-// If an unprepared error is encountered it attempts to prepare the query on the connection and re-execute the original
-// request.
-func (c *ClientConn) maybePrepareAndExecute(request Request, raw *frame.RawFrame) bool {
-	code, err := readInt(raw.Body)
-	if err != nil {
-		c.logger.Error("failed to read `code` in error response", zap.Error(err))
-		return false
-	}
-
-	if primitive.ErrorCode(code) == primitive.ErrorCodeUnprepared {
-		frm, err := codec.ConvertFromRawFrame(raw)
-		if err != nil {
-			c.logger.Error("failed to decode unprepared error response", zap.Error(err))
-			return false
-		}
-		msg := frm.Body.Message.(*message.Unprepared)
-		id := hex.EncodeToString(msg.Id)
-		if prepare, ok := c.preparedCache.Load(id); ok {
-			err = c.Send(&prepareRequest{
-				prepare:     prepare.PreparedFrame,
-				origRequest: request,
-			})
-			if err != nil {
-				c.logger.Error("failed to prepare query after receiving an unprepared error response",
-					zap.String("host", c.conn.RemoteAddr().String()),
-					zap.String("id", id),
-					zap.Error(err))
-				return false
-			} else {
-				return true
-			}
-		} else {
-			c.logger.Warn("received unprepared error response, but existing prepared ID not in the cache",
-				zap.String("id", id))
-		}
-	}
-	return false
-}
-
-// maybeCachePrepared checks the response looking for prepared frames and caches the original prepare request.
-// This is done so that the prepare request can be used to prepare other nodes that have not been prepared, but are
-// attempting to execute a request that has been prepared on another node in the cluster.
-func (c *ClientConn) maybeCachePrepared(request Request, raw *frame.RawFrame) {
-	kind, err := readInt(raw.Body)
-	if err != nil {
-		c.logger.Error("failed to read `kind` in result response", zap.Error(err))
-		return
-	}
-	if primitive.ResultType(kind) == primitive.ResultTypePrepared {
-		frm, err := codec.ConvertFromRawFrame(raw)
-		if err != nil {
-			c.logger.Error("failed to decode prepared result response", zap.Error(err))
-			return
-		}
-		msg := frm.Body.Message.(*message.PreparedResult)
-		c.preparedCache.Store(hex.EncodeToString(msg.PreparedQueryId),
-			&PreparedEntry{
-				request.Frame().(*frame.RawFrame), // Store frame so we can re-prepare
-			})
-	}
 }
 
 func (c *ClientConn) Closing(err error) {

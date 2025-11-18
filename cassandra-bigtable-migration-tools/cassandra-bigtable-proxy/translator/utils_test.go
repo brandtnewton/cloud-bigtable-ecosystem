@@ -2795,7 +2795,6 @@ func TestAddSetElements(t *testing.T) {
 				Name:    "test_set",
 				CQLType: types.NewSetType(types.TypeVarchar),
 			},
-			input:  ProcessRawCollectionsInput{},
 			output: &BigtableWriteMutation{},
 			validate: func(t *testing.T, output *BigtableWriteMutation) {
 				assert.Len(t, output.NewColumns, 1)

@@ -28,7 +28,6 @@ import (
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/utilities"
 	"github.com/datastax/go-cassandra-native-protocol/message"
 	"go.uber.org/zap"
-	"strings"
 	"time"
 )
 
@@ -71,6 +70,8 @@ func (btc *BigtableClient) ExecutePreparedStatement(ctx context.Context, query *
 		return nil, fmt.Errorf("failed to bind parameters: %w", err)
 	}
 
+	table, err := btc.SchemaMappingConfig.GetTableConfig(query.Keyspace(), query.Table())
+
 	var processingErr error
 	var rows []*types.BigtableResultRow
 	executeErr := boundStmt.Execute(ctx, func(resultRow bigtable.ResultRow) bool {
@@ -91,7 +92,7 @@ func (btc *BigtableClient) ExecutePreparedStatement(ctx context.Context, query *
 		return nil, fmt.Errorf("failed during row processing: %w", processingErr)
 	}
 
-	return responsehandler.BuildRowsResultResponse(query.Keyspace(), query.Table(), query.Query.SelectedColumns, rows)
+	return responsehandler.BuildRowsResultResponse(table, query.Query.SelectClause, rows, query.ProtocolVersion)
 }
 
 // convertResultRow converts a bigtable.ResultRow into the map format expected by the ResponseHandler.
@@ -101,29 +102,84 @@ func (btc *BigtableClient) convertResultRow(resultRow bigtable.ResultRow, query 
 		return nil, err
 	}
 
+	columns := responsehandler.SelectedColumnsToMetadata(table, query.SelectClause)
 	results := make(map[string]types.GoValue)
 
-	// Iterate through the columns defined in the result row metadata
-	for i, colMeta := range resultRow.Metadata.Columns {
+	hasSysColumn := false
+	for _, c := range resultRow.Metadata.Columns {
+		if c.Name == string(table.SystemColumnFamily) {
+			hasSysColumn = true
+			break
+		}
+	}
+
+	// this case happens when a `select *` is performed, which returns primary keys as individual columns and then the entire system column family as single column stored in a map
+	if hasSysColumn {
+		var valueMap any
+		err = resultRow.GetByName(string(table.SystemColumnFamily), &valueMap)
+		if err != nil {
+			return nil, err
+		}
+		for k, val := range valueMap {
+			key, err := decodeBase64(k)
+			if err != nil {
+				return nil, err
+			}
+			colName := types.ColumnName(key)
+
+			// unexpected column name - can happen if a column was dropped
+			if !table.HasColumn(colName) {
+				continue
+			}
+			col, err := table.GetColumn(colName)
+			if err != nil {
+				return nil, err
+			}
+			goVal, err := proxycore.DecodeType(col.CQLType.BigtableStorageType().DataType(), constants.BigtableEncodingVersion, val)
+			if err != nil {
+				return nil, err
+			}
+			results[key] = goVal
+		}
+	}
+
+	for i, colMeta := range columns {
 		var resultValue any
 		resultKey := colMeta.Name
 		err := resultRow.GetByName(resultKey, &resultValue)
 		if err != nil {
 			return nil, err
 		}
-		// handle nil resultValue cases
+
 		if resultValue == nil {
-			// Skip columns with nil results
+			results[resultKey] = nil
 			continue
 		}
-		if strings.Contains(resultKey, "$col") {
-			resultKey = query.SelectedColumns[i].Sql
+
+		var col *types.Column
+		var expectedType types.CqlDataType
+		if query.SelectClause.IsStar {
+			// unexpected column name - can happen if a column was dropped because the data is still in bigtable
+			if !table.HasColumn(types.ColumnName(colMeta.Name)) {
+				continue
+			}
+			col, err = table.GetColumn(types.ColumnName(colMeta.Name))
+			if err != nil {
+				return nil, err
+			}
+			expectedType = col.CQLType
+		} else {
+			col, err = table.GetColumn(query.SelectedColumns[i].ColumnName)
+			if err != nil {
+				return nil, err
+			}
+			expectedType = query.SelectedColumns[i].ResultType
 		}
+
 		switch value := resultValue.(type) {
 		case string:
-			dt := query.SelectedColumns[i].ResultType
 			// do we need to decode base64?
-			goVal, err := utilities.StringToGo(value, dt.DataType())
+			goVal, err := utilities.StringToGo(value, expectedType.DataType())
 			if err != nil {
 				return nil, err
 			}
@@ -139,89 +195,64 @@ func (btc *BigtableClient) convertResultRow(resultRow bigtable.ResultRow, query 
 				// default the counter to 0
 				results[resultKey] = 0
 			}
-		case map[string][]uint8: // specific case of select * column in select
-			if resultKey == string(table.SystemColumnFamily) { // default column family e.g cf1
+		case map[string][]uint8:
+			// handle collections
+			if expectedType.Code() == types.LIST {
+				lt := expectedType.(*types.ListType)
+				var listValues []types.GoValue
+				for _, listElement := range value {
+					goVal, err := proxycore.DecodeType(lt.ElementType().BigtableStorageType().DataType(), constants.BigtableEncodingVersion, listElement)
+					if err != nil {
+						return nil, err
+					}
+					listValues = append(listValues, goVal)
+				}
+				results[resultKey] = listValues
+			} else if expectedType.Code() == types.SET {
+				st := expectedType.(*types.SetType)
+				var setValues []types.GoValue
+				for k := range value {
+					key, err := decodeBase64(k)
+					if err != nil {
+						return nil, err
+					}
+					goKey, err := utilities.StringToGo(key, st.ElementType().DataType())
+					if err != nil {
+						return nil, err
+					}
+					setValues = append(setValues, goKey)
+				}
+				results[resultKey] = setValues
+			} else if expectedType.Code() == types.MAP {
+				mt := expectedType.(*types.MapType)
+				mapValue := make(map[types.GoValue]types.GoValue)
 				for k, val := range value {
 					key, err := decodeBase64(k)
 					if err != nil {
 						return nil, err
 					}
-					colName := types.ColumnName(key)
-
-					// unexpected column name - continue
-					if !table.HasColumn(colName) {
-						continue
-					}
-					col, err := table.GetColumn(colName)
-					if err != nil {
-						return nil, fmt.Errorf("unexpected column in results: '%s'", colName)
-					}
-					goVal, err := proxycore.DecodeType(col.CQLType.DataType(), constants.BigtableEncodingVersion, val)
+					goKey, err := utilities.StringToGo(key, mt.KeyType().DataType())
 					if err != nil {
 						return nil, err
 					}
-					results[key] = goVal
+					goVal, err := proxycore.DecodeType(expectedType.BigtableStorageType().DataType(), constants.BigtableEncodingVersion, val)
+					if err != nil {
+						return nil, err
+					}
+					mapValue[goKey] = goVal
 				}
-			} else { // handle collections
-				dt := query.SelectedColumns[i].ResultType
-				if dt.Code() == types.LIST {
-					lt := dt.(types.ListType)
-					var listValues []types.GoValue
-					for _, listElement := range value {
-						goVal, err := proxycore.DecodeType(lt.ElementType().DataType(), constants.BigtableEncodingVersion, listElement)
-						if err != nil {
-							return nil, err
-						}
-						listValues = append(listValues, goVal)
-					}
-					results[resultKey] = listValues
-				} else if dt.Code() == types.SET {
-					st := dt.(types.SetType)
-					var setValues []types.GoValue
-					for k := range value {
-						key, err := decodeBase64(k)
-						if err != nil {
-							return nil, err
-						}
-						goKey, err := utilities.StringToGo(key, st.ElementType().DataType())
-						if err != nil {
-							return nil, err
-						}
-						setValues = append(setValues, goKey)
-					}
-					results[resultKey] = setValues
-				} else if dt.Code() == types.MAP {
-					mt := dt.(types.MapType)
-					mapValue := make(map[types.GoValue]types.GoValue)
-					for k, val := range value {
-						key, err := decodeBase64(k)
-						if err != nil {
-							return nil, err
-						}
-						goKey, err := utilities.StringToGo(key, mt.KeyType().DataType())
-						if err != nil {
-							return nil, err
-						}
-						goVal, err := proxycore.DecodeType(dt.DataType(), constants.BigtableEncodingVersion, val)
-						if err != nil {
-							return nil, err
-						}
-						mapValue[goKey] = goVal
-					}
-					results[resultKey] = mapValue
-				} else {
-					return nil, fmt.Errorf("unhandled collection response type: %s", dt.String())
-				}
+				results[resultKey] = mapValue
+			} else {
+				return nil, fmt.Errorf("unhandled collection response type: %s", expectedType.String())
 			}
 		case [][]byte: //specific case of listType column in select
-			dt := query.SelectedColumns[i].ResultType
-			lt, ok := dt.(types.ListType)
+			lt, ok := expectedType.(types.ListType)
 			if !ok {
-				return nil, fmt.Errorf("expected list result type but got %s", dt.String())
+				return nil, fmt.Errorf("expected list result type but got %s", expectedType.String())
 			}
 			var listValues []types.GoValue
 			for _, listElement := range value {
-				goVal, err := proxycore.DecodeType(lt.ElementType().DataType(), constants.BigtableEncodingVersion, listElement)
+				goVal, err := proxycore.DecodeType(lt.ElementType().BigtableStorageType().DataType(), constants.BigtableEncodingVersion, listElement)
 				if err != nil {
 					return nil, err
 				}
@@ -241,6 +272,6 @@ func (btc *BigtableClient) convertResultRow(resultRow bigtable.ResultRow, query 
 		}
 	}
 	return &types.BigtableResultRow{
-		ColumnMap: results,
+		Values: results,
 	}, nil
 }

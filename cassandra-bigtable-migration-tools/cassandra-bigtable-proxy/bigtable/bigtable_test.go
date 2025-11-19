@@ -30,7 +30,7 @@ import (
 	"cloud.google.com/go/bigtable/bttest"
 	types "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/global/types"
 	schemaMapping "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/schema-mapping"
-	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/translator"
+	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/translators"
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/utilities"
 	"github.com/datastax/go-cassandra-native-protocol/datatype"
 	"github.com/datastax/go-cassandra-native-protocol/message"
@@ -136,13 +136,13 @@ func TestInsertRow(t *testing.T) {
 
 	tests := []struct {
 		name          string
-		data          *translator.PreparedInsertQuery
+		data          *translators.PreparedInsertQuery
 		expectedError error
 		expectedValue *message.RowsResult
 	}{
 		{
 			name: "Insert new row",
-			data: &translator.PreparedInsertQuery{
+			data: &translators.PreparedInsertQuery{
 				Table:    "test-table-insert",
 				RowKey:   "row1",
 				Columns:  []*types.Column{{ColumnFamily: "cf1", Name: "col1"}},
@@ -153,7 +153,7 @@ func TestInsertRow(t *testing.T) {
 		},
 		{
 			name: "Insert row with IfNotExists where row doesn't exist",
-			data: &translator.PreparedInsertQuery{
+			data: &translators.PreparedInsertQuery{
 				Table:       "test-table-insert",
 				RowKey:      "row2",
 				Columns:     []*types.Column{{ColumnFamily: "cf1", Name: "col1"}},
@@ -165,7 +165,7 @@ func TestInsertRow(t *testing.T) {
 		},
 		{
 			name: "Insert row with IfNotExists where row exists",
-			data: &translator.PreparedInsertQuery{
+			data: &translators.PreparedInsertQuery{
 				Table:       "test-table-insert",
 				RowKey:      "row1",
 				Columns:     []*types.Column{{ColumnFamily: "cf1", Name: "col1"}},
@@ -177,7 +177,7 @@ func TestInsertRow(t *testing.T) {
 		},
 		{
 			name: "Insert with invalid keyspace",
-			data: &translator.PreparedInsertQuery{
+			data: &translators.PreparedInsertQuery{
 				Table:    "test-table-insert",
 				RowKey:   "row3",
 				Columns:  []*types.Column{{ColumnFamily: "cf1", Name: "col1"}},
@@ -188,7 +188,7 @@ func TestInsertRow(t *testing.T) {
 		},
 		{
 			name: "Delete an entire column family",
-			data: &translator.PreparedInsertQuery{
+			data: &translators.PreparedInsertQuery{
 				Table:                "test-table-insert",
 				RowKey:               "row3",
 				DeleteColumnFamilies: []string{"cf1"},
@@ -234,7 +234,7 @@ func TestUpdateRow(t *testing.T) {
 	btc := NewBigtableClient(client, adminClients, zap.NewNop(), bigtableConfig, nil, schemaMapping.NewSchemaMappingConfig("schema_mapping", "cf1", zap.NewNop(), nil))
 
 	// Insert initial row
-	initialData := &translator.PreparedInsertQuery{
+	initialData := &translators.PreparedInsertQuery{
 		Table:                "test-table-update",
 		RowKey:               "test-row",
 		Columns:              []*types.Column{{ColumnFamily: "cf1", Name: "col1"}},
@@ -246,7 +246,7 @@ func TestUpdateRow(t *testing.T) {
 	assert.NoError(t, err)
 
 	// Update the row
-	updateData := &translator.PreparedUpdateQuery{
+	updateData := &translators.PreparedUpdateQuery{
 		Table:                "test-table-update",
 		RowKey:               "test-row",
 		Columns:              []*types.Column{{ColumnFamily: "cf1", Name: "col1"}},
@@ -285,7 +285,7 @@ func TestDeleteRow(t *testing.T) {
 	btc := NewBigtableClient(client, adminClients, zap.NewNop(), bigtableConfig, nil, &schemaMapping.SchemaMappingConfig{})
 
 	// Insert initial row
-	initialData := &translator.PreparedInsertQuery{
+	initialData := &translators.PreparedInsertQuery{
 		Table:                "test-table-delete",
 		RowKey:               "test-row",
 		Columns:              []*types.Column{{ColumnFamily: "cf1", Name: "col1"}},
@@ -297,7 +297,7 @@ func TestDeleteRow(t *testing.T) {
 	assert.NoError(t, err)
 
 	// Delete the row
-	deleteData := &translator.PreparedDeleteQuery{
+	deleteData := &translators.PreparedDeleteQuery{
 		Table:    "test-table-delete",
 		RowKey:   "test-row",
 		Keyspace: "ks1",
@@ -400,7 +400,7 @@ func TestDeleteRowsUsingTimestamp(t *testing.T) {
 	columnFamily := "cf1"
 	rowKey := "test-row"
 	// columns := []string{"col1", "col2"}
-	timestamp := translator.TimestampInfo{Timestamp: bigtable.Now()}
+	timestamp := translators.TimestampInfo{Timestamp: bigtable.Now()}
 
 	err = adminClient.CreateTable(ctx, tableName)
 	assert.NoError(t, err)
@@ -420,7 +420,7 @@ func TestDeleteRowsUsingTimestamp(t *testing.T) {
 	assert.NotEmpty(t, row[columnFamily], "Expected columns to be present before deletion")
 	// Test Case 1: Successful deletion of columns using a timestamp
 	timestamp.Timestamp = bigtable.Timestamp(time.Now().Day())
-	deleteData := &translator.PreparedDeleteQuery{
+	deleteData := &translators.PreparedDeleteQuery{
 		Table:         tableName,
 		RowKey:        rowKey,
 		Keyspace:      "ks1",
@@ -471,7 +471,7 @@ func TestMutateRowDeleteColumnFamily(t *testing.T) {
 	btc := NewBigtableClient(client, adminClients, zap.NewNop(), bigtableConfig, nil, schemaMapping.NewSchemaMappingConfig("schema_mapping", "cf1", zap.NewNop(), nil))
 
 	// Insert initial data
-	insertData := &translator.PreparedInsertQuery{
+	insertData := &translators.PreparedInsertQuery{
 		Table:    tableName,
 		RowKey:   "row1",
 		Columns:  []*types.Column{{ColumnFamily: "cf1", Name: "col1"}, {ColumnFamily: "cf2", Name: "col2"}},
@@ -482,7 +482,7 @@ func TestMutateRowDeleteColumnFamily(t *testing.T) {
 	require.NoError(t, err)
 
 	// Delete cf2
-	updateData := &translator.PreparedUpdateQuery{
+	updateData := &translators.PreparedUpdateQuery{
 		Table:                tableName,
 		RowKey:               "row1",
 		DeleteColumnFamilies: []string{"cf2"},
@@ -513,7 +513,7 @@ func TestMutateRowDeleteQualifiers(t *testing.T) {
 	btc := NewBigtableClient(client, adminClients, zap.NewNop(), bigtableConfig, nil, schemaMapping.NewSchemaMappingConfig("schema_mapping", "cf1", zap.NewNop(), nil))
 
 	// Insert initial data with two columns
-	insertData := &translator.PreparedInsertQuery{
+	insertData := &translators.PreparedInsertQuery{
 		Table:    tableName,
 		RowKey:   "row1",
 		Columns:  []*types.Column{{ColumnFamily: "cf1", Name: "col1"}, {ColumnFamily: "cf1", Name: "col2"}},
@@ -524,7 +524,7 @@ func TestMutateRowDeleteQualifiers(t *testing.T) {
 	require.NoError(t, err)
 
 	// Delete col1
-	updateData := &translator.PreparedUpdateQuery{
+	updateData := &translators.PreparedUpdateQuery{
 		Table:                 tableName,
 		RowKey:                "row1",
 		DeleteColumQualifiers: []*types.Column{{ColumnFamily: "cf1", Name: "col1"}},
@@ -558,7 +558,7 @@ func TestMutateRowIfExists(t *testing.T) {
 	btc := NewBigtableClient(client, adminClients, zap.NewNop(), bigtableConfig, nil, schemaMapping.NewSchemaMappingConfig("schema_mapping", "cf1", zap.NewNop(), nil))
 
 	// Insert initial data
-	insertData := &translator.PreparedInsertQuery{
+	insertData := &translators.PreparedInsertQuery{
 		Table:    tableName,
 		RowKey:   "row1",
 		Columns:  []*types.Column{{ColumnFamily: "cf1", Name: "col1"}},
@@ -569,7 +569,7 @@ func TestMutateRowIfExists(t *testing.T) {
 	require.NoError(t, err)
 
 	// Update the row when it exists
-	updateData := &translator.PreparedUpdateQuery{
+	updateData := &translators.PreparedUpdateQuery{
 		Table:    tableName,
 		RowKey:   "row1",
 		Columns:  []*types.Column{{ColumnFamily: "cf1", Name: "col1"}},
@@ -611,7 +611,7 @@ func TestMutateRowIfNotExists(t *testing.T) {
 	btc := NewBigtableClient(client, adminClients, zap.NewNop(), bigtableConfig, nil, schemaMapping.NewSchemaMappingConfig("schema_mapping", "cf1", zap.NewNop(), nil))
 
 	// Insert a row when it does not exist
-	InsertData := &translator.PreparedInsertQuery{
+	InsertData := &translators.PreparedInsertQuery{
 		Table:       tableName,
 		RowKey:      "row1",
 		Columns:     []*types.Column{{ColumnFamily: "cf1", Name: "col1"}},
@@ -651,7 +651,7 @@ func TestMutateRowNonByteValue(t *testing.T) {
 
 	btc := NewBigtableClient(client, adminClients, zap.NewNop(), bigtableConfig, nil, schemaMapping.NewSchemaMappingConfig("schema_mapping", "cf1", zap.NewNop(), nil))
 
-	updateData := &translator.PreparedUpdateQuery{
+	updateData := &translators.PreparedUpdateQuery{
 		Table:    tableName,
 		RowKey:   "row1",
 		Columns:  []*types.Column{{ColumnFamily: "cf1", Name: "col1"}},
@@ -669,7 +669,7 @@ func TestMutateRowInvalidKeyspace(t *testing.T) {
 
 	btc := NewBigtableClient(client, adminClients, zap.NewNop(), bigtableConfig, nil, schemaMapping.NewSchemaMappingConfig("schema_mapping", "cf1", zap.NewNop(), nil))
 
-	updateData := &translator.PreparedUpdateQuery{
+	updateData := &translators.PreparedUpdateQuery{
 		Table:    "any-table",
 		RowKey:   "row1",
 		Columns:  []*types.Column{{ColumnFamily: "cf1", Name: "col1"}},
@@ -696,7 +696,7 @@ func TestComplexUpdateWithListIndex(t *testing.T) {
 	btc := NewBigtableClient(client, adminClients, zap.NewNop(), bigtableConfig, nil, schemaMapping.NewSchemaMappingConfig("schema_mapping", "cf1", zap.NewNop(), nil))
 
 	// Insert initial data with a list in cf1
-	insertData := &translator.PreparedInsertQuery{
+	insertData := &translators.PreparedInsertQuery{
 		Table:    tableName,
 		RowKey:   "row1",
 		Columns:  []*types.Column{{ColumnFamily: "list", Name: "timestamp1"}, {ColumnFamily: "list", Name: "timestamp2"}},
@@ -707,13 +707,13 @@ func TestComplexUpdateWithListIndex(t *testing.T) {
 	require.NoError(t, err)
 
 	// Perform a complex update with list index
-	ComplexOperation := map[string]*translator.ComplexOperation{
+	ComplexOperation := map[string]*translators.ComplexOperation{
 		"list": {
 			UpdateListIndex: "1", // Update the second item in the list
 			Value:           []byte("updated-v2"),
 		},
 	}
-	updateData := &translator.PreparedUpdateQuery{
+	updateData := &translators.PreparedUpdateQuery{
 		Table:             tableName,
 		RowKey:            "row1",
 		ComplexOperations: ComplexOperation,
@@ -747,7 +747,7 @@ func TestComplexUpdateWithListDeletion(t *testing.T) {
 	btc := NewBigtableClient(client, adminClients, zap.NewNop(), bigtableConfig, nil, schemaMapping.NewSchemaMappingConfig("schema_mapping", "cf1", zap.NewNop(), nil))
 
 	// Insert initial data with a list in the "list" column family
-	insertData := &translator.PreparedInsertQuery{
+	insertData := &translators.PreparedInsertQuery{
 		Table:    tableName,
 		RowKey:   "row1",
 		Columns:  []*types.Column{{ColumnFamily: "list", Name: "timestamp1"}, {ColumnFamily: "list", Name: "timestamp2"}},
@@ -758,13 +758,13 @@ func TestComplexUpdateWithListDeletion(t *testing.T) {
 	require.NoError(t, err)
 
 	// Perform a complex update with list deletion
-	ComplexOperation := map[string]*translator.ComplexOperation{
+	ComplexOperation := map[string]*translators.ComplexOperation{
 		"list": {
 			ListDelete:       true,
 			ListDeleteValues: [][]byte{[]byte("v1")}, // Delete the first item in the list
 		},
 	}
-	updateData := &translator.PreparedUpdateQuery{
+	updateData := &translators.PreparedUpdateQuery{
 		Table:             tableName,
 		RowKey:            "row1",
 		ComplexOperations: ComplexOperation,
@@ -791,13 +791,13 @@ func TestComplexUpdateInvalidKeyspace(t *testing.T) {
 	btc := NewBigtableClient(client, adminClients, zap.NewNop(), bigtableConfig, nil, schemaMapping.NewSchemaMappingConfig("schema_mapping", "cf1", zap.NewNop(), nil))
 
 	// Attempt to perform a complex update with an invalid keyspace
-	ComplexOperation := map[string]*translator.ComplexOperation{
+	ComplexOperation := map[string]*translators.ComplexOperation{
 		"list": {
 			UpdateListIndex: "0",
 			Value:           []byte("updated-v1"),
 		},
 	}
-	updateData := &translator.PreparedUpdateQuery{
+	updateData := &translators.PreparedUpdateQuery{
 		Table:             "any-table",
 		RowKey:            "row1",
 		ComplexOperations: ComplexOperation,
@@ -824,7 +824,7 @@ func TestComplexUpdateOutOfBoundsIndex(t *testing.T) {
 	btc := NewBigtableClient(client, adminClients, zap.NewNop(), bigtableConfig, nil, schemaMapping.NewSchemaMappingConfig("schema_mapping", "cf1", zap.NewNop(), nil))
 
 	// Insert initial data with a list in the "list" column family
-	insertData := &translator.PreparedInsertQuery{
+	insertData := &translators.PreparedInsertQuery{
 		Table:    tableName,
 		RowKey:   "row1",
 		Columns:  []*types.Column{{ColumnFamily: "list", Name: "timestamp1"}},
@@ -835,13 +835,13 @@ func TestComplexUpdateOutOfBoundsIndex(t *testing.T) {
 	require.NoError(t, err)
 
 	// Attempt to perform a complex update with an out-of-bounds index
-	ComplexOperation := map[string]*translator.ComplexOperation{
+	ComplexOperation := map[string]*translators.ComplexOperation{
 		"list": {
 			UpdateListIndex: "1", // Index 1 is out of bounds for a list of size 1
 			Value:           []byte("updated-v2"),
 		},
 	}
-	updateData := &translator.PreparedUpdateQuery{
+	updateData := &translators.PreparedUpdateQuery{
 		Table:             tableName,
 		RowKey:            "row1",
 		ComplexOperations: ComplexOperation,
@@ -854,7 +854,7 @@ func TestComplexUpdateOutOfBoundsIndex(t *testing.T) {
 	assert.Contains(t, err.Error(), "index 1 out of bounds")
 }
 
-var testCreateTableStatementMap = translator.CreateTableStatementMap{
+var testCreateTableStatementMap = translators.CreateTableStatementMap{
 	QueryType:         "create",
 	Keyspace:          "ks1",
 	Table:             "create_table_test",
@@ -882,7 +882,7 @@ var testCreateTableStatementMap = translator.CreateTableStatementMap{
 			TypeInfo: types.TypeInt,
 		},
 	},
-	PrimaryKeys: []translator.CreateTablePrimaryKeyConfig{
+	PrimaryKeys: []translators.CreateTablePrimaryKeyConfig{
 		{
 			Name:    "org",
 			KeyType: "partition_key",
@@ -1149,7 +1149,7 @@ func TestAlterTable(t *testing.T) {
 	err = btc.CreateTable(ctx, &createTable)
 	require.NoError(t, err)
 
-	err = btc.AlterTable(ctx, &translator.AlterTableStatementMap{
+	err = btc.AlterTable(ctx, &translators.AlterTableStatementMap{
 		QueryType:   "alter",
 		Keyspace:    "ks1",
 		Table:       "alter_table_test",
@@ -1256,7 +1256,7 @@ func TestDropTable(t *testing.T) {
 	tableMap := schemaMapping.CreateTableMap(tables)
 	require.NotNil(t, tableMap["drop_table_test"])
 
-	err = btc.DropTable(ctx, &translator.DropTableStatementMap{
+	err = btc.DropTable(ctx, &translators.DropTableStatementMap{
 		QueryType: "drop",
 		Keyspace:  "ks1",
 		Table:     "drop_table_test",

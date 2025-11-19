@@ -16,7 +16,7 @@
 package responsehandler
 
 import (
-	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/translator"
+	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/translators"
 	"reflect"
 	"testing"
 
@@ -33,7 +33,7 @@ func TestExtractUniqueKeys(t *testing.T) {
 	tests := []struct {
 		name     string
 		rowMap   []map[string]interface{}
-		query    translator.PreparedSelectQuery
+		query    translators.PreparedSelectQuery
 		expected []string
 	}{
 		{
@@ -41,7 +41,7 @@ func TestExtractUniqueKeys(t *testing.T) {
 			rowMap: []map[string]interface{}{
 				{"key1": 1, "key2": 2},
 			},
-			query: translator.PreparedSelectQuery{
+			query: translators.PreparedSelectQuery{
 				IsStar: true,
 			},
 			expected: []string{"key1", "key2"},
@@ -52,7 +52,7 @@ func TestExtractUniqueKeys(t *testing.T) {
 				{"key1": 1, "key2": 2},
 				{"key2": 3, "key3": 4},
 			},
-			query: translator.PreparedSelectQuery{
+			query: translators.PreparedSelectQuery{
 				IsStar: true,
 			},
 			expected: []string{"key1", "key2", "key3"},
@@ -62,7 +62,7 @@ func TestExtractUniqueKeys(t *testing.T) {
 			rowMap: []map[string]interface{}{
 				{},
 			},
-			query: translator.PreparedSelectQuery{
+			query: translators.PreparedSelectQuery{
 				IsStar: true,
 			},
 			expected: []string{},
@@ -70,7 +70,7 @@ func TestExtractUniqueKeys(t *testing.T) {
 		{
 			name:   "Nil input map",
 			rowMap: nil,
-			query: translator.PreparedSelectQuery{
+			query: translators.PreparedSelectQuery{
 				IsStar: true,
 			},
 			expected: []string{},
@@ -81,7 +81,7 @@ func TestExtractUniqueKeys(t *testing.T) {
 				{"": 1},
 				{"key1": 2, "key2": 3},
 			},
-			query: translator.PreparedSelectQuery{
+			query: translators.PreparedSelectQuery{
 				IsStar: true,
 			},
 			expected: []string{"", "key1", "key2"},
@@ -91,8 +91,8 @@ func TestExtractUniqueKeys(t *testing.T) {
 			rowMap: []map[string]interface{}{
 				{"key1": 1, "key2": 2},
 			},
-			query: translator.PreparedSelectQuery{
-				SelectedColumns: []translator.SelectedColumn{
+			query: translators.PreparedSelectQuery{
+				SelectedColumns: []translators.SelectedColumn{
 					{
 						Sql: "key1",
 					},
@@ -105,8 +105,8 @@ func TestExtractUniqueKeys(t *testing.T) {
 			rowMap: []map[string]interface{}{
 				{"key1": 1, "key2": 2},
 			},
-			query: translator.PreparedSelectQuery{
-				SelectedColumns: []translator.SelectedColumn{
+			query: translators.PreparedSelectQuery{
+				SelectedColumns: []translators.SelectedColumn{
 					{
 						Sql:   "key1",
 						Alias: "key1_alias",
@@ -812,7 +812,7 @@ func TestTypeHandler_BuildMetadata(t *testing.T) {
 	}
 	type args struct {
 		rowMap []map[string]interface{}
-		query  translator.PreparedSelectQuery
+		query  translators.PreparedSelectQuery
 	}
 	tests := []struct {
 		name    string
@@ -833,13 +833,13 @@ func TestTypeHandler_BuildMetadata(t *testing.T) {
 						"name": "Bob",
 					},
 				},
-				query: translator.PreparedSelectQuery{
+				query: translators.PreparedSelectQuery{
 					TableName:           "user_info",
 					BigtableQuery:       "SELECT name FROM test_keyspace.user_info;",
 					KeyspaceName:        "test_keyspace",
 					IsStar:              false,
 					DefaultColumnFamily: "cf1",
-					SelectedColumns: []translator.SelectedColumn{
+					SelectedColumns: []translators.SelectedColumn{
 						{
 							Sql: "name",
 						},
@@ -896,7 +896,7 @@ func TestTypeHandler_BuildResponseRow(t *testing.T) {
 	}
 	type args struct {
 		rowMap map[string]interface{}
-		query  translator.PreparedSelectQuery
+		query  translators.PreparedSelectQuery
 		cmd    []*message.ColumnMetadata
 	}
 	tests := []struct {
@@ -916,13 +916,13 @@ func TestTypeHandler_BuildResponseRow(t *testing.T) {
 				rowMap: map[string]interface{}{
 					"name": []byte{0x01},
 				},
-				query: translator.PreparedSelectQuery{
+				query: translators.PreparedSelectQuery{
 					TableName:           "user_info",
 					BigtableQuery:       "SELECT name FROM test_keyspace.user_info;",
 					KeyspaceName:        "test_keyspace",
 					IsStar:              false,
 					DefaultColumnFamily: "cf1",
-					SelectedColumns: []translator.SelectedColumn{
+					SelectedColumns: []translators.SelectedColumn{
 						{
 							Sql: "name",
 						},
@@ -952,13 +952,13 @@ func TestTypeHandler_BuildResponseRow(t *testing.T) {
 				rowMap: map[string]interface{}{
 					"column8['mapKey']": []byte("mapKeyValue"),
 				},
-				query: translator.PreparedSelectQuery{
+				query: translators.PreparedSelectQuery{
 					TableName:           "test_table",
 					BigtableQuery:       "SELECT column8['mapKey'] FROM test_table;",
 					KeyspaceName:        "test_keyspace",
 					IsStar:              false,
 					DefaultColumnFamily: "cf1",
-					SelectedColumns: []translator.SelectedColumn{
+					SelectedColumns: []translators.SelectedColumn{
 						{
 							Sql: "column8['mapKey']", MapKey: "mapKey", ColumnName: "column8",
 						},
@@ -987,13 +987,13 @@ func TestTypeHandler_BuildResponseRow(t *testing.T) {
 				rowMap: map[string]interface{}{
 					"id": int64(10),
 				},
-				query: translator.PreparedSelectQuery{
+				query: translators.PreparedSelectQuery{
 					TableName:           "user_info",
 					BigtableQuery:       "SELECT count(id) FROM test_keyspace.user_info;",
 					KeyspaceName:        "test_keyspace",
 					IsStar:              false,
 					DefaultColumnFamily: "cf1",
-					SelectedColumns: []translator.SelectedColumn{
+					SelectedColumns: []translators.SelectedColumn{
 						{
 							Sql:      "id",
 							IsFunc:   true,
@@ -1026,13 +1026,13 @@ func TestTypeHandler_BuildResponseRow(t *testing.T) {
 				rowMap: map[string]interface{}{
 					"id": float64(10),
 				},
-				query: translator.PreparedSelectQuery{
+				query: translators.PreparedSelectQuery{
 					TableName:           "user_info",
 					BigtableQuery:       "SELECT count(id) FROM test_keyspace.user_info;",
 					KeyspaceName:        "test_keyspace",
 					IsStar:              false,
 					DefaultColumnFamily: "cf1",
-					SelectedColumns: []translator.SelectedColumn{
+					SelectedColumns: []translators.SelectedColumn{
 						{
 							Sql:      "id",
 							IsFunc:   true,
@@ -1064,13 +1064,13 @@ func TestTypeHandler_BuildResponseRow(t *testing.T) {
 				rowMap: map[string]interface{}{
 					"id": int64(20),
 				},
-				query: translator.PreparedSelectQuery{
+				query: translators.PreparedSelectQuery{
 					TableName:           "user_info",
 					BigtableQuery:       "SELECT count(id) as id FROM test_keyspace.user_info;",
 					KeyspaceName:        "test_keyspace",
 					IsStar:              false,
 					DefaultColumnFamily: "cf1",
-					SelectedColumns: []translator.SelectedColumn{
+					SelectedColumns: []translators.SelectedColumn{
 						{
 							Sql:      "id",
 							IsFunc:   true,
@@ -1102,13 +1102,13 @@ func TestTypeHandler_BuildResponseRow(t *testing.T) {
 				rowMap: map[string]interface{}{
 					"abcd": []byte{0, 0, 0, 0, 0, 0, 0, 12},
 				},
-				query: translator.PreparedSelectQuery{
+				query: translators.PreparedSelectQuery{
 					TableName:           "test_table",
 					BigtableQuery:       "SELECT writetime(column5) as abcd FROM test_table;",
 					KeyspaceName:        "test_keyspace",
 					IsStar:              false,
 					DefaultColumnFamily: "cf1",
-					SelectedColumns: []translator.SelectedColumn{
+					SelectedColumns: []translators.SelectedColumn{
 						{
 							Sql:               "writetime(column5)",
 							ColumnName:        "column5",
@@ -1142,13 +1142,13 @@ func TestTypeHandler_BuildResponseRow(t *testing.T) {
 				rowMap: map[string]interface{}{
 					"abcd": []byte{0, 0, 0, 0, 0, 0, 0, 12},
 				},
-				query: translator.PreparedSelectQuery{
+				query: translators.PreparedSelectQuery{
 					TableName:           "test_table",
 					BigtableQuery:       "SELECT column5 as abcd FROM test_table;",
 					KeyspaceName:        "test_keyspace",
 					IsStar:              false,
 					DefaultColumnFamily: "cf1",
-					SelectedColumns: []translator.SelectedColumn{
+					SelectedColumns: []translators.SelectedColumn{
 						{
 							Sql:        "column5",
 							Alias:      "abcd",
@@ -1185,13 +1185,13 @@ func TestTypeHandler_BuildResponseRow(t *testing.T) {
 						{Key: "tag2", Value: ""},
 					},
 				},
-				query: translator.PreparedSelectQuery{
+				query: translators.PreparedSelectQuery{
 					TableName:           "test_table",
 					BigtableQuery:       "SELECT column11 FROM test_table;",
 					KeyspaceName:        "test_keyspace",
 					IsStar:              false,
 					DefaultColumnFamily: "cf1",
-					SelectedColumns: []translator.SelectedColumn{
+					SelectedColumns: []translators.SelectedColumn{
 						{
 							Sql: "column11",
 						},
@@ -1225,13 +1225,13 @@ func TestTypeHandler_BuildResponseRow(t *testing.T) {
 						{Key: "tag2", Value: ""},
 					},
 				},
-				query: translator.PreparedSelectQuery{
+				query: translators.PreparedSelectQuery{
 					TableName:           "invalid_types",
 					BigtableQuery:       "SELECT invalid_set FROM test_table;",
 					KeyspaceName:        "test_keyspace",
 					IsStar:              false,
 					DefaultColumnFamily: "cf1",
-					SelectedColumns: []translator.SelectedColumn{
+					SelectedColumns: []translators.SelectedColumn{
 						{
 							Sql: "column7",
 						},
@@ -1263,13 +1263,13 @@ func TestTypeHandler_BuildResponseRow(t *testing.T) {
 						{Key: "key2", Value: []byte("tage2")},
 					},
 				},
-				query: translator.PreparedSelectQuery{
+				query: translators.PreparedSelectQuery{
 					TableName:           "test_table",
 					BigtableQuery:       "SELECT column4 FROM test_table;",
 					KeyspaceName:        "test_keyspace",
 					IsStar:              false,
 					DefaultColumnFamily: "cf1",
-					SelectedColumns: []translator.SelectedColumn{
+					SelectedColumns: []translators.SelectedColumn{
 						{
 							Sql: "column4",
 						},
@@ -1303,13 +1303,13 @@ func TestTypeHandler_BuildResponseRow(t *testing.T) {
 						{Key: "tag2", Value: ""},
 					},
 				},
-				query: translator.PreparedSelectQuery{
+				query: translators.PreparedSelectQuery{
 					TableName:           "test_table",
 					BigtableQuery:       "SELECT column4 FROM test_table;",
 					KeyspaceName:        "test_keyspace",
 					IsStar:              false,
 					DefaultColumnFamily: "cf1",
-					SelectedColumns: []translator.SelectedColumn{
+					SelectedColumns: []translators.SelectedColumn{
 						{
 							Sql: "column4",
 						},
@@ -1350,8 +1350,8 @@ func TestTypeHandler_BuildResponseRow(t *testing.T) {
 }
 
 func TestGetQueryColumn(t *testing.T) {
-	query := translator.PreparedSelectQuery{
-		SelectedColumns: []translator.SelectedColumn{
+	query := translators.PreparedSelectQuery{
+		SelectedColumns: []translators.SelectedColumn{
 			{Sql: "column1", Alias: "alias1", IsWriteTimeColumn: false},
 			{Sql: "column2", Alias: "alias2", IsWriteTimeColumn: true},
 			{Sql: "column3", Alias: "alias3", IsWriteTimeColumn: false},
@@ -1360,10 +1360,10 @@ func TestGetQueryColumn(t *testing.T) {
 
 	tests := []struct {
 		name       string
-		query      translator.PreparedSelectQuery
+		query      translators.PreparedSelectQuery
 		index      int
 		key        string
-		expected   translator.SelectedColumn
+		expected   translators.SelectedColumn
 		expectFail bool
 	}{
 		{
@@ -1392,7 +1392,7 @@ func TestGetQueryColumn(t *testing.T) {
 			query:    query,
 			index:    2,
 			key:      "random-name",
-			expected: translator.SelectedColumn{},
+			expected: translators.SelectedColumn{},
 		},
 	}
 	for _, test := range tests {

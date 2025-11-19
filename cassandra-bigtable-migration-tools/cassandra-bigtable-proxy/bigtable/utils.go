@@ -23,7 +23,7 @@ import (
 
 	"cloud.google.com/go/bigtable"
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/global/types"
-	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/translator"
+	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/translators"
 	"github.com/datastax/go-cassandra-native-protocol/datatype"
 	"github.com/datastax/go-cassandra-native-protocol/message"
 )
@@ -103,7 +103,7 @@ func detectTableEncoding(tableInfo *bigtable.TableInfo, defaultEncoding types.In
 	return defaultEncoding
 }
 
-func createBigtableRowKeySchema(pmks []translator.CreateTablePrimaryKeyConfig, cols []types.CreateColumn, intRowKeyEncoding types.IntRowKeyEncodingType) (*bigtable.StructType, error) {
+func createBigtableRowKeySchema(pmks []translators.CreateTablePrimaryKeyConfig, cols []types.CreateColumn, intRowKeyEncoding types.IntRowKeyEncodingType) (*bigtable.StructType, error) {
 	var rowKeySchemaFields []bigtable.StructField
 	for _, key := range pmks {
 		pmkIndex := slices.IndexFunc(cols, func(c types.CreateColumn) bool {

@@ -1,3 +1,5 @@
+package types
+
 /*
  * Copyright (C) 2025 Google LLC
  *
@@ -13,9 +15,9 @@
  * License for the specific language governing permissions and limitations under
  * the License.
  */
-package types
 
 import (
+	"cloud.google.com/go/bigtable"
 	"github.com/datastax/go-cassandra-native-protocol/message"
 )
 
@@ -78,4 +80,63 @@ const (
 
 type BigtableResultRow struct {
 	Values []GoValue
+}
+
+type QueryType int
+
+const (
+	QueryTypeUnknown QueryType = iota
+	QueryTypeSelect
+	QueryTypeInsert
+	QueryTypeUpdate
+	QueryTypeDelete
+	// ddl
+	QueryTypeCreate
+	QueryTypeAlter
+	QueryTypeDrop
+	QueryTypeTruncate
+	QueryTypeUse
+	QueryTypeDescribe
+)
+
+func (q QueryType) String() string {
+	switch q {
+	case QueryTypeSelect:
+		return "select"
+	case QueryTypeInsert:
+		return "insert"
+	case QueryTypeUpdate:
+		return "update"
+	case QueryTypeDelete:
+		return "delete"
+	case QueryTypeCreate:
+		return "create"
+	case QueryTypeAlter:
+		return "alter"
+	case QueryTypeDrop:
+		return "drop"
+	case QueryTypeTruncate:
+		return "truncate"
+	case QueryTypeUse:
+		return "use"
+	default:
+		return "unknown"
+	}
+}
+
+type IExecutableQuery interface {
+	Keyspace() Keyspace
+	Table() TableName
+	QueryType() QueryType
+}
+type IPreparedQuery interface {
+	Keyspace() Keyspace
+	Table() TableName
+	CqlQuery() string
+	QueryType() QueryType
+	Parameters() *QueryParameters
+	ResponseColumns() []*message.ColumnMetadata
+	// SetBigtablePreparedQuery - only implemented for "select" queries for now because Bigtable SQL only supports reads
+	SetBigtablePreparedQuery(s *bigtable.PreparedStatement)
+	BigtableQuery() string
 }

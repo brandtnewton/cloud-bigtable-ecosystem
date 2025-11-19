@@ -23,8 +23,8 @@ import (
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/global/constants"
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/global/types"
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/responsehandler"
+	schemaMapping "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/schema-mapping"
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/third_party/datastax/proxycore"
-	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/translator"
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/utilities"
 	"github.com/datastax/go-cassandra-native-protocol/message"
 	"go.uber.org/zap"
@@ -42,7 +42,7 @@ import (
 //   - *message.RowsResult: The result of the select statement.
 //   - time.Duration: The total elapsed time for the operation.
 //   - error: Error if the select statement execution fails.
-func (btc *BigtableClient) SelectStatement(ctx context.Context, query *translator.BoundSelectQuery) (*message.RowsResult, error) {
+func (btc *BigtableClient) SelectStatement(ctx context.Context, query *types.BoundSelectQuery) (*message.RowsResult, error) {
 	preparedStmt, err := btc.PrepareStatement(ctx, query.Query)
 	query.Query.CachedBTPrepare = preparedStmt
 	if err != nil {
@@ -62,7 +62,7 @@ func (btc *BigtableClient) SelectStatement(ctx context.Context, query *translato
 //   - *message.RowsResult: The result of the select statement.
 //   - time.Duration: The total elapsed time for the operation.
 //   - error: Error if the statement preparation or execution fails.
-func (btc *BigtableClient) ExecutePreparedStatement(ctx context.Context, query *translator.BoundSelectQuery) (*message.RowsResult, error) {
+func (btc *BigtableClient) ExecutePreparedStatement(ctx context.Context, query *types.BoundSelectQuery) (*message.RowsResult, error) {
 	params := query.Values.AsMap()
 	boundStmt, err := query.Query.CachedBTPrepare.Bind(params)
 	if err != nil {
@@ -92,88 +92,53 @@ func (btc *BigtableClient) ExecutePreparedStatement(ctx context.Context, query *
 		return nil, fmt.Errorf("failed during row processing: %w", processingErr)
 	}
 
-	return responsehandler.BuildRowsResultResponse(table, query.Query.SelectClause, rows, query.ProtocolVersion)
+	return responsehandler.BuildRowsResultResponse(table, query.Query, rows, query.ProtocolVersion)
 }
 
 // convertResultRow converts a bigtable.ResultRow into the map format expected by the ResponseHandler.
-func (btc *BigtableClient) convertResultRow(resultRow bigtable.ResultRow, query *translator.PreparedSelectQuery) (*types.BigtableResultRow, error) {
+func (btc *BigtableClient) convertResultRow(resultRow bigtable.ResultRow, query *types.PreparedSelectQuery) (*types.BigtableResultRow, error) {
 	table, err := btc.SchemaMappingConfig.GetTableConfig(query.Keyspace(), query.Table())
 	if err != nil {
 		return nil, err
 	}
 
-	columns := responsehandler.SelectedColumnsToMetadata(table, query.SelectClause)
-	results := make(map[string]types.GoValue)
+	selectStarScalarsMap, err := createSelectStarScalarsMap(table, resultRow)
 
-	hasSysColumn := false
-	for _, c := range resultRow.Metadata.Columns {
-		if c.Name == string(table.SystemColumnFamily) {
-			hasSysColumn = true
-			break
-		}
-	}
-
-	// this case happens when a `select *` is performed, which returns primary keys as individual columns and then the entire system column family as single column stored in a map
-	if hasSysColumn {
-		var valueMap any
-		err = resultRow.GetByName(string(table.SystemColumnFamily), &valueMap)
-		if err != nil {
-			return nil, err
-		}
-		for k, val := range valueMap {
-			key, err := decodeBase64(k)
-			if err != nil {
-				return nil, err
-			}
-			colName := types.ColumnName(key)
-
-			// unexpected column name - can happen if a column was dropped
-			if !table.HasColumn(colName) {
-				continue
-			}
-			col, err := table.GetColumn(colName)
-			if err != nil {
-				return nil, err
-			}
-			goVal, err := proxycore.DecodeType(col.CQLType.BigtableStorageType().DataType(), constants.BigtableEncodingVersion, val)
-			if err != nil {
-				return nil, err
-			}
-			results[key] = goVal
-		}
-	}
-
-	for i, colMeta := range columns {
-		var resultValue any
-		resultKey := colMeta.Name
-		err := resultRow.GetByName(resultKey, &resultValue)
-		if err != nil {
-			return nil, err
-		}
-
-		if resultValue == nil {
-			results[resultKey] = nil
-			continue
-		}
-
+	var results []types.GoValue
+	for i, colMeta := range query.ResultColumnMetadata {
 		var col *types.Column
 		var expectedType types.CqlDataType
+
 		if query.SelectClause.IsStar {
-			// unexpected column name - can happen if a column was dropped because the data is still in bigtable
-			if !table.HasColumn(types.ColumnName(colMeta.Name)) {
-				continue
-			}
 			col, err = table.GetColumn(types.ColumnName(colMeta.Name))
 			if err != nil {
 				return nil, err
 			}
 			expectedType = col.CQLType
 		} else {
-			col, err = table.GetColumn(query.SelectedColumns[i].ColumnName)
+			col, err = table.GetColumn(query.SelectClause.Columns[i].ColumnName)
 			if err != nil {
 				return nil, err
 			}
-			expectedType = query.SelectedColumns[i].ResultType
+			expectedType = query.SelectClause.Columns[i].ResultType
+		}
+
+		// if the query is "select *" we need to
+		if query.SelectClause.IsStar && col.ColumnFamily == table.SystemColumnFamily {
+			if s, ok := selectStarScalarsMap[types.ColumnName(colMeta.Name)]; ok {
+				results = append(results, s)
+			} else {
+				// scalar value but no value has been set so default to nil
+				results = append(results, nil)
+			}
+			continue
+		}
+
+		var resultValue any
+		resultKey := colMeta.Name
+		err := resultRow.GetByName(resultKey, &resultValue)
+		if err != nil {
+			return nil, err
 		}
 
 		switch value := resultValue.(type) {
@@ -183,17 +148,17 @@ func (btc *BigtableClient) convertResultRow(resultRow bigtable.ResultRow, query 
 			if err != nil {
 				return nil, err
 			}
-			results[resultKey] = goVal
+			results = append(results, goVal)
 		case []byte:
-			results[resultKey] = value
+			results = append(results, value)
 		case map[string]*int64:
 			// counters are always a column family with a single column with an empty qualifier
 			counterValue, ok := value[""]
 			if ok {
-				results[resultKey] = *counterValue
+				results = append(results, *counterValue)
 			} else {
 				// default the counter to 0
-				results[resultKey] = 0
+				results = append(results, int64(0))
 			}
 		case map[string][]uint8:
 			// handle collections
@@ -207,7 +172,7 @@ func (btc *BigtableClient) convertResultRow(resultRow bigtable.ResultRow, query 
 					}
 					listValues = append(listValues, goVal)
 				}
-				results[resultKey] = listValues
+				results = append(results, listValues)
 			} else if expectedType.Code() == types.SET {
 				st := expectedType.(*types.SetType)
 				var setValues []types.GoValue
@@ -222,7 +187,7 @@ func (btc *BigtableClient) convertResultRow(resultRow bigtable.ResultRow, query 
 					}
 					setValues = append(setValues, goKey)
 				}
-				results[resultKey] = setValues
+				results = append(results, setValues)
 			} else if expectedType.Code() == types.MAP {
 				mt := expectedType.(*types.MapType)
 				mapValue := make(map[types.GoValue]types.GoValue)
@@ -241,7 +206,7 @@ func (btc *BigtableClient) convertResultRow(resultRow bigtable.ResultRow, query 
 					}
 					mapValue[goKey] = goVal
 				}
-				results[resultKey] = mapValue
+				results = append(results, mapValue)
 			} else {
 				return nil, fmt.Errorf("unhandled collection response type: %s", expectedType.String())
 			}
@@ -258,15 +223,15 @@ func (btc *BigtableClient) convertResultRow(resultRow bigtable.ResultRow, query 
 				}
 				listValues = append(listValues, goVal)
 			}
-			results[resultKey] = listValues
+			results = append(results, listValues)
 		case int64, float64:
-			results[resultKey] = value
+			results = append(results, value)
 		case float32:
-			results[resultKey] = float64(value)
+			results = append(results, float64(value))
 		case time.Time:
-			results[resultKey] = value
+			results = append(results, value)
 		case nil:
-			results[resultKey] = nil
+			results = append(results, nil)
 		default:
 			return nil, fmt.Errorf("unsupported Bigtable SQL type  %T for column %s", value, resultKey)
 		}
@@ -274,4 +239,52 @@ func (btc *BigtableClient) convertResultRow(resultRow bigtable.ResultRow, query 
 	return &types.BigtableResultRow{
 		Values: results,
 	}, nil
+}
+
+// createSelectStarScalarsMap - extracts the SystemColumnFamily result, if it exists, and loads it into a map. This map will only be populated with scalar column values when a "select *" is used because those columns are all stored in one column family.
+func createSelectStarScalarsMap(table *schemaMapping.TableConfig, resultRow bigtable.ResultRow) (map[types.ColumnName]types.GoValue, error) {
+	hasSysColumn := false
+	for _, c := range resultRow.Metadata.Columns {
+		if c.Name == string(table.SystemColumnFamily) {
+			hasSysColumn = true
+			break
+		}
+	}
+
+	result := make(map[types.ColumnName]types.GoValue)
+
+	if !hasSysColumn {
+		return result, nil
+	}
+
+	var valueMap map[string][]uint8
+	err := resultRow.GetByName(string(table.SystemColumnFamily), &valueMap)
+	if err != nil {
+		return nil, err
+	}
+
+	for k, val := range valueMap {
+		key, err := decodeBase64(k)
+		if err != nil {
+			return nil, err
+		}
+		colName := types.ColumnName(key)
+
+		// unexpected column name - can happen if a column was dropped
+		if !table.HasColumn(colName) {
+			continue
+		}
+
+		col, err := table.GetColumn(colName)
+		if err != nil {
+			return nil, err
+		}
+		goVal, err := proxycore.DecodeType(col.CQLType.BigtableStorageType().DataType(), constants.BigtableEncodingVersion, val)
+		if err != nil {
+			return nil, err
+		}
+		result[col.Name] = goVal
+	}
+
+	return result, nil
 }

@@ -17,7 +17,7 @@ package schemaMapping
 
 import (
 	"fmt"
-	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/translator"
+	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/translators"
 	"reflect"
 	"testing"
 
@@ -292,7 +292,7 @@ func Test_GetSpecificColumnsMetadataForSelectedColumns(t *testing.T) {
 		name          string
 		fields        *SchemaMappingConfig
 		columnsMap    map[string]*types.Column
-		selectedCols  []translator.SelectedColumn
+		selectedCols  []translators.SelectedColumn
 		tableName     string
 		expectedMeta  []*message.ColumnMetadata
 		expectedError error
@@ -311,7 +311,7 @@ func Test_GetSpecificColumnsMetadataForSelectedColumns(t *testing.T) {
 					},
 				},
 			},
-			selectedCols: []translator.SelectedColumn{
+			selectedCols: []translators.SelectedColumn{
 				{
 					Sql: "column1",
 				},
@@ -342,7 +342,7 @@ func Test_GetSpecificColumnsMetadataForSelectedColumns(t *testing.T) {
 					},
 				},
 			},
-			selectedCols: []translator.SelectedColumn{
+			selectedCols: []translators.SelectedColumn{
 				{
 					Sql:               "writetime_column",
 					IsWriteTimeColumn: true,
@@ -375,7 +375,7 @@ func Test_GetSpecificColumnsMetadataForSelectedColumns(t *testing.T) {
 					},
 				},
 			},
-			selectedCols: []translator.SelectedColumn{
+			selectedCols: []translators.SelectedColumn{
 				{
 					Sql: LimitValue,
 				},
@@ -406,7 +406,7 @@ func Test_GetSpecificColumnsMetadataForSelectedColumns(t *testing.T) {
 					},
 				},
 			},
-			selectedCols: []translator.SelectedColumn{
+			selectedCols: []translators.SelectedColumn{
 				{
 					Sql:    "column1",
 					IsFunc: true,
@@ -430,7 +430,7 @@ func Test_GetSpecificColumnsMetadataForSelectedColumns(t *testing.T) {
 					},
 				},
 			},
-			selectedCols: []translator.SelectedColumn{
+			selectedCols: []translators.SelectedColumn{
 				{
 					Sql: "nonexistent_column",
 				},
@@ -453,7 +453,7 @@ func Test_GetSpecificColumnsMetadataForSelectedColumns(t *testing.T) {
 					},
 				},
 			},
-			selectedCols: []translator.SelectedColumn{
+			selectedCols: []translators.SelectedColumn{
 				{
 					Sql: "invalid_special_column",
 				},
@@ -466,7 +466,7 @@ func Test_GetSpecificColumnsMetadataForSelectedColumns(t *testing.T) {
 			name:       "Error - Empty columns map",
 			fields:     getSchemaMappingConfig(),
 			columnsMap: map[string]*types.Column{},
-			selectedCols: []translator.SelectedColumn{
+			selectedCols: []translators.SelectedColumn{
 				{
 					Sql: "column1",
 				},
@@ -479,7 +479,7 @@ func Test_GetSpecificColumnsMetadataForSelectedColumns(t *testing.T) {
 			name:       "Error - Write time column not found",
 			fields:     getSchemaMappingConfig(),
 			columnsMap: map[string]*types.Column{},
-			selectedCols: []translator.SelectedColumn{
+			selectedCols: []translators.SelectedColumn{
 				{
 					Sql:               "no_write_time_column",
 					IsWriteTimeColumn: true,
@@ -494,7 +494,7 @@ func Test_GetSpecificColumnsMetadataForSelectedColumns(t *testing.T) {
 			name:       "Error - Special column handling error",
 			fields:     getSchemaMappingConfig(),
 			columnsMap: map[string]*types.Column{},
-			selectedCols: []translator.SelectedColumn{
+			selectedCols: []translators.SelectedColumn{
 				{
 					Sql: LimitValue,
 				},
@@ -1083,7 +1083,7 @@ func Test_HandleSpecialSelectedColumn(t *testing.T) {
 		name           string
 		fields         *SchemaMappingConfig
 		columnsMap     map[string]*types.Column
-		columnSelected translator.SelectedColumn
+		columnSelected translators.SelectedColumn
 		index          int32
 		tableName      string
 		keySpace       string
@@ -1094,7 +1094,7 @@ func Test_HandleSpecialSelectedColumn(t *testing.T) {
 			name:       "Success - Count function",
 			fields:     getSchemaMappingConfig(),
 			columnsMap: map[string]*types.Column{},
-			columnSelected: translator.SelectedColumn{
+			columnSelected: translators.SelectedColumn{
 				Sql:      "count_col",
 				FuncName: "count",
 			},
@@ -1114,7 +1114,7 @@ func Test_HandleSpecialSelectedColumn(t *testing.T) {
 			name:       "Success - Write time column",
 			fields:     getSchemaMappingConfig(),
 			columnsMap: map[string]*types.Column{},
-			columnSelected: translator.SelectedColumn{
+			columnSelected: translators.SelectedColumn{
 				Sql:               "wt_col",
 				IsWriteTimeColumn: true,
 			},
@@ -1140,7 +1140,7 @@ func Test_HandleSpecialSelectedColumn(t *testing.T) {
 					},
 				},
 			},
-			columnSelected: translator.SelectedColumn{
+			columnSelected: translators.SelectedColumn{
 				Sql:        "alias_col",
 				Alias:      "alias_col",
 				ColumnName: "original_col",
@@ -1167,7 +1167,7 @@ func Test_HandleSpecialSelectedColumn(t *testing.T) {
 					},
 				},
 			},
-			columnSelected: translator.SelectedColumn{
+			columnSelected: translators.SelectedColumn{
 				Sql:        "map_value",
 				ColumnName: "map_col",
 				MapKey:     "key1",
@@ -1188,7 +1188,7 @@ func Test_HandleSpecialSelectedColumn(t *testing.T) {
 			name:       "Error - types.Columns not found",
 			fields:     getSchemaMappingConfig(),
 			columnsMap: map[string]*types.Column{},
-			columnSelected: translator.SelectedColumn{
+			columnSelected: translators.SelectedColumn{
 				Sql:        "nonexistent",
 				ColumnName: "nonexistent",
 			},
@@ -1208,7 +1208,7 @@ func Test_HandleSpecialSelectedColumn(t *testing.T) {
 					},
 				},
 			},
-			columnSelected: translator.SelectedColumn{
+			columnSelected: translators.SelectedColumn{
 				Sql:        "func_result",
 				IsFunc:     true,
 				ColumnName: "func_col",

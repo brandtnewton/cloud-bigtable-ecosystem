@@ -236,7 +236,7 @@ func isHandledDescribeStmt(query string, sessionKeyspace Identifier) (stmt State
 	return nil, errors.New("invalid DESCRIBE statement")
 }
 
-func IsQueryHandledWithQueryType(keyspace Identifier, query string) (handled bool, stmt Statement, queryType string, err error) {
+func IsQueryHandledWithQueryType(keyspace Identifier, query string) (handled bool, stmt Statement, queryType types.QueryType, err error) {
 	var l lexer
 	l.init(query)
 
@@ -246,28 +246,28 @@ func IsQueryHandledWithQueryType(keyspace Identifier, query string) (handled boo
 	case tkIdentifier:
 		if l.identifier().equal("describe") || l.identifier().equal("desc") {
 			stmt, err := isHandledDescribeStmt(query, keyspace)
-			return false, stmt, "describe", err
+			return false, stmt, types.QueryTypeDescribe, err
 		} else if l.identifier().equal("truncate") {
-			return false, nil, "truncate", nil
+			return false, nil, types.QueryTypeTruncate, nil
 		}
 	case tkSelect:
 		handled, stmt, err := isHandledSelectStmt(&l, keyspace)
-		return handled, stmt, "select", err
+		return handled, stmt, types.QueryTypeSelect, err
 	case tkInsert:
-		return false, nil, "insert", nil
+		return false, nil, types.QueryTypeInsert, nil
 	case tkUpdate:
-		return false, nil, "update", nil
+		return false, nil, types.QueryTypeUpdate, nil
 	case tkDelete:
-		return false, nil, "delete", nil
+		return false, nil, types.QueryTypeDelete, nil
 	case tkCreate:
-		return false, nil, "create", nil
+		return false, nil, types.QueryTypeCreate, nil
 	case tkDrop:
-		return false, nil, "drop", nil
+		return false, nil, types.QueryTypeDrop, nil
 	case tkAlter:
-		return false, nil, "alter", nil
+		return false, nil, types.QueryTypeAlter, nil
 	case tkUse:
 		handled, stmt, err := isHandledUseStmt(&l)
-		return handled, stmt, "use", err
+		return handled, stmt, types.QueryTypeUse, err
 	}
-	return false, nil, "", nil
+	return false, nil, types.QueryTypeUnknown, nil
 }

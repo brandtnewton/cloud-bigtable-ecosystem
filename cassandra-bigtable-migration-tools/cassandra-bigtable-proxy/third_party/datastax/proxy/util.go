@@ -17,7 +17,6 @@
 package proxy
 
 import (
-	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/translator"
 	"slices"
 	"strings"
 	"time"
@@ -533,8 +532,8 @@ func addSystemKeyspacesToMetadata(tableMetadata map[types.Keyspace]map[types.Tab
 	return nil
 }
 
-func getTimestampMetadata(table *schemaMapping.TableConfig, params *translator.QueryParameters) []*message.ColumnMetadata {
-	index := params.Index(translator.UsingTimePlaceholder)
+func getTimestampMetadata(table *schemaMapping.TableConfig, params *types.QueryParameters) []*message.ColumnMetadata {
+	index := params.Index(types.UsingTimePlaceholder)
 	if index != -1 {
 		return []*message.ColumnMetadata{{
 			Keyspace: string(table.Keyspace),

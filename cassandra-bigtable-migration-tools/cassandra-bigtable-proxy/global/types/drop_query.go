@@ -1,6 +1,7 @@
 package types
 
 type DropTableQuery struct {
+	cqlQuery string
 	keyspace Keyspace
 	table    TableName
 	IfExists bool
@@ -8,6 +9,14 @@ type DropTableQuery struct {
 
 func NewDropTableQuery(keyspace Keyspace, table TableName, ifExists bool) *DropTableQuery {
 	return &DropTableQuery{keyspace: keyspace, table: table, IfExists: ifExists}
+}
+
+func (c DropTableQuery) CqlQuery() string {
+	return c.cqlQuery
+}
+
+func (c DropTableQuery) BigtableQuery() string {
+	return ""
 }
 
 func (c DropTableQuery) AsBulkMutation() (IBigtableMutation, bool) {

@@ -18,20 +18,15 @@ package update_translator
 
 import (
 	"errors"
-	"fmt"
 	types "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/global/types"
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/translators/common"
 	"github.com/datastax/go-cassandra-native-protocol/primitive"
 )
 
-func (t *UpdateTranslator) Translate(query string, sessionKeyspace types.Keyspace, isPreparedQuery bool) (types.IPreparedQuery, types.IExecutableQuery, error) {
-	p, err := common.NewCqlParser(query, false)
-	if err != nil {
-		return nil, nil, fmt.Errorf("failed to parse cql")
-	}
-	updateObj := p.Update()
+func (t *UpdateTranslator) Translate(query *types.RawQuery, sessionKeyspace types.Keyspace, isPreparedQuery bool) (types.IPreparedQuery, types.IExecutableQuery, error) {
+	updateObj := query.Parser().Update()
 
-	if updateObj == nil || updateObj.KwUpdate() == nil {
+	if updateObj == nil {
 		return nil, nil, errors.New("error parsing the update object")
 	}
 
@@ -68,7 +63,7 @@ func (t *UpdateTranslator) Translate(query string, sessionKeyspace types.Keyspac
 		return nil, nil, errors.New("error parsing update where clause")
 	}
 
-	whereClause, err := common.ParseWhereClause(updateObj.WhereSpec(), tableConfig, params, values)
+	whereClause, err := common.ParseWhereClause(updateObj.WhereSpec(), tableConfig, params, values, isPreparedQuery)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -85,7 +80,7 @@ func (t *UpdateTranslator) Translate(query string, sessionKeyspace types.Keyspac
 		return nil, nil, err
 	}
 
-	st := types.NewPreparedUpdateQuery(keyspaceName, tableName, ifExist, query, assignments, whereClause, params)
+	st := types.NewPreparedUpdateQuery(keyspaceName, tableName, ifExist, query.RawCql(), assignments, whereClause, params)
 
 	var bound *types.BigtableWriteMutation
 	if !isPreparedQuery {
@@ -127,7 +122,7 @@ func (t *UpdateTranslator) doBind(st *types.PreparedUpdateQuery, values *types.Q
 		return nil, err
 	}
 
-	mutations := types.NewBigtableWriteMutation(st.Keyspace(), st.Table(), types.IfSpec{IfExists: st.IfExists}, types.QueryTypeUpdate, rowKey)
+	mutations := types.NewBigtableWriteMutation(st.Keyspace(), st.Table(), st.CqlQuery(), types.IfSpec{IfExists: st.IfExists}, types.QueryTypeUpdate, rowKey)
 	err = common.BindMutations(st.Values, values, mutations)
 	if err != nil {
 		return nil, err

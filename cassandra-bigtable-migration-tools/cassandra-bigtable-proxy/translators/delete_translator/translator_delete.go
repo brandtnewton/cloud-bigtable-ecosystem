@@ -24,14 +24,9 @@ import (
 	"github.com/datastax/go-cassandra-native-protocol/primitive"
 )
 
-func (t *DeleteTranslator) Translate(query string, sessionKeyspace types.Keyspace, isPreparedQuery bool) (types.IPreparedQuery, types.IExecutableQuery, error) {
-	p, err := common.NewCqlParser(query, false)
-	if err != nil {
-		return nil, nil, fmt.Errorf("failed to parse cql")
-	}
-
-	deleteObj := p.Delete_()
-	if deleteObj == nil || deleteObj.KwDelete() == nil {
+func (t *DeleteTranslator) Translate(query *types.RawQuery, sessionKeyspace types.Keyspace, isPreparedQuery bool) (types.IPreparedQuery, types.IExecutableQuery, error) {
+	deleteObj := query.Parser()
+	if deleteObj == nil {
 		return nil, nil, errors.New("error while parsing delete object")
 	}
 
@@ -55,7 +50,7 @@ func (t *DeleteTranslator) Translate(query string, sessionKeyspace types.Keyspac
 		return nil, nil, err
 	}
 
-	conditions, err := common.ParseWhereClause(deleteObj.WhereSpec(), tableConfig, params, values)
+	conditions, err := common.ParseWhereClause(deleteObj.WhereSpec(), tableConfig, params, values, isPreparedQuery)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -75,7 +70,7 @@ func (t *DeleteTranslator) Translate(query string, sessionKeyspace types.Keyspac
 		return nil, nil, fmt.Errorf("delete USING TIMESTAMP not supported")
 	}
 
-	st := types.NewPreparedDeleteQuery(keyspaceName, tableName, ifExist, query, conditions, params, selectedColumns)
+	st := types.NewPreparedDeleteQuery(keyspaceName, tableName, ifExist, query.RawCql(), conditions, params, selectedColumns)
 
 	var bound *types.BoundDeleteQuery
 	if !isPreparedQuery {
@@ -121,5 +116,5 @@ func (t *DeleteTranslator) doBind(st *types.PreparedDeleteQuery, values *types.Q
 	if err != nil {
 		return nil, err
 	}
-	return types.NewBoundDeleteQuery(st.Keyspace(), st.Table(), rowKey, st.IfExists, cols), nil
+	return types.NewBoundDeleteQuery(st.Keyspace(), st.Table(), st.CqlQuery(), rowKey, st.IfExists, cols), nil
 }

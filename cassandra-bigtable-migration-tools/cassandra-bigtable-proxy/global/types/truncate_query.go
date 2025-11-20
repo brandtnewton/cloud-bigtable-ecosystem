@@ -1,12 +1,25 @@
 package types
 
 type TruncateTableStatementMap struct {
+	cqlQuery string
 	keyspace Keyspace
 	table    TableName
 }
 
-func NewTruncateTableStatementMap(keyspace Keyspace, table TableName) *TruncateTableStatementMap {
-	return &TruncateTableStatementMap{keyspace: keyspace, table: table}
+func (c TruncateTableStatementMap) CqlQuery() string {
+	return c.cqlQuery
+}
+
+func (c TruncateTableStatementMap) BigtableQuery() string {
+	return ""
+}
+
+func NewTruncateTableStatementMap(keyspace Keyspace, table TableName, cqlQuery string) *TruncateTableStatementMap {
+	return &TruncateTableStatementMap{
+		keyspace: keyspace,
+		table:    table,
+		cqlQuery: cqlQuery,
+	}
 }
 
 func (c TruncateTableStatementMap) AsBulkMutation() (IBigtableMutation, bool) {

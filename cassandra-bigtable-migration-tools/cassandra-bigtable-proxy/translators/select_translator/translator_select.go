@@ -25,14 +25,10 @@ import (
 	"github.com/datastax/go-cassandra-native-protocol/primitive"
 )
 
-func (t *SelectTranslator) Translate(query string, sessionKeyspace types.Keyspace, isPreparedQuery bool) (types.IPreparedQuery, types.IExecutableQuery, error) {
-	p, err := common.NewCqlParser(query, false)
-	if err != nil {
-		return nil, nil, err
-	}
-	selectObj := p.Select_()
-	if selectObj == nil || selectObj.KwSelect() == nil {
-		return nil, nil, errors.New("ToBigtableSelect: Could not parse select object")
+func (t *SelectTranslator) Translate(query *types.RawQuery, sessionKeyspace types.Keyspace, isPreparedQuery bool) (types.IPreparedQuery, types.IExecutableQuery, error) {
+	selectObj := query.Parser().Select_()
+	if selectObj == nil {
+		return nil, nil, errors.New("failed to parse select query")
 	}
 
 	keyspaceName, tableName, err := common.ParseTarget(selectObj.FromSpec(), sessionKeyspace, t.schemaMappingConfig)
@@ -53,7 +49,7 @@ func (t *SelectTranslator) Translate(query string, sessionKeyspace types.Keyspac
 	params := types.NewQueryParameters()
 	values := types.NewQueryParameterValues(params)
 
-	conditions, err := common.ParseWhereClause(selectObj.WhereSpec(), tableConfig, params, values)
+	conditions, err := common.ParseWhereClause(selectObj.WhereSpec(), tableConfig, params, values, isPreparedQuery)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -80,9 +76,9 @@ func (t *SelectTranslator) Translate(query string, sessionKeyspace types.Keyspac
 
 	resultColumns := selectedColumnsToMetadata(tableConfig, selectClause)
 
-	st := types.NewPreparedSelectQuery(keyspaceName, tableName, query, "", selectClause, conditions, params, orderBy, groupBy, resultColumns)
+	st := types.NewPreparedSelectQuery(keyspaceName, tableName, query.RawCql(), "", selectClause, conditions, params, orderBy, groupBy, resultColumns)
 
-	translatedResult, err := getBigtableSelectQuery(t, st)
+	translatedResult, err := createBigtableSql(t, st)
 	if err != nil {
 		return nil, nil, err
 	}

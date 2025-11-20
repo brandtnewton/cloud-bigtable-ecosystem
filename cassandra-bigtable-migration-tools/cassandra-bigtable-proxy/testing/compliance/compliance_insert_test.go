@@ -43,16 +43,18 @@ func TestBasicInsertUpdateDeleteValidation(t *testing.T) {
 func TestUpsertOperation(t *testing.T) {
 	t.Parallel()
 	pkName, pkAge := uuid.New().String(), int64(33)
-	err := session.Query(`INSERT INTO bigtabledevinstance.user_info (name, age, code) VALUES (?, ?, ?)`, pkName, pkAge, 123).Exec()
+	err := session.Query(`INSERT INTO bigtabledevinstance.user_info (name, age, code, text_col) VALUES (?, ?, ?, ?)`, pkName, pkAge, 123, "abc").Exec()
 	require.NoError(t, err, "Failed initial insert")
 
-	err = session.Query(`INSERT INTO bigtabledevinstance.user_info (name, age, code) VALUES (?, ?, ?)`, pkName, pkAge, 456).Exec()
+	err = session.Query(`INSERT INTO bigtabledevinstance.user_info (name, age, code, text_col) VALUES (?, ?, ?, ?)`, pkName, pkAge, 456, "abc").Exec()
 	require.NoError(t, err, "Failed second insert (upsert)")
 
 	var code int
-	err = session.Query(`SELECT code FROM bigtabledevinstance.user_info WHERE name = ? AND age = ?`, pkName, pkAge).Scan(&code)
-	require.NoError(t, err, "Failed to select upserted record")
-	assert.Equal(t, 456, code, "The code should be updated to the value from the second insert")
+	var textCol string
+	err = session.Query(`SELECT code, text_col FROM bigtabledevinstance.user_info WHERE name = ? AND age = ?`, pkName, pkAge).Scan(&code, &textCol)
+	require.NoError(t, err)
+	assert.Equal(t, 456, code)
+	assert.Equal(t, "abc", textCol)
 }
 
 func TestInsertAndValidateCollectionData(t *testing.T) {

@@ -18,19 +18,13 @@ package truncate_translator
 
 import (
 	"errors"
-	"fmt"
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/global/types"
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/translators/common"
 	"github.com/datastax/go-cassandra-native-protocol/primitive"
 )
 
-func (t *TruncateTranslator) Translate(query string, sessionKeyspace types.Keyspace, isPreparedQuery bool) (types.IPreparedQuery, types.IExecutableQuery, error) {
-	p, err := common.NewCqlParser(query, false)
-	if err != nil {
-		return nil, nil, fmt.Errorf("failed to parse cql")
-	}
-
-	truncateTableObj := p.Truncate()
+func (t *TruncateTranslator) Translate(query *types.RawQuery, sessionKeyspace types.Keyspace, isPreparedQuery bool) (types.IPreparedQuery, types.IExecutableQuery, error) {
+	truncateTableObj := query.Parser().Truncate()
 
 	if truncateTableObj == nil {
 		return nil, nil, errors.New("error while parsing truncate query")
@@ -41,7 +35,7 @@ func (t *TruncateTranslator) Translate(query string, sessionKeyspace types.Keysp
 		return nil, nil, err
 	}
 
-	stmt := types.NewTruncateTableStatementMap(keyspace, table)
+	stmt := types.NewTruncateTableStatementMap(keyspace, table, query.RawCql())
 	return nil, stmt, nil
 }
 

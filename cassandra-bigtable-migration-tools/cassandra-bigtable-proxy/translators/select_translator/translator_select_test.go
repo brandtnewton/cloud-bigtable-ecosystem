@@ -1209,13 +1209,13 @@ func TestTranslator_TranslateSelectQuerytoBigtable(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			schemaMappingConfig := translators.GetSchemaMappingConfig(types.OrderedCodeEncoding)
-			tr := &translators.Translator{
+			tr := &translators.TranslatorManager{
 				Logger:              tt.fields.Logger,
 				SchemaMappingConfig: schemaMappingConfig,
 			}
 			got, err := tr.TranslateSelect(tt.args.query, tt.defaultKeyspace)
 			if (err != nil) != tt.wantErr {
-				t.Errorf("Translator.TranslateSelect() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("TranslatorManager.TranslateSelect() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
 			if tt.want != nil {
@@ -1231,7 +1231,7 @@ func TestTranslator_TranslateSelectQuerytoBigtable(t *testing.T) {
 
 func Test_GetBigtableSelectQuery(t *testing.T) {
 	schemaMap := translators.GetSchemaMappingConfig(types.OrderedCodeEncoding)
-	tr := &translators.Translator{
+	tr := &translators.TranslatorManager{
 		Logger:              zap.NewNop(),
 		SchemaMappingConfig: schemaMap,
 	}
@@ -1244,7 +1244,7 @@ func Test_GetBigtableSelectQuery(t *testing.T) {
 		args       args
 		want       string
 		wantErr    bool
-		translator *translators.Translator
+		translator *translators.TranslatorManager
 	}{
 		{
 			name: "It should fail because order by not support map data type",
@@ -1394,7 +1394,7 @@ func Test_GetBigtableSelectQuery(t *testing.T) {
 			},
 			want:    "SELECT column1,SUM(TO_INT64(cf1['column2'])) as total,column3 FROM test_table WHERE column3 = 10 GROUP BY column1,column3 ORDER BY column3 desc, column1 asc LIMIT 100;",
 			wantErr: false,
-			translator: func() *translators.Translator {
+			translator: func() *translators.TranslatorManager {
 				// REFACTOR: Use constructor functions
 				cols := []*types.Column{
 					{Name: "column1", CQLType: types.TypeVarchar, KeyType: utilities.KEY_TYPE_PARTITION},
@@ -1403,7 +1403,7 @@ func Test_GetBigtableSelectQuery(t *testing.T) {
 				}
 				tableCfg := schemaMapping.NewTableConfig("test_keyspace", "test_table", "cf1", types.OrderedCodeEncoding, cols)
 				schemaCfg := schemaMapping.NewSchemaMappingConfig("schema_mapping", "cf1", zap.NewNop(), []*schemaMapping.TableConfig{tableCfg})
-				return &translators.Translator{
+				return &translators.TranslatorManager{
 					Logger:              zap.NewNop(),
 					SchemaMappingConfig: schemaCfg,
 				}
@@ -1435,7 +1435,7 @@ func Test_GetBigtableSelectQuery(t *testing.T) {
 			},
 			want:    "SELECT column1,AVG(TO_INT64(cf1['column2'])) as avg_value,MAX(TO_INT64(cf1['column3'])) as max_value FROM test_table GROUP BY column1 ORDER BY avg_value desc;",
 			wantErr: false,
-			translator: func() *translators.Translator {
+			translator: func() *translators.TranslatorManager {
 				// REFACTOR: Use constructor functions
 				cols := []*types.Column{
 					{Name: "column1", CQLType: types.TypeVarchar, KeyType: utilities.KEY_TYPE_PARTITION},
@@ -1444,7 +1444,7 @@ func Test_GetBigtableSelectQuery(t *testing.T) {
 				}
 				tableCfg := schemaMapping.NewTableConfig("test_keyspace", "test_table", "cf1", types.OrderedCodeEncoding, cols)
 				schemaCfg := schemaMapping.NewSchemaMappingConfig("schema_mapping", "cf1", zap.NewNop(), []*schemaMapping.TableConfig{tableCfg})
-				return &translators.Translator{
+				return &translators.TranslatorManager{
 					Logger:              zap.NewNop(),
 					SchemaMappingConfig: schemaCfg,
 				}
@@ -1471,14 +1471,14 @@ func Test_GetBigtableSelectQuery(t *testing.T) {
 			},
 			want:    "SELECT count(*) as total_count FROM test_table WHERE column1 > 5 LIMIT 50;",
 			wantErr: false,
-			translator: func() *translators.Translator {
+			translator: func() *translators.TranslatorManager {
 				// REFACTOR: Use constructor functions
 				cols := []*types.Column{
 					{Name: "column1", CQLType: types.TypeBigint, KeyType: utilities.KEY_TYPE_PARTITION},
 				}
 				tableCfg := schemaMapping.NewTableConfig("test_keyspace", "test_table", "cf1", types.OrderedCodeEncoding, cols)
 				schemaCfg := schemaMapping.NewSchemaMappingConfig("schema_mapping", "cf1", zap.NewNop(), []*schemaMapping.TableConfig{tableCfg})
-				return &translators.Translator{
+				return &translators.TranslatorManager{
 					Logger:              zap.NewNop(),
 					SchemaMappingConfig: schemaCfg,
 				}
@@ -1511,7 +1511,7 @@ func Test_GetBigtableSelectQuery(t *testing.T) {
 			},
 			want:    "SELECT MIN(TO_INT64(cf1['column2'])) as min_value,MAX(TO_INT64(cf1['column2'])) as max_value FROM test_table WHERE column1 IN UNNEST(@values) ORDER BY min_value asc;",
 			wantErr: false,
-			translator: func() *translators.Translator {
+			translator: func() *translators.TranslatorManager {
 				// REFACTOR: Use constructor functions
 				cols := []*types.Column{
 					{Name: "column1", CQLType: types.TypeVarchar, KeyType: utilities.KEY_TYPE_PARTITION},
@@ -1519,7 +1519,7 @@ func Test_GetBigtableSelectQuery(t *testing.T) {
 				}
 				tableCfg := schemaMapping.NewTableConfig("test_keyspace", "test_table", "cf1", types.OrderedCodeEncoding, cols)
 				schemaCfg := schemaMapping.NewSchemaMappingConfig("schema_mapping", "cf1", zap.NewNop(), []*schemaMapping.TableConfig{tableCfg})
-				return &translators.Translator{
+				return &translators.TranslatorManager{
 					Logger:              zap.NewNop(),
 					SchemaMappingConfig: schemaCfg,
 				}
@@ -1544,7 +1544,7 @@ func Test_GetBigtableSelectQuery(t *testing.T) {
 			},
 			want:    "SELECT column1,SUM(TO_INT64(cf1['column2'])) as total_sum FROM test_table GROUP BY column1;",
 			wantErr: false,
-			translator: func() *translators.Translator {
+			translator: func() *translators.TranslatorManager {
 				// REFACTOR: Use constructor functions
 				cols := []*types.Column{
 					{Name: "column1", CQLType: types.TypeVarchar, KeyType: utilities.KEY_TYPE_PARTITION},
@@ -1552,7 +1552,7 @@ func Test_GetBigtableSelectQuery(t *testing.T) {
 				}
 				tableCfg := schemaMapping.NewTableConfig("test_keyspace", "test_table", "cf1", types.OrderedCodeEncoding, cols)
 				schemaCfg := schemaMapping.NewSchemaMappingConfig("schema_mapping", "cf1", zap.NewNop(), []*schemaMapping.TableConfig{tableCfg})
-				return &translators.Translator{
+				return &translators.TranslatorManager{
 					Logger:              zap.NewNop(),
 					SchemaMappingConfig: schemaCfg,
 				}
@@ -1585,7 +1585,7 @@ func Test_GetBigtableSelectQuery(t *testing.T) {
 			},
 			want:    "SELECT name,TO_INT64(cf1['age']),MAX(TO_INT64(cf1['code'])) as max_code FROM test_table GROUP BY name,TO_INT64(cf1['age']) ORDER BY name asc, TO_INT64(cf1['code']) desc;",
 			wantErr: false,
-			translator: func() *translators.Translator {
+			translator: func() *translators.TranslatorManager {
 				// REFACTOR: Use constructor functions
 				cols := []*types.Column{
 					{Name: "name", CQLType: types.TypeVarchar, KeyType: utilities.KEY_TYPE_PARTITION},
@@ -1594,7 +1594,7 @@ func Test_GetBigtableSelectQuery(t *testing.T) {
 				}
 				tableCfg := schemaMapping.NewTableConfig("test_keyspace", "test_table", "cf1", types.OrderedCodeEncoding, cols)
 				schemaCfg := schemaMapping.NewSchemaMappingConfig("schema_mapping", "cf1", zap.NewNop(), []*schemaMapping.TableConfig{tableCfg})
-				return &translators.Translator{
+				return &translators.TranslatorManager{
 					Logger:              zap.NewNop(),
 					SchemaMappingConfig: schemaCfg,
 				}
@@ -1626,7 +1626,7 @@ func Test_GetBigtableSelectQuery(t *testing.T) {
 			},
 			want:    "SELECT name,TO_INT64(cf1['age']),TO_INT64(cf1['code']) FROM test_table GROUP BY name,TO_INT64(cf1['age']) ORDER BY name asc;",
 			wantErr: false,
-			translator: func() *translators.Translator {
+			translator: func() *translators.TranslatorManager {
 				// REFACTOR: Use constructor functions
 				cols := []*types.Column{
 					{Name: "name", CQLType: types.TypeVarchar, KeyType: utilities.KEY_TYPE_PARTITION},
@@ -1635,7 +1635,7 @@ func Test_GetBigtableSelectQuery(t *testing.T) {
 				}
 				tableCfg := schemaMapping.NewTableConfig("test_keyspace", "test_table", "cf1", types.OrderedCodeEncoding, cols)
 				schemaCfg := schemaMapping.NewSchemaMappingConfig("schema_mapping", "cf1", zap.NewNop(), []*schemaMapping.TableConfig{tableCfg})
-				return &translators.Translator{
+				return &translators.TranslatorManager{
 					Logger:              zap.NewNop(),
 					SchemaMappingConfig: schemaCfg,
 				}
@@ -1668,7 +1668,7 @@ func Test_GetBigtableSelectQuery(t *testing.T) {
 			},
 			want:    "SELECT name,TO_INT64(cf1['age']),MAX(TO_INT64(cf1['code'])) as max_code FROM test_table GROUP BY name,TO_INT64(cf1['age']) ORDER BY name asc, max_code desc;",
 			wantErr: false,
-			translator: func() *translators.Translator {
+			translator: func() *translators.TranslatorManager {
 				// REFACTOR: Use constructor functions
 				cols := []*types.Column{
 					{Name: "name", CQLType: types.TypeVarchar, KeyType: utilities.KEY_TYPE_PARTITION},
@@ -1677,7 +1677,7 @@ func Test_GetBigtableSelectQuery(t *testing.T) {
 				}
 				tableCfg := schemaMapping.NewTableConfig("test_keyspace", "test_table", "cf1", types.OrderedCodeEncoding, cols)
 				schemaCfg := schemaMapping.NewSchemaMappingConfig("schema_mapping", "cf1", zap.NewNop(), []*schemaMapping.TableConfig{tableCfg})
-				return &translators.Translator{
+				return &translators.TranslatorManager{
 					Logger:              zap.NewNop(),
 					SchemaMappingConfig: schemaCfg,
 				}
@@ -1690,13 +1690,13 @@ func Test_GetBigtableSelectQuery(t *testing.T) {
 			if tt.translator != nil {
 				trToUse = tt.translator
 			}
-			got, err := getBigtableSelectQuery(trToUse, tt.args.data)
+			got, err := createBigtableSql(trToUse, tt.args.data)
 			if (err != nil) != tt.wantErr {
-				t.Errorf("getBigtableSelectQuery() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("createBigtableSql() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
 			if got != tt.want {
-				t.Errorf("getBigtableSelectQuery() = %v, wantNewColumns %v", got, tt.want)
+				t.Errorf("createBigtableSql() = %v, wantNewColumns %v", got, tt.want)
 			}
 		})
 	}
@@ -2020,7 +2020,7 @@ func Test_processFunctionColumn(t *testing.T) {
 			}
 			tableCfg := schemaMapping.NewTableConfig("test_keyspace", "user_info", "cf1", types.OrderedCodeEncoding, cols)
 			schemaCfg := schemaMapping.NewSchemaMappingConfig("schema_mapping", "cf1", zap.NewNop(), []*schemaMapping.TableConfig{tableCfg})
-			translator := &translators.Translator{SchemaMappingConfig: schemaCfg}
+			translator := &translators.TranslatorManager{SchemaMappingConfig: schemaCfg}
 
 			tc, err := translator.SchemaMappingConfig.GetTableConfig(tt.keySpace, tt.tableName)
 			if err != nil {
@@ -2469,7 +2469,7 @@ func TestProcessSetStrings(t *testing.T) {
 			}
 			tableCfg := schemaMapping.NewTableConfig("test_keyspace", "user_info", "cf1", types.OrderedCodeEncoding, cols)
 			schemaCfg := schemaMapping.NewSchemaMappingConfig("schema_mapping", "cf1", zap.NewNop(), []*schemaMapping.TableConfig{tableCfg})
-			tr := &translators.Translator{
+			tr := &translators.TranslatorManager{
 				Logger:              zap.NewNop(),
 				SchemaMappingConfig: schemaCfg,
 			}

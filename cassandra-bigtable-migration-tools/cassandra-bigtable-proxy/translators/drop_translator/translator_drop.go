@@ -18,19 +18,13 @@ package drop_translator
 
 import (
 	"errors"
-	"fmt"
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/global/types"
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/translators/common"
 	"github.com/datastax/go-cassandra-native-protocol/primitive"
 )
 
-func (t *DropTranslator) Translate(query string, sessionKeyspace types.Keyspace, isPreparedQuery bool) (types.IPreparedQuery, types.IExecutableQuery, error) {
-	p, err := common.NewCqlParser(query, false)
-	if err != nil {
-		return nil, nil, fmt.Errorf("failed to parse cql")
-	}
-
-	dropTableObj := p.DropTable()
+func (t *DropTranslator) Translate(query *types.RawQuery, sessionKeyspace types.Keyspace, isPreparedQuery bool) (types.IPreparedQuery, types.IExecutableQuery, error) {
+	dropTableObj := query.Parser().DropTable()
 
 	if dropTableObj == nil || dropTableObj.Table() == nil {
 		return nil, nil, errors.New("error while parsing drop table object")

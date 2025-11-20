@@ -1,6 +1,7 @@
 package types
 
 type AlterTableStatementMap struct {
+	cqlQuery    string
 	keyspace    Keyspace
 	table       TableName
 	IfNotExists bool
@@ -8,8 +9,23 @@ type AlterTableStatementMap struct {
 	DropColumns []ColumnName
 }
 
-func NewAlterTableStatementMap(keyspace Keyspace, table TableName, ifNotExists bool, addColumns []CreateColumn, dropColumns []ColumnName) *AlterTableStatementMap {
-	return &AlterTableStatementMap{keyspace: keyspace, table: table, IfNotExists: ifNotExists, AddColumns: addColumns, DropColumns: dropColumns}
+func (a AlterTableStatementMap) CqlQuery() string {
+	return a.cqlQuery
+}
+
+func (a AlterTableStatementMap) BigtableQuery() string {
+	return ""
+}
+
+func NewAlterTableStatementMap(keyspace Keyspace, table TableName, cqlQuery string, ifNotExists bool, addColumns []CreateColumn, dropColumns []ColumnName) *AlterTableStatementMap {
+	return &AlterTableStatementMap{
+		keyspace:    keyspace,
+		table:       table,
+		cqlQuery:    cqlQuery,
+		IfNotExists: ifNotExists,
+		AddColumns:  addColumns,
+		DropColumns: dropColumns,
+	}
 }
 
 func (a AlterTableStatementMap) AsBulkMutation() (IBigtableMutation, bool) {

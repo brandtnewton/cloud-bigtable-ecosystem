@@ -28,6 +28,7 @@ import (
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/utilities"
 	"github.com/datastax/go-cassandra-native-protocol/message"
 	"go.uber.org/zap"
+	"strings"
 	"time"
 )
 
@@ -102,81 +103,79 @@ func (btc *BigtableClient) convertResultRow(resultRow bigtable.ResultRow, query 
 		return nil, err
 	}
 
-	selectStarScalarsMap, err := createSelectStarScalarsMap(table, resultRow)
-
-	var results []types.GoValue
-	for i, colMeta := range query.ResultColumnMetadata {
-		var col *types.Column
-		var expectedType types.CqlDataType
-
-		if query.SelectClause.IsStar {
-			col, err = table.GetColumn(types.ColumnName(colMeta.Name))
-			if err != nil {
-				return nil, err
-			}
-			expectedType = col.CQLType
-		} else {
-			col, err = table.GetColumn(query.SelectClause.Columns[i].ColumnName)
-			if err != nil {
-				return nil, err
-			}
-			expectedType = query.SelectClause.Columns[i].ResultType
-		}
-
-		// if the query is "select *" we need to
-		if query.SelectClause.IsStar && col.ColumnFamily == table.SystemColumnFamily {
-			if s, ok := selectStarScalarsMap[types.ColumnName(colMeta.Name)]; ok {
-				results = append(results, s)
-			} else {
-				// scalar value but no value has been set so default to nil
-				results = append(results, nil)
-			}
-			continue
-		}
-
-		var resultValue any
-		resultKey := colMeta.Name
-		err := resultRow.GetByName(resultKey, &resultValue)
+	rowMap := make(map[string]types.GoValue)
+	for i, colMeta := range resultRow.Metadata.Columns {
+		var val any
+		colName := colMeta.Name
+		err := resultRow.GetByName(colName, &val)
 		if err != nil {
 			return nil, err
 		}
+		var col *types.Column
+		var expectedType types.CqlDataType
+		if strings.Contains(colName, "$col") {
+			colName = string(query.SelectClause.Columns[i].ColumnName)
+		}
 
-		switch value := resultValue.(type) {
+		col, err = table.GetColumn(types.ColumnName(colName))
+		if err != nil {
+			return nil, err
+		}
+		expectedType = col.CQLType
+
+		switch v := val.(type) {
 		case string:
 			// do we need to decode base64?
-			goVal, err := utilities.StringToGo(value, expectedType.DataType())
+			goVal, err := utilities.StringToGo(v, expectedType.DataType())
 			if err != nil {
 				return nil, err
 			}
-			results = append(results, goVal)
+			rowMap[colName] = goVal
 		case []byte:
-			results = append(results, value)
+			rowMap[colName] = v
 		case map[string]*int64:
 			// counters are always a column family with a single column with an empty qualifier
-			counterValue, ok := value[""]
+			counterValue, ok := v[""]
 			if ok {
-				results = append(results, *counterValue)
+				rowMap[colName] = *counterValue
 			} else {
 				// default the counter to 0
-				results = append(results, int64(0))
+				rowMap[colName] = int64(0)
 			}
-		case map[string][]uint8:
-			// handle collections
-			if expectedType.Code() == types.LIST {
+		case map[string][]uint8: // either all scalars (when "select *") or a collection
+			// all scalars in system column family when "select *" is used
+			if colName == string(table.SystemColumnFamily) {
+				for k, val := range v {
+					key, err := decodeBase64(k)
+					if err != nil {
+						return nil, err
+					}
+					col, err = table.GetColumn(types.ColumnName(key))
+					if err != nil {
+						// the column may not exist in the table anymore - this happens when a column is dropped because we don't delete any data
+						continue
+					}
+					goVal, err := proxycore.DecodeType(col.CQLType.DataType(), constants.BigtableEncodingVersion, val)
+					if err != nil {
+						return nil, err
+					}
+					rowMap[key] = goVal
+				}
+			} else if expectedType.Code() == types.LIST {
 				lt := expectedType.(*types.ListType)
 				var listValues []types.GoValue
-				for _, listElement := range value {
+				for _, listElement := range v {
 					goVal, err := proxycore.DecodeType(lt.ElementType().BigtableStorageType().DataType(), constants.BigtableEncodingVersion, listElement)
 					if err != nil {
 						return nil, err
 					}
 					listValues = append(listValues, goVal)
 				}
-				results = append(results, listValues)
+				rowMap[colName] = listValues
 			} else if expectedType.Code() == types.SET {
 				st := expectedType.(*types.SetType)
 				var setValues []types.GoValue
-				for k := range value {
+				for k := range v {
 					key, err := decodeBase64(k)
 					if err != nil {
 						return nil, err
@@ -187,11 +186,11 @@ func (btc *BigtableClient) convertResultRow(resultRow bigtable.ResultRow, query 
 					}
 					setValues = append(setValues, goKey)
 				}
-				results = append(results, setValues)
+				rowMap[colName] = setValues
 			} else if expectedType.Code() == types.MAP {
 				mt := expectedType.(*types.MapType)
 				mapValue := make(map[types.GoValue]types.GoValue)
-				for k, val := range value {
+				for k, val := range v {
 					key, err := decodeBase64(k)
 					if err != nil {
 						return nil, err
@@ -206,7 +205,7 @@ func (btc *BigtableClient) convertResultRow(resultRow bigtable.ResultRow, query 
 					}
 					mapValue[goKey] = goVal
 				}
-				results = append(results, mapValue)
+				rowMap[colName] = mapValue
 			} else {
 				return nil, fmt.Errorf("unhandled collection response type: %s", expectedType.String())
 			}
@@ -216,26 +215,37 @@ func (btc *BigtableClient) convertResultRow(resultRow bigtable.ResultRow, query 
 				return nil, fmt.Errorf("expected list result type but got %s", expectedType.String())
 			}
 			var listValues []types.GoValue
-			for _, listElement := range value {
+			for _, listElement := range v {
 				goVal, err := proxycore.DecodeType(lt.ElementType().BigtableStorageType().DataType(), constants.BigtableEncodingVersion, listElement)
 				if err != nil {
 					return nil, err
 				}
 				listValues = append(listValues, goVal)
 			}
-			results = append(results, listValues)
+			rowMap[colName] = listValues
 		case int64, float64:
-			results = append(results, value)
+			rowMap[colName] = v
 		case float32:
-			results = append(results, float64(value))
+			rowMap[colName] = float64(v)
 		case time.Time:
-			results = append(results, value)
+			rowMap[colName] = v
 		case nil:
-			results = append(results, nil)
+			rowMap[colName] = nil
 		default:
-			return nil, fmt.Errorf("unsupported Bigtable SQL type  %T for column %s", value, resultKey)
+			return nil, fmt.Errorf("unsupported Bigtable SQL type  %T for column %s", v, colName)
 		}
 	}
+
+	var results []types.GoValue
+	for _, m := range query.ResultColumnMetadata {
+		val, ok := rowMap[m.Name]
+		if ok {
+			results = append(results, val)
+		} else {
+			results = append(results, nil)
+		}
+	}
+
 	return &types.BigtableResultRow{
 		Values: results,
 	}, nil

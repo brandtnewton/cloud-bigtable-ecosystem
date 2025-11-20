@@ -670,7 +670,7 @@ func TestTranslator_TranslateInsertQuerytoBigtable(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			tr := &translators.Translator{
+			tr := &translators.TranslatorManager{
 				Logger:              zap.NewNop(),
 				SchemaMappingConfig: tt.fields.SchemaMappingConfig,
 			}
@@ -794,17 +794,17 @@ func TestTranslator_BuildInsertPrepareQuery(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			tr := &translators.Translator{
+			tr := &translators.TranslatorManager{
 				Logger:              tt.fields.Logger,
 				SchemaMappingConfig: tt.fields.SchemaMappingConfig,
 			}
 			got, err := tr.BindInsert(tt.args.columnsResponse, tt.args.values, tt.args.st, tt.args.protocolV)
 			if (err != nil) != tt.wantErr {
-				t.Errorf("Translator.BindInsert() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("TranslatorManager.BindInsert() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
 			if got.RowKey != tt.want.RowKey {
-				t.Errorf("Translator.BindInsert() RowKey = %v, wantNewColumns %v", got.RowKey, tt.want.RowKey)
+				t.Errorf("TranslatorManager.BindInsert() RowKey = %v, wantNewColumns %v", got.RowKey, tt.want.RowKey)
 			}
 		})
 	}

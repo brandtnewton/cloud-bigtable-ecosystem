@@ -1,6 +1,7 @@
 package types
 
 type CreateTableStatementMap struct {
+	cqlQuery          string
 	keyspace          Keyspace
 	table             TableName
 	IfNotExists       bool
@@ -9,8 +10,24 @@ type CreateTableStatementMap struct {
 	IntRowKeyEncoding IntRowKeyEncodingType
 }
 
-func NewCreateTableStatementMap(keyspace Keyspace, table TableName, ifNotExists bool, columns []CreateColumn, primaryKeys []CreateTablePrimaryKeyConfig, intRowKeyEncoding IntRowKeyEncodingType) *CreateTableStatementMap {
-	return &CreateTableStatementMap{keyspace: keyspace, table: table, IfNotExists: ifNotExists, Columns: columns, PrimaryKeys: primaryKeys, IntRowKeyEncoding: intRowKeyEncoding}
+func (c CreateTableStatementMap) CqlQuery() string {
+	return c.cqlQuery
+}
+
+func (c CreateTableStatementMap) BigtableQuery() string {
+	return ""
+}
+
+func NewCreateTableStatementMap(keyspace Keyspace, table TableName, cqlQuery string, ifNotExists bool, columns []CreateColumn, primaryKeys []CreateTablePrimaryKeyConfig, intRowKeyEncoding IntRowKeyEncodingType) *CreateTableStatementMap {
+	return &CreateTableStatementMap{
+		keyspace:          keyspace,
+		table:             table,
+		cqlQuery:          cqlQuery,
+		IfNotExists:       ifNotExists,
+		Columns:           columns,
+		PrimaryKeys:       primaryKeys,
+		IntRowKeyEncoding: intRowKeyEncoding,
+	}
 }
 
 func (c CreateTableStatementMap) AsBulkMutation() (IBigtableMutation, bool) {

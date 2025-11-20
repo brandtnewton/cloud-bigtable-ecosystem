@@ -23,15 +23,18 @@ import (
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/translators/alter_translator"
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/translators/create_translator"
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/translators/delete_translator"
+	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/translators/desc_translator"
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/translators/drop_translator"
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/translators/insert_translator"
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/translators/select_translator"
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/translators/truncate_translator"
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/translators/update_translator"
+	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/translators/use_translator"
+	"github.com/datastax/go-cassandra-native-protocol/primitive"
 	"go.uber.org/zap"
 )
 
-type Translator struct {
+type TranslatorManager struct {
 	Logger              *zap.Logger
 	SchemaMappingConfig *schemaMapping.SchemaMappingConfig
 	// determines the encoding for int row keys in all new tables
@@ -39,7 +42,7 @@ type Translator struct {
 	translators              map[types.QueryType]types.IQueryTranslator
 }
 
-func NewTranslator(logger *zap.Logger, schemaMappingConfig *schemaMapping.SchemaMappingConfig, defaultIntRowKeyEncoding types.IntRowKeyEncodingType) *Translator {
+func NewTranslatorManager(logger *zap.Logger, schemaMappingConfig *schemaMapping.SchemaMappingConfig, defaultIntRowKeyEncoding types.IntRowKeyEncodingType) *TranslatorManager {
 	// add more translators here
 	translators := []types.IQueryTranslator{
 		select_translator.NewSelectTranslator(schemaMappingConfig),
@@ -50,6 +53,8 @@ func NewTranslator(logger *zap.Logger, schemaMappingConfig *schemaMapping.Schema
 		create_translator.NewCreateTranslator(schemaMappingConfig, defaultIntRowKeyEncoding),
 		alter_translator.NewAlterTranslator(schemaMappingConfig),
 		drop_translator.NewDropTranslator(schemaMappingConfig),
+		use_translator.NewUseTranslator(schemaMappingConfig),
+		desc_translator.NewDescTranslator(schemaMappingConfig),
 	}
 
 	var tm = make(map[types.QueryType]types.IQueryTranslator)
@@ -59,10 +64,45 @@ func NewTranslator(logger *zap.Logger, schemaMappingConfig *schemaMapping.Schema
 		}
 		tm[t.QueryType()] = t
 	}
-	return &Translator{
+	return &TranslatorManager{
 		Logger:                   logger,
 		SchemaMappingConfig:      schemaMappingConfig,
 		DefaultIntRowKeyEncoding: defaultIntRowKeyEncoding,
 		translators:              tm,
 	}
+}
+
+func (t *TranslatorManager) TranslateQuery(q *types.RawQuery, sessionKeyspace types.Keyspace, isPrepared bool) (types.IPreparedQuery, types.IExecutableQuery, error) {
+	queryTranslator, err := t.getTranslator(q.QueryType())
+	if err != nil {
+		return nil, nil, err
+	}
+
+	prepared, executable, err := queryTranslator.Translate(q, sessionKeyspace, isPrepared)
+
+	if err == nil {
+		btql := ""
+		if prepared != nil {
+			btql = prepared.BigtableQuery()
+		} else if executable != nil {
+			btql = executable.BigtableQuery()
+		}
+		t.Logger.Debug("translated query", zap.String("cql", q.RawCql()), zap.String("btql", btql))
+	}
+
+	return prepared, executable, err
+}
+
+func (t *TranslatorManager) BindQuery(st types.IPreparedQuery, cassandraValues []*primitive.Value, pv primitive.ProtocolVersion) (types.IExecutableQuery, error) {
+	queryTranslator, err := t.getTranslator(st.QueryType())
+	if err != nil {
+		return nil, err
+	}
+
+	executable, err := queryTranslator.Bind(st, cassandraValues, pv)
+
+	if err == nil {
+		t.Logger.Debug("translated query", zap.String("cql", st.CqlQuery()), zap.String("btql", st.BigtableQuery()))
+	}
+	return executable, err
 }

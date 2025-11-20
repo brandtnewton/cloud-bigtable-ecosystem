@@ -19,31 +19,12 @@ package translators
 import (
 	"fmt"
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/global/types"
-	"github.com/datastax/go-cassandra-native-protocol/primitive"
 )
 
-func (t *Translator) getTranslator(queryType types.QueryType) (types.IQueryTranslator, error) {
+func (t *TranslatorManager) getTranslator(queryType types.QueryType) (types.IQueryTranslator, error) {
 	translator, ok := t.translators[queryType]
 	if !ok {
 		return nil, fmt.Errorf("unhandled query type '%s'", queryType.String())
 	}
 	return translator, nil
-}
-
-func (t *Translator) TranslateQuery(queryType types.QueryType, sessionKeyspace types.Keyspace, query string, isPrepared bool) (types.IPreparedQuery, types.IExecutableQuery, error) {
-	queryTranslator, err := t.getTranslator(queryType)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	return queryTranslator.Translate(query, sessionKeyspace, isPrepared)
-}
-
-func (t *Translator) BindQuery(st types.IPreparedQuery, cassandraValues []*primitive.Value, pv primitive.ProtocolVersion) (types.IExecutableQuery, error) {
-	queryTranslator, err := t.getTranslator(st.QueryType())
-	if err != nil {
-		return nil, err
-	}
-
-	return queryTranslator.Bind(st, cassandraValues, pv)
 }

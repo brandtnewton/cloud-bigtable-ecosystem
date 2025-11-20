@@ -114,6 +114,14 @@ type BoundSelectQuery struct {
 	Values          *QueryParameterValues
 }
 
+func (b BoundSelectQuery) CqlQuery() string {
+	return b.Query.cqlQuery
+}
+
+func (b BoundSelectQuery) BigtableQuery() string {
+	return b.Query.TranslatedQuery
+}
+
 func (b BoundSelectQuery) AsBulkMutation() (IBigtableMutation, bool) {
 	return nil, false
 }

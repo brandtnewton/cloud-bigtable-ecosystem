@@ -43,6 +43,9 @@ type SchemaMappingConfig struct {
 // NewSchemaMappingConfig is a constructor for SchemaMappingConfig. Please use this instead of direct initialization.
 func NewSchemaMappingConfig(schemaMappingTableName types.TableName, systemColumnFamily types.ColumnFamily, logger *zap.Logger, tableConfigs []*TableConfig) *SchemaMappingConfig {
 	tablesMap := make(map[types.Keyspace]map[types.TableName]*TableConfig)
+
+	tableConfigs = append(tableConfigs, getSystemTableConfigs()...)
+
 	for _, tableConfig := range tableConfigs {
 		if keyspace, exists := tablesMap[tableConfig.Keyspace]; !exists {
 			keyspace = make(map[types.TableName]*TableConfig)

@@ -18,8 +18,11 @@ package types
 
 import (
 	"cloud.google.com/go/bigtable"
+	cql "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/third_party/cqlparser"
+	"github.com/datastax/go-cassandra-native-protocol/frame"
 	"github.com/datastax/go-cassandra-native-protocol/message"
 	"github.com/datastax/go-cassandra-native-protocol/primitive"
+	"time"
 )
 
 // ColumnFamily a Bigtable Column Family
@@ -42,6 +45,10 @@ type GoValue any
 
 type TableName string
 type Keyspace string
+
+func (k Keyspace) IsSystemKeyspace() bool {
+	return k == "system" || k == "system_schema" || k == "system_virtual_schema"
+}
 
 type BigtableData struct {
 	Family ColumnFamily
@@ -130,6 +137,8 @@ type IExecutableQuery interface {
 	Table() TableName
 	QueryType() QueryType
 	AsBulkMutation() (IBigtableMutation, bool)
+	CqlQuery() string
+	BigtableQuery() string
 }
 type IPreparedQuery interface {
 	Keyspace() Keyspace
@@ -141,10 +150,53 @@ type IPreparedQuery interface {
 	// SetBigtablePreparedQuery - only implemented for "select" queries for now because Bigtable SQL only supports reads
 	SetBigtablePreparedQuery(s *bigtable.PreparedStatement)
 	BigtableQuery() string
+	IsIdempotent() bool
 }
 
 type IQueryTranslator interface {
-	Translate(query string, sessionKeyspace Keyspace, isPreparedQuery bool) (IPreparedQuery, IExecutableQuery, error)
+	Translate(query *RawQuery, sessionKeyspace Keyspace, isPreparedQuery bool) (IPreparedQuery, IExecutableQuery, error)
 	Bind(st IPreparedQuery, values []*primitive.Value, pv primitive.ProtocolVersion) (IExecutableQuery, error)
 	QueryType() QueryType
+}
+
+type RawQuery struct {
+	header    *frame.Header
+	cql       string
+	qt        QueryType
+	parser    *cql.CqlParser
+	startTime time.Time
+}
+
+func NewRawQuery(header *frame.Header, cql string, parser *cql.CqlParser, qt QueryType) *RawQuery {
+	return NewRawQueryWithTime(header, cql, parser, qt, time.Now().UTC())
+}
+
+func NewRawQueryWithTime(header *frame.Header, cql string, parser *cql.CqlParser, qt QueryType, t time.Time) *RawQuery {
+	return &RawQuery{
+		header:    header,
+		cql:       cql,
+		parser:    parser,
+		qt:        qt,
+		startTime: t,
+	}
+}
+
+func (r RawQuery) QueryType() QueryType {
+	return r.qt
+}
+
+func (r RawQuery) RawCql() string {
+	return r.cql
+}
+
+func (r RawQuery) Parser() *cql.CqlParser {
+	return r.parser
+}
+
+func (r RawQuery) StartTime() time.Time {
+	return r.startTime
+}
+
+func (r RawQuery) Header() *frame.Header {
+	return r.header
 }

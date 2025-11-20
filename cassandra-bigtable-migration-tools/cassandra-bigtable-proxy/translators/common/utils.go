@@ -184,7 +184,7 @@ func ParseStringLiteral(d cql.IStringLiteralContext, params *types.QueryParamete
 	return p, nil
 }
 
-func ParseWhereClause(input cql.IWhereSpecContext, tableConfig *schemaMapping.TableConfig, params *types.QueryParameters, values *types.QueryParameterValues) ([]types.Condition, error) {
+func ParseWhereClause(input cql.IWhereSpecContext, tableConfig *schemaMapping.TableConfig, params *types.QueryParameters, values *types.QueryParameterValues, isPrepared bool) ([]types.Condition, error) {
 	if input == nil {
 		return nil, nil
 	}
@@ -204,7 +204,6 @@ func ParseWhereClause(input cql.IWhereSpecContext, tableConfig *schemaMapping.Ta
 		if val == nil {
 			return nil, errors.New("could not parse column object")
 		}
-		hasValue := val.QUESTION_MARK() == nil
 
 		column, err := parseColumn(tableConfig, val)
 		if err != nil {
@@ -218,7 +217,7 @@ func ParseWhereClause(input cql.IWhereSpecContext, tableConfig *schemaMapping.Ta
 				Operator:         constants.EQ,
 				ValuePlaceholder: p,
 			})
-			if hasValue {
+			if !isPrepared {
 				val, err := parseConstantValue(column, val)
 				if err != nil {
 					return nil, err
@@ -235,7 +234,7 @@ func ParseWhereClause(input cql.IWhereSpecContext, tableConfig *schemaMapping.Ta
 				Operator:         constants.GT,
 				ValuePlaceholder: p,
 			})
-			if hasValue {
+			if !isPrepared {
 				val, err := parseConstantValue(column, val)
 				if err != nil {
 					return nil, err
@@ -252,7 +251,7 @@ func ParseWhereClause(input cql.IWhereSpecContext, tableConfig *schemaMapping.Ta
 				Operator:         constants.LT,
 				ValuePlaceholder: p,
 			})
-			if hasValue {
+			if !isPrepared {
 				val, err := parseConstantValue(column, val)
 				if err != nil {
 					return nil, err
@@ -269,7 +268,7 @@ func ParseWhereClause(input cql.IWhereSpecContext, tableConfig *schemaMapping.Ta
 				Operator:         constants.GTE,
 				ValuePlaceholder: p,
 			})
-			if hasValue {
+			if !isPrepared {
 				val, err := parseConstantValue(column, val)
 				if err != nil {
 					return nil, err
@@ -286,7 +285,7 @@ func ParseWhereClause(input cql.IWhereSpecContext, tableConfig *schemaMapping.Ta
 				Operator:         constants.LTE,
 				ValuePlaceholder: p,
 			})
-			if hasValue {
+			if !isPrepared {
 				val, err := parseConstantValue(column, val)
 				if err != nil {
 					return nil, err
@@ -303,7 +302,7 @@ func ParseWhereClause(input cql.IWhereSpecContext, tableConfig *schemaMapping.Ta
 				Operator:         constants.IN,
 				ValuePlaceholder: p,
 			})
-			if hasValue {
+			if !isPrepared {
 				valueFn := val.FunctionArgs()
 				if valueFn == nil {
 					return nil, errors.New("could not parse Function arguments")
@@ -345,7 +344,7 @@ func ParseWhereClause(input cql.IWhereSpecContext, tableConfig *schemaMapping.Ta
 				Operator:         operator,
 				ValuePlaceholder: p,
 			})
-			if hasValue {
+			if !isPrepared {
 				value, err := parseContainsValue(column, relContains)
 				if err != nil {
 					return nil, err
@@ -367,7 +366,7 @@ func ParseWhereClause(input cql.IWhereSpecContext, tableConfig *schemaMapping.Ta
 				Operator:         constants.MAP_CONTAINS_KEY,
 				ValuePlaceholder: p,
 			})
-			if hasValue {
+			if !isPrepared {
 				value, err := parseContainsKeyValue(column, relContains)
 				if err != nil {
 					return nil, err
@@ -384,7 +383,7 @@ func ParseWhereClause(input cql.IWhereSpecContext, tableConfig *schemaMapping.Ta
 				Operator:         constants.LIKE,
 				ValuePlaceholder: p,
 			})
-			if hasValue {
+			if !isPrepared {
 				value, err := parseConstantValue(column, val)
 				if err != nil {
 					return nil, err
@@ -401,7 +400,7 @@ func ParseWhereClause(input cql.IWhereSpecContext, tableConfig *schemaMapping.Ta
 				Operator:         constants.BETWEEN,
 				ValuePlaceholder: p,
 			})
-			if hasValue {
+			if !isPrepared {
 				value, err := parseConstantValue(column, val)
 				if err != nil {
 					return nil, err
@@ -546,27 +545,6 @@ func ValidateRequiredPrimaryKeys(tableConfig *schemaMapping.TableConfig, params 
 		}
 	}
 	return nil
-}
-
-// NewCqlParser creates a new CQL parser instance.
-// Initializes and returns a parser for CQL queries with validation.
-// Returns error if query is invalid or parser initialization fails.
-func NewCqlParser(cqlQuery string, isDebug bool) (*cql.CqlParser, error) {
-	if cqlQuery == "" {
-		return nil, fmt.Errorf("invalid input string")
-	}
-
-	lexer := cql.NewCqlLexer(antlr.NewInputStream(cqlQuery))
-	stream := antlr.NewCommonTokenStream(lexer, antlr.TokenDefaultChannel)
-	p := cql.NewCqlParser(stream)
-	if p == nil {
-		return nil, fmt.Errorf("error while creating parser object")
-	}
-
-	if !isDebug {
-		p.RemoveErrorListeners()
-	}
-	return p, nil
 }
 
 func ParseCqlListAssignment(l cql.IAssignmentListContext, dt types.CqlDataType) ([]types.GoValue, error) {

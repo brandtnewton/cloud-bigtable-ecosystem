@@ -259,7 +259,7 @@ func TestTranslateAlterTableToBigtable(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			require.NotNil(t, tt.tableConfig, "tests must define a table config")
 			smc := schemaMapping.NewSchemaMappingConfig("schema_mapping", "cf1", zap.NewNop(), []*schemaMapping.TableConfig{tt.tableConfig})
-			tr := &translators.Translator{
+			tr := &translators.TranslatorManager{
 				Logger:              nil,
 				SchemaMappingConfig: smc,
 			}

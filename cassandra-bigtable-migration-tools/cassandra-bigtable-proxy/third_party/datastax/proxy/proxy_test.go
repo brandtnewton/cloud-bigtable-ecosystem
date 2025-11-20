@@ -276,7 +276,7 @@ var mockRawFrame = &frame.RawFrame{
 
 var mockProxy = &Proxy{
 	schemaMapping: mockTableSchemaConfig,
-	translator: &translators.Translator{
+	translator: &translators.TranslatorManager{
 		SchemaMappingConfig: mockTableSchemaConfig,
 	},
 	logger: zap.NewNop(),
@@ -347,7 +347,7 @@ func Test_handleExecutionForDeletePreparedQuery(t *testing.T) {
 	id := md5.Sum([]byte("DELETE FROM key_space.test_table WHERE test_id = '?'"))
 	mockProxy := &Proxy{
 		schemaMapping: mockTableSchemaConfig,
-		translator: &translators.Translator{
+		translator: &translators.TranslatorManager{
 			SchemaMappingConfig: mockTableSchemaConfig,
 		},
 		logger:  zap.NewNop(),
@@ -1008,7 +1008,7 @@ func TestPrepareInsertType(t *testing.T) {
 		proxy: &Proxy{
 			schemaMapping: GetSchemaMappingConfig(),
 			logger:        mockProxy.logger,
-			translator: &translators.Translator{
+			translator: &translators.TranslatorManager{
 				SchemaMappingConfig: GetSchemaMappingConfig(),
 			},
 		},
@@ -1063,7 +1063,7 @@ func TestPrepareSelectType(t *testing.T) {
 			schemaMapping: GetSchemaMappingConfig(),
 			logger:        mockProxy.logger,
 			bClient:       bigTablemockiface,
-			translator: &translators.Translator{
+			translator: &translators.TranslatorManager{
 				SchemaMappingConfig: GetSchemaMappingConfig(),
 			},
 		},
@@ -1118,7 +1118,7 @@ func TestPrepareSelectTypeWithClauseFunction(t *testing.T) {
 			schemaMapping: GetSchemaMappingConfig(),
 			logger:        mockProxy.logger,
 			bClient:       bigTablemockiface,
-			translator: &translators.Translator{
+			translator: &translators.TranslatorManager{
 				SchemaMappingConfig: GetSchemaMappingConfig(),
 			},
 		},
@@ -1145,7 +1145,7 @@ func TestPrepareUpdateType(t *testing.T) {
 		proxy: &Proxy{
 			schemaMapping: GetSchemaMappingConfig(),
 			logger:        mockProxy.logger,
-			translator: &translators.Translator{
+			translator: &translators.TranslatorManager{
 				SchemaMappingConfig: GetSchemaMappingConfig(),
 			},
 		},
@@ -1173,7 +1173,7 @@ func TestPrepareDeleteType(t *testing.T) {
 		proxy: &Proxy{
 			schemaMapping: GetSchemaMappingConfig(),
 			logger:        mockProxy.logger,
-			translator: &translators.Translator{
+			translator: &translators.TranslatorManager{
 				SchemaMappingConfig: GetSchemaMappingConfig(),
 			},
 		},
@@ -1208,7 +1208,7 @@ func TestHandleExecuteForInsert(t *testing.T) {
 			bClient:       bigTablemockiface,
 			schemaMapping: GetSchemaMappingConfig(),
 			logger:        mockProxy.logger,
-			translator: &translators.Translator{
+			translator: &translators.TranslatorManager{
 				SchemaMappingConfig: GetSchemaMappingConfig(),
 			},
 			otelInst: &otelgo.OpenTelemetry{Config: &otelgo.OTelConfig{
@@ -1274,7 +1274,7 @@ func TestHandleExecuteForSelect(t *testing.T) {
 			bClient:       bigTablemockiface,
 			schemaMapping: GetSchemaMappingConfig(),
 			logger:        mockProxy.logger,
-			translator: &translators.Translator{
+			translator: &translators.TranslatorManager{
 				SchemaMappingConfig: GetSchemaMappingConfig(),
 			},
 			otelInst: &otelgo.OpenTelemetry{
@@ -1389,7 +1389,7 @@ func TestHandleExecuteForDelete(t *testing.T) {
 			bClient:       bigTablemockiface,
 			schemaMapping: GetSchemaMappingConfig(),
 			logger:        mockProxy.logger,
-			translator: &translators.Translator{
+			translator: &translators.TranslatorManager{
 				SchemaMappingConfig: GetSchemaMappingConfig(),
 			},
 			otelInst: &otelgo.OpenTelemetry{Config: &otelgo.OTelConfig{
@@ -1438,7 +1438,7 @@ func TestHandleExecuteForUpdate(t *testing.T) {
 			bClient:       bigTablemockiface,
 			schemaMapping: GetSchemaMappingConfig(),
 			logger:        mockProxy.logger,
-			translator: &translators.Translator{
+			translator: &translators.TranslatorManager{
 				SchemaMappingConfig: GetSchemaMappingConfig(),
 			},
 			otelInst: &otelgo.OpenTelemetry{Config: &otelgo.OTelConfig{
@@ -1499,7 +1499,7 @@ func TestHandleQueryInsert(t *testing.T) {
 			bClient:       bigTablemockiface,
 			schemaMapping: GetSchemaMappingConfig(),
 			logger:        mockProxy.logger,
-			translator: &translators.Translator{
+			translator: &translators.TranslatorManager{
 				SchemaMappingConfig: GetSchemaMappingConfig(),
 			},
 			otelInst: &otelgo.OpenTelemetry{Config: &otelgo.OTelConfig{
@@ -1529,7 +1529,7 @@ func TestHandleQueryUpdate(t *testing.T) {
 			bClient:       bigTablemockiface,
 			schemaMapping: GetSchemaMappingConfig(),
 			logger:        mockProxy.logger,
-			translator: &translators.Translator{
+			translator: &translators.TranslatorManager{
 				SchemaMappingConfig: GetSchemaMappingConfig(),
 			},
 			otelInst: &otelgo.OpenTelemetry{Config: &otelgo.OTelConfig{
@@ -1560,7 +1560,7 @@ func TestHandleQueryDelete(t *testing.T) {
 			bClient:       bigTablemockiface,
 			schemaMapping: GetSchemaMappingConfig(),
 			logger:        mockProxy.logger,
-			translator: &translators.Translator{
+			translator: &translators.TranslatorManager{
 				SchemaMappingConfig: GetSchemaMappingConfig(),
 			},
 			otelInst: &otelgo.OpenTelemetry{Config: &otelgo.OTelConfig{
@@ -1589,7 +1589,7 @@ func TestHandleBatchUpdate(t *testing.T) {
 			bClient:       bigTablemockiface,
 			schemaMapping: GetSchemaMappingConfig(),
 			logger:        mockProxy.logger,
-			translator: &translators.Translator{
+			translator: &translators.TranslatorManager{
 				SchemaMappingConfig: GetSchemaMappingConfig(),
 			},
 			otelInst: &otelgo.OpenTelemetry{Config: &otelgo.OTelConfig{
@@ -1627,7 +1627,7 @@ func TestHandleBatchInsert(t *testing.T) {
 			bClient:       bigTablemockiface,
 			schemaMapping: GetSchemaMappingConfig(),
 			logger:        mockProxy.logger,
-			translator: &translators.Translator{
+			translator: &translators.TranslatorManager{
 				SchemaMappingConfig: GetSchemaMappingConfig(),
 			},
 			otelInst: &otelgo.OpenTelemetry{Config: &otelgo.OTelConfig{
@@ -1687,7 +1687,7 @@ func TestHandleBatchSelect(t *testing.T) {
 			bClient:       bigTablemockiface,
 			schemaMapping: GetSchemaMappingConfig(),
 			logger:        mockProxy.logger,
-			translator: &translators.Translator{
+			translator: &translators.TranslatorManager{
 				SchemaMappingConfig: GetSchemaMappingConfig(),
 			},
 			otelInst: &otelgo.OpenTelemetry{Config: &otelgo.OTelConfig{
@@ -1725,7 +1725,7 @@ func TestHandleBatchDelete(t *testing.T) {
 			bClient:       bigTablemockiface,
 			schemaMapping: GetSchemaMappingConfig(),
 			logger:        mockProxy.logger,
-			translator: &translators.Translator{
+			translator: &translators.TranslatorManager{
 				SchemaMappingConfig: GetSchemaMappingConfig(),
 			},
 			otelInst: &otelgo.OpenTelemetry{Config: &otelgo.OTelConfig{
@@ -1832,7 +1832,7 @@ func TestClose(t *testing.T) {
 	proxy := &Proxy{
 		schemaMapping: GetSchemaMappingConfig(),
 		logger:        mockProxy.logger,
-		translator: &translators.Translator{
+		translator: &translators.TranslatorManager{
 			SchemaMappingConfig: GetSchemaMappingConfig(),
 		},
 		closed:  make(chan struct{}),
@@ -2035,7 +2035,7 @@ func TestHandleQuerySelect(t *testing.T) {
 			bClient:       bigTablemockiface,
 			schemaMapping: GetSchemaMappingConfig(),
 			logger:        mockProxy.logger,
-			translator: &translators.Translator{
+			translator: &translators.TranslatorManager{
 				SchemaMappingConfig: GetSchemaMappingConfig(),
 			},
 			otelInst: &otelgo.OpenTelemetry{Config: &otelgo.OTelConfig{

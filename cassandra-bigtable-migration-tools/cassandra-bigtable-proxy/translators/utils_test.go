@@ -18,6 +18,7 @@ package translators
 
 import (
 	"fmt"
+	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/translators/common"
 	"math"
 	"reflect"
 	"sort"
@@ -384,7 +385,7 @@ func Test_processCollectionColumnsForPrepareQueries(t *testing.T) {
 		tableName           string
 		protocolV           primitive.ProtocolVersion
 		primaryKeys         []string
-		translator          *Translator
+		translator          *TranslatorManager
 		wantNewColumns      []*types.Column
 		wantNewValues       []interface{}
 		wantUnencrypted     map[string]interface{}
@@ -405,7 +406,7 @@ func Test_processCollectionColumnsForPrepareQueries(t *testing.T) {
 			tableName:   "non_primitive_table",
 			protocolV:   primitive.ProtocolVersion4,
 			primaryKeys: []string{},
-			translator: &Translator{
+			translator: &TranslatorManager{
 				Logger:              zap.NewNop(),
 				SchemaMappingConfig: common.GetSchemaMappingConfig(types.OrderedCodeEncoding),
 			},
@@ -430,7 +431,7 @@ func Test_processCollectionColumnsForPrepareQueries(t *testing.T) {
 			tableName:   "non_primitive_table",
 			protocolV:   primitive.ProtocolVersion4,
 			primaryKeys: []string{},
-			translator: &Translator{
+			translator: &TranslatorManager{
 				Logger:              zap.NewNop(),
 				SchemaMappingConfig: common.GetSchemaMappingConfig(types.OrderedCodeEncoding),
 			},
@@ -455,7 +456,7 @@ func Test_processCollectionColumnsForPrepareQueries(t *testing.T) {
 			tableName:   "non_primitive_table",
 			protocolV:   primitive.ProtocolVersion4,
 			primaryKeys: []string{},
-			translator: &Translator{
+			translator: &TranslatorManager{
 				Logger:              zap.NewNop(),
 				SchemaMappingConfig: common.GetSchemaMappingConfig(types.OrderedCodeEncoding),
 			},
@@ -480,7 +481,7 @@ func Test_processCollectionColumnsForPrepareQueries(t *testing.T) {
 			tableName:   "non_primitive_table",
 			protocolV:   primitive.ProtocolVersion4,
 			primaryKeys: []string{},
-			translator: &Translator{
+			translator: &TranslatorManager{
 				Logger:              zap.NewNop(),
 				SchemaMappingConfig: common.GetSchemaMappingConfig(types.OrderedCodeEncoding),
 			},
@@ -505,7 +506,7 @@ func Test_processCollectionColumnsForPrepareQueries(t *testing.T) {
 			tableName:   "non_primitive_table",
 			protocolV:   primitive.ProtocolVersion4,
 			primaryKeys: []string{},
-			translator: &Translator{
+			translator: &TranslatorManager{
 				Logger:              zap.NewNop(),
 				SchemaMappingConfig: common.GetSchemaMappingConfig(types.OrderedCodeEncoding),
 			},
@@ -530,7 +531,7 @@ func Test_processCollectionColumnsForPrepareQueries(t *testing.T) {
 			tableName:   "non_primitive_table",
 			protocolV:   primitive.ProtocolVersion4,
 			primaryKeys: []string{},
-			translator: &Translator{
+			translator: &TranslatorManager{
 				Logger:              zap.NewNop(),
 				SchemaMappingConfig: common.GetSchemaMappingConfig(types.OrderedCodeEncoding),
 			},
@@ -555,7 +556,7 @@ func Test_processCollectionColumnsForPrepareQueries(t *testing.T) {
 			tableName:   "non_primitive_table",
 			protocolV:   primitive.ProtocolVersion4,
 			primaryKeys: []string{},
-			translator: &Translator{
+			translator: &TranslatorManager{
 				Logger:              zap.NewNop(),
 				SchemaMappingConfig: common.GetSchemaMappingConfig(types.OrderedCodeEncoding),
 			},
@@ -580,7 +581,7 @@ func Test_processCollectionColumnsForPrepareQueries(t *testing.T) {
 			tableName:   "non_primitive_table",
 			protocolV:   primitive.ProtocolVersion4,
 			primaryKeys: []string{},
-			translator: &Translator{
+			translator: &TranslatorManager{
 				Logger:              zap.NewNop(),
 				SchemaMappingConfig: common.GetSchemaMappingConfig(types.OrderedCodeEncoding),
 			},
@@ -605,7 +606,7 @@ func Test_processCollectionColumnsForPrepareQueries(t *testing.T) {
 			tableName:   "non_primitive_table",
 			protocolV:   primitive.ProtocolVersion4,
 			primaryKeys: []string{},
-			translator: &Translator{
+			translator: &TranslatorManager{
 				Logger:              zap.NewNop(),
 				SchemaMappingConfig: common.GetSchemaMappingConfig(types.OrderedCodeEncoding),
 			},
@@ -630,7 +631,7 @@ func Test_processCollectionColumnsForPrepareQueries(t *testing.T) {
 			tableName:   "non_primitive_table",
 			protocolV:   primitive.ProtocolVersion4,
 			primaryKeys: []string{},
-			translator: &Translator{
+			translator: &TranslatorManager{
 				Logger:              zap.NewNop(),
 				SchemaMappingConfig: common.GetSchemaMappingConfig(types.OrderedCodeEncoding),
 			},
@@ -655,7 +656,7 @@ func Test_processCollectionColumnsForPrepareQueries(t *testing.T) {
 			tableName:   "non_primitive_table",
 			protocolV:   primitive.ProtocolVersion4,
 			primaryKeys: []string{},
-			translator: &Translator{
+			translator: &TranslatorManager{
 				Logger:              zap.NewNop(),
 				SchemaMappingConfig: common.GetSchemaMappingConfig(types.OrderedCodeEncoding),
 			},
@@ -680,7 +681,7 @@ func Test_processCollectionColumnsForPrepareQueries(t *testing.T) {
 			tableName:   "non_primitive_table",
 			protocolV:   primitive.ProtocolVersion4,
 			primaryKeys: []string{},
-			translator: &Translator{
+			translator: &TranslatorManager{
 				Logger:              zap.NewNop(),
 				SchemaMappingConfig: common.GetSchemaMappingConfig(types.OrderedCodeEncoding),
 			},
@@ -705,7 +706,7 @@ func Test_processCollectionColumnsForPrepareQueries(t *testing.T) {
 			tableName:   "non_primitive_table",
 			protocolV:   primitive.ProtocolVersion4,
 			primaryKeys: []string{},
-			translator: &Translator{
+			translator: &TranslatorManager{
 				Logger:              zap.NewNop(),
 				SchemaMappingConfig: common.GetSchemaMappingConfig(types.OrderedCodeEncoding),
 			},
@@ -730,7 +731,7 @@ func Test_processCollectionColumnsForPrepareQueries(t *testing.T) {
 			tableName:   "non_primitive_table",
 			protocolV:   primitive.ProtocolVersion4,
 			primaryKeys: []string{},
-			translator: &Translator{
+			translator: &TranslatorManager{
 				Logger:              zap.NewNop(),
 				SchemaMappingConfig: common.GetSchemaMappingConfig(types.OrderedCodeEncoding),
 			},
@@ -755,7 +756,7 @@ func Test_processCollectionColumnsForPrepareQueries(t *testing.T) {
 			tableName:   "non_primitive_table",
 			protocolV:   primitive.ProtocolVersion4,
 			primaryKeys: []string{},
-			translator: &Translator{
+			translator: &TranslatorManager{
 				Logger:              zap.NewNop(),
 				SchemaMappingConfig: common.GetSchemaMappingConfig(types.OrderedCodeEncoding),
 			},
@@ -780,7 +781,7 @@ func Test_processCollectionColumnsForPrepareQueries(t *testing.T) {
 			tableName:   "non_primitive_table",
 			protocolV:   primitive.ProtocolVersion4,
 			primaryKeys: []string{},
-			translator: &Translator{
+			translator: &TranslatorManager{
 				Logger:              zap.NewNop(),
 				SchemaMappingConfig: common.GetSchemaMappingConfig(types.OrderedCodeEncoding),
 			},
@@ -805,7 +806,7 @@ func Test_processCollectionColumnsForPrepareQueries(t *testing.T) {
 			tableName:   "non_primitive_table",
 			protocolV:   primitive.ProtocolVersion4,
 			primaryKeys: []string{},
-			translator: &Translator{
+			translator: &TranslatorManager{
 				Logger:              zap.NewNop(),
 				SchemaMappingConfig: common.GetSchemaMappingConfig(types.OrderedCodeEncoding),
 			},
@@ -830,7 +831,7 @@ func Test_processCollectionColumnsForPrepareQueries(t *testing.T) {
 			tableName:   "non_primitive_table",
 			protocolV:   primitive.ProtocolVersion4,
 			primaryKeys: []string{},
-			translator: &Translator{
+			translator: &TranslatorManager{
 				Logger:              zap.NewNop(),
 				SchemaMappingConfig: common.GetSchemaMappingConfig(types.OrderedCodeEncoding),
 			},
@@ -855,7 +856,7 @@ func Test_processCollectionColumnsForPrepareQueries(t *testing.T) {
 			tableName:   "non_primitive_table",
 			protocolV:   primitive.ProtocolVersion4,
 			primaryKeys: []string{},
-			translator: &Translator{
+			translator: &TranslatorManager{
 				Logger:              zap.NewNop(),
 				SchemaMappingConfig: common.GetSchemaMappingConfig(types.OrderedCodeEncoding),
 			},
@@ -880,7 +881,7 @@ func Test_processCollectionColumnsForPrepareQueries(t *testing.T) {
 			tableName:   "non_primitive_table",
 			protocolV:   primitive.ProtocolVersion4,
 			primaryKeys: []string{},
-			translator: &Translator{
+			translator: &TranslatorManager{
 				Logger:              zap.NewNop(),
 				SchemaMappingConfig: common.GetSchemaMappingConfig(types.OrderedCodeEncoding),
 			},
@@ -905,7 +906,7 @@ func Test_processCollectionColumnsForPrepareQueries(t *testing.T) {
 			tableName:   "non_primitive_table",
 			protocolV:   primitive.ProtocolVersion4,
 			primaryKeys: []string{},
-			translator: &Translator{
+			translator: &TranslatorManager{
 				Logger:              zap.NewNop(),
 				SchemaMappingConfig: common.GetSchemaMappingConfig(types.OrderedCodeEncoding),
 			},
@@ -929,7 +930,7 @@ func Test_processCollectionColumnsForPrepareQueries(t *testing.T) {
 			tableName:   "non_primitive_table",
 			protocolV:   primitive.ProtocolVersion4,
 			primaryKeys: []string{},
-			translator: &Translator{
+			translator: &TranslatorManager{
 				Logger:              zap.NewNop(),
 				SchemaMappingConfig: common.GetSchemaMappingConfig(types.OrderedCodeEncoding),
 			},
@@ -953,7 +954,7 @@ func Test_processCollectionColumnsForPrepareQueries(t *testing.T) {
 			tableName:   "non_primitive_table",
 			protocolV:   primitive.ProtocolVersion4,
 			primaryKeys: []string{},
-			translator: &Translator{
+			translator: &TranslatorManager{
 				Logger:              zap.NewNop(),
 				SchemaMappingConfig: common.GetSchemaMappingConfig(types.OrderedCodeEncoding),
 			},
@@ -977,7 +978,7 @@ func Test_processCollectionColumnsForPrepareQueries(t *testing.T) {
 			tableName:   "non_primitive_table",
 			protocolV:   primitive.ProtocolVersion4,
 			primaryKeys: []string{},
-			translator: &Translator{
+			translator: &TranslatorManager{
 				Logger:              zap.NewNop(),
 				SchemaMappingConfig: common.GetSchemaMappingConfig(types.OrderedCodeEncoding),
 			},
@@ -1001,7 +1002,7 @@ func Test_processCollectionColumnsForPrepareQueries(t *testing.T) {
 			tableName:   "non_primitive_table",
 			protocolV:   primitive.ProtocolVersion4,
 			primaryKeys: []string{},
-			translator: &Translator{
+			translator: &TranslatorManager{
 				Logger:              zap.NewNop(),
 				SchemaMappingConfig: common.GetSchemaMappingConfig(types.OrderedCodeEncoding),
 			},
@@ -1025,7 +1026,7 @@ func Test_processCollectionColumnsForPrepareQueries(t *testing.T) {
 			tableName:   "non_primitive_table",
 			protocolV:   primitive.ProtocolVersion4,
 			primaryKeys: []string{},
-			translator: &Translator{
+			translator: &TranslatorManager{
 				Logger:              zap.NewNop(),
 				SchemaMappingConfig: common.GetSchemaMappingConfig(types.OrderedCodeEncoding),
 			},
@@ -1049,7 +1050,7 @@ func Test_processCollectionColumnsForPrepareQueries(t *testing.T) {
 			tableName:   "non_primitive_table",
 			protocolV:   primitive.ProtocolVersion4,
 			primaryKeys: []string{},
-			translator: &Translator{
+			translator: &TranslatorManager{
 				Logger:              zap.NewNop(),
 				SchemaMappingConfig: common.GetSchemaMappingConfig(types.OrderedCodeEncoding),
 			},
@@ -1073,7 +1074,7 @@ func Test_processCollectionColumnsForPrepareQueries(t *testing.T) {
 			tableName:   "non_primitive_table",
 			protocolV:   primitive.ProtocolVersion4,
 			primaryKeys: []string{},
-			translator: &Translator{
+			translator: &TranslatorManager{
 				Logger:              zap.NewNop(),
 				SchemaMappingConfig: common.GetSchemaMappingConfig(types.OrderedCodeEncoding),
 			},
@@ -1091,14 +1092,14 @@ func Test_processCollectionColumnsForPrepareQueries(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			input := ProcessPrepareCollectionsInput{
-				ColumnsResponse: tt.columns,
-				Values:          tt.values,
-				TableName:       tt.tableName,
-				ProtocolV:       tt.protocolV,
-				PrimaryKeys:     tt.primaryKeys,
-				Translator:      tt.translator,
-				KeySpace:        "test_keyspace",
-				ComplexMeta:     nil, // Assuming nil for these tests, adjust if needed
+				ColumnsResponse:   tt.columns,
+				Values:            tt.values,
+				TableName:         tt.tableName,
+				ProtocolV:         tt.protocolV,
+				PrimaryKeys:       tt.primaryKeys,
+				TranslatorManager: tt.translator,
+				KeySpace:          "test_keyspace",
+				ComplexMeta:       nil, // Assuming nil for these tests, adjust if needed
 			}
 			tc, err := common.GetSchemaMappingConfig(types.OrderedCodeEncoding).GetTableConfig(input.KeySpace, input.TableName)
 			if (err != nil) != tt.wantErr {
@@ -1282,7 +1283,7 @@ func Test_validateRequiredPrimaryKeys(t *testing.T) {
 }
 
 func TestProcessComplexUpdate(t *testing.T) {
-	translator := &Translator{
+	translator := &TranslatorManager{
 		SchemaMappingConfig: common.GetSchemaMappingConfig(types.OrderedCodeEncoding),
 	}
 
@@ -2116,7 +2117,7 @@ func TestEncodeInt(t *testing.T) {
 }
 
 func TestProcessCollectionColumnsForPrepareQueries_ComplexMetaAndNonCollection(t *testing.T) {
-	translator := &Translator{
+	translator := &TranslatorManager{
 		Logger:              zap.NewNop(),
 		SchemaMappingConfig: common.GetSchemaMappingConfig(types.OrderedCodeEncoding),
 	}
@@ -2306,14 +2307,14 @@ func TestProcessCollectionColumnsForPrepareQueries_ComplexMetaAndNonCollection(t
 			}
 
 			input := ProcessPrepareCollectionsInput{
-				ColumnsResponse: tt.columnsResponse,
-				Values:          tt.values,
-				TableName:       tableName,
-				ProtocolV:       protocolV,
-				PrimaryKeys:     tt.primaryKeys,
-				Translator:      translator,
-				KeySpace:        keySpace,
-				ComplexMeta:     currentComplexMeta,
+				ColumnsResponse:   tt.columnsResponse,
+				Values:            tt.values,
+				TableName:         tableName,
+				ProtocolV:         protocolV,
+				PrimaryKeys:       tt.primaryKeys,
+				TranslatorManager: translator,
+				KeySpace:          keySpace,
+				ComplexMeta:       currentComplexMeta,
 			}
 			tc, _ := translator.SchemaMappingConfig.GetTableConfig(input.KeySpace, input.TableName)
 			output, err := bindings.bindQueryParams(tc, input)
@@ -2405,7 +2406,7 @@ func TestProcessCollectionColumnsForPrepareQueries_ComplexMetaAndNonCollection(t
 }
 
 func TestProcessComplexUpdate_SuccessfulCases(t *testing.T) {
-	translator := &Translator{
+	translator := &TranslatorManager{
 		SchemaMappingConfig: common.GetSchemaMappingConfig(types.OrderedCodeEncoding),
 	}
 
@@ -3250,7 +3251,7 @@ func TestProcessCollectionColumnsForRawQueries(t *testing.T) {
 		TableName:      "test_table",
 		KeySpace:       "test_keyspace",
 		PrependColumns: []string{"mylist"},
-		Translator: &Translator{
+		TranslatorManager: &TranslatorManager{
 			Logger:              zap.NewExample(), // or zap.NewNop() for silent logs
 			SchemaMappingConfig: common.GetSchemaMappingConfig(types.OrderedCodeEncoding),
 		},

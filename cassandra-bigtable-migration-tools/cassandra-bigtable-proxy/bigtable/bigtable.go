@@ -57,7 +57,7 @@ const (
 	// Cassandra doesn't have a time dimension to their counters, so we need to
 	// use the same time for all counters
 	counterTimestamp            = 0
-	smColTableName              = "TableName"
+	smColTableName              = "table"
 	smColColumnName             = "ColumnName"
 	smColColumnType             = "ColumnType"
 	smColIsCollection           = "IsCollection"

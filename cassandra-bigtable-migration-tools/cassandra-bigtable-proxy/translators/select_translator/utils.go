@@ -411,11 +411,11 @@ func processRegularColumn(selectedColumn types.SelectedColumn, col *types.Column
 	}
 }
 
-// getBigtableSelectQuery() Returns Bigtable Select query using Parsed information.
+// createBigtableSql() Returns Bigtable Select query using Parsed information.
 //
 // Parameters:
 //   - data: PreparedSelectQuery struct with all select query info from CQL query
-func getBigtableSelectQuery(t *SelectTranslator, st *types.PreparedSelectQuery) (string, error) {
+func createBigtableSql(t *SelectTranslator, st *types.PreparedSelectQuery) (string, error) {
 	column := ""
 
 	tableConfig, err := t.schemaMappingConfig.GetTableConfig(st.Keyspace(), st.Table())

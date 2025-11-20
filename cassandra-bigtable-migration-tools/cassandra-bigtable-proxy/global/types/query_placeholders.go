@@ -206,7 +206,8 @@ func (q *QueryParameterValues) GetValueByColumn(c ColumnName) (any, error) {
 func (q *QueryParameterValues) AsMap() map[string]any {
 	var result = make(map[string]any)
 	for placeholder, value := range q.values {
-		result[string(placeholder)] = value
+		// drop the leading '@' symbol
+		result[string(placeholder)[1:]] = value
 	}
 	return result
 }

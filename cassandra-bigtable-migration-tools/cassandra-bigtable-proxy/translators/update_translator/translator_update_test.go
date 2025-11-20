@@ -595,7 +595,7 @@ func TestTranslator_TranslateUpdateQuerytoBigtable(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			schemaMappingConfig := translators.GetSchemaMappingConfig(types.OrderedCodeEncoding)
 
-			tr := &translators.Translator{
+			tr := &translators.TranslatorManager{
 				Logger:              tt.fields.Logger,
 				SchemaMappingConfig: schemaMappingConfig,
 			}
@@ -706,34 +706,34 @@ func TestTranslator_BuildUpdatePrepareQuery(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			tr := &translators.Translator{
+			tr := &translators.TranslatorManager{
 				Logger:              tt.fields.Logger,
 				SchemaMappingConfig: tt.fields.SchemaMappingConfig,
 			}
 			got, err := tr.BindUpdate(tt.args.columnsResponse, tt.args.values, tt.args.st, tt.args.protocolV)
 			if (err != nil) != tt.wantErr {
-				t.Errorf("Translator.BindUpdate() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("TranslatorManager.BindUpdate() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
 			// Comparing specific fields as the whole struct comparison might fail due to dynamic parts
 			if got != nil && tt.want != nil {
 				if got.Query != tt.want.Query {
-					t.Errorf("Translator.BindUpdate() CqlQuery = %v, wantNewColumns %v", got.Query, tt.want.Query)
+					t.Errorf("TranslatorManager.BindUpdate() CqlQuery = %v, wantNewColumns %v", got.Query, tt.want.Query)
 				}
 				if !reflect.DeepEqual(got.PrimaryKeys, tt.want.PrimaryKeys) {
-					t.Errorf("Translator.BindUpdate() PrimaryKeys = %v, wantNewColumns %v", got.PrimaryKeys, tt.want.PrimaryKeys)
+					t.Errorf("TranslatorManager.BindUpdate() PrimaryKeys = %v, wantNewColumns %v", got.PrimaryKeys, tt.want.PrimaryKeys)
 				}
 				if len(got.Clauses) != len(tt.want.Clauses) {
-					t.Errorf("Translator.BindUpdate() Conditions length mismatch = %d, wantNewColumns %d", len(got.Clauses), len(tt.want.Clauses))
+					t.Errorf("TranslatorManager.BindUpdate() Conditions length mismatch = %d, wantNewColumns %d", len(got.Clauses), len(tt.want.Clauses))
 				} else {
 					for i := range got.Clauses {
 						if !reflect.DeepEqual(got.Clauses[i], tt.want.Clauses[i]) {
-							t.Errorf("Translator.BindUpdate() Condition[%d] = %v, wantNewColumns %v", i, got.Clauses[i], tt.want.Clauses[i])
+							t.Errorf("TranslatorManager.BindUpdate() Condition[%d] = %v, wantNewColumns %v", i, got.Clauses[i], tt.want.Clauses[i])
 						}
 					}
 				}
 			} else if !(got == nil && tt.want == nil) {
-				t.Errorf("Translator.BindUpdate() = %v, wantNewColumns %v", got, tt.want)
+				t.Errorf("TranslatorManager.BindUpdate() = %v, wantNewColumns %v", got, tt.want)
 			}
 		})
 	}

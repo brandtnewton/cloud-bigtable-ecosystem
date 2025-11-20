@@ -492,13 +492,13 @@ func TestTranslator_TranslateDeleteQuerytoBigtable(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			tr := &translators.Translator{
+			tr := &translators.TranslatorManager{
 				Logger:              tt.fields.Logger,
 				SchemaMappingConfig: tt.fields.SchemaMappingConfig,
 			}
 			got, err := tr.TranslateDelete(tt.args.queryStr, false, tt.defaultKeyspace)
 			if (err != nil) != tt.wantErr {
-				t.Errorf("Translator.TranslateDelete() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("TranslatorManager.TranslateDelete() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
 			assert.Equal(t, tt.want, got)
@@ -668,7 +668,7 @@ func TestTranslator_BuildDeletePrepareQuery(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			tr := &translators.Translator{
+			tr := &translators.TranslatorManager{
 				Logger:              tt.fields.Logger,
 				SchemaMappingConfig: tt.fields.SchemaMappingConfig,
 			}
@@ -679,10 +679,10 @@ func TestTranslator_BuildDeletePrepareQuery(t *testing.T) {
 				assert.NoErrorf(t, err, "unexpected error")
 			}
 			if got != tt.want {
-				t.Errorf("Translator.BindDelete() got = %v, wantNewColumns %v", got, tt.want)
+				t.Errorf("TranslatorManager.BindDelete() got = %v, wantNewColumns %v", got, tt.want)
 			}
 			if !reflect.DeepEqual(got1, tt.want1) {
-				t.Errorf("Translator.BindDelete() got1 = %v, wantNewColumns %v", got1, tt.want1)
+				t.Errorf("TranslatorManager.BindDelete() got1 = %v, wantNewColumns %v", got1, tt.want1)
 			}
 		})
 	}

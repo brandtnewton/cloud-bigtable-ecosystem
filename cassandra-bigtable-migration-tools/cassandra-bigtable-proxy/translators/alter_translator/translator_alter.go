@@ -26,13 +26,8 @@ import (
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/utilities"
 )
 
-func (t *AlterTranslator) Translate(query string, sessionKeyspace types.Keyspace, isPreparedQuery bool) (types.IPreparedQuery, types.IExecutableQuery, error) {
-	p, err := common.NewCqlParser(query, false)
-	if err != nil {
-		return nil, nil, fmt.Errorf("failed to parse cql")
-	}
-
-	alterTable := p.AlterTable()
+func (t *AlterTranslator) Translate(query *types.RawQuery, sessionKeyspace types.Keyspace, isPreparedQuery bool) (types.IPreparedQuery, types.IExecutableQuery, error) {
+	alterTable := query.Parser().AlterTable()
 
 	if alterTable == nil || alterTable.Table() == nil {
 		return nil, nil, errors.New("error while parsing alter statement")
@@ -103,7 +98,7 @@ func (t *AlterTranslator) Translate(query string, sessionKeyspace types.Keyspace
 		}
 	}
 
-	var stmt = types.NewAlterTableStatementMap(keyspaceName, tableName, false, addColumns, dropColumns)
+	var stmt = types.NewAlterTableStatementMap(keyspaceName, tableName, query.RawCql(), false, addColumns, dropColumns)
 	return nil, stmt, nil
 }
 

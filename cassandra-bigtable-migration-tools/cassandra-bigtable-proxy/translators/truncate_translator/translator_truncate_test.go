@@ -111,7 +111,7 @@ func TestTranslateTruncateTableToBigtable(t *testing.T) {
 		},
 	}
 
-	tr := &translators.Translator{
+	tr := &translators.TranslatorManager{
 		Logger:              nil,
 		SchemaMappingConfig: schemaMapping.NewSchemaMappingConfig("schema_mapping", "cf1", zap.NewNop(), []*schemaMapping.TableConfig{}),
 	}

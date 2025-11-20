@@ -441,7 +441,7 @@ func TestTranslateCreateTableToBigtable(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			tr := &translators.Translator{
+			tr := &translators.TranslatorManager{
 				Logger:                   nil,
 				SchemaMappingConfig:      schemaMapping.NewSchemaMappingConfig("schema_mapping", "cf1", zap.NewNop(), nil),
 				DefaultIntRowKeyEncoding: tt.defaultIntRowKeyEncoding,

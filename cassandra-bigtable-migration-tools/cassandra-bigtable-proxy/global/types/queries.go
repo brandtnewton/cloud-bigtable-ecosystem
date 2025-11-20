@@ -82,6 +82,7 @@ type IBigtableMutation interface {
 
 // BigtableWriteMutation holds the results from parseComplexOperations.
 type BigtableWriteMutation struct {
+	cqlQuery              string
 	queryType             QueryType
 	keyspace              Keyspace
 	table                 TableName
@@ -96,8 +97,16 @@ type BigtableWriteMutation struct {
 	DeleteListElementsOps []BigtableDeleteListElementsOp
 }
 
-func NewBigtableWriteMutation(keyspace Keyspace, table TableName, ifSpec IfSpec, qt QueryType, rowKey RowKey) *BigtableWriteMutation {
-	return &BigtableWriteMutation{keyspace: keyspace, table: table, IfSpec: ifSpec, queryType: qt, rowKey: rowKey}
+func NewBigtableWriteMutation(keyspace Keyspace, table TableName, cqlQuery string, ifSpec IfSpec, qt QueryType, rowKey RowKey) *BigtableWriteMutation {
+	return &BigtableWriteMutation{keyspace: keyspace, table: table, cqlQuery: cqlQuery, IfSpec: ifSpec, queryType: qt, rowKey: rowKey}
+}
+
+func (b BigtableWriteMutation) CqlQuery() string {
+	return b.cqlQuery
+}
+
+func (b BigtableWriteMutation) BigtableQuery() string {
+	return ""
 }
 
 func (b BigtableWriteMutation) AsBulkMutation() (IBigtableMutation, bool) {

@@ -33,15 +33,10 @@ const (
 	intRowKeyEncodingOptionValueOrderedCode = "ordered_code"
 )
 
-func (t *CreateTranslator) Translate(query string, sessionKeyspace types.Keyspace, isPreparedQuery bool) (types.IPreparedQuery, types.IExecutableQuery, error) {
-	p, err := common.NewCqlParser(query, false)
-	if err != nil {
-		return nil, nil, fmt.Errorf("failed to parse cql")
-	}
+func (t *CreateTranslator) Translate(query *types.RawQuery, sessionKeyspace types.Keyspace, isPreparedQuery bool) (types.IPreparedQuery, types.IExecutableQuery, error) {
+	createTableObj := query.Parser().CreateTable()
 
-	createTableObj := p.CreateTable()
-
-	if createTableObj == nil || createTableObj.Table() == nil {
+	if createTableObj == nil {
 		return nil, nil, errors.New("error while parsing create object")
 	}
 
@@ -173,7 +168,7 @@ func (t *CreateTranslator) Translate(query string, sessionKeyspace types.Keyspac
 		}
 	}
 	ifNotExists := createTableObj.IfNotExist() != nil
-	var stmt = types.NewCreateTableStatementMap(keyspaceName, tableName, ifNotExists, columns, pmks, rowKeyEncoding)
+	var stmt = types.NewCreateTableStatementMap(keyspaceName, tableName, query.RawCql(), ifNotExists, columns, pmks, rowKeyEncoding)
 	return nil, stmt, nil
 }
 

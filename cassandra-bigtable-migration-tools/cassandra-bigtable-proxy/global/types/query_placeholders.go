@@ -17,8 +17,8 @@ type PlaceholderMetadata struct {
 	IsCollectionKey bool
 }
 
-func newPlaceholderMetadata(key Placeholder, column *Column, Type CqlDataType, isCollectionKey bool) PlaceholderMetadata {
-	return PlaceholderMetadata{Key: key, Column: column, Type: Type, IsCollectionKey: isCollectionKey}
+func newPlaceholderMetadata(key Placeholder, column *Column, tpe CqlDataType, isCollectionKey bool) PlaceholderMetadata {
+	return PlaceholderMetadata{Key: key, Column: column, Type: tpe, IsCollectionKey: isCollectionKey}
 }
 
 type QueryParameters struct {
@@ -141,7 +141,7 @@ func (q *QueryParameterValues) SetValue(p Placeholder, value any) error {
 	q.values[p] = value
 	return nil
 }
-g
+
 func validateGoType(expected CqlDataType, v any) error {
 	if expected.GoType() != reflect.TypeOf(v) {
 		return fmt.Errorf("got %T, expected %s (%s)", v, expected.GoType().String(), expected.String())

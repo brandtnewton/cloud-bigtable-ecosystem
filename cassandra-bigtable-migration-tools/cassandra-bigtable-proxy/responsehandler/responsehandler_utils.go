@@ -76,13 +76,12 @@ func BuildPreparedResultResponse(id [16]byte, keyspace types.Keyspace, table typ
 		var col = message.ColumnMetadata{
 			Keyspace: string(keyspace),
 			Table:    string(table),
-			Name:     string(md.Column.Name),
 			Index:    int32(i),
-			Type:     md.Column.CQLType.DataType(),
+			Type:     md.Type.DataType(),
 		}
 		variableMetadata = append(variableMetadata, &col)
 
-		if md.Column.IsPrimaryKey {
+		if md.Column != nil && md.Column.IsPrimaryKey {
 			pkIndices = append(pkIndices, uint16(i))
 		}
 	}

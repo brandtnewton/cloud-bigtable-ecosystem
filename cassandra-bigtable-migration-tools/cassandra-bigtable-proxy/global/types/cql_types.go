@@ -275,7 +275,11 @@ func (s SetType) IsAnyFrozen() bool {
 }
 
 func NewSetType(elementType CqlDataType) *SetType {
-	return &SetType{elementType: elementType, dt: datatype.NewSetType(elementType.DataType())}
+	return &SetType{
+		elementType: elementType,
+		dt:          datatype.NewSetType(elementType.DataType()),
+		goType:      reflect.SliceOf(elementType.GoType()),
+	}
 }
 
 func (s SetType) DataType() datatype.DataType {

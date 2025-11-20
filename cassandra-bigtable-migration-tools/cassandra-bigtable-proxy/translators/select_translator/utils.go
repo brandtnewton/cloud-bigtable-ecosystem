@@ -515,7 +515,6 @@ func createBtqlWhereClause(clauses []types.Condition, tableConfig *sm.TableConfi
 	whereClause := ""
 	for _, val := range clauses {
 		column := "`" + string(val.Column.Name) + "`"
-		value := val.ValuePlaceholder
 		if col, ok := tableConfig.Columns[val.Column.Name]; ok {
 			// Check if the column is a primitive type and prepend the column family
 			if !col.CQLType.IsCollection() {
@@ -536,11 +535,11 @@ func createBtqlWhereClause(clauses []types.Condition, tableConfig *sm.TableConfi
 		} else if val.Operator == constants.IN {
 			whereClause += fmt.Sprintf("%s IN UNNEST(%s)", column, val.ValuePlaceholder)
 		} else if val.Operator == constants.MAP_CONTAINS_KEY {
-			whereClause += fmt.Sprintf("MAP_CONTAINS_KEY(%s, %s)", column, value)
+			whereClause += fmt.Sprintf("MAP_CONTAINS_KEY(%s, %s)", column, val.ValuePlaceholder)
 		} else if val.Operator == constants.ARRAY_INCLUDES {
-			whereClause += fmt.Sprintf("ARRAY_INCLUDES(MAP_VALUES(%s), %s)", column, value)
+			whereClause += fmt.Sprintf("ARRAY_INCLUDES(MAP_VALUES(%s), %s)", column, val.ValuePlaceholder)
 		} else {
-			whereClause += fmt.Sprintf("%s %s %s", column, val.Operator, value)
+			whereClause += fmt.Sprintf("%s %s %s", column, val.Operator, val.ValuePlaceholder)
 		}
 	}
 

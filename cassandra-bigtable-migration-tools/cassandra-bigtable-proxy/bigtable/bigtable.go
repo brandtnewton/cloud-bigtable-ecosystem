@@ -1075,16 +1075,17 @@ func (btc *BigtableClient) PrepareStatement(ctx context.Context, query types.IPr
 	paramTypes := make(map[string]bigtable.SQLType)
 	for _, p := range query.Parameters().AllKeys() {
 		md := query.Parameters().GetMetadata(p)
-
+		// drop the leading "@" symbol
+		paramName := string(p)[1:]
 		if md.IsCollectionKey {
-			paramTypes[string(p)] = bigtable.BytesSQLType{}
+			paramTypes[paramName] = bigtable.BytesSQLType{}
 		} else {
 			sqlType, err := toBigtableSQLType(md.Type)
 			if err != nil {
-				btc.Logger.Error("Failed to infer SQL type for parameter", zap.String("paramName", string(p)), zap.Error(err))
+				btc.Logger.Error("Failed to infer SQL type for parameter", zap.String("paramName", paramName), zap.Error(err))
 				return nil, fmt.Errorf("failed to infer SQL type for parameter %s: %w", p, err)
 			}
-			paramTypes[string(p)] = sqlType
+			paramTypes[paramName] = sqlType
 		}
 	}
 	preparedStatement, err := client.PrepareStatement(ctx, query.BigtableQuery(), paramTypes)

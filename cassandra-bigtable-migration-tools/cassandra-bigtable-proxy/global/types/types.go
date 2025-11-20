@@ -146,4 +146,5 @@ type IPreparedQuery interface {
 type IQueryTranslator interface {
 	Translate(query string, sessionKeyspace Keyspace, isPreparedQuery bool) (IPreparedQuery, IExecutableQuery, error)
 	Bind(st IPreparedQuery, values []*primitive.Value, pv primitive.ProtocolVersion) (IExecutableQuery, error)
+	QueryType() QueryType
 }

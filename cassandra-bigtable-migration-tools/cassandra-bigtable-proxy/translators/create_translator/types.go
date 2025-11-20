@@ -10,6 +10,10 @@ type CreateTranslator struct {
 	defaultIntRowKeyEncoding types.IntRowKeyEncodingType
 }
 
+func (t *CreateTranslator) QueryType() types.QueryType {
+	return types.QueryTypeCreate
+}
+
 func NewCreateTranslator(schemaMappingConfig *schemaMapping.SchemaMappingConfig, defaultIntRowKeyEncoding types.IntRowKeyEncodingType) types.IQueryTranslator {
 	return &CreateTranslator{schemaMappingConfig: schemaMappingConfig, defaultIntRowKeyEncoding: defaultIntRowKeyEncoding}
 }

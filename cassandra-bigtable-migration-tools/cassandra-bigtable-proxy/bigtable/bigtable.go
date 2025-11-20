@@ -121,6 +121,18 @@ func (btc *BigtableClient) Execute(ctx context.Context, query types.IExecutableQ
 		return btc.mutateRow(ctx, q)
 	case *types.BoundSelectQuery:
 		return btc.SelectStatement(ctx, q)
+	case *types.CreateTableStatementMap:
+		err := btc.CreateTable(ctx, q)
+		return emptyRowsResult(), err
+	case *types.AlterTableStatementMap:
+		err := btc.AlterTable(ctx, q)
+		return emptyRowsResult(), err
+	case *types.TruncateTableStatementMap:
+		err := btc.DropAllRows(ctx, q)
+		return emptyRowsResult(), err
+	case *types.DropTableQuery:
+		err := btc.DropTable(ctx, q)
+		return emptyRowsResult(), err
 	default:
 		return nil, fmt.Errorf("unhandled prepared query type: %T", query)
 	}
@@ -231,6 +243,14 @@ func (btc *BigtableClient) mutateRow(ctx context.Context, input *types.BigtableW
 			LastContinuousPage: true,
 		},
 	}, nil
+}
+
+func emptyRowsResult() *message.RowsResult {
+	return &message.RowsResult{
+		Metadata: &message.RowsMetadata{
+			LastContinuousPage: true,
+		},
+	}
 }
 
 func (btc *BigtableClient) buildMutation(ctx context.Context, table *schemaMapping.TableConfig, input *types.BigtableWriteMutation, mut *bigtable.Mutation) (int, error) {

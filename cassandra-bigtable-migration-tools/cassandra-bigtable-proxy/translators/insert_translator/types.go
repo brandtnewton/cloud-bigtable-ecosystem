@@ -9,6 +9,10 @@ type InsertTranslator struct {
 	schemaMappingConfig *schemaMapping.SchemaMappingConfig
 }
 
+func (t *InsertTranslator) QueryType() types.QueryType {
+	return types.QueryTypeInsert
+}
+
 func NewInsertTranslator(schemaMappingConfig *schemaMapping.SchemaMappingConfig) types.IQueryTranslator {
 	return &InsertTranslator{schemaMappingConfig: schemaMappingConfig}
 }

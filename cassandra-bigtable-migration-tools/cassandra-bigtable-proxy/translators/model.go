@@ -17,6 +17,7 @@
 package translators
 
 import (
+	"fmt"
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/global/types"
 	schemaMapping "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/schema-mapping"
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/translators/alter_translator"
@@ -35,31 +36,33 @@ type Translator struct {
 	SchemaMappingConfig *schemaMapping.SchemaMappingConfig
 	// determines the encoding for int row keys in all new tables
 	DefaultIntRowKeyEncoding types.IntRowKeyEncodingType
-	// dml
-	select_  types.IQueryTranslator
-	insert   types.IQueryTranslator
-	update   types.IQueryTranslator
-	delete   types.IQueryTranslator
-	truncate types.IQueryTranslator
-	// ddl
-	create types.IQueryTranslator
-	alter  types.IQueryTranslator
-	drop   types.IQueryTranslator
+	translators              map[types.QueryType]types.IQueryTranslator
 }
 
 func NewTranslator(logger *zap.Logger, schemaMappingConfig *schemaMapping.SchemaMappingConfig, defaultIntRowKeyEncoding types.IntRowKeyEncodingType) *Translator {
+	// add more translators here
+	translators := []types.IQueryTranslator{
+		select_translator.NewSelectTranslator(schemaMappingConfig),
+		insert_translator.NewInsertTranslator(schemaMappingConfig),
+		update_translator.NewUpdateTranslator(schemaMappingConfig),
+		delete_translator.NewDeleteTranslator(schemaMappingConfig),
+		truncate_translator.NewTruncateTranslator(schemaMappingConfig),
+		create_translator.NewCreateTranslator(schemaMappingConfig, defaultIntRowKeyEncoding),
+		alter_translator.NewAlterTranslator(schemaMappingConfig),
+		drop_translator.NewDropTranslator(schemaMappingConfig),
+	}
+
+	var tm = make(map[types.QueryType]types.IQueryTranslator)
+	for _, t := range translators {
+		if _, has := tm[t.QueryType()]; has {
+			panic(fmt.Errorf("translator of type %s already registered", t.QueryType().String()))
+		}
+		tm[t.QueryType()] = t
+	}
 	return &Translator{
 		Logger:                   logger,
 		SchemaMappingConfig:      schemaMappingConfig,
 		DefaultIntRowKeyEncoding: defaultIntRowKeyEncoding,
-		select_:                  select_translator.NewSelectTranslator(schemaMappingConfig),
-		insert:                   insert_translator.NewInsertTranslator(schemaMappingConfig),
-		update:                   update_translator.NewUpdateTranslator(schemaMappingConfig),
-		delete:                   delete_translator.NewDeleteTranslator(schemaMappingConfig),
-		truncate:                 truncate_translator.NewTruncateTranslator(schemaMappingConfig),
-		// DDL
-		create: create_translator.NewCreateTranslator(schemaMappingConfig, defaultIntRowKeyEncoding),
-		alter:  alter_translator.NewAlterTranslator(schemaMappingConfig),
-		drop:   drop_translator.NewDropTranslator(schemaMappingConfig),
+		translators:              tm,
 	}
 }

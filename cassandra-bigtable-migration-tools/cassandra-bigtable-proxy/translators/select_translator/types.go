@@ -9,6 +9,10 @@ type SelectTranslator struct {
 	schemaMappingConfig *schemaMapping.SchemaMappingConfig
 }
 
+func (t *SelectTranslator) QueryType() types.QueryType {
+	return types.QueryTypeSelect
+}
+
 func NewSelectTranslator(schemaMappingConfig *schemaMapping.SchemaMappingConfig) types.IQueryTranslator {
 	return &SelectTranslator{schemaMappingConfig: schemaMappingConfig}
 }

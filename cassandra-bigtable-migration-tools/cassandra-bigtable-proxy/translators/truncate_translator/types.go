@@ -10,6 +10,10 @@ type TruncateTranslator struct {
 	defaultIntRowKeyEncoding types.IntRowKeyEncodingType
 }
 
+func (t *TruncateTranslator) QueryType() types.QueryType {
+	return types.QueryTypeTruncate
+}
+
 func NewTruncateTranslator(schemaMappingConfig *schemaMapping.SchemaMappingConfig) types.IQueryTranslator {
 	return &TruncateTranslator{schemaMappingConfig: schemaMappingConfig}
 }

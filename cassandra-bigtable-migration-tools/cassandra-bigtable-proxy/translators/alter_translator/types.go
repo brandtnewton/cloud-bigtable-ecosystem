@@ -9,6 +9,10 @@ type AlterTranslator struct {
 	schemaMappingConfig *schemaMapping.SchemaMappingConfig
 }
 
+func (t *AlterTranslator) QueryType() types.QueryType {
+	return types.QueryTypeAlter
+}
+
 func NewAlterTranslator(schemaMappingConfig *schemaMapping.SchemaMappingConfig) types.IQueryTranslator {
 	return &AlterTranslator{schemaMappingConfig: schemaMappingConfig}
 }

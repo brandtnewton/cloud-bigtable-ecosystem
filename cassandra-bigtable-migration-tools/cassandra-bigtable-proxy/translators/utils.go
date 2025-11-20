@@ -23,26 +23,11 @@ import (
 )
 
 func (t *Translator) getTranslator(queryType types.QueryType) (types.IQueryTranslator, error) {
-	switch queryType {
-	// dml
-	case types.QueryTypeSelect:
-		return t.select_, nil
-	case types.QueryTypeInsert:
-		return t.insert, nil
-	case types.QueryTypeUpdate:
-		return t.update, nil
-	case types.QueryTypeDelete:
-		return t.delete, nil
-	// ddl
-	case types.QueryTypeCreate:
-		return t.alter, nil
-	case types.QueryTypeDrop:
-		return t.drop, nil
-	case types.QueryTypeAlter:
-		return t.alter, nil
-	default:
+	translator, ok := t.translators[queryType]
+	if !ok {
 		return nil, fmt.Errorf("unhandled query type '%s'", queryType.String())
 	}
+	return translator, nil
 }
 
 func (t *Translator) TranslateQuery(queryType types.QueryType, sessionKeyspace types.Keyspace, query string, isPrepared bool) (types.IPreparedQuery, types.IExecutableQuery, error) {

@@ -10,6 +10,10 @@ type DropTranslator struct {
 	defaultIntRowKeyEncoding types.IntRowKeyEncodingType
 }
 
+func (t *DropTranslator) QueryType() types.QueryType {
+	return types.QueryTypeDrop
+}
+
 func NewDropTranslator(schemaMappingConfig *schemaMapping.SchemaMappingConfig) types.IQueryTranslator {
 	return &DropTranslator{schemaMappingConfig: schemaMappingConfig}
 }

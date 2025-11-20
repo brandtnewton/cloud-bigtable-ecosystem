@@ -9,6 +9,10 @@ type DeleteTranslator struct {
 	schemaMappingConfig *schemaMapping.SchemaMappingConfig
 }
 
+func (t *DeleteTranslator) QueryType() types.QueryType {
+	return types.QueryTypeDelete
+}
+
 func NewDeleteTranslator(schemaMappingConfig *schemaMapping.SchemaMappingConfig) types.IQueryTranslator {
 	return &DeleteTranslator{schemaMappingConfig: schemaMappingConfig}
 }

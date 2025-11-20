@@ -9,6 +9,10 @@ type UpdateTranslator struct {
 	schemaMappingConfig *schemaMapping.SchemaMappingConfig
 }
 
+func (t *UpdateTranslator) QueryType() types.QueryType {
+	return types.QueryTypeUpdate
+}
+
 func NewUpdateTranslator(schemaMappingConfig *schemaMapping.SchemaMappingConfig) types.IQueryTranslator {
 	return &UpdateTranslator{schemaMappingConfig: schemaMappingConfig}
 }

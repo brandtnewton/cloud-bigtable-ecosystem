@@ -157,14 +157,14 @@ func toBigtableSQLType(value types.CqlDataType) (bigtable.SQLType, error) {
 	case types.BOOLEAN:
 		return bigtable.Int64SQLType{}, nil
 	case types.LIST:
-		lt := value.(types.ListType)
+		lt := value.(*types.ListType)
 		innerSqlType, err := toBigtableSQLType(lt.ElementType())
 		if err != nil {
 			return nil, fmt.Errorf("cannot infer type for array element: %w", err)
 		}
 		return bigtable.ArraySQLType{ElemType: innerSqlType}, nil
 	case types.SET:
-		st := value.(types.SetType)
+		st := value.(*types.SetType)
 		innerSqlType, err := toBigtableSQLType(st.ElementType())
 		if err != nil {
 			return nil, fmt.Errorf("cannot infer type for array element: %w", err)

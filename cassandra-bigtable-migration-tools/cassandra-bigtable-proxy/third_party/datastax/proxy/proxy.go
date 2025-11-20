@@ -57,17 +57,6 @@ var ErrProxyNotConnected = errors.New("proxy not connected")
 
 const systemQueryMetadataNotFoundError = "data not found %s[%v]"
 
-const selectType = "select"
-const describeType = "describe"
-const alterType = "alter"
-const updateType = "update"
-const insertType = "insert"
-const deleteType = "delete"
-const createType = "create"
-const truncateType = "truncate"
-const dropType = "drop"
-
-const ts_column types.ColumnName = "last_commit_ts"
 const preparedIdSize = 16
 const Query = "CqlQuery"
 
@@ -601,14 +590,14 @@ func (c *client) handleServerPreparedQuery(raw *frame.RawFrame, msg *message.Pre
 	preparedQuery, _, err := c.proxy.translator.TranslateQuery(queryType, c.sessionKeyspace, msg.Query, true)
 	if err != nil {
 		c.proxy.logger.Error(translatorErrorMessage, zap.String(Query, msg.Query), zap.Error(err))
-		c.sender.Send(raw.Header, &message.Invalid{ErrorMessage: translatorErrorMessage})
+		c.sender.Send(raw.Header, &message.Invalid{ErrorMessage: err.Error()})
 		return
 	}
 
 	btPreparedQuery, err := c.proxy.bClient.PrepareStatement(c.ctx, preparedQuery)
 	if err != nil {
 		c.proxy.logger.Error(translatorErrorMessage, zap.String(Query, msg.Query), zap.Error(err))
-		c.sender.Send(raw.Header, &message.Invalid{ErrorMessage: translatorErrorMessage})
+		c.sender.Send(raw.Header, &message.Invalid{ErrorMessage: err.Error()})
 		return
 	}
 	preparedQuery.SetBigtablePreparedQuery(btPreparedQuery)

@@ -1063,6 +1063,10 @@ func (btc *BigtableClient) LoadConfigs(schemaConfig *schemaMapping.SchemaMapping
 
 // PrepareStatement prepares a query for execution using the bigtable SQL client.
 func (btc *BigtableClient) PrepareStatement(ctx context.Context, query types.IPreparedQuery) (*bigtable.PreparedStatement, error) {
+	// only select queries can be prepared in Bigtable at the moment
+	if query.QueryType() != types.QueryTypeSelect {
+		return nil, nil
+	}
 	client, err := btc.getClient(query.Keyspace())
 	if err != nil {
 		return nil, err
@@ -1086,7 +1090,7 @@ func (btc *BigtableClient) PrepareStatement(ctx context.Context, query types.IPr
 	preparedStatement, err := client.PrepareStatement(ctx, query.BigtableQuery(), paramTypes)
 	if err != nil {
 		btc.Logger.Error("Failed to prepare statement", zap.String("query", query.BigtableQuery()), zap.Error(err))
-		return nil, fmt.Errorf("failed to prepare statement: %w", err)
+		return nil, fmt.Errorf("failed to prepare statement '%s': %w", query.CqlQuery(), err)
 	}
 
 	return preparedStatement, nil

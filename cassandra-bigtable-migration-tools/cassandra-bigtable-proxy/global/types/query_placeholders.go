@@ -141,10 +141,10 @@ func (q *QueryParameterValues) SetValue(p Placeholder, value any) error {
 	q.values[p] = value
 	return nil
 }
-
+g
 func validateGoType(expected CqlDataType, v any) error {
 	if expected.GoType() != reflect.TypeOf(v) {
-		return fmt.Errorf("got %T, expected %s (%s)", v, expected.String(), expected.String())
+		return fmt.Errorf("got %T, expected %s (%s)", v, expected.GoType().String(), expected.String())
 	}
 	return nil
 }

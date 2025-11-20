@@ -72,6 +72,10 @@ type PreparedSelectQuery struct {
 	ResultColumnMetadata []*message.ColumnMetadata
 }
 
+func (p PreparedSelectQuery) IsIdempotent() bool {
+	return true
+}
+
 func NewPreparedSelectQuery(keyspace Keyspace, table TableName, cqlQuery string, translatedQuery string, selectClause *SelectClause, conditions []Condition, params *QueryParameters, orderBy OrderBy, groupByColumns []string, resultColumnMetadata []*message.ColumnMetadata) *PreparedSelectQuery {
 	return &PreparedSelectQuery{keyspace: keyspace, table: table, cqlQuery: cqlQuery, TranslatedQuery: translatedQuery, SelectClause: selectClause, Conditions: conditions, Params: params, OrderBy: orderBy, GroupByColumns: groupByColumns, ResultColumnMetadata: resultColumnMetadata}
 }

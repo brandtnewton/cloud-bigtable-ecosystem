@@ -80,15 +80,11 @@ func (t *TranslatorManager) TranslateQuery(q *types.RawQuery, sessionKeyspace ty
 
 	prepared, executable, err := queryTranslator.Translate(q, sessionKeyspace, isPrepared)
 
-	if err == nil {
-		btql := ""
-		if prepared != nil {
-			btql = prepared.BigtableQuery()
-		} else if executable != nil {
-			btql = executable.BigtableQuery()
-		}
-		t.Logger.Debug("translated query", zap.String("cql", q.RawCql()), zap.String("btql", btql))
+	if err != nil {
+		return nil, nil, err
 	}
+
+	t.Logger.Debug("translated query", zap.String("cql", q.RawCql()), zap.String("btql", prepared.BigtableQuery()))
 
 	return prepared, executable, err
 }

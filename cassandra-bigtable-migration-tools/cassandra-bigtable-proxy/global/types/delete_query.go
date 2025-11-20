@@ -16,6 +16,10 @@ type PreparedDeleteQuery struct {
 	SelectedColumns []SelectedColumn
 }
 
+func (p PreparedDeleteQuery) IsIdempotent() bool {
+	return true
+}
+
 func (p PreparedDeleteQuery) QueryType() QueryType {
 	return QueryTypeDelete
 }

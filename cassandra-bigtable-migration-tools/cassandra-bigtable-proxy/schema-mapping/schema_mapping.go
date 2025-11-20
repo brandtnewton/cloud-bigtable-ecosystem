@@ -80,6 +80,16 @@ func (c *SchemaMappingConfig) GetAllTables() map[types.Keyspace]map[types.TableN
 	return tablesCopy
 }
 
+func (c *SchemaMappingConfig) ValidateKeyspace(keyspace types.Keyspace) error {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+	_, ok := c.tables[keyspace]
+	if !ok {
+		return fmt.Errorf("keyspace '%s' does not exist", keyspace)
+	}
+	return nil
+}
+
 func (c *SchemaMappingConfig) GetKeyspace(keyspace types.Keyspace) ([]*TableConfig, error) {
 	c.mu.RLock()
 	defer c.mu.RUnlock()

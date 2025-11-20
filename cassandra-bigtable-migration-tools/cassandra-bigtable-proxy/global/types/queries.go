@@ -152,6 +152,7 @@ type Condition struct {
 
 type Assignment interface {
 	Column() *Column
+	IsIdempotentAssignment() bool
 }
 
 type ComplexAssignmentAdd struct {
@@ -160,7 +161,11 @@ type ComplexAssignmentAdd struct {
 	Value     Placeholder
 }
 
-func NewComplexAssignmentAdd(column *Column, isPrepend bool, value Placeholder) *ComplexAssignmentAdd {
+func (c ComplexAssignmentAdd) IsIdempotentAssignment() bool {
+	return false
+}
+
+func NewComplexAssignmentAdd(column *Column, isPrepend bool, value Placeholder) Assignment {
 	return &ComplexAssignmentAdd{column: column, IsPrepend: isPrepend, Value: value}
 }
 
@@ -182,7 +187,11 @@ type AssignmentCounterIncrement struct {
 	Value  Placeholder
 }
 
-func NewAssignmentCounterIncrement(column *Column, op IncrementOperationType, value Placeholder) *AssignmentCounterIncrement {
+func (c AssignmentCounterIncrement) IsIdempotentAssignment() bool {
+	return false
+}
+
+func NewAssignmentCounterIncrement(column *Column, op IncrementOperationType, value Placeholder) Assignment {
 	return &AssignmentCounterIncrement{column: column, Op: op, Value: value}
 }
 
@@ -195,7 +204,11 @@ type ComplexAssignmentRemove struct {
 	Value  Placeholder
 }
 
-func NewComplexAssignmentRemove(column *Column, value Placeholder) *ComplexAssignmentRemove {
+func (c ComplexAssignmentRemove) IsIdempotentAssignment() bool {
+	return false
+}
+
+func NewComplexAssignmentRemove(column *Column, value Placeholder) Assignment {
 	return &ComplexAssignmentRemove{column: column, Value: value}
 }
 
@@ -209,7 +222,11 @@ type ComplexAssignmentUpdateIndex struct {
 	Value  Placeholder
 }
 
-func NewComplexAssignmentUpdateIndex(column *Column, index int64, value Placeholder) *ComplexAssignmentUpdateIndex {
+func (c ComplexAssignmentUpdateIndex) IsIdempotentAssignment() bool {
+	return true
+}
+
+func NewComplexAssignmentUpdateIndex(column *Column, index int64, value Placeholder) Assignment {
 	return &ComplexAssignmentUpdateIndex{column: column, Index: index, Value: value}
 }
 
@@ -222,7 +239,11 @@ type ComplexAssignmentSet struct {
 	Value  Placeholder
 }
 
-func NewComplexAssignmentSet(column *Column, value Placeholder) *ComplexAssignmentSet {
+func (c ComplexAssignmentSet) IsIdempotentAssignment() bool {
+	return true
+}
+
+func NewComplexAssignmentSet(column *Column, value Placeholder) Assignment {
 	return &ComplexAssignmentSet{column: column, Value: value}
 }
 

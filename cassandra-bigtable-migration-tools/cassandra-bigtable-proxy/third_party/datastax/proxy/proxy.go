@@ -27,7 +27,6 @@ import (
 	"github.com/antlr4-go/antlr/v4"
 	"io"
 	"net"
-	"strings"
 	"sync"
 	"time"
 
@@ -202,7 +201,7 @@ func NewProxy(ctx context.Context, logger *zap.Logger, config *types.ProxyInstan
 		closed:                   make(chan struct{}),
 		bClient:                  bigtableCl,
 		translator:               translator,
-		executor:                 executors.NewQueryExecutorManager(smc),
+		executor:                 executors.NewQueryExecutorManager(smc, bigtableCl),
 		schemaMapping:            smc,
 		systemQueryMetadataCache: systemQueryMetadataCache,
 		otelInst:                 otelInst,
@@ -222,10 +221,6 @@ func (p *Proxy) Connect() error {
 	var err error
 	const cacheSize = 1e8 / 256 // ~100MB with an average query size of 256 bytes
 	p.preparedQueryCache, err = NewDefaultPreparedCache[types.IPreparedQuery](cacheSize)
-	if err != nil {
-		return fmt.Errorf("unable to create cache: %w", err)
-	}
-	p.preparedSystemQueryCache, err = NewDefaultPreparedCache[any](cacheSize)
 	if err != nil {
 		return fmt.Errorf("unable to create cache: %w", err)
 	}
@@ -454,6 +449,10 @@ type client struct {
 	sender          Sender
 }
 
+func (c *client) SetSessionKeyspace(k types.Keyspace) {
+	c.sessionKeyspace = k
+}
+
 func (c *client) Receive(reader io.Reader) error {
 	raw, err := codec.DecodeRawFrame(reader)
 	if err != nil {
@@ -523,46 +522,43 @@ func (c *client) handlePrepare(raw *frame.RawFrame, msg *message.Prepare) {
 	}
 
 	p := newParser(msg.Query)
-	qt, err := parser.ParseQueryType(p)
+	qt, err := parseQueryType(p)
 	if err != nil {
 		c.proxy.logger.Error("error parsing query to see if it's handled", zap.String(Query, msg.Query), zap.Error(err))
 		c.sender.Send(raw.Header, &message.Invalid{ErrorMessage: err.Error()})
 		return
 	}
-	rawQuery := types.NewRawQuery(raw.Header, msg.Query, p, qt)
-	if handled {
-		switch s := stmt.(type) {
-		// handling select statement
-		case *parser.SelectStatement:
-			if systemColumns, ok := parser.SystemColumnsByName[s.Table]; ok {
-				if columns, err := parser.FilterColumns(s, systemColumns); err != nil {
-					c.sender.Send(raw.Header, &message.Invalid{ErrorMessage: err.Error()})
-				} else {
-					id := c.getQueryId(msg)
-					c.sender.Send(raw.Header, &message.PreparedResult{
-						PreparedQueryId: id[:],
-						ResultMetadata: &message.RowsMetadata{
-							ColumnCount: int32(len(columns)),
-							Columns:     columns,
-						},
-					})
-					c.proxy.preparedSystemQueryCache.Store(id, stmt)
-				}
-			} else {
-				c.sender.Send(raw.Header, &message.Invalid{ErrorMessage: "system metaDataColumns doesn't exist"})
-			}
-			// Prepare Use statement
-		case *parser.UseStatement:
-			id := md5.Sum([]byte(msg.Query))
-			c.proxy.preparedSystemQueryCache.Store(id, stmt)
-			c.sender.Send(raw.Header, &message.PreparedResult{
-				PreparedQueryId: id[:],
-			})
-		default:
-			c.sender.Send(raw.Header, &message.ServerError{ErrorMessage: "Proxy attempted to intercept an unhandled query"})
-		}
-	} else {
-		c.handleServerPreparedQuery(rawQuery, id)
+	rawQuery := types.NewRawQuery(raw.Header, keyspace, msg.Query, p, qt)
+
+	c.handleServerPreparedQuery(rawQuery, id)
+}
+
+func parseQueryType(p *cql.CqlParser) (types.QueryType, error) {
+	tok := p.GetTokenStream().LT(1)
+	t := tok.GetTokenType()
+	switch t {
+	case cql.CqlLexerK_SELECT:
+		return types.QueryTypeSelect, nil
+	case cql.CqlLexerK_INSERT:
+		return types.QueryTypeInsert, nil
+	case cql.CqlLexerK_UPDATE:
+		return types.QueryTypeUpdate, nil
+	case cql.CqlLexerK_DELETE:
+		return types.QueryTypeDelete, nil
+	case cql.CqlLexerK_CREATE:
+		return types.QueryTypeCreate, nil
+	case cql.CqlLexerK_ALTER:
+		return types.QueryTypeAlter, nil
+	case cql.CqlLexerK_DROP:
+		return types.QueryTypeDrop, nil
+	case cql.CqlLexerK_TRUNCATE:
+		return types.QueryTypeTruncate, nil
+	case cql.CqlLexerK_USE:
+		return types.QueryTypeUse, nil
+	case cql.CqlLexerK_DESCRIBE, cql.CqlLexerK_DESC:
+		return types.QueryTypeDescribe, nil
+	default:
+		return types.QueryTypeUnknown, fmt.Errorf("unsupported query type: %s", tok.String())
 	}
 }
 
@@ -608,18 +604,13 @@ func (c *client) handleServerPreparedQuery(query *types.RawQuery, id [16]byte) {
 	c.proxy.preparedQueryCache.Store(id, preparedQuery)
 	c.proxy.queryMetadataCache.Store(id, response)
 
-	c.sender.Send(raw.Header, response)
+	c.sender.Send(query.Header(), response)
 }
 
 // handleExecute for prepared query
 func (c *client) handleExecute(raw *frame.RawFrame, msg *partialExecute) {
 	ctx := context.Background()
 	id := preparedIdKey(msg.queryId)
-
-	if stmt, ok := c.proxy.preparedSystemQueryCache.Load(id); ok {
-		c.interceptSystemQuery(raw.Header, stmt)
-		return
-	}
 
 	preparedStmt, ok := c.proxy.preparedQueryCache.Load(id)
 	if !ok {
@@ -635,23 +626,13 @@ func (c *client) handleExecute(raw *frame.RawFrame, msg *partialExecute) {
 		return
 	}
 
-	results, err := c.proxy.bClient.Execute(ctx, boundQuery)
+	results, err := c.proxy.executor.Execute(ctx, c, boundQuery)
 	if err != nil {
 		c.proxy.logger.Error(errorAtBigtable, zap.String(Query, preparedStmt.CqlQuery()), zap.String(Query, preparedStmt.BigtableQuery()), zap.Error(err))
 		c.sender.Send(raw.Header, &message.ConfigError{ErrorMessage: err.Error()})
 		return
 	}
 	c.sender.Send(raw.Header, results)
-}
-
-func (c *client) execute(ctx context.Context, q types.IExecutableQuery) (*message.RowsResult, error) {
-
-	if q.Keyspace().IsSystemKeyspace() {
-		c.proxy.logger.Info("intercepting system query", zap.String(Query, q.CqlQuery()))
-		return c.interceptSystemQuery(q)
-	}
-
-	return c.proxy.bClient.Execute(ctx, q)
 }
 
 // handle batch queries
@@ -663,7 +644,7 @@ func (c *client) handleBatch(raw *frame.RawFrame, msg *partialBatch) {
 	defer c.proxy.otelInst.EndSpan(span)
 	var otelErr error
 	defer c.proxy.otelInst.RecordMetrics(otelCtx, handleBatch, startTime, handleBatch, c.sessionKeyspace, otelErr)
-	bulkMutations, keyspace, err := c.getAllPreparedOps(msg, raw.Header.Version)
+	bulkMutations, keyspace, err := c.bindBulkOperations(msg, raw.Header.Version)
 	if err != nil {
 		c.proxy.logger.Error("Error preparing batch query metadata", zap.Error(err))
 		c.sender.Send(raw.Header, &message.ConfigError{ErrorMessage: err.Error()})
@@ -689,7 +670,7 @@ func (c *client) handleBatch(raw *frame.RawFrame, msg *partialBatch) {
 	c.sender.Send(raw.Header, &message.VoidResult{})
 }
 
-func (c *client) getAllPreparedOps(msg *partialBatch, pv primitive.ProtocolVersion) (*bigtableModule.BigtableBulkMutation, types.Keyspace, error) {
+func (c *client) bindBulkOperations(msg *partialBatch, pv primitive.ProtocolVersion) (*bigtableModule.BigtableBulkMutation, types.Keyspace, error) {
 	var keyspace types.Keyspace
 	tableMutationsMap := bigtableModule.NewBigtableBulkMutation()
 	for index, queryId := range msg.queryOrIds {
@@ -719,22 +700,25 @@ func (c *client) getAllPreparedOps(msg *partialBatch, pv primitive.ProtocolVersi
 func (c *client) handleQuery(raw *frame.RawFrame, msg *partialQuery) {
 	startTime := time.Now()
 	c.proxy.logger.Debug("handling query", zap.String("encodedQuery", msg.query), zap.Int16("stream", raw.Header.StreamId))
-
-	handled, stmt, queryType, err := parser.ParseRawQuery(parser.IdentifierFromString(string(c.sessionKeyspace)), msg.query)
 	otelCtx, span := c.proxy.otelInst.StartSpan(c.proxy.ctx, handleQuery, []attribute.KeyValue{
 		attribute.String("CqlQuery", msg.query),
 	})
-	defer c.proxy.otelInst.EndSpan(span)
 
-	var otelErr error
-	defer c.proxy.otelInst.RecordMetrics(otelCtx, handleQuery, startTime, queryType.String(), c.sessionKeyspace, otelErr)
-
-	if queryType == types.QueryTypeDescribe {
-
+	p := newParser(msg.query)
+	qt, err := parseQueryType(p)
+	if err != nil {
+		c.proxy.logger.Error("error parsing query to see if it's handled", zap.String(Query, msg.query), zap.Error(err))
+		c.sender.Send(raw.Header, &message.Invalid{ErrorMessage: err.Error()})
 		return
 	}
 
-	_, bound, err := c.proxy.translator.TranslateQuery(queryType, c.sessionKeyspace, msg.query, false)
+	rawQuery := types.NewRawQuery(raw.Header, c.sessionKeyspace, msg.query, p, qt)
+	defer c.proxy.otelInst.EndSpan(span)
+
+	var otelErr error
+	defer c.proxy.otelInst.RecordMetrics(otelCtx, handleQuery, startTime, rawQuery.QueryType().String(), c.sessionKeyspace, otelErr)
+
+	_, bound, err := c.proxy.translator.TranslateQuery(rawQuery, c.sessionKeyspace, false)
 	if err != nil {
 		c.proxy.logger.Error(translatorErrorMessage, zap.String(Query, msg.query), zap.Error(err))
 		otelErr = err
@@ -744,7 +728,7 @@ func (c *client) handleQuery(raw *frame.RawFrame, msg *partialQuery) {
 	}
 
 	otelgo.AddAnnotation(otelCtx, executingBigtableSQLAPIRequestEvent)
-	selectResult, err := c.proxy.bClient.Execute(otelCtx, bound)
+	selectResult, err := c.proxy.executor.Execute(otelCtx, c, bound)
 	otelgo.AddAnnotation(otelCtx, bigtableExecutionDoneEvent)
 
 	if err != nil {
@@ -834,118 +818,6 @@ func (c *client) getSystemMetadata(hdr *frame.Header, s *parser.SelectStatement)
 		return nil, errMsg
 	} else {
 		return data, nil
-	}
-}
-
-// Intercept and handle system query
-func (c *client) interceptSystemQuery(q types.IExecutableQuery) (*message.RowsResult, error) {
-	switch s := q.(type) {
-	case *types.BoundSelectQuery:
-		if s.Keyspace == systemSchema || s.Keyspace == systemVirtualSchema {
-			var localColumns []*message.ColumnMetadata
-			var isFound bool
-			if s.Keyspace == systemSchema {
-				localColumns, isFound = parser.SystemSchematablesColumn[s.Table]
-				if isFound {
-					tableMetadata := &message.RowsMetadata{
-						ColumnCount: int32(len(localColumns)),
-						Columns:     localColumns,
-					}
-
-					data, err := c.getSystemMetadata(hdr, s)
-					if err != nil {
-						c.sender.Send(hdr, &message.Invalid{ErrorMessage: err.Error()})
-						return
-					}
-
-					c.sender.Send(hdr, &message.RowsResult{
-						Metadata: tableMetadata,
-						Data:     data,
-					})
-					return
-				}
-			} else {
-				// get Table metadata for system_virtual_schema schema
-				localColumns, isFound = parser.SystemVirtualSchemaColumn[s.Table]
-				if isFound {
-					c.sender.Send(hdr, &message.RowsResult{
-						Metadata: &message.RowsMetadata{
-							ColumnCount: int32(len(localColumns)),
-							Columns:     localColumns,
-						},
-					})
-					return
-				}
-			}
-			if !isFound {
-				c.sender.Send(hdr, &message.Invalid{ErrorMessage: "Error while fetching mocked table info"})
-				return
-			}
-		} else if s.Table == local {
-			localColumns := parser.SystemLocalColumns
-			if len(c.proxy.cluster.Info.DSEVersion) > 0 {
-				localColumns = parser.DseSystemLocalColumns
-			}
-			if columns, err := parser.FilterColumns(s, localColumns); err != nil {
-				c.sender.Send(hdr, &message.Invalid{ErrorMessage: err.Error()})
-			} else if row, err := c.filterSystemLocalValues(s, columns); err != nil {
-				c.sender.Send(hdr, &message.Invalid{ErrorMessage: err.Error()})
-			} else {
-				c.sender.Send(hdr, &message.RowsResult{
-					Metadata: &message.RowsMetadata{
-						ColumnCount: int32(len(columns)),
-						Columns:     columns,
-					},
-					Data: []message.Row{row},
-				})
-			}
-		} else if s.Table == "peers" {
-			peersColumns := parser.SystemPeersColumns
-			if len(c.proxy.cluster.Info.DSEVersion) > 0 {
-				peersColumns = parser.DseSystemPeersColumns
-			}
-			if columns, err := parser.FilterColumns(s, peersColumns); err != nil {
-				c.sender.Send(hdr, &message.Invalid{ErrorMessage: err.Error()})
-			} else {
-				var data []message.Row
-				for _, n := range c.proxy.nodes {
-					if n != c.proxy.localNode {
-						var row message.Row
-						row, err = c.filterSystemPeerValues(s, columns, n, len(c.proxy.nodes)-1)
-						if err != nil {
-							break
-						}
-						data = append(data, row)
-					}
-				}
-				if err != nil {
-					c.sender.Send(hdr, &message.Invalid{ErrorMessage: err.Error()})
-				} else {
-					c.sender.Send(hdr, &message.RowsResult{
-						Metadata: &message.RowsMetadata{
-							ColumnCount: int32(len(columns)),
-							Columns:     columns,
-						},
-						Data: data,
-					})
-				}
-			}
-			// CC- metadata is mocked here as well for system queries
-		} else if columns, ok := parser.SystemColumnsByName[s.Table]; ok {
-			c.sender.Send(hdr, &message.RowsResult{
-				Metadata: &message.RowsMetadata{
-					ColumnCount: int32(len(columns)),
-					Columns:     columns,
-				},
-			})
-		} else {
-			c.sender.Send(hdr, &message.Invalid{ErrorMessage: "Doesn't exist"})
-		}
-	case *parser.UseStatement:
-		c.sessionKeyspace = types.Keyspace(strings.Trim(s.Keyspace, "\" "))
-		c.sender.Send(hdr, &message.SetKeyspaceResult{Keyspace: s.Keyspace})
-	default:
-		c.sender.Send(hdr, &message.ServerError{ErrorMessage: "Proxy attempted to intercept an unhandled query"})
 	}
 }
 

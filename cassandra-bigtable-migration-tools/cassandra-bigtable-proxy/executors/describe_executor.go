@@ -18,7 +18,7 @@ func (d *describeExecutor) CanRun(q types.IExecutableQuery) bool {
 	return q.QueryType() == types.QueryTypeDescribe
 }
 
-func (d *describeExecutor) Execute(ctx context.Context, q types.IExecutableQuery) (*message.RowsResult, error) {
+func (d *describeExecutor) Execute(_ context.Context, _ types.ICassandraClient, q types.IExecutableQuery) (message.Message, error) {
 	describeStmt, ok := q.(*types.DescribeQuery)
 	if !ok {
 		return nil, fmt.Errorf("invalid describe query type")
@@ -41,7 +41,7 @@ func newDescribeExecutor(schemaMappings *schemaMapping.SchemaMappingConfig) IQue
 }
 
 // handleDescribeKeyspaces handles the DESCRIBE KEYSPACES command
-func (d *describeExecutor) handleDescribeKeyspaces(desc *types.DescribeQuery) (*message.RowsResult, error) {
+func (d *describeExecutor) handleDescribeKeyspaces(desc *types.DescribeQuery) (message.Message, error) {
 	// Get all keyspaces from the schema mapping
 	keyspaces := make([]string, 0, len(d.schemaMappings.GetAllTables()))
 
@@ -75,7 +75,7 @@ func (d *describeExecutor) handleDescribeKeyspaces(desc *types.DescribeQuery) (*
 }
 
 // handleDescribeTables handles the DESCRIBE TABLES command
-func (d *describeExecutor) handleDescribeTables(desc *types.DescribeQuery) (*message.RowsResult, error) {
+func (d *describeExecutor) handleDescribeTables(desc *types.DescribeQuery) (message.Message, error) {
 	// Return a list of tables in
 	tables := []struct {
 		keyspace string
@@ -126,7 +126,7 @@ func (d *describeExecutor) handleDescribeTables(desc *types.DescribeQuery) (*mes
 }
 
 // handleDescribeTable handles the DESCRIBE TABLE command for a specific table
-func (d *describeExecutor) handleDescribeTable(desc *types.DescribeQuery) (*message.RowsResult, error) {
+func (d *describeExecutor) handleDescribeTable(desc *types.DescribeQuery) (message.Message, error) {
 	tableConfig, err := d.schemaMappings.GetTableConfig(desc.Keyspace(), desc.Table())
 	if err != nil {
 		return nil, fmt.Errorf("error getting describe column metadata: %w", err)
@@ -153,7 +153,7 @@ func (d *describeExecutor) handleDescribeTable(desc *types.DescribeQuery) (*mess
 }
 
 // handleDescribeKeyspace handles the DESCRIBE KEYSPACE <sessionKeyspace> command
-func (d *describeExecutor) handleDescribeKeyspace(desc *types.DescribeQuery) (*message.RowsResult, error) {
+func (d *describeExecutor) handleDescribeKeyspace(desc *types.DescribeQuery) (message.Message, error) {
 	columns := []*message.ColumnMetadata{
 		{
 			Name:     "create_statement",

@@ -15,6 +15,16 @@ type PreparedUpdateQuery struct {
 	params   *QueryParameters // Parameters for the query
 }
 
+func (p PreparedUpdateQuery) IsIdempotent() bool {
+	for _, v := range p.Values {
+		if !v.IsIdempotentAssignment() {
+			return false
+		}
+	}
+	// note: if we allowed where clauses on non-primary key columns we'd have to check those too
+	return true
+}
+
 func NewPreparedUpdateQuery(keyspace Keyspace, table TableName, ifExists bool, cqlQuery string, values []Assignment, clauses []Condition, params *QueryParameters) *PreparedUpdateQuery {
 	return &PreparedUpdateQuery{keyspace: keyspace, table: table, IfExists: ifExists, cqlQuery: cqlQuery, Values: values, Clauses: clauses, params: params}
 }

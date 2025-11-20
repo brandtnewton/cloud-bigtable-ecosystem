@@ -1,5 +1,10 @@
 package types
 
+import (
+	"cloud.google.com/go/bigtable"
+	"github.com/datastax/go-cassandra-native-protocol/message"
+)
+
 type AlterTableStatementMap struct {
 	cqlQuery    string
 	keyspace    Keyspace
@@ -7,6 +12,21 @@ type AlterTableStatementMap struct {
 	IfNotExists bool
 	AddColumns  []CreateColumn
 	DropColumns []ColumnName
+}
+
+func (a AlterTableStatementMap) Parameters() *QueryParameters {
+	return nil
+}
+
+func (a AlterTableStatementMap) ResponseColumns() []*message.ColumnMetadata {
+	return nil
+}
+
+func (a AlterTableStatementMap) SetBigtablePreparedQuery(s *bigtable.PreparedStatement) {
+}
+
+func (a AlterTableStatementMap) IsIdempotent() bool {
+	return false
 }
 
 func (a AlterTableStatementMap) CqlQuery() string {

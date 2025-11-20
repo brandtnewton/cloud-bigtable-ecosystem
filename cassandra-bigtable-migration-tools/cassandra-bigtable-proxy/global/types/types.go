@@ -160,24 +160,26 @@ type IQueryTranslator interface {
 }
 
 type RawQuery struct {
-	header    *frame.Header
-	cql       string
-	qt        QueryType
-	parser    *cql.CqlParser
-	startTime time.Time
+	header          *frame.Header
+	cql             string
+	qt              QueryType
+	sessionKeyspace Keyspace
+	parser          *cql.CqlParser
+	startTime       time.Time
 }
 
-func NewRawQuery(header *frame.Header, cql string, parser *cql.CqlParser, qt QueryType) *RawQuery {
-	return NewRawQueryWithTime(header, cql, parser, qt, time.Now().UTC())
+func NewRawQuery(header *frame.Header, sessionKeyspace Keyspace, cql string, parser *cql.CqlParser, qt QueryType) *RawQuery {
+	return NewRawQueryWithTime(header, sessionKeyspace, cql, parser, qt, time.Now().UTC())
 }
 
-func NewRawQueryWithTime(header *frame.Header, cql string, parser *cql.CqlParser, qt QueryType, t time.Time) *RawQuery {
+func NewRawQueryWithTime(header *frame.Header, sessionKeyspace Keyspace, cql string, parser *cql.CqlParser, qt QueryType, t time.Time) *RawQuery {
 	return &RawQuery{
-		header:    header,
-		cql:       cql,
-		parser:    parser,
-		qt:        qt,
-		startTime: t,
+		header:          header,
+		sessionKeyspace: sessionKeyspace,
+		cql:             cql,
+		parser:          parser,
+		qt:              qt,
+		startTime:       t,
 	}
 }
 
@@ -199,4 +201,8 @@ func (r RawQuery) StartTime() time.Time {
 
 func (r RawQuery) Header() *frame.Header {
 	return r.header
+}
+
+type ICassandraClient interface {
+	SetSessionKeyspace(k Keyspace)
 }

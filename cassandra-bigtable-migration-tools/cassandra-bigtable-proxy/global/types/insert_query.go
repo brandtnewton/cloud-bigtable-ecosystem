@@ -15,6 +15,10 @@ type PreparedInsertQuery struct {
 	Assignments []Assignment
 }
 
+func (p PreparedInsertQuery) IsIdempotent() bool {
+	return p.IfNotExists
+}
+
 func (p PreparedInsertQuery) QueryType() QueryType {
 	return QueryTypeInsert
 }

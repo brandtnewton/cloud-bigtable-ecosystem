@@ -48,11 +48,19 @@ func NewTableConfig(
 	columnMap := make(map[types.ColumnName]*types.Column)
 	var pks []*types.Column = nil
 	for i, column := range columns {
-		if column.CQLType.IsCollection() || column.CQLType.Code() == types.COUNTER {
-			column.ColumnFamily = types.ColumnFamily(column.Name)
+
+		var cf types.ColumnFamily
+		if column.IsPrimaryKey {
+			// primary keys are stored in the row key, so they have no column family
+			cf = ""
+		} else if column.CQLType.IsCollection() || column.CQLType.Code() == types.COUNTER {
+			// collections and counters are stored at the column family level, so their name is their column family
+			cf = types.ColumnFamily(column.Name)
 		} else {
-			column.ColumnFamily = systemColumnFamily
+			// all scalars that aren't primary keys are stored in the configured system column family
+			cf = systemColumnFamily
 		}
+		column.ColumnFamily = cf
 		column.Metadata = message.ColumnMetadata{
 			Keyspace: string(keyspace),
 			Table:    string(table),

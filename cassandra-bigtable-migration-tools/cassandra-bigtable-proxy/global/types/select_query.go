@@ -114,6 +114,10 @@ type BoundSelectQuery struct {
 	Values          *QueryParameterValues
 }
 
+func (b BoundSelectQuery) AsBulkMutation() (IBigtableMutation, bool) {
+	return nil, false
+}
+
 func (b BoundSelectQuery) QueryType() QueryType {
 	return QueryTypeSelect
 }

@@ -41,6 +41,10 @@ type BigtableBulkMutation struct {
 	mutations map[types.TableName][]types.IBigtableMutation
 }
 
+func NewBigtableBulkMutation() *BigtableBulkMutation {
+	return &BigtableBulkMutation{mutations: make(map[types.TableName][]types.IBigtableMutation)}
+}
+
 func (b *BigtableBulkMutation) Mutations() map[types.TableName][]types.IBigtableMutation {
 	return b.mutations
 }

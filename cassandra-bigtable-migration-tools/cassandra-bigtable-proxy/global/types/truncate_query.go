@@ -9,6 +9,10 @@ func NewTruncateTableStatementMap(keyspace Keyspace, table TableName) *TruncateT
 	return &TruncateTableStatementMap{keyspace: keyspace, table: table}
 }
 
+func (c TruncateTableStatementMap) AsBulkMutation() (IBigtableMutation, bool) {
+	return nil, false
+}
+
 func (c TruncateTableStatementMap) Keyspace() Keyspace {
 	return c.keyspace
 }

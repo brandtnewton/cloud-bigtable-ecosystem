@@ -100,6 +100,10 @@ func NewBigtableWriteMutation(keyspace Keyspace, table TableName, ifSpec IfSpec,
 	return &BigtableWriteMutation{keyspace: keyspace, table: table, IfSpec: ifSpec, queryType: qt, rowKey: rowKey}
 }
 
+func (b BigtableWriteMutation) AsBulkMutation() (IBigtableMutation, bool) {
+	return b, true
+}
+
 func (b BigtableWriteMutation) QueryType() QueryType {
 	return b.queryType
 }

@@ -63,6 +63,10 @@ func NewBoundDeleteQuery(keyspace Keyspace, table TableName, rowKey RowKey, ifEx
 	return &BoundDeleteQuery{keyspace: keyspace, table: table, rowKey: rowKey, IfExists: ifExists, Columns: columns}
 }
 
+func (b BoundDeleteQuery) AsBulkMutation() (IBigtableMutation, bool) {
+	return b, true
+}
+
 func (b BoundDeleteQuery) QueryType() QueryType {
 	return QueryTypeDelete
 }

@@ -129,6 +129,7 @@ type IExecutableQuery interface {
 	Keyspace() Keyspace
 	Table() TableName
 	QueryType() QueryType
+	AsBulkMutation() (IBigtableMutation, bool)
 }
 type IPreparedQuery interface {
 	Keyspace() Keyspace

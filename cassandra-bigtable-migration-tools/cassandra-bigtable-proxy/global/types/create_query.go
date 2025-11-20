@@ -13,6 +13,10 @@ func NewCreateTableStatementMap(keyspace Keyspace, table TableName, ifNotExists 
 	return &CreateTableStatementMap{keyspace: keyspace, table: table, IfNotExists: ifNotExists, Columns: columns, PrimaryKeys: primaryKeys, IntRowKeyEncoding: intRowKeyEncoding}
 }
 
+func (c CreateTableStatementMap) AsBulkMutation() (IBigtableMutation, bool) {
+	return nil, false
+}
+
 func (c CreateTableStatementMap) Keyspace() Keyspace {
 	return c.keyspace
 }

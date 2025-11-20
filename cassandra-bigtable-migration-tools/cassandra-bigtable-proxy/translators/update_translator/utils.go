@@ -6,7 +6,7 @@ import (
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/global/types"
 	schemaMapping "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/schema-mapping"
 	cql "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/third_party/cqlparser"
-	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/translators"
+	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/translators/common"
 	"github.com/antlr4-go/antlr/v4"
 	"strconv"
 )
@@ -27,11 +27,11 @@ import (
 //   - An error if invalid input is detected, such as an empty assignment list or issues with assignment syntax,
 //     or if a column type cannot be retrieved from the schema mapping table, or if an attempt is made to assign
 //     a value to a primary key.
-func parseUpdateValues(assignments []cql.IAssignmentElementContext, tableConfig *schemaMapping.TableConfig, params *types.QueryParameters, values *types.QueryParameterValues) ([]translators.Assignment, error) {
+func parseUpdateValues(assignments []cql.IAssignmentElementContext, tableConfig *schemaMapping.TableConfig, params *types.QueryParameters, values *types.QueryParameterValues) ([]types.Assignment, error) {
 	if len(assignments) == 0 {
 		return nil, errors.New("invalid input")
 	}
-	var parsed []translators.Assignment
+	var parsed []types.Assignment
 
 	for _, setVal := range assignments {
 		colObj := setVal.OBJECT_NAME(0)
@@ -50,7 +50,7 @@ func parseUpdateValues(assignments []cql.IAssignmentElementContext, tableConfig 
 		if col.IsPrimaryKey {
 			return nil, fmt.Errorf("primary key not allowed to assignments")
 		}
-		var assignment translators.Assignment
+		var assignment types.Assignment
 		hasValue := setVal.QUESTION_MARK() == nil
 
 		// Handle append, prepend, remove as Assignment
@@ -76,7 +76,7 @@ func parseUpdateValues(assignments []cql.IAssignmentElementContext, tableConfig 
 				if err != nil {
 					return nil, err
 				}
-				p := params.PushParameter(col, at)
+				p := params.PushParameter(col, at, false)
 				if hasValue {
 					at, err := getAppendType(col.CQLType)
 					if err != nil {
@@ -91,14 +91,14 @@ func parseUpdateValues(assignments []cql.IAssignmentElementContext, tableConfig 
 						return nil, err
 					}
 				}
-				assignment = translators.NewComplexAssignmentAdd(col, false, p)
+				assignment = types.NewComplexAssignmentAdd(col, false, p)
 			} else if (isCollection(left) || isCounter(left)) && isColumn(right, col.Name) && op == "+" {
 				// Prepend: col = [values] + col
 				at, err := getAppendType(col.CQLType)
 				if err != nil {
 					return nil, err
 				}
-				p := params.PushParameter(col, at)
+				p := params.PushParameter(col, at, false)
 				if hasValue {
 					val, err := getNodeValue(left, setVal, at)
 					if err != nil {
@@ -109,9 +109,9 @@ func parseUpdateValues(assignments []cql.IAssignmentElementContext, tableConfig 
 						return nil, err
 					}
 				}
-				assignment = translators.NewComplexAssignmentAdd(col, true, p)
+				assignment = types.NewComplexAssignmentAdd(col, true, p)
 			} else if op == "-" {
-				p := params.PushParameter(col, col.CQLType)
+				p := params.PushParameter(col, col.CQLType, false)
 				if hasValue {
 					val, err := getNodeValue(right, setVal, col.CQLType)
 					if err != nil {
@@ -122,7 +122,7 @@ func parseUpdateValues(assignments []cql.IAssignmentElementContext, tableConfig 
 						return nil, err
 					}
 				}
-				assignment = translators.NewComplexAssignmentRemove(col, p)
+				assignment = types.NewComplexAssignmentRemove(col, p)
 			} else {
 				return nil, fmt.Errorf("unhandled operation type %s", op)
 			}
@@ -138,10 +138,10 @@ func parseUpdateValues(assignments []cql.IAssignmentElementContext, tableConfig 
 				return nil, err
 			}
 
-			p := params.PushParameter(col, col.CQLType)
+			p := params.PushParameter(col, col.CQLType, true)
 
 			if hasValue {
-				valueRaw, err := translators.GetCqlConstant(setVal.Constant(), lt.ElementType())
+				valueRaw, err := common.GetCqlConstant(setVal.Constant(), lt.ElementType())
 				if err != nil {
 					return nil, err
 				}
@@ -151,24 +151,24 @@ func parseUpdateValues(assignments []cql.IAssignmentElementContext, tableConfig 
 				}
 			}
 
-			assignment = translators.NewComplexAssignmentUpdateIndex(col, index, p)
+			assignment = types.NewComplexAssignmentUpdateIndex(col, index, p)
 		} else if setVal.Constant() != nil { // set a scalar value
-			goValue, err := translators.GetCqlConstant(setVal.Constant(), col.CQLType)
+			goValue, err := common.GetCqlConstant(setVal.Constant(), col.CQLType)
 			if err != nil {
 				return nil, err
 			}
-			p := params.PushParameter(col, col.CQLType)
-			assignment = translators.NewComplexAssignmentSet(col, p)
+			p := params.PushParameter(col, col.CQLType, false)
+			assignment = types.NewComplexAssignmentSet(col, p)
 			err = values.SetValue(p, goValue)
 			if err != nil {
 				return nil, err
 			}
 		} else if setVal.AssignmentMap() != nil {
-			p := params.PushParameter(col, col.CQLType)
-			assignment = translators.NewComplexAssignmentSet(col, p)
+			p := params.PushParameter(col, col.CQLType, false)
+			assignment = types.NewComplexAssignmentSet(col, p)
 
 			if hasValue {
-				goValue, err := translators.ParseCqlMapAssignment(setVal.AssignmentMap(), col.CQLType)
+				goValue, err := common.ParseCqlMapAssignment(setVal.AssignmentMap(), col.CQLType)
 				if err != nil {
 					return nil, err
 				}
@@ -178,10 +178,10 @@ func parseUpdateValues(assignments []cql.IAssignmentElementContext, tableConfig 
 				}
 			}
 		} else if setVal.AssignmentSet() != nil {
-			p := params.PushParameter(col, col.CQLType)
-			assignment = translators.NewComplexAssignmentSet(col, p)
+			p := params.PushParameter(col, col.CQLType, false)
+			assignment = types.NewComplexAssignmentSet(col, p)
 			if hasValue {
-				goValue, err := translators.ParseCqlSetAssignment(setVal.AssignmentSet(), col.CQLType)
+				goValue, err := common.ParseCqlSetAssignment(setVal.AssignmentSet(), col.CQLType)
 				if err != nil {
 					return nil, err
 				}
@@ -191,10 +191,10 @@ func parseUpdateValues(assignments []cql.IAssignmentElementContext, tableConfig 
 				}
 			}
 		} else if setVal.AssignmentList() != nil {
-			p := params.PushParameter(col, col.CQLType)
-			assignment = translators.NewComplexAssignmentSet(col, p)
+			p := params.PushParameter(col, col.CQLType, false)
+			assignment = types.NewComplexAssignmentSet(col, p)
 			if hasValue {
-				goValue, err := translators.ParseCqlListAssignment(setVal.AssignmentList(), col.CQLType)
+				goValue, err := common.ParseCqlListAssignment(setVal.AssignmentList(), col.CQLType)
 				if err != nil {
 					return nil, err
 				}
@@ -207,8 +207,8 @@ func parseUpdateValues(assignments []cql.IAssignmentElementContext, tableConfig 
 			if err != nil {
 				return nil, err
 			}
-			p := params.PushParameter(col, col.CQLType)
-			assignment = translators.NewComplexAssignmentSet(col, p)
+			p := params.PushParameter(col, col.CQLType, false)
+			assignment = types.NewComplexAssignmentSet(col, p)
 		} else {
 			return nil, fmt.Errorf("unhandled update set value operation: '%s'", setVal.GetText())
 		}
@@ -249,19 +249,19 @@ func isCounter(node antlr.Tree) bool {
 func getNodeValue(node antlr.Tree, parent antlr.ParserRuleContext, expectedType types.CqlDataType) (types.GoValue, error) {
 	switch v := node.(type) {
 	case cql.IAssignmentListContext:
-		val, err := translators.ParseCqlValue(v, expectedType)
+		val, err := common.ParseCqlValue(v, expectedType)
 		if err != nil {
 			return nil, err
 		}
 		return val, nil
 	case cql.IAssignmentSetContext:
-		val, err := translators.ParseCqlValue(v, expectedType)
+		val, err := common.ParseCqlValue(v, expectedType)
 		if err != nil {
 			return nil, err
 		}
 		return val, nil
 	case cql.IAssignmentMapContext:
-		val, err := translators.ParseCqlValue(v, expectedType)
+		val, err := common.ParseCqlValue(v, expectedType)
 		if err != nil {
 			return nil, err
 		}

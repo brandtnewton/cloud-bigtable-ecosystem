@@ -10,6 +10,10 @@ func NewDropTableQuery(keyspace Keyspace, table TableName, ifExists bool) *DropT
 	return &DropTableQuery{keyspace: keyspace, table: table, IfExists: ifExists}
 }
 
+func (c DropTableQuery) AsBulkMutation() (IBigtableMutation, bool) {
+	return nil, false
+}
+
 func (c DropTableQuery) Keyspace() Keyspace {
 	return c.keyspace
 }

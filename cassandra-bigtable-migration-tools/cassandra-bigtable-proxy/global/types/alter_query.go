@@ -12,6 +12,10 @@ func NewAlterTableStatementMap(keyspace Keyspace, table TableName, ifNotExists b
 	return &AlterTableStatementMap{keyspace: keyspace, table: table, IfNotExists: ifNotExists, AddColumns: addColumns, DropColumns: dropColumns}
 }
 
+func (a AlterTableStatementMap) AsBulkMutation() (IBigtableMutation, bool) {
+	return nil, false
+}
+
 func (a AlterTableStatementMap) Keyspace() Keyspace {
 	return a.keyspace
 }

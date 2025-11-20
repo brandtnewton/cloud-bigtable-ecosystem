@@ -692,7 +692,7 @@ func (c *client) handleBatch(raw *frame.RawFrame, msg *partialBatch) {
 
 func (c *client) getAllPreparedOps(msg *partialBatch, pv primitive.ProtocolVersion) (*bigtableModule.BigtableBulkMutation, types.Keyspace, error) {
 	var keyspace types.Keyspace
-	tableMutationsMap := bigtableModule.BigtableBulkMutation{}
+	tableMutationsMap := bigtableModule.NewBigtableBulkMutation()
 	for index, queryId := range msg.queryOrIds {
 		queryOrId, ok := queryId.([]byte)
 		if !ok {
@@ -708,9 +708,13 @@ func (c *client) getAllPreparedOps(msg *partialBatch, pv primitive.ProtocolVersi
 		if err != nil {
 			return nil, "", err
 		}
-		tableMutationsMap.AddMutation(executableQuery)
+		mutation, ok := executableQuery.AsBulkMutation()
+		if !ok {
+			return nil, "", fmt.Errorf("query type '%s' not compatible with bulk", executableQuery.QueryType().String())
+		}
+		tableMutationsMap.AddMutation(mutation)
 	}
-	return &tableMutationsMap, keyspace, nil
+	return tableMutationsMap, keyspace, nil
 }
 
 func (c *client) handleQuery(raw *frame.RawFrame, msg *partialQuery) {

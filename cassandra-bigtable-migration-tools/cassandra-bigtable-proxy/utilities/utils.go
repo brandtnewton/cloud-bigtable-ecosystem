@@ -18,7 +18,7 @@ package utilities
 
 import (
 	"fmt"
-	"reflect"
+	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/third_party/datastax/proxycore"
 	"regexp"
 	"slices"
 	"strconv"
@@ -27,7 +27,6 @@ import (
 
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/global/types"
 	cql "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/third_party/cqlparser"
-	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/third_party/datastax/proxycore"
 	"github.com/antlr4-go/antlr/v4"
 	"github.com/datastax/go-cassandra-native-protocol/datatype"
 	"github.com/datastax/go-cassandra-native-protocol/primitive"
@@ -374,13 +373,6 @@ func TypeConversion(s any, pv primitive.ProtocolVersion) ([]byte, error) {
 	return bytes, err
 }
 
-/*
-DataConversionInInsertionIfRequired() converts a value to a byte array based on the provided Cassandra type and response type.
-Parameters:
-  - value: any
-  - pv: primitive.ProtocolVersion
-  - cqlType: string
-*/
 func DataConversionInInsertionIfRequired(value any, pv primitive.ProtocolVersion, cqlType string, responseType string) (any, error) {
 	switch cqlType {
 	case CassandraTypeBoolean:
@@ -906,58 +898,4 @@ func validateDataTypeDefinition(dt cql.IDataTypeContext, expectedTypeCount int) 
 		return fmt.Errorf("missing closing type bracket in: '%s'", dt.GetText())
 	}
 	return nil
-}
-
-// todo unit test
-func ValidateGoType(v any, dt types.CqlDataType) error {
-	expected, err := getGoType(dt)
-	if err != nil {
-		return fmt.Errorf("failed to determine expected type: %w", err)
-	}
-
-	if expected != reflect.TypeOf(v) {
-		return fmt.Errorf("got %T, expected %s (%s)", v, dt.String(), expected.String())
-	}
-
-	return nil
-}
-
-func getGoType(dt types.CqlDataType) (reflect.Type, error) {
-	switch dt.Code() {
-	case types.INT:
-		return reflect.TypeOf(int32(0)), nil
-	case types.BIGINT:
-		return reflect.TypeOf(int64(0)), nil
-	case types.VARCHAR, types.TEXT, types.ASCII:
-		return reflect.TypeOf(""), nil
-	case types.BOOLEAN:
-		return reflect.TypeOf(false), nil
-	case types.LIST:
-		lt := dt.(types.ListType)
-		inner, err := getGoType(lt.ElementType())
-		if err != nil {
-			return nil, err
-		}
-		return reflect.SliceOf(inner), nil
-	case types.SET:
-		lt := dt.(types.SetType)
-		inner, err := getGoType(lt.ElementType())
-		if err != nil {
-			return nil, err
-		}
-		return reflect.SliceOf(inner), nil
-	case types.MAP:
-		lt := dt.(types.MapType)
-		key, err := getGoType(lt.KeyType())
-		if err != nil {
-			return nil, err
-		}
-		value, err := getGoType(lt.ValueType())
-		if err != nil {
-			return nil, err
-		}
-		return reflect.MapOf(key, value), nil
-	default:
-		return nil, fmt.Errorf("unhandled data type: %s", dt.String())
-	}
 }

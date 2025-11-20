@@ -20,14 +20,13 @@ import (
 	"errors"
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/global/types"
 	sm "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/schema-mapping"
-	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/translators"
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/translators/common"
 	"github.com/datastax/go-cassandra-native-protocol/message"
 	"github.com/datastax/go-cassandra-native-protocol/primitive"
 )
 
 func (t *SelectTranslator) Translate(query string, sessionKeyspace types.Keyspace, isPreparedQuery bool) (types.IPreparedQuery, types.IExecutableQuery, error) {
-	p, err := translators.NewCqlParser(query, false)
+	p, err := common.NewCqlParser(query, false)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -36,7 +35,7 @@ func (t *SelectTranslator) Translate(query string, sessionKeyspace types.Keyspac
 		return nil, nil, errors.New("ToBigtableSelect: Could not parse select object")
 	}
 
-	keyspaceName, tableName, err := translators.ParseTarget(selectObj.FromSpec(), sessionKeyspace, t.schemaMappingConfig)
+	keyspaceName, tableName, err := common.ParseTarget(selectObj.FromSpec(), sessionKeyspace, t.schemaMappingConfig)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -54,7 +53,7 @@ func (t *SelectTranslator) Translate(query string, sessionKeyspace types.Keyspac
 	params := types.NewQueryParameters()
 	values := types.NewQueryParameterValues(params)
 
-	conditions, err := translators.ParseWhereClause(selectObj.WhereSpec(), tableConfig, params, values)
+	conditions, err := common.ParseWhereClause(selectObj.WhereSpec(), tableConfig, params, values)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -63,7 +62,7 @@ func (t *SelectTranslator) Translate(query string, sessionKeyspace types.Keyspac
 	if selectObj.GroupSpec() != nil {
 		groupBy = parseGroupByColumn(selectObj.GroupSpec())
 	}
-	var orderBy translators.OrderBy
+	var orderBy types.OrderBy
 	if selectObj.OrderSpec() != nil {
 		orderBy, err = parseOrderByFromSelect(selectObj.OrderSpec())
 		if err != nil {
@@ -81,18 +80,7 @@ func (t *SelectTranslator) Translate(query string, sessionKeyspace types.Keyspac
 
 	resultColumns := selectedColumnsToMetadata(tableConfig, selectClause)
 
-	st := &PreparedSelectQuery{
-		cqlQuery:             query,
-		TranslatedQuery:      "", // created later
-		table:                tableName,
-		keyspace:             keyspaceName,
-		SelectClause:         selectClause,
-		Conditions:           conditions,
-		OrderBy:              orderBy,
-		GroupByColumns:       groupBy,
-		Params:               params,
-		ResultColumnMetadata: resultColumns,
-	}
+	st := types.NewPreparedSelectQuery(keyspaceName, tableName, query, "", selectClause, conditions, params, orderBy, groupBy, resultColumns)
 
 	translatedResult, err := getBigtableSelectQuery(t, st)
 	if err != nil {
@@ -100,7 +88,7 @@ func (t *SelectTranslator) Translate(query string, sessionKeyspace types.Keyspac
 	}
 	st.TranslatedQuery = translatedResult
 
-	var bound *BoundSelectQuery
+	var bound *types.BoundSelectQuery
 	if !isPreparedQuery {
 		bound, err = t.doBindSelect(st, values, primitive.ProtocolVersion4)
 		if err != nil {
@@ -120,7 +108,7 @@ func (t *SelectTranslator) Translate(query string, sessionKeyspace types.Keyspac
 	return st, bound, nil
 }
 
-func selectedColumnsToMetadata(table *sm.TableConfig, selectClause *SelectClause) []*message.ColumnMetadata {
+func selectedColumnsToMetadata(table *sm.TableConfig, selectClause *types.SelectClause) []*message.ColumnMetadata {
 	if selectClause.IsStar {
 		return table.GetMetadata()
 	}
@@ -140,7 +128,7 @@ func selectedColumnsToMetadata(table *sm.TableConfig, selectClause *SelectClause
 }
 
 func (t *SelectTranslator) Bind(st types.IPreparedQuery, cassandraValues []*primitive.Value, pv primitive.ProtocolVersion) (types.IExecutableQuery, error) {
-	sst := st.(*PreparedSelectQuery)
+	sst := st.(*types.PreparedSelectQuery)
 	values, err := common.BindQueryParams(sst.Params, cassandraValues, pv)
 	if err != nil {
 		return nil, err
@@ -148,8 +136,8 @@ func (t *SelectTranslator) Bind(st types.IPreparedQuery, cassandraValues []*prim
 	return t.doBindSelect(sst, values, pv)
 }
 
-func (t *SelectTranslator) doBindSelect(st *PreparedSelectQuery, values *types.QueryParameterValues, pv primitive.ProtocolVersion) (*BoundSelectQuery, error) {
-	query := &BoundSelectQuery{
+func (t *SelectTranslator) doBindSelect(st *types.PreparedSelectQuery, values *types.QueryParameterValues, pv primitive.ProtocolVersion) (*types.BoundSelectQuery, error) {
+	query := &types.BoundSelectQuery{
 		Query:           st,
 		ProtocolVersion: pv,
 		Values:          values,

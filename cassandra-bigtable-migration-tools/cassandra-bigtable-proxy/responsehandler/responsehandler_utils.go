@@ -67,7 +67,7 @@ func BuildRowsResultResponse(table *schemaMapping.TableConfig, st *types.Prepare
 	}, nil
 }
 
-func BuildPreparedResultResponse(id [16]byte, keyspace types.Keyspace, table types.TableName, params *types.QueryParameters, selectedColumns []types.SelectedColumn) (*message.PreparedResult, error) {
+func BuildPreparedResultResponse(id [16]byte, keyspace types.Keyspace, table types.TableName, params *types.QueryParameters, resultColumns []*message.ColumnMetadata) (*message.PreparedResult, error) {
 	var pkIndices []uint16
 	var variableMetadata []*message.ColumnMetadata
 	for i, p := range params.AllKeys() {
@@ -86,8 +86,6 @@ func BuildPreparedResultResponse(id [16]byte, keyspace types.Keyspace, table typ
 			pkIndices = append(pkIndices, uint16(i))
 		}
 	}
-
-	resultColumns := selectedColumnsToMetadata(keyspace, table, selectedColumns)
 
 	return &message.PreparedResult{
 		PreparedQueryId: id[:],

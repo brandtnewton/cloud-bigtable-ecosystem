@@ -27,7 +27,6 @@ import (
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/translators/select_translator"
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/translators/truncate_translator"
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/translators/update_translator"
-	"github.com/datastax/go-cassandra-native-protocol/primitive"
 	"go.uber.org/zap"
 )
 
@@ -37,15 +36,15 @@ type Translator struct {
 	// determines the encoding for int row keys in all new tables
 	DefaultIntRowKeyEncoding types.IntRowKeyEncodingType
 	// dml
-	select_  IQueryTranslator
-	insert   IQueryTranslator
-	update   IQueryTranslator
-	delete   IQueryTranslator
-	truncate IQueryTranslator
+	select_  types.IQueryTranslator
+	insert   types.IQueryTranslator
+	update   types.IQueryTranslator
+	delete   types.IQueryTranslator
+	truncate types.IQueryTranslator
 	// ddl
-	create IQueryTranslator
-	alter  IQueryTranslator
-	drop   IQueryTranslator
+	create types.IQueryTranslator
+	alter  types.IQueryTranslator
+	drop   types.IQueryTranslator
 }
 
 func NewTranslator(logger *zap.Logger, schemaMappingConfig *schemaMapping.SchemaMappingConfig, defaultIntRowKeyEncoding types.IntRowKeyEncodingType) *Translator {
@@ -63,9 +62,4 @@ func NewTranslator(logger *zap.Logger, schemaMappingConfig *schemaMapping.Schema
 		alter:  alter_translator.NewAlterTranslator(schemaMappingConfig),
 		drop:   drop_translator.NewDropTranslator(schemaMappingConfig),
 	}
-}
-
-type IQueryTranslator interface {
-	Translate(query string, sessionKeyspace types.Keyspace, isPreparedQuery bool) (types.IPreparedQuery, types.IExecutableQuery, error)
-	Bind(st types.IPreparedQuery, values []*primitive.Value, pv primitive.ProtocolVersion) (types.IExecutableQuery, error)
 }

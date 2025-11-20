@@ -7,7 +7,6 @@ import (
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/global/types"
 	sm "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/schema-mapping"
 	cql "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/third_party/cqlparser"
-	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/translators"
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/translators/common"
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/utilities"
 	"github.com/datastax/go-cassandra-native-protocol/datatype"
@@ -22,13 +21,13 @@ import (
 //   - input: The Select Element context from the antlr Parser.
 //
 // Returns: Columns Meta and an error if any.
-func parseSelectClause(input cql.ISelectElementsContext, table *sm.TableConfig) (*SelectClause, error) {
+func parseSelectClause(input cql.ISelectElementsContext, table *sm.TableConfig) (*types.SelectClause, error) {
 	if input == nil {
 		return nil, errors.New("select clause empty")
 	}
 
 	if input.STAR() != nil {
-		return &SelectClause{
+		return &types.SelectClause{
 			IsStar: true,
 		}, nil
 	}
@@ -37,9 +36,9 @@ func parseSelectClause(input cql.ISelectElementsContext, table *sm.TableConfig) 
 		return nil, errors.New("select clause empty")
 	}
 
-	var selectedColumns []SelectedColumn
+	var selectedColumns []types.SelectedColumn
 	for _, val := range input.AllSelectElement() {
-		selected := SelectedColumn{
+		selected := types.SelectedColumn{
 			Sql: val.GetText(),
 		}
 		alias, err := parseAs(val.AsSpec())
@@ -66,7 +65,7 @@ func parseSelectClause(input cql.ISelectElementsContext, table *sm.TableConfig) 
 				}
 				argument = funcCall.FunctionArgs().GetText()
 			}
-			selected.Func = f
+			selected.Func = f.Code()
 			selected.ResultType = f.ReturnType()
 			selected.ColumnName = types.ColumnName(argument)
 		} else {
@@ -84,7 +83,7 @@ func parseSelectClause(input cql.ISelectElementsContext, table *sm.TableConfig) 
 				mapKey := mapAccess.Constant().GetText()
 
 				// Remove surrounding quotes from mapKey
-				mapKey = translators.TrimQuotes(mapKey)
+				mapKey = common.TrimQuotes(mapKey)
 
 				// Populate the selected column
 				selected.Sql = fmt.Sprintf("%s['%s']", objectName, mapKey)
@@ -101,7 +100,7 @@ func parseSelectClause(input cql.ISelectElementsContext, table *sm.TableConfig) 
 		selectedColumns = append(selectedColumns, selected)
 	}
 
-	return &SelectClause{Columns: selectedColumns}, nil
+	return &types.SelectClause{Columns: selectedColumns}, nil
 }
 
 func parseAs(a cql.IAsSpecContext) (string, error) {
@@ -123,8 +122,8 @@ func parseAs(a cql.IAsSpecContext) (string, error) {
 //   - input: The Order Spec context from the antlr Parser.
 //
 // Returns: OrderBy struct
-func parseOrderByFromSelect(input cql.IOrderSpecContext) (translators.OrderBy, error) {
-	var response translators.OrderBy
+func parseOrderByFromSelect(input cql.IOrderSpecContext) (types.OrderBy, error) {
+	var response types.OrderBy
 
 	if input == nil {
 		response.IsOrderBy = false
@@ -133,33 +132,30 @@ func parseOrderByFromSelect(input cql.IOrderSpecContext) (translators.OrderBy, e
 
 	orderSpecElements := input.AllOrderSpecElement()
 	if len(orderSpecElements) == 0 {
-		return translators.OrderBy{}, fmt.Errorf("order_by section not have proper values")
+		return types.OrderBy{}, fmt.Errorf("order_by section not have proper values")
 	}
 
 	response.IsOrderBy = true
-	response.Columns = make([]translators.OrderByColumn, 0, len(orderSpecElements))
+	response.Columns = make([]types.OrderByColumn, 0, len(orderSpecElements))
 
 	for _, element := range orderSpecElements {
 		object := element.OBJECT_NAME()
 		if object == nil {
-			return translators.OrderBy{}, fmt.Errorf("order_by section not have proper values")
+			return types.OrderBy{}, fmt.Errorf("order_by section not have proper values")
 		}
 
 		colName := strings.TrimSpace(object.GetText())
 		if colName == "" {
-			return translators.OrderBy{}, fmt.Errorf("order_by section has empty column name")
-		}
-		if strings.Contains(colName, translators.MissingUndefined) {
-			return translators.OrderBy{}, fmt.Errorf("in order by, column name not provided correctly")
+			return types.OrderBy{}, fmt.Errorf("order_by section has empty column name")
 		}
 
-		orderByCol := translators.OrderByColumn{
+		orderByCol := types.OrderByColumn{
 			Column:    colName,
-			Operation: translators.Asc,
+			Operation: types.Asc,
 		}
 
 		if element.KwDesc() != nil {
-			orderByCol.Operation = translators.Desc
+			orderByCol.Operation = types.Desc
 		}
 
 		response.Columns = append(response.Columns, orderByCol)
@@ -211,11 +207,6 @@ func parseGroupByColumn(input cql.IGroupSpecContext) []string {
 		}
 
 		colName := object.GetText()
-		if strings.Contains(colName, translators.MissingUndefined) || strings.Contains(colName, translators.Missing) {
-			// If any group by element is malformed, treat as malformed and return nil
-			return nil
-		}
-
 		columns = append(columns, colName)
 	}
 
@@ -232,13 +223,13 @@ func parseGroupByColumn(input cql.IGroupSpecContext) []string {
 // Returns:
 //   - []string column containing formatted selected columns for bigtable query
 //   - error if any
-func createBtqlSelectClause(tableConfig *sm.TableConfig, s *SelectClause, isGroupBy bool) (string, error) {
+func createBtqlSelectClause(tableConfig *sm.TableConfig, s *types.SelectClause, isGroupBy bool) (string, error) {
 	if s.IsStar {
-		return translators.STAR, nil
+		return "*", nil
 	}
 	var columns []string
 	for _, col := range s.Columns {
-		if col.Func != nil {
+		if col.Func != types.FuncCodeUnknown {
 			c, err := createBtqlFunc(col, tableConfig)
 			if err != nil {
 				return "", err
@@ -278,8 +269,8 @@ func createBtqlSelectClause(tableConfig *sm.TableConfig, s *SelectClause, isGrou
 //  4. Validates if the aggregate function is supported
 //  5. Applies any necessary type casting (converting cql select columns to respective bigtable columns)
 //  6. Formats the column expression with function and alias if specified
-func createBtqlFunc(col SelectedColumn, tableConfig *sm.TableConfig) (string, error) {
-	if col.Func.Code() == common.FuncCodeCount && col.ColumnName == translators.STAR {
+func createBtqlFunc(col types.SelectedColumn, tableConfig *sm.TableConfig) (string, error) {
+	if col.Func == types.FuncCodeCount && col.ColumnName == "*" {
 		if col.Alias != "" {
 			return "count(*) as " + col.Alias, nil
 		}
@@ -296,13 +287,13 @@ func createBtqlFunc(col SelectedColumn, tableConfig *sm.TableConfig) (string, er
 		}
 	}
 
-	if !funcAllowedInAggregate(col.Func.Code()) {
+	if !funcAllowedInAggregate(col.Func) {
 		return "", fmt.Errorf("unknown function '%s'", col.Func.String())
 	}
 	if !isTypeAllowedInAggregate(colMeta.CQLType.DataType()) {
 		return "", fmt.Errorf("column not supported for aggregate")
 	}
-	castValue, castErr := translators.CastScalarColumn(colMeta)
+	castValue, castErr := common.CastScalarColumn(colMeta)
 	if castErr != nil {
 		return "", castErr
 	}
@@ -327,11 +318,11 @@ func isTypeAllowedInAggregate(dt datatype.DataType) bool {
 }
 
 // funcAllowedInAggregate checks if a given function name is allowed within an aggregate function.
-func funcAllowedInAggregate(f common.BtqlFuncCode) bool {
-	return f == common.FuncCodeAvg || f == common.FuncCodeSum || f == common.FuncCodeMin || f == common.FuncCodeMax || f == common.FuncCodeCount
+func funcAllowedInAggregate(f types.BtqlFuncCode) bool {
+	return f == types.FuncCodeAvg || f == types.FuncCodeSum || f == types.FuncCodeMin || f == types.FuncCodeMax || f == types.FuncCodeCount
 }
 
-func createBtqlSelectCol(tableConfig *sm.TableConfig, selectedColumn SelectedColumn, isGroupBy bool) (string, error) {
+func createBtqlSelectCol(tableConfig *sm.TableConfig, selectedColumn types.SelectedColumn, isGroupBy bool) (string, error) {
 	colName := selectedColumn.Sql
 	if selectedColumn.MapKey != "" {
 		colName = string(selectedColumn.ColumnName)
@@ -354,7 +345,7 @@ func createBtqlSelectCol(tableConfig *sm.TableConfig, selectedColumn SelectedCol
 	return c, nil
 }
 
-func processAsColumn(selectedColumn SelectedColumn, column *types.Column, isGroupBy bool) (string, error) {
+func processAsColumn(selectedColumn types.SelectedColumn, column *types.Column, isGroupBy bool) (string, error) {
 	var columnFamily types.ColumnFamily
 	if !column.CQLType.IsCollection() {
 		var columnName = selectedColumn.Sql
@@ -364,7 +355,7 @@ func processAsColumn(selectedColumn SelectedColumn, column *types.Column, isGrou
 			columnName = ""
 		}
 		if isGroupBy {
-			castedCol, err := translators.CastScalarColumn(column)
+			castedCol, err := common.CastScalarColumn(column)
 			if err != nil {
 				return "", err
 			}
@@ -405,9 +396,9 @@ Returns:
 
 	An updated slice of strings with the new formatted column reference appended.
 */
-func processRegularColumn(selectedColumn SelectedColumn, col *types.Column) (string, error) {
+func processRegularColumn(selectedColumn types.SelectedColumn, col *types.Column) (string, error) {
 	if !col.CQLType.IsCollection() {
-		return translators.CastScalarColumn(col)
+		return common.CastScalarColumn(col)
 	} else {
 		if col.CQLType.DataType().GetDataTypeCode() == primitive.DataTypeCodeList {
 			return fmt.Sprintf("MAP_VALUES(%s)", selectedColumn.Sql), nil
@@ -420,28 +411,11 @@ func processRegularColumn(selectedColumn SelectedColumn, col *types.Column) (str
 	}
 }
 
-// inferDataType() returns the data type based on the name of a function.
-//
-// Parameters:
-//   - methodName: Columns of aggregate function
-//
-// Returns: Returns datatype of aggregate function.
-func inferDataType(methodName string) (string, error) {
-	switch methodName {
-	case "count":
-		return "bigint", nil
-	case "round":
-		return "float", nil
-	default:
-		return "", fmt.Errorf("unknown function '%s'", methodName)
-	}
-}
-
 // getBigtableSelectQuery() Returns Bigtable Select query using Parsed information.
 //
 // Parameters:
 //   - data: PreparedSelectQuery struct with all select query info from CQL query
-func getBigtableSelectQuery(t *SelectTranslator, st *PreparedSelectQuery) (string, error) {
+func getBigtableSelectQuery(t *SelectTranslator, st *types.PreparedSelectQuery) (string, error) {
 	column := ""
 
 	tableConfig, err := t.schemaMappingConfig.GetTableConfig(st.Keyspace(), st.Table())
@@ -485,7 +459,7 @@ func getBigtableSelectQuery(t *SelectTranslator, st *PreparedSelectQuery) (strin
 			} else {
 				if colMeta, ok := tableConfig.Columns[types.ColumnName(lookupCol)]; ok {
 					if !colMeta.CQLType.IsCollection() {
-						col, err := translators.CastScalarColumn(colMeta)
+						col, err := common.CastScalarColumn(colMeta)
 						if err != nil {
 							return "", err
 						}
@@ -510,7 +484,7 @@ func getBigtableSelectQuery(t *SelectTranslator, st *PreparedSelectQuery) (strin
 					if colMeta.IsPrimaryKey {
 						orderByClauses = append(orderByClauses, orderByCol.Column+" "+string(orderByCol.Operation))
 					} else if !colMeta.CQLType.IsCollection() {
-						orderByKey, err := translators.CastScalarColumn(colMeta)
+						orderByKey, err := common.CastScalarColumn(colMeta)
 						if err != nil {
 							return "", err
 						}
@@ -537,7 +511,7 @@ func getBigtableSelectQuery(t *SelectTranslator, st *PreparedSelectQuery) (strin
 // It iterates over the clauses and constructs the WHERE clause by combining the column name, operator, and value of each clause.
 // If the operator is "IN", the value is wrapped with the UNNEST function.
 // The constructed WHERE clause is returned as a string.
-func createBtqlWhereClause(clauses []translators.Condition, tableConfig *sm.TableConfig) (string, error) {
+func createBtqlWhereClause(clauses []types.Condition, tableConfig *sm.TableConfig) (string, error) {
 	whereClause := ""
 	for _, val := range clauses {
 		column := "`" + string(val.Column.Name) + "`"
@@ -546,7 +520,7 @@ func createBtqlWhereClause(clauses []translators.Condition, tableConfig *sm.Tabl
 			// Check if the column is a primitive type and prepend the column family
 			if !col.CQLType.IsCollection() {
 				var castErr error
-				column, castErr = translators.CastScalarColumn(col)
+				column, castErr = common.CastScalarColumn(col)
 				if castErr != nil {
 					return "", castErr
 				}

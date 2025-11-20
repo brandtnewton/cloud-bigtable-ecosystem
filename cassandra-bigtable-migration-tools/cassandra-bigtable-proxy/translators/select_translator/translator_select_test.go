@@ -2479,7 +2479,7 @@ func TestProcessSetStrings(t *testing.T) {
 				t.Errorf("table config should exist for %s.%s", tt.keySpace, tt.tableName)
 				return
 			}
-			gotColumns, err := createBtqlSelectClause(tr, tc, tt.selectedColumns, tt.isGroupBy)
+			gotColumns, err := createBtqlSelectClause(tc, tt.selectedColumns, tt.isGroupBy)
 
 			if (err != nil) != tt.wantErr {
 				t.Errorf("processStrings() error = %v, wantErr %v", err, tt.wantErr)

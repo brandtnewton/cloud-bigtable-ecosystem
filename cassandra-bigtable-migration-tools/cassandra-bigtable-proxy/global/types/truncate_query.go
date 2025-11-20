@@ -5,6 +5,10 @@ type TruncateTableStatementMap struct {
 	table    TableName
 }
 
+func NewTruncateTableStatementMap(keyspace Keyspace, table TableName) *TruncateTableStatementMap {
+	return &TruncateTableStatementMap{keyspace: keyspace, table: table}
+}
+
 func (c TruncateTableStatementMap) Keyspace() Keyspace {
 	return c.keyspace
 }

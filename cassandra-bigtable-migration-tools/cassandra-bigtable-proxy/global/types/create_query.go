@@ -9,6 +9,10 @@ type CreateTableStatementMap struct {
 	IntRowKeyEncoding IntRowKeyEncodingType
 }
 
+func NewCreateTableStatementMap(keyspace Keyspace, table TableName, ifNotExists bool, columns []CreateColumn, primaryKeys []CreateTablePrimaryKeyConfig, intRowKeyEncoding IntRowKeyEncodingType) *CreateTableStatementMap {
+	return &CreateTableStatementMap{keyspace: keyspace, table: table, IfNotExists: ifNotExists, Columns: columns, PrimaryKeys: primaryKeys, IntRowKeyEncoding: intRowKeyEncoding}
+}
+
 func (c CreateTableStatementMap) Keyspace() Keyspace {
 	return c.keyspace
 }

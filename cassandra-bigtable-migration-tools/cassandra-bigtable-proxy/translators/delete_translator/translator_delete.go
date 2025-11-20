@@ -20,24 +20,22 @@ import (
 	"errors"
 	"fmt"
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/global/types"
-	cql "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/third_party/cqlparser"
-	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/translators"
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/translators/common"
-	"github.com/antlr4-go/antlr/v4"
 	"github.com/datastax/go-cassandra-native-protocol/primitive"
 )
 
 func (t *DeleteTranslator) Translate(query string, sessionKeyspace types.Keyspace, isPreparedQuery bool) (types.IPreparedQuery, types.IExecutableQuery, error) {
-	lexer := cql.NewCqlLexer(antlr.NewInputStream(query))
-	stream := antlr.NewCommonTokenStream(lexer, antlr.TokenDefaultChannel)
-	p := cql.NewCqlParser(stream)
+	p, err := common.NewCqlParser(query, false)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to parse cql")
+	}
 
 	deleteObj := p.Delete_()
 	if deleteObj == nil || deleteObj.KwDelete() == nil {
 		return nil, nil, errors.New("error while parsing delete object")
 	}
 
-	keyspaceName, tableName, err := translators.ParseTarget(deleteObj.FromSpec(), sessionKeyspace, t.schemaMappingConfig)
+	keyspaceName, tableName, err := common.ParseTarget(deleteObj.FromSpec(), sessionKeyspace, t.schemaMappingConfig)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -57,7 +55,7 @@ func (t *DeleteTranslator) Translate(query string, sessionKeyspace types.Keyspac
 		return nil, nil, err
 	}
 
-	conditions, err := translators.ParseWhereClause(deleteObj.WhereSpec(), tableConfig, params, values)
+	conditions, err := common.ParseWhereClause(deleteObj.WhereSpec(), tableConfig, params, values)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -68,7 +66,7 @@ func (t *DeleteTranslator) Translate(query string, sessionKeyspace types.Keyspac
 		}
 	}
 
-	err = translators.ValidateRequiredPrimaryKeysOnly(tableConfig, params)
+	err = common.ValidateRequiredPrimaryKeysOnly(tableConfig, params)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -77,17 +75,9 @@ func (t *DeleteTranslator) Translate(query string, sessionKeyspace types.Keyspac
 		return nil, nil, fmt.Errorf("delete USING TIMESTAMP not supported")
 	}
 
-	st := &PreparedDeleteQuery{
-		cqlQuery:        query,
-		table:           tableName,
-		keyspace:        keyspaceName,
-		Conditions:      conditions,
-		Params:          params,
-		IfExists:        ifExist,
-		SelectedColumns: selectedColumns,
-	}
+	st := types.NewPreparedDeleteQuery(keyspaceName, tableName, ifExist, query, conditions, params, selectedColumns)
 
-	var bound *BoundDeleteQuery
+	var bound *types.BoundDeleteQuery
 	if !isPreparedQuery {
 		bound, err = t.doBind(st, values)
 		if err != nil {
@@ -108,15 +98,15 @@ func (t *DeleteTranslator) Translate(query string, sessionKeyspace types.Keyspac
 }
 
 func (t *DeleteTranslator) Bind(st types.IPreparedQuery, cassandraValues []*primitive.Value, pv primitive.ProtocolVersion) (types.IExecutableQuery, error) {
-	dst := st.(*PreparedDeleteQuery)
-	values, err := common.BindQueryParams(dst.Params, cassandraValues, pv)
+	dst := st.(*types.PreparedDeleteQuery)
+	values, err := common.BindQueryParams(dst.Parameters(), cassandraValues, pv)
 	if err != nil {
 		return nil, err
 	}
 	return t.doBind(dst, values)
 }
 
-func (t *DeleteTranslator) doBind(st *PreparedDeleteQuery, values *types.QueryParameterValues) (*BoundDeleteQuery, error) {
+func (t *DeleteTranslator) doBind(st *types.PreparedDeleteQuery, values *types.QueryParameterValues) (*types.BoundDeleteQuery, error) {
 	tableConfig, err := t.schemaMappingConfig.GetTableConfig(st.Keyspace(), st.Table())
 	if err != nil {
 		return nil, err
@@ -131,11 +121,5 @@ func (t *DeleteTranslator) doBind(st *PreparedDeleteQuery, values *types.QueryPa
 	if err != nil {
 		return nil, err
 	}
-	return &BoundDeleteQuery{
-		keyspace: st.Keyspace(),
-		table:    st.Table(),
-		IfExists: st.IfExists,
-		rowKey:   rowKey,
-		Columns:  cols,
-	}, nil
+	return types.NewBoundDeleteQuery(st.Keyspace(), st.Table(), rowKey, st.IfExists, cols), nil
 }

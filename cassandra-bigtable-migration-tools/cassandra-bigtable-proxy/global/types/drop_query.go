@@ -6,6 +6,10 @@ type DropTableQuery struct {
 	IfExists bool
 }
 
+func NewDropTableQuery(keyspace Keyspace, table TableName, ifExists bool) *DropTableQuery {
+	return &DropTableQuery{keyspace: keyspace, table: table, IfExists: ifExists}
+}
+
 func (c DropTableQuery) Keyspace() Keyspace {
 	return c.keyspace
 }

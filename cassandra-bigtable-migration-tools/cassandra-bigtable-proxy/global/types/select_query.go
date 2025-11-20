@@ -23,12 +23,31 @@ const (
 	FuncCodeMax
 )
 
+func (c BtqlFuncCode) String() string {
+	switch c {
+	case FuncCodeWriteTime:
+		return "writetime"
+	case FuncCodeCount:
+		return "count"
+	case FuncCodeAvg:
+		return "avg"
+	case FuncCodeSum:
+		return "sum"
+	case FuncCodeMin:
+		return "min"
+	case FuncCodeMax:
+		return "max"
+	default:
+		return "unknown"
+	}
+}
+
 // SelectedColumn describes a column that was selected as part of a query. It's
 // an output of query translating, and is also used for response construction.
 type SelectedColumn struct {
 	// Sql is the original value of the selected column, including functions, not including alias. e.g. "region" or "count(*)"
 	Sql       string
-	Func      *BtqlFuncCode
+	Func      BtqlFuncCode
 	Alias     string
 	MapKey    Placeholder
 	ListIndex Placeholder
@@ -51,6 +70,10 @@ type PreparedSelectQuery struct {
 	OrderBy              OrderBy                     // Order by clause details
 	GroupByColumns       []string                    // Group by Columns - could be a column name or a column index
 	ResultColumnMetadata []*message.ColumnMetadata
+}
+
+func NewPreparedSelectQuery(keyspace Keyspace, table TableName, cqlQuery string, translatedQuery string, selectClause *SelectClause, conditions []Condition, params *QueryParameters, orderBy OrderBy, groupByColumns []string, resultColumnMetadata []*message.ColumnMetadata) *PreparedSelectQuery {
+	return &PreparedSelectQuery{keyspace: keyspace, table: table, cqlQuery: cqlQuery, TranslatedQuery: translatedQuery, SelectClause: selectClause, Conditions: conditions, Params: params, OrderBy: orderBy, GroupByColumns: groupByColumns, ResultColumnMetadata: resultColumnMetadata}
 }
 
 func (p PreparedSelectQuery) Parameters() *QueryParameters {

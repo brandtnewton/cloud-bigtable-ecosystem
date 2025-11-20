@@ -2,7 +2,7 @@ package types
 
 import (
 	"fmt"
-	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/utilities"
+	"reflect"
 )
 
 const LimitPlaceholder Placeholder = "@limitValue"
@@ -132,13 +132,20 @@ func (q *QueryParameterValues) SetValue(p Placeholder, value any) error {
 	}
 
 	// ensure the correct type is being set - more for checking internal implementation rather than the user
-	err := utilities.ValidateGoType(value, md.Type)
+	err := validateGoType(md.Type, value)
 	if err != nil {
 		return err
 	}
 
 	// todo validate
 	q.values[p] = value
+	return nil
+}
+
+func validateGoType(expected CqlDataType, v any) error {
+	if expected.GoType() != reflect.TypeOf(v) {
+		return fmt.Errorf("got %T, expected %s (%s)", v, expected.String(), expected.String())
+	}
 	return nil
 }
 

@@ -19,6 +19,7 @@ package types
 import (
 	"cloud.google.com/go/bigtable"
 	"github.com/datastax/go-cassandra-native-protocol/message"
+	"github.com/datastax/go-cassandra-native-protocol/primitive"
 )
 
 // ColumnFamily a Bigtable Column Family
@@ -139,4 +140,9 @@ type IPreparedQuery interface {
 	// SetBigtablePreparedQuery - only implemented for "select" queries for now because Bigtable SQL only supports reads
 	SetBigtablePreparedQuery(s *bigtable.PreparedStatement)
 	BigtableQuery() string
+}
+
+type IQueryTranslator interface {
+	Translate(query string, sessionKeyspace Keyspace, isPreparedQuery bool) (IPreparedQuery, IExecutableQuery, error)
+	Bind(st IPreparedQuery, values []*primitive.Value, pv primitive.ProtocolVersion) (IExecutableQuery, error)
 }

@@ -19,14 +19,12 @@ package create_translator
 import (
 	"errors"
 	"fmt"
-	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/translators"
+	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/translators/common"
 	"github.com/datastax/go-cassandra-native-protocol/primitive"
 	"slices"
 
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/global/types"
-	cql "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/third_party/cqlparser"
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/utilities"
-	"github.com/antlr4-go/antlr/v4"
 )
 
 const (
@@ -36,9 +34,10 @@ const (
 )
 
 func (t *CreateTranslator) Translate(query string, sessionKeyspace types.Keyspace, isPreparedQuery bool) (types.IPreparedQuery, types.IExecutableQuery, error) {
-	lexer := cql.NewCqlLexer(antlr.NewInputStream(query))
-	stream := antlr.NewCommonTokenStream(lexer, antlr.TokenDefaultChannel)
-	p := cql.NewCqlParser(stream)
+	p, err := common.NewCqlParser(query, false)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to parse cql")
+	}
 
 	createTableObj := p.CreateTable()
 
@@ -46,12 +45,12 @@ func (t *CreateTranslator) Translate(query string, sessionKeyspace types.Keyspac
 		return nil, nil, errors.New("error while parsing create object")
 	}
 
-	keyspaceName, tableName, err := translators.ParseTarget(createTableObj, sessionKeyspace, t.schemaMappingConfig)
+	keyspaceName, tableName, err := common.ParseTarget(createTableObj, sessionKeyspace, t.schemaMappingConfig)
 	if err != nil {
 		return nil, nil, err
 	}
 
-	var pmks []CreateTablePrimaryKeyConfig
+	var pmks []types.CreateTablePrimaryKeyConfig
 	var columns []types.CreateColumn
 
 	if createTableObj.ColumnDefinitionList().GetText() == "" {
@@ -75,7 +74,7 @@ func (t *CreateTranslator) Translate(query string, sessionKeyspace types.Keyspac
 		})
 
 		if col.PrimaryKeyColumn() != nil {
-			pmks = append(pmks, CreateTablePrimaryKeyConfig{
+			pmks = append(pmks, types.CreateTablePrimaryKeyConfig{
 				Name:    types.ColumnName(col.Column().GetText()),
 				KeyType: utilities.KEY_TYPE_PARTITION,
 			})
@@ -94,7 +93,7 @@ func (t *CreateTranslator) Translate(query string, sessionKeyspace types.Keyspac
 	for optionName, optionValue := range createOptionsMap(createTableObj.WithElement()) {
 		switch optionName {
 		case intRowKeyEncodingOptionName:
-			optionValue = translators.TrimQuotes(optionValue)
+			optionValue = common.TrimQuotes(optionValue)
 			switch optionValue {
 			case intRowKeyEncodingOptionValueBigEndian:
 				rowKeyEncoding = types.BigEndianEncoding
@@ -118,32 +117,32 @@ func (t *CreateTranslator) Translate(query string, sessionKeyspace types.Keyspac
 		compoundKey := createTableObj.ColumnDefinitionList().PrimaryKeyElement().PrimaryKeyDefinition().CompoundKey()
 		compositeKey := createTableObj.ColumnDefinitionList().PrimaryKeyElement().PrimaryKeyDefinition().CompositeKey()
 		if singleKey != nil {
-			pmks = []CreateTablePrimaryKeyConfig{
+			pmks = []types.CreateTablePrimaryKeyConfig{
 				{
 					Name:    types.ColumnName(singleKey.GetText()),
 					KeyType: utilities.KEY_TYPE_PARTITION,
 				},
 			}
 		} else if compoundKey != nil {
-			pmks = append(pmks, CreateTablePrimaryKeyConfig{
+			pmks = append(pmks, types.CreateTablePrimaryKeyConfig{
 				Name:    types.ColumnName(compoundKey.PartitionKey().GetText()),
 				KeyType: utilities.KEY_TYPE_PARTITION,
 			})
 			for _, clusterKey := range compoundKey.ClusteringKeyList().AllClusteringKey() {
-				pmks = append(pmks, CreateTablePrimaryKeyConfig{
+				pmks = append(pmks, types.CreateTablePrimaryKeyConfig{
 					Name:    types.ColumnName(clusterKey.Column().GetText()),
 					KeyType: utilities.KEY_TYPE_CLUSTERING,
 				})
 			}
 		} else if compositeKey != nil {
 			for _, partitionKey := range compositeKey.PartitionKeyList().AllPartitionKey() {
-				pmks = append(pmks, CreateTablePrimaryKeyConfig{
+				pmks = append(pmks, types.CreateTablePrimaryKeyConfig{
 					Name:    types.ColumnName(partitionKey.Column().GetText()),
 					KeyType: utilities.KEY_TYPE_PARTITION,
 				})
 			}
 			for _, clusterKey := range compositeKey.ClusteringKeyList().AllClusteringKey() {
-				pmks = append(pmks, CreateTablePrimaryKeyConfig{
+				pmks = append(pmks, types.CreateTablePrimaryKeyConfig{
 					Name:    types.ColumnName(clusterKey.Column().GetText()),
 					KeyType: utilities.KEY_TYPE_CLUSTERING,
 				})
@@ -173,19 +172,11 @@ func (t *CreateTranslator) Translate(query string, sessionKeyspace types.Keyspac
 			return nil, nil, fmt.Errorf("primary key cannot be of type %s", col.TypeInfo.String())
 		}
 	}
-
-	var stmt = CreateTableStatementMap{
-		keyspace:          keyspaceName,
-		table:             tableName,
-		IfNotExists:       createTableObj.IfNotExist() != nil,
-		Columns:           columns,
-		PrimaryKeys:       pmks,
-		IntRowKeyEncoding: rowKeyEncoding,
-	}
-
+	ifNotExists := createTableObj.IfNotExist() != nil
+	var stmt = types.NewCreateTableStatementMap(keyspaceName, tableName, ifNotExists, columns, pmks, rowKeyEncoding)
 	return nil, stmt, nil
 }
 
-func (t *CreateTranslator) Bind(st types.IPreparedQuery, cassandraValues []*primitive.Value, pv primitive.ProtocolVersion) (types.IExecutableQuery, error) {
+func (t *CreateTranslator) Bind(types.IPreparedQuery, []*primitive.Value, primitive.ProtocolVersion) (types.IExecutableQuery, error) {
 	return nil, errors.New("bind for create statements not supported")
 }

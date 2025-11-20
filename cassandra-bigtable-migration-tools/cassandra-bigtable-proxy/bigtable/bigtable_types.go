@@ -21,7 +21,6 @@ import (
 	btpb "cloud.google.com/go/bigtable/apiv2/bigtablepb"
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/global/types"
 	schemaMapping "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/schema-mapping"
-	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/translators"
 	"go.uber.org/zap"
 )
 
@@ -39,16 +38,16 @@ type BigtableClient struct {
 }
 
 type BigtableBulkMutation struct {
-	mutations map[types.TableName][]translators.IBigtableMutation
+	mutations map[types.TableName][]types.IBigtableMutation
 }
 
-func (b *BigtableBulkMutation) Mutations() map[types.TableName][]translators.IBigtableMutation {
+func (b *BigtableBulkMutation) Mutations() map[types.TableName][]types.IBigtableMutation {
 	return b.mutations
 }
 
-func (b *BigtableBulkMutation) AddMutation(mut translators.IBigtableMutation) {
+func (b *BigtableBulkMutation) AddMutation(mut types.IBigtableMutation) {
 	if b.mutations[mut.Table()] == nil {
-		b.mutations[mut.Table()] = []translators.IBigtableMutation{}
+		b.mutations[mut.Table()] = []types.IBigtableMutation{}
 	}
 	b.mutations[mut.Table()] = append(b.mutations[mut.Table()], mut)
 }

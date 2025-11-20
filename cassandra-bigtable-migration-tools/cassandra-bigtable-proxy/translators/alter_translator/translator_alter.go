@@ -19,19 +19,18 @@ package alter_translator
 import (
 	"errors"
 	"fmt"
-	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/translators"
+	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/translators/common"
 	"github.com/datastax/go-cassandra-native-protocol/primitive"
 
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/global/types"
-	cql "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/third_party/cqlparser"
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/utilities"
-	"github.com/antlr4-go/antlr/v4"
 )
 
 func (t *AlterTranslator) Translate(query string, sessionKeyspace types.Keyspace, isPreparedQuery bool) (types.IPreparedQuery, types.IExecutableQuery, error) {
-	lexer := cql.NewCqlLexer(antlr.NewInputStream(query))
-	stream := antlr.NewCommonTokenStream(lexer, antlr.TokenDefaultChannel)
-	p := cql.NewCqlParser(stream)
+	p, err := common.NewCqlParser(query, false)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to parse cql")
+	}
 
 	alterTable := p.AlterTable()
 
@@ -39,7 +38,7 @@ func (t *AlterTranslator) Translate(query string, sessionKeyspace types.Keyspace
 		return nil, nil, errors.New("error while parsing alter statement")
 	}
 
-	keyspaceName, tableName, err := translators.ParseTarget(alterTable, sessionKeyspace, t.schemaMappingConfig)
+	keyspaceName, tableName, err := common.ParseTarget(alterTable, sessionKeyspace, t.schemaMappingConfig)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -104,16 +103,10 @@ func (t *AlterTranslator) Translate(query string, sessionKeyspace types.Keyspace
 		}
 	}
 
-	var stmt = AlterTableStatementMap{
-		table:       tableName,
-		keyspace:    keyspaceName,
-		DropColumns: dropColumns,
-		AddColumns:  addColumns,
-	}
-
-	return nil, &stmt, nil
+	var stmt = types.NewAlterTableStatementMap(keyspaceName, tableName, false, addColumns, dropColumns)
+	return nil, stmt, nil
 }
 
-func (t *AlterTranslator) Bind(st types.IPreparedQuery, cassandraValues []*primitive.Value, pv primitive.ProtocolVersion) (types.IExecutableQuery, error) {
+func (t *AlterTranslator) Bind(types.IPreparedQuery, []*primitive.Value, primitive.ProtocolVersion) (types.IExecutableQuery, error) {
 	return nil, errors.New("bind for alter statements not supported")
 }

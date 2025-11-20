@@ -18,18 +18,17 @@ package drop_translator
 
 import (
 	"errors"
+	"fmt"
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/global/types"
-	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/translators"
+	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/translators/common"
 	"github.com/datastax/go-cassandra-native-protocol/primitive"
-
-	cql "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/third_party/cqlparser"
-	"github.com/antlr4-go/antlr/v4"
 )
 
 func (t *DropTranslator) Translate(query string, sessionKeyspace types.Keyspace, isPreparedQuery bool) (types.IPreparedQuery, types.IExecutableQuery, error) {
-	lexer := cql.NewCqlLexer(antlr.NewInputStream(query))
-	stream := antlr.NewCommonTokenStream(lexer, antlr.TokenDefaultChannel)
-	p := cql.NewCqlParser(stream)
+	p, err := common.NewCqlParser(query, false)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to parse cql")
+	}
 
 	dropTableObj := p.DropTable()
 
@@ -37,20 +36,17 @@ func (t *DropTranslator) Translate(query string, sessionKeyspace types.Keyspace,
 		return nil, nil, errors.New("error while parsing drop table object")
 	}
 
-	keyspaceName, tableName, err := translators.ParseTarget(dropTableObj, sessionKeyspace, t.schemaMappingConfig)
+	keyspaceName, tableName, err := common.ParseTarget(dropTableObj, sessionKeyspace, t.schemaMappingConfig)
 	if err != nil {
 		return nil, nil, err
 	}
 
-	var stmt = DropTableStatementMap{
-		keyspace: keyspaceName,
-		table:    tableName,
-		IfExists: dropTableObj.IfExist() != nil,
-	}
+	ifExists := dropTableObj.IfExist() != nil
 
-	return nil, &stmt, nil
+	stmt := types.NewDropTableQuery(keyspaceName, tableName, ifExists)
+	return nil, stmt, nil
 }
 
-func (t *DropTranslator) Bind(st types.IPreparedQuery, cassandraValues []*primitive.Value, pv primitive.ProtocolVersion) (types.IExecutableQuery, error) {
+func (t *DropTranslator) Bind(types.IPreparedQuery, []*primitive.Value, primitive.ProtocolVersion) (types.IExecutableQuery, error) {
 	return nil, errors.New("bind for drop statements not supported")
 }

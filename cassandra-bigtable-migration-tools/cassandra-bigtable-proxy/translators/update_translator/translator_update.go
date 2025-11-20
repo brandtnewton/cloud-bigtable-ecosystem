@@ -18,17 +18,17 @@ package update_translator
 
 import (
 	"errors"
+	"fmt"
 	types "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/global/types"
-	cql "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/third_party/cqlparser"
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/translators/common"
-	"github.com/antlr4-go/antlr/v4"
 	"github.com/datastax/go-cassandra-native-protocol/primitive"
 )
 
 func (t *UpdateTranslator) Translate(query string, sessionKeyspace types.Keyspace, isPreparedQuery bool) (types.IPreparedQuery, types.IExecutableQuery, error) {
-	lexer := cql.NewCqlLexer(antlr.NewInputStream(query))
-	stream := antlr.NewCommonTokenStream(lexer, antlr.TokenDefaultChannel)
-	p := cql.NewCqlParser(stream)
+	p, err := common.NewCqlParser(query, false)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to parse cql")
+	}
 	updateObj := p.Update()
 
 	if updateObj == nil || updateObj.KwUpdate() == nil {
@@ -85,17 +85,9 @@ func (t *UpdateTranslator) Translate(query string, sessionKeyspace types.Keyspac
 		return nil, nil, err
 	}
 
-	st := &PreparedUpdateQuery{
-		cqlQuery: query,
-		table:    tableName,
-		IfExists: ifExist,
-		keyspace: keyspaceName,
-		Clauses:  whereClause,
-		params:   params,
-		Values:   assignments,
-	}
+	st := types.NewPreparedUpdateQuery(keyspaceName, tableName, ifExist, query, assignments, whereClause, params)
 
-	var bound *common.BigtableWriteMutation
+	var bound *types.BigtableWriteMutation
 	if !isPreparedQuery {
 		bound, err = t.doBind(st, values)
 		if err != nil {
@@ -116,15 +108,15 @@ func (t *UpdateTranslator) Translate(query string, sessionKeyspace types.Keyspac
 }
 
 func (t *UpdateTranslator) Bind(st types.IPreparedQuery, cassandraValues []*primitive.Value, pv primitive.ProtocolVersion) (types.IExecutableQuery, error) {
-	ust := st.(*PreparedUpdateQuery)
-	values, err := common.BindQueryParams(ust.params, cassandraValues, pv)
+	ust := st.(*types.PreparedUpdateQuery)
+	values, err := common.BindQueryParams(ust.Parameters(), cassandraValues, pv)
 	if err != nil {
 		return nil, err
 	}
 	return t.doBind(ust, values)
 }
 
-func (t *UpdateTranslator) doBind(st *PreparedUpdateQuery, values *types.QueryParameterValues) (*common.BigtableWriteMutation, error) {
+func (t *UpdateTranslator) doBind(st *types.PreparedUpdateQuery, values *types.QueryParameterValues) (*types.BigtableWriteMutation, error) {
 	tableConfig, err := t.schemaMappingConfig.GetTableConfig(st.Keyspace(), st.Table())
 	if err != nil {
 		return nil, err
@@ -135,7 +127,7 @@ func (t *UpdateTranslator) doBind(st *PreparedUpdateQuery, values *types.QueryPa
 		return nil, err
 	}
 
-	mutations := common.NewBigtableWriteMutation(st.keyspace, st.table, types.QueryTypeUpdate, rowKey)
+	mutations := types.NewBigtableWriteMutation(st.Keyspace(), st.Table(), types.IfSpec{IfExists: st.IfExists}, types.QueryTypeUpdate, rowKey)
 	err = common.BindMutations(st.Values, values, mutations)
 	if err != nil {
 		return nil, err

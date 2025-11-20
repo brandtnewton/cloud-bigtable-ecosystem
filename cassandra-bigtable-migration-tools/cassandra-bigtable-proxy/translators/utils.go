@@ -17,29 +17,12 @@
 package translators
 
 import (
-	"errors"
 	"fmt"
-	types "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/global/types"
+	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/global/types"
 	"github.com/datastax/go-cassandra-native-protocol/primitive"
 )
 
-const (
-	MissingUndefined = "<missing undefined>"
-	Missing          = "<missing"
-	questionMark     = "?"
-	STAR             = "*"
-	ifExists         = "ifexists"
-)
-
-var (
-	ErrEmptyTable           = errors.New("could not find table name to create spanner query")
-	ErrParsingDelObj        = errors.New("error while parsing delete object")
-	ErrParsingTs            = errors.New("timestamp could not be parsed")
-	ErrTsNoValue            = errors.New("no value found for Timestamp")
-	ErrEmptyTableOrKeyspace = errors.New("ToBigtableDelete: No table or keyspace name found in the query")
-)
-
-func (t *Translator) getTranslator(queryType types.QueryType) (IQueryTranslator, error) {
+func (t *Translator) getTranslator(queryType types.QueryType) (types.IQueryTranslator, error) {
 	switch queryType {
 	// dml
 	case types.QueryTypeSelect:

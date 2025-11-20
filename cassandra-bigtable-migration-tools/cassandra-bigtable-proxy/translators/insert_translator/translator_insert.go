@@ -20,10 +20,7 @@ import (
 	"errors"
 	"fmt"
 	types "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/global/types"
-	cql "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/third_party/cqlparser"
-	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/translators"
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/translators/common"
-	"github.com/antlr4-go/antlr/v4"
 	"github.com/datastax/go-cassandra-native-protocol/primitive"
 )
 
@@ -37,9 +34,10 @@ import (
 // PreparedInsertQuery will return as nil and error will contains the error object
 
 func (t *InsertTranslator) Translate(query string, sessionKeyspace types.Keyspace, isPreparedQuery bool) (types.IPreparedQuery, types.IExecutableQuery, error) {
-	lexer := cql.NewCqlLexer(antlr.NewInputStream(query))
-	stream := antlr.NewCommonTokenStream(lexer, antlr.TokenDefaultChannel)
-	p := cql.NewCqlParser(stream)
+	p, err := common.NewCqlParser(query, false)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to parse cql")
+	}
 
 	insertObj := p.Insert()
 	if insertObj == nil {
@@ -51,7 +49,7 @@ func (t *InsertTranslator) Translate(query string, sessionKeyspace types.Keyspac
 	}
 	insertObj.KwInto()
 
-	keyspaceName, tableName, err := translators.ParseTarget(insertObj, sessionKeyspace, t.schemaMappingConfig)
+	keyspaceName, tableName, err := common.ParseTarget(insertObj, sessionKeyspace, t.schemaMappingConfig)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -76,25 +74,18 @@ func (t *InsertTranslator) Translate(query string, sessionKeyspace types.Keyspac
 		return nil, nil, err
 	}
 
-	err = translators.GetTimestampInfo(insertObj.UsingTtlTimestamp(), params, values)
+	err = common.GetTimestampInfo(insertObj.UsingTtlTimestamp(), params, values)
 	if err != nil {
 		return nil, nil, err
 	}
 
-	err = translators.ValidateRequiredPrimaryKeys(tableConfig, params)
+	err = common.ValidateRequiredPrimaryKeys(tableConfig, params)
 	if err != nil {
 		return nil, nil, err
 	}
 
-	st := &PreparedInsertQuery{
-		cqlQuery:    query,
-		keyspace:    keyspaceName,
-		table:       tableName,
-		Params:      params,
-		Assignments: assignments,
-		IfNotExists: ifNotExists,
-	}
-	var bound *translators.BigtableWriteMutation
+	st := types.NewPreparedInsertQuery(keyspaceName, tableName, ifNotExists, query, params, assignments)
+	var bound *types.BigtableWriteMutation
 	if !isPreparedQuery {
 		bound, err = t.doBindInsert(st, values)
 		if err != nil {
@@ -115,15 +106,15 @@ func (t *InsertTranslator) Translate(query string, sessionKeyspace types.Keyspac
 }
 
 func (t *InsertTranslator) Bind(st types.IPreparedQuery, cassandraValues []*primitive.Value, pv primitive.ProtocolVersion) (types.IExecutableQuery, error) {
-	ist := st.(*PreparedInsertQuery)
-	values, err := common.BindQueryParams(ist.Params, cassandraValues, pv)
+	ist := st.(*types.PreparedInsertQuery)
+	values, err := common.BindQueryParams(ist.Parameters(), cassandraValues, pv)
 	if err != nil {
 		return nil, err
 	}
 	return t.doBindInsert(ist, values)
 }
 
-func (t *InsertTranslator) doBindInsert(st *PreparedInsertQuery, values *types.QueryParameterValues) (*translators.BigtableWriteMutation, error) {
+func (t *InsertTranslator) doBindInsert(st *types.PreparedInsertQuery, values *types.QueryParameterValues) (*types.BigtableWriteMutation, error) {
 	tableConfig, err := t.schemaMappingConfig.GetTableConfig(st.Keyspace(), st.Table())
 	if err != nil {
 		return nil, err
@@ -134,7 +125,7 @@ func (t *InsertTranslator) doBindInsert(st *PreparedInsertQuery, values *types.Q
 		return nil, fmt.Errorf("key encoding failed: %w", err)
 	}
 
-	mutations := translators.NewBigtableWriteMutation(st.keyspace, st.table, rowKey)
+	mutations := types.NewBigtableWriteMutation(st.Keyspace(), st.Table(), types.IfSpec{IfNotExists: st.IfNotExists}, types.QueryTypeInsert, rowKey)
 	err = common.BindMutations(st.Assignments, values, mutations)
 	if err != nil {
 		return nil, err

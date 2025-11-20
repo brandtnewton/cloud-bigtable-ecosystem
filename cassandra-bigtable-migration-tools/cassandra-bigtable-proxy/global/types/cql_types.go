@@ -3,6 +3,8 @@ package types
 import (
 	"fmt"
 	"github.com/datastax/go-cassandra-native-protocol/datatype"
+	"reflect"
+	"time"
 )
 
 type CqlDataType interface {
@@ -18,6 +20,7 @@ type CqlDataType interface {
 	IsAnyFrozen() bool
 	Code() CqlTypeCode
 	BigtableStorageType() CqlDataType
+	GoType() reflect.Type
 }
 
 type CqlTypeCode int
@@ -55,9 +58,18 @@ const (
 
 // ScalarType represents a primitive, single-value Cassandra type.
 type ScalarType struct {
-	code CqlTypeCode
-	dt   datatype.DataType
-	name string
+	code   CqlTypeCode
+	dt     datatype.DataType
+	name   string
+	goType reflect.Type
+}
+
+func newScalarType(name string, code CqlTypeCode, dt datatype.DataType, goType reflect.Type) *ScalarType {
+	return &ScalarType{code: code, dt: dt, name: name, goType: goType}
+}
+
+func (s ScalarType) GoType() reflect.Type {
+	return s.goType
 }
 
 func (s ScalarType) BigtableStorageType() CqlDataType {
@@ -101,32 +113,37 @@ func (s ScalarType) IsFrozen() bool {
 
 // Pre-defined constants for common scalar types for convenience.
 var (
-	TypeAscii     CqlDataType = ScalarType{name: "ascii", code: ASCII, dt: datatype.Varchar}
-	TypeVarchar   CqlDataType = ScalarType{name: "varchar", code: VARCHAR, dt: datatype.Varchar}
-	TypeBigint    CqlDataType = ScalarType{name: "bigint", code: BIGINT, dt: datatype.Bigint}
-	TypeBlob      CqlDataType = ScalarType{name: "blob", code: BLOB, dt: datatype.Blob}
-	TypeBoolean   CqlDataType = ScalarType{name: "boolean", code: BOOLEAN, dt: datatype.Boolean}
-	TypeCounter   CqlDataType = ScalarType{name: "counter", code: COUNTER, dt: datatype.Counter}
-	TypeDate      CqlDataType = ScalarType{name: "date", code: DATE, dt: datatype.Date}
-	TypeDecimal   CqlDataType = ScalarType{name: "decimal", code: DECIMAL, dt: datatype.Decimal}
-	TypeDouble    CqlDataType = ScalarType{name: "double", code: DOUBLE, dt: datatype.Double}
-	TypeFloat     CqlDataType = ScalarType{name: "float", code: FLOAT, dt: datatype.Float}
-	TypeInet      CqlDataType = ScalarType{name: "inet", code: INET, dt: datatype.Inet}
-	TypeInt       CqlDataType = ScalarType{name: "int", code: INT, dt: datatype.Int}
-	TypeSmallint  CqlDataType = ScalarType{name: "smallint", code: SMALLINT, dt: datatype.Smallint}
-	TypeText      CqlDataType = ScalarType{name: "text", code: TEXT, dt: datatype.Varchar}
-	TypeTime      CqlDataType = ScalarType{name: "time", code: TIME, dt: datatype.Time}
-	TypeTimestamp CqlDataType = ScalarType{name: "timestamp", code: TIMESTAMP, dt: datatype.Timestamp}
-	TypeTimeuuid  CqlDataType = ScalarType{name: "timeuuid", code: TIMEUUID, dt: datatype.Timeuuid}
-	TypeTinyint   CqlDataType = ScalarType{name: "tinyint", code: TINYINT, dt: datatype.Tinyint}
-	TypeUuid      CqlDataType = ScalarType{name: "uuid", code: UUID, dt: datatype.Uuid}
-	TypeVarint    CqlDataType = ScalarType{name: "varint", code: VARINT, dt: datatype.Varint}
+	TypeAscii     CqlDataType = newScalarType("ascii", ASCII, datatype.Varchar, reflect.TypeOf(""))
+	TypeVarchar   CqlDataType = newScalarType("varchar", VARCHAR, datatype.Varchar, reflect.TypeOf(""))
+	TypeBigint    CqlDataType = newScalarType("bigint", BIGINT, datatype.Bigint, reflect.TypeOf(int64(0)))
+	TypeBlob      CqlDataType = newScalarType("blob", BLOB, datatype.Blob, reflect.TypeOf(int32(0)))
+	TypeBoolean   CqlDataType = newScalarType("boolean", BOOLEAN, datatype.Boolean, reflect.TypeOf(false))
+	TypeCounter   CqlDataType = newScalarType("counter", COUNTER, datatype.Counter, reflect.TypeOf(int64(0)))
+	TypeDate      CqlDataType = newScalarType("date", DATE, datatype.Date, reflect.TypeOf(time.Time{}))
+	TypeDecimal   CqlDataType = newScalarType("decimal", DECIMAL, datatype.Decimal, reflect.TypeOf(0.0))
+	TypeDouble    CqlDataType = newScalarType("double", DOUBLE, datatype.Double, reflect.TypeOf(0.0))
+	TypeFloat     CqlDataType = newScalarType("float", FLOAT, datatype.Float, reflect.TypeOf(0.0))
+	TypeInet      CqlDataType = newScalarType("inet", INET, datatype.Inet, reflect.TypeOf(""))
+	TypeInt       CqlDataType = newScalarType("int", INT, datatype.Int, reflect.TypeOf(int32(1)))
+	TypeSmallint  CqlDataType = newScalarType("smallint", SMALLINT, datatype.Smallint, reflect.TypeOf(int16(1)))
+	TypeText      CqlDataType = newScalarType("text", TEXT, datatype.Varchar, reflect.TypeOf(""))
+	TypeTime      CqlDataType = newScalarType("time", TIME, datatype.Time, reflect.TypeOf(time.Time{}))
+	TypeTimestamp CqlDataType = newScalarType("timestamp", TIMESTAMP, datatype.Timestamp, reflect.TypeOf(time.Time{}))
+	TypeTimeuuid  CqlDataType = newScalarType("timeuuid", TIMEUUID, datatype.Timeuuid, reflect.TypeOf(time.Time{}))
+	TypeTinyint   CqlDataType = newScalarType("tinyint", TINYINT, datatype.Tinyint, reflect.TypeOf(int8(1)))
+	TypeUuid      CqlDataType = newScalarType("uuid", UUID, datatype.Uuid, reflect.TypeOf(""))
+	TypeVarint    CqlDataType = newScalarType("varint", VARINT, datatype.Varint, reflect.TypeOf(1))
 )
 
 type MapType struct {
 	keyType   CqlDataType
 	valueType CqlDataType
 	dt        datatype.DataType
+	goType    reflect.Type
+}
+
+func (m MapType) GoType() reflect.Type {
+	return m.goType
 }
 
 func (m MapType) BigtableStorageType() CqlDataType {
@@ -155,7 +172,12 @@ func (m MapType) ValueType() CqlDataType {
 }
 
 func NewMapType(keyType CqlDataType, valueType CqlDataType) *MapType {
-	return &MapType{keyType: keyType, valueType: valueType, dt: datatype.NewMapType(keyType.DataType(), valueType.DataType())}
+	return &MapType{
+		keyType:   keyType,
+		valueType: valueType,
+		dt:        datatype.NewMapType(keyType.DataType(), valueType.DataType()),
+		goType:    reflect.MapOf(keyType.GoType(), valueType.GoType()),
+	}
 }
 
 func (m MapType) DataType() datatype.DataType {
@@ -176,12 +198,17 @@ func (m MapType) IsCollection() bool {
 type ListType struct {
 	elementType CqlDataType
 	dt          datatype.DataType
+	goType      reflect.Type
+}
+
+func (l ListType) GoType() reflect.Type {
+	return l.goType
 }
 
 func (l ListType) BigtableStorageType() CqlDataType {
 	dt := l.elementType.BigtableStorageType()
 	if dt != l.elementType {
-		return NewSetType(dt)
+		return NewListType(dt)
 	}
 	return l
 }
@@ -199,7 +226,11 @@ func (l ListType) ElementType() CqlDataType {
 }
 
 func NewListType(elementType CqlDataType) *ListType {
-	return &ListType{elementType: elementType, dt: datatype.NewListType(elementType.DataType())}
+	return &ListType{
+		elementType: elementType,
+		dt:          datatype.NewListType(elementType.DataType()),
+		goType:      reflect.SliceOf(elementType.GoType()),
+	}
 }
 
 func (l ListType) DataType() datatype.DataType {
@@ -220,6 +251,11 @@ func (l ListType) IsCollection() bool {
 type SetType struct {
 	elementType CqlDataType
 	dt          datatype.DataType
+	goType      reflect.Type
+}
+
+func (s SetType) GoType() reflect.Type {
+	return s.goType
 }
 
 func (s SetType) BigtableStorageType() CqlDataType {
@@ -264,6 +300,10 @@ type FrozenType struct {
 	innerType CqlDataType
 }
 
+func (f FrozenType) GoType() reflect.Type {
+	return f.innerType.GoType()
+}
+
 func (f FrozenType) BigtableStorageType() CqlDataType {
 	return f
 }
@@ -295,5 +335,7 @@ func (f FrozenType) String() string {
 }
 
 func NewFrozenType(inner CqlDataType) *FrozenType {
-	return &FrozenType{innerType: inner}
+	return &FrozenType{
+		innerType: inner,
+	}
 }

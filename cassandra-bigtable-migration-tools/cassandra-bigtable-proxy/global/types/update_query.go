@@ -6,14 +6,21 @@ import (
 )
 
 type PreparedUpdateQuery struct {
-	keyspace     Keyspace         // Keyspace to which the table belongs
-	table        TableName        // Table involved in the query
-	cqlQuery     string           // Original query string
-	Values       []Assignment     // Columns to be updated
-	Clauses      []Condition      // List of clauses in the update query
-	params       *QueryParameters // Parameters for the query
-	IfExists     bool
-	ExpectedType CqlDataType
+	keyspace Keyspace  // Keyspace to which the table belongs
+	table    TableName // Table involved in the query
+	IfExists bool
+	cqlQuery string           // Original query string
+	Values   []Assignment     // Columns to be updated
+	Clauses  []Condition      // List of clauses in the update query
+	params   *QueryParameters // Parameters for the query
+}
+
+func NewPreparedUpdateQuery(keyspace Keyspace, table TableName, ifExists bool, cqlQuery string, values []Assignment, clauses []Condition, params *QueryParameters) *PreparedUpdateQuery {
+	return &PreparedUpdateQuery{keyspace: keyspace, table: table, IfExists: ifExists, cqlQuery: cqlQuery, Values: values, Clauses: clauses, params: params}
+}
+
+func (p PreparedUpdateQuery) BigtableQuery() string {
+	return ""
 }
 
 func (p PreparedUpdateQuery) Parameters() *QueryParameters {

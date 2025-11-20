@@ -82,11 +82,11 @@ type IBigtableMutation interface {
 
 // BigtableWriteMutation holds the results from parseComplexOperations.
 type BigtableWriteMutation struct {
-	keyspace              Keyspace
 	queryType             QueryType
+	keyspace              Keyspace
 	table                 TableName
-	rowKey                RowKey
 	IfSpec                IfSpec
+	rowKey                RowKey
 	UsingTimestamp        *BoundTimestampInfo
 	Data                  []*BigtableData
 	DelColumnFamily       []ColumnFamily
@@ -96,8 +96,8 @@ type BigtableWriteMutation struct {
 	DeleteListElementsOps []BigtableDeleteListElementsOp
 }
 
-func NewBigtableWriteMutation(keyspace Keyspace, table TableName, qt QueryType, rowKey RowKey) *BigtableWriteMutation {
-	return &BigtableWriteMutation{keyspace: keyspace, table: table, queryType: qt, rowKey: rowKey}
+func NewBigtableWriteMutation(keyspace Keyspace, table TableName, ifSpec IfSpec, qt QueryType, rowKey RowKey) *BigtableWriteMutation {
+	return &BigtableWriteMutation{keyspace: keyspace, table: table, IfSpec: ifSpec, queryType: qt, rowKey: rowKey}
 }
 
 func (b BigtableWriteMutation) QueryType() QueryType {
@@ -215,51 +215,4 @@ func NewComplexAssignmentSet(column *Column, value Placeholder) *ComplexAssignme
 
 func (c ComplexAssignmentSet) Column() *Column {
 	return c.column
-}
-
-// PreparedDeleteQuery represents the mapping of a deleted query along with its translation details.
-type PreparedDeleteQuery struct {
-	keyspace        Keyspace    // Keyspace to which the table belongs
-	table           TableName   // Table involved in the query
-	cqlQuery        string      // Original query string
-	Conditions      []Condition // List of clauses in the delete query
-	Params          *QueryParameters
-	IfExists        bool
-	SelectedColumns []SelectedColumn
-}
-
-func (p PreparedDeleteQuery) Keyspace() Keyspace {
-	return p.keyspace
-}
-
-func (p PreparedDeleteQuery) Table() TableName {
-	return p.table
-}
-
-func (p PreparedDeleteQuery) CqlQuery() string {
-	return p.cqlQuery
-}
-
-type BoundDeleteQuery struct {
-	keyspace Keyspace
-	table    TableName
-	rowKey   RowKey
-	IfExists bool
-	Columns  []BoundSelectColumn
-}
-
-func (b BoundDeleteQuery) QueryType() QueryType {
-	return QueryTypeDelete
-}
-
-func (b BoundDeleteQuery) Keyspace() Keyspace {
-	return b.keyspace
-}
-
-func (b BoundDeleteQuery) Table() TableName {
-	return b.table
-}
-
-func (b BoundDeleteQuery) RowKey() RowKey {
-	return b.rowKey
 }

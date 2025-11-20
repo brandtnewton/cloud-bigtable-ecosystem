@@ -5,29 +5,28 @@ import (
 	"fmt"
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/global/types"
 	schemaMapping "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/schema-mapping"
-	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/translators"
 	"github.com/datastax/go-cassandra-native-protocol/primitive"
 	"strings"
 	"time"
 )
 
-func BindMutations(assignments []translators.Assignment, values *types.QueryParameterValues, b *translators.BigtableWriteMutation) error {
+func BindMutations(assignments []types.Assignment, values *types.QueryParameterValues, b *types.BigtableWriteMutation) error {
 	for _, assignment := range assignments {
 		// skip primary keys because those are part of the row key which is handled separately
 		if assignment.Column().IsPrimaryKey {
 			continue
 		}
 		switch v := assignment.(type) {
-		case *translators.AssignmentCounterIncrement:
+		case *types.AssignmentCounterIncrement:
 			value, err := values.GetValueInt64(v.Value)
 			if err != nil {
 				return err
 			}
-			b.CounterOps = append(b.CounterOps, translators.BigtableCounterOp{
+			b.CounterOps = append(b.CounterOps, types.BigtableCounterOp{
 				Family: v.Column().ColumnFamily,
 				Value:  value,
 			})
-		case *translators.ComplexAssignmentSet:
+		case *types.ComplexAssignmentSet:
 			value, err := values.GetValue(v.Value)
 			if err != nil {
 				return err
@@ -36,9 +35,9 @@ func BindMutations(assignments []translators.Assignment, values *types.QueryPara
 			if v.Column().CQLType.IsCollection() {
 				b.DelColumnFamily = append(b.DelColumnFamily, v.Column().ColumnFamily)
 			}
-			data, err := translators.encodeGoValueToBigtable(v.Column(), value)
+			data, err := encodeGoValueToBigtable(v.Column(), value)
 			b.Data = append(b.Data, data...)
-		case *translators.ComplexAssignmentAdd:
+		case *types.ComplexAssignmentAdd:
 			colType := v.Column().CQLType.Code()
 			if colType == types.LIST {
 				lt := v.Column().CQLType.(types.ListType)
@@ -141,13 +140,13 @@ func BindMutations(assignments []translators.Assignment, values *types.QueryPara
 // addListElements adds elements to a list column in raw queries.
 // Handles both append and prepend operations with type validation and conversion.
 // Returns error if value type doesn't match list element type or conversion fails.
-func addListElements(listValues []types.GoValue, colFamily types.ColumnFamily, lt *types.ListType, isPrepend bool, output *translators.BigtableWriteMutation) error {
+func addListElements(listValues []types.GoValue, colFamily types.ColumnFamily, lt *types.ListType, isPrepend bool, output *types.BigtableWriteMutation) error {
 	for i, v := range listValues {
 		// Calculate encoded timestamp for the list element
 		column := getListIndexColumn(i, len(listValues), isPrepend)
 
 		// Format the value
-		formattedVal, err := translators.encodeScalarForBigtable(v, lt.ElementType().DataType())
+		formattedVal, err := encodeScalarForBigtable(v, lt.ElementType().DataType())
 		if err != nil {
 			return fmt.Errorf("error converting string to %s value: %w", lt.String(), err)
 		}
@@ -162,10 +161,10 @@ func addListElements(listValues []types.GoValue, colFamily types.ColumnFamily, l
 func getListIndexColumn(index int, totalLength int, prepend bool) types.ColumnQualifier {
 	now := time.Now().UnixMilli()
 	if prepend {
-		now = translators.referenceTime - (now - translators.referenceTime)
+		now = referenceTime - (now - referenceTime)
 	}
 
-	nanos := translators.maxNanos - int32(totalLength) + int32(index)
+	nanos := maxNanos - int32(totalLength) + int32(index)
 	encodedStr := string(encodeTimestampIndex(now, nanos))
 	return types.ColumnQualifier(encodedStr)
 }
@@ -280,7 +279,7 @@ func addSetElements(setValues []types.GoValue, colFamily types.ColumnFamily) ([]
 }
 
 func scalarToColumnQualifier(v types.GoValue) (types.ColumnQualifier, error) {
-	s, err := translators.scalarToString(v)
+	s, err := scalarToString(v)
 	if err != nil {
 		return "", err
 	}
@@ -290,7 +289,7 @@ func scalarToColumnQualifier(v types.GoValue) (types.ColumnQualifier, error) {
 // removeSetElements removes elements from a set column in raw queries.
 // Processes element removal with validation of element existence.
 // Returns error if element type doesn't match set element type.
-func removeSetElements(keys []types.GoValue, colFamily types.ColumnFamily, output *translators.BigtableWriteMutation) error {
+func removeSetElements(keys []types.GoValue, colFamily types.ColumnFamily, output *types.BigtableWriteMutation) error {
 	for _, key := range keys {
 		c, err := scalarToColumnQualifier(key)
 		if err != nil {
@@ -332,13 +331,13 @@ func removeSetElements(keys []types.GoValue, colFamily types.ColumnFamily, outpu
 // addMapEntries adds key-value pairs to a map column in raw queries.
 // Handles type validation and conversion for both keys and values.
 // Returns error if key/value types don't match map types or conversion fails.
-func addMapEntries(mapValue map[types.GoValue]types.GoValue, mt *types.MapType, column *types.Column, output *translators.BigtableWriteMutation) error {
+func addMapEntries(mapValue map[types.GoValue]types.GoValue, mt *types.MapType, column *types.Column, output *types.BigtableWriteMutation) error {
 	for k, v := range mapValue {
 		col, err := scalarToColumnQualifier(k)
 		if err != nil {
 			return fmt.Errorf("error converting map key: %w", err)
 		}
-		valueFormatted, err := translators.encodeScalarForBigtable(v, mt.ValueType().DataType())
+		valueFormatted, err := encodeScalarForBigtable(v, mt.ValueType().DataType())
 		if err != nil {
 			return fmt.Errorf("error converting string to %s value: %w", mt.String(), err)
 		}
@@ -350,7 +349,7 @@ func addMapEntries(mapValue map[types.GoValue]types.GoValue, mt *types.MapType, 
 // removeMapEntries removes key-value pairs from a map column in raw queries.
 // Processes key removal with validation of key existence and type.
 // Returns error if key type doesn't match map key type.
-func removeMapEntries(val interface{}, column *types.Column, output *translators.BigtableWriteMutation) error {
+func removeMapEntries(val interface{}, column *types.Column, output *types.BigtableWriteMutation) error {
 	keys, ok := val.([]string)
 	if !ok {
 		return fmt.Errorf("expected []string for remove operation, got %T", val)
@@ -367,7 +366,7 @@ func removeMapEntries(val interface{}, column *types.Column, output *translators
 // updateMapIndex updates a specific key in a map column.
 // Handles type conversion and validation for both key and value.
 // Returns error if key doesn't exist or value type doesn't match map value type.
-func updateMapIndex(key interface{}, value interface{}, dt *types.MapType, colFamily types.ColumnFamily, output *translators.BigtableWriteMutation) error {
+func updateMapIndex(key interface{}, value interface{}, dt *types.MapType, colFamily types.ColumnFamily, output *types.BigtableWriteMutation) error {
 	k, ok := key.(string)
 	if !ok {
 		return fmt.Errorf("expected string for map key, got %T", key)
@@ -377,7 +376,7 @@ func updateMapIndex(key interface{}, value interface{}, dt *types.MapType, colFa
 		return fmt.Errorf("expected string for map value, got %T", key)
 	}
 
-	val, err := translators.encodeScalarForBigtable(v, dt.ValueType().DataType())
+	val, err := encodeScalarForBigtable(v, dt.ValueType().DataType())
 	if err != nil {
 		return err
 	}
@@ -399,7 +398,7 @@ func BindQueryParams(params *types.QueryParameters, values []*primitive.Value, p
 	for i, param := range params.AllKeys() {
 		value := values[i]
 		md := params.GetMetadata(param)
-		goVal, err := translators.cassandraValueToGoValue(md.Type, value, pv)
+		goVal, err := cassandraValueToGoValue(md.Type, value, pv)
 		if err != nil {
 			return nil, err
 		}
@@ -418,10 +417,10 @@ func BindQueryParams(params *types.QueryParameters, values []*primitive.Value, p
 	return result, nil
 }
 
-func BindSelectColumns(table *schemaMapping.TableConfig, selectedColumns []SelectedColumn, values *types.QueryParameterValues) ([]translators.BoundSelectColumn, error) {
-	var boundColumns []translators.BoundSelectColumn
+func BindSelectColumns(table *schemaMapping.TableConfig, selectedColumns []types.SelectedColumn, values *types.QueryParameterValues) ([]types.BoundSelectColumn, error) {
+	var boundColumns []types.BoundSelectColumn
 	for _, selectedColumn := range selectedColumns {
-		var bc translators.BoundSelectColumn
+		var bc types.BoundSelectColumn
 		col, err := table.GetColumn(types.ColumnName(selectedColumn.ColumnName))
 		if err != nil {
 			return nil, err
@@ -431,7 +430,7 @@ func BindSelectColumns(table *schemaMapping.TableConfig, selectedColumns []Selec
 			if err != nil {
 				return nil, err
 			}
-			bc = translators.NewBoundIndexColumn(col, int(val))
+			bc = types.NewBoundIndexColumn(col, int(val))
 		} else if selectedColumn.MapKey != "" {
 			val, err := values.GetValue(selectedColumn.ListIndex)
 			if err != nil {
@@ -441,7 +440,7 @@ func BindSelectColumns(table *schemaMapping.TableConfig, selectedColumns []Selec
 			if err != nil {
 				return nil, err
 			}
-			bc = translators.NewBoundKeyColumn(col, c)
+			bc = types.NewBoundKeyColumn(col, c)
 		} else {
 			return nil, fmt.Errorf("unhandled select column type found binding")
 		}
@@ -480,19 +479,19 @@ func ValidateAllParamsSet(q *types.QueryParameterValues) error {
 	return nil
 }
 
-func BindUsingTimestamp(values *types.QueryParameterValues) (*translators.BoundTimestampInfo, error) {
+func BindUsingTimestamp(values *types.QueryParameterValues) (*types.BoundTimestampInfo, error) {
 	if values.Has(types.UsingTimePlaceholder) {
 		t, err := values.GetValueInt64(types.UsingTimePlaceholder)
 		if err != nil {
 			return nil, err
 		}
-		return &translators.BoundTimestampInfo{
+		return &types.BoundTimestampInfo{
 			// USING TIMESTAMP is in micros
 			Timestamp:         time.UnixMicro(t),
 			HasUsingTimestamp: true,
 		}, nil
 	} else {
-		return &translators.BoundTimestampInfo{
+		return &types.BoundTimestampInfo{
 			// USING TIMESTAMP is in micros
 			Timestamp:         time.Now(),
 			HasUsingTimestamp: false,

@@ -184,7 +184,7 @@ func ParseStringLiteral(d cql.IStringLiteralContext, params *types.QueryParamete
 	return p, nil
 }
 
-func ParseWhereClause(input cql.IWhereSpecContext, tableConfig *schemaMapping.TableConfig, params *types.QueryParameters, values *types.QueryParameterValues) ([]Condition, error) {
+func ParseWhereClause(input cql.IWhereSpecContext, tableConfig *schemaMapping.TableConfig, params *types.QueryParameters, values *types.QueryParameterValues) ([]types.Condition, error) {
 	if input == nil {
 		return nil, nil
 	}
@@ -198,7 +198,7 @@ func ParseWhereClause(input cql.IWhereSpecContext, tableConfig *schemaMapping.Ta
 		return nil, nil
 	}
 
-	var conditions []Condition
+	var conditions []types.Condition
 
 	for _, val := range elements {
 		if val == nil {
@@ -212,8 +212,8 @@ func ParseWhereClause(input cql.IWhereSpecContext, tableConfig *schemaMapping.Ta
 		}
 
 		if val.OPERATOR_EQ() != nil {
-			p := params.PushParameter(column, column.CQLType)
-			conditions = append(conditions, Condition{
+			p := params.PushParameter(column, column.CQLType, false)
+			conditions = append(conditions, types.Condition{
 				Column:           column,
 				Operator:         constants.EQ,
 				ValuePlaceholder: p,
@@ -229,8 +229,8 @@ func ParseWhereClause(input cql.IWhereSpecContext, tableConfig *schemaMapping.Ta
 				}
 			}
 		} else if val.OPERATOR_GT() != nil {
-			p := params.PushParameter(column, column.CQLType)
-			conditions = append(conditions, Condition{
+			p := params.PushParameter(column, column.CQLType, false)
+			conditions = append(conditions, types.Condition{
 				Column:           column,
 				Operator:         constants.GT,
 				ValuePlaceholder: p,
@@ -246,8 +246,8 @@ func ParseWhereClause(input cql.IWhereSpecContext, tableConfig *schemaMapping.Ta
 				}
 			}
 		} else if val.OPERATOR_LT() != nil {
-			p := params.PushParameter(column, column.CQLType)
-			conditions = append(conditions, Condition{
+			p := params.PushParameter(column, column.CQLType, false)
+			conditions = append(conditions, types.Condition{
 				Column:           column,
 				Operator:         constants.LT,
 				ValuePlaceholder: p,
@@ -263,8 +263,8 @@ func ParseWhereClause(input cql.IWhereSpecContext, tableConfig *schemaMapping.Ta
 				}
 			}
 		} else if val.OPERATOR_GTE() != nil {
-			p := params.PushParameter(column, column.CQLType)
-			conditions = append(conditions, Condition{
+			p := params.PushParameter(column, column.CQLType, false)
+			conditions = append(conditions, types.Condition{
 				Column:           column,
 				Operator:         constants.GTE,
 				ValuePlaceholder: p,
@@ -280,8 +280,8 @@ func ParseWhereClause(input cql.IWhereSpecContext, tableConfig *schemaMapping.Ta
 				}
 			}
 		} else if val.OPERATOR_LTE() != nil {
-			p := params.PushParameter(column, column.CQLType)
-			conditions = append(conditions, Condition{
+			p := params.PushParameter(column, column.CQLType, false)
+			conditions = append(conditions, types.Condition{
 				Column:           column,
 				Operator:         constants.LTE,
 				ValuePlaceholder: p,
@@ -297,8 +297,8 @@ func ParseWhereClause(input cql.IWhereSpecContext, tableConfig *schemaMapping.Ta
 				}
 			}
 		} else if val.KwIn() != nil {
-			p := params.PushParameter(column, column.CQLType)
-			conditions = append(conditions, Condition{
+			p := params.PushParameter(column, column.CQLType, false)
+			conditions = append(conditions, types.Condition{
 				Column:           column,
 				Operator:         constants.IN,
 				ValuePlaceholder: p,
@@ -339,8 +339,8 @@ func ParseWhereClause(input cql.IWhereSpecContext, tableConfig *schemaMapping.Ta
 				return nil, errors.New("CONTAINS are only supported for set and list")
 			}
 
-			p := params.PushParameter(column, elementType)
-			conditions = append(conditions, Condition{
+			p := params.PushParameter(column, elementType, true)
+			conditions = append(conditions, types.Condition{
 				Column:           column,
 				Operator:         operator,
 				ValuePlaceholder: p,
@@ -361,8 +361,8 @@ func ParseWhereClause(input cql.IWhereSpecContext, tableConfig *schemaMapping.Ta
 				return nil, errors.New("CONTAINS KEY are only supported for map")
 			}
 			keyType := column.CQLType.(types.MapType).KeyType()
-			p := params.PushParameter(column, keyType)
-			conditions = append(conditions, Condition{
+			p := params.PushParameter(column, keyType, false)
+			conditions = append(conditions, types.Condition{
 				Column:           column,
 				Operator:         constants.MAP_CONTAINS_KEY,
 				ValuePlaceholder: p,
@@ -378,8 +378,8 @@ func ParseWhereClause(input cql.IWhereSpecContext, tableConfig *schemaMapping.Ta
 				}
 			}
 		} else if val.KwLike() != nil {
-			p := params.PushParameter(column, column.CQLType)
-			conditions = append(conditions, Condition{
+			p := params.PushParameter(column, column.CQLType, false)
+			conditions = append(conditions, types.Condition{
 				Column:           column,
 				Operator:         constants.LIKE,
 				ValuePlaceholder: p,
@@ -395,8 +395,8 @@ func ParseWhereClause(input cql.IWhereSpecContext, tableConfig *schemaMapping.Ta
 				}
 			}
 		} else if val.KwBetween() != nil {
-			p := params.PushParameter(column, column.CQLType)
-			conditions = append(conditions, Condition{
+			p := params.PushParameter(column, column.CQLType, false)
+			conditions = append(conditions, types.Condition{
 				Column:           column,
 				Operator:         constants.BETWEEN,
 				ValuePlaceholder: p,

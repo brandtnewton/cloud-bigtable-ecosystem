@@ -20,31 +20,29 @@ import (
 	"errors"
 	"fmt"
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/global/types"
-	sm "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/schema-mapping"
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/translators/common"
-	"github.com/datastax/go-cassandra-native-protocol/message"
 	"github.com/datastax/go-cassandra-native-protocol/primitive"
 )
 
-func (t *SelectTranslator) Translate(query *types.RawQuery, sessionKeyspace types.Keyspace, isPreparedQuery bool) (types.IPreparedQuery, *types.QueryParameterValues, error) {
+func (t *SelectTranslator) Translate(query *types.RawQuery, sessionKeyspace types.Keyspace, isPreparedQuery bool) (types.IPreparedQuery, error) {
 	selectObj := query.Parser().Select_()
 	if selectObj == nil {
-		return nil, nil, errors.New("failed to parse select query")
+		return nil, errors.New("failed to parse select query")
 	}
 
 	keyspaceName, tableName, err := common.ParseTarget(selectObj.FromSpec(), sessionKeyspace, t.schemaMappingConfig)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 
 	tableConfig, err := t.schemaMappingConfig.GetTableConfig(keyspaceName, tableName)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 
 	selectClause, err := parseSelectClause(selectObj.SelectElements(), tableConfig)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 
 	params := types.NewQueryParameters()
@@ -52,7 +50,7 @@ func (t *SelectTranslator) Translate(query *types.RawQuery, sessionKeyspace type
 
 	conditions, err := common.ParseWhereClause(selectObj.WhereSpec(), tableConfig, params, values, isPreparedQuery)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 
 	var groupBy []string
@@ -64,7 +62,7 @@ func (t *SelectTranslator) Translate(query *types.RawQuery, sessionKeyspace type
 		orderBy, err = parseOrderByFromSelect(selectObj.OrderSpec())
 		if err != nil {
 			// pass the original error to provide proper root cause of error.
-			return nil, nil, err
+			return nil, err
 		}
 	} else {
 		orderBy.IsOrderBy = false
@@ -72,38 +70,19 @@ func (t *SelectTranslator) Translate(query *types.RawQuery, sessionKeyspace type
 
 	err = parseLimitClause(selectObj.LimitSpec(), params, values)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 
 	resultColumns := selectedColumnsToMetadata(tableConfig, selectClause)
 
-	st := types.NewPreparedSelectQuery(keyspaceName, tableName, query.RawCql(), "", selectClause, conditions, params, orderBy, groupBy, resultColumns)
+	st := types.NewPreparedSelectQuery(keyspaceName, tableName, query.RawCql(), "", selectClause, conditions, params, orderBy, groupBy, resultColumns, values)
 
 	translatedResult, err := createBigtableSql(t, st)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 	st.TranslatedQuery = translatedResult
-	return st, values, nil
-}
-
-func selectedColumnsToMetadata(table *sm.TableConfig, selectClause *types.SelectClause) []*message.ColumnMetadata {
-	if selectClause.IsStar {
-		return table.GetMetadata()
-	}
-
-	var resultColumns []*message.ColumnMetadata
-	for i, c := range selectClause.Columns {
-		var col = message.ColumnMetadata{
-			Keyspace: string(table.Keyspace),
-			Table:    string(table.Name),
-			Name:     string(c.ColumnName),
-			Index:    int32(i),
-			Type:     c.ResultType.DataType(),
-		}
-		resultColumns = append(resultColumns, &col)
-	}
-	return resultColumns
+	return st, nil
 }
 
 func (t *SelectTranslator) Bind(st types.IPreparedQuery, values *types.QueryParameterValues, pv primitive.ProtocolVersion) (types.IExecutableQuery, error) {
@@ -111,10 +90,6 @@ func (t *SelectTranslator) Bind(st types.IPreparedQuery, values *types.QueryPara
 	if !ok {
 		return nil, fmt.Errorf("cannot bind to %T", st)
 	}
-	return t.doBindSelect(sst, values, pv)
-}
-
-func (t *SelectTranslator) doBindSelect(st *types.PreparedSelectQuery, values *types.QueryParameterValues, pv primitive.ProtocolVersion) (*types.BoundSelectQuery, error) {
-	query := types.NewBoundSelectQuery(st, pv, values)
+	query := types.NewBoundSelectQuery(sst, pv, values)
 	return query, nil
 }

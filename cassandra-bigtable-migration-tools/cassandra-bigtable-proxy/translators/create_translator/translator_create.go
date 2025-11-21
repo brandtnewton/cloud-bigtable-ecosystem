@@ -33,33 +33,33 @@ const (
 	intRowKeyEncodingOptionValueOrderedCode = "ordered_code"
 )
 
-func (t *CreateTranslator) Translate(query *types.RawQuery, sessionKeyspace types.Keyspace, isPreparedQuery bool) (types.IPreparedQuery, *types.QueryParameterValues, error) {
+func (t *CreateTranslator) Translate(query *types.RawQuery, sessionKeyspace types.Keyspace, isPreparedQuery bool) (types.IPreparedQuery, error) {
 	createTableObj := query.Parser().CreateTable()
 
 	if createTableObj == nil {
-		return nil, nil, errors.New("error while parsing create object")
+		return nil, errors.New("error while parsing create object")
 	}
 
 	keyspaceName, tableName, err := common.ParseTarget(createTableObj, sessionKeyspace, t.schemaMappingConfig)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 
 	var pmks []types.CreateTablePrimaryKeyConfig
 	var columns []types.CreateColumn
 
 	if createTableObj.ColumnDefinitionList().GetText() == "" {
-		return nil, nil, errors.New("malformed create table statement")
+		return nil, errors.New("malformed create table statement")
 	}
 
 	for i, col := range createTableObj.ColumnDefinitionList().AllColumnDefinition() {
 		dt, err := utilities.ParseCqlType(col.DataType())
 		if err != nil {
-			return nil, nil, err
+			return nil, err
 		}
 
 		if !utilities.IsSupportedColumnType(dt) {
-			return nil, nil, fmt.Errorf("column type '%s' is not supported", dt.String())
+			return nil, fmt.Errorf("column type '%s' is not supported", dt.String())
 		}
 
 		columns = append(columns, types.CreateColumn{
@@ -77,11 +77,11 @@ func (t *CreateTranslator) Translate(query *types.RawQuery, sessionKeyspace type
 	}
 
 	if len(pmks) > 1 {
-		return nil, nil, errors.New("multiple inline primary key columns not allowed")
+		return nil, errors.New("multiple inline primary key columns not allowed")
 	}
 
 	if len(columns) == 0 {
-		return nil, nil, errors.New("no columns found in create table statement")
+		return nil, errors.New("no columns found in create table statement")
 	}
 
 	rowKeyEncoding := t.defaultIntRowKeyEncoding
@@ -95,18 +95,18 @@ func (t *CreateTranslator) Translate(query *types.RawQuery, sessionKeyspace type
 			case intRowKeyEncodingOptionValueOrderedCode:
 				rowKeyEncoding = types.OrderedCodeEncoding
 			default:
-				return nil, nil, fmt.Errorf("unsupported encoding '%s' for option '%s'", optionValue, optionName)
+				return nil, fmt.Errorf("unsupported encoding '%s' for option '%s'", optionValue, optionName)
 			}
 		default:
 			// fail fast, so the user know we don't support the option rather than silently ignoring it.
-			return nil, nil, fmt.Errorf("unsupported table option: '%s'", optionName)
+			return nil, fmt.Errorf("unsupported table option: '%s'", optionName)
 		}
 	}
 
 	// nil if inline primary key definition used
 	if createTableObj.ColumnDefinitionList().PrimaryKeyElement() != nil {
 		if len(pmks) > 0 {
-			return nil, nil, errors.New("cannot specify both primary key clause and inline primary key")
+			return nil, errors.New("cannot specify both primary key clause and inline primary key")
 		}
 		singleKey := createTableObj.ColumnDefinitionList().PrimaryKeyElement().PrimaryKeyDefinition().SinglePrimaryKey()
 		compoundKey := createTableObj.ColumnDefinitionList().PrimaryKeyElement().PrimaryKeyDefinition().CompoundKey()
@@ -146,16 +146,16 @@ func (t *CreateTranslator) Translate(query *types.RawQuery, sessionKeyspace type
 	}
 
 	if utilities.IsReservedCqlKeyword(string(tableName)) {
-		return nil, nil, fmt.Errorf("table name cannot be reserved cql word: '%s'", tableName)
+		return nil, fmt.Errorf("table name cannot be reserved cql word: '%s'", tableName)
 	}
 	for _, column := range columns {
 		if utilities.IsReservedCqlKeyword(string(column.Name)) {
-			return nil, nil, fmt.Errorf("cannot create a table with reserved keyword as column name: '%s'", column.Name)
+			return nil, fmt.Errorf("cannot create a table with reserved keyword as column name: '%s'", column.Name)
 		}
 	}
 
 	if len(pmks) == 0 {
-		return nil, nil, errors.New("no primary key found in create table statement")
+		return nil, errors.New("no primary key found in create table statement")
 	}
 
 	for _, pmk := range pmks {
@@ -163,16 +163,16 @@ func (t *CreateTranslator) Translate(query *types.RawQuery, sessionKeyspace type
 			return col.Name == pmk.Name
 		})
 		if colIndex == -1 {
-			return nil, nil, fmt.Errorf("primary key '%s' has no column definition in create table statement", pmk.Name)
+			return nil, fmt.Errorf("primary key '%s' has no column definition in create table statement", pmk.Name)
 		}
 		col := columns[colIndex]
 		if !utilities.IsSupportedPrimaryKeyType(col.TypeInfo) {
-			return nil, nil, fmt.Errorf("primary key cannot be of type %s", col.TypeInfo.String())
+			return nil, fmt.Errorf("primary key cannot be of type %s", col.TypeInfo.String())
 		}
 	}
 	ifNotExists := createTableObj.IfNotExist() != nil
 	var stmt = types.NewCreateTableStatementMap(keyspaceName, tableName, query.RawCql(), ifNotExists, columns, pmks, rowKeyEncoding)
-	return stmt, types.EmptyQueryParameterValues(), nil
+	return stmt, nil
 }
 
 func (t *CreateTranslator) Bind(q types.IPreparedQuery, values *types.QueryParameterValues, pv primitive.ProtocolVersion) (types.IExecutableQuery, error) {

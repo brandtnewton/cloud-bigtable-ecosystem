@@ -558,14 +558,14 @@ func newParser(query string) *cql.CqlParser {
 //
 // Returns: nil
 func (c *client) handleServerPreparedQuery(query *types.RawQuery, id [16]byte) {
-	preparedQuery, _, err := c.prepareQuery(query, true)
+	preparedQuery, err := c.prepareQuery(query, true)
 	if err != nil {
 		c.proxy.logger.Error(translatorErrorMessage, zap.String(Query, query.RawCql()), zap.Error(err))
 		c.sender.Send(query.Header(), &message.Invalid{ErrorMessage: err.Error()})
 		return
 	}
 
-	response, err := responsehandler.BuildPreparedResultResponse(id, preparedQuery.Keyspace(), preparedQuery.Table(), preparedQuery.Parameters(), preparedQuery.ResponseColumns())
+	response, err := responsehandler.BuildPreparedResultResponse(id, preparedQuery)
 
 	// update caches
 	c.proxy.preparedQueryCache.Store(id, preparedQuery)
@@ -574,19 +574,19 @@ func (c *client) handleServerPreparedQuery(query *types.RawQuery, id [16]byte) {
 	c.sender.Send(query.Header(), response)
 }
 
-func (c *client) prepareQuery(query *types.RawQuery, isPreparedQuery bool) (types.IPreparedQuery, *types.QueryParameterValues, error) {
-	preparedQuery, values, err := c.proxy.translator.TranslateQuery(query, c.sessionKeyspace, isPreparedQuery)
+func (c *client) prepareQuery(query *types.RawQuery, isPreparedQuery bool) (types.IPreparedQuery, error) {
+	preparedQuery, err := c.proxy.translator.TranslateQuery(query, c.sessionKeyspace, isPreparedQuery)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 
 	btPreparedQuery, err := c.proxy.bClient.PrepareStatement(c.ctx, preparedQuery)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 	preparedQuery.SetBigtablePreparedQuery(btPreparedQuery)
 
-	return preparedQuery, values, err
+	return preparedQuery, err
 }
 
 // handleExecute for prepared query
@@ -700,7 +700,14 @@ func (c *client) handleQuery(raw *frame.RawFrame, msg *partialQuery) {
 	var otelErr error
 	defer c.proxy.otelInst.RecordMetrics(otelCtx, handleQuery, startTime, rawQuery.QueryType().String(), c.sessionKeyspace, otelErr)
 
-	query, values, err := c.prepareQuery(rawQuery, false)
+	query, err := c.prepareQuery(rawQuery, false)
+	if err != nil {
+		c.proxy.logger.Error(translatorErrorMessage, zap.String(Query, msg.query), zap.Error(err))
+		c.sender.Send(raw.Header, &message.Invalid{ErrorMessage: err.Error()})
+		return
+	}
+	values := types.NewQueryParameterValues(query.Parameters())
+	err = values.SetInitialValues(query.InitialValues())
 	if err != nil {
 		c.proxy.logger.Error(translatorErrorMessage, zap.String(Query, msg.query), zap.Error(err))
 		c.sender.Send(raw.Header, &message.Invalid{ErrorMessage: err.Error()})

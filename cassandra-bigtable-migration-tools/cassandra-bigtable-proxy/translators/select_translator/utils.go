@@ -9,6 +9,7 @@ import (
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/translators/common"
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/utilities"
 	"github.com/datastax/go-cassandra-native-protocol/datatype"
+	"github.com/datastax/go-cassandra-native-protocol/message"
 	"github.com/datastax/go-cassandra-native-protocol/primitive"
 	"strconv"
 	"strings"
@@ -178,7 +179,7 @@ func parseLimitClause(input cql.ILimitSpecContext, params *types.QueryParameters
 		} else if limitValue < 0 {
 			return errors.New("limit must be positive")
 		}
-		err = values.SetValue(types.LimitPlaceholder, limitValue)
+		err = values.SetValue(types.LimitPlaceholder, int32(limitValue))
 		if err != nil {
 			return err
 		}
@@ -546,4 +547,23 @@ func createBtqlWhereClause(clauses []types.Condition, tableConfig *sm.TableConfi
 		whereClause = " WHERE " + whereClause
 	}
 	return whereClause, nil
+}
+
+func selectedColumnsToMetadata(table *sm.TableConfig, selectClause *types.SelectClause) []*message.ColumnMetadata {
+	if selectClause.IsStar {
+		return table.GetMetadata()
+	}
+
+	var resultColumns []*message.ColumnMetadata
+	for i, c := range selectClause.Columns {
+		var col = message.ColumnMetadata{
+			Keyspace: string(table.Keyspace),
+			Table:    string(table.Name),
+			Name:     string(c.ColumnName),
+			Index:    int32(i),
+			Type:     c.ResultType.DataType(),
+		}
+		resultColumns = append(resultColumns, &col)
+	}
+	return resultColumns
 }

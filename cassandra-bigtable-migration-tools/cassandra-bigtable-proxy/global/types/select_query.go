@@ -60,6 +60,7 @@ type PreparedSelectQuery struct {
 	TranslatedQuery      string        // btql
 	SelectClause         *SelectClause // Translator generated Metadata about the columns involved
 	Conditions           []Condition
+	initialValues        map[Placeholder]GoValue
 	Params               *QueryParameters            // Parameters for the query
 	CachedBTPrepare      *bigtable.PreparedStatement // prepared statement object for bigtable
 	OrderBy              OrderBy                     // Order by clause details
@@ -76,8 +77,24 @@ func (p *PreparedSelectQuery) IsIdempotent() bool {
 	return true
 }
 
-func NewPreparedSelectQuery(keyspace Keyspace, table TableName, cqlQuery string, translatedQuery string, selectClause *SelectClause, conditions []Condition, params *QueryParameters, orderBy OrderBy, groupByColumns []string, resultColumnMetadata []*message.ColumnMetadata) *PreparedSelectQuery {
-	return &PreparedSelectQuery{keyspace: keyspace, table: table, cqlQuery: cqlQuery, TranslatedQuery: translatedQuery, SelectClause: selectClause, Conditions: conditions, Params: params, OrderBy: orderBy, GroupByColumns: groupByColumns, ResultColumnMetadata: resultColumnMetadata}
+func NewPreparedSelectQuery(keyspace Keyspace, table TableName, cqlQuery string, translatedQuery string, selectClause *SelectClause, conditions []Condition, params *QueryParameters, orderBy OrderBy, groupByColumns []string, resultColumnMetadata []*message.ColumnMetadata, values *QueryParameterValues) *PreparedSelectQuery {
+	return &PreparedSelectQuery{
+		keyspace:             keyspace,
+		table:                table,
+		cqlQuery:             cqlQuery,
+		TranslatedQuery:      translatedQuery,
+		SelectClause:         selectClause,
+		Conditions:           conditions,
+		Params:               params,
+		OrderBy:              orderBy,
+		GroupByColumns:       groupByColumns,
+		ResultColumnMetadata: resultColumnMetadata,
+		initialValues:        values.values,
+	}
+}
+
+func (p *PreparedSelectQuery) InitialValues() map[Placeholder]GoValue {
+	return p.initialValues
 }
 
 func (p *PreparedSelectQuery) Parameters() *QueryParameters {

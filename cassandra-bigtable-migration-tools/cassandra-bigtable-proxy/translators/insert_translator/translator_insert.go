@@ -33,20 +33,20 @@ import (
 // Returns: PreparedInsertQuery, build the PreparedInsertQuery and return it with nil value of error. In case of error
 // PreparedInsertQuery will return as nil and error will contains the error object
 
-func (t *InsertTranslator) Translate(query *types.RawQuery, sessionKeyspace types.Keyspace, isPreparedQuery bool) (types.IPreparedQuery, *types.QueryParameterValues, error) {
+func (t *InsertTranslator) Translate(query *types.RawQuery, sessionKeyspace types.Keyspace, isPreparedQuery bool) (types.IPreparedQuery, error) {
 	insertObj := query.Parser().Insert()
 	if insertObj == nil {
-		return nil, nil, errors.New("could not parse insert object")
+		return nil, errors.New("could not parse insert object")
 	}
 
 	keyspaceName, tableName, err := common.ParseTarget(insertObj, sessionKeyspace, t.schemaMappingConfig)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 
 	tableConfig, err := t.schemaMappingConfig.GetTableConfig(keyspaceName, tableName)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 
 	ifNotExists := insertObj.IfNotExist() != nil
@@ -56,27 +56,27 @@ func (t *InsertTranslator) Translate(query *types.RawQuery, sessionKeyspace type
 
 	assignments, err := parseInsertColumns(insertObj.InsertColumnSpec(), tableConfig, params)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 
 	err = parseInsertValues(insertObj.InsertValuesSpec(), assignments, params, values, isPreparedQuery)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 
 	err = common.GetTimestampInfo(insertObj.UsingTtlTimestamp(), params, values)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 
 	err = common.ValidateRequiredPrimaryKeys(tableConfig, params)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 
-	st := types.NewPreparedInsertQuery(keyspaceName, tableName, ifNotExists, query.RawCql(), params, assignments)
+	st := types.NewPreparedInsertQuery(keyspaceName, tableName, ifNotExists, query.RawCql(), params, assignments, values)
 
-	return st, values, nil
+	return st, nil
 }
 
 func (t *InsertTranslator) Bind(st types.IPreparedQuery, values *types.QueryParameterValues, pv primitive.ProtocolVersion) (types.IExecutableQuery, error) {

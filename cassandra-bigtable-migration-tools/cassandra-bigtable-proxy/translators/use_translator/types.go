@@ -12,14 +12,14 @@ type UseTranslator struct {
 	schemaMappingConfig *schemaMapping.SchemaMappingConfig
 }
 
-func (t *UseTranslator) Translate(query *types.RawQuery, _ types.Keyspace, _ bool) (types.IPreparedQuery, *types.QueryParameterValues, error) {
+func (t *UseTranslator) Translate(query *types.RawQuery, _ types.Keyspace, _ bool) (types.IPreparedQuery, error) {
 	use := query.Parser().Use_()
 	if use == nil {
-		return nil, nil, fmt.Errorf("failed to parse USE statement")
+		return nil, fmt.Errorf("failed to parse USE statement")
 	}
 
 	if use.Keyspace() == nil {
-		return nil, nil, fmt.Errorf("missing keyspace in USE statement")
+		return nil, fmt.Errorf("missing keyspace in USE statement")
 	}
 
 	keyspace := types.Keyspace(strings.Trim(use.Keyspace().GetText(), "\""))
@@ -27,10 +27,10 @@ func (t *UseTranslator) Translate(query *types.RawQuery, _ types.Keyspace, _ boo
 	// validate keyspace
 	_, err := t.schemaMappingConfig.GetKeyspace(keyspace)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 
-	return types.NewUseTableStatementMap(keyspace, query.RawCql()), types.EmptyQueryParameterValues(), nil
+	return types.NewUseTableStatementMap(keyspace, query.RawCql()), nil
 }
 
 func (t *UseTranslator) Bind(st types.IPreparedQuery, _ *types.QueryParameterValues, _ primitive.ProtocolVersion) (types.IExecutableQuery, error) {

@@ -10,6 +10,10 @@ type UseTableStatementMap struct {
 	keyspace Keyspace
 }
 
+func (u *UseTableStatementMap) InitialValues() map[Placeholder]GoValue {
+	return nil
+}
+
 func (u *UseTableStatementMap) Parameters() *QueryParameters {
 	return nil
 }

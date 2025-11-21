@@ -14,6 +14,10 @@ type AlterTableStatementMap struct {
 	DropColumns []ColumnName
 }
 
+func (a *AlterTableStatementMap) InitialValues() map[Placeholder]GoValue {
+	return nil
+}
+
 func (a *AlterTableStatementMap) Parameters() *QueryParameters {
 	return nil
 }

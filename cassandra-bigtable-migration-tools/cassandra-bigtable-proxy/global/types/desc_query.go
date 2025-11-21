@@ -19,6 +19,10 @@ type DescribeQuery struct {
 	keyspace  Keyspace
 }
 
+func (a *DescribeQuery) InitialValues() map[Placeholder]GoValue {
+	return nil
+}
+
 func NewDescribeKeyspacesQuery(cqlQuery string) *DescribeQuery {
 	return &DescribeQuery{cqlQuery: cqlQuery, Keyspaces: true}
 }

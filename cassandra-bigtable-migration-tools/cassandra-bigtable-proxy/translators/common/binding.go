@@ -388,14 +388,20 @@ func updateMapIndex(key interface{}, value interface{}, dt *types.MapType, colFa
 // BindQueryParams handles collection operations in prepared queries.
 // Processes set, list, and map operations.
 // Returns error if collection type is invalid or value encoding fails.
-func BindQueryParams(params *types.QueryParameters, values []*primitive.Value, pv primitive.ProtocolVersion) (*types.QueryParameterValues, error) {
-	if params.Count() != len(values) {
-		return nil, fmt.Errorf("expected %d prepared values but got %d", params.Count(), len(values))
+func BindQueryParams(params *types.QueryParameters, initialValues map[types.Placeholder]types.GoValue, values []*primitive.Value, pv primitive.ProtocolVersion) (*types.QueryParameterValues, error) {
+	providedValueCount := len(initialValues) + len(values)
+	if params.Count() != providedValueCount {
+		return nil, fmt.Errorf("expected %d prepared values but got %d", params.Count(), providedValueCount)
 	}
 
 	result := types.NewQueryParameterValues(params)
+	err := result.SetInitialValues(initialValues)
+	if err != nil {
+		return nil, err
+	}
 
-	for i, param := range params.AllKeys() {
+	// only iterate through values that we still need
+	for i, param := range params.RemainingKeys(initialValues) {
 		value := values[i]
 		md := params.GetMetadata(param)
 		goVal, err := cassandraValueToGoValue(md.Type, value, pv)
@@ -409,9 +415,11 @@ func BindQueryParams(params *types.QueryParameters, values []*primitive.Value, p
 	}
 
 	// make sure the param counts match to prevent silent failures
-	err := ValidateAllParamsSet(result)
-	if err != nil {
-		return nil, err
+	if result.CountSetValues() != params.Count() {
+		err = ValidateAllParamsSet(params, result.AsMap())
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	return result, nil
@@ -421,7 +429,7 @@ func BindSelectColumns(table *schemaMapping.TableConfig, selectedColumns []types
 	var boundColumns []types.BoundSelectColumn
 	for _, selectedColumn := range selectedColumns {
 		var bc types.BoundSelectColumn
-		col, err := table.GetColumn(types.ColumnName(selectedColumn.ColumnName))
+		col, err := table.GetColumn(selectedColumn.ColumnName)
 		if err != nil {
 			return nil, err
 		}
@@ -449,27 +457,12 @@ func BindSelectColumns(table *schemaMapping.TableConfig, selectedColumns []types
 	return boundColumns, nil
 }
 
-func ValidateZeroParamsSet(q *types.QueryParameterValues) error {
-	var setParams []string
-	keys := q.Params().AllKeys()
-	for _, p := range keys {
-		_, err := q.GetValue(p)
-		if err == nil {
-			setParams = append(setParams, string(p))
-		}
-	}
-	if len(setParams) > 0 {
-		return fmt.Errorf("expected no set params but found %d parameters: %s", len(setParams), strings.Join(setParams, ", "))
-	}
-	return nil
-}
-
-func ValidateAllParamsSet(q *types.QueryParameterValues) error {
+func ValidateAllParamsSet(q *types.QueryParameters, values map[types.Placeholder]types.GoValue) error {
 	var missingParams []string
-	keys := q.Params().AllKeys()
+	keys := q.AllKeys()
 	for _, p := range keys {
-		_, err := q.GetValue(p)
-		if err != nil {
+		_, ok := values[p]
+		if !ok {
 			missingParams = append(missingParams, string(p))
 		}
 	}

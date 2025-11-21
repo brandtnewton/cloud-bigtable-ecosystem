@@ -201,6 +201,8 @@ type IPreparedQuery interface {
 	CqlQuery() string
 	QueryType() QueryType
 	Parameters() *QueryParameters
+	// InitialValues - values that were already set in the query and not parameterized
+	InitialValues() map[Placeholder]GoValue
 	ResponseColumns() []*message.ColumnMetadata
 	// SetBigtablePreparedQuery - only implemented for "select" queries for now because Bigtable SQL only supports reads
 	SetBigtablePreparedQuery(s *bigtable.PreparedStatement)
@@ -209,7 +211,7 @@ type IPreparedQuery interface {
 }
 
 type IQueryTranslator interface {
-	Translate(query *RawQuery, sessionKeyspace Keyspace, isPreparedQuery bool) (IPreparedQuery, *QueryParameterValues, error)
+	Translate(query *RawQuery, sessionKeyspace Keyspace, isPreparedQuery bool) (IPreparedQuery, error)
 	Bind(st IPreparedQuery, values *QueryParameterValues, pv primitive.ProtocolVersion) (IExecutableQuery, error)
 	QueryType() QueryType
 }

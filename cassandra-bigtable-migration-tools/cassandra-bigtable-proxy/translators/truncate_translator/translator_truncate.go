@@ -24,20 +24,20 @@ import (
 	"github.com/datastax/go-cassandra-native-protocol/primitive"
 )
 
-func (t *TruncateTranslator) Translate(query *types.RawQuery, sessionKeyspace types.Keyspace, isPreparedQuery bool) (types.IPreparedQuery, *types.QueryParameterValues, error) {
+func (t *TruncateTranslator) Translate(query *types.RawQuery, sessionKeyspace types.Keyspace, isPreparedQuery bool) (types.IPreparedQuery, error) {
 	truncateTableObj := query.Parser().Truncate()
 
 	if truncateTableObj == nil {
-		return nil, nil, errors.New("error while parsing truncate query")
+		return nil, errors.New("error while parsing truncate query")
 	}
 
 	keyspace, table, err := common.ParseTarget(truncateTableObj, sessionKeyspace, t.schemaMappingConfig)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 
 	stmt := types.NewTruncateTableStatementMap(keyspace, table, query.RawCql())
-	return stmt, types.EmptyQueryParameterValues(), nil
+	return stmt, nil
 }
 
 func (t *TruncateTranslator) Bind(st types.IPreparedQuery, _ *types.QueryParameterValues, _ primitive.ProtocolVersion) (types.IExecutableQuery, error) {

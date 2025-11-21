@@ -73,41 +73,35 @@ func NewTranslatorManager(logger *zap.Logger, schemaMappingConfig *schemaMapping
 	}
 }
 
-func (t *TranslatorManager) TranslateQuery(q *types.RawQuery, sessionKeyspace types.Keyspace, isPreparedQuery bool) (types.IPreparedQuery, *types.QueryParameterValues, error) {
+func (t *TranslatorManager) TranslateQuery(q *types.RawQuery, sessionKeyspace types.Keyspace, isPreparedQuery bool) (types.IPreparedQuery, error) {
 	queryTranslator, err := t.getTranslator(q.QueryType())
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 
-	preparedQuery, values, err := queryTranslator.Translate(q, sessionKeyspace, isPreparedQuery)
+	preparedQuery, err := queryTranslator.Translate(q, sessionKeyspace, isPreparedQuery)
 
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 
-	if isPreparedQuery {
-		if values != nil {
-			// no values should be set for prepared queries
-			err = common.ValidateZeroParamsSet(values)
-			if err != nil {
-				return nil, nil, err
-			}
-		}
-	} else if !isPreparedQuery {
+	if !isPreparedQuery &&
+		// queries that can never have parameters return nil
+		preparedQuery.Parameters() != nil {
 		// ALL values should be set for adhoc queries
-		err = common.ValidateAllParamsSet(values)
+		err = common.ValidateAllParamsSet(preparedQuery.Parameters(), preparedQuery.InitialValues())
 		if err != nil {
-			return nil, nil, err
+			return nil, err
 		}
 	}
 
 	t.Logger.Debug("translated query", zap.String("cql", q.RawCql()), zap.String("btql", preparedQuery.BigtableQuery()))
 
-	return preparedQuery, values, err
+	return preparedQuery, err
 }
 
 func (t *TranslatorManager) BindQuery(st types.IPreparedQuery, cassandraValues []*primitive.Value, pv primitive.ProtocolVersion) (types.IExecutableQuery, error) {
-	values, err := common.BindQueryParams(st.Parameters(), cassandraValues, pv)
+	values, err := common.BindQueryParams(st.Parameters(), st.InitialValues(), cassandraValues, pv)
 	if err != nil {
 		return nil, err
 	}

@@ -24,20 +24,20 @@ import (
 	"github.com/datastax/go-cassandra-native-protocol/primitive"
 )
 
-func (t *DeleteTranslator) Translate(query *types.RawQuery, sessionKeyspace types.Keyspace, isPreparedQuery bool) (types.IPreparedQuery, *types.QueryParameterValues, error) {
+func (t *DeleteTranslator) Translate(query *types.RawQuery, sessionKeyspace types.Keyspace, isPreparedQuery bool) (types.IPreparedQuery, error) {
 	deleteObj := query.Parser()
 	if deleteObj == nil {
-		return nil, nil, errors.New("error while parsing delete object")
+		return nil, errors.New("error while parsing delete object")
 	}
 
 	keyspaceName, tableName, err := common.ParseTarget(deleteObj.FromSpec(), sessionKeyspace, t.schemaMappingConfig)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 
 	tableConfig, err := t.schemaMappingConfig.GetTableConfig(keyspaceName, tableName)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 
 	var ifExist = deleteObj.IfExist() != nil
@@ -47,32 +47,32 @@ func (t *DeleteTranslator) Translate(query *types.RawQuery, sessionKeyspace type
 
 	selectedColumns, err := parseDeleteColumns(deleteObj.DeleteColumnList(), tableConfig, params, values)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 
 	conditions, err := common.ParseWhereClause(deleteObj.WhereSpec(), tableConfig, params, values, isPreparedQuery)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 
 	for _, condition := range conditions {
 		if condition.Operator != "=" {
-			return nil, nil, fmt.Errorf("primary key conditions can only be equals")
+			return nil, fmt.Errorf("primary key conditions can only be equals")
 		}
 	}
 
 	err = common.ValidateRequiredPrimaryKeysOnly(tableConfig, params)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 
 	if params.Has(types.UsingTimePlaceholder) {
-		return nil, nil, fmt.Errorf("delete USING TIMESTAMP not supported")
+		return nil, fmt.Errorf("delete USING TIMESTAMP not supported")
 	}
 
-	st := types.NewPreparedDeleteQuery(keyspaceName, tableName, ifExist, query.RawCql(), conditions, params, selectedColumns)
+	st := types.NewPreparedDeleteQuery(keyspaceName, tableName, ifExist, query.RawCql(), conditions, params, selectedColumns, values)
 
-	return st, values, nil
+	return st, nil
 }
 
 func (t *DeleteTranslator) Bind(st types.IPreparedQuery, values *types.QueryParameterValues, pv primitive.ProtocolVersion) (types.IExecutableQuery, error) {

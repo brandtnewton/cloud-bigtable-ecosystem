@@ -17,8 +17,9 @@ func parseDeleteColumns(deleteColumns cql.IDeleteColumnListContext, tableConfig 
 	cols := deleteColumns.AllDeleteColumnItem()
 	var columns []types.SelectedColumn
 	for _, v := range cols {
-		var col types.SelectedColumn
-		col.Sql = v.OBJECT_NAME().GetText()
+		col := types.SelectedColumn{
+			Sql: v.GetText(),
+		}
 		if v.LS_BRACKET() != nil {
 			if v.DecimalLiteral() != nil { // for list index
 				p, err := common.ParseDecimalLiteral(v.DecimalLiteral(), types.TypeInt, params, values)

@@ -48,6 +48,17 @@ func (q *QueryParameters) AllKeys() []Placeholder {
 	return q.ordered
 }
 
+// RemainingKeys builds a list of placeholders that still need values
+func (q *QueryParameters) RemainingKeys(initialValues map[Placeholder]GoValue) []Placeholder {
+	var result []Placeholder
+	for _, p := range q.AllKeys() {
+		if _, ok := initialValues[p]; !ok {
+			result = append(result, p)
+		}
+	}
+	return result
+}
+
 func (q *QueryParameters) Count() int {
 	return len(q.ordered)
 }
@@ -123,6 +134,19 @@ func EmptyQueryParameterValues() *QueryParameterValues {
 
 func NewQueryParameterValues(params *QueryParameters) *QueryParameterValues {
 	return &QueryParameterValues{params: params, values: make(map[Placeholder]GoValue)}
+}
+
+func (q *QueryParameterValues) SetInitialValues(initialValues map[Placeholder]GoValue) error {
+	for p, v := range initialValues {
+		if !q.Has(p) {
+			return fmt.Errorf("unexpected placeholder %s", p)
+		}
+		err := q.SetValue(p, v)
+		if err != nil {
+			return fmt.Errorf("error setting initial value for placeholder %s: %w", p, err)
+		}
+	}
+	return nil
 }
 
 func (q *QueryParameterValues) Has(p Placeholder) bool {
@@ -207,7 +231,14 @@ func (q *QueryParameterValues) GetValueByColumn(c ColumnName) (any, error) {
 	return nil, fmt.Errorf("no query param for %s", p)
 }
 
-func (q *QueryParameterValues) AsMap() map[string]any {
+func (q *QueryParameterValues) CountSetValues() int {
+	return len(q.values)
+}
+func (q *QueryParameterValues) AsMap() map[Placeholder]GoValue {
+	return q.values
+}
+
+func (q *QueryParameterValues) BigtableParamMap() map[string]any {
 	var result = make(map[string]any)
 	for placeholder, value := range q.values {
 		// drop the leading '@' symbol

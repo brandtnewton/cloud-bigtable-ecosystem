@@ -69,15 +69,18 @@ func BuildRowsResultResponse(st *types.BoundSelectQuery, rows []types.GoRow, pv 
 	}, nil
 }
 
-func BuildPreparedResultResponse(id [16]byte, keyspace types.Keyspace, table types.TableName, params *types.QueryParameters, resultColumns []*message.ColumnMetadata) (*message.PreparedResult, error) {
+func BuildPreparedResultResponse(id [16]byte, query types.IPreparedQuery) (*message.PreparedResult, error) {
 	var pkIndices []uint16
 	var variableMetadata []*message.ColumnMetadata
-	for i, p := range params.AllKeys() {
+
+	params := query.Parameters()
+	// only return the parameters we still need values for
+	for i, p := range params.RemainingKeys(query.InitialValues()) {
 		md := params.GetMetadata(p)
 
 		var col = message.ColumnMetadata{
-			Keyspace: string(keyspace),
-			Table:    string(table),
+			Keyspace: string(query.Keyspace()),
+			Table:    string(query.Table()),
 			Index:    int32(i),
 			Type:     md.Type.DataType(),
 		}
@@ -88,6 +91,7 @@ func BuildPreparedResultResponse(id [16]byte, keyspace types.Keyspace, table typ
 		}
 	}
 
+	resultColumns := query.ResponseColumns()
 	return &message.PreparedResult{
 		PreparedQueryId: id[:],
 		ResultMetadata: &message.RowsMetadata{

@@ -24,32 +24,32 @@ import (
 	"github.com/datastax/go-cassandra-native-protocol/primitive"
 )
 
-func (t *UpdateTranslator) Translate(query *types.RawQuery, sessionKeyspace types.Keyspace, isPreparedQuery bool) (types.IPreparedQuery, *types.QueryParameterValues, error) {
+func (t *UpdateTranslator) Translate(query *types.RawQuery, sessionKeyspace types.Keyspace, isPreparedQuery bool) (types.IPreparedQuery, error) {
 	updateObj := query.Parser().Update()
 
 	if updateObj == nil {
-		return nil, nil, errors.New("error parsing the update object")
+		return nil, errors.New("error parsing the update object")
 	}
 
 	keyspaceName, tableName, err := common.ParseTarget(updateObj, sessionKeyspace, t.schemaMappingConfig)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 
 	tableConfig, err := t.schemaMappingConfig.GetTableConfig(keyspaceName, tableName)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 
 	updateObj.KwSet()
 	if updateObj.Assignments() == nil || updateObj.Assignments().AllAssignmentElement() == nil {
-		return nil, nil, errors.New("error parsing the assignment object")
+		return nil, errors.New("error parsing the assignment object")
 	}
 
 	assignmentObj := updateObj.Assignments()
 	allAssignmentObj := assignmentObj.AllAssignmentElement()
 	if allAssignmentObj == nil {
-		return nil, nil, errors.New("error parsing all the assignment object")
+		return nil, errors.New("error parsing all the assignment object")
 	}
 
 	params := types.NewQueryParameters()
@@ -57,33 +57,33 @@ func (t *UpdateTranslator) Translate(query *types.RawQuery, sessionKeyspace type
 
 	assignments, err := parseUpdateValues(allAssignmentObj, tableConfig, params, values)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 
 	if updateObj.WhereSpec() != nil {
-		return nil, nil, errors.New("error parsing update where clause")
+		return nil, errors.New("error parsing update where clause")
 	}
 
 	whereClause, err := common.ParseWhereClause(updateObj.WhereSpec(), tableConfig, params, values, isPreparedQuery)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 
 	err = common.GetTimestampInfo(updateObj.UsingTtlTimestamp(), params, values)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 
 	var ifExist = updateObj.IfExist() != nil
 
 	err = common.ValidateRequiredPrimaryKeysOnly(tableConfig, params)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 
-	st := types.NewPreparedUpdateQuery(keyspaceName, tableName, ifExist, query.RawCql(), assignments, whereClause, params)
+	st := types.NewPreparedUpdateQuery(keyspaceName, tableName, ifExist, query.RawCql(), assignments, whereClause, params, values)
 
-	return st, values, nil
+	return st, nil
 }
 
 func (t *UpdateTranslator) Bind(st types.IPreparedQuery, values *types.QueryParameterValues, pv primitive.ProtocolVersion) (types.IExecutableQuery, error) {

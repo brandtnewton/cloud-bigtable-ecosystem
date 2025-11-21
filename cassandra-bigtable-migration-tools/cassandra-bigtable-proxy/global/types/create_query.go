@@ -15,26 +15,26 @@ type CreateTableStatementMap struct {
 	IntRowKeyEncoding IntRowKeyEncodingType
 }
 
-func (c CreateTableStatementMap) Parameters() *QueryParameters {
+func (c *CreateTableStatementMap) Parameters() *QueryParameters {
 	return nil
 }
 
-func (c CreateTableStatementMap) ResponseColumns() []*message.ColumnMetadata {
+func (c *CreateTableStatementMap) ResponseColumns() []*message.ColumnMetadata {
 	return nil
 }
 
-func (c CreateTableStatementMap) SetBigtablePreparedQuery(s *bigtable.PreparedStatement) {
+func (c *CreateTableStatementMap) SetBigtablePreparedQuery(s *bigtable.PreparedStatement) {
 }
 
-func (c CreateTableStatementMap) IsIdempotent() bool {
+func (c *CreateTableStatementMap) IsIdempotent() bool {
 	return false
 }
 
-func (c CreateTableStatementMap) CqlQuery() string {
+func (c *CreateTableStatementMap) CqlQuery() string {
 	return c.cqlQuery
 }
 
-func (c CreateTableStatementMap) BigtableQuery() string {
+func (c *CreateTableStatementMap) BigtableQuery() string {
 	return ""
 }
 
@@ -50,18 +50,18 @@ func NewCreateTableStatementMap(keyspace Keyspace, table TableName, cqlQuery str
 	}
 }
 
-func (c CreateTableStatementMap) AsBulkMutation() (IBigtableMutation, bool) {
+func (c *CreateTableStatementMap) AsBulkMutation() (IBigtableMutation, bool) {
 	return nil, false
 }
 
-func (c CreateTableStatementMap) Keyspace() Keyspace {
+func (c *CreateTableStatementMap) Keyspace() Keyspace {
 	return c.keyspace
 }
 
-func (c CreateTableStatementMap) Table() TableName {
+func (c *CreateTableStatementMap) Table() TableName {
 	return c.table
 }
 
-func (c CreateTableStatementMap) QueryType() QueryType {
+func (c *CreateTableStatementMap) QueryType() QueryType {
 	return QueryTypeCreate
 }

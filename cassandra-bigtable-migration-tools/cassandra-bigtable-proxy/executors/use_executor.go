@@ -17,7 +17,7 @@ func (d *useExecutor) CanRun(q types.IExecutableQuery) bool {
 }
 
 func (d *useExecutor) Execute(_ context.Context, c types.ICassandraClient, q types.IExecutableQuery) (message.Message, error) {
-	use, ok := q.(types.UseTableStatementMap)
+	use, ok := q.(*types.UseTableStatementMap)
 	if !ok {
 		return nil, fmt.Errorf("invalid USE query type")
 	}

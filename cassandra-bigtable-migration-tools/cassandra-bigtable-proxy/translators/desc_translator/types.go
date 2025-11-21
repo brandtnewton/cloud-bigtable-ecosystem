@@ -48,7 +48,7 @@ func (t *DescTranslator) Translate(query *types.RawQuery, sessionKeyspace types.
 }
 
 func (t *DescTranslator) Bind(st types.IPreparedQuery, _ *types.QueryParameterValues, _ primitive.ProtocolVersion) (types.IExecutableQuery, error) {
-	desc, ok := st.(types.DescribeQuery)
+	desc, ok := st.(*types.DescribeQuery)
 	if !ok {
 		return nil, fmt.Errorf("cannot bind to %T", st)
 	}

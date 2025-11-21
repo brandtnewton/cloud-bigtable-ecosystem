@@ -16,26 +16,26 @@ type PreparedDeleteQuery struct {
 	SelectedColumns []SelectedColumn
 }
 
-func (p PreparedDeleteQuery) IsIdempotent() bool {
+func (p *PreparedDeleteQuery) IsIdempotent() bool {
 	return true
 }
 
-func (p PreparedDeleteQuery) QueryType() QueryType {
+func (p *PreparedDeleteQuery) QueryType() QueryType {
 	return QueryTypeDelete
 }
 
-func (p PreparedDeleteQuery) Parameters() *QueryParameters {
+func (p *PreparedDeleteQuery) Parameters() *QueryParameters {
 	return p.params
 }
 
-func (p PreparedDeleteQuery) ResponseColumns() []*message.ColumnMetadata {
+func (p *PreparedDeleteQuery) ResponseColumns() []*message.ColumnMetadata {
 	return nil
 }
 
-func (p PreparedDeleteQuery) SetBigtablePreparedQuery(s *bigtable.PreparedStatement) {
+func (p *PreparedDeleteQuery) SetBigtablePreparedQuery(s *bigtable.PreparedStatement) {
 }
 
-func (p PreparedDeleteQuery) BigtableQuery() string {
+func (p *PreparedDeleteQuery) BigtableQuery() string {
 	return ""
 }
 
@@ -43,15 +43,15 @@ func NewPreparedDeleteQuery(keyspace Keyspace, table TableName, ifExists bool, c
 	return &PreparedDeleteQuery{keyspace: keyspace, table: table, cqlQuery: cqlQuery, Conditions: conditions, params: params, IfExists: ifExists, SelectedColumns: selectedColumns}
 }
 
-func (p PreparedDeleteQuery) Keyspace() Keyspace {
+func (p *PreparedDeleteQuery) Keyspace() Keyspace {
 	return p.keyspace
 }
 
-func (p PreparedDeleteQuery) Table() TableName {
+func (p *PreparedDeleteQuery) Table() TableName {
 	return p.table
 }
 
-func (p PreparedDeleteQuery) CqlQuery() string {
+func (p *PreparedDeleteQuery) CqlQuery() string {
 	return p.cqlQuery
 }
 

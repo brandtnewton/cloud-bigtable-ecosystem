@@ -41,7 +41,7 @@ func (t *TruncateTranslator) Translate(query *types.RawQuery, sessionKeyspace ty
 }
 
 func (t *TruncateTranslator) Bind(st types.IPreparedQuery, _ *types.QueryParameterValues, _ primitive.ProtocolVersion) (types.IExecutableQuery, error) {
-	truncate, ok := st.(types.TruncateTableStatementMap)
+	truncate, ok := st.(*types.TruncateTableStatementMap)
 	if !ok {
 		return nil, fmt.Errorf("cannot bind to %T", st)
 	}

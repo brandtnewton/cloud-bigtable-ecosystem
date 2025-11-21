@@ -14,26 +14,26 @@ type AlterTableStatementMap struct {
 	DropColumns []ColumnName
 }
 
-func (a AlterTableStatementMap) Parameters() *QueryParameters {
+func (a *AlterTableStatementMap) Parameters() *QueryParameters {
 	return nil
 }
 
-func (a AlterTableStatementMap) ResponseColumns() []*message.ColumnMetadata {
+func (a *AlterTableStatementMap) ResponseColumns() []*message.ColumnMetadata {
 	return nil
 }
 
-func (a AlterTableStatementMap) SetBigtablePreparedQuery(s *bigtable.PreparedStatement) {
+func (a *AlterTableStatementMap) SetBigtablePreparedQuery(s *bigtable.PreparedStatement) {
 }
 
-func (a AlterTableStatementMap) IsIdempotent() bool {
+func (a *AlterTableStatementMap) IsIdempotent() bool {
 	return false
 }
 
-func (a AlterTableStatementMap) CqlQuery() string {
+func (a *AlterTableStatementMap) CqlQuery() string {
 	return a.cqlQuery
 }
 
-func (a AlterTableStatementMap) BigtableQuery() string {
+func (a *AlterTableStatementMap) BigtableQuery() string {
 	return ""
 }
 
@@ -48,18 +48,18 @@ func NewAlterTableStatementMap(keyspace Keyspace, table TableName, cqlQuery stri
 	}
 }
 
-func (a AlterTableStatementMap) AsBulkMutation() (IBigtableMutation, bool) {
+func (a *AlterTableStatementMap) AsBulkMutation() (IBigtableMutation, bool) {
 	return nil, false
 }
 
-func (a AlterTableStatementMap) Keyspace() Keyspace {
+func (a *AlterTableStatementMap) Keyspace() Keyspace {
 	return a.keyspace
 }
 
-func (a AlterTableStatementMap) Table() TableName {
+func (a *AlterTableStatementMap) Table() TableName {
 	return a.table
 }
 
-func (a AlterTableStatementMap) QueryType() QueryType {
+func (a *AlterTableStatementMap) QueryType() QueryType {
 	return QueryTypeAlter
 }

@@ -11,26 +11,26 @@ type TruncateTableStatementMap struct {
 	table    TableName
 }
 
-func (c TruncateTableStatementMap) Parameters() *QueryParameters {
+func (c *TruncateTableStatementMap) Parameters() *QueryParameters {
 	return nil
 }
 
-func (c TruncateTableStatementMap) ResponseColumns() []*message.ColumnMetadata {
+func (c *TruncateTableStatementMap) ResponseColumns() []*message.ColumnMetadata {
 	return nil
 }
 
-func (c TruncateTableStatementMap) SetBigtablePreparedQuery(s *bigtable.PreparedStatement) {
+func (c *TruncateTableStatementMap) SetBigtablePreparedQuery(s *bigtable.PreparedStatement) {
 }
 
-func (c TruncateTableStatementMap) IsIdempotent() bool {
+func (c *TruncateTableStatementMap) IsIdempotent() bool {
 	return true
 }
 
-func (c TruncateTableStatementMap) CqlQuery() string {
+func (c *TruncateTableStatementMap) CqlQuery() string {
 	return c.cqlQuery
 }
 
-func (c TruncateTableStatementMap) BigtableQuery() string {
+func (c *TruncateTableStatementMap) BigtableQuery() string {
 	return ""
 }
 
@@ -42,19 +42,19 @@ func NewTruncateTableStatementMap(keyspace Keyspace, table TableName, cqlQuery s
 	}
 }
 
-func (c TruncateTableStatementMap) AsBulkMutation() (IBigtableMutation, bool) {
+func (c *TruncateTableStatementMap) AsBulkMutation() (IBigtableMutation, bool) {
 	return nil, false
 }
 
-func (c TruncateTableStatementMap) Keyspace() Keyspace {
+func (c *TruncateTableStatementMap) Keyspace() Keyspace {
 	return c.keyspace
 }
 
-func (c TruncateTableStatementMap) Table() TableName {
+func (c *TruncateTableStatementMap) Table() TableName {
 	return c.table
 }
 
-func (c TruncateTableStatementMap) QueryType() QueryType {
+func (c *TruncateTableStatementMap) QueryType() QueryType {
 	return QueryTypeTruncate
 }
 

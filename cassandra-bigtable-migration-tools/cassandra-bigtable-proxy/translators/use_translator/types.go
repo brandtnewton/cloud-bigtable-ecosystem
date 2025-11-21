@@ -33,7 +33,7 @@ func (t *UseTranslator) Translate(query *types.RawQuery, _ types.Keyspace, _ boo
 }
 
 func (t *UseTranslator) Bind(st types.IPreparedQuery, _ *types.QueryParameterValues, _ primitive.ProtocolVersion) (types.IExecutableQuery, error) {
-	use, ok := st.(types.UseTableStatementMap)
+	use, ok := st.(*types.UseTableStatementMap)
 	if !ok {
 		return nil, fmt.Errorf("cannot bind to %T", st)
 	}

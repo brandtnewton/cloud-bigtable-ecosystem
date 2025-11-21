@@ -238,23 +238,23 @@ func NewRawQueryWithTime(header *frame.Header, sessionKeyspace Keyspace, cql str
 	}
 }
 
-func (r RawQuery) QueryType() QueryType {
+func (r *RawQuery) QueryType() QueryType {
 	return r.qt
 }
 
-func (r RawQuery) RawCql() string {
+func (r *RawQuery) RawCql() string {
 	return r.cql
 }
 
-func (r RawQuery) Parser() *cql.CqlParser {
+func (r *RawQuery) Parser() *cql.CqlParser {
 	return r.parser
 }
 
-func (r RawQuery) StartTime() time.Time {
+func (r *RawQuery) StartTime() time.Time {
 	return r.startTime
 }
 
-func (r RawQuery) Header() *frame.Header {
+func (r *RawQuery) Header() *frame.Header {
 	return r.header
 }
 

@@ -10,42 +10,42 @@ type UseTableStatementMap struct {
 	keyspace Keyspace
 }
 
-func (u UseTableStatementMap) Parameters() *QueryParameters {
+func (u *UseTableStatementMap) Parameters() *QueryParameters {
 	return nil
 }
 
-func (u UseTableStatementMap) ResponseColumns() []*message.ColumnMetadata {
+func (u *UseTableStatementMap) ResponseColumns() []*message.ColumnMetadata {
 	return nil
 }
 
-func (u UseTableStatementMap) SetBigtablePreparedQuery(s *bigtable.PreparedStatement) {
+func (u *UseTableStatementMap) SetBigtablePreparedQuery(s *bigtable.PreparedStatement) {
 }
 
-func (u UseTableStatementMap) IsIdempotent() bool {
+func (u *UseTableStatementMap) IsIdempotent() bool {
 	return true
 }
 
-func (u UseTableStatementMap) Keyspace() Keyspace {
+func (u *UseTableStatementMap) Keyspace() Keyspace {
 	return u.keyspace
 }
 
-func (u UseTableStatementMap) Table() TableName {
+func (u *UseTableStatementMap) Table() TableName {
 	return ""
 }
 
-func (u UseTableStatementMap) AsBulkMutation() (IBigtableMutation, bool) {
+func (u *UseTableStatementMap) AsBulkMutation() (IBigtableMutation, bool) {
 	return nil, false
 }
 
-func (u UseTableStatementMap) CqlQuery() string {
+func (u *UseTableStatementMap) CqlQuery() string {
 	return u.cqlQuery
 }
 
-func (u UseTableStatementMap) BigtableQuery() string {
+func (u *UseTableStatementMap) BigtableQuery() string {
 	return ""
 }
 
-func (u UseTableStatementMap) QueryType() QueryType {
+func (u *UseTableStatementMap) QueryType() QueryType {
 	return QueryTypeUse
 }
 

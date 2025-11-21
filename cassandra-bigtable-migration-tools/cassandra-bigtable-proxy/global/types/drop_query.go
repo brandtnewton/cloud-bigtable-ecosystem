@@ -12,19 +12,19 @@ type DropTableQuery struct {
 	IfExists bool
 }
 
-func (d DropTableQuery) Parameters() *QueryParameters {
+func (d *DropTableQuery) Parameters() *QueryParameters {
 	return nil
 }
 
-func (d DropTableQuery) ResponseColumns() []*message.ColumnMetadata {
+func (d *DropTableQuery) ResponseColumns() []*message.ColumnMetadata {
 	return nil
 }
 
-func (d DropTableQuery) SetBigtablePreparedQuery(s *bigtable.PreparedStatement) {
+func (d *DropTableQuery) SetBigtablePreparedQuery(s *bigtable.PreparedStatement) {
 
 }
 
-func (d DropTableQuery) IsIdempotent() bool {
+func (d *DropTableQuery) IsIdempotent() bool {
 	return d.IfExists
 }
 
@@ -32,26 +32,26 @@ func NewDropTableQuery(keyspace Keyspace, table TableName, ifExists bool) *DropT
 	return &DropTableQuery{keyspace: keyspace, table: table, IfExists: ifExists}
 }
 
-func (d DropTableQuery) CqlQuery() string {
+func (d *DropTableQuery) CqlQuery() string {
 	return d.cqlQuery
 }
 
-func (d DropTableQuery) BigtableQuery() string {
+func (d *DropTableQuery) BigtableQuery() string {
 	return ""
 }
 
-func (d DropTableQuery) AsBulkMutation() (IBigtableMutation, bool) {
+func (d *DropTableQuery) AsBulkMutation() (IBigtableMutation, bool) {
 	return nil, false
 }
 
-func (d DropTableQuery) Keyspace() Keyspace {
+func (d *DropTableQuery) Keyspace() Keyspace {
 	return d.keyspace
 }
 
-func (d DropTableQuery) Table() TableName {
+func (d *DropTableQuery) Table() TableName {
 	return d.table
 }
 
-func (d DropTableQuery) QueryType() QueryType {
+func (d *DropTableQuery) QueryType() QueryType {
 	return QueryTypeDrop
 }

@@ -1062,6 +1062,10 @@ func (btc *BigtableClient) LoadConfigs(schemaConfig *schemaMapping.SchemaMapping
 
 // PrepareStatement prepares a query for execution using the bigtable SQL client.
 func (btc *BigtableClient) PrepareStatement(ctx context.Context, query types.IPreparedQuery) (*bigtable.PreparedStatement, error) {
+	// we don't use bigtable for system queries
+	if query.Keyspace().IsSystemKeyspace() {
+		return nil, nil
+	}
 	// only select queries can be prepared in Bigtable at the moment
 	if query.QueryType() != types.QueryTypeSelect {
 		return nil, nil

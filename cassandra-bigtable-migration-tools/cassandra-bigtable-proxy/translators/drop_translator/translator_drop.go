@@ -43,7 +43,7 @@ func (t *DropTranslator) Translate(query *types.RawQuery, sessionKeyspace types.
 }
 
 func (t *DropTranslator) Bind(st types.IPreparedQuery, values *types.QueryParameterValues, pv primitive.ProtocolVersion) (types.IExecutableQuery, error) {
-	drop, ok := st.(types.DropTableQuery)
+	drop, ok := st.(*types.DropTableQuery)
 	if !ok {
 		return nil, fmt.Errorf("cannot bind to %T", st)
 	}

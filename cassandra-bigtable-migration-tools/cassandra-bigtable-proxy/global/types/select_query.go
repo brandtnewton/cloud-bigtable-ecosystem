@@ -72,7 +72,7 @@ type SelectClause struct {
 	Columns []SelectedColumn
 }
 
-func (p PreparedSelectQuery) IsIdempotent() bool {
+func (p *PreparedSelectQuery) IsIdempotent() bool {
 	return true
 }
 
@@ -80,35 +80,35 @@ func NewPreparedSelectQuery(keyspace Keyspace, table TableName, cqlQuery string,
 	return &PreparedSelectQuery{keyspace: keyspace, table: table, cqlQuery: cqlQuery, TranslatedQuery: translatedQuery, SelectClause: selectClause, Conditions: conditions, Params: params, OrderBy: orderBy, GroupByColumns: groupByColumns, ResultColumnMetadata: resultColumnMetadata}
 }
 
-func (p PreparedSelectQuery) Parameters() *QueryParameters {
+func (p *PreparedSelectQuery) Parameters() *QueryParameters {
 	return p.Params
 }
 
-func (p PreparedSelectQuery) ResponseColumns() []*message.ColumnMetadata {
+func (p *PreparedSelectQuery) ResponseColumns() []*message.ColumnMetadata {
 	return p.ResultColumnMetadata
 }
 
-func (p PreparedSelectQuery) SetBigtablePreparedQuery(s *bigtable.PreparedStatement) {
+func (p *PreparedSelectQuery) SetBigtablePreparedQuery(s *bigtable.PreparedStatement) {
 	p.CachedBTPrepare = s
 }
 
-func (p PreparedSelectQuery) BigtableQuery() string {
+func (p *PreparedSelectQuery) BigtableQuery() string {
 	return p.TranslatedQuery
 }
 
-func (p PreparedSelectQuery) QueryType() QueryType {
+func (p *PreparedSelectQuery) QueryType() QueryType {
 	return QueryTypeSelect
 }
 
-func (p PreparedSelectQuery) Keyspace() Keyspace {
+func (p *PreparedSelectQuery) Keyspace() Keyspace {
 	return p.keyspace
 }
 
-func (p PreparedSelectQuery) Table() TableName {
+func (p *PreparedSelectQuery) Table() TableName {
 	return p.table
 }
 
-func (p PreparedSelectQuery) CqlQuery() string {
+func (p *PreparedSelectQuery) CqlQuery() string {
 	return p.cqlQuery
 }
 
@@ -144,26 +144,26 @@ func NewBoundSelectQuery(query *PreparedSelectQuery, protocolVersion primitive.P
 	}
 }
 
-func (b BoundSelectQuery) CqlQuery() string {
+func (b *BoundSelectQuery) CqlQuery() string {
 	return b.cqlQuery
 }
 
-func (b BoundSelectQuery) BigtableQuery() string {
+func (b *BoundSelectQuery) BigtableQuery() string {
 	return b.TranslatedQuery
 }
 
-func (b BoundSelectQuery) AsBulkMutation() (IBigtableMutation, bool) {
+func (b *BoundSelectQuery) AsBulkMutation() (IBigtableMutation, bool) {
 	return nil, false
 }
 
-func (b BoundSelectQuery) QueryType() QueryType {
+func (b *BoundSelectQuery) QueryType() QueryType {
 	return QueryTypeSelect
 }
 
-func (b BoundSelectQuery) Keyspace() Keyspace {
+func (b *BoundSelectQuery) Keyspace() Keyspace {
 	return b.keyspace
 }
 
-func (b BoundSelectQuery) Table() TableName {
+func (b *BoundSelectQuery) Table() TableName {
 	return b.table
 }

@@ -30,42 +30,42 @@ func NewDescribeTable(cqlQuery string, keyspace Keyspace, table TableName) *Desc
 	return &DescribeQuery{cqlQuery: cqlQuery, keyspace: keyspace, table: table}
 }
 
-func (a DescribeQuery) CqlQuery() string {
+func (a *DescribeQuery) CqlQuery() string {
 	return a.cqlQuery
 }
 
-func (a DescribeQuery) BigtableQuery() string {
+func (a *DescribeQuery) BigtableQuery() string {
 	return ""
 }
 
-func (a DescribeQuery) AsBulkMutation() (IBigtableMutation, bool) {
+func (a *DescribeQuery) AsBulkMutation() (IBigtableMutation, bool) {
 	return nil, false
 }
 
-func (a DescribeQuery) Keyspace() Keyspace {
+func (a *DescribeQuery) Keyspace() Keyspace {
 	return a.keyspace
 }
 
-func (a DescribeQuery) Table() TableName {
+func (a *DescribeQuery) Table() TableName {
 	return a.table
 }
 
-func (a DescribeQuery) QueryType() QueryType {
+func (a *DescribeQuery) QueryType() QueryType {
 	return QueryTypeDescribe
 }
 
-func (a DescribeQuery) Parameters() *QueryParameters {
+func (a *DescribeQuery) Parameters() *QueryParameters {
 	return nil
 }
 
-func (a DescribeQuery) ResponseColumns() []*message.ColumnMetadata {
+func (a *DescribeQuery) ResponseColumns() []*message.ColumnMetadata {
 	return nil
 }
 
-func (a DescribeQuery) SetBigtablePreparedQuery(s *bigtable.PreparedStatement) {
+func (a *DescribeQuery) SetBigtablePreparedQuery(s *bigtable.PreparedStatement) {
 
 }
 
-func (a DescribeQuery) IsIdempotent() bool {
+func (a *DescribeQuery) IsIdempotent() bool {
 	return true
 }

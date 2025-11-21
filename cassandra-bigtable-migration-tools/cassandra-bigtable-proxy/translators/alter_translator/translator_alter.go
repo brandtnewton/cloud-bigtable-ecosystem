@@ -103,7 +103,7 @@ func (t *AlterTranslator) Translate(query *types.RawQuery, sessionKeyspace types
 }
 
 func (t *AlterTranslator) Bind(q types.IPreparedQuery, values *types.QueryParameterValues, pv primitive.ProtocolVersion) (types.IExecutableQuery, error) {
-	alter, ok := q.(types.AlterTableStatementMap)
+	alter, ok := q.(*types.AlterTableStatementMap)
 	if !ok {
 		return nil, fmt.Errorf("cannot bind to %T", q)
 	}

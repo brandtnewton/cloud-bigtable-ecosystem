@@ -15,7 +15,7 @@ type PreparedUpdateQuery struct {
 	params   *QueryParameters // Parameters for the query
 }
 
-func (p PreparedUpdateQuery) IsIdempotent() bool {
+func (p *PreparedUpdateQuery) IsIdempotent() bool {
 	for _, v := range p.Values {
 		if !v.IsIdempotentAssignment() {
 			return false
@@ -29,34 +29,34 @@ func NewPreparedUpdateQuery(keyspace Keyspace, table TableName, ifExists bool, c
 	return &PreparedUpdateQuery{keyspace: keyspace, table: table, IfExists: ifExists, cqlQuery: cqlQuery, Values: values, Clauses: clauses, params: params}
 }
 
-func (p PreparedUpdateQuery) BigtableQuery() string {
+func (p *PreparedUpdateQuery) BigtableQuery() string {
 	return ""
 }
 
-func (p PreparedUpdateQuery) Parameters() *QueryParameters {
+func (p *PreparedUpdateQuery) Parameters() *QueryParameters {
 	return p.params
 }
 
-func (p PreparedUpdateQuery) ResponseColumns() []*message.ColumnMetadata {
+func (p *PreparedUpdateQuery) ResponseColumns() []*message.ColumnMetadata {
 	return nil
 }
 
-func (p PreparedUpdateQuery) SetBigtablePreparedQuery(_ *bigtable.PreparedStatement) {
+func (p *PreparedUpdateQuery) SetBigtablePreparedQuery(_ *bigtable.PreparedStatement) {
 	// nothing to store
 }
 
-func (p PreparedUpdateQuery) QueryType() QueryType {
+func (p *PreparedUpdateQuery) QueryType() QueryType {
 	return QueryTypeUpdate
 }
 
-func (p PreparedUpdateQuery) Keyspace() Keyspace {
+func (p *PreparedUpdateQuery) Keyspace() Keyspace {
 	return p.keyspace
 }
 
-func (p PreparedUpdateQuery) Table() TableName {
+func (p *PreparedUpdateQuery) Table() TableName {
 	return p.table
 }
 
-func (p PreparedUpdateQuery) CqlQuery() string {
+func (p *PreparedUpdateQuery) CqlQuery() string {
 	return p.cqlQuery
 }

@@ -15,26 +15,26 @@ type PreparedInsertQuery struct {
 	Assignments []Assignment
 }
 
-func (p PreparedInsertQuery) IsIdempotent() bool {
+func (p *PreparedInsertQuery) IsIdempotent() bool {
 	return p.IfNotExists
 }
 
-func (p PreparedInsertQuery) QueryType() QueryType {
+func (p *PreparedInsertQuery) QueryType() QueryType {
 	return QueryTypeInsert
 }
 
-func (p PreparedInsertQuery) Parameters() *QueryParameters {
+func (p *PreparedInsertQuery) Parameters() *QueryParameters {
 	return p.params
 }
 
-func (p PreparedInsertQuery) ResponseColumns() []*message.ColumnMetadata {
+func (p *PreparedInsertQuery) ResponseColumns() []*message.ColumnMetadata {
 	return nil
 }
 
-func (p PreparedInsertQuery) SetBigtablePreparedQuery(s *bigtable.PreparedStatement) {
+func (p *PreparedInsertQuery) SetBigtablePreparedQuery(s *bigtable.PreparedStatement) {
 }
 
-func (p PreparedInsertQuery) BigtableQuery() string {
+func (p *PreparedInsertQuery) BigtableQuery() string {
 	return ""
 }
 
@@ -42,14 +42,14 @@ func NewPreparedInsertQuery(keyspace Keyspace, table TableName, ifNotExists bool
 	return &PreparedInsertQuery{keyspace: keyspace, table: table, IfNotExists: ifNotExists, cqlQuery: cqlQuery, params: params, Assignments: assignments}
 }
 
-func (p PreparedInsertQuery) Keyspace() Keyspace {
+func (p *PreparedInsertQuery) Keyspace() Keyspace {
 	return p.keyspace
 }
 
-func (p PreparedInsertQuery) Table() TableName {
+func (p *PreparedInsertQuery) Table() TableName {
 	return p.table
 }
 
-func (p PreparedInsertQuery) CqlQuery() string {
+func (p *PreparedInsertQuery) CqlQuery() string {
 	return p.cqlQuery
 }

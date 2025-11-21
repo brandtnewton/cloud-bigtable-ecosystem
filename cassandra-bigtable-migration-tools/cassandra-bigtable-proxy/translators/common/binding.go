@@ -76,7 +76,6 @@ func BindMutations(assignments []types.Assignment, values *types.QueryParameterV
 		default:
 			return fmt.Errorf("unhandled assignment op type %T", v)
 		}
-		return nil
 	}
 
 	var err error

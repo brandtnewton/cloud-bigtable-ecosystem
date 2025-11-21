@@ -29,6 +29,11 @@ func BindRowKey(tableConfig *schemaMapping.TableConfig, values *types.QueryParam
 
 		var orderEncodedField []byte
 		switch v := value.(type) {
+		case int32:
+			orderEncodedField, err = encodeInt64Key(int64(v), tableConfig.IntRowKeyEncoding)
+			if err != nil {
+				return "", err
+			}
 		case int64:
 			orderEncodedField, err = encodeInt64Key(v, tableConfig.IntRowKeyEncoding)
 			if err != nil {

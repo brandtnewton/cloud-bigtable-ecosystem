@@ -196,7 +196,7 @@ func NewProxy(ctx context.Context, logger *zap.Logger, config *types.ProxyInstan
 		closed:        make(chan struct{}),
 		bClient:       bigtableCl,
 		translator:    translator,
-		executor:      executors.NewQueryExecutorManager(schemaMappingConfig, bigtableCl, systemTables),
+		executor:      executors.NewQueryExecutorManager(logger, schemaMappingConfig, bigtableCl, systemTables),
 		schemaMapping: schemaMappingConfig,
 		systemTables:  systemTables,
 		otelInst:      otelInst,

@@ -8,6 +8,7 @@ import (
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/mem_table"
 	schemaMapping "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/schema-mapping"
 	"github.com/datastax/go-cassandra-native-protocol/message"
+	"go.uber.org/zap"
 	"strings"
 )
 
@@ -17,21 +18,26 @@ type IQueryExecutor interface {
 }
 
 type QueryExecutorManager struct {
+	logger    *zap.Logger
 	executors []IQueryExecutor
 }
 
-func NewQueryExecutorManager(s *schemaMapping.SchemaMappingConfig, bt bigtableModule.BigTableClientIface, systemTables *mem_table.InMemEngine) *QueryExecutorManager {
-	return &QueryExecutorManager{executors: []IQueryExecutor{
-		newDescribeExecutor(s),
-		newUseExecutor(s),
-		newSelectSystemTableExecutor(s, systemTables),
-		newBigtableExecutor(bt),
-	}}
+func NewQueryExecutorManager(logger *zap.Logger, s *schemaMapping.SchemaMappingConfig, bt bigtableModule.BigTableClientIface, systemTables *mem_table.InMemEngine) *QueryExecutorManager {
+	return &QueryExecutorManager{
+		logger: logger,
+		executors: []IQueryExecutor{
+			newDescribeExecutor(s),
+			newUseExecutor(s),
+			newSelectSystemTableExecutor(s, systemTables),
+			newBigtableExecutor(bt),
+		},
+	}
 }
 
 func (m *QueryExecutorManager) Execute(ctx context.Context, client types.ICassandraClient, q types.IExecutableQuery) (message.Message, error) {
 	for _, e := range m.executors {
 		if e.CanRun(q) {
+			m.logger.Debug("executing query", zap.String("cql", q.CqlQuery()), zap.String("btql", q.BigtableQuery()))
 			return e.Execute(ctx, client, q)
 		}
 	}

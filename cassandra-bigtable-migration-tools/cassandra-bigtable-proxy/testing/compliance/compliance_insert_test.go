@@ -44,10 +44,10 @@ func TestUpsertOperation(t *testing.T) {
 	t.Parallel()
 	pkName, pkAge := uuid.New().String(), int64(33)
 	err := session.Query(`INSERT INTO bigtabledevinstance.user_info (name, age, code, text_col) VALUES (?, ?, ?, ?)`, pkName, pkAge, 123, "abc").Exec()
-	require.NoError(t, err, "Failed initial insert")
+	require.NoError(t, err)
 
 	err = session.Query(`INSERT INTO bigtabledevinstance.user_info (name, age, code, text_col) VALUES (?, ?, ?, ?)`, pkName, pkAge, 456, "abc").Exec()
-	require.NoError(t, err, "Failed second insert (upsert)")
+	require.NoError(t, err)
 
 	var code int
 	var textCol string

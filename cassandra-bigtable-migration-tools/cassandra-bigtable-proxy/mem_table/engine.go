@@ -74,7 +74,7 @@ func validateData(table *schemaMapping.TableConfig, data []types.GoRow) error {
 		for _, col := range table.Columns {
 			value, ok := row[string(col.Name)]
 			if !ok {
-				return fmt.Errorf("missing column '%s' in row %d of table %s.%s", col.Name, i, table.Keyspace, table.Name)
+				return fmt.Errorf("missing data for column '%s' in row %d of table %s.%s", col.Name, i, table.Keyspace, table.Name)
 			}
 			if reflect.TypeOf(value) != col.CQLType.GoType() {
 				return fmt.Errorf("invalid type column '%s' in row %d of table %s.%s: expected %s but got %T", col.Name, i, table.Keyspace, table.Name, col.CQLType.GoType().String(), value)

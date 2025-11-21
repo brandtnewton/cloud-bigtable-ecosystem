@@ -739,18 +739,23 @@ relationElements
    : (relationElement) (kwAnd relationElement)*
    ;
 
+relationIdentifier
+   : OBJECT_NAME
+   | kwKey // the system.local table has a "key" column so we need to allow it here explicitly otherwise the relation fails to parse
+   ;
+
 relationElement
-   : OBJECT_NAME (OPERATOR_EQ | OPERATOR_LT | OPERATOR_GT | OPERATOR_LTE | OPERATOR_GTE) constant
-   | OBJECT_NAME kwLike constant
-   | OBJECT_NAME kwBetween constant kwAnd constant
-   | OBJECT_NAME '.' OBJECT_NAME (OPERATOR_EQ | OPERATOR_LT | OPERATOR_GT | OPERATOR_LTE | OPERATOR_GTE) constant
+   : relationIdentifier (OPERATOR_EQ | OPERATOR_LT | OPERATOR_GT | OPERATOR_LTE | OPERATOR_GTE) constant
+   | relationIdentifier kwLike constant
+   | relationIdentifier kwBetween constant kwAnd constant
+   | relationIdentifier '.' OBJECT_NAME (OPERATOR_EQ | OPERATOR_LT | OPERATOR_GT | OPERATOR_LTE | OPERATOR_GTE) constant
    | functionCall (OPERATOR_EQ | OPERATOR_LT | OPERATOR_GT | OPERATOR_LTE | OPERATOR_GTE) constant
    | functionCall (OPERATOR_EQ | OPERATOR_LT | OPERATOR_GT | OPERATOR_LTE | OPERATOR_GTE) functionCall
-   | OBJECT_NAME '.' OBJECT_NAME kwLike constant
-   | OBJECT_NAME '.' OBJECT_NAME kwBetween constant kwAnd constant
-   | OBJECT_NAME kwIn ('(' functionArgs ')' | QUESTION_MARK)
-   | '(' OBJECT_NAME (syntaxComma OBJECT_NAME)* ')' kwIn '(' assignmentTuple (syntaxComma assignmentTuple)* ')'
-   | '(' OBJECT_NAME (syntaxComma OBJECT_NAME)* ')' (OPERATOR_EQ | OPERATOR_LT | OPERATOR_GT | OPERATOR_LTE | OPERATOR_GTE) ( assignmentTuple (syntaxComma assignmentTuple)* )
+   | relationIdentifier '.' OBJECT_NAME kwLike constant
+   | relationIdentifier '.' OBJECT_NAME kwBetween constant kwAnd constant
+   | relationIdentifier kwIn ('(' functionArgs ')' | QUESTION_MARK)
+   | '(' relationIdentifier (syntaxComma relationIdentifier)* ')' kwIn '(' assignmentTuple (syntaxComma assignmentTuple)* ')'
+   | '(' relationIdentifier (syntaxComma relationIdentifier)* ')' (OPERATOR_EQ | OPERATOR_LT | OPERATOR_GT | OPERATOR_LTE | OPERATOR_GTE) ( assignmentTuple (syntaxComma assignmentTuple)* )
    | relationContainsKey
    | relationContains
    ;

@@ -17,12 +17,18 @@
 package proxy
 
 import (
+	"crypto"
+	"fmt"
+	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/global/constants"
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/global/types"
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/mem_table"
 	schemaMapping "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/schema-mapping"
+	"github.com/datastax/go-cassandra-native-protocol/primitive"
+	"io"
+	"net"
 )
 
-func InitializeSystemTables(schemas *schemaMapping.SchemaMappingConfig, engine *mem_table.InMemEngine) error {
+func InitializeSystemTables(schemas *schemaMapping.SchemaMappingConfig, engine *mem_table.InMemEngine, proxy *Proxy) error {
 
 	// add all system tables with empty data, so they're at least queryable
 	for _, table := range schemas.Tables() {
@@ -32,7 +38,7 @@ func InitializeSystemTables(schemas *schemaMapping.SchemaMappingConfig, engine *
 		_ = engine.SetData(table, nil)
 	}
 
-	err := ReloadSystemTables(schemas, engine)
+	err := ReloadSystemTables(schemas, engine, proxy)
 	if err != nil {
 		return err
 	}
@@ -40,7 +46,7 @@ func InitializeSystemTables(schemas *schemaMapping.SchemaMappingConfig, engine *
 	return nil
 }
 
-func ReloadSystemTables(schemas *schemaMapping.SchemaMappingConfig, engine *mem_table.InMemEngine) error {
+func ReloadSystemTables(schemas *schemaMapping.SchemaMappingConfig, engine *mem_table.InMemEngine, proxy *Proxy) error {
 
 	// add all system tables with empty data, so they're at least queryable
 	for _, table := range schemas.Tables() {
@@ -62,6 +68,21 @@ func ReloadSystemTables(schemas *schemaMapping.SchemaMappingConfig, engine *mem_
 	}
 
 	err = engine.SetData(schemaMapping.SystemSchemaTableColumns, getColumnMetadata(schemas))
+	if err != nil {
+		return err
+	}
+
+	err = engine.SetData(schemaMapping.SystemTableLocal, getLocalMetadata(proxy))
+	if err != nil {
+		return err
+	}
+
+	err = engine.SetData(schemaMapping.SystemTablePeers, getPeerMetadata(proxy))
+	if err != nil {
+		return err
+	}
+
+	err = engine.SetData(schemaMapping.SystemTablePeersV2, getPeerMetadata(proxy))
 	if err != nil {
 		return err
 	}
@@ -119,4 +140,63 @@ func getColumnMetadata(schemas *schemaMapping.SchemaMappingConfig) []types.GoRow
 		}
 	}
 	return rows
+}
+
+func getLocalMetadata(proxy *Proxy) []types.GoRow {
+	return []types.GoRow{
+		{
+			"rpc_address":             localIP(proxy),
+			"host_id":                 nameBasedUUID(localIP(proxy).String()),
+			"key":                     "local",
+			"data_center":             proxy.localNode.dc,
+			"rack":                    "rack1",
+			"tokens":                  []string{"-9223372036854775808"},
+			"release_version":         proxy.config.Options.ReleaseVersion,
+			"partitioner":             proxy.config.Options.Partitioner,
+			"cluster_name":            fmt.Sprintf("cassandra-bigtable-proxy-%s", constants.ProxyReleaseVersion),
+			"cql_version":             proxy.config.Options.CQLVersion,
+			"schema_version":          *schemaVersion,
+			"native_protocol_version": proxy.config.Options.ProtocolVersion.String(),
+			"dse_version":             proxy.cluster.Info.DSEVersion,
+		},
+	}
+}
+func getPeerMetadata(proxy *Proxy) []types.GoRow {
+	var rows []types.GoRow
+	for _, peer := range proxy.nodes {
+		rows = append(rows, types.GoRow{
+			"peer":            peer.addr.IP,
+			"rpc_address":     peer.addr.IP,
+			"data_center":     peer.dc,
+			"dse_version":     proxy.cluster.Info.DSEVersion,
+			"rack":            "rack1",
+			"tokens":          peer.tokens,
+			"release_version": proxy.config.Options.ReleaseVersion,
+			"schema_version":  *schemaVersion,
+			"host_id":         nameBasedUUID(peer.addr.String()),
+		})
+	}
+	return rows
+}
+
+func localIP(proxy *Proxy) net.IP {
+	if proxy.config.RPCAddr != "" {
+		return net.ParseIP(proxy.config.RPCAddr)
+	}
+	return net.ParseIP("127.0.0.1")
+}
+
+func nameBasedUUID(name string) primitive.UUID {
+	var uuid primitive.UUID
+	m := crypto.MD5.New()
+	_, _ = io.WriteString(m, name)
+	hash := m.Sum(nil)
+	for i := 0; i < len(uuid); i++ {
+		uuid[i] = hash[i]
+	}
+	uuid[6] &= 0x0F
+	uuid[6] |= 0x30
+	uuid[8] &= 0x3F
+	uuid[8] |= 0x80
+	return uuid
 }

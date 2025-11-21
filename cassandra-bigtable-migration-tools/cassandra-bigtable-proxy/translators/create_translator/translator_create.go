@@ -145,6 +145,9 @@ func (t *CreateTranslator) Translate(query *types.RawQuery, sessionKeyspace type
 		}
 	}
 
+	if utilities.IsReservedCqlKeyword(string(tableName)) {
+		return nil, nil, fmt.Errorf("table name cannot be reserved cql word: '%s'", tableName)
+	}
 	for _, column := range columns {
 		if utilities.IsReservedCqlKeyword(string(column.Name)) {
 			return nil, nil, fmt.Errorf("cannot create a table with reserved keyword as column name: '%s'", column.Name)

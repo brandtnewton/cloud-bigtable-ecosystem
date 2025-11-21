@@ -17,7 +17,6 @@ package proxy
 import (
 	"bytes"
 	"context"
-	"crypto"
 	"crypto/md5"
 	"errors"
 	"fmt"
@@ -33,7 +32,6 @@ import (
 
 	"cloud.google.com/go/bigtable"
 	bigtableModule "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/bigtable"
-	constants "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/global/constants"
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/global/types"
 	otelgo "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/otel"
 	schemaMapping "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/schema-mapping"
@@ -188,12 +186,8 @@ func NewProxy(ctx context.Context, logger *zap.Logger, config *types.ProxyInstan
 		return nil, err
 	}
 	systemTables := mem_table.NewInMemEngine()
-	err = InitializeSystemTables(schemaMappingConfig, systemTables)
-	if err != nil {
-		return nil, err
-	}
 
-	proxy := Proxy{
+	proxy := &Proxy{
 		ctx:           ctx,
 		config:        config,
 		logger:        logger,
@@ -208,7 +202,8 @@ func NewProxy(ctx context.Context, logger *zap.Logger, config *types.ProxyInstan
 		otelInst:      otelInst,
 		otelShutdown:  shutdownOTel,
 	}
-	return &proxy, nil
+
+	return proxy, nil
 }
 
 func (p *Proxy) Connect() error {
@@ -245,8 +240,6 @@ func (p *Proxy) Connect() error {
 		return fmt.Errorf("unable to build node information: %w", err)
 	}
 
-	p.buildLocalRow()
-
 	// Create cassandra session
 	sess, err := proxycore.ConnectSession(p.ctx, p.cluster, proxycore.SessionConfig{
 		Version: p.cluster.NegotiatedVersion,
@@ -254,10 +247,15 @@ func (p *Proxy) Connect() error {
 	})
 
 	if err != nil {
-		return fmt.Errorf("unable to connect session %w", err)
+		return fmt.Errorf("unable to connect session: %w", err)
 	}
 
 	p.sessions[p.cluster.NegotiatedVersion].Store("", sess)
+
+	err = InitializeSystemTables(p.schemaMapping, p.systemTables, p)
+	if err != nil {
+		return fmt.Errorf("failed to initialize system tables: %w", err)
+	}
 
 	p.isConnected = true
 	return nil
@@ -393,30 +391,6 @@ func (p *Proxy) buildNodes() (err error) {
 	}
 
 	return nil
-}
-
-func (p *Proxy) buildLocalRow() {
-	p.systemLocalValues = map[string]message.Column{
-		"key":                     p.encodeTypeFatal(datatype.Varchar, "local"),
-		"data_center":             p.encodeTypeFatal(datatype.Varchar, p.localNode.dc),
-		"rack":                    p.encodeTypeFatal(datatype.Varchar, "rack1"),
-		"tokens":                  p.encodeTypeFatal(datatype.NewListType(datatype.Varchar), [1]string{"-9223372036854775808"}),
-		"release_version":         p.encodeTypeFatal(datatype.Varchar, p.config.Options.ReleaseVersion),
-		"partitioner":             p.encodeTypeFatal(datatype.Varchar, p.config.Options.Partitioner),
-		"cluster_name":            p.encodeTypeFatal(datatype.Varchar, fmt.Sprintf("cassandra-bigtable-proxy-%s", constants.ProxyReleaseVersion)),
-		"cql_version":             p.encodeTypeFatal(datatype.Varchar, p.config.Options.CQLVersion),
-		"schema_version":          p.encodeTypeFatal(datatype.Uuid, schemaVersion), // TODO: Make this match the downstream cluster(s)
-		"native_protocol_version": p.encodeTypeFatal(datatype.Varchar, p.config.Options.ProtocolVersion.String()),
-		"dse_version":             p.encodeTypeFatal(datatype.Varchar, p.cluster.Info.DSEVersion),
-	}
-}
-
-func (p *Proxy) encodeTypeFatal(dt datatype.DataType, val interface{}) []byte {
-	encoded, err := proxycore.EncodeType(dt, p.config.Options.ProtocolVersion, val)
-	if err != nil {
-		p.logger.Fatal("unable to encode type", zap.Error(err))
-	}
-	return encoded
 }
 
 func (p *Proxy) addClient(cl *client) {
@@ -743,13 +717,6 @@ func (c *client) handleQuery(raw *frame.RawFrame, msg *partialQuery) {
 	c.sender.Send(raw.Header, selectResult)
 }
 
-func (c *client) localIP() net.IP {
-	if c.proxy.config.RPCAddr != "" {
-		return net.ParseIP(c.proxy.config.RPCAddr)
-	}
-	return net.ParseIP("127.0.0.1")
-}
-
 func (c *client) Send(hdr *frame.Header, msg message.Message) {
 	_ = c.conn.Write(proxycore.SenderFunc(func(writer io.Writer) error {
 		return codec.EncodeFrame(frame.NewFrame(hdr.Version, hdr.StreamId, msg), writer)
@@ -790,21 +757,6 @@ func preparedIdKey(bytes []byte) [preparedIdSize]byte {
 	return buf
 }
 
-func nameBasedUUID(name string) primitive.UUID {
-	var uuid primitive.UUID
-	m := crypto.MD5.New()
-	_, _ = io.WriteString(m, name)
-	hash := m.Sum(nil)
-	for i := 0; i < len(uuid); i++ {
-		uuid[i] = hash[i]
-	}
-	uuid[6] &= 0x0F
-	uuid[6] |= 0x30
-	uuid[8] &= 0x3F
-	uuid[8] |= 0x80
-	return uuid
-}
-
 // Wrap the listener so that if it's closed in the serve loop it doesn't race with proxy Close()
 type closeOnceListener struct {
 	net.Listener
@@ -835,7 +787,7 @@ func (c *client) handleEvent(event proxycore.Event) {
 // handlePostDDLEvent handles common operations after DDL statements (CREATE, ALTER, DROP)
 func (c *client) handlePostDDLEvent(hdr *frame.Header, changeType primitive.SchemaChangeType, keyspace, table string) {
 	// refresh system metadata
-	err := ReloadSystemTables(c.proxy.schemaMapping, c.proxy.systemTables)
+	err := ReloadSystemTables(c.proxy.schemaMapping, c.proxy.systemTables, c.proxy)
 	if err != nil {
 		c.proxy.logger.Error("Failed to refresh system metadata cache", zap.Error(err))
 		_, span := c.proxy.otelInst.StartSpan(c.proxy.ctx, "handlePostDDLEvent", nil)

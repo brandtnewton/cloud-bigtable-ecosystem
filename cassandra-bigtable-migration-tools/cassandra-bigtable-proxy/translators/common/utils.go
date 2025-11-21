@@ -466,18 +466,27 @@ func parseColumn(tableConfig *schemaMapping.TableConfig, e cql.IRelationElementC
 		relContains := e.RelationContains()
 		name := relContains.OBJECT_NAME().GetText()
 		return tableConfig.GetColumn(types.ColumnName(name))
-	} else if len(e.AllOBJECT_NAME()) != 0 {
-		valConst := e.OBJECT_NAME(0)
-		if valConst == nil {
+	} else if len(e.AllRelationIdentifier()) != 0 {
+		relationIdentifier := e.RelationIdentifier(0)
+		if relationIdentifier == nil {
 			return nil, errors.New("could not parse value from query for one of the clauses")
 		}
-		name := e.OBJECT_NAME(0).GetText()
+		name := parseRelationIdentifier(relationIdentifier)
 		if name == "" {
 			return nil, errors.New("could not parse value from query for one of the clauses")
 		}
 		return tableConfig.GetColumn(types.ColumnName(name))
 	} else {
 		return nil, fmt.Errorf("unable to determine column from clause: '%s'", e.GetText())
+	}
+}
+
+func parseRelationIdentifier(r cql.IRelationIdentifierContext) string {
+	// we need to have a special case for parsing out the "key" identifier because "key" is a column in the "system.local" table and also a CQL keyword
+	if r.KwKey() != nil {
+		return "key"
+	} else {
+		return r.OBJECT_NAME().GetText()
 	}
 }
 
@@ -938,9 +947,6 @@ func ParseTarget(op TableOperation, sessionKeyspace types.Keyspace, config *sche
 	tableNameString := op.Table().GetText()
 	if !validTableName.MatchString(tableNameString) {
 		return "", "", errors.New("invalid table name parsed from query")
-	}
-	if utilities.IsReservedCqlKeyword(tableNameString) {
-		return "", "", fmt.Errorf("table name cannot be reserved cql word: '%s'", tableNameString)
 	}
 	tableName := types.TableName(tableNameString)
 

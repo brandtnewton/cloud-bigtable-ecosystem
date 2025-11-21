@@ -918,6 +918,12 @@ func (s *BaseCqlParserListener) EnterRelationElements(ctx *RelationElementsConte
 // ExitRelationElements is called when production relationElements is exited.
 func (s *BaseCqlParserListener) ExitRelationElements(ctx *RelationElementsContext) {}
 
+// EnterRelationIdentifier is called when production relationIdentifier is entered.
+func (s *BaseCqlParserListener) EnterRelationIdentifier(ctx *RelationIdentifierContext) {}
+
+// ExitRelationIdentifier is called when production relationIdentifier is exited.
+func (s *BaseCqlParserListener) ExitRelationIdentifier(ctx *RelationIdentifierContext) {}
+
 // EnterRelationElement is called when production relationElement is entered.
 func (s *BaseCqlParserListener) EnterRelationElement(ctx *RelationElementContext) {}
 

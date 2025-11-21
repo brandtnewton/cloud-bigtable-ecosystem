@@ -451,6 +451,9 @@ type CqlParserListener interface {
 	// EnterRelationElements is called when entering the relationElements production.
 	EnterRelationElements(c *RelationElementsContext)
 
+	// EnterRelationIdentifier is called when entering the relationIdentifier production.
+	EnterRelationIdentifier(c *RelationIdentifierContext)
+
 	// EnterRelationElement is called when entering the relationElement production.
 	EnterRelationElement(c *RelationElementContext)
 
@@ -1317,6 +1320,9 @@ type CqlParserListener interface {
 
 	// ExitRelationElements is called when exiting the relationElements production.
 	ExitRelationElements(c *RelationElementsContext)
+
+	// ExitRelationIdentifier is called when exiting the relationIdentifier production.
+	ExitRelationIdentifier(c *RelationIdentifierContext)
 
 	// ExitRelationElement is called when exiting the relationElement production.
 	ExitRelationElement(c *RelationElementContext)

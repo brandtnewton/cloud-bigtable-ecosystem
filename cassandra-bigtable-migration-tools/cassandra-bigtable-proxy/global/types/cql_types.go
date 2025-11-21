@@ -3,6 +3,8 @@ package types
 import (
 	"fmt"
 	"github.com/datastax/go-cassandra-native-protocol/datatype"
+	"github.com/datastax/go-cassandra-native-protocol/primitive"
+	"net"
 	"reflect"
 	"time"
 )
@@ -123,7 +125,7 @@ var (
 	TypeDecimal   CqlDataType = newScalarType("decimal", DECIMAL, datatype.Decimal, reflect.TypeOf(0.0))
 	TypeDouble    CqlDataType = newScalarType("double", DOUBLE, datatype.Double, reflect.TypeOf(float64(0.0)))
 	TypeFloat     CqlDataType = newScalarType("float", FLOAT, datatype.Float, reflect.TypeOf(float32(0.0)))
-	TypeInet      CqlDataType = newScalarType("inet", INET, datatype.Inet, reflect.TypeOf(""))
+	TypeInet      CqlDataType = newScalarType("inet", INET, datatype.Inet, reflect.TypeOf(net.IP{}))
 	TypeInt       CqlDataType = newScalarType("int", INT, datatype.Int, reflect.TypeOf(int32(1)))
 	TypeSmallint  CqlDataType = newScalarType("smallint", SMALLINT, datatype.Smallint, reflect.TypeOf(int16(1)))
 	TypeText      CqlDataType = newScalarType("text", TEXT, datatype.Varchar, reflect.TypeOf(""))
@@ -131,7 +133,7 @@ var (
 	TypeTimestamp CqlDataType = newScalarType("timestamp", TIMESTAMP, datatype.Timestamp, reflect.TypeOf(time.Time{}))
 	TypeTimeuuid  CqlDataType = newScalarType("timeuuid", TIMEUUID, datatype.Timeuuid, reflect.TypeOf(time.Time{}))
 	TypeTinyint   CqlDataType = newScalarType("tinyint", TINYINT, datatype.Tinyint, reflect.TypeOf(int8(1)))
-	TypeUuid      CqlDataType = newScalarType("uuid", UUID, datatype.Uuid, reflect.TypeOf(""))
+	TypeUuid      CqlDataType = newScalarType("uuid", UUID, datatype.Uuid, reflect.TypeOf(primitive.UUID{}))
 	TypeVarint    CqlDataType = newScalarType("varint", VARINT, datatype.Varint, reflect.TypeOf(1))
 )
 

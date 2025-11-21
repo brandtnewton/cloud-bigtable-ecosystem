@@ -26,7 +26,7 @@ import (
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/utilities"
 )
 
-func (t *AlterTranslator) Translate(query *types.RawQuery, sessionKeyspace types.Keyspace, isPreparedQuery bool) (types.IPreparedQuery, types.IExecutableQuery, error) {
+func (t *AlterTranslator) Translate(query *types.RawQuery, sessionKeyspace types.Keyspace, _ bool) (types.IPreparedQuery, *types.QueryParameterValues, error) {
 	alterTable := query.Parser().AlterTable()
 
 	if alterTable == nil || alterTable.Table() == nil {
@@ -99,9 +99,13 @@ func (t *AlterTranslator) Translate(query *types.RawQuery, sessionKeyspace types
 	}
 
 	var stmt = types.NewAlterTableStatementMap(keyspaceName, tableName, query.RawCql(), false, addColumns, dropColumns)
-	return stmt, stmt, nil
+	return stmt, nil, nil
 }
 
-func (t *AlterTranslator) Bind(types.IPreparedQuery, []*primitive.Value, primitive.ProtocolVersion) (types.IExecutableQuery, error) {
-	return nil, errors.New("bind for alter statements not supported")
+func (t *AlterTranslator) Bind(q types.IPreparedQuery, values *types.QueryParameterValues, pv primitive.ProtocolVersion) (types.IExecutableQuery, error) {
+	alter, ok := q.(types.AlterTableStatementMap)
+	if !ok {
+		return nil, fmt.Errorf("cannot bind to %T", q)
+	}
+	return alter, nil
 }

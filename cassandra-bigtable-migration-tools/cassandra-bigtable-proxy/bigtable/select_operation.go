@@ -32,21 +32,6 @@ import (
 	"time"
 )
 
-// SelectStatement - Executes a select statement on Bigtable and returns the result.
-// It uses the SQL API (Prepare/Execute flow) to execute the statement.
-//
-// Parameters:
-//   - ctx: Context for the operation, used for cancellation and deadlines.
-//   - query: rh.QueryMetadata containing the query and parameters.
-//
-// Returns:
-//   - *message.RowsResult: The result of the select statement.
-//   - time.Duration: The total elapsed time for the operation.
-//   - error: Error if the select statement execution fails.
-func (btc *BigtableClient) SelectStatement(ctx context.Context, query *types.BoundSelectQuery) (*message.RowsResult, error) {
-	return btc.ExecutePreparedStatement(ctx, query)
-}
-
 // ExecutePreparedStatement -  Executes a prepared statement on Bigtable and returns the result.
 // Parameters:
 //   - ctx: Context for the operation, used for cancellation and deadlines.

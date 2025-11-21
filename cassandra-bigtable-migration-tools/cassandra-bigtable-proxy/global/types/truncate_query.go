@@ -1,9 +1,29 @@
 package types
 
+import (
+	"cloud.google.com/go/bigtable"
+	"github.com/datastax/go-cassandra-native-protocol/message"
+)
+
 type TruncateTableStatementMap struct {
 	cqlQuery string
 	keyspace Keyspace
 	table    TableName
+}
+
+func (c TruncateTableStatementMap) Parameters() *QueryParameters {
+	return nil
+}
+
+func (c TruncateTableStatementMap) ResponseColumns() []*message.ColumnMetadata {
+	return nil
+}
+
+func (c TruncateTableStatementMap) SetBigtablePreparedQuery(s *bigtable.PreparedStatement) {
+}
+
+func (c TruncateTableStatementMap) IsIdempotent() bool {
+	return true
 }
 
 func (c TruncateTableStatementMap) CqlQuery() string {

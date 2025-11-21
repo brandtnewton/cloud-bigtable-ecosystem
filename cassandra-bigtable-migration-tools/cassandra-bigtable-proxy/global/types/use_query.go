@@ -1,8 +1,28 @@
 package types
 
+import (
+	"cloud.google.com/go/bigtable"
+	"github.com/datastax/go-cassandra-native-protocol/message"
+)
+
 type UseTableStatementMap struct {
 	cqlQuery string
 	keyspace Keyspace
+}
+
+func (u UseTableStatementMap) Parameters() *QueryParameters {
+	return nil
+}
+
+func (u UseTableStatementMap) ResponseColumns() []*message.ColumnMetadata {
+	return nil
+}
+
+func (u UseTableStatementMap) SetBigtablePreparedQuery(s *bigtable.PreparedStatement) {
+}
+
+func (u UseTableStatementMap) IsIdempotent() bool {
+	return true
 }
 
 func (u UseTableStatementMap) Keyspace() Keyspace {

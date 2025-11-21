@@ -21,6 +21,7 @@ import (
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/global/types"
 	schemaMapping "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/schema-mapping"
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/translators/alter_translator"
+	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/translators/common"
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/translators/create_translator"
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/translators/delete_translator"
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/translators/desc_translator"
@@ -72,33 +73,51 @@ func NewTranslatorManager(logger *zap.Logger, schemaMappingConfig *schemaMapping
 	}
 }
 
-func (t *TranslatorManager) TranslateQuery(q *types.RawQuery, sessionKeyspace types.Keyspace, isPrepared bool) (types.IPreparedQuery, types.IExecutableQuery, error) {
+func (t *TranslatorManager) TranslateQuery(q *types.RawQuery, sessionKeyspace types.Keyspace, isPreparedQuery bool) (types.IPreparedQuery, *types.QueryParameterValues, error) {
 	queryTranslator, err := t.getTranslator(q.QueryType())
 	if err != nil {
 		return nil, nil, err
 	}
 
-	prepared, executable, err := queryTranslator.Translate(q, sessionKeyspace, isPrepared)
+	preparedQuery, values, err := queryTranslator.Translate(q, sessionKeyspace, isPreparedQuery)
 
 	if err != nil {
 		return nil, nil, err
 	}
 
-	t.Logger.Debug("translated query", zap.String("cql", q.RawCql()), zap.String("btql", prepared.BigtableQuery()))
+	if isPreparedQuery {
+		if values != nil {
+			// no values should be set for prepared queries
+			err = common.ValidateZeroParamsSet(values)
+			if err != nil {
+				return nil, nil, err
+			}
+		}
+	} else if !isPreparedQuery {
+		// ALL values should be set for adhoc queries
+		err = common.ValidateAllParamsSet(values)
+		if err != nil {
+			return nil, nil, err
+		}
+	}
 
-	return prepared, executable, err
+	t.Logger.Debug("translated query", zap.String("cql", q.RawCql()), zap.String("btql", preparedQuery.BigtableQuery()))
+
+	return preparedQuery, values, err
 }
 
 func (t *TranslatorManager) BindQuery(st types.IPreparedQuery, cassandraValues []*primitive.Value, pv primitive.ProtocolVersion) (types.IExecutableQuery, error) {
+	values, err := common.BindQueryParams(st.Parameters(), cassandraValues, pv)
+	if err != nil {
+		return nil, err
+	}
+	return t.BindQueryParameters(st, values, pv)
+}
+
+func (t *TranslatorManager) BindQueryParameters(st types.IPreparedQuery, values *types.QueryParameterValues, pv primitive.ProtocolVersion) (types.IExecutableQuery, error) {
 	queryTranslator, err := t.getTranslator(st.QueryType())
 	if err != nil {
 		return nil, err
 	}
-
-	executable, err := queryTranslator.Bind(st, cassandraValues, pv)
-
-	if err == nil {
-		t.Logger.Debug("translated query", zap.String("cql", st.CqlQuery()), zap.String("btql", st.BigtableQuery()))
-	}
-	return executable, err
+	return queryTranslator.Bind(st, values, pv)
 }

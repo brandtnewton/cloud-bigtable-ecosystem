@@ -33,7 +33,7 @@ const (
 	intRowKeyEncodingOptionValueOrderedCode = "ordered_code"
 )
 
-func (t *CreateTranslator) Translate(query *types.RawQuery, sessionKeyspace types.Keyspace, isPreparedQuery bool) (types.IPreparedQuery, types.IExecutableQuery, error) {
+func (t *CreateTranslator) Translate(query *types.RawQuery, sessionKeyspace types.Keyspace, isPreparedQuery bool) (types.IPreparedQuery, *types.QueryParameterValues, error) {
 	createTableObj := query.Parser().CreateTable()
 
 	if createTableObj == nil {
@@ -172,9 +172,13 @@ func (t *CreateTranslator) Translate(query *types.RawQuery, sessionKeyspace type
 	}
 	ifNotExists := createTableObj.IfNotExist() != nil
 	var stmt = types.NewCreateTableStatementMap(keyspaceName, tableName, query.RawCql(), ifNotExists, columns, pmks, rowKeyEncoding)
-	return nil, stmt, nil
+	return stmt, nil, nil
 }
 
-func (t *CreateTranslator) Bind(types.IPreparedQuery, []*primitive.Value, primitive.ProtocolVersion) (types.IExecutableQuery, error) {
-	return nil, errors.New("bind for create statements not supported")
+func (t *CreateTranslator) Bind(q types.IPreparedQuery, values *types.QueryParameterValues, pv primitive.ProtocolVersion) (types.IExecutableQuery, error) {
+	alter, ok := q.(types.CreateTableStatementMap)
+	if !ok {
+		return nil, fmt.Errorf("cannot bind to %T", q)
+	}
+	return alter, nil
 }

@@ -1,5 +1,10 @@
 package types
 
+import (
+	"cloud.google.com/go/bigtable"
+	"github.com/datastax/go-cassandra-native-protocol/message"
+)
+
 // DescribeQuery represents a parsed DESCRIBE/DESC statement
 // Only one of the fields will be set to true/non-empty depending on the type of DESCRIBE
 //   - Keyspaces: true for DESCRIBE KEYSPACES
@@ -47,4 +52,20 @@ func (a DescribeQuery) Table() TableName {
 
 func (a DescribeQuery) QueryType() QueryType {
 	return QueryTypeDescribe
+}
+
+func (a DescribeQuery) Parameters() *QueryParameters {
+	return nil
+}
+
+func (a DescribeQuery) ResponseColumns() []*message.ColumnMetadata {
+	return nil
+}
+
+func (a DescribeQuery) SetBigtablePreparedQuery(s *bigtable.PreparedStatement) {
+
+}
+
+func (a DescribeQuery) IsIdempotent() bool {
+	return true
 }

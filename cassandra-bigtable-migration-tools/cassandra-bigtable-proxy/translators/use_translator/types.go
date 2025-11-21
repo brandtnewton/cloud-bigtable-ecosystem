@@ -11,7 +11,7 @@ type UseTranslator struct {
 	schemaMappingConfig *schemaMapping.SchemaMappingConfig
 }
 
-func (t *UseTranslator) Translate(query *types.RawQuery, _ types.Keyspace, _ bool) (types.IPreparedQuery, types.IExecutableQuery, error) {
+func (t *UseTranslator) Translate(query *types.RawQuery, _ types.Keyspace, _ bool) (types.IPreparedQuery, *types.QueryParameterValues, error) {
 	use := query.Parser().Use_()
 	if use == nil {
 		return nil, nil, fmt.Errorf("failed to parse USE statement")
@@ -29,11 +29,15 @@ func (t *UseTranslator) Translate(query *types.RawQuery, _ types.Keyspace, _ boo
 		return nil, nil, err
 	}
 
-	return nil, types.NewUseTableStatementMap(keyspace, query.RawCql()), nil
+	return types.NewUseTableStatementMap(keyspace, query.RawCql()), nil, nil
 }
 
-func (t *UseTranslator) Bind(st types.IPreparedQuery, values []*primitive.Value, pv primitive.ProtocolVersion) (types.IExecutableQuery, error) {
-	panic("cannot bind USE statement")
+func (t *UseTranslator) Bind(st types.IPreparedQuery, _ *types.QueryParameterValues, _ primitive.ProtocolVersion) (types.IExecutableQuery, error) {
+	use, ok := st.(types.UseTableStatementMap)
+	if !ok {
+		return nil, fmt.Errorf("cannot bind to %T", st)
+	}
+	return use, nil
 }
 
 func (t *UseTranslator) QueryType() types.QueryType {

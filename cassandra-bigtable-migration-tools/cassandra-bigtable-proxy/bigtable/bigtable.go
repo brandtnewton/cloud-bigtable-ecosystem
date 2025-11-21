@@ -79,7 +79,6 @@ type BigTableClientIface interface {
 	DeleteRow(context.Context, *types.BoundDeleteQuery) (*message.RowsResult, error)
 	ReadTableConfigs(context.Context, types.Keyspace) ([]*schemaMapping.TableConfig, error)
 	InsertRow(ctx context.Context, input *types.BigtableWriteMutation) (*message.RowsResult, error)
-	SelectStatement(context.Context, *types.BoundSelectQuery) (*message.RowsResult, error)
 	AlterTable(ctx context.Context, data *types.AlterTableStatementMap) error
 	CreateTable(ctx context.Context, data *types.CreateTableStatementMap) error
 	DropAllRows(ctx context.Context, data *types.TruncateTableStatementMap) error
@@ -120,7 +119,7 @@ func (btc *BigtableClient) Execute(ctx context.Context, query types.IExecutableQ
 	case *types.BigtableWriteMutation:
 		return btc.mutateRow(ctx, q)
 	case *types.BoundSelectQuery:
-		return btc.SelectStatement(ctx, q)
+		return btc.ExecutePreparedStatement(ctx, q)
 	case *types.CreateTableStatementMap:
 		err := btc.CreateTable(ctx, q)
 		return emptyRowsResult(), err

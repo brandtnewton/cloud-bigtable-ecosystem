@@ -33,7 +33,7 @@ import (
 // Returns: PreparedInsertQuery, build the PreparedInsertQuery and return it with nil value of error. In case of error
 // PreparedInsertQuery will return as nil and error will contains the error object
 
-func (t *InsertTranslator) Translate(query *types.RawQuery, sessionKeyspace types.Keyspace, isPreparedQuery bool) (types.IPreparedQuery, types.IExecutableQuery, error) {
+func (t *InsertTranslator) Translate(query *types.RawQuery, sessionKeyspace types.Keyspace, isPreparedQuery bool) (types.IPreparedQuery, *types.QueryParameterValues, error) {
 	insertObj := query.Parser().Insert()
 	if insertObj == nil {
 		return nil, nil, errors.New("could not parse insert object")
@@ -75,37 +75,16 @@ func (t *InsertTranslator) Translate(query *types.RawQuery, sessionKeyspace type
 	}
 
 	st := types.NewPreparedInsertQuery(keyspaceName, tableName, ifNotExists, query.RawCql(), params, assignments)
-	var bound *types.BigtableWriteMutation
-	if !isPreparedQuery {
-		bound, err = t.doBindInsert(st, values)
-		if err != nil {
-			return nil, nil, err
-		}
-	} else {
-		bound = nil
-	}
 
-	if isPreparedQuery {
-		err = common.ValidateZeroParamsSet(values)
-		if err != nil {
-			return nil, nil, err
-		}
-	}
-
-	return st, bound, nil
+	return st, values, nil
 }
 
-func (t *InsertTranslator) Bind(st types.IPreparedQuery, cassandraValues []*primitive.Value, pv primitive.ProtocolVersion) (types.IExecutableQuery, error) {
-	ist := st.(*types.PreparedInsertQuery)
-	values, err := common.BindQueryParams(ist.Parameters(), cassandraValues, pv)
-	if err != nil {
-		return nil, err
+func (t *InsertTranslator) Bind(st types.IPreparedQuery, values *types.QueryParameterValues, pv primitive.ProtocolVersion) (types.IExecutableQuery, error) {
+	ist, ok := st.(*types.PreparedInsertQuery)
+	if !ok {
+		return nil, fmt.Errorf("cannot bind to %T", st)
 	}
-	return t.doBindInsert(ist, values)
-}
-
-func (t *InsertTranslator) doBindInsert(st *types.PreparedInsertQuery, values *types.QueryParameterValues) (*types.BigtableWriteMutation, error) {
-	tableConfig, err := t.schemaMappingConfig.GetTableConfig(st.Keyspace(), st.Table())
+	tableConfig, err := t.schemaMappingConfig.GetTableConfig(ist.Keyspace(), ist.Table())
 	if err != nil {
 		return nil, err
 	}
@@ -115,11 +94,10 @@ func (t *InsertTranslator) doBindInsert(st *types.PreparedInsertQuery, values *t
 		return nil, fmt.Errorf("key encoding failed: %w", err)
 	}
 
-	mutations := types.NewBigtableWriteMutation(st.Keyspace(), st.Table(), st.CqlQuery(), types.IfSpec{IfNotExists: st.IfNotExists}, types.QueryTypeInsert, rowKey)
-	err = common.BindMutations(st.Assignments, values, mutations)
+	mutations := types.NewBigtableWriteMutation(ist.Keyspace(), ist.Table(), ist.CqlQuery(), types.IfSpec{IfNotExists: ist.IfNotExists}, types.QueryTypeInsert, rowKey)
+	err = common.BindMutations(ist.Assignments, values, mutations)
 	if err != nil {
 		return nil, err
 	}
-
 	return mutations, nil
 }

@@ -12,7 +12,7 @@ type DescTranslator struct {
 	schemaMappingConfig *schemaMapping.SchemaMappingConfig
 }
 
-func (t *DescTranslator) Translate(query *types.RawQuery, sessionKeyspace types.Keyspace, _ bool) (types.IPreparedQuery, types.IExecutableQuery, error) {
+func (t *DescTranslator) Translate(query *types.RawQuery, sessionKeyspace types.Keyspace, _ bool) (types.IPreparedQuery, *types.QueryParameterValues, error) {
 	s := query.Parser().DescribeStatement()
 	if s == nil || s.DescribeTarget() == nil {
 		return nil, nil, fmt.Errorf("failed to parse USE statement")
@@ -21,9 +21,9 @@ func (t *DescTranslator) Translate(query *types.RawQuery, sessionKeyspace types.
 	d := s.DescribeTarget()
 
 	if d.KwKeyspaces() != nil { // "DESC KEYSPACES;"
-		return nil, types.NewDescribeKeyspacesQuery(query.RawCql()), nil
+		return types.NewDescribeKeyspacesQuery(query.RawCql()), nil, nil
 	} else if d.KwTables() != nil { // "DESC TABLES;"
-		return nil, types.NewDescribeTablesQuery(query.RawCql(), sessionKeyspace), nil
+		return types.NewDescribeTablesQuery(query.RawCql(), sessionKeyspace), nil, nil
 	} else if d.KwTable() != nil { // "DESC TABLE [$KEYSPACE.]$TABLE;"
 		if d.Table() == nil {
 			return nil, nil, errors.New("invalid describe command. table name required")
@@ -33,7 +33,7 @@ func (t *DescTranslator) Translate(query *types.RawQuery, sessionKeyspace types.
 		if d.Keyspace() != nil {
 			keyspace = types.Keyspace(d.Keyspace().GetText())
 		}
-		return nil, types.NewDescribeTable(query.RawCql(), keyspace, table), nil
+		return types.NewDescribeTable(query.RawCql(), keyspace, table), nil, nil
 	} else if d.KwKeyspace() != nil { // "DESC KEYSPACE $KEYSPACE;"
 		keyspace := sessionKeyspace
 		if d.Keyspace() != nil {
@@ -42,13 +42,17 @@ func (t *DescTranslator) Translate(query *types.RawQuery, sessionKeyspace types.
 		if keyspace == "" {
 			return nil, nil, errors.New("expected keyspace name after DESCRIBE KEYSPACE")
 		}
-		return nil, types.NewDescribeTablesQuery(query.RawCql(), keyspace), nil
+		return types.NewDescribeTablesQuery(query.RawCql(), keyspace), nil, nil
 	}
 	return nil, nil, errors.New("failed to parse describe query")
 }
 
-func (t *DescTranslator) Bind(st types.IPreparedQuery, values []*primitive.Value, pv primitive.ProtocolVersion) (types.IExecutableQuery, error) {
-	panic("cannot bind DESCRIBE statement")
+func (t *DescTranslator) Bind(st types.IPreparedQuery, _ *types.QueryParameterValues, _ primitive.ProtocolVersion) (types.IExecutableQuery, error) {
+	desc, ok := st.(types.DescribeQuery)
+	if !ok {
+		return nil, fmt.Errorf("cannot bind to %T", st)
+	}
+	return desc, nil
 }
 
 func (t *DescTranslator) QueryType() types.QueryType {

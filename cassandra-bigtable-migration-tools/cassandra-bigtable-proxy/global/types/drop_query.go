@@ -1,5 +1,10 @@
 package types
 
+import (
+	"cloud.google.com/go/bigtable"
+	"github.com/datastax/go-cassandra-native-protocol/message"
+)
+
 type DropTableQuery struct {
 	cqlQuery string
 	keyspace Keyspace
@@ -7,30 +12,46 @@ type DropTableQuery struct {
 	IfExists bool
 }
 
+func (d DropTableQuery) Parameters() *QueryParameters {
+	return nil
+}
+
+func (d DropTableQuery) ResponseColumns() []*message.ColumnMetadata {
+	return nil
+}
+
+func (d DropTableQuery) SetBigtablePreparedQuery(s *bigtable.PreparedStatement) {
+
+}
+
+func (d DropTableQuery) IsIdempotent() bool {
+	return d.IfExists
+}
+
 func NewDropTableQuery(keyspace Keyspace, table TableName, ifExists bool) *DropTableQuery {
 	return &DropTableQuery{keyspace: keyspace, table: table, IfExists: ifExists}
 }
 
-func (c DropTableQuery) CqlQuery() string {
-	return c.cqlQuery
+func (d DropTableQuery) CqlQuery() string {
+	return d.cqlQuery
 }
 
-func (c DropTableQuery) BigtableQuery() string {
+func (d DropTableQuery) BigtableQuery() string {
 	return ""
 }
 
-func (c DropTableQuery) AsBulkMutation() (IBigtableMutation, bool) {
+func (d DropTableQuery) AsBulkMutation() (IBigtableMutation, bool) {
 	return nil, false
 }
 
-func (c DropTableQuery) Keyspace() Keyspace {
-	return c.keyspace
+func (d DropTableQuery) Keyspace() Keyspace {
+	return d.keyspace
 }
 
-func (c DropTableQuery) Table() TableName {
-	return c.table
+func (d DropTableQuery) Table() TableName {
+	return d.table
 }
 
-func (c DropTableQuery) QueryType() QueryType {
+func (d DropTableQuery) QueryType() QueryType {
 	return QueryTypeDrop
 }

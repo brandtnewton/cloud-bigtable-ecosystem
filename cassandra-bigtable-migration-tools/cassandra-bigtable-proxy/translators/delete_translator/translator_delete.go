@@ -24,7 +24,7 @@ import (
 	"github.com/datastax/go-cassandra-native-protocol/primitive"
 )
 
-func (t *DeleteTranslator) Translate(query *types.RawQuery, sessionKeyspace types.Keyspace, isPreparedQuery bool) (types.IPreparedQuery, types.IExecutableQuery, error) {
+func (t *DeleteTranslator) Translate(query *types.RawQuery, sessionKeyspace types.Keyspace, isPreparedQuery bool) (types.IPreparedQuery, *types.QueryParameterValues, error) {
 	deleteObj := query.Parser()
 	if deleteObj == nil {
 		return nil, nil, errors.New("error while parsing delete object")
@@ -72,37 +72,15 @@ func (t *DeleteTranslator) Translate(query *types.RawQuery, sessionKeyspace type
 
 	st := types.NewPreparedDeleteQuery(keyspaceName, tableName, ifExist, query.RawCql(), conditions, params, selectedColumns)
 
-	var bound *types.BoundDeleteQuery
-	if !isPreparedQuery {
-		bound, err = t.doBind(st, values)
-		if err != nil {
-			return nil, nil, err
-		}
-	} else {
-		bound = nil
-	}
-
-	if isPreparedQuery {
-		err = common.ValidateZeroParamsSet(values)
-		if err != nil {
-			return nil, nil, err
-		}
-	}
-
-	return st, bound, nil
+	return st, values, nil
 }
 
-func (t *DeleteTranslator) Bind(st types.IPreparedQuery, cassandraValues []*primitive.Value, pv primitive.ProtocolVersion) (types.IExecutableQuery, error) {
-	dst := st.(*types.PreparedDeleteQuery)
-	values, err := common.BindQueryParams(dst.Parameters(), cassandraValues, pv)
-	if err != nil {
-		return nil, err
+func (t *DeleteTranslator) Bind(st types.IPreparedQuery, values *types.QueryParameterValues, pv primitive.ProtocolVersion) (types.IExecutableQuery, error) {
+	dst, ok := st.(*types.PreparedDeleteQuery)
+	if !ok {
+		return nil, fmt.Errorf("cannot bind to %T", st)
 	}
-	return t.doBind(dst, values)
-}
-
-func (t *DeleteTranslator) doBind(st *types.PreparedDeleteQuery, values *types.QueryParameterValues) (*types.BoundDeleteQuery, error) {
-	tableConfig, err := t.schemaMappingConfig.GetTableConfig(st.Keyspace(), st.Table())
+	tableConfig, err := t.schemaMappingConfig.GetTableConfig(dst.Keyspace(), dst.Table())
 	if err != nil {
 		return nil, err
 	}
@@ -112,9 +90,9 @@ func (t *DeleteTranslator) doBind(st *types.PreparedDeleteQuery, values *types.Q
 		return nil, fmt.Errorf("key encoding failed: %w", err)
 	}
 
-	cols, err := common.BindSelectColumns(tableConfig, st.SelectedColumns, values)
+	cols, err := common.BindSelectColumns(tableConfig, dst.SelectedColumns, values)
 	if err != nil {
 		return nil, err
 	}
-	return types.NewBoundDeleteQuery(st.Keyspace(), st.Table(), st.CqlQuery(), rowKey, st.IfExists, cols), nil
+	return types.NewBoundDeleteQuery(dst.Keyspace(), dst.Table(), dst.CqlQuery(), rowKey, dst.IfExists, cols), nil
 }

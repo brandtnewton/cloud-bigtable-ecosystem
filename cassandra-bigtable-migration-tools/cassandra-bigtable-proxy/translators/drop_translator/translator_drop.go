@@ -18,12 +18,13 @@ package drop_translator
 
 import (
 	"errors"
+	"fmt"
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/global/types"
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/translators/common"
 	"github.com/datastax/go-cassandra-native-protocol/primitive"
 )
 
-func (t *DropTranslator) Translate(query *types.RawQuery, sessionKeyspace types.Keyspace, isPreparedQuery bool) (types.IPreparedQuery, types.IExecutableQuery, error) {
+func (t *DropTranslator) Translate(query *types.RawQuery, sessionKeyspace types.Keyspace, isPreparedQuery bool) (types.IPreparedQuery, *types.QueryParameterValues, error) {
 	dropTableObj := query.Parser().DropTable()
 
 	if dropTableObj == nil || dropTableObj.Table() == nil {
@@ -38,9 +39,13 @@ func (t *DropTranslator) Translate(query *types.RawQuery, sessionKeyspace types.
 	ifExists := dropTableObj.IfExist() != nil
 
 	stmt := types.NewDropTableQuery(keyspaceName, tableName, ifExists)
-	return nil, stmt, nil
+	return stmt, nil, nil
 }
 
-func (t *DropTranslator) Bind(types.IPreparedQuery, []*primitive.Value, primitive.ProtocolVersion) (types.IExecutableQuery, error) {
-	return nil, errors.New("bind for drop statements not supported")
+func (t *DropTranslator) Bind(st types.IPreparedQuery, values *types.QueryParameterValues, pv primitive.ProtocolVersion) (types.IExecutableQuery, error) {
+	drop, ok := st.(types.DropTableQuery)
+	if !ok {
+		return nil, fmt.Errorf("cannot bind to %T", st)
+	}
+	return drop, nil
 }

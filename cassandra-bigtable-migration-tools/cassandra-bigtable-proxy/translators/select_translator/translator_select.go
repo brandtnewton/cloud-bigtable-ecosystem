@@ -18,6 +18,7 @@ package select_translator
 
 import (
 	"errors"
+	"fmt"
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/global/types"
 	sm "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/schema-mapping"
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/translators/common"
@@ -25,7 +26,7 @@ import (
 	"github.com/datastax/go-cassandra-native-protocol/primitive"
 )
 
-func (t *SelectTranslator) Translate(query *types.RawQuery, sessionKeyspace types.Keyspace, isPreparedQuery bool) (types.IPreparedQuery, types.IExecutableQuery, error) {
+func (t *SelectTranslator) Translate(query *types.RawQuery, sessionKeyspace types.Keyspace, isPreparedQuery bool) (types.IPreparedQuery, *types.QueryParameterValues, error) {
 	selectObj := query.Parser().Select_()
 	if selectObj == nil {
 		return nil, nil, errors.New("failed to parse select query")
@@ -83,25 +84,7 @@ func (t *SelectTranslator) Translate(query *types.RawQuery, sessionKeyspace type
 		return nil, nil, err
 	}
 	st.TranslatedQuery = translatedResult
-
-	var bound *types.BoundSelectQuery
-	if !isPreparedQuery {
-		bound, err = t.doBindSelect(st, values, primitive.ProtocolVersion4)
-		if err != nil {
-			return nil, nil, err
-		}
-	} else {
-		bound = nil
-	}
-
-	if isPreparedQuery {
-		err = common.ValidateZeroParamsSet(values)
-		if err != nil {
-			return nil, nil, err
-		}
-	}
-
-	return st, bound, nil
+	return st, values, nil
 }
 
 func selectedColumnsToMetadata(table *sm.TableConfig, selectClause *types.SelectClause) []*message.ColumnMetadata {
@@ -123,11 +106,10 @@ func selectedColumnsToMetadata(table *sm.TableConfig, selectClause *types.Select
 	return resultColumns
 }
 
-func (t *SelectTranslator) Bind(st types.IPreparedQuery, cassandraValues []*primitive.Value, pv primitive.ProtocolVersion) (types.IExecutableQuery, error) {
-	sst := st.(*types.PreparedSelectQuery)
-	values, err := common.BindQueryParams(sst.Params, cassandraValues, pv)
-	if err != nil {
-		return nil, err
+func (t *SelectTranslator) Bind(st types.IPreparedQuery, values *types.QueryParameterValues, pv primitive.ProtocolVersion) (types.IExecutableQuery, error) {
+	sst, ok := st.(*types.PreparedSelectQuery)
+	if !ok {
+		return nil, fmt.Errorf("cannot bind to %T", st)
 	}
 	return t.doBindSelect(sst, values, pv)
 }

@@ -558,20 +558,12 @@ func newParser(query string) *cql.CqlParser {
 //
 // Returns: nil
 func (c *client) handleServerPreparedQuery(query *types.RawQuery, id [16]byte) {
-	preparedQuery, _, err := c.proxy.translator.TranslateQuery(query, c.sessionKeyspace, true)
+	preparedQuery, _, err := c.prepareQuery(query, true)
 	if err != nil {
 		c.proxy.logger.Error(translatorErrorMessage, zap.String(Query, query.RawCql()), zap.Error(err))
 		c.sender.Send(query.Header(), &message.Invalid{ErrorMessage: err.Error()})
 		return
 	}
-
-	btPreparedQuery, err := c.proxy.bClient.PrepareStatement(c.ctx, preparedQuery)
-	if err != nil {
-		c.proxy.logger.Error(translatorErrorMessage, zap.String(Query, query.RawCql()), zap.Error(err))
-		c.sender.Send(query.Header(), &message.Invalid{ErrorMessage: err.Error()})
-		return
-	}
-	preparedQuery.SetBigtablePreparedQuery(btPreparedQuery)
 
 	response, err := responsehandler.BuildPreparedResultResponse(id, preparedQuery.Keyspace(), preparedQuery.Table(), preparedQuery.Parameters(), preparedQuery.ResponseColumns())
 
@@ -580,6 +572,21 @@ func (c *client) handleServerPreparedQuery(query *types.RawQuery, id [16]byte) {
 	c.proxy.queryMetadataCache.Store(id, response)
 
 	c.sender.Send(query.Header(), response)
+}
+
+func (c *client) prepareQuery(query *types.RawQuery, isPreparedQuery bool) (types.IPreparedQuery, *types.QueryParameterValues, error) {
+	preparedQuery, values, err := c.proxy.translator.TranslateQuery(query, c.sessionKeyspace, isPreparedQuery)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	btPreparedQuery, err := c.proxy.bClient.PrepareStatement(c.ctx, preparedQuery)
+	if err != nil {
+		return nil, nil, err
+	}
+	preparedQuery.SetBigtablePreparedQuery(btPreparedQuery)
+
+	return preparedQuery, values, err
 }
 
 // handleExecute for prepared query
@@ -693,17 +700,21 @@ func (c *client) handleQuery(raw *frame.RawFrame, msg *partialQuery) {
 	var otelErr error
 	defer c.proxy.otelInst.RecordMetrics(otelCtx, handleQuery, startTime, rawQuery.QueryType().String(), c.sessionKeyspace, otelErr)
 
-	_, bound, err := c.proxy.translator.TranslateQuery(rawQuery, c.sessionKeyspace, false)
+	query, values, err := c.prepareQuery(rawQuery, false)
 	if err != nil {
 		c.proxy.logger.Error(translatorErrorMessage, zap.String(Query, msg.query), zap.Error(err))
-		otelErr = err
-		c.proxy.otelInst.RecordError(span, otelErr)
+		c.sender.Send(raw.Header, &message.Invalid{ErrorMessage: err.Error()})
+		return
+	}
+	executableQuery, err := c.proxy.translator.BindQueryParameters(query, values, raw.Header.Version)
+	if err != nil {
+		c.proxy.logger.Error(translatorErrorMessage, zap.String(Query, msg.query), zap.Error(err))
 		c.sender.Send(raw.Header, &message.Invalid{ErrorMessage: err.Error()})
 		return
 	}
 
 	otelgo.AddAnnotation(otelCtx, executingBigtableSQLAPIRequestEvent)
-	selectResult, err := c.proxy.executor.Execute(otelCtx, c, bound)
+	selectResult, err := c.proxy.executor.Execute(otelCtx, c, executableQuery)
 	otelgo.AddAnnotation(otelCtx, bigtableExecutionDoneEvent)
 
 	if err != nil {

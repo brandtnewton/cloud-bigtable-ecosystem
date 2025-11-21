@@ -18,12 +18,13 @@ package truncate_translator
 
 import (
 	"errors"
+	"fmt"
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/global/types"
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/translators/common"
 	"github.com/datastax/go-cassandra-native-protocol/primitive"
 )
 
-func (t *TruncateTranslator) Translate(query *types.RawQuery, sessionKeyspace types.Keyspace, isPreparedQuery bool) (types.IPreparedQuery, types.IExecutableQuery, error) {
+func (t *TruncateTranslator) Translate(query *types.RawQuery, sessionKeyspace types.Keyspace, isPreparedQuery bool) (types.IPreparedQuery, *types.QueryParameterValues, error) {
 	truncateTableObj := query.Parser().Truncate()
 
 	if truncateTableObj == nil {
@@ -36,9 +37,13 @@ func (t *TruncateTranslator) Translate(query *types.RawQuery, sessionKeyspace ty
 	}
 
 	stmt := types.NewTruncateTableStatementMap(keyspace, table, query.RawCql())
-	return nil, stmt, nil
+	return stmt, nil, nil
 }
 
-func (t *TruncateTranslator) Bind(st types.IPreparedQuery, cassandraValues []*primitive.Value, pv primitive.ProtocolVersion) (types.IExecutableQuery, error) {
-	return nil, errors.New("bind for truncate statements not supported")
+func (t *TruncateTranslator) Bind(st types.IPreparedQuery, _ *types.QueryParameterValues, _ primitive.ProtocolVersion) (types.IExecutableQuery, error) {
+	truncate, ok := st.(types.TruncateTableStatementMap)
+	if !ok {
+		return nil, fmt.Errorf("cannot bind to %T", st)
+	}
+	return truncate, nil
 }

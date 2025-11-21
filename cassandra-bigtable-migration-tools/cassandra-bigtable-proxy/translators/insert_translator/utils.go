@@ -71,7 +71,6 @@ func parseInsertValues(input cql.IInsertValuesSpecContext, columns []types.Assig
 
 	if len(allValues) != len(columns) {
 		return fmt.Errorf("found mismatch between column count (%d) value count (%d)", len(columns), len(allValues))
-
 	}
 
 	for i, value := range allValues {

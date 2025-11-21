@@ -117,6 +117,10 @@ func (q *QueryParameterValues) Params() *QueryParameters {
 	return q.params
 }
 
+func EmptyQueryParameterValues() *QueryParameterValues {
+	return &QueryParameterValues{params: NewQueryParameters(), values: make(map[Placeholder]GoValue)}
+}
+
 func NewQueryParameterValues(params *QueryParameters) *QueryParameterValues {
 	return &QueryParameterValues{params: params, values: make(map[Placeholder]GoValue)}
 }

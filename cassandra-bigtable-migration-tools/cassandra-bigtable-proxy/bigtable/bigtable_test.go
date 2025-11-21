@@ -28,7 +28,7 @@ import (
 	"cloud.google.com/go/bigtable"
 	"cloud.google.com/go/bigtable/admin/apiv2/adminpb"
 	"cloud.google.com/go/bigtable/bttest"
-	types "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/global/types"
+	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/global/types"
 	schemaMapping "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/schema-mapping"
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/translators"
 	"github.com/datastax/go-cassandra-native-protocol/datatype"
@@ -992,7 +992,7 @@ func TestCanLoadBadTableConfig(t *testing.T) {
 	tableName := "bad_key_type_table"
 	// WARNING: do NOT change this mutation. It captures a real world schema that we need to handle.
 	rks, muts := toMuts(tableName, []map[string][]byte{
-		map[string][]byte{
+		{
 			smColColumnName:   []byte("column1"),
 			smColColumnType:   []byte("varchar"),
 			smColIsCollection: []byte("false"),
@@ -1001,7 +1001,7 @@ func TestCanLoadBadTableConfig(t *testing.T) {
 			smColPKPrecedence: []byte("1"),
 			smColTableName:    []byte(tableName),
 		},
-		map[string][]byte{
+		{
 			smColColumnName:   []byte("column2"),
 			smColColumnType:   []byte("float"),
 			smColIsCollection: []byte("false"),
@@ -1010,7 +1010,7 @@ func TestCanLoadBadTableConfig(t *testing.T) {
 			smColPKPrecedence: []byte("0"),
 			smColTableName:    []byte(tableName),
 		},
-		map[string][]byte{
+		{
 			smColColumnName:   []byte("column3"),
 			smColColumnType:   []byte("int"),
 			smColIsCollection: []byte("false"),
@@ -1019,7 +1019,7 @@ func TestCanLoadBadTableConfig(t *testing.T) {
 			smColPKPrecedence: []byte("0"),
 			smColTableName:    []byte(tableName),
 		},
-		map[string][]byte{
+		{
 			smColColumnName:   []byte("column4"),
 			smColColumnType:   []byte("double"),
 			smColIsCollection: []byte("false"),
@@ -1028,7 +1028,7 @@ func TestCanLoadBadTableConfig(t *testing.T) {
 			smColPKPrecedence: []byte("0"),
 			smColTableName:    []byte(tableName),
 		},
-		map[string][]byte{
+		{
 			smColColumnName:   []byte("column5"),
 			smColColumnType:   []byte("double"),
 			smColIsCollection: []byte("false"),

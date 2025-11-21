@@ -20,10 +20,11 @@ func (t *DescTranslator) Translate(query *types.RawQuery, sessionKeyspace types.
 
 	d := s.DescribeTarget()
 
+	var result types.IPreparedQuery
 	if d.KwKeyspaces() != nil { // "DESC KEYSPACES;"
-		return types.NewDescribeKeyspacesQuery(query.RawCql()), nil, nil
+		result = types.NewDescribeKeyspacesQuery(query.RawCql())
 	} else if d.KwTables() != nil { // "DESC TABLES;"
-		return types.NewDescribeTablesQuery(query.RawCql(), sessionKeyspace), nil, nil
+		result = types.NewDescribeTablesQuery(query.RawCql(), sessionKeyspace)
 	} else if d.KwTable() != nil { // "DESC TABLE [$KEYSPACE.]$TABLE;"
 		if d.Table() == nil {
 			return nil, nil, errors.New("invalid describe command. table name required")
@@ -33,7 +34,7 @@ func (t *DescTranslator) Translate(query *types.RawQuery, sessionKeyspace types.
 		if d.Keyspace() != nil {
 			keyspace = types.Keyspace(d.Keyspace().GetText())
 		}
-		return types.NewDescribeTable(query.RawCql(), keyspace, table), nil, nil
+		result = types.NewDescribeTable(query.RawCql(), keyspace, table)
 	} else if d.KwKeyspace() != nil { // "DESC KEYSPACE $KEYSPACE;"
 		keyspace := sessionKeyspace
 		if d.Keyspace() != nil {
@@ -42,9 +43,11 @@ func (t *DescTranslator) Translate(query *types.RawQuery, sessionKeyspace types.
 		if keyspace == "" {
 			return nil, nil, errors.New("expected keyspace name after DESCRIBE KEYSPACE")
 		}
-		return types.NewDescribeTablesQuery(query.RawCql(), keyspace), nil, nil
+		result = types.NewDescribeTablesQuery(query.RawCql(), keyspace)
+	} else {
+		return nil, nil, errors.New("failed to parse describe query")
 	}
-	return nil, nil, errors.New("failed to parse describe query")
+	return result, types.EmptyQueryParameterValues(), nil
 }
 
 func (t *DescTranslator) Bind(st types.IPreparedQuery, _ *types.QueryParameterValues, _ primitive.ProtocolVersion) (types.IExecutableQuery, error) {

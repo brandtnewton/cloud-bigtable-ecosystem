@@ -5,6 +5,7 @@ import (
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/global/types"
 	schemaMapping "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/schema-mapping"
 	"github.com/datastax/go-cassandra-native-protocol/primitive"
+	"strings"
 )
 
 type UseTranslator struct {
@@ -21,7 +22,7 @@ func (t *UseTranslator) Translate(query *types.RawQuery, _ types.Keyspace, _ boo
 		return nil, nil, fmt.Errorf("missing keyspace in USE statement")
 	}
 
-	keyspace := types.Keyspace(use.Keyspace().GetText())
+	keyspace := types.Keyspace(strings.Trim(use.Keyspace().GetText(), "\""))
 
 	// validate keyspace
 	_, err := t.schemaMappingConfig.GetKeyspace(keyspace)
@@ -29,7 +30,7 @@ func (t *UseTranslator) Translate(query *types.RawQuery, _ types.Keyspace, _ boo
 		return nil, nil, err
 	}
 
-	return types.NewUseTableStatementMap(keyspace, query.RawCql()), nil, nil
+	return types.NewUseTableStatementMap(keyspace, query.RawCql()), types.EmptyQueryParameterValues(), nil
 }
 
 func (t *UseTranslator) Bind(st types.IPreparedQuery, _ *types.QueryParameterValues, _ primitive.ProtocolVersion) (types.IExecutableQuery, error) {

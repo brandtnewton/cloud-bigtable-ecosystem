@@ -13,7 +13,7 @@ type useExecutor struct {
 }
 
 func (d *useExecutor) CanRun(q types.IExecutableQuery) bool {
-	return q.QueryType() == types.QueryTypeDescribe
+	return q.QueryType() == types.QueryTypeUse
 }
 
 func (d *useExecutor) Execute(_ context.Context, c types.ICassandraClient, q types.IExecutableQuery) (message.Message, error) {

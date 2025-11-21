@@ -37,7 +37,7 @@ func (t *TruncateTranslator) Translate(query *types.RawQuery, sessionKeyspace ty
 	}
 
 	stmt := types.NewTruncateTableStatementMap(keyspace, table, query.RawCql())
-	return stmt, nil, nil
+	return stmt, types.EmptyQueryParameterValues(), nil
 }
 
 func (t *TruncateTranslator) Bind(st types.IPreparedQuery, _ *types.QueryParameterValues, _ primitive.ProtocolVersion) (types.IExecutableQuery, error) {

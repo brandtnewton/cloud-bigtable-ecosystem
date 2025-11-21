@@ -886,8 +886,8 @@ func TestTypeHandler_BuildResponseRow(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to encode aggregate alias int64 value: %v", err)
 	}
-	var expectedAggAlias message.Row = []message.Column{encodedAlias}
-	var expectedAggInt message.Row = []message.Column{encodedInt}
+	var expectedAggAlias = []message.Column{encodedAlias}
+	var expectedAggInt = []message.Column{encodedInt}
 
 	type fields struct {
 		Logger              *zap.Logger

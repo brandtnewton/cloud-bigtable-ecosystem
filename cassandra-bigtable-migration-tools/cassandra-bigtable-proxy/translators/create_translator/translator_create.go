@@ -172,7 +172,7 @@ func (t *CreateTranslator) Translate(query *types.RawQuery, sessionKeyspace type
 	}
 	ifNotExists := createTableObj.IfNotExist() != nil
 	var stmt = types.NewCreateTableStatementMap(keyspaceName, tableName, query.RawCql(), ifNotExists, columns, pmks, rowKeyEncoding)
-	return stmt, nil, nil
+	return stmt, types.EmptyQueryParameterValues(), nil
 }
 
 func (t *CreateTranslator) Bind(q types.IPreparedQuery, values *types.QueryParameterValues, pv primitive.ProtocolVersion) (types.IExecutableQuery, error) {

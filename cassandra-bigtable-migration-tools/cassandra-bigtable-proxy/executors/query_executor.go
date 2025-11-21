@@ -8,6 +8,7 @@ import (
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/mem_table"
 	schemaMapping "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/schema-mapping"
 	"github.com/datastax/go-cassandra-native-protocol/message"
+	"strings"
 )
 
 type IQueryExecutor interface {
@@ -34,5 +35,5 @@ func (m *QueryExecutorManager) Execute(ctx context.Context, client types.ICassan
 			return e.Execute(ctx, client, q)
 		}
 	}
-	return nil, fmt.Errorf("no executor found for query %s on keyspace %s", q.QueryType().String(), q.Keyspace())
+	return nil, fmt.Errorf("no executor found for query %s on keyspace %s", strings.ToUpper(q.QueryType().String()), q.Keyspace())
 }

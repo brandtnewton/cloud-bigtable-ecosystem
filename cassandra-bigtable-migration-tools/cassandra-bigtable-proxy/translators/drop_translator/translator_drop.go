@@ -39,7 +39,7 @@ func (t *DropTranslator) Translate(query *types.RawQuery, sessionKeyspace types.
 	ifExists := dropTableObj.IfExist() != nil
 
 	stmt := types.NewDropTableQuery(keyspaceName, tableName, ifExists)
-	return stmt, nil, nil
+	return stmt, types.EmptyQueryParameterValues(), nil
 }
 
 func (t *DropTranslator) Bind(st types.IPreparedQuery, values *types.QueryParameterValues, pv primitive.ProtocolVersion) (types.IExecutableQuery, error) {

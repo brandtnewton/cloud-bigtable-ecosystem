@@ -99,7 +99,7 @@ func (t *AlterTranslator) Translate(query *types.RawQuery, sessionKeyspace types
 	}
 
 	var stmt = types.NewAlterTableStatementMap(keyspaceName, tableName, query.RawCql(), false, addColumns, dropColumns)
-	return stmt, nil, nil
+	return stmt, types.EmptyQueryParameterValues(), nil
 }
 
 func (t *AlterTranslator) Bind(q types.IPreparedQuery, values *types.QueryParameterValues, pv primitive.ProtocolVersion) (types.IExecutableQuery, error) {

@@ -23,7 +23,6 @@ import (
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/global/constants"
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/global/types"
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/responsehandler"
-	schemaMapping "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/schema-mapping"
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/third_party/datastax/proxycore"
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/utilities"
 	"github.com/datastax/go-cassandra-native-protocol/message"
@@ -91,17 +90,39 @@ func (btc *BigtableClient) convertResultRow(resultRow bigtable.ResultRow, query 
 		if err != nil {
 			return nil, err
 		}
-		var col *types.Column
+
+		// all scalars in system column family when "select *" is used
+		if scalarsMap, ok := val.(map[string][]uint8); ok && colName == string(table.SystemColumnFamily) {
+			for k, val := range scalarsMap {
+				key, err := decodeBase64(k)
+				if err != nil {
+					return nil, err
+				}
+				col, err := table.GetColumn(types.ColumnName(key))
+				if err != nil {
+					// the column may not exist in the table anymore - this happens when a column is dropped because we don't delete any data
+					continue
+				}
+				goVal, err := proxycore.DecodeType(col.CQLType.BigtableStorageType().DataType(), constants.BigtableEncodingVersion, val)
+				if err != nil {
+					return nil, err
+				}
+				result[key] = goVal
+			}
+			continue
+		}
+
 		var expectedType types.CqlDataType
 		if strings.Contains(colName, "$col") {
 			colName = string(query.SelectClause.Columns[i].ColumnName)
+			expectedType = query.SelectClause.Columns[i].ResultType
+		} else {
+			col, err := table.GetColumn(types.ColumnName(colName))
+			if err != nil {
+				return nil, err
+			}
+			expectedType = col.CQLType
 		}
-
-		col, err = table.GetColumn(types.ColumnName(colName))
-		if err != nil {
-			return nil, err
-		}
-		expectedType = col.CQLType
 
 		switch v := val.(type) {
 		case string:
@@ -122,26 +143,8 @@ func (btc *BigtableClient) convertResultRow(resultRow bigtable.ResultRow, query 
 				// default the counter to 0
 				result[colName] = int64(0)
 			}
-		case map[string][]uint8: // either all scalars (when "select *") or a collection
-			// all scalars in system column family when "select *" is used
-			if colName == string(table.SystemColumnFamily) {
-				for k, val := range v {
-					key, err := decodeBase64(k)
-					if err != nil {
-						return nil, err
-					}
-					col, err = table.GetColumn(types.ColumnName(key))
-					if err != nil {
-						// the column may not exist in the table anymore - this happens when a column is dropped because we don't delete any data
-						continue
-					}
-					goVal, err := proxycore.DecodeType(col.CQLType.DataType(), constants.BigtableEncodingVersion, val)
-					if err != nil {
-						return nil, err
-					}
-					result[key] = goVal
-				}
-			} else if expectedType.Code() == types.LIST {
+		case map[string][]uint8:
+			if expectedType.Code() == types.LIST {
 				lt := expectedType.(*types.ListType)
 				var listValues []types.GoValue
 				for _, listElement := range v {
@@ -214,54 +217,6 @@ func (btc *BigtableClient) convertResultRow(resultRow bigtable.ResultRow, query 
 		default:
 			return nil, fmt.Errorf("unsupported Bigtable SQL type  %T for column %s", v, colName)
 		}
-	}
-
-	return result, nil
-}
-
-// createSelectStarScalarsMap - extracts the SystemColumnFamily result, if it exists, and loads it into a map. This map will only be populated with scalar column values when a "select *" is used because those columns are all stored in one column family.
-func createSelectStarScalarsMap(table *schemaMapping.TableConfig, resultRow bigtable.ResultRow) (map[types.ColumnName]types.GoValue, error) {
-	hasSysColumn := false
-	for _, c := range resultRow.Metadata.Columns {
-		if c.Name == string(table.SystemColumnFamily) {
-			hasSysColumn = true
-			break
-		}
-	}
-
-	result := make(map[types.ColumnName]types.GoValue)
-
-	if !hasSysColumn {
-		return result, nil
-	}
-
-	var valueMap map[string][]uint8
-	err := resultRow.GetByName(string(table.SystemColumnFamily), &valueMap)
-	if err != nil {
-		return nil, err
-	}
-
-	for k, val := range valueMap {
-		key, err := decodeBase64(k)
-		if err != nil {
-			return nil, err
-		}
-		colName := types.ColumnName(key)
-
-		// unexpected column name - can happen if a column was dropped
-		if !table.HasColumn(colName) {
-			continue
-		}
-
-		col, err := table.GetColumn(colName)
-		if err != nil {
-			return nil, err
-		}
-		goVal, err := proxycore.DecodeType(col.CQLType.BigtableStorageType().DataType(), constants.BigtableEncodingVersion, val)
-		if err != nil {
-			return nil, err
-		}
-		result[col.Name] = goVal
 	}
 
 	return result, nil

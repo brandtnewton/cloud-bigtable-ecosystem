@@ -47,7 +47,7 @@ func BuildRowsResultResponse(st *types.BoundSelectQuery, rows []types.GoRow, pv 
 		for _, c := range st.ResultColumnMetadata {
 			val, ok := row[c.Name]
 			if !ok {
-				return nil, fmt.Errorf("error building response: missing result for column '%s'", c.Name)
+				val = nil
 			}
 			encoded, err := proxycore.EncodeType(c.Type, pv, val)
 			if err != nil {

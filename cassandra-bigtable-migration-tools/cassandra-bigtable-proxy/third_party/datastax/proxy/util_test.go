@@ -155,7 +155,7 @@ func TestGetSystemQueryMetadataCache_ColumnFailure(t *testing.T) {
 	assert.Nil(t, result.ColumnsSystemQueryMetadataCache[protocolVersion])
 }
 
-// Test case: ConstructSystemMetadataRows function
+// Test case: InitializeSystemTables function
 func TestConstructSystemMetadataRows(t *testing.T) {
 	tests := []struct {
 		name          string
@@ -199,7 +199,7 @@ func TestConstructSystemMetadataRows(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			cache, err := ConstructSystemMetadataRows(tt.metadata.GetAllTables())
+			cache, err := InitializeSystemTables(tt.metadata.GetAllTables())
 			if tt.expectedError {
 				if err == nil {
 					t.Error("Expected error but got none")

@@ -1560,7 +1560,7 @@ func TestCreateOrderedCodeKey(t *testing.T) {
 		{
 			name: "simple string",
 			tableConfig: schemaMapping.NewTableConfig("keyspace", "table", "cf1", types.OrderedCodeEncoding, []*types.Column{
-				{Name: "user_id", CQLType: types.TypeVarchar, KeyType: utilities.KEY_TYPE_PARTITION, PkPrecedence: 1},
+				{Name: "user_id", CQLType: types.TypeVarchar, KeyType: types.KeyTypePartition, PkPrecedence: 1},
 			}),
 			values:  map[string]interface{}{"user_id": "user1"},
 			want:    []byte("user1"),
@@ -1569,7 +1569,7 @@ func TestCreateOrderedCodeKey(t *testing.T) {
 		{
 			name: "int nonzero",
 			tableConfig: schemaMapping.NewTableConfig("keyspace", "table", "cf1", types.OrderedCodeEncoding, []*types.Column{
-				{Name: "user_id", CQLType: types.TypeBigint, KeyType: utilities.KEY_TYPE_PARTITION, PkPrecedence: 1},
+				{Name: "user_id", CQLType: types.TypeBigint, KeyType: types.KeyTypePartition, PkPrecedence: 1},
 			}),
 			values:  map[string]interface{}{"user_id": int64(1)},
 			want:    []byte("\x81"),
@@ -1578,7 +1578,7 @@ func TestCreateOrderedCodeKey(t *testing.T) {
 		{
 			name: "int32 nonzero",
 			tableConfig: schemaMapping.NewTableConfig("keyspace", "table", "cf1", types.OrderedCodeEncoding, []*types.Column{
-				{Name: "user_id", CQLType: types.TypeInt, KeyType: utilities.KEY_TYPE_PARTITION, PkPrecedence: 1},
+				{Name: "user_id", CQLType: types.TypeInt, KeyType: types.KeyTypePartition, PkPrecedence: 1},
 			}),
 			values:  map[string]interface{}{"user_id": int32(1)},
 			want:    []byte("\x81"),
@@ -1587,7 +1587,7 @@ func TestCreateOrderedCodeKey(t *testing.T) {
 		{
 			name: "int32 nonzero big endian",
 			tableConfig: schemaMapping.NewTableConfig("keyspace", "table", "cf1", types.BigEndianEncoding, []*types.Column{
-				{Name: "user_id", CQLType: types.TypeInt, KeyType: utilities.KEY_TYPE_PARTITION, PkPrecedence: 1},
+				{Name: "user_id", CQLType: types.TypeInt, KeyType: types.KeyTypePartition, PkPrecedence: 1},
 			}),
 			values:  map[string]interface{}{"user_id": int32(1)},
 			want:    []byte("\x00\xff\x00\xff\x00\xff\x00\xff\x00\xff\x00\xff\x00\xff\x01"),
@@ -1596,7 +1596,7 @@ func TestCreateOrderedCodeKey(t *testing.T) {
 		{
 			name: "int32 max",
 			tableConfig: schemaMapping.NewTableConfig("keyspace", "table", "cf1", types.BigEndianEncoding, []*types.Column{
-				{Name: "user_id", CQLType: types.TypeInt, KeyType: utilities.KEY_TYPE_PARTITION, PkPrecedence: 1},
+				{Name: "user_id", CQLType: types.TypeInt, KeyType: types.KeyTypePartition, PkPrecedence: 1},
 			}),
 			values:  map[string]interface{}{"user_id": int32(2147483647)},
 			want:    []byte("\x00\xff\x00\xff\x00\xff\x00\xff\x7f\xff\xff\xff"),
@@ -1605,7 +1605,7 @@ func TestCreateOrderedCodeKey(t *testing.T) {
 		{
 			name: "int64 max",
 			tableConfig: schemaMapping.NewTableConfig("keyspace", "table", "cf1", types.BigEndianEncoding, []*types.Column{
-				{Name: "user_id", CQLType: types.TypeBigint, KeyType: utilities.KEY_TYPE_PARTITION, PkPrecedence: 1},
+				{Name: "user_id", CQLType: types.TypeBigint, KeyType: types.KeyTypePartition, PkPrecedence: 1},
 			}),
 			values:  map[string]interface{}{"user_id": int64(9223372036854775807)},
 			want:    []byte("\x7f\xff\xff\xff\xff\xff\xff\xff"),
@@ -1614,7 +1614,7 @@ func TestCreateOrderedCodeKey(t *testing.T) {
 		{
 			name: "negative int",
 			tableConfig: schemaMapping.NewTableConfig("keyspace", "table", "cf1", types.OrderedCodeEncoding, []*types.Column{
-				{Name: "user_id", CQLType: types.TypeBigint, KeyType: utilities.KEY_TYPE_PARTITION, PkPrecedence: 1},
+				{Name: "user_id", CQLType: types.TypeBigint, KeyType: types.KeyTypePartition, PkPrecedence: 1},
 			}),
 			values:  map[string]interface{}{"user_id": int64(-1)},
 			want:    []byte("\x7f"),
@@ -1623,7 +1623,7 @@ func TestCreateOrderedCodeKey(t *testing.T) {
 		{
 			name: "negative int big endian fails",
 			tableConfig: schemaMapping.NewTableConfig("keyspace", "table", "cf1", types.BigEndianEncoding, []*types.Column{
-				{Name: "user_id", CQLType: types.TypeBigint, KeyType: utilities.KEY_TYPE_PARTITION, PkPrecedence: 1},
+				{Name: "user_id", CQLType: types.TypeBigint, KeyType: types.KeyTypePartition, PkPrecedence: 1},
 			}),
 			values:  map[string]interface{}{"user_id": int64(-1)},
 			want:    nil,
@@ -1632,7 +1632,7 @@ func TestCreateOrderedCodeKey(t *testing.T) {
 		{
 			name: "int zero",
 			tableConfig: schemaMapping.NewTableConfig("keyspace", "table", "cf1", types.OrderedCodeEncoding, []*types.Column{
-				{Name: "user_id", CQLType: types.TypeBigint, KeyType: utilities.KEY_TYPE_PARTITION, PkPrecedence: 1},
+				{Name: "user_id", CQLType: types.TypeBigint, KeyType: types.KeyTypePartition, PkPrecedence: 1},
 			}),
 			values:  map[string]interface{}{"user_id": int64(0)},
 			want:    []byte("\x80"),
@@ -1641,7 +1641,7 @@ func TestCreateOrderedCodeKey(t *testing.T) {
 		{
 			name: "int64 minvalue",
 			tableConfig: schemaMapping.NewTableConfig("keyspace", "table", "cf1", types.OrderedCodeEncoding, []*types.Column{
-				{Name: "user_id", CQLType: types.TypeBigint, KeyType: utilities.KEY_TYPE_PARTITION, PkPrecedence: 1},
+				{Name: "user_id", CQLType: types.TypeBigint, KeyType: types.KeyTypePartition, PkPrecedence: 1},
 			}),
 			values:  map[string]interface{}{"user_id": int64(math.MinInt64)},
 			want:    []byte("\x00\xff\x3f\x80\x00\xff\x00\xff\x00\xff\x00\xff\x00\xff\x00\xff\x00\xff"),
@@ -1650,7 +1650,7 @@ func TestCreateOrderedCodeKey(t *testing.T) {
 		{
 			name: "int64 negative value with leading null byte",
 			tableConfig: schemaMapping.NewTableConfig("keyspace", "table", "cf1", types.OrderedCodeEncoding, []*types.Column{
-				{Name: "user_id", CQLType: types.TypeBigint, KeyType: utilities.KEY_TYPE_PARTITION, PkPrecedence: 1},
+				{Name: "user_id", CQLType: types.TypeBigint, KeyType: types.KeyTypePartition, PkPrecedence: 1},
 			}),
 			values:  map[string]interface{}{"user_id": int64(-922337203685473)},
 			want:    []byte("\x00\xff\xfc\xb9\x23\xa2\x9c\x77\x9f"),
@@ -1659,7 +1659,7 @@ func TestCreateOrderedCodeKey(t *testing.T) {
 		{
 			name: "int32 minvalue",
 			tableConfig: schemaMapping.NewTableConfig("keyspace", "table", "cf1", types.OrderedCodeEncoding, []*types.Column{
-				{Name: "user_id", CQLType: types.TypeInt, KeyType: utilities.KEY_TYPE_PARTITION, PkPrecedence: 1},
+				{Name: "user_id", CQLType: types.TypeInt, KeyType: types.KeyTypePartition, PkPrecedence: 1},
 			}),
 			values:  map[string]interface{}{"user_id": int64(math.MinInt32)},
 			want:    []byte("\x07\x80\x00\xff\x00\xff\x00\xff"),
@@ -1668,9 +1668,9 @@ func TestCreateOrderedCodeKey(t *testing.T) {
 		{
 			name: "int minvalue combined",
 			tableConfig: schemaMapping.NewTableConfig("keyspace", "table", "cf1", types.OrderedCodeEncoding, []*types.Column{
-				{Name: "user_id", CQLType: types.TypeBigint, KeyType: utilities.KEY_TYPE_PARTITION, PkPrecedence: 1},
-				{Name: "other_id", CQLType: types.TypeInt, KeyType: utilities.KEY_TYPE_PARTITION, PkPrecedence: 2},
-				{Name: "yet_another_id", CQLType: types.TypeVarchar, KeyType: utilities.KEY_TYPE_PARTITION, PkPrecedence: 3},
+				{Name: "user_id", CQLType: types.TypeBigint, KeyType: types.KeyTypePartition, PkPrecedence: 1},
+				{Name: "other_id", CQLType: types.TypeInt, KeyType: types.KeyTypePartition, PkPrecedence: 2},
+				{Name: "yet_another_id", CQLType: types.TypeVarchar, KeyType: types.KeyTypePartition, PkPrecedence: 3},
 			}),
 			values:  map[string]interface{}{"user_id": int64(math.MinInt64), "other_id": int64(math.MinInt32), "yet_another_id": "id123"},
 			want:    []byte("\x00\xff\x3f\x80\x00\xff\x00\xff\x00\xff\x00\xff\x00\xff\x00\xff\x00\xff\x00\x01\x07\x80\x00\xff\x00\xff\x00\xff\x00\x01\x69\x64\x31\x32\x33"),
@@ -1679,8 +1679,8 @@ func TestCreateOrderedCodeKey(t *testing.T) {
 		{
 			name: "int mixed",
 			tableConfig: schemaMapping.NewTableConfig("keyspace", "table", "cf1", types.OrderedCodeEncoding, []*types.Column{
-				{Name: "user_id", CQLType: types.TypeBigint, KeyType: utilities.KEY_TYPE_PARTITION, PkPrecedence: 1},
-				{Name: "other_id", CQLType: types.TypeInt, KeyType: utilities.KEY_TYPE_PARTITION, PkPrecedence: 2},
+				{Name: "user_id", CQLType: types.TypeBigint, KeyType: types.KeyTypePartition, PkPrecedence: 1},
+				{Name: "other_id", CQLType: types.TypeInt, KeyType: types.KeyTypePartition, PkPrecedence: 2},
 			}),
 			values:  map[string]interface{}{"user_id": int64(-43232545), "other_id": int64(-12451)},
 			want:    []byte("\x0d\x6c\x52\xdf\x00\x01\x1f\xcf\x5d"),
@@ -1689,7 +1689,7 @@ func TestCreateOrderedCodeKey(t *testing.T) {
 		{
 			name: "int zero big endian",
 			tableConfig: schemaMapping.NewTableConfig("keyspace", "table", "cf1", types.BigEndianEncoding, []*types.Column{
-				{Name: "user_id", CQLType: types.TypeBigint, KeyType: utilities.KEY_TYPE_PARTITION, PkPrecedence: 1},
+				{Name: "user_id", CQLType: types.TypeBigint, KeyType: types.KeyTypePartition, PkPrecedence: 1},
 			}),
 			values:  map[string]interface{}{"user_id": int64(0)},
 			want:    []byte("\x00\xff\x00\xff\x00\xff\x00\xff\x00\xff\x00\xff\x00\xff\x00\xff"),
@@ -1698,9 +1698,9 @@ func TestCreateOrderedCodeKey(t *testing.T) {
 		{
 			name: "compound key",
 			tableConfig: schemaMapping.NewTableConfig("keyspace", "table", "cf1", types.OrderedCodeEncoding, []*types.Column{
-				{Name: "user_id", CQLType: types.TypeVarchar, KeyType: utilities.KEY_TYPE_PARTITION, PkPrecedence: 1},
-				{Name: "team_num", CQLType: types.TypeBigint, KeyType: utilities.KEY_TYPE_CLUSTERING, PkPrecedence: 2},
-				{Name: "city", CQLType: types.TypeVarchar, KeyType: utilities.KEY_TYPE_CLUSTERING, PkPrecedence: 3},
+				{Name: "user_id", CQLType: types.TypeVarchar, KeyType: types.KeyTypePartition, PkPrecedence: 1},
+				{Name: "team_num", CQLType: types.TypeBigint, KeyType: types.KeyTypeClustering, PkPrecedence: 2},
+				{Name: "city", CQLType: types.TypeVarchar, KeyType: types.KeyTypeClustering, PkPrecedence: 3},
 			}),
 			values: map[string]interface{}{
 				"user_id":  "user1",
@@ -1713,9 +1713,9 @@ func TestCreateOrderedCodeKey(t *testing.T) {
 		{
 			name: "compound key big endian",
 			tableConfig: schemaMapping.NewTableConfig("keyspace", "table", "cf1", types.BigEndianEncoding, []*types.Column{
-				{Name: "user_id", CQLType: types.TypeVarchar, KeyType: utilities.KEY_TYPE_PARTITION, PkPrecedence: 1},
-				{Name: "team_num", CQLType: types.TypeBigint, KeyType: utilities.KEY_TYPE_CLUSTERING, PkPrecedence: 2},
-				{Name: "city", CQLType: types.TypeVarchar, KeyType: utilities.KEY_TYPE_CLUSTERING, PkPrecedence: 3},
+				{Name: "user_id", CQLType: types.TypeVarchar, KeyType: types.KeyTypePartition, PkPrecedence: 1},
+				{Name: "team_num", CQLType: types.TypeBigint, KeyType: types.KeyTypeClustering, PkPrecedence: 2},
+				{Name: "city", CQLType: types.TypeVarchar, KeyType: types.KeyTypeClustering, PkPrecedence: 3},
 			}),
 			values: map[string]interface{}{
 				"user_id":  "user1",
@@ -1728,9 +1728,9 @@ func TestCreateOrderedCodeKey(t *testing.T) {
 		{
 			name: "unhandled int row key encoding type",
 			tableConfig: schemaMapping.NewTableConfig("keyspace", "table", "cf1", 4 /*unhandled type*/, []*types.Column{
-				{Name: "user_id", CQLType: types.TypeVarchar, KeyType: utilities.KEY_TYPE_PARTITION, PkPrecedence: 1},
-				{Name: "team_num", CQLType: types.TypeBigint, KeyType: utilities.KEY_TYPE_CLUSTERING, PkPrecedence: 2},
-				{Name: "city", CQLType: types.TypeVarchar, KeyType: utilities.KEY_TYPE_CLUSTERING, PkPrecedence: 3},
+				{Name: "user_id", CQLType: types.TypeVarchar, KeyType: types.KeyTypePartition, PkPrecedence: 1},
+				{Name: "team_num", CQLType: types.TypeBigint, KeyType: types.KeyTypeClustering, PkPrecedence: 2},
+				{Name: "city", CQLType: types.TypeVarchar, KeyType: types.KeyTypeClustering, PkPrecedence: 3},
 			}),
 			values: map[string]interface{}{
 				"user_id":  "user1",
@@ -1743,10 +1743,10 @@ func TestCreateOrderedCodeKey(t *testing.T) {
 		{
 			name: "compound key with trailing empty",
 			tableConfig: schemaMapping.NewTableConfig("keyspace", "table", "cf1", types.OrderedCodeEncoding, []*types.Column{
-				{Name: "user_id", CQLType: types.TypeVarchar, KeyType: utilities.KEY_TYPE_PARTITION, PkPrecedence: 1},
-				{Name: "team_num", CQLType: types.TypeBigint, KeyType: utilities.KEY_TYPE_CLUSTERING, PkPrecedence: 2},
-				{Name: "city", CQLType: types.TypeVarchar, KeyType: utilities.KEY_TYPE_CLUSTERING, PkPrecedence: 3},
-				{Name: "borough", CQLType: types.TypeVarchar, KeyType: utilities.KEY_TYPE_CLUSTERING, PkPrecedence: 4},
+				{Name: "user_id", CQLType: types.TypeVarchar, KeyType: types.KeyTypePartition, PkPrecedence: 1},
+				{Name: "team_num", CQLType: types.TypeBigint, KeyType: types.KeyTypeClustering, PkPrecedence: 2},
+				{Name: "city", CQLType: types.TypeVarchar, KeyType: types.KeyTypeClustering, PkPrecedence: 3},
+				{Name: "borough", CQLType: types.TypeVarchar, KeyType: types.KeyTypeClustering, PkPrecedence: 4},
 			}),
 			values: map[string]interface{}{
 				"user_id":  "user3",
@@ -1760,10 +1760,10 @@ func TestCreateOrderedCodeKey(t *testing.T) {
 		{
 			name: "compound key with trailing empty big endian",
 			tableConfig: schemaMapping.NewTableConfig("keyspace", "table", "cf1", types.BigEndianEncoding, []*types.Column{
-				{Name: "user_id", CQLType: types.TypeVarchar, KeyType: utilities.KEY_TYPE_PARTITION, PkPrecedence: 1},
-				{Name: "team_num", CQLType: types.TypeBigint, KeyType: utilities.KEY_TYPE_CLUSTERING, PkPrecedence: 2},
-				{Name: "city", CQLType: types.TypeVarchar, KeyType: utilities.KEY_TYPE_CLUSTERING, PkPrecedence: 3},
-				{Name: "borough", CQLType: types.TypeVarchar, KeyType: utilities.KEY_TYPE_CLUSTERING, PkPrecedence: 4},
+				{Name: "user_id", CQLType: types.TypeVarchar, KeyType: types.KeyTypePartition, PkPrecedence: 1},
+				{Name: "team_num", CQLType: types.TypeBigint, KeyType: types.KeyTypeClustering, PkPrecedence: 2},
+				{Name: "city", CQLType: types.TypeVarchar, KeyType: types.KeyTypeClustering, PkPrecedence: 3},
+				{Name: "borough", CQLType: types.TypeVarchar, KeyType: types.KeyTypeClustering, PkPrecedence: 4},
 			}),
 			values: map[string]interface{}{
 				"user_id":  "user3",
@@ -1777,9 +1777,9 @@ func TestCreateOrderedCodeKey(t *testing.T) {
 		{
 			name: "compound key with empty middle",
 			tableConfig: schemaMapping.NewTableConfig("keyspace", "table", "cf1", types.OrderedCodeEncoding, []*types.Column{
-				{Name: "user_id", CQLType: types.TypeBlob, KeyType: utilities.KEY_TYPE_PARTITION, PkPrecedence: 1},
-				{Name: "team_id", CQLType: types.TypeBlob, KeyType: utilities.KEY_TYPE_CLUSTERING, PkPrecedence: 2},
-				{Name: "city", CQLType: types.TypeBlob, KeyType: utilities.KEY_TYPE_CLUSTERING, PkPrecedence: 3},
+				{Name: "user_id", CQLType: types.TypeBlob, KeyType: types.KeyTypePartition, PkPrecedence: 1},
+				{Name: "team_id", CQLType: types.TypeBlob, KeyType: types.KeyTypeClustering, PkPrecedence: 2},
+				{Name: "city", CQLType: types.TypeBlob, KeyType: types.KeyTypeClustering, PkPrecedence: 3},
 			}),
 			values: map[string]interface{}{
 				"user_id": "\xa2",
@@ -1792,7 +1792,7 @@ func TestCreateOrderedCodeKey(t *testing.T) {
 		{
 			name: "bytes with delimiter",
 			tableConfig: schemaMapping.NewTableConfig("keyspace", "table", "cf1", types.OrderedCodeEncoding, []*types.Column{
-				{Name: "user_id", CQLType: types.TypeBlob, KeyType: utilities.KEY_TYPE_PARTITION, PkPrecedence: 1},
+				{Name: "user_id", CQLType: types.TypeBlob, KeyType: types.KeyTypePartition, PkPrecedence: 1},
 			}),
 			values: map[string]interface{}{
 				"user_id": "\x80\x00\x01\x81",
@@ -1803,10 +1803,10 @@ func TestCreateOrderedCodeKey(t *testing.T) {
 		{
 			name: "compound key with 2 empty middle fields",
 			tableConfig: schemaMapping.NewTableConfig("keyspace", "table", "cf1", types.OrderedCodeEncoding, []*types.Column{
-				{Name: "user_id", CQLType: types.TypeBlob, KeyType: utilities.KEY_TYPE_PARTITION, PkPrecedence: 1},
-				{Name: "team_num", CQLType: types.TypeBlob, KeyType: utilities.KEY_TYPE_CLUSTERING, PkPrecedence: 2},
-				{Name: "city", CQLType: types.TypeBlob, KeyType: utilities.KEY_TYPE_CLUSTERING, PkPrecedence: 3},
-				{Name: "borough", CQLType: types.TypeBlob, KeyType: utilities.KEY_TYPE_CLUSTERING, PkPrecedence: 4},
+				{Name: "user_id", CQLType: types.TypeBlob, KeyType: types.KeyTypePartition, PkPrecedence: 1},
+				{Name: "team_num", CQLType: types.TypeBlob, KeyType: types.KeyTypeClustering, PkPrecedence: 2},
+				{Name: "city", CQLType: types.TypeBlob, KeyType: types.KeyTypeClustering, PkPrecedence: 3},
+				{Name: "borough", CQLType: types.TypeBlob, KeyType: types.KeyTypeClustering, PkPrecedence: 4},
 			}),
 			values: map[string]interface{}{
 				"user_id":  "\xa2",
@@ -1820,8 +1820,8 @@ func TestCreateOrderedCodeKey(t *testing.T) {
 		{
 			name: "byte strings",
 			tableConfig: schemaMapping.NewTableConfig("keyspace", "table", "cf1", types.OrderedCodeEncoding, []*types.Column{
-				{Name: "user_id", CQLType: types.TypeBlob, KeyType: utilities.KEY_TYPE_PARTITION, PkPrecedence: 1},
-				{Name: "city", CQLType: types.TypeBlob, KeyType: utilities.KEY_TYPE_CLUSTERING, PkPrecedence: 2},
+				{Name: "user_id", CQLType: types.TypeBlob, KeyType: types.KeyTypePartition, PkPrecedence: 1},
+				{Name: "city", CQLType: types.TypeBlob, KeyType: types.KeyTypeClustering, PkPrecedence: 2},
 			}),
 			values: map[string]interface{}{
 				"user_id": "\xa5",
@@ -1833,8 +1833,8 @@ func TestCreateOrderedCodeKey(t *testing.T) {
 		{
 			name: "empty first value",
 			tableConfig: schemaMapping.NewTableConfig("keyspace", "table", "cf1", types.OrderedCodeEncoding, []*types.Column{
-				{Name: "user_id", CQLType: types.TypeVarchar, KeyType: utilities.KEY_TYPE_PARTITION, PkPrecedence: 1},
-				{Name: "city", CQLType: types.TypeBlob, KeyType: utilities.KEY_TYPE_CLUSTERING, PkPrecedence: 2},
+				{Name: "user_id", CQLType: types.TypeVarchar, KeyType: types.KeyTypePartition, PkPrecedence: 1},
+				{Name: "city", CQLType: types.TypeBlob, KeyType: types.KeyTypeClustering, PkPrecedence: 2},
 			}),
 			values: map[string]interface{}{
 				"user_id": "",
@@ -1846,9 +1846,9 @@ func TestCreateOrderedCodeKey(t *testing.T) {
 		{
 			name: "null escaped",
 			tableConfig: schemaMapping.NewTableConfig("keyspace", "table", "cf1", types.OrderedCodeEncoding, []*types.Column{
-				{Name: "user_id", CQLType: types.TypeVarchar, KeyType: utilities.KEY_TYPE_PARTITION, PkPrecedence: 1},
-				{Name: "city", CQLType: types.TypeVarchar, KeyType: utilities.KEY_TYPE_CLUSTERING, PkPrecedence: 2},
-				{Name: "borough", CQLType: types.TypeVarchar, KeyType: utilities.KEY_TYPE_CLUSTERING, PkPrecedence: 3},
+				{Name: "user_id", CQLType: types.TypeVarchar, KeyType: types.KeyTypePartition, PkPrecedence: 1},
+				{Name: "city", CQLType: types.TypeVarchar, KeyType: types.KeyTypeClustering, PkPrecedence: 2},
+				{Name: "borough", CQLType: types.TypeVarchar, KeyType: types.KeyTypeClustering, PkPrecedence: 3},
 			}),
 			values: map[string]interface{}{
 				"user_id": "nn",
@@ -1861,9 +1861,9 @@ func TestCreateOrderedCodeKey(t *testing.T) {
 		{
 			name: "null escaped (big endian)",
 			tableConfig: schemaMapping.NewTableConfig("keyspace", "table", "cf1", types.BigEndianEncoding, []*types.Column{
-				{Name: "user_id", CQLType: types.TypeVarchar, KeyType: utilities.KEY_TYPE_PARTITION, PkPrecedence: 1},
-				{Name: "team_num", CQLType: types.TypeBigint, KeyType: utilities.KEY_TYPE_CLUSTERING, PkPrecedence: 2},
-				{Name: "city", CQLType: types.TypeVarchar, KeyType: utilities.KEY_TYPE_CLUSTERING, PkPrecedence: 3},
+				{Name: "user_id", CQLType: types.TypeVarchar, KeyType: types.KeyTypePartition, PkPrecedence: 1},
+				{Name: "team_num", CQLType: types.TypeBigint, KeyType: types.KeyTypeClustering, PkPrecedence: 2},
+				{Name: "city", CQLType: types.TypeVarchar, KeyType: types.KeyTypeClustering, PkPrecedence: 3},
 			}),
 			values: map[string]interface{}{
 				"user_id":  "abcd",
@@ -1876,7 +1876,7 @@ func TestCreateOrderedCodeKey(t *testing.T) {
 		{
 			name: "invalid utf8 varchar returns error",
 			tableConfig: schemaMapping.NewTableConfig("keyspace", "table", "cf1", types.OrderedCodeEncoding, []*types.Column{
-				{Name: "user_id", CQLType: types.TypeVarchar, KeyType: utilities.KEY_TYPE_PARTITION, PkPrecedence: 1},
+				{Name: "user_id", CQLType: types.TypeVarchar, KeyType: types.KeyTypePartition, PkPrecedence: 1},
 			}),
 			values: map[string]interface{}{
 				"user_id": string([]uint8{182}),
@@ -1887,7 +1887,7 @@ func TestCreateOrderedCodeKey(t *testing.T) {
 		{
 			name: "null char",
 			tableConfig: schemaMapping.NewTableConfig("keyspace", "table", "cf1", types.OrderedCodeEncoding, []*types.Column{
-				{Name: "user_id", CQLType: types.TypeVarchar, KeyType: utilities.KEY_TYPE_PARTITION, PkPrecedence: 1},
+				{Name: "user_id", CQLType: types.TypeVarchar, KeyType: types.KeyTypePartition, PkPrecedence: 1},
 			}),
 			values: map[string]interface{}{
 				"user_id": "\x00\x01",

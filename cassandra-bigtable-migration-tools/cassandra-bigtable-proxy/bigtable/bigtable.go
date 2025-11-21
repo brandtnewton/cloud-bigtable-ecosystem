@@ -57,7 +57,7 @@ const (
 	// Cassandra doesn't have a time dimension to their counters, so we need to
 	// use the same time for all counters
 	counterTimestamp            = 0
-	smColTableName              = "table"
+	smColTableName              = "TableName"
 	smColColumnName             = "ColumnName"
 	smColColumnType             = "ColumnType"
 	smColIsCollection           = "IsCollection"
@@ -179,7 +179,7 @@ func (btc *BigtableClient) tableResourceExists(ctx context.Context, adminClient 
 // Parameters:
 //   - ctx: Context for the operation, used for cancellation and deadlines.
 //   - tableName: Columns of the table where the row exists.
-//   - rowKey: Row key of the row to mutate.
+//   - rowKey: GoRow key of the row to mutate.
 //   - columns: Columns to mutate.
 //   - values: Columns to set in the columns.
 //   - deleteColumnFamilies: Columns families to delete.
@@ -589,7 +589,7 @@ func (btc *BigtableClient) updateTableSchema(ctx context.Context, keyspace types
 			mut.Set(schemaMappingTableColumnFamily, smColKeyType, ts, []byte(pmkConfig.KeyType))
 		} else {
 			// overkill, but overwrite any previous KeyType configs which could exist if the table was recreated with different columns
-			mut.Set(schemaMappingTableColumnFamily, smColKeyType, ts, []byte(utilities.KEY_TYPE_REGULAR))
+			mut.Set(schemaMappingTableColumnFamily, smColKeyType, ts, []byte(types.KeyTypeRegular))
 		}
 		// +1 because we track PKPrecedence as 1 indexed for some reason
 		mut.Set(schemaMappingTableColumnFamily, smColPKPrecedence, ts, []byte(strconv.Itoa(pmkIndex+1)))
@@ -771,7 +771,7 @@ func (btc *BigtableClient) ReadTableConfigs(ctx context.Context, keyspace types.
 			return false
 		}
 
-		keyType = btc.parseKeyType(keyspace, tableName, columnName, keyType, pkPrecedence)
+		parsedKeyType := btc.parseKeyType(keyspace, tableName, columnName, keyType, pkPrecedence)
 
 		// Create a new column struct
 		column := &types.Column{
@@ -779,7 +779,7 @@ func (btc *BigtableClient) ReadTableConfigs(ctx context.Context, keyspace types.
 			CQLType:      dt,
 			IsPrimaryKey: isPrimaryKey,
 			PkPrecedence: pkPrecedence,
-			KeyType:      keyType,
+			KeyType:      parsedKeyType,
 		}
 
 		allColumns[tableName] = append(allColumns[tableName], column)
@@ -829,32 +829,32 @@ func (btc *BigtableClient) ReadTableConfigs(ctx context.Context, keyspace types.
 }
 
 // This parsing logic defaults the primary key types, because older versions of the proxy set keyType to an empty string. The only key type that we're guessing about is whether the key is a clustering key or not which, for the purposes of the proxy, doesn't matter.
-func (btc *BigtableClient) parseKeyType(keyspace types.Keyspace, table types.TableName, column, keyType string, pkPrecedence int) string {
+func (btc *BigtableClient) parseKeyType(keyspace types.Keyspace, table types.TableName, column, keyType string, pkPrecedence int) types.KeyType {
 	keyType = strings.ToLower(keyType)
 
 	// we used to write 'partition' for partition keys but Cassandra calls it 'partition_key'
 	if keyType == "partition" {
-		keyType = utilities.KEY_TYPE_PARTITION
+		keyType = string(types.KeyTypePartition)
 	}
 
-	if keyType == utilities.KEY_TYPE_PARTITION && pkPrecedence > 0 {
-		return utilities.KEY_TYPE_PARTITION
-	} else if keyType == utilities.KEY_TYPE_CLUSTERING && pkPrecedence > 1 {
-		return utilities.KEY_TYPE_CLUSTERING
-	} else if keyType == utilities.KEY_TYPE_REGULAR && pkPrecedence == 0 {
-		return utilities.KEY_TYPE_REGULAR
+	if keyType == string(types.KeyTypePartition) && pkPrecedence > 0 {
+		return types.KeyTypePartition
+	} else if keyType == string(types.KeyTypeClustering) && pkPrecedence > 1 {
+		return types.KeyTypeClustering
+	} else if keyType == string(types.KeyTypeRegular) && pkPrecedence == 0 {
+		return types.KeyTypeRegular
 	} else {
 		// this is an unknown key type
-		var defaultKeyType string
+		var defaultKeyType types.KeyType
 		if pkPrecedence <= 0 {
 			// regular columns, that aren't part of the primary key have a precedence of 0.
-			defaultKeyType = utilities.KEY_TYPE_REGULAR
+			defaultKeyType = types.KeyTypeRegular
 		} else if pkPrecedence == 1 {
 			// default to partition key because the first key is always a partition key.
-			defaultKeyType = utilities.KEY_TYPE_PARTITION
+			defaultKeyType = types.KeyTypePartition
 		} else {
 			// default to clustering key because clustering keys usually follow (this will be wrong in the case of a composite partition key), and it doesn't really matter for the purposes of the proxy.
-			defaultKeyType = utilities.KEY_TYPE_CLUSTERING
+			defaultKeyType = types.KeyTypeClustering
 		}
 		btc.Logger.Warn(fmt.Sprintf("unknown key state KeyType='%s' and pkPrecedence of %d for %s.%s column %s. defaulting key type to '%s'", keyType, pkPrecedence,
 			keyspace, table, column, defaultKeyType))

@@ -4,7 +4,6 @@ import (
 	"testing"
 
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/global/types"
-	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/utilities"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -23,7 +22,7 @@ func TestTableConfig_Describe(t *testing.T) {
 					CQLType:      types.TypeVarchar,
 					IsPrimaryKey: false,
 					PkPrecedence: 0,
-					KeyType:      utilities.KEY_TYPE_REGULAR,
+					KeyType:      types.KeyTypeRegular,
 				},
 				{
 					Name:         "org_id",
@@ -31,7 +30,7 @@ func TestTableConfig_Describe(t *testing.T) {
 					CQLType:      types.TypeBigint,
 					IsPrimaryKey: true,
 					PkPrecedence: 1,
-					KeyType:      utilities.KEY_TYPE_PARTITION,
+					KeyType:      types.KeyTypePartition,
 				},
 				{
 					Name:         "user_id",
@@ -39,7 +38,7 @@ func TestTableConfig_Describe(t *testing.T) {
 					CQLType:      types.TypeBigint,
 					IsPrimaryKey: true,
 					PkPrecedence: 2,
-					KeyType:      utilities.KEY_TYPE_CLUSTERING,
+					KeyType:      types.KeyTypeClustering,
 				},
 			}),
 			want: "CREATE TABLE keyspace1.table1 (\n    org_id BIGINT,\n    user_id BIGINT,\n    name VARCHAR,\n    PRIMARY KEY (org_id, user_id)\n);",
@@ -53,7 +52,7 @@ func TestTableConfig_Describe(t *testing.T) {
 					CQLType:      types.TypeBigint,
 					IsPrimaryKey: true,
 					PkPrecedence: 1,
-					KeyType:      utilities.KEY_TYPE_PARTITION,
+					KeyType:      types.KeyTypePartition,
 				},
 				{
 					Name:         "user_id",
@@ -61,7 +60,7 @@ func TestTableConfig_Describe(t *testing.T) {
 					CQLType:      types.TypeBigint,
 					IsPrimaryKey: true,
 					PkPrecedence: 2,
-					KeyType:      utilities.KEY_TYPE_PARTITION,
+					KeyType:      types.KeyTypePartition,
 				},
 				{
 					Name:         "group_id",
@@ -69,7 +68,7 @@ func TestTableConfig_Describe(t *testing.T) {
 					CQLType:      types.TypeBigint,
 					IsPrimaryKey: true,
 					PkPrecedence: 3,
-					KeyType:      utilities.KEY_TYPE_CLUSTERING,
+					KeyType:      types.KeyTypeClustering,
 				},
 				{
 					Name:         "name",
@@ -77,7 +76,7 @@ func TestTableConfig_Describe(t *testing.T) {
 					CQLType:      types.TypeVarchar,
 					IsPrimaryKey: false,
 					PkPrecedence: 0,
-					KeyType:      utilities.KEY_TYPE_REGULAR,
+					KeyType:      types.KeyTypeRegular,
 				},
 			}),
 			want: "CREATE TABLE keyspace1.table1 (\n    org_id BIGINT,\n    user_id BIGINT,\n    group_id BIGINT,\n    name VARCHAR,\n    PRIMARY KEY ((org_id, user_id), group_id)\n);",
@@ -91,7 +90,7 @@ func TestTableConfig_Describe(t *testing.T) {
 					CQLType:      types.TypeBigint,
 					IsPrimaryKey: true,
 					PkPrecedence: 1,
-					KeyType:      utilities.KEY_TYPE_PARTITION,
+					KeyType:      types.KeyTypePartition,
 				},
 				{
 					Name:         "user_id",
@@ -99,7 +98,7 @@ func TestTableConfig_Describe(t *testing.T) {
 					CQLType:      types.TypeBigint,
 					IsPrimaryKey: false,
 					PkPrecedence: 0,
-					KeyType:      utilities.KEY_TYPE_REGULAR,
+					KeyType:      types.KeyTypeRegular,
 				},
 				{
 					Name:         "name",
@@ -107,7 +106,7 @@ func TestTableConfig_Describe(t *testing.T) {
 					CQLType:      types.TypeVarchar,
 					IsPrimaryKey: false,
 					PkPrecedence: 0,
-					KeyType:      utilities.KEY_TYPE_REGULAR,
+					KeyType:      types.KeyTypeRegular,
 				},
 			}),
 			want: "CREATE TABLE keyspace1.table1 (\n    org_id BIGINT,\n    user_id BIGINT,\n    name VARCHAR,\n    PRIMARY KEY (org_id)\n);",

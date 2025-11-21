@@ -61,23 +61,26 @@ func NewSchemaMappingConfig(schemaMappingTableName types.TableName, systemColumn
 	}
 }
 
-// GetAllTables DEPRECATED - will be removed in the future
-func (c *SchemaMappingConfig) GetAllTables() map[types.Keyspace]map[types.TableName]*TableConfig {
+func (c *SchemaMappingConfig) Keyspaces() []types.Keyspace {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
-
-	// make a new shallow copy to ensure that read is thread safe
-	tablesCopy := make(map[types.Keyspace]map[types.TableName]*TableConfig, len(c.tables))
-
-	for keyspace, tables := range c.tables {
-		innerCopy := make(map[types.TableName]*TableConfig, len(tables))
-		for name, config := range tables {
-			innerCopy[name] = config
-		}
-		tablesCopy[keyspace] = innerCopy
+	var results []types.Keyspace
+	for keyspace := range c.tables {
+		results = append(results, keyspace)
 	}
+	return results
+}
 
-	return tablesCopy
+func (c *SchemaMappingConfig) Tables() []*TableConfig {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+	var tables []*TableConfig
+	for _, keyspace := range c.tables {
+		for _, t := range keyspace {
+			tables = append(tables, t)
+		}
+	}
+	return tables
 }
 
 func (c *SchemaMappingConfig) ValidateKeyspace(keyspace types.Keyspace) error {

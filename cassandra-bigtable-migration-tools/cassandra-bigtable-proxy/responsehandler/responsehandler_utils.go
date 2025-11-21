@@ -19,7 +19,6 @@ package responsehandler
 import (
 	"fmt"
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/global/types"
-	schemaMapping "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/schema-mapping"
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/third_party/datastax/proxycore"
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/utilities"
 	"github.com/datastax/go-cassandra-native-protocol/message"
@@ -41,12 +40,15 @@ func selectedColumnsToMetadata(keyspace types.Keyspace, table types.TableName, c
 	return resultColumns
 }
 
-func BuildRowsResultResponse(table *schemaMapping.TableConfig, st *types.PreparedSelectQuery, rows []*types.BigtableResultRow, pv primitive.ProtocolVersion) (*message.RowsResult, error) {
+func BuildRowsResultResponse(st *types.BoundSelectQuery, rows []types.GoRow, pv primitive.ProtocolVersion) (*message.RowsResult, error) {
 	var outputRows []message.Row
 	for _, row := range rows {
 		var outputRow []message.Column
-		for i, c := range st.ResultColumnMetadata {
-			val := row.Values[i]
+		for _, c := range st.ResultColumnMetadata {
+			val, ok := row[c.Name]
+			if !ok {
+				return nil, fmt.Errorf("error building response: missing result for column '%s'", c.Name)
+			}
 			encoded, err := proxycore.EncodeType(c.Type, pv, val)
 			if err != nil {
 				return nil, fmt.Errorf("error encoding column '%s' to %s: %w", c.Name, c.Type.String(), err)
@@ -99,12 +101,12 @@ func BuildPreparedResultResponse(id [16]byte, keyspace types.Keyspace, table typ
 	}, nil
 }
 
-func BuildResponseForSystemQueries(rows [][]interface{}, protocalV primitive.ProtocolVersion) ([]message.Row, error) {
+func BuildResponseForSystemQueries(rows [][]interface{}, pv primitive.ProtocolVersion) ([]message.Row, error) {
 	var allRows []message.Row
 	for _, row := range rows {
 		var mr message.Row
 		for _, val := range row {
-			encodedByte, err := utilities.TypeConversion(val, protocalV)
+			encodedByte, err := utilities.TypeConversion(val, pv)
 			if err != nil {
 				return allRows, err
 			}

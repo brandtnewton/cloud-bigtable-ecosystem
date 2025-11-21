@@ -22,6 +22,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/executors"
+	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/mem_table"
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/responsehandler"
 	cql "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/third_party/cqlparser"
 	"github.com/antlr4-go/antlr/v4"
@@ -36,7 +37,6 @@ import (
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/global/types"
 	otelgo "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/otel"
 	schemaMapping "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/schema-mapping"
-	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/third_party/datastax/parser"
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/third_party/datastax/proxycore"
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/translators"
 	"github.com/datastax/go-cassandra-native-protocol/datatype"
@@ -76,7 +76,7 @@ const (
 	handleExecuteForUpdate = "handleExecuteForUpdate"
 	handleExecuteForSelect = "handleExecuteForSelect"
 	cassandraQuery         = "Cassandra CqlQuery"
-	rowKey                 = "Row Key"
+	rowKey                 = "GoRow Key"
 )
 
 var (
@@ -98,30 +98,30 @@ const (
 )
 
 type Proxy struct {
-	ctx                      context.Context
-	config                   *types.ProxyInstanceConfig
-	logger                   *zap.Logger
-	cluster                  *proxycore.Cluster
-	sessions                 [primitive.ProtocolVersionDse2 + 1]sync.Map // Cache sessions per protocol version
-	mu                       sync.Mutex
-	isConnected              bool
-	isClosing                bool
-	clients                  map[*client]struct{}
-	listeners                map[*net.Listener]struct{}
-	eventClients             sync.Map
-	preparedQueryCache       proxycore.PreparedCache[types.IPreparedQuery]
-	queryMetadataCache       proxycore.PreparedCache[*message.PreparedResult]
-	systemLocalValues        map[string]message.Column
-	closed                   chan struct{}
-	localNode                *node
-	nodes                    []*node
-	bClient                  bigtableModule.BigTableClientIface
-	translator               *translators.TranslatorManager
-	executor                 *executors.QueryExecutorManager
-	schemaMapping            *schemaMapping.SchemaMappingConfig
-	otelInst                 *otelgo.OpenTelemetry
-	otelShutdown             func(context.Context) error
-	systemQueryMetadataCache *SystemQueryMetadataCache
+	ctx                context.Context
+	config             *types.ProxyInstanceConfig
+	logger             *zap.Logger
+	cluster            *proxycore.Cluster
+	sessions           [primitive.ProtocolVersionDse2 + 1]sync.Map // Cache sessions per protocol version
+	mu                 sync.Mutex
+	isConnected        bool
+	isClosing          bool
+	clients            map[*client]struct{}
+	listeners          map[*net.Listener]struct{}
+	eventClients       sync.Map
+	preparedQueryCache proxycore.PreparedCache[types.IPreparedQuery]
+	queryMetadataCache proxycore.PreparedCache[*message.PreparedResult]
+	systemLocalValues  map[string]message.Column
+	closed             chan struct{}
+	localNode          *node
+	nodes              []*node
+	bClient            bigtableModule.BigTableClientIface
+	translator         *translators.TranslatorManager
+	executor           *executors.QueryExecutorManager
+	systemTables       *mem_table.InMemEngine
+	schemaMapping      *schemaMapping.SchemaMappingConfig
+	otelInst           *otelgo.OpenTelemetry
+	otelShutdown       func(context.Context) error
 }
 
 type node struct {
@@ -150,17 +150,17 @@ func NewProxy(ctx context.Context, logger *zap.Logger, config *types.ProxyInstan
 	if err != nil {
 		return nil, err
 	}
-	smc := schemaMapping.NewSchemaMappingConfig(types.TableName(config.BigtableConfig.SchemaMappingTable), config.BigtableConfig.DefaultColumnFamily, logger, nil)
-	bigtableCl := bigtableModule.NewBigtableClient(bigtableClients, adminClients, logger, config.BigtableConfig, smc)
+	schemaMappingConfig := schemaMapping.NewSchemaMappingConfig(types.TableName(config.BigtableConfig.SchemaMappingTable), config.BigtableConfig.DefaultColumnFamily, logger, nil)
+	bigtableCl := bigtableModule.NewBigtableClient(bigtableClients, adminClients, logger, config.BigtableConfig, schemaMappingConfig)
 	for k := range config.BigtableConfig.Instances {
 		tableConfigs, err := bigtableCl.ReadTableConfigs(ctx, k)
 		if err != nil {
 			return nil, err
 		}
-		smc.UpdateTables(tableConfigs)
+		schemaMappingConfig.UpdateTables(tableConfigs)
 	}
-	bigtableCl.LoadConfigs(smc)
-	translator := translators.NewTranslatorManager(logger, smc, config.BigtableConfig.DefaultIntRowKeyEncoding)
+	bigtableCl.LoadConfigs(schemaMappingConfig)
+	translator := translators.NewTranslatorManager(logger, schemaMappingConfig, config.BigtableConfig.DefaultIntRowKeyEncoding)
 
 	// Enable OpenTelemetry traces by setting environment variable GOOGLE_API_GO_EXPERIMENTAL_TELEMETRY_PLATFORM_TRACING to the case-insensitive value "opentelemetry" before loading the client library.
 	otelConfig := &otelgo.OTelConfig{}
@@ -187,25 +187,26 @@ func NewProxy(ctx context.Context, logger *zap.Logger, config *types.ProxyInstan
 		logger.Error("Failed to enable the OTEL: " + err.Error())
 		return nil, err
 	}
-	systemQueryMetadataCache, err := ConstructSystemMetadataRows(smc.GetAllTables())
+	systemTables := mem_table.NewInMemEngine()
+	err = InitializeSystemTables(schemaMappingConfig, systemTables)
 	if err != nil {
 		return nil, err
 	}
 
 	proxy := Proxy{
-		ctx:                      ctx,
-		config:                   config,
-		logger:                   logger,
-		clients:                  make(map[*client]struct{}),
-		listeners:                make(map[*net.Listener]struct{}),
-		closed:                   make(chan struct{}),
-		bClient:                  bigtableCl,
-		translator:               translator,
-		executor:                 executors.NewQueryExecutorManager(smc, bigtableCl),
-		schemaMapping:            smc,
-		systemQueryMetadataCache: systemQueryMetadataCache,
-		otelInst:                 otelInst,
-		otelShutdown:             shutdownOTel,
+		ctx:           ctx,
+		config:        config,
+		logger:        logger,
+		clients:       make(map[*client]struct{}),
+		listeners:     make(map[*net.Listener]struct{}),
+		closed:        make(chan struct{}),
+		bClient:       bigtableCl,
+		translator:    translator,
+		executor:      executors.NewQueryExecutorManager(schemaMappingConfig, bigtableCl, systemTables),
+		schemaMapping: schemaMappingConfig,
+		systemTables:  systemTables,
+		otelInst:      otelInst,
+		otelShutdown:  shutdownOTel,
 	}
 	return &proxy, nil
 }
@@ -742,83 +743,11 @@ func (c *client) handleQuery(raw *frame.RawFrame, msg *partialQuery) {
 	c.sender.Send(raw.Header, selectResult)
 }
 
-func (c *client) filterSystemLocalValues(stmt *parser.SelectStatement, filtered []*message.ColumnMetadata) (row []message.Column, err error) {
-	return parser.FilterValues(stmt, filtered, func(name string) (value message.Column, err error) {
-		if name == "rpc_address" {
-			return proxycore.EncodeType(datatype.Inet, c.proxy.cluster.NegotiatedVersion, c.localIP())
-		} else if name == "host_id" {
-			return proxycore.EncodeType(datatype.Uuid, c.proxy.cluster.NegotiatedVersion, nameBasedUUID(c.localIP().String()))
-		} else if val, ok := c.proxy.systemLocalValues[name]; ok {
-			return val, nil
-		} else if name == parser.CountValueName {
-			return encodedOneValue, nil
-		} else {
-			return nil, fmt.Errorf("no column value for %s", name)
-		}
-	})
-}
-
 func (c *client) localIP() net.IP {
 	if c.proxy.config.RPCAddr != "" {
 		return net.ParseIP(c.proxy.config.RPCAddr)
 	}
 	return net.ParseIP("127.0.0.1")
-}
-
-func (c *client) filterSystemPeerValues(stmt *parser.SelectStatement, filtered []*message.ColumnMetadata, peer *node, peerCount int) (row []message.Column, err error) {
-	return parser.FilterValues(stmt, filtered, func(name string) (value message.Column, err error) {
-		if name == "data_center" {
-			return proxycore.EncodeType(datatype.Varchar, c.proxy.cluster.NegotiatedVersion, peer.dc)
-		} else if name == "host_id" {
-			return proxycore.EncodeType(datatype.Uuid, c.proxy.cluster.NegotiatedVersion, nameBasedUUID(peer.addr.String()))
-		} else if name == "tokens" {
-			return proxycore.EncodeType(datatype.NewListType(datatype.Varchar), c.proxy.cluster.NegotiatedVersion, peer.tokens)
-		} else if name == "peer" {
-			return proxycore.EncodeType(datatype.Inet, c.proxy.cluster.NegotiatedVersion, peer.addr.IP)
-		} else if name == "rpc_address" {
-			return proxycore.EncodeType(datatype.Inet, c.proxy.cluster.NegotiatedVersion, peer.addr.IP)
-		} else if val, ok := c.proxy.systemLocalValues[name]; ok {
-			return val, nil
-		} else if name == parser.CountValueName {
-			return proxycore.EncodeType(datatype.Int, c.proxy.cluster.NegotiatedVersion, peerCount)
-		} else {
-			return nil, fmt.Errorf("no column value for %s", name)
-		}
-	})
-}
-
-// getSystemMetadata retrieves system metadata for `system_schema` keyspaces, tables, or columns.
-//
-// Parameters:
-// - hdr: *frame.Header (request version info)
-// - s: *parser.SelectStatement (sessionKeyspace and table info)
-//
-// Returns:
-// - []message.Row: Metadata rows for the requested table; empty if sessionKeyspace/table is invalid.
-func (c *client) getSystemMetadata(hdr *frame.Header, s *parser.SelectStatement) ([]message.Row, error) {
-	if s.Keyspace != systemSchema || (s.Table != keyspaces && s.Table != tables && s.Table != metaDataColumns) {
-		return nil, nil
-	}
-
-	var cache map[primitive.ProtocolVersion][]message.Row
-	var errMsg error
-	switch s.Table {
-	case keyspaces:
-		cache = c.proxy.systemQueryMetadataCache.KeyspaceSystemQueryMetadataCache
-		errMsg = fmt.Errorf(systemQueryMetadataNotFoundError, "KeyspaceSystemQueryMetadataCache", hdr.Version)
-	case tables:
-		cache = c.proxy.systemQueryMetadataCache.TableSystemQueryMetadataCache
-		errMsg = fmt.Errorf(systemQueryMetadataNotFoundError, "TableSystemQueryMetadataCache", hdr.Version)
-	case metaDataColumns:
-		cache = c.proxy.systemQueryMetadataCache.ColumnsSystemQueryMetadataCache
-		errMsg = fmt.Errorf(systemQueryMetadataNotFoundError, "ColumnsSystemQueryMetadataCache", hdr.Version)
-	}
-
-	if data, exist := cache[hdr.Version]; !exist {
-		return nil, errMsg
-	} else {
-		return data, nil
-	}
 }
 
 func (c *client) Send(hdr *frame.Header, msg message.Message) {
@@ -905,8 +834,8 @@ func (c *client) handleEvent(event proxycore.Event) {
 
 // handlePostDDLEvent handles common operations after DDL statements (CREATE, ALTER, DROP)
 func (c *client) handlePostDDLEvent(hdr *frame.Header, changeType primitive.SchemaChangeType, keyspace, table string) {
-	// Refresh system metadata cache
-	cache, err := ConstructSystemMetadataRows(c.proxy.schemaMapping.GetAllTables())
+	// refresh system metadata
+	err := ReloadSystemTables(c.proxy.schemaMapping, c.proxy.systemTables)
 	if err != nil {
 		c.proxy.logger.Error("Failed to refresh system metadata cache", zap.Error(err))
 		_, span := c.proxy.otelInst.StartSpan(c.proxy.ctx, "handlePostDDLEvent", nil)
@@ -914,7 +843,6 @@ func (c *client) handlePostDDLEvent(hdr *frame.Header, changeType primitive.Sche
 		c.proxy.otelInst.EndSpan(span)
 		c.sender.Send(hdr, &message.Invalid{ErrorMessage: err.Error()})
 	}
-	c.proxy.systemQueryMetadataCache = cache
 
 	// Notify all clients of schema change
 	event := &proxycore.SchemaChangeEvent{

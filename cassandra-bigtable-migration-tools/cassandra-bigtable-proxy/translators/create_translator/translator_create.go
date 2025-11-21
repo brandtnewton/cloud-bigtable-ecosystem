@@ -71,7 +71,7 @@ func (t *CreateTranslator) Translate(query *types.RawQuery, sessionKeyspace type
 		if col.PrimaryKeyColumn() != nil {
 			pmks = append(pmks, types.CreateTablePrimaryKeyConfig{
 				Name:    types.ColumnName(col.Column().GetText()),
-				KeyType: utilities.KEY_TYPE_PARTITION,
+				KeyType: types.KeyTypePartition,
 			})
 		}
 	}
@@ -115,31 +115,31 @@ func (t *CreateTranslator) Translate(query *types.RawQuery, sessionKeyspace type
 			pmks = []types.CreateTablePrimaryKeyConfig{
 				{
 					Name:    types.ColumnName(singleKey.GetText()),
-					KeyType: utilities.KEY_TYPE_PARTITION,
+					KeyType: types.KeyTypePartition,
 				},
 			}
 		} else if compoundKey != nil {
 			pmks = append(pmks, types.CreateTablePrimaryKeyConfig{
 				Name:    types.ColumnName(compoundKey.PartitionKey().GetText()),
-				KeyType: utilities.KEY_TYPE_PARTITION,
+				KeyType: types.KeyTypePartition,
 			})
 			for _, clusterKey := range compoundKey.ClusteringKeyList().AllClusteringKey() {
 				pmks = append(pmks, types.CreateTablePrimaryKeyConfig{
 					Name:    types.ColumnName(clusterKey.Column().GetText()),
-					KeyType: utilities.KEY_TYPE_CLUSTERING,
+					KeyType: types.KeyTypeClustering,
 				})
 			}
 		} else if compositeKey != nil {
 			for _, partitionKey := range compositeKey.PartitionKeyList().AllPartitionKey() {
 				pmks = append(pmks, types.CreateTablePrimaryKeyConfig{
 					Name:    types.ColumnName(partitionKey.Column().GetText()),
-					KeyType: utilities.KEY_TYPE_PARTITION,
+					KeyType: types.KeyTypePartition,
 				})
 			}
 			for _, clusterKey := range compositeKey.ClusteringKeyList().AllClusteringKey() {
 				pmks = append(pmks, types.CreateTablePrimaryKeyConfig{
 					Name:    types.ColumnName(clusterKey.Column().GetText()),
-					KeyType: utilities.KEY_TYPE_CLUSTERING,
+					KeyType: types.KeyTypeClustering,
 				})
 			}
 		}

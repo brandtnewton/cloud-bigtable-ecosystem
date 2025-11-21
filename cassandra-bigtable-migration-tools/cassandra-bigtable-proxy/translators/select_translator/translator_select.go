@@ -133,10 +133,6 @@ func (t *SelectTranslator) Bind(st types.IPreparedQuery, cassandraValues []*prim
 }
 
 func (t *SelectTranslator) doBindSelect(st *types.PreparedSelectQuery, values *types.QueryParameterValues, pv primitive.ProtocolVersion) (*types.BoundSelectQuery, error) {
-	query := &types.BoundSelectQuery{
-		Query:           st,
-		ProtocolVersion: pv,
-		Values:          values,
-	}
+	query := types.NewBoundSelectQuery(st, pv, values)
 	return query, nil
 }

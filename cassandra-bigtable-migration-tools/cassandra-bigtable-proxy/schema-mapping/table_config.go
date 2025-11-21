@@ -22,7 +22,6 @@ import (
 	"strings"
 
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/global/types"
-	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/utilities"
 	"github.com/datastax/go-cassandra-native-protocol/datatype"
 	"github.com/datastax/go-cassandra-native-protocol/message"
 	"golang.org/x/exp/maps"
@@ -69,7 +68,7 @@ func NewTableConfig(
 			Type:     column.CQLType.DataType(),
 		}
 		columnMap[column.Name] = column
-		if column.KeyType != utilities.KEY_TYPE_REGULAR {
+		if column.KeyType != types.KeyTypeRegular {
 			// this field is redundant - make sure it's in sync with other fields
 			column.IsPrimaryKey = true
 			pks = append(pks, column)
@@ -167,7 +166,7 @@ func (t *TableConfig) Describe() string {
 	var pkCols []string = nil
 	var clusteringCols []string = nil
 	for _, key := range t.PrimaryKeys {
-		if key.KeyType == utilities.KEY_TYPE_PARTITION {
+		if key.KeyType == types.KeyTypePartition {
 			pkCols = append(pkCols, string(key.Name))
 		} else {
 			clusteringCols = append(clusteringCols, string(key.Name))
@@ -243,4 +242,27 @@ func (t *TableConfig) GetMetadata() []*message.ColumnMetadata {
 		results = append(results, &c.Metadata)
 	}
 	return results
+}
+
+func (t *TableConfig) CreateTableMetadata() TableMetaData {
+	return TableMetaData{
+		KeyspaceName:          string(t.Keyspace),
+		TableName:             string(t.Name),
+		AdditionalWritePolicy: "99p",
+		BloomFilterFpChance:   0.01,
+		Caching: map[string]string{
+			"keys":               "ALL",
+			"rows_per_partition": "NONE",
+		},
+		Flags: []string{"compound"},
+	}
+}
+
+type TableMetaData struct {
+	KeyspaceName          string
+	TableName             string
+	AdditionalWritePolicy string
+	BloomFilterFpChance   float64
+	Caching               map[string]string
+	Flags                 []string
 }

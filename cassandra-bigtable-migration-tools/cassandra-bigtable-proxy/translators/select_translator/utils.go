@@ -3,7 +3,6 @@ package select_translator
 import (
 	"errors"
 	"fmt"
-	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/global/constants"
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/global/types"
 	sm "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/schema-mapping"
 	cql "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/third_party/cqlparser"
@@ -525,18 +524,18 @@ func createBtqlWhereClause(clauses []types.Condition, tableConfig *sm.TableConfi
 				}
 			}
 		}
-		if whereClause != "" && val.Operator != constants.BETWEEN_AND {
+		if whereClause != "" && val.Operator != types.BETWEEN_AND {
 			whereClause += " AND "
 		}
-		if val.Operator == constants.BETWEEN {
+		if val.Operator == types.BETWEEN {
 			whereClause += fmt.Sprintf("%s BETWEEN %s", column, val.ValuePlaceholder)
-		} else if val.Operator == constants.BETWEEN_AND {
+		} else if val.Operator == types.BETWEEN_AND {
 			whereClause += fmt.Sprintf(" AND %s", val.ValuePlaceholder)
-		} else if val.Operator == constants.IN {
+		} else if val.Operator == types.IN {
 			whereClause += fmt.Sprintf("%s IN UNNEST(%s)", column, val.ValuePlaceholder)
-		} else if val.Operator == constants.MAP_CONTAINS_KEY {
+		} else if val.Operator == types.MAP_CONTAINS_KEY {
 			whereClause += fmt.Sprintf("MAP_CONTAINS_KEY(%s, %s)", column, val.ValuePlaceholder)
-		} else if val.Operator == constants.ARRAY_INCLUDES {
+		} else if val.Operator == types.ARRAY_INCLUDES {
 			whereClause += fmt.Sprintf("ARRAY_INCLUDES(MAP_VALUES(%s), %s)", column, val.ValuePlaceholder)
 		} else {
 			whereClause += fmt.Sprintf("%s %s %s", column, val.Operator, val.ValuePlaceholder)

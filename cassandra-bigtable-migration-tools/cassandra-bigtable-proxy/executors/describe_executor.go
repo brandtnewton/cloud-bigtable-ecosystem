@@ -42,29 +42,29 @@ func newDescribeExecutor(schemaMappings *schemaMapping.SchemaMappingConfig) IQue
 
 // handleDescribeKeyspaces handles the DESCRIBE KEYSPACES command
 func (d *describeExecutor) handleDescribeKeyspaces(desc *types.DescribeQuery) (message.Message, error) {
-	// Get all keyspaces from the schema mapping
-	keyspaces := make([]string, 0, len(d.schemaMappings.GetAllTables()))
 
-	// Add custom keyspaces from schema mapping
-	for keyspace := range d.schemaMappings.GetAllTables() {
-		keyspaces = append(keyspaces, string(keyspace))
+	var keyspaces []string
+	for _, k := range d.schemaMappings.Keyspaces() {
+		keyspaces = append(keyspaces, string(k))
 	}
 
 	// Sort the keyspaces for consistent output
 	sort.Strings(keyspaces)
 
+	var rows []message.Row
+	for _, ks := range keyspaces {
+		rows = append(rows, message.Row{[]byte(ks)})
+	}
+
 	columns := []*message.ColumnMetadata{
 		{
-			Name:     "name", // Changed from "keyspace_name" to "name" to match cqlsh's expectation
+			Name:     "name",
 			Type:     datatype.Varchar,
 			Table:    "keyspaces",
 			Keyspace: "system_virtual_schema",
 		},
 	}
-	var rows []message.Row
-	for _, ks := range keyspaces {
-		rows = append(rows, message.Row{[]byte(ks)})
-	}
+
 	return &message.RowsResult{
 		Metadata: &message.RowsMetadata{
 			ColumnCount: int32(len(columns)),
@@ -86,13 +86,11 @@ func (d *describeExecutor) handleDescribeTables(desc *types.DescribeQuery) (mess
 		{"system_virtual_schema", "metaDataColumns"},
 	}
 
-	for _, keyspaceTables := range d.schemaMappings.GetAllTables() {
-		for _, table := range keyspaceTables {
-			tables = append(tables, struct {
-				keyspace string
-				table    string
-			}{string(table.Keyspace), string(table.Name)})
-		}
+	for _, table := range d.schemaMappings.Tables() {
+		tables = append(tables, struct {
+			keyspace string
+			table    string
+		}{string(table.Keyspace), string(table.Name)})
 	}
 
 	columns := []*message.ColumnMetadata{

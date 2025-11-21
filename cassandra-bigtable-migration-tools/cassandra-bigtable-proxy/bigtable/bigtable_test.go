@@ -31,7 +31,6 @@ import (
 	types "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/global/types"
 	schemaMapping "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/schema-mapping"
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/translators"
-	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/utilities"
 	"github.com/datastax/go-cassandra-native-protocol/datatype"
 	"github.com/datastax/go-cassandra-native-protocol/message"
 	"github.com/stretchr/testify/assert"
@@ -449,7 +448,7 @@ func TestDeleteRowsUsingTimestamp(t *testing.T) {
 	// Verify that nothing breaks or changes for non-existent columns
 	row, err = tbl.ReadRow(ctx, rowKey)
 	assert.NoError(t, err)
-	assert.Empty(t, row[columnFamily], "Row should remain empty as no valid columns existed to delete")
+	assert.Empty(t, row[columnFamily], "GoRow should remain empty as no valid columns existed to delete")
 }
 
 func TestMutateRowDeleteColumnFamily(t *testing.T) {
@@ -951,7 +950,7 @@ func TestCreateTable(t *testing.T) {
 			CQLType:      types.TypeVarchar,
 			IsPrimaryKey: false,
 			PkPrecedence: 0,
-			KeyType:      utilities.KEY_TYPE_REGULAR,
+			KeyType:      types.KeyTypeRegular,
 			Metadata: message.ColumnMetadata{
 				Keyspace: "ks1",
 				Table:    "create_table_test",
@@ -965,7 +964,7 @@ func TestCreateTable(t *testing.T) {
 			CQLType:      types.TypeInt,
 			IsPrimaryKey: false,
 			PkPrecedence: 0,
-			KeyType:      utilities.KEY_TYPE_REGULAR,
+			KeyType:      types.KeyTypeRegular,
 			Metadata: message.ColumnMetadata{
 				Keyspace: "ks1",
 				Table:    "create_table_test",
@@ -1060,7 +1059,7 @@ func TestCanLoadBadTableConfig(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, "column1", pkCol.Name)
 	assert.Equal(t, 1, pkCol.PkPrecedence)
-	assert.Equal(t, utilities.KEY_TYPE_PARTITION, pkCol.KeyType)
+	assert.Equal(t, types.KeyTypePartition, pkCol.KeyType)
 	assert.Equal(t, true, pkCol.IsPrimaryKey)
 }
 
@@ -1204,7 +1203,7 @@ func TestAlterTable(t *testing.T) {
 			CQLType:      types.TypeVarchar,
 			IsPrimaryKey: false,
 			PkPrecedence: 0,
-			KeyType:      utilities.KEY_TYPE_REGULAR,
+			KeyType:      types.KeyTypeRegular,
 			Metadata: message.ColumnMetadata{
 				Keyspace: "ks1",
 				Table:    "alter_table_test",
@@ -1218,7 +1217,7 @@ func TestAlterTable(t *testing.T) {
 			CQLType:      types.TypeVarchar,
 			IsPrimaryKey: false,
 			PkPrecedence: 0,
-			KeyType:      utilities.KEY_TYPE_REGULAR,
+			KeyType:      types.KeyTypeRegular,
 			Metadata: message.ColumnMetadata{
 				Keyspace: "ks1",
 				Table:    "alter_table_test",

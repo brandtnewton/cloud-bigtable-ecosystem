@@ -25,6 +25,15 @@ import (
 	"time"
 )
 
+type KeyType string
+
+const (
+	KeyTypePartition  KeyType = "partition_key"
+	KeyTypeClustering KeyType = "clustering"
+	// KeyTypeRegular - a regular column; not a primary key
+	KeyTypeRegular KeyType = "regular"
+)
+
 // ColumnFamily a Bigtable Column Family
 type ColumnFamily string
 
@@ -50,6 +59,27 @@ func (k Keyspace) IsSystemKeyspace() bool {
 	return k == "system" || k == "system_schema" || k == "system_virtual_schema"
 }
 
+type KeyspaceMetadata struct {
+	KeyspaceName  string
+	DurableWrites bool
+	Replication   map[string]string
+}
+
+func (k Keyspace) GetMetadata() KeyspaceMetadata {
+	if k.IsSystemKeyspace() {
+		return KeyspaceMetadata{
+			KeyspaceName:  string(k),
+			DurableWrites: true,
+			Replication:   map[string]string{"class": "org.apache.cassandra.locator.LocalStrategy"},
+		}
+	}
+	return KeyspaceMetadata{
+		KeyspaceName:  string(k),
+		DurableWrites: true,
+		Replication:   map[string]string{"class": "org.apache.cassandra.locator.SimpleStrategy", "replication_factor": "1"},
+	}
+}
+
 type BigtableData struct {
 	Family ColumnFamily
 	Column ColumnQualifier
@@ -63,8 +93,35 @@ type Column struct {
 	// todo remove this field because it's redundant - you can use PkPrecedence or KeyType to infer this
 	IsPrimaryKey bool
 	PkPrecedence int
-	KeyType      string
+	KeyType      KeyType
 	Metadata     message.ColumnMetadata
+}
+
+type SystemColumnMetadata struct {
+	KeyspaceName    string
+	TableName       string
+	ColumnName      string
+	ClusteringOrder string
+	Kind            string
+	Position        int32
+	Type            string
+}
+
+func (c *Column) SystemMetadata(position int) SystemColumnMetadata {
+	clusteringOrder := "none"
+	if c.KeyType == KeyTypeClustering {
+		clusteringOrder = "asc"
+	}
+
+	return SystemColumnMetadata{
+		KeyspaceName:    c.Metadata.Keyspace,
+		TableName:       c.Metadata.Table,
+		ColumnName:      string(c.Name),
+		ClusteringOrder: clusteringOrder,
+		Kind:            string(c.KeyType),
+		Position:        int32(position),
+		Type:            c.CQLType.String(),
+	}
 }
 
 type BigtableColumn struct {
@@ -86,9 +143,7 @@ const (
 	OrderedCodeEncoding
 )
 
-type BigtableResultRow struct {
-	Values []GoValue
-}
+type GoRow map[string]GoValue
 
 type QueryType int
 

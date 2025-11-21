@@ -22,7 +22,6 @@ import (
 	"testing"
 
 	types "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/global/types"
-	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/utilities"
 	"github.com/datastax/go-cassandra-native-protocol/datatype"
 	"github.com/datastax/go-cassandra-native-protocol/message"
 	"github.com/stretchr/testify/assert"
@@ -43,13 +42,13 @@ func getSchemaMappingConfig() *SchemaMappingConfig {
 					{
 						Name:         "column1",
 						CQLType:      types.TypeVarchar,
-						KeyType:      utilities.KEY_TYPE_REGULAR,
+						KeyType:      types.KeyTypeRegular,
 						ColumnFamily: "cf1",
 					},
 					{
 						Name:         "column2",
 						CQLType:      types.TypeInt,
-						KeyType:      utilities.KEY_TYPE_REGULAR,
+						KeyType:      types.KeyTypeRegular,
 						ColumnFamily: "cf1",
 					},
 				},

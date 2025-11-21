@@ -1,7 +1,6 @@
 package types
 
 import (
-	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/global/constants"
 	"time"
 )
 
@@ -143,9 +142,30 @@ type BigtableDeleteListElementsOp struct {
 	Values []BigtableValue
 }
 
+type Operator string
+
+// TODO: we need to move all the constants here.
+// Just to keep the code clean, we have defined the constants here.
+// It will help in reducing the number of magic strings in the code also to avoid the circular dependency.
+const (
+	EQ               Operator = "="
+	GT               Operator = ">"
+	LT               Operator = "<"
+	GTE              Operator = ">="
+	LTE              Operator = "<="
+	BETWEEN          Operator = "BETWEEN"
+	LIKE             Operator = "LIKE"
+	BETWEEN_AND      Operator = "BETWEEN-AND"
+	IN               Operator = "IN"
+	ARRAY_INCLUDES   Operator = "ARRAY_INCLUDES"
+	MAP_CONTAINS_KEY Operator = "MAP_CONTAINS_KEY"
+	CONTAINS_KEY     Operator = "CONTAINS KEY"
+	CONTAINS         Operator = "CONTAINS"
+)
+
 type Condition struct {
 	Column   *Column
-	Operator constants.Operator
+	Operator Operator
 	// points to a placeholder
 	ValuePlaceholder Placeholder
 }

@@ -26,7 +26,6 @@ import (
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/global/types"
 	schemaMapping "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/schema-mapping"
 	cql "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/third_party/cqlparser"
-	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/utilities"
 	"github.com/antlr4-go/antlr/v4"
 	"github.com/datastax/go-cassandra-native-protocol/datatype"
 	"github.com/datastax/go-cassandra-native-protocol/message"
@@ -693,8 +692,8 @@ func newTestTableConfig() *schemaMapping.TableConfig {
 	const systemColumnFamily = "cf1"
 
 	testTableColumns := []*types.Column{
-		{Name: "col1", CQLType: types.TypeVarchar, KeyType: utilities.KEY_TYPE_PARTITION},
-		{Name: "col2", CQLType: types.TypeInt, KeyType: utilities.KEY_TYPE_CLUSTERING},
+		{Name: "col1", CQLType: types.TypeVarchar, KeyType: types.KeyTypePartition},
+		{Name: "col2", CQLType: types.TypeInt, KeyType: types.KeyTypeClustering},
 	}
 
 	return schemaMapping.NewTableConfig(

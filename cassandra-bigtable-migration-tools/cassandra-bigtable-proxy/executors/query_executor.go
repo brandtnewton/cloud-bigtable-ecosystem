@@ -5,6 +5,7 @@ import (
 	"fmt"
 	bigtableModule "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/bigtable"
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/global/types"
+	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/mem_table"
 	schemaMapping "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/schema-mapping"
 	"github.com/datastax/go-cassandra-native-protocol/message"
 )
@@ -18,11 +19,11 @@ type QueryExecutorManager struct {
 	executors []IQueryExecutor
 }
 
-func NewQueryExecutorManager(s *schemaMapping.SchemaMappingConfig, bt bigtableModule.BigTableClientIface) *QueryExecutorManager {
+func NewQueryExecutorManager(s *schemaMapping.SchemaMappingConfig, bt bigtableModule.BigTableClientIface, systemTables *mem_table.InMemEngine) *QueryExecutorManager {
 	return &QueryExecutorManager{executors: []IQueryExecutor{
 		newDescribeExecutor(s),
 		newUseExecutor(s),
-		newSelectSystemTableExecutor(s),
+		newSelectSystemTableExecutor(s, systemTables),
 		newBigtableExecutor(bt),
 	}}
 }

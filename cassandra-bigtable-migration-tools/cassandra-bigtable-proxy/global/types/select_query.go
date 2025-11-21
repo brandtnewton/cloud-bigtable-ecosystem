@@ -6,11 +6,6 @@ import (
 	"github.com/datastax/go-cassandra-native-protocol/primitive"
 )
 
-type SelectClause struct {
-	IsStar  bool
-	Columns []SelectedColumn
-}
-
 type BtqlFuncCode int
 
 const (
@@ -72,6 +67,11 @@ type PreparedSelectQuery struct {
 	ResultColumnMetadata []*message.ColumnMetadata
 }
 
+type SelectClause struct {
+	IsStar  bool
+	Columns []SelectedColumn
+}
+
 func (p PreparedSelectQuery) IsIdempotent() bool {
 	return true
 }
@@ -113,17 +113,43 @@ func (p PreparedSelectQuery) CqlQuery() string {
 }
 
 type BoundSelectQuery struct {
-	Query           *PreparedSelectQuery
-	ProtocolVersion primitive.ProtocolVersion
-	Values          *QueryParameterValues
+	keyspace             Keyspace
+	table                TableName
+	cqlQuery             string
+	TranslatedQuery      string
+	SelectClause         *SelectClause
+	Conditions           []Condition
+	CachedBTPrepare      *bigtable.PreparedStatement
+	OrderBy              OrderBy
+	GroupByColumns       []string
+	ResultColumnMetadata []*message.ColumnMetadata
+	ProtocolVersion      primitive.ProtocolVersion
+	Values               *QueryParameterValues
+}
+
+func NewBoundSelectQuery(query *PreparedSelectQuery, protocolVersion primitive.ProtocolVersion, values *QueryParameterValues) *BoundSelectQuery {
+	return &BoundSelectQuery{
+		keyspace:             query.keyspace,
+		table:                query.table,
+		cqlQuery:             query.cqlQuery,
+		TranslatedQuery:      query.TranslatedQuery,
+		SelectClause:         query.SelectClause,
+		Conditions:           query.Conditions,
+		CachedBTPrepare:      query.CachedBTPrepare,
+		OrderBy:              query.OrderBy,
+		GroupByColumns:       query.GroupByColumns,
+		ResultColumnMetadata: query.ResultColumnMetadata,
+		ProtocolVersion:      protocolVersion,
+		Values:               values,
+	}
 }
 
 func (b BoundSelectQuery) CqlQuery() string {
-	return b.Query.cqlQuery
+	return b.cqlQuery
 }
 
 func (b BoundSelectQuery) BigtableQuery() string {
-	return b.Query.TranslatedQuery
+	return b.TranslatedQuery
 }
 
 func (b BoundSelectQuery) AsBulkMutation() (IBigtableMutation, bool) {
@@ -135,9 +161,9 @@ func (b BoundSelectQuery) QueryType() QueryType {
 }
 
 func (b BoundSelectQuery) Keyspace() Keyspace {
-	return b.Query.Keyspace()
+	return b.keyspace
 }
 
 func (b BoundSelectQuery) Table() TableName {
-	return b.Query.Table()
+	return b.table
 }

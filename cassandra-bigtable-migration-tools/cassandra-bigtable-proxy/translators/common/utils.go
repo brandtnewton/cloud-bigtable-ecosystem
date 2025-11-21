@@ -214,7 +214,7 @@ func ParseWhereClause(input cql.IWhereSpecContext, tableConfig *schemaMapping.Ta
 			p := params.PushParameter(column, column.CQLType, false)
 			conditions = append(conditions, types.Condition{
 				Column:           column,
-				Operator:         constants.EQ,
+				Operator:         types.EQ,
 				ValuePlaceholder: p,
 			})
 			if !isPrepared {
@@ -231,7 +231,7 @@ func ParseWhereClause(input cql.IWhereSpecContext, tableConfig *schemaMapping.Ta
 			p := params.PushParameter(column, column.CQLType, false)
 			conditions = append(conditions, types.Condition{
 				Column:           column,
-				Operator:         constants.GT,
+				Operator:         types.GT,
 				ValuePlaceholder: p,
 			})
 			if !isPrepared {
@@ -248,7 +248,7 @@ func ParseWhereClause(input cql.IWhereSpecContext, tableConfig *schemaMapping.Ta
 			p := params.PushParameter(column, column.CQLType, false)
 			conditions = append(conditions, types.Condition{
 				Column:           column,
-				Operator:         constants.LT,
+				Operator:         types.LT,
 				ValuePlaceholder: p,
 			})
 			if !isPrepared {
@@ -265,7 +265,7 @@ func ParseWhereClause(input cql.IWhereSpecContext, tableConfig *schemaMapping.Ta
 			p := params.PushParameter(column, column.CQLType, false)
 			conditions = append(conditions, types.Condition{
 				Column:           column,
-				Operator:         constants.GTE,
+				Operator:         types.GTE,
 				ValuePlaceholder: p,
 			})
 			if !isPrepared {
@@ -282,7 +282,7 @@ func ParseWhereClause(input cql.IWhereSpecContext, tableConfig *schemaMapping.Ta
 			p := params.PushParameter(column, column.CQLType, false)
 			conditions = append(conditions, types.Condition{
 				Column:           column,
-				Operator:         constants.LTE,
+				Operator:         types.LTE,
 				ValuePlaceholder: p,
 			})
 			if !isPrepared {
@@ -299,7 +299,7 @@ func ParseWhereClause(input cql.IWhereSpecContext, tableConfig *schemaMapping.Ta
 			p := params.PushParameter(column, column.CQLType, false)
 			conditions = append(conditions, types.Condition{
 				Column:           column,
-				Operator:         constants.IN,
+				Operator:         types.IN,
 				ValuePlaceholder: p,
 			})
 			if !isPrepared {
@@ -326,13 +326,13 @@ func ParseWhereClause(input cql.IWhereSpecContext, tableConfig *schemaMapping.Ta
 			}
 		} else if val.RelalationContains() != nil {
 			relContains := val.RelalationContains()
-			var operator constants.Operator
+			var operator types.Operator
 			var elementType types.CqlDataType
 			if column.CQLType.Code() == types.LIST {
-				operator = constants.ARRAY_INCLUDES
+				operator = types.ARRAY_INCLUDES
 				elementType = column.CQLType.(types.ListType).ElementType()
 			} else if column.CQLType.Code() == types.SET {
-				operator = constants.MAP_CONTAINS_KEY
+				operator = types.MAP_CONTAINS_KEY
 				elementType = column.CQLType.(types.SetType).ElementType()
 			} else {
 				return nil, errors.New("CONTAINS are only supported for set and list")
@@ -363,7 +363,7 @@ func ParseWhereClause(input cql.IWhereSpecContext, tableConfig *schemaMapping.Ta
 			p := params.PushParameter(column, keyType, false)
 			conditions = append(conditions, types.Condition{
 				Column:           column,
-				Operator:         constants.MAP_CONTAINS_KEY,
+				Operator:         types.MAP_CONTAINS_KEY,
 				ValuePlaceholder: p,
 			})
 			if !isPrepared {
@@ -380,7 +380,7 @@ func ParseWhereClause(input cql.IWhereSpecContext, tableConfig *schemaMapping.Ta
 			p := params.PushParameter(column, column.CQLType, false)
 			conditions = append(conditions, types.Condition{
 				Column:           column,
-				Operator:         constants.LIKE,
+				Operator:         types.LIKE,
 				ValuePlaceholder: p,
 			})
 			if !isPrepared {
@@ -397,7 +397,7 @@ func ParseWhereClause(input cql.IWhereSpecContext, tableConfig *schemaMapping.Ta
 			p := params.PushParameter(column, column.CQLType, false)
 			conditions = append(conditions, types.Condition{
 				Column:           column,
-				Operator:         constants.BETWEEN,
+				Operator:         types.BETWEEN,
 				ValuePlaceholder: p,
 			})
 			if !isPrepared {
@@ -622,15 +622,6 @@ func GetCqlConstant(c cql.IConstantContext, dt types.CqlDataType) (types.GoValue
 	return nil, fmt.Errorf("unhandled constant: %s", c.GetText())
 }
 
-// DecodeBytesToCassandraColumnType(): Function to decode incoming bytes parameter
-// for handleExecute scenario into corresponding go datatype
-//
-// Parameters:
-//   - b: []byte
-//   - choice:  datatype.DataType
-//   - protocolVersion: primitive.ProtocolVersion
-//
-// Returns: (interface{}, error)
 func decodePreparedQueryValueToGo(val *primitive.Value, choice datatype.PrimitiveType, protocolVersion primitive.ProtocolVersion) (any, error) {
 	switch choice.GetDataTypeCode() {
 	case primitive.DataTypeCodeVarchar:

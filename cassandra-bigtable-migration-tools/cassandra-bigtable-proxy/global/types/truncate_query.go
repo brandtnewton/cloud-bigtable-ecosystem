@@ -40,5 +40,5 @@ func (c TruncateTableStatementMap) QueryType() QueryType {
 
 type CreateTablePrimaryKeyConfig struct {
 	Name    ColumnName
-	KeyType string
+	KeyType KeyType
 }

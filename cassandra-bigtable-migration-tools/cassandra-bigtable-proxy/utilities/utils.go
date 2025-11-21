@@ -32,12 +32,6 @@ import (
 	"github.com/datastax/go-cassandra-native-protocol/primitive"
 )
 
-const (
-	KEY_TYPE_PARTITION  = "partition_key"
-	KEY_TYPE_CLUSTERING = "clustering"
-	KEY_TYPE_REGULAR    = "regular"
-)
-
 // from https://cassandra.apache.org/doc/4.0/cassandra/cql/appendices.html#appendix-A
 // a value of "true" means the keyword is truly reserved, while a value of "false" means the keyword is non-reserved/available in certain situations.
 var reservedKeywords = map[string]bool{

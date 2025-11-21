@@ -44,12 +44,6 @@ import (
 //   - time.Duration: The total elapsed time for the operation.
 //   - error: Error if the select statement execution fails.
 func (btc *BigtableClient) SelectStatement(ctx context.Context, query *types.BoundSelectQuery) (*message.RowsResult, error) {
-	preparedStmt, err := btc.PrepareStatement(ctx, query.Query)
-	query.Query.CachedBTPrepare = preparedStmt
-	if err != nil {
-		btc.Logger.Error("Failed to prepare statement", zap.String("query", query.Query.TranslatedQuery), zap.Error(err))
-		return nil, fmt.Errorf("failed to prepare statement: %w", err)
-	}
 	return btc.ExecutePreparedStatement(ctx, query)
 }
 
@@ -64,21 +58,23 @@ func (btc *BigtableClient) SelectStatement(ctx context.Context, query *types.Bou
 //   - time.Duration: The total elapsed time for the operation.
 //   - error: Error if the statement preparation or execution fails.
 func (btc *BigtableClient) ExecutePreparedStatement(ctx context.Context, query *types.BoundSelectQuery) (*message.RowsResult, error) {
+	if query.CachedBTPrepare == nil {
+		return nil, fmt.Errorf("cannot execute select query because prepared bigtable query is nil")
+	}
+
 	params := query.Values.AsMap()
-	boundStmt, err := query.Query.CachedBTPrepare.Bind(params)
+	boundStmt, err := query.CachedBTPrepare.Bind(params)
 	if err != nil {
 		btc.Logger.Error("Failed to bind parameters", zap.Any("params", params), zap.Error(err))
 		return nil, fmt.Errorf("failed to bind parameters: %w", err)
 	}
 
-	table, err := btc.SchemaMappingConfig.GetTableConfig(query.Keyspace(), query.Table())
-
 	var processingErr error
-	var rows []*types.BigtableResultRow
+	var rows []types.GoRow
 	executeErr := boundStmt.Execute(ctx, func(resultRow bigtable.ResultRow) bool {
-		r, convertErr := btc.convertResultRow(resultRow, query.Query) // Call the implemented helper
+		r, convertErr := btc.convertResultRow(resultRow, query) // Call the implemented helper
 		if convertErr != nil {
-			btc.Logger.Error("Failed to convert result row", zap.Error(convertErr), zap.String("btql", query.Query.TranslatedQuery))
+			btc.Logger.Error("Failed to convert result row", zap.Error(convertErr), zap.String("btql", query.TranslatedQuery))
 			processingErr = convertErr // Capture the error
 			return false               // Stop execution
 		}
@@ -93,17 +89,16 @@ func (btc *BigtableClient) ExecutePreparedStatement(ctx context.Context, query *
 		return nil, fmt.Errorf("failed during row processing: %w", processingErr)
 	}
 
-	return responsehandler.BuildRowsResultResponse(table, query.Query, rows, query.ProtocolVersion)
+	return responsehandler.BuildRowsResultResponse(query, rows, query.ProtocolVersion)
 }
 
-// convertResultRow converts a bigtable.ResultRow into the map format expected by the ResponseHandler.
-func (btc *BigtableClient) convertResultRow(resultRow bigtable.ResultRow, query *types.PreparedSelectQuery) (*types.BigtableResultRow, error) {
+func (btc *BigtableClient) convertResultRow(resultRow bigtable.ResultRow, query *types.BoundSelectQuery) (types.GoRow, error) {
 	table, err := btc.SchemaMappingConfig.GetTableConfig(query.Keyspace(), query.Table())
 	if err != nil {
 		return nil, err
 	}
 
-	rowMap := make(map[string]types.GoValue)
+	result := make(types.GoRow)
 	for i, colMeta := range resultRow.Metadata.Columns {
 		var val any
 		colName := colMeta.Name
@@ -130,17 +125,17 @@ func (btc *BigtableClient) convertResultRow(resultRow bigtable.ResultRow, query 
 			if err != nil {
 				return nil, err
 			}
-			rowMap[colName] = goVal
+			result[colName] = goVal
 		case []byte:
-			rowMap[colName] = v
+			result[colName] = v
 		case map[string]*int64:
 			// counters are always a column family with a single column with an empty qualifier
 			counterValue, ok := v[""]
 			if ok {
-				rowMap[colName] = *counterValue
+				result[colName] = *counterValue
 			} else {
 				// default the counter to 0
-				rowMap[colName] = int64(0)
+				result[colName] = int64(0)
 			}
 		case map[string][]uint8: // either all scalars (when "select *") or a collection
 			// all scalars in system column family when "select *" is used
@@ -159,7 +154,7 @@ func (btc *BigtableClient) convertResultRow(resultRow bigtable.ResultRow, query 
 					if err != nil {
 						return nil, err
 					}
-					rowMap[key] = goVal
+					result[key] = goVal
 				}
 			} else if expectedType.Code() == types.LIST {
 				lt := expectedType.(*types.ListType)
@@ -171,7 +166,7 @@ func (btc *BigtableClient) convertResultRow(resultRow bigtable.ResultRow, query 
 					}
 					listValues = append(listValues, goVal)
 				}
-				rowMap[colName] = listValues
+				result[colName] = listValues
 			} else if expectedType.Code() == types.SET {
 				st := expectedType.(*types.SetType)
 				var setValues []types.GoValue
@@ -186,7 +181,7 @@ func (btc *BigtableClient) convertResultRow(resultRow bigtable.ResultRow, query 
 					}
 					setValues = append(setValues, goKey)
 				}
-				rowMap[colName] = setValues
+				result[colName] = setValues
 			} else if expectedType.Code() == types.MAP {
 				mt := expectedType.(*types.MapType)
 				mapValue := make(map[types.GoValue]types.GoValue)
@@ -205,7 +200,7 @@ func (btc *BigtableClient) convertResultRow(resultRow bigtable.ResultRow, query 
 					}
 					mapValue[goKey] = goVal
 				}
-				rowMap[colName] = mapValue
+				result[colName] = mapValue
 			} else {
 				return nil, fmt.Errorf("unhandled collection response type: %s", expectedType.String())
 			}
@@ -222,33 +217,21 @@ func (btc *BigtableClient) convertResultRow(resultRow bigtable.ResultRow, query 
 				}
 				listValues = append(listValues, goVal)
 			}
-			rowMap[colName] = listValues
+			result[colName] = listValues
 		case int64, float64:
-			rowMap[colName] = v
+			result[colName] = v
 		case float32:
-			rowMap[colName] = float64(v)
+			result[colName] = float64(v)
 		case time.Time:
-			rowMap[colName] = v
+			result[colName] = v
 		case nil:
-			rowMap[colName] = nil
+			result[colName] = nil
 		default:
 			return nil, fmt.Errorf("unsupported Bigtable SQL type  %T for column %s", v, colName)
 		}
 	}
 
-	var results []types.GoValue
-	for _, m := range query.ResultColumnMetadata {
-		val, ok := rowMap[m.Name]
-		if ok {
-			results = append(results, val)
-		} else {
-			results = append(results, nil)
-		}
-	}
-
-	return &types.BigtableResultRow{
-		Values: results,
-	}, nil
+	return result, nil
 }
 
 // createSelectStarScalarsMap - extracts the SystemColumnFamily result, if it exists, and loads it into a map. This map will only be populated with scalar column values when a "select *" is used because those columns are all stored in one column family.

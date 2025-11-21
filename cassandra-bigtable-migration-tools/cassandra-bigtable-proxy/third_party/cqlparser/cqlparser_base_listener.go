@@ -924,17 +924,17 @@ func (s *BaseCqlParserListener) EnterRelationElement(ctx *RelationElementContext
 // ExitRelationElement is called when production relationElement is exited.
 func (s *BaseCqlParserListener) ExitRelationElement(ctx *RelationElementContext) {}
 
-// EnterRelalationContains is called when production relalationContains is entered.
-func (s *BaseCqlParserListener) EnterRelalationContains(ctx *RelalationContainsContext) {}
+// EnterRelationContains is called when production relationContains is entered.
+func (s *BaseCqlParserListener) EnterRelationContains(ctx *RelationContainsContext) {}
 
-// ExitRelalationContains is called when production relalationContains is exited.
-func (s *BaseCqlParserListener) ExitRelalationContains(ctx *RelalationContainsContext) {}
+// ExitRelationContains is called when production relationContains is exited.
+func (s *BaseCqlParserListener) ExitRelationContains(ctx *RelationContainsContext) {}
 
-// EnterRelalationContainsKey is called when production relalationContainsKey is entered.
-func (s *BaseCqlParserListener) EnterRelalationContainsKey(ctx *RelalationContainsKeyContext) {}
+// EnterRelationContainsKey is called when production relationContainsKey is entered.
+func (s *BaseCqlParserListener) EnterRelationContainsKey(ctx *RelationContainsKeyContext) {}
 
-// ExitRelalationContainsKey is called when production relalationContainsKey is exited.
-func (s *BaseCqlParserListener) ExitRelalationContainsKey(ctx *RelalationContainsKeyContext) {}
+// ExitRelationContainsKey is called when production relationContainsKey is exited.
+func (s *BaseCqlParserListener) ExitRelationContainsKey(ctx *RelationContainsKeyContext) {}
 
 // EnterFunctionCall is called when production functionCall is entered.
 func (s *BaseCqlParserListener) EnterFunctionCall(ctx *FunctionCallContext) {}

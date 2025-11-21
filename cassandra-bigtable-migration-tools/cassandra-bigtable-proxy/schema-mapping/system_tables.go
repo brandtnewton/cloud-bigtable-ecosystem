@@ -144,6 +144,17 @@ var (
 		{Name: "schema_version", CQLType: types.TypeUuid},
 		{Name: "host_id", CQLType: types.TypeUuid},
 	})
+	SystemTablePeersV2 = NewTableConfig("system", "peers_v2", "na", types.OrderedCodeEncoding, []*types.Column{
+		{Name: "peer", CQLType: types.TypeInet, KeyType: types.KeyTypePartition},
+		{Name: "rpc_address", CQLType: types.TypeInet},
+		{Name: "data_center", CQLType: types.TypeVarchar},
+		{Name: "dse_version", CQLType: types.TypeVarchar},
+		{Name: "rack", CQLType: types.TypeVarchar},
+		{Name: "tokens", CQLType: types.NewSetType(types.TypeVarchar)},
+		{Name: "release_version", CQLType: types.TypeVarchar},
+		{Name: "schema_version", CQLType: types.TypeUuid},
+		{Name: "host_id", CQLType: types.TypeUuid},
+	})
 	SystemTableSchemaKeyspaces = NewTableConfig("system", "schema_keyspaces", "na", types.OrderedCodeEncoding, []*types.Column{
 		{Name: "keyspace_name", CQLType: types.TypeVarchar, KeyType: types.KeyTypePartition},
 		{Name: "durable_writes", CQLType: types.TypeBoolean},
@@ -213,6 +224,7 @@ func getSystemTableConfigs() []*TableConfig {
 		SystemVirtualSchemaTableColumns,
 		SystemTableLocal,
 		SystemTablePeers,
+		SystemTablePeersV2,
 		SystemTableSchemaKeyspaces,
 		SystemTableSchemaColumnFamilies,
 		SystemTableSchemaColumns,

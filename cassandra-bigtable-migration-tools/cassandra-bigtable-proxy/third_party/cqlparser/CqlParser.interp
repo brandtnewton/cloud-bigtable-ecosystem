@@ -514,8 +514,8 @@ asSpec
 mapAccess
 relationElements
 relationElement
-relalationContains
-relalationContainsKey
+relationContains
+relationContainsKey
 functionCall
 functionArgs
 constant

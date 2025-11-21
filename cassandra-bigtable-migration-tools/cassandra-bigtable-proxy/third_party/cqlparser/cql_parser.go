@@ -125,23 +125,23 @@ func cqlparserParserInit() {
 		"columnList", "expressionList", "expression", "select_", "allowFilteringSpec",
 		"limitSpec", "kwLike", "fromSpec", "orderSpec", "orderSpecElement",
 		"whereSpec", "distinctSpec", "selectElements", "selectElement", "asSpec",
-		"mapAccess", "relationElements", "relationElement", "relalationContains",
-		"relalationContainsKey", "functionCall", "functionArgs", "constant",
-		"decimalLiteral", "floatLiteral", "stringLiteral", "booleanLiteral",
-		"hexadecimalLiteral", "keyspace", "table", "column", "dataType", "dataTypeName",
-		"dataTypeDefinition", "orderDirection", "role", "trigger", "triggerClass",
-		"materializedView", "type_", "aggregate", "function_", "language", "user",
-		"password", "hashKey", "param", "paramName", "kwAdd", "kwAggregate",
-		"kwAll", "kwAllPermissions", "kwAllow", "kwAlter", "kwAnd", "kwApply",
-		"kwAs", "kwAsc", "kwAuthorize", "kwBatch", "kwBetween", "kwBegin", "kwBy",
-		"kwCalled", "kwClustering", "kwCompact", "kwContains", "kwCreate", "kwDelete",
-		"kwDesc", "kwDescibe", "kwDistinct", "kwDrop", "kwDurableWrites", "kwEntries",
-		"kwExecute", "kwExists", "kwFiltering", "kwFinalfunc", "kwFrom", "kwFull",
-		"kwFunction", "kwFunctions", "kwGrant", "kwIf", "kwIn", "kwIndex", "kwInitcond",
-		"kwInput", "kwInsert", "kwInto", "kwIs", "kwJson", "kwKey", "kwKeys",
-		"kwKeyspace", "kwKeyspaces", "kwLanguage", "kwLimit", "kwList", "kwLogged",
-		"kwLogin", "kwMaterialized", "kwModify", "kwNosuperuser", "kwNorecursive",
-		"kwNot", "kwNull", "kwOf", "kwOn", "kwOptions", "kwOr", "kwOrder", "kwPassword",
+		"mapAccess", "relationElements", "relationElement", "relationContains",
+		"relationContainsKey", "functionCall", "functionArgs", "constant", "decimalLiteral",
+		"floatLiteral", "stringLiteral", "booleanLiteral", "hexadecimalLiteral",
+		"keyspace", "table", "column", "dataType", "dataTypeName", "dataTypeDefinition",
+		"orderDirection", "role", "trigger", "triggerClass", "materializedView",
+		"type_", "aggregate", "function_", "language", "user", "password", "hashKey",
+		"param", "paramName", "kwAdd", "kwAggregate", "kwAll", "kwAllPermissions",
+		"kwAllow", "kwAlter", "kwAnd", "kwApply", "kwAs", "kwAsc", "kwAuthorize",
+		"kwBatch", "kwBetween", "kwBegin", "kwBy", "kwCalled", "kwClustering",
+		"kwCompact", "kwContains", "kwCreate", "kwDelete", "kwDesc", "kwDescibe",
+		"kwDistinct", "kwDrop", "kwDurableWrites", "kwEntries", "kwExecute",
+		"kwExists", "kwFiltering", "kwFinalfunc", "kwFrom", "kwFull", "kwFunction",
+		"kwFunctions", "kwGrant", "kwIf", "kwIn", "kwIndex", "kwInitcond", "kwInput",
+		"kwInsert", "kwInto", "kwIs", "kwJson", "kwKey", "kwKeys", "kwKeyspace",
+		"kwKeyspaces", "kwLanguage", "kwLimit", "kwList", "kwLogged", "kwLogin",
+		"kwMaterialized", "kwModify", "kwNosuperuser", "kwNorecursive", "kwNot",
+		"kwNull", "kwOf", "kwOn", "kwOptions", "kwOr", "kwOrder", "kwPassword",
 		"kwPrimary", "kwRename", "kwReplace", "kwReplication", "kwReturns",
 		"kwRole", "kwRoles", "kwSelect", "kwSet", "kwSfunc", "kwStorage", "kwStype",
 		"kwSuperuser", "kwTable", "kwTables", "kwTimestamp", "kwTo", "kwTrigger",
@@ -1665,8 +1665,8 @@ const (
 	CqlParserRULE_mapAccess                     = 146
 	CqlParserRULE_relationElements              = 147
 	CqlParserRULE_relationElement               = 148
-	CqlParserRULE_relalationContains            = 149
-	CqlParserRULE_relalationContainsKey         = 150
+	CqlParserRULE_relationContains              = 149
+	CqlParserRULE_relationContainsKey           = 150
 	CqlParserRULE_functionCall                  = 151
 	CqlParserRULE_functionArgs                  = 152
 	CqlParserRULE_constant                      = 153
@@ -33190,8 +33190,8 @@ type IRelationElementContext interface {
 	AssignmentTuple(i int) IAssignmentTupleContext
 	AllSyntaxComma() []ISyntaxCommaContext
 	SyntaxComma(i int) ISyntaxCommaContext
-	RelalationContainsKey() IRelalationContainsKeyContext
-	RelalationContains() IRelalationContainsContext
+	RelationContainsKey() IRelationContainsKeyContext
+	RelationContains() IRelationContainsContext
 
 	// IsRelationElementContext differentiates from other interfaces.
 	IsRelationElementContext()
@@ -33525,10 +33525,10 @@ func (s *RelationElementContext) SyntaxComma(i int) ISyntaxCommaContext {
 	return t.(ISyntaxCommaContext)
 }
 
-func (s *RelationElementContext) RelalationContainsKey() IRelalationContainsKeyContext {
+func (s *RelationElementContext) RelationContainsKey() IRelationContainsKeyContext {
 	var t antlr.RuleContext
 	for _, ctx := range s.GetChildren() {
-		if _, ok := ctx.(IRelalationContainsKeyContext); ok {
+		if _, ok := ctx.(IRelationContainsKeyContext); ok {
 			t = ctx.(antlr.RuleContext)
 			break
 		}
@@ -33538,13 +33538,13 @@ func (s *RelationElementContext) RelalationContainsKey() IRelalationContainsKeyC
 		return nil
 	}
 
-	return t.(IRelalationContainsKeyContext)
+	return t.(IRelationContainsKeyContext)
 }
 
-func (s *RelationElementContext) RelalationContains() IRelalationContainsContext {
+func (s *RelationElementContext) RelationContains() IRelationContainsContext {
 	var t antlr.RuleContext
 	for _, ctx := range s.GetChildren() {
-		if _, ok := ctx.(IRelalationContainsContext); ok {
+		if _, ok := ctx.(IRelationContainsContext); ok {
 			t = ctx.(antlr.RuleContext)
 			break
 		}
@@ -33554,7 +33554,7 @@ func (s *RelationElementContext) RelalationContains() IRelalationContainsContext
 		return nil
 	}
 
-	return t.(IRelalationContainsContext)
+	return t.(IRelationContainsContext)
 }
 
 func (s *RelationElementContext) GetRuleContext() antlr.RuleContext {
@@ -34085,14 +34085,14 @@ func (p *CqlParser) RelationElement() (localctx IRelationElementContext) {
 		p.EnterOuterAlt(localctx, 12)
 		{
 			p.SetState(2089)
-			p.RelalationContainsKey()
+			p.RelationContainsKey()
 		}
 
 	case 13:
 		p.EnterOuterAlt(localctx, 13)
 		{
 			p.SetState(2090)
-			p.RelalationContains()
+			p.RelationContains()
 		}
 
 	case antlr.ATNInvalidAltNumber:
@@ -34112,8 +34112,8 @@ errorExit:
 	goto errorExit // Trick to prevent compiler error if the label is not used
 }
 
-// IRelalationContainsContext is an interface to support dynamic dispatch.
-type IRelalationContainsContext interface {
+// IRelationContainsContext is an interface to support dynamic dispatch.
+type IRelationContainsContext interface {
 	antlr.ParserRuleContext
 
 	// GetParser returns the parser.
@@ -34124,47 +34124,47 @@ type IRelalationContainsContext interface {
 	KwContains() IKwContainsContext
 	Constant() IConstantContext
 
-	// IsRelalationContainsContext differentiates from other interfaces.
-	IsRelalationContainsContext()
+	// IsRelationContainsContext differentiates from other interfaces.
+	IsRelationContainsContext()
 }
 
-type RelalationContainsContext struct {
+type RelationContainsContext struct {
 	antlr.BaseParserRuleContext
 	parser antlr.Parser
 }
 
-func NewEmptyRelalationContainsContext() *RelalationContainsContext {
-	var p = new(RelalationContainsContext)
+func NewEmptyRelationContainsContext() *RelationContainsContext {
+	var p = new(RelationContainsContext)
 	antlr.InitBaseParserRuleContext(&p.BaseParserRuleContext, nil, -1)
-	p.RuleIndex = CqlParserRULE_relalationContains
+	p.RuleIndex = CqlParserRULE_relationContains
 	return p
 }
 
-func InitEmptyRelalationContainsContext(p *RelalationContainsContext) {
+func InitEmptyRelationContainsContext(p *RelationContainsContext) {
 	antlr.InitBaseParserRuleContext(&p.BaseParserRuleContext, nil, -1)
-	p.RuleIndex = CqlParserRULE_relalationContains
+	p.RuleIndex = CqlParserRULE_relationContains
 }
 
-func (*RelalationContainsContext) IsRelalationContainsContext() {}
+func (*RelationContainsContext) IsRelationContainsContext() {}
 
-func NewRelalationContainsContext(parser antlr.Parser, parent antlr.ParserRuleContext, invokingState int) *RelalationContainsContext {
-	var p = new(RelalationContainsContext)
+func NewRelationContainsContext(parser antlr.Parser, parent antlr.ParserRuleContext, invokingState int) *RelationContainsContext {
+	var p = new(RelationContainsContext)
 
 	antlr.InitBaseParserRuleContext(&p.BaseParserRuleContext, parent, invokingState)
 
 	p.parser = parser
-	p.RuleIndex = CqlParserRULE_relalationContains
+	p.RuleIndex = CqlParserRULE_relationContains
 
 	return p
 }
 
-func (s *RelalationContainsContext) GetParser() antlr.Parser { return s.parser }
+func (s *RelationContainsContext) GetParser() antlr.Parser { return s.parser }
 
-func (s *RelalationContainsContext) OBJECT_NAME() antlr.TerminalNode {
+func (s *RelationContainsContext) OBJECT_NAME() antlr.TerminalNode {
 	return s.GetToken(CqlParserOBJECT_NAME, 0)
 }
 
-func (s *RelalationContainsContext) KwContains() IKwContainsContext {
+func (s *RelationContainsContext) KwContains() IKwContainsContext {
 	var t antlr.RuleContext
 	for _, ctx := range s.GetChildren() {
 		if _, ok := ctx.(IKwContainsContext); ok {
@@ -34180,7 +34180,7 @@ func (s *RelalationContainsContext) KwContains() IKwContainsContext {
 	return t.(IKwContainsContext)
 }
 
-func (s *RelalationContainsContext) Constant() IConstantContext {
+func (s *RelationContainsContext) Constant() IConstantContext {
 	var t antlr.RuleContext
 	for _, ctx := range s.GetChildren() {
 		if _, ok := ctx.(IConstantContext); ok {
@@ -34196,29 +34196,29 @@ func (s *RelalationContainsContext) Constant() IConstantContext {
 	return t.(IConstantContext)
 }
 
-func (s *RelalationContainsContext) GetRuleContext() antlr.RuleContext {
+func (s *RelationContainsContext) GetRuleContext() antlr.RuleContext {
 	return s
 }
 
-func (s *RelalationContainsContext) ToStringTree(ruleNames []string, recog antlr.Recognizer) string {
+func (s *RelationContainsContext) ToStringTree(ruleNames []string, recog antlr.Recognizer) string {
 	return antlr.TreesStringTree(s, ruleNames, recog)
 }
 
-func (s *RelalationContainsContext) EnterRule(listener antlr.ParseTreeListener) {
+func (s *RelationContainsContext) EnterRule(listener antlr.ParseTreeListener) {
 	if listenerT, ok := listener.(CqlParserListener); ok {
-		listenerT.EnterRelalationContains(s)
+		listenerT.EnterRelationContains(s)
 	}
 }
 
-func (s *RelalationContainsContext) ExitRule(listener antlr.ParseTreeListener) {
+func (s *RelationContainsContext) ExitRule(listener antlr.ParseTreeListener) {
 	if listenerT, ok := listener.(CqlParserListener); ok {
-		listenerT.ExitRelalationContains(s)
+		listenerT.ExitRelationContains(s)
 	}
 }
 
-func (p *CqlParser) RelalationContains() (localctx IRelalationContainsContext) {
-	localctx = NewRelalationContainsContext(p, p.GetParserRuleContext(), p.GetState())
-	p.EnterRule(localctx, 298, CqlParserRULE_relalationContains)
+func (p *CqlParser) RelationContains() (localctx IRelationContainsContext) {
+	localctx = NewRelationContainsContext(p, p.GetParserRuleContext(), p.GetState())
+	p.EnterRule(localctx, 298, CqlParserRULE_relationContains)
 	p.EnterOuterAlt(localctx, 1)
 	{
 		p.SetState(2093)
@@ -34250,8 +34250,8 @@ errorExit:
 	goto errorExit // Trick to prevent compiler error if the label is not used
 }
 
-// IRelalationContainsKeyContext is an interface to support dynamic dispatch.
-type IRelalationContainsKeyContext interface {
+// IRelationContainsKeyContext is an interface to support dynamic dispatch.
+type IRelationContainsKeyContext interface {
 	antlr.ParserRuleContext
 
 	// GetParser returns the parser.
@@ -34263,47 +34263,47 @@ type IRelalationContainsKeyContext interface {
 	KwContains() IKwContainsContext
 	KwKey() IKwKeyContext
 
-	// IsRelalationContainsKeyContext differentiates from other interfaces.
-	IsRelalationContainsKeyContext()
+	// IsRelationContainsKeyContext differentiates from other interfaces.
+	IsRelationContainsKeyContext()
 }
 
-type RelalationContainsKeyContext struct {
+type RelationContainsKeyContext struct {
 	antlr.BaseParserRuleContext
 	parser antlr.Parser
 }
 
-func NewEmptyRelalationContainsKeyContext() *RelalationContainsKeyContext {
-	var p = new(RelalationContainsKeyContext)
+func NewEmptyRelationContainsKeyContext() *RelationContainsKeyContext {
+	var p = new(RelationContainsKeyContext)
 	antlr.InitBaseParserRuleContext(&p.BaseParserRuleContext, nil, -1)
-	p.RuleIndex = CqlParserRULE_relalationContainsKey
+	p.RuleIndex = CqlParserRULE_relationContainsKey
 	return p
 }
 
-func InitEmptyRelalationContainsKeyContext(p *RelalationContainsKeyContext) {
+func InitEmptyRelationContainsKeyContext(p *RelationContainsKeyContext) {
 	antlr.InitBaseParserRuleContext(&p.BaseParserRuleContext, nil, -1)
-	p.RuleIndex = CqlParserRULE_relalationContainsKey
+	p.RuleIndex = CqlParserRULE_relationContainsKey
 }
 
-func (*RelalationContainsKeyContext) IsRelalationContainsKeyContext() {}
+func (*RelationContainsKeyContext) IsRelationContainsKeyContext() {}
 
-func NewRelalationContainsKeyContext(parser antlr.Parser, parent antlr.ParserRuleContext, invokingState int) *RelalationContainsKeyContext {
-	var p = new(RelalationContainsKeyContext)
+func NewRelationContainsKeyContext(parser antlr.Parser, parent antlr.ParserRuleContext, invokingState int) *RelationContainsKeyContext {
+	var p = new(RelationContainsKeyContext)
 
 	antlr.InitBaseParserRuleContext(&p.BaseParserRuleContext, parent, invokingState)
 
 	p.parser = parser
-	p.RuleIndex = CqlParserRULE_relalationContainsKey
+	p.RuleIndex = CqlParserRULE_relationContainsKey
 
 	return p
 }
 
-func (s *RelalationContainsKeyContext) GetParser() antlr.Parser { return s.parser }
+func (s *RelationContainsKeyContext) GetParser() antlr.Parser { return s.parser }
 
-func (s *RelalationContainsKeyContext) OBJECT_NAME() antlr.TerminalNode {
+func (s *RelationContainsKeyContext) OBJECT_NAME() antlr.TerminalNode {
 	return s.GetToken(CqlParserOBJECT_NAME, 0)
 }
 
-func (s *RelalationContainsKeyContext) Constant() IConstantContext {
+func (s *RelationContainsKeyContext) Constant() IConstantContext {
 	var t antlr.RuleContext
 	for _, ctx := range s.GetChildren() {
 		if _, ok := ctx.(IConstantContext); ok {
@@ -34319,7 +34319,7 @@ func (s *RelalationContainsKeyContext) Constant() IConstantContext {
 	return t.(IConstantContext)
 }
 
-func (s *RelalationContainsKeyContext) KwContains() IKwContainsContext {
+func (s *RelationContainsKeyContext) KwContains() IKwContainsContext {
 	var t antlr.RuleContext
 	for _, ctx := range s.GetChildren() {
 		if _, ok := ctx.(IKwContainsContext); ok {
@@ -34335,7 +34335,7 @@ func (s *RelalationContainsKeyContext) KwContains() IKwContainsContext {
 	return t.(IKwContainsContext)
 }
 
-func (s *RelalationContainsKeyContext) KwKey() IKwKeyContext {
+func (s *RelationContainsKeyContext) KwKey() IKwKeyContext {
 	var t antlr.RuleContext
 	for _, ctx := range s.GetChildren() {
 		if _, ok := ctx.(IKwKeyContext); ok {
@@ -34351,29 +34351,29 @@ func (s *RelalationContainsKeyContext) KwKey() IKwKeyContext {
 	return t.(IKwKeyContext)
 }
 
-func (s *RelalationContainsKeyContext) GetRuleContext() antlr.RuleContext {
+func (s *RelationContainsKeyContext) GetRuleContext() antlr.RuleContext {
 	return s
 }
 
-func (s *RelalationContainsKeyContext) ToStringTree(ruleNames []string, recog antlr.Recognizer) string {
+func (s *RelationContainsKeyContext) ToStringTree(ruleNames []string, recog antlr.Recognizer) string {
 	return antlr.TreesStringTree(s, ruleNames, recog)
 }
 
-func (s *RelalationContainsKeyContext) EnterRule(listener antlr.ParseTreeListener) {
+func (s *RelationContainsKeyContext) EnterRule(listener antlr.ParseTreeListener) {
 	if listenerT, ok := listener.(CqlParserListener); ok {
-		listenerT.EnterRelalationContainsKey(s)
+		listenerT.EnterRelationContainsKey(s)
 	}
 }
 
-func (s *RelalationContainsKeyContext) ExitRule(listener antlr.ParseTreeListener) {
+func (s *RelationContainsKeyContext) ExitRule(listener antlr.ParseTreeListener) {
 	if listenerT, ok := listener.(CqlParserListener); ok {
-		listenerT.ExitRelalationContainsKey(s)
+		listenerT.ExitRelationContainsKey(s)
 	}
 }
 
-func (p *CqlParser) RelalationContainsKey() (localctx IRelalationContainsKeyContext) {
-	localctx = NewRelalationContainsKeyContext(p, p.GetParserRuleContext(), p.GetState())
-	p.EnterRule(localctx, 300, CqlParserRULE_relalationContainsKey)
+func (p *CqlParser) RelationContainsKey() (localctx IRelationContainsKeyContext) {
+	localctx = NewRelationContainsKeyContext(p, p.GetParserRuleContext(), p.GetState())
+	p.EnterRule(localctx, 300, CqlParserRULE_relationContainsKey)
 	p.EnterOuterAlt(localctx, 1)
 	{
 		p.SetState(2097)

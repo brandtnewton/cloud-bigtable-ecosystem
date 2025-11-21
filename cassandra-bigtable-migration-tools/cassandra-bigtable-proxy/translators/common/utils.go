@@ -324,8 +324,8 @@ func ParseWhereClause(input cql.IWhereSpecContext, tableConfig *schemaMapping.Ta
 					return nil, err
 				}
 			}
-		} else if val.RelalationContains() != nil {
-			relContains := val.RelalationContains()
+		} else if val.RelationContains() != nil {
+			relContains := val.RelationContains()
 			var operator types.Operator
 			var elementType types.CqlDataType
 			if column.CQLType.Code() == types.LIST {
@@ -354,8 +354,8 @@ func ParseWhereClause(input cql.IWhereSpecContext, tableConfig *schemaMapping.Ta
 					return nil, err
 				}
 			}
-		} else if val.RelalationContainsKey() != nil {
-			relContains := val.RelalationContainsKey()
+		} else if val.RelationContainsKey() != nil {
+			relContains := val.RelationContainsKey()
 			if column.CQLType.Code() != types.MAP {
 				return nil, errors.New("CONTAINS KEY are only supported for map")
 			}
@@ -433,7 +433,7 @@ func parseConstantValue(col *types.Column, e cql.IRelationElementContext) (any, 
 	return val, nil
 }
 
-func parseContainsValue(col *types.Column, e cql.IRelalationContainsContext) (any, error) {
+func parseContainsValue(col *types.Column, e cql.IRelationContainsContext) (any, error) {
 	if e.Constant() == nil {
 		return nil, errors.New("could not parse value from query for one of the clauses")
 	}
@@ -445,7 +445,7 @@ func parseContainsValue(col *types.Column, e cql.IRelalationContainsContext) (an
 	return val, nil
 }
 
-func parseContainsKeyValue(col *types.Column, e cql.IRelalationContainsKeyContext) (any, error) {
+func parseContainsKeyValue(col *types.Column, e cql.IRelationContainsKeyContext) (any, error) {
 	if e.Constant() == nil {
 		return nil, errors.New("could not parse value from query for one of the clauses")
 	}
@@ -458,12 +458,12 @@ func parseContainsKeyValue(col *types.Column, e cql.IRelalationContainsKeyContex
 }
 
 func parseColumn(tableConfig *schemaMapping.TableConfig, e cql.IRelationElementContext) (*types.Column, error) {
-	if e.RelalationContainsKey() != nil {
-		relContainsKey := e.RelalationContainsKey()
+	if e.RelationContainsKey() != nil {
+		relContainsKey := e.RelationContainsKey()
 		name := relContainsKey.OBJECT_NAME().GetText()
 		return tableConfig.GetColumn(types.ColumnName(name))
-	} else if e.RelalationContains() != nil {
-		relContains := e.RelalationContains()
+	} else if e.RelationContains() != nil {
+		relContains := e.RelationContains()
 		name := relContains.OBJECT_NAME().GetText()
 		return tableConfig.GetColumn(types.ColumnName(name))
 	} else if len(e.AllOBJECT_NAME()) != 0 {
@@ -477,7 +477,7 @@ func parseColumn(tableConfig *schemaMapping.TableConfig, e cql.IRelationElementC
 		}
 		return tableConfig.GetColumn(types.ColumnName(name))
 	} else {
-		return nil, fmt.Errorf("unable to determine column from clause")
+		return nil, fmt.Errorf("unable to determine column from clause: '%s'", e.GetText())
 	}
 }
 

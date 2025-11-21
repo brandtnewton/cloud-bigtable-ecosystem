@@ -454,11 +454,11 @@ type CqlParserListener interface {
 	// EnterRelationElement is called when entering the relationElement production.
 	EnterRelationElement(c *RelationElementContext)
 
-	// EnterRelalationContains is called when entering the relalationContains production.
-	EnterRelalationContains(c *RelalationContainsContext)
+	// EnterRelationContains is called when entering the relationContains production.
+	EnterRelationContains(c *RelationContainsContext)
 
-	// EnterRelalationContainsKey is called when entering the relalationContainsKey production.
-	EnterRelalationContainsKey(c *RelalationContainsKeyContext)
+	// EnterRelationContainsKey is called when entering the relationContainsKey production.
+	EnterRelationContainsKey(c *RelationContainsKeyContext)
 
 	// EnterFunctionCall is called when entering the functionCall production.
 	EnterFunctionCall(c *FunctionCallContext)
@@ -1321,11 +1321,11 @@ type CqlParserListener interface {
 	// ExitRelationElement is called when exiting the relationElement production.
 	ExitRelationElement(c *RelationElementContext)
 
-	// ExitRelalationContains is called when exiting the relalationContains production.
-	ExitRelalationContains(c *RelalationContainsContext)
+	// ExitRelationContains is called when exiting the relationContains production.
+	ExitRelationContains(c *RelationContainsContext)
 
-	// ExitRelalationContainsKey is called when exiting the relalationContainsKey production.
-	ExitRelalationContainsKey(c *RelalationContainsKeyContext)
+	// ExitRelationContainsKey is called when exiting the relationContainsKey production.
+	ExitRelationContainsKey(c *RelationContainsKeyContext)
 
 	// ExitFunctionCall is called when exiting the functionCall production.
 	ExitFunctionCall(c *FunctionCallContext)

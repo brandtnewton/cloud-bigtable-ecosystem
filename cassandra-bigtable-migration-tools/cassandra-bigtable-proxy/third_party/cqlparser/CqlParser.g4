@@ -751,15 +751,15 @@ relationElement
    | OBJECT_NAME kwIn ('(' functionArgs ')' | QUESTION_MARK)
    | '(' OBJECT_NAME (syntaxComma OBJECT_NAME)* ')' kwIn '(' assignmentTuple (syntaxComma assignmentTuple)* ')'
    | '(' OBJECT_NAME (syntaxComma OBJECT_NAME)* ')' (OPERATOR_EQ | OPERATOR_LT | OPERATOR_GT | OPERATOR_LTE | OPERATOR_GTE) ( assignmentTuple (syntaxComma assignmentTuple)* )
-   | relalationContainsKey
-   | relalationContains
+   | relationContainsKey
+   | relationContains
    ;
 
-relalationContains
+relationContains
    : OBJECT_NAME kwContains constant
    ;
 
-relalationContainsKey
+relationContainsKey
    : OBJECT_NAME (kwContains kwKey) constant
    ;
 

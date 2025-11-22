@@ -28,7 +28,7 @@ options {
 }
 
 root
-   : cqls? MINUSMINUS? EOF
+   : cqls+ MINUSMINUS? EOF
    ;
 
 cqls
@@ -720,10 +720,10 @@ selectElements
    ;
 
 selectElement
-   : OBJECT_NAME '.' '*'                              // Table wildcard
+   : OBJECT_NAME '.' '*'                  // Table wildcard
    | OBJECT_NAME asSpec?                  // Column with optional alias
    | functionCall asSpec?                 // Function call with optional alias
-   | mapAccess                                        // Map access (alias handled in mapAccess rule)
+   | mapAccess                            // Map access (alias handled in mapAccess rule)
    ;
 
 asSpec
@@ -739,33 +739,55 @@ relationElements
    : (relationElement) (kwAnd relationElement)*
    ;
 
-relationIdentifier
-   : OBJECT_NAME
-   | kwKey // the system.local table has a "key" column so we need to allow it here explicitly otherwise the relation fails to parse
-   ;
-
 relationElement
-   : relationIdentifier (OPERATOR_EQ | OPERATOR_LT | OPERATOR_GT | OPERATOR_LTE | OPERATOR_GTE) constant
-   | relationIdentifier kwLike constant
-   | relationIdentifier kwBetween constant kwAnd constant
-   | relationIdentifier '.' OBJECT_NAME (OPERATOR_EQ | OPERATOR_LT | OPERATOR_GT | OPERATOR_LTE | OPERATOR_GTE) constant
-   | functionCall (OPERATOR_EQ | OPERATOR_LT | OPERATOR_GT | OPERATOR_LTE | OPERATOR_GTE) constant
-   | functionCall (OPERATOR_EQ | OPERATOR_LT | OPERATOR_GT | OPERATOR_LTE | OPERATOR_GTE) functionCall
-   | relationIdentifier '.' OBJECT_NAME kwLike constant
-   | relationIdentifier '.' OBJECT_NAME kwBetween constant kwAnd constant
-   | relationIdentifier kwIn ('(' functionArgs ')' | QUESTION_MARK)
-   | '(' relationIdentifier (syntaxComma relationIdentifier)* ')' kwIn '(' assignmentTuple (syntaxComma assignmentTuple)* ')'
-   | '(' relationIdentifier (syntaxComma relationIdentifier)* ')' (OPERATOR_EQ | OPERATOR_LT | OPERATOR_GT | OPERATOR_LTE | OPERATOR_GTE) ( assignmentTuple (syntaxComma assignmentTuple)* )
+   : relationCompare
+   | relationLike
+   | relationBetween
+   | relationFunctionCompareConstant
+   | relationFunctionCompareFunction
    | relationContainsKey
    | relationContains
+   | relationIn
+   | OBJECT_NAME '.' OBJECT_NAME kwLike constant
+   | OBJECT_NAME '.' OBJECT_NAME kwBetween constant kwAnd constant
+   | '(' OBJECT_NAME (syntaxComma OBJECT_NAME)* ')' kwIn '(' assignmentTuple (syntaxComma assignmentTuple)* ')'
+   | '(' OBJECT_NAME (syntaxComma OBJECT_NAME)* ')' compareOperator ( assignmentTuple (syntaxComma assignmentTuple)* )
    ;
 
+compareOperator
+   : (OPERATOR_EQ | OPERATOR_LT | OPERATOR_GT | OPERATOR_LTE | OPERATOR_GTE)
+   ;
+
+relationFunctionCompareConstant
+   : functionCall compareOperator constant
+   ;
+
+relationFunctionCompareFunction
+   : functionCall compareOperator functionCall
+   ;
+
+relationBetween
+   : column kwBetween constant kwAnd constant
+   ;
+
+relationCompare
+   : column compareOperator constant
+   ;
+
+relationLike
+   : column kwLike constant
+   ;
+
+relationIn
+  : column kwIn ('(' functionArgs ')' | QUESTION_MARK)
+  ;
+
 relationContains
-   : OBJECT_NAME kwContains constant
+   : column kwContains constant
    ;
 
 relationContainsKey
-   : OBJECT_NAME (kwContains kwKey) constant
+   : column (kwContains kwKey) constant
    ;
 
 functionCall

@@ -184,6 +184,17 @@ func (q *QueryParameterValues) GetValue(p Placeholder) (any, error) {
 	return nil, fmt.Errorf("no query param for %s", p)
 }
 
+func (q *QueryParameterValues) GetValueInt32(p Placeholder) (int32, error) {
+	v, err := q.GetValue(p)
+	if err != nil {
+		return 0, err
+	}
+	intVal, ok := v.(int32)
+	if !ok {
+		return 0, fmt.Errorf("query param %s is a %T, not an int32", p, v)
+	}
+	return intVal, nil
+}
 func (q *QueryParameterValues) GetValueInt64(p Placeholder) (int64, error) {
 	v, err := q.GetValue(p)
 	if err != nil {
@@ -191,7 +202,7 @@ func (q *QueryParameterValues) GetValueInt64(p Placeholder) (int64, error) {
 	}
 	intVal, ok := v.(int64)
 	if !ok {
-		return 0, fmt.Errorf("query param is a %T, not an int64", v)
+		return 0, fmt.Errorf("query param %s is a %T, not an int64", p, v)
 	}
 	return intVal, nil
 }
@@ -203,7 +214,7 @@ func (q *QueryParameterValues) GetValueSlice(p Placeholder) ([]GoValue, error) {
 	}
 	slice, ok := v.([]GoValue)
 	if !ok {
-		return nil, fmt.Errorf("query param is a %T, not a slice", v)
+		return nil, fmt.Errorf("query param %s is a %T, not a slice", p, v)
 	}
 	return slice, nil
 }
@@ -215,7 +226,7 @@ func (q *QueryParameterValues) GetValueMap(p Placeholder) (map[GoValue]GoValue, 
 	}
 	slice, ok := v.(map[GoValue]GoValue)
 	if !ok {
-		return nil, fmt.Errorf("query param is a %T, not a map", v)
+		return nil, fmt.Errorf("query param %s is a %T, not a map", p, v)
 	}
 	return slice, nil
 }

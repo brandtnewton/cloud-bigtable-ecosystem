@@ -152,16 +152,18 @@ func parseUpdateValues(assignments []cql.IAssignmentElementContext, tableConfig 
 			}
 
 			assignment = types.NewComplexAssignmentUpdateIndex(col, index, p)
-		} else if setVal.Constant() != nil { // set a scalar value
-			goValue, err := common.GetCqlConstant(setVal.Constant(), col.CQLType)
-			if err != nil {
-				return nil, err
-			}
+		} else if setVal.Constant() != nil {
 			p := params.PushParameter(col, col.CQLType, false)
 			assignment = types.NewComplexAssignmentSet(col, p)
-			err = values.SetValue(p, goValue)
-			if err != nil {
-				return nil, err
+			if setVal.Constant().GetText() != "?" {
+				goValue, err := common.GetCqlConstant(setVal.Constant(), col.CQLType)
+				if err != nil {
+					return nil, err
+				}
+				err = values.SetValue(p, goValue)
+				if err != nil {
+					return nil, err
+				}
 			}
 		} else if setVal.AssignmentMap() != nil {
 			p := params.PushParameter(col, col.CQLType, false)
@@ -203,12 +205,6 @@ func parseUpdateValues(assignments []cql.IAssignmentElementContext, tableConfig 
 					return nil, err
 				}
 			}
-		} else if setVal.QUESTION_MARK() != nil {
-			if err != nil {
-				return nil, err
-			}
-			p := params.PushParameter(col, col.CQLType, false)
-			assignment = types.NewComplexAssignmentSet(col, p)
 		} else {
 			return nil, fmt.Errorf("unhandled update set value operation: '%s'", setVal.GetText())
 		}

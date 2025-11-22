@@ -25,10 +25,10 @@ func TestBasicInsertUpdateDeleteValidation(t *testing.T) {
 	assert.Equal(t, int64(30), age)
 	assert.Equal(t, 123, code)
 
-	err = session.Query(`UPDATE bigtabledevinstance.user_info SET code = ? WHERE name = ? AND age = ?`, 456, rowName, int64(30)).Exec()
+	err = session.Query(`UPDATE bigtabledevinstance.user_info SET code = ? WHERE "name" = ? AND age = ?`, 456, rowName, int64(30)).Exec()
 	require.NoError(t, err, "Failed to update record")
 
-	err = session.Query(`SELECT code FROM bigtabledevinstance.user_info WHERE name = ? AND age = ?`, rowName, int64(30)).Scan(&code)
+	err = session.Query(`SELECT code FROM bigtabledevinstance.user_info WHERE "name" = ? AND age = ?`, rowName, int64(30)).Scan(&code)
 	require.NoError(t, err, "Failed to select updated record")
 	assert.Equal(t, 456, code)
 

@@ -918,17 +918,57 @@ func (s *BaseCqlParserListener) EnterRelationElements(ctx *RelationElementsConte
 // ExitRelationElements is called when production relationElements is exited.
 func (s *BaseCqlParserListener) ExitRelationElements(ctx *RelationElementsContext) {}
 
-// EnterRelationIdentifier is called when production relationIdentifier is entered.
-func (s *BaseCqlParserListener) EnterRelationIdentifier(ctx *RelationIdentifierContext) {}
-
-// ExitRelationIdentifier is called when production relationIdentifier is exited.
-func (s *BaseCqlParserListener) ExitRelationIdentifier(ctx *RelationIdentifierContext) {}
-
 // EnterRelationElement is called when production relationElement is entered.
 func (s *BaseCqlParserListener) EnterRelationElement(ctx *RelationElementContext) {}
 
 // ExitRelationElement is called when production relationElement is exited.
 func (s *BaseCqlParserListener) ExitRelationElement(ctx *RelationElementContext) {}
+
+// EnterCompareOperator is called when production compareOperator is entered.
+func (s *BaseCqlParserListener) EnterCompareOperator(ctx *CompareOperatorContext) {}
+
+// ExitCompareOperator is called when production compareOperator is exited.
+func (s *BaseCqlParserListener) ExitCompareOperator(ctx *CompareOperatorContext) {}
+
+// EnterRelationFunctionCompareConstant is called when production relationFunctionCompareConstant is entered.
+func (s *BaseCqlParserListener) EnterRelationFunctionCompareConstant(ctx *RelationFunctionCompareConstantContext) {
+}
+
+// ExitRelationFunctionCompareConstant is called when production relationFunctionCompareConstant is exited.
+func (s *BaseCqlParserListener) ExitRelationFunctionCompareConstant(ctx *RelationFunctionCompareConstantContext) {
+}
+
+// EnterRelationFunctionCompareFunction is called when production relationFunctionCompareFunction is entered.
+func (s *BaseCqlParserListener) EnterRelationFunctionCompareFunction(ctx *RelationFunctionCompareFunctionContext) {
+}
+
+// ExitRelationFunctionCompareFunction is called when production relationFunctionCompareFunction is exited.
+func (s *BaseCqlParserListener) ExitRelationFunctionCompareFunction(ctx *RelationFunctionCompareFunctionContext) {
+}
+
+// EnterRelationBetween is called when production relationBetween is entered.
+func (s *BaseCqlParserListener) EnterRelationBetween(ctx *RelationBetweenContext) {}
+
+// ExitRelationBetween is called when production relationBetween is exited.
+func (s *BaseCqlParserListener) ExitRelationBetween(ctx *RelationBetweenContext) {}
+
+// EnterRelationCompare is called when production relationCompare is entered.
+func (s *BaseCqlParserListener) EnterRelationCompare(ctx *RelationCompareContext) {}
+
+// ExitRelationCompare is called when production relationCompare is exited.
+func (s *BaseCqlParserListener) ExitRelationCompare(ctx *RelationCompareContext) {}
+
+// EnterRelationLike is called when production relationLike is entered.
+func (s *BaseCqlParserListener) EnterRelationLike(ctx *RelationLikeContext) {}
+
+// ExitRelationLike is called when production relationLike is exited.
+func (s *BaseCqlParserListener) ExitRelationLike(ctx *RelationLikeContext) {}
+
+// EnterRelationIn is called when production relationIn is entered.
+func (s *BaseCqlParserListener) EnterRelationIn(ctx *RelationInContext) {}
+
+// ExitRelationIn is called when production relationIn is exited.
+func (s *BaseCqlParserListener) ExitRelationIn(ctx *RelationInContext) {}
 
 // EnterRelationContains is called when production relationContains is entered.
 func (s *BaseCqlParserListener) EnterRelationContains(ctx *RelationContainsContext) {}

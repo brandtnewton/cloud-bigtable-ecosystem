@@ -542,7 +542,15 @@ func (c *client) getQueryId(msg *message.Prepare) [16]byte {
 	return md5.Sum([]byte(msg.Query + string(c.sessionKeyspace)))
 }
 
+var badQueriesHack = map[string]string{
+	// wrap the key column in "" because it's a keyword
+	`SELECT * FROM system.local WHERE key='local'`: `SELECT * FROM system.local WHERE "key"='local'`,
+}
+
 func newParser(query string) *cql.CqlParser {
+	if fixed, ok := badQueriesHack[query]; ok {
+		query = fixed
+	}
 	lexer := cql.NewCqlLexer(antlr.NewInputStream(query))
 	stream := antlr.NewCommonTokenStream(lexer, antlr.TokenDefaultChannel)
 	return cql.NewCqlParser(stream)

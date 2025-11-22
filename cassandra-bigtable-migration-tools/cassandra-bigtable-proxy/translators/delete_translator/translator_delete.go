@@ -25,7 +25,7 @@ import (
 )
 
 func (t *DeleteTranslator) Translate(query *types.RawQuery, sessionKeyspace types.Keyspace, isPreparedQuery bool) (types.IPreparedQuery, error) {
-	deleteObj := query.Parser()
+	deleteObj := query.Parser().Delete_()
 	if deleteObj == nil {
 		return nil, errors.New("error while parsing delete object")
 	}
@@ -61,7 +61,7 @@ func (t *DeleteTranslator) Translate(query *types.RawQuery, sessionKeyspace type
 		}
 	}
 
-	err = common.ValidateRequiredPrimaryKeysOnly(tableConfig, params)
+	err = common.ValidateRequiredPrimaryKeysOnly(tableConfig, conditions)
 	if err != nil {
 		return nil, err
 	}

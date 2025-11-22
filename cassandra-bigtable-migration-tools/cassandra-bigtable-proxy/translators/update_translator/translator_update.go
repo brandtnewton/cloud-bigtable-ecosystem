@@ -60,8 +60,8 @@ func (t *UpdateTranslator) Translate(query *types.RawQuery, sessionKeyspace type
 		return nil, err
 	}
 
-	if updateObj.WhereSpec() != nil {
-		return nil, errors.New("error parsing update where clause")
+	if updateObj.WhereSpec() == nil {
+		return nil, errors.New("error parsing update: where clause required")
 	}
 
 	whereClause, err := common.ParseWhereClause(updateObj.WhereSpec(), tableConfig, params, values, isPreparedQuery)
@@ -76,7 +76,7 @@ func (t *UpdateTranslator) Translate(query *types.RawQuery, sessionKeyspace type
 
 	var ifExist = updateObj.IfExist() != nil
 
-	err = common.ValidateRequiredPrimaryKeysOnly(tableConfig, params)
+	err = common.ValidateRequiredPrimaryKeysOnly(tableConfig, whereClause)
 	if err != nil {
 		return nil, err
 	}

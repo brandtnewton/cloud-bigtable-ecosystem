@@ -90,6 +90,15 @@ func (t *SelectTranslator) Bind(st types.IPreparedQuery, values *types.QueryPara
 	if !ok {
 		return nil, fmt.Errorf("cannot bind to %T", st)
 	}
+	if values.Has(types.LimitPlaceholder) {
+		limitValue, err := values.GetValueInt32(types.LimitPlaceholder)
+		if err != nil {
+			return nil, err
+		}
+		if limitValue <= 0 {
+			return nil, fmt.Errorf("LIMIT must be strictly positive")
+		}
+	}
 	query := types.NewBoundSelectQuery(sst, pv, values)
 	return query, nil
 }

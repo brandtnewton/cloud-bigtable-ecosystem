@@ -115,7 +115,7 @@ func TestNegativeTestCasesForAlterTable(t *testing.T) {
 		{
 			name:          "Alter schema_mapping table not allowed",
 			query:         "ALTER TABLE schema_mapping DROP all_your_data",
-			expectedError: "cannot alter schema mapping table with configured name 'schema_mapping'",
+			expectedError: "table name cannot be the same as the configured schema mapping table name 'schema_mapping'",
 			skipCassandra: true,
 		},
 	}

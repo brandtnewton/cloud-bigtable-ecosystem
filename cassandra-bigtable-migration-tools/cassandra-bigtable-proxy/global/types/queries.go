@@ -167,7 +167,8 @@ type Condition struct {
 	Column   *Column
 	Operator Operator
 	// points to a placeholder
-	ValuePlaceholder Placeholder
+	ValuePlaceholder  Placeholder
+	ValuePlaceholder2 Placeholder
 }
 
 type Assignment interface {

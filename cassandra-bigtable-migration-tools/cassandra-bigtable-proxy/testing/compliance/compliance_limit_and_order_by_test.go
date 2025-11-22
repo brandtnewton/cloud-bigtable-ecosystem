@@ -123,7 +123,7 @@ func TestLimitAndOrderByOperations(t *testing.T) {
 		// ORDER BY a non-existent column
 		err = session.Query(`SELECT name, age FROM user_info WHERE age = ? ORDER BY xyz`, 10).Exec()
 		require.Error(t, err)
-		assert.Contains(t, err.Error(), "Undefined column name xyz")
+		assert.Contains(t, err.Error(), "unknown column name 'xyz'")
 	})
 }
 

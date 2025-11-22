@@ -451,11 +451,29 @@ type CqlParserListener interface {
 	// EnterRelationElements is called when entering the relationElements production.
 	EnterRelationElements(c *RelationElementsContext)
 
-	// EnterRelationIdentifier is called when entering the relationIdentifier production.
-	EnterRelationIdentifier(c *RelationIdentifierContext)
-
 	// EnterRelationElement is called when entering the relationElement production.
 	EnterRelationElement(c *RelationElementContext)
+
+	// EnterCompareOperator is called when entering the compareOperator production.
+	EnterCompareOperator(c *CompareOperatorContext)
+
+	// EnterRelationFunctionCompareConstant is called when entering the relationFunctionCompareConstant production.
+	EnterRelationFunctionCompareConstant(c *RelationFunctionCompareConstantContext)
+
+	// EnterRelationFunctionCompareFunction is called when entering the relationFunctionCompareFunction production.
+	EnterRelationFunctionCompareFunction(c *RelationFunctionCompareFunctionContext)
+
+	// EnterRelationBetween is called when entering the relationBetween production.
+	EnterRelationBetween(c *RelationBetweenContext)
+
+	// EnterRelationCompare is called when entering the relationCompare production.
+	EnterRelationCompare(c *RelationCompareContext)
+
+	// EnterRelationLike is called when entering the relationLike production.
+	EnterRelationLike(c *RelationLikeContext)
+
+	// EnterRelationIn is called when entering the relationIn production.
+	EnterRelationIn(c *RelationInContext)
 
 	// EnterRelationContains is called when entering the relationContains production.
 	EnterRelationContains(c *RelationContainsContext)
@@ -1321,11 +1339,29 @@ type CqlParserListener interface {
 	// ExitRelationElements is called when exiting the relationElements production.
 	ExitRelationElements(c *RelationElementsContext)
 
-	// ExitRelationIdentifier is called when exiting the relationIdentifier production.
-	ExitRelationIdentifier(c *RelationIdentifierContext)
-
 	// ExitRelationElement is called when exiting the relationElement production.
 	ExitRelationElement(c *RelationElementContext)
+
+	// ExitCompareOperator is called when exiting the compareOperator production.
+	ExitCompareOperator(c *CompareOperatorContext)
+
+	// ExitRelationFunctionCompareConstant is called when exiting the relationFunctionCompareConstant production.
+	ExitRelationFunctionCompareConstant(c *RelationFunctionCompareConstantContext)
+
+	// ExitRelationFunctionCompareFunction is called when exiting the relationFunctionCompareFunction production.
+	ExitRelationFunctionCompareFunction(c *RelationFunctionCompareFunctionContext)
+
+	// ExitRelationBetween is called when exiting the relationBetween production.
+	ExitRelationBetween(c *RelationBetweenContext)
+
+	// ExitRelationCompare is called when exiting the relationCompare production.
+	ExitRelationCompare(c *RelationCompareContext)
+
+	// ExitRelationLike is called when exiting the relationLike production.
+	ExitRelationLike(c *RelationLikeContext)
+
+	// ExitRelationIn is called when exiting the relationIn production.
+	ExitRelationIn(c *RelationInContext)
 
 	// ExitRelationContains is called when exiting the relationContains production.
 	ExitRelationContains(c *RelationContainsContext)

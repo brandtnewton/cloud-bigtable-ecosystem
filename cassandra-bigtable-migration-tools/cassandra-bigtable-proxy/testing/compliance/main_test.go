@@ -68,11 +68,9 @@ func TestMain(m *testing.M) {
 	fmt.Printf("running against test target '%s'\n", testTarget.String())
 
 	// --- Run Tests ---
-	exitCode := m.Run()
+	m.Run()
 
 	cleanUpTests()
-
-	os.Exit(exitCode)
 }
 
 // note: we don't destroy any tables here because recreating every table, for every test would cause Bigtable to rate limit us.

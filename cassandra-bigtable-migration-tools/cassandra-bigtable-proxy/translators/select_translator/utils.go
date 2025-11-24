@@ -234,12 +234,14 @@ func createBtqlFunc(col types.SelectedColumn, tableConfig *sm.TableConfig) (stri
 		}
 	}
 
-	if !funcAllowedInAggregate(col.Func) {
-		return "", fmt.Errorf("unknown function '%s'", col.Func.String())
+	if col.Func == types.FuncCodeWriteTime {
+		// todo what about collections?
+		if col.Alias != "" {
+			return fmt.Sprintf("WRITE_TIMESTAMP(%s, '%s') AS %s", colMeta.ColumnFamily, colMeta.Name, col.Alias), nil
+		}
+		return fmt.Sprintf("WRITE_TIMESTAMP(%s, '%s')", colMeta.ColumnFamily, colMeta.Name), nil
 	}
-	if !isTypeAllowedInAggregate(colMeta.CQLType.DataType()) {
-		return "", fmt.Errorf("column not supported for aggregate")
-	}
+
 	castValue, castErr := CastScalarColumn(colMeta)
 	if castErr != nil {
 		return "", castErr

@@ -3,8 +3,6 @@ package common
 import (
 	"errors"
 	"fmt"
-	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/collectiondecoder"
-	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/global/constants"
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/global/types"
 	schemaMapping "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/schema-mapping"
 	cql "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/third_party/cqlparser"
@@ -497,91 +495,6 @@ func ParseCqlConstant(c cql.IConstantContext, dt types.CqlDataType) (types.GoVal
 	return nil, fmt.Errorf("unhandled constant: %s", c.GetText())
 }
 
-func decodePreparedQueryValueToGo(val *primitive.Value, choice datatype.PrimitiveType, protocolVersion primitive.ProtocolVersion) (any, error) {
-	switch choice.GetDataTypeCode() {
-	case primitive.DataTypeCodeVarchar:
-		return proxycore.DecodeType(datatype.Varchar, protocolVersion, val.Contents)
-	case primitive.DataTypeCodeDouble:
-		return proxycore.DecodeType(datatype.Double, protocolVersion, val.Contents)
-	case primitive.DataTypeCodeFloat:
-		return proxycore.DecodeType(datatype.Float, protocolVersion, val.Contents)
-	case primitive.DataTypeCodeBigint, primitive.DataTypeCodeCounter:
-		return proxycore.DecodeType(datatype.Bigint, protocolVersion, val.Contents)
-	case primitive.DataTypeCodeTimestamp:
-		return proxycore.DecodeType(datatype.Timestamp, protocolVersion, val.Contents)
-	case primitive.DataTypeCodeInt:
-		var decodedInt int64
-		if len(val.Contents) == 8 {
-			decoded, err := proxycore.DecodeType(datatype.Bigint, protocolVersion, val.Contents)
-			if err != nil {
-				return nil, err
-			}
-			decodedInt = decoded.(int64)
-		} else {
-			decoded, err := proxycore.DecodeType(datatype.Int, protocolVersion, val.Contents)
-			if err != nil {
-				return nil, err
-			}
-			decodedInt = int64(decoded.(int32))
-		}
-		return decodedInt, nil
-	case primitive.DataTypeCodeBoolean:
-		return proxycore.DecodeType(datatype.Boolean, protocolVersion, val.Contents)
-	case primitive.DataTypeCodeDate:
-		return proxycore.DecodeType(datatype.Date, protocolVersion, val.Contents)
-	case primitive.DataTypeCodeBlob:
-		return proxycore.DecodeType(datatype.Blob, protocolVersion, val.Contents)
-	default:
-		res, err := decodePreparedQueryCollection(choice, val)
-		return res, err
-	}
-}
-
-// decodePreparedQueryCollection() Decodes non-primitive types like list, list, and list from byte data based on the provided datatype choice. Returns the decoded collection or an error if unsupported.
-func decodePreparedQueryCollection(choice datatype.PrimitiveType, val *primitive.Value) (any, error) {
-	var err error
-	// Check if it's a list type
-	if choice.GetDataTypeCode() == primitive.DataTypeCodeList {
-		// Get the element type
-		listType := choice.(datatype.ListType)
-		elementType := listType.GetElementType()
-
-		// Now check the element type's code
-		switch elementType.GetDataTypeCode() {
-		case primitive.DataTypeCodeVarchar:
-			decodedList, err := collectiondecoder.DecodeCollection(utilities.ListOfStr.DataType(), constants.BigtableEncodingVersion, val)
-			if err != nil {
-				return nil, err
-			}
-			return decodedList, err
-		case primitive.DataTypeCodeInt:
-			decodedList, err := collectiondecoder.DecodeCollection(utilities.ListOfInt.DataType(), constants.BigtableEncodingVersion, val)
-			if err != nil {
-				return nil, err
-			}
-			return decodedList, err
-		case primitive.DataTypeCodeBigint:
-			decodedList, err := collectiondecoder.DecodeCollection(utilities.ListOfBigInt.DataType(), constants.BigtableEncodingVersion, val)
-			if err != nil {
-				return nil, err
-			}
-			return decodedList, err
-		case primitive.DataTypeCodeDouble:
-			decodedList, err := collectiondecoder.DecodeCollection(utilities.ListOfDouble.DataType(), constants.BigtableEncodingVersion, val)
-			if err != nil {
-				return nil, err
-			}
-			return decodedList, err
-		default:
-			err = fmt.Errorf("unsupported list element type to decode - %v", elementType.GetDataTypeCode())
-			return nil, err
-		}
-	}
-
-	err = fmt.Errorf("unsupported Datatype to decode - %v", choice.GetDataTypeCode())
-	return nil, err
-}
-
 const (
 	bigtableEncodingVersion = primitive.ProtocolVersion4
 	referenceTime           = int64(1262304000000)
@@ -601,7 +514,9 @@ func encodeScalarForBigtable(value types.GoValue, cqlType types.CqlDataType) (ty
 	switch cqlType.DataType() {
 	case datatype.Int, datatype.Bigint:
 		return encodeBigIntForBigtable(value)
-	case datatype.Float, datatype.Double:
+	case datatype.Float:
+		return encodeFloat32ForBigtable(value)
+	case datatype.Double:
 		return encodeFloat64ForBigtable(value)
 	case datatype.Boolean:
 		return encodeBoolForBigtable(value)
@@ -705,23 +620,37 @@ func encodeBigIntForBigtable(value interface{}) ([]byte, error) {
 	return result, err
 }
 
-// encodeBigIntForBigtable encodes bigint values to bytes.
-// Converts bigint values to byte representation with validation.
-// Returns error if value is invalid or encoding fails.
-func encodeFloat64ForBigtable(value interface{}) ([]byte, error) {
-	var floatVal float64
+func encodeFloat32ForBigtable(value interface{}) (types.BigtableValue, error) {
+	var floatVal float32
 	var err error
 	switch v := value.(type) {
 	case float32:
-		floatVal = float64(v)
-	case float64:
 		floatVal = v
 	case *float32:
-		floatVal = float64(*v)
-	case *float64:
 		floatVal = *v
 	default:
 		return nil, fmt.Errorf("unsupported type for float: %T", value)
+	}
+	if err != nil {
+		return nil, err
+	}
+	result, err := proxycore.EncodeType(datatype.Float, bigtableEncodingVersion, floatVal)
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode float: %w", err)
+	}
+	return result, err
+}
+
+func encodeFloat64ForBigtable(value interface{}) (types.BigtableValue, error) {
+	var floatVal float64
+	var err error
+	switch v := value.(type) {
+	case float64:
+		floatVal = v
+	case *float64:
+		floatVal = *v
+	default:
+		return nil, fmt.Errorf("unsupported type for double: %T", value)
 	}
 	if err != nil {
 		return nil, err
@@ -736,7 +665,7 @@ func encodeFloat64ForBigtable(value interface{}) ([]byte, error) {
 // encodeBoolForBigtable encodes boolean values to bytes.
 // Converts boolean values to byte representation with validation.
 // Returns error if value is invalid or encoding fails.
-func encodeBoolForBigtable(value interface{}) ([]byte, error) {
+func encodeBoolForBigtable(value interface{}) (types.BigtableValue, error) {
 	var intVal int64
 	switch v := value.(type) {
 	case bool:
@@ -804,6 +733,12 @@ func scalarToString(val interface{}) (string, error) {
 		return strconv.FormatBool(v), nil
 	case *bool:
 		return strconv.FormatBool(*v), nil
+	case *time.Time:
+		// todo confirm this is correct
+		return strconv.FormatInt(v.UnixMicro(), 10), nil
+	case time.Time:
+		// todo confirm this is correct
+		return strconv.FormatInt(v.UnixMicro(), 10), nil
 	default:
 		return "", fmt.Errorf("unsupported type: %T", v)
 	}

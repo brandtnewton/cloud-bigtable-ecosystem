@@ -113,7 +113,7 @@ func (btc *BigtableClient) convertResultRow(resultRow bigtable.ResultRow, query 
 		}
 
 		var expectedType types.CqlDataType
-		if strings.Contains(colName, "$col") {
+		if strings.Contains(colName, "$col") || !query.SelectClause.IsStar {
 			colName = string(query.SelectClause.Columns[i].ColumnName)
 			expectedType = query.SelectClause.Columns[i].ResultType
 		} else {

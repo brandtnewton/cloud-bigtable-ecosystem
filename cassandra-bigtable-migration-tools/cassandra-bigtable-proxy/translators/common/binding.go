@@ -574,11 +574,7 @@ func BindSelectColumns(table *schemaMapping.TableConfig, selectedColumns []types
 		if selectedColumn.ListIndex != -1 {
 			bc = types.NewBoundIndexColumn(col, int(selectedColumn.ListIndex))
 		} else if selectedColumn.MapKey != "" {
-			c, err := scalarToColumnQualifier(selectedColumn.MapKey)
-			if err != nil {
-				return nil, err
-			}
-			bc = types.NewBoundKeyColumn(col, c)
+			bc = types.NewBoundKeyColumn(col, selectedColumn.MapKey)
 		} else {
 			return nil, fmt.Errorf("unhandled select column type found binding")
 		}

@@ -163,6 +163,13 @@ const (
 	CONTAINS         Operator = "CONTAINS"
 )
 
+type ArithmeticOperator string
+
+const (
+	PLUS  ArithmeticOperator = "+"
+	MINUS ArithmeticOperator = "-"
+)
+
 type Condition struct {
 	Column   *Column
 	Operator Operator
@@ -176,21 +183,22 @@ type Assignment interface {
 	IsIdempotentAssignment() bool
 }
 
-type ComplexAssignmentAdd struct {
+type ComplexAssignmentAppend struct {
 	column    *Column
-	IsPrepend bool
+	Operator  ArithmeticOperator
 	Value     Placeholder
+	IsPrepend bool
 }
 
-func (c ComplexAssignmentAdd) IsIdempotentAssignment() bool {
+func (c ComplexAssignmentAppend) IsIdempotentAssignment() bool {
 	return false
 }
 
-func NewComplexAssignmentAdd(column *Column, isPrepend bool, value Placeholder) Assignment {
-	return &ComplexAssignmentAdd{column: column, IsPrepend: isPrepend, Value: value}
+func NewComplexAssignmentAppend(column *Column, op ArithmeticOperator, value Placeholder, isPrepend bool) Assignment {
+	return &ComplexAssignmentAppend{column: column, Operator: op, Value: value, IsPrepend: isPrepend}
 }
 
-func (c ComplexAssignmentAdd) Column() *Column {
+func (c ComplexAssignmentAppend) Column() *Column {
 	return c.column
 }
 
@@ -220,27 +228,11 @@ func (c AssignmentCounterIncrement) Column() *Column {
 	return c.column
 }
 
-type ComplexAssignmentRemove struct {
-	column *Column
-	Value  Placeholder
-}
-
-func (c ComplexAssignmentRemove) IsIdempotentAssignment() bool {
-	return false
-}
-
-func NewComplexAssignmentRemove(column *Column, value Placeholder) Assignment {
-	return &ComplexAssignmentRemove{column: column, Value: value}
-}
-
-func (c ComplexAssignmentRemove) Column() *Column {
-	return c.column
-}
-
 type ComplexAssignmentUpdateIndex struct {
 	column *Column
-	Index  int64
-	Value  Placeholder
+	// cassandra requires a literal, so no need to handle a parameter for the index
+	Index int64
+	Value Placeholder
 }
 
 func (c ComplexAssignmentUpdateIndex) IsIdempotentAssignment() bool {

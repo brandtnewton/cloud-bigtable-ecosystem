@@ -361,14 +361,29 @@ type CqlParserListener interface {
 	// EnterAssignmentElement is called when entering the assignmentElement production.
 	EnterAssignmentElement(c *AssignmentElementContext)
 
-	// EnterAssignmentSet is called when entering the assignmentSet production.
-	EnterAssignmentSet(c *AssignmentSetContext)
+	// EnterAssignmentEquals is called when entering the assignmentEquals production.
+	EnterAssignmentEquals(c *AssignmentEqualsContext)
 
-	// EnterAssignmentMap is called when entering the assignmentMap production.
-	EnterAssignmentMap(c *AssignmentMapContext)
+	// EnterAssignmentPrepend is called when entering the assignmentPrepend production.
+	EnterAssignmentPrepend(c *AssignmentPrependContext)
 
-	// EnterAssignmentList is called when entering the assignmentList production.
-	EnterAssignmentList(c *AssignmentListContext)
+	// EnterAssignmentAppend is called when entering the assignmentAppend production.
+	EnterAssignmentAppend(c *AssignmentAppendContext)
+
+	// EnterAssignmentIndex is called when entering the assignmentIndex production.
+	EnterAssignmentIndex(c *AssignmentIndexContext)
+
+	// EnterValueSet is called when entering the valueSet production.
+	EnterValueSet(c *ValueSetContext)
+
+	// EnterValueMap is called when entering the valueMap production.
+	EnterValueMap(c *ValueMapContext)
+
+	// EnterValueList is called when entering the valueList production.
+	EnterValueList(c *ValueListContext)
+
+	// EnterArithmeticOperator is called when entering the arithmeticOperator production.
+	EnterArithmeticOperator(c *ArithmeticOperatorContext)
 
 	// EnterAssignmentTuple is called when entering the assignmentTuple production.
 	EnterAssignmentTuple(c *AssignmentTupleContext)
@@ -486,6 +501,9 @@ type CqlParserListener interface {
 
 	// EnterFunctionArgs is called when entering the functionArgs production.
 	EnterFunctionArgs(c *FunctionArgsContext)
+
+	// EnterValueAny is called when entering the valueAny production.
+	EnterValueAny(c *ValueAnyContext)
 
 	// EnterConstant is called when entering the constant production.
 	EnterConstant(c *ConstantContext)
@@ -1249,14 +1267,29 @@ type CqlParserListener interface {
 	// ExitAssignmentElement is called when exiting the assignmentElement production.
 	ExitAssignmentElement(c *AssignmentElementContext)
 
-	// ExitAssignmentSet is called when exiting the assignmentSet production.
-	ExitAssignmentSet(c *AssignmentSetContext)
+	// ExitAssignmentEquals is called when exiting the assignmentEquals production.
+	ExitAssignmentEquals(c *AssignmentEqualsContext)
 
-	// ExitAssignmentMap is called when exiting the assignmentMap production.
-	ExitAssignmentMap(c *AssignmentMapContext)
+	// ExitAssignmentPrepend is called when exiting the assignmentPrepend production.
+	ExitAssignmentPrepend(c *AssignmentPrependContext)
 
-	// ExitAssignmentList is called when exiting the assignmentList production.
-	ExitAssignmentList(c *AssignmentListContext)
+	// ExitAssignmentAppend is called when exiting the assignmentAppend production.
+	ExitAssignmentAppend(c *AssignmentAppendContext)
+
+	// ExitAssignmentIndex is called when exiting the assignmentIndex production.
+	ExitAssignmentIndex(c *AssignmentIndexContext)
+
+	// ExitValueSet is called when exiting the valueSet production.
+	ExitValueSet(c *ValueSetContext)
+
+	// ExitValueMap is called when exiting the valueMap production.
+	ExitValueMap(c *ValueMapContext)
+
+	// ExitValueList is called when exiting the valueList production.
+	ExitValueList(c *ValueListContext)
+
+	// ExitArithmeticOperator is called when exiting the arithmeticOperator production.
+	ExitArithmeticOperator(c *ArithmeticOperatorContext)
 
 	// ExitAssignmentTuple is called when exiting the assignmentTuple production.
 	ExitAssignmentTuple(c *AssignmentTupleContext)
@@ -1374,6 +1407,9 @@ type CqlParserListener interface {
 
 	// ExitFunctionArgs is called when exiting the functionArgs production.
 	ExitFunctionArgs(c *FunctionArgsContext)
+
+	// ExitValueAny is called when exiting the valueAny production.
+	ExitValueAny(c *ValueAnyContext)
 
 	// ExitConstant is called when exiting the constant production.
 	ExitConstant(c *ConstantContext)

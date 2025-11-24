@@ -10,7 +10,6 @@ import (
 	cql "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/third_party/cqlparser"
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/third_party/datastax/proxycore"
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/utilities"
-	"github.com/antlr4-go/antlr/v4"
 	"github.com/datastax/go-cassandra-native-protocol/datatype"
 	"github.com/datastax/go-cassandra-native-protocol/primitive"
 	"regexp"
@@ -49,99 +48,16 @@ func cqlTypeToEmptyPrimitive(cqlType datatype.DataType, isPrimaryKey bool) inter
 	return nil
 }
 
-// ParseCqlValue parses a CQL value expression.
-// Converts CQL value expressions to their corresponding Go types with validation.
-// Returns error if expression is invalid or conversion fails.
-func ParseCqlValue(expr antlr.ParserRuleContext, expectedType types.CqlDataType) (types.GoValue, error) {
-	// If this is an expression context, check for subcontexts
-	if e, ok := expr.(cql.IExpressionContext); ok {
-		if m := e.AssignmentMap(); m != nil {
-			return ParseCqlValue(m, expectedType)
-		}
-		if l := e.AssignmentList(); l != nil {
-			return ParseCqlValue(l, expectedType)
-		}
-		if s := e.AssignmentSet(); s != nil {
-			return ParseCqlValue(s, expectedType)
-		}
-		if c := e.Constant(); c != nil {
-			return GetCqlConstant(c, expectedType)
-		}
-		// Optionally handle tuple, function call, etc.
-		return e.GetText(), nil // fallback
+func ParseArithmeticOperator(a cql.IArithmeticOperatorContext) (types.ArithmeticOperator, error) {
+	if a == nil {
+		return "", fmt.Errorf("nil arithmetic operator")
 	}
-	// Handle map context
-	if m, ok := expr.(cql.IAssignmentMapContext); ok {
-		return ParseCqlMapAssignment(m, expectedType)
+	if a.PLUS() != nil {
+		return types.PLUS, nil
+	} else if a.MINUS() != nil {
+		return types.MINUS, nil
 	}
-	// Handle list context
-	if l, ok := expr.(cql.IAssignmentListContext); ok {
-		var result []types.GoValue
-		for _, c := range l.AllConstant() {
-			val, err := GetCqlConstant(c, expectedType)
-			if err != nil {
-				return nil, err
-			}
-			result = append(result, val)
-		}
-		return result, nil
-	}
-	// Handle set context
-	if s, ok := expr.(cql.IAssignmentSetContext); ok {
-		var result []types.GoValue
-		all := s.AllConstant()
-		if len(all) == 0 {
-			return result, nil
-		}
-		for _, c := range all {
-			if c == nil {
-				continue
-			}
-			val, err := GetCqlConstant(c, expectedType)
-			if err != nil {
-				return nil, err
-			}
-			result = append(result, val)
-		}
-		return result, nil
-	}
-	return expr.GetText(), nil // fallback
-}
-
-// CastScalarColumn handles column type casting in queries.
-// Manages type conversion for column values with validation.
-// Returns error if column type is invalid or conversion fails.
-func CastScalarColumn(colMeta *types.Column) (string, error) {
-	if colMeta.CQLType.IsCollection() {
-		return "", fmt.Errorf("cannot cast collection type column '%s'", colMeta.Name)
-	}
-	if colMeta.IsPrimaryKey {
-		// primary keys are stored in structured row keys, not column families, and have type information already, so no need to case
-		return string(colMeta.Name), nil
-	}
-
-	switch colMeta.CQLType.DataType() {
-	case datatype.Int:
-		return fmt.Sprintf("TO_INT64(%s['%s'])", colMeta.ColumnFamily, colMeta.Name), nil
-	case datatype.Bigint:
-		return fmt.Sprintf("TO_INT64(%s['%s'])", colMeta.ColumnFamily, colMeta.Name), nil
-	case datatype.Float:
-		return fmt.Sprintf("TO_FLOAT32(%s['%s'])", colMeta.ColumnFamily, colMeta.Name), nil
-	case datatype.Double:
-		return fmt.Sprintf("TO_FLOAT64(%s['%s'])", colMeta.ColumnFamily, colMeta.Name), nil
-	case datatype.Boolean:
-		return fmt.Sprintf("TO_INT64(%s['%s'])", colMeta.ColumnFamily, colMeta.Name), nil
-	case datatype.Timestamp:
-		return fmt.Sprintf("TO_TIME(%s['%s'])", colMeta.ColumnFamily, colMeta.Name), nil
-	case datatype.Counter:
-		return fmt.Sprintf("%s['']", colMeta.Name), nil
-	case datatype.Blob:
-		return fmt.Sprintf("TO_BLOB(%s['%s'])", colMeta.ColumnFamily, colMeta.Name), nil
-	case datatype.Varchar:
-		return fmt.Sprintf("%s['%s']", colMeta.ColumnFamily, colMeta.Name), nil
-	default:
-		return "", fmt.Errorf("unsupported CQL type: %s", colMeta.CQLType.DataType())
-	}
+	return "", fmt.Errorf("unsupported arithmetic operator: `%s`", a.GetText())
 }
 
 func ParseDecimalLiteral(d cql.IDecimalLiteralContext, cqlType types.CqlDataType, params *types.QueryParameters, values *types.QueryParameterValues) (types.Placeholder, error) {
@@ -155,7 +71,7 @@ func ParseDecimalLiteral(d cql.IDecimalLiteralContext, cqlType types.CqlDataType
 		return p, nil
 	}
 
-	val, err := utilities.StringToGo(d.DECIMAL_LITERAL().GetText(), cqlType.DataType())
+	val, err := GetDecimalLiteral(d, cqlType)
 	if err != nil {
 		return "", err
 	}
@@ -164,6 +80,20 @@ func ParseDecimalLiteral(d cql.IDecimalLiteralContext, cqlType types.CqlDataType
 		return "", err
 	}
 	return p, nil
+}
+
+func GetDecimalLiteral(d cql.IDecimalLiteralContext, cqlType types.CqlDataType) (types.GoValue, error) {
+	if d.DECIMAL_LITERAL() == nil {
+		return nil, fmt.Errorf("missing decimal literal value")
+	}
+	return utilities.StringToGo(d.DECIMAL_LITERAL().GetText(), cqlType.DataType())
+}
+
+func ParseBigInt(d cql.IDecimalLiteralContext) (int64, error) {
+	if d.DECIMAL_LITERAL() == nil {
+		return 0, fmt.Errorf("missing decimal literal value")
+	}
+	return utilities.ParseBigInt(d.GetText())
 }
 
 func ParseStringLiteral(d cql.IStringLiteralContext, params *types.QueryParameters, values *types.QueryParameterValues) (types.Placeholder, error) {
@@ -184,7 +114,7 @@ func ParseStringLiteral(d cql.IStringLiteralContext, params *types.QueryParamete
 	return p, nil
 }
 
-func parseOperator(op cql.ICompareOperatorContext) (types.Operator, error) {
+func ParseOperator(op cql.ICompareOperatorContext) (types.Operator, error) {
 	if op == nil {
 		return "", fmt.Errorf("nil operator")
 	}
@@ -211,205 +141,275 @@ func ParseWhereClause(input cql.IWhereSpecContext, tableConfig *schemaMapping.Ta
 		return nil, nil
 	}
 
-	elements := input.RelationElements().AllRelationElement()
-	if elements == nil {
-		return nil, errors.New("no input parameters found for clauses")
-	}
-
-	if len(elements) == 0 {
-		return nil, nil
-	}
-
 	var conditions []types.Condition
-
-	for _, val := range elements {
-		if val == nil {
-			return nil, errors.New("could not parse column object")
-		}
-
+	for _, val := range input.RelationElements().AllRelationElement() {
+		var err error
+		var condition types.Condition
 		if val.RelationCompare() != nil {
-			op, err := parseOperator(val.RelationCompare().CompareOperator())
-			if err != nil {
-				return nil, err
-			}
-
-			column, err := parseColumnContext(tableConfig, val.RelationCompare().Column())
-			if err != nil {
-				return nil, err
-			}
-
-			p := params.PushParameter(column, column.CQLType, false)
-			conditions = append(conditions, types.Condition{
-				Column:           column,
-				Operator:         op,
-				ValuePlaceholder: p,
-			})
-			if !IsConstantPrepared(val.RelationCompare().Constant()) {
-				val, err := GetCqlConstant(val.RelationCompare().Constant(), column.CQLType)
-				if err != nil {
-					return nil, err
-				}
-				err = values.SetValue(p, val)
-				if err != nil {
-					return nil, err
-				}
-			}
+			condition, err = parseWhereCompare(val.RelationCompare(), tableConfig, params, values)
 		} else if val.RelationLike() != nil {
-			column, err := parseColumnContext(tableConfig, val.RelationLike().Column())
-			if err != nil {
-				return nil, err
-			}
-
-			p := params.PushParameter(column, column.CQLType, false)
-			conditions = append(conditions, types.Condition{
-				Column:           column,
-				Operator:         types.LIKE,
-				ValuePlaceholder: p,
-			})
-			if !IsConstantPrepared(val.RelationLike().Constant()) {
-				val, err := GetCqlConstant(val.RelationLike().Constant(), column.CQLType)
-				if err != nil {
-					return nil, err
-				}
-				err = values.SetValue(p, val)
-				if err != nil {
-					return nil, err
-				}
-			}
+			condition, err = parseWhereLike(val.RelationLike(), tableConfig, params, values)
 		} else if val.RelationContainsKey() != nil {
-			column, err := parseColumnContext(tableConfig, val.RelationLike().Column())
-			if err != nil {
-				return nil, err
-			}
-			if column.CQLType.Code() != types.MAP {
-				return nil, errors.New("CONTAINS KEY are only supported for map")
-			}
-			keyType := column.CQLType.(types.MapType).KeyType()
-			p := params.PushParameter(column, keyType, false)
-			conditions = append(conditions, types.Condition{
-				Column:           column,
-				Operator:         types.MAP_CONTAINS_KEY,
-				ValuePlaceholder: p,
-			})
-			if !IsConstantPrepared(val.RelationContainsKey().Constant()) {
-				value, err := GetCqlConstant(val.RelationContainsKey().Constant(), keyType)
-				if err != nil {
-					return nil, err
-				}
-				err = values.SetValue(p, value)
-				if err != nil {
-					return nil, err
-				}
-			}
+			condition, err = parseWhereContainsKey(val.RelationContainsKey(), tableConfig, params, values)
 		} else if val.RelationContains() != nil {
-			column, err := parseColumnContext(tableConfig, val.RelationLike().Column())
-			if err != nil {
-				return nil, err
-			}
-			var operator types.Operator
-			var elementType types.CqlDataType
-			if column.CQLType.Code() == types.LIST {
-				operator = types.ARRAY_INCLUDES
-				elementType = column.CQLType.(types.ListType).ElementType()
-			} else if column.CQLType.Code() == types.SET {
-				operator = types.MAP_CONTAINS_KEY
-				elementType = column.CQLType.(types.SetType).ElementType()
-			} else {
-				return nil, fmt.Errorf("CONTAINS are only supported for set and list type columns, not %s", column.CQLType.String())
-			}
-
-			p := params.PushParameter(column, elementType, true)
-			conditions = append(conditions, types.Condition{
-				Column:           column,
-				Operator:         operator,
-				ValuePlaceholder: p,
-			})
-			if !IsConstantPrepared(val.RelationContainsKey().Constant()) {
-				value, err := GetCqlConstant(val.RelationContainsKey().Constant(), elementType)
-				if err != nil {
-					return nil, err
-				}
-				err = values.SetValue(p, value)
-				if err != nil {
-					return nil, err
-				}
-			}
+			condition, err = parseWhereContains(val.RelationContains(), tableConfig, params, values)
 		} else if val.RelationBetween() != nil {
-			column, err := parseColumnContext(tableConfig, val.RelationBetween().Column())
-			if err != nil {
-				return nil, err
-			}
-
-			p1 := params.PushParameter(column, column.CQLType, false)
-			p2 := params.PushParameter(column, column.CQLType, false)
-			conditions = append(conditions, types.Condition{
-				Column:            column,
-				Operator:          types.BETWEEN,
-				ValuePlaceholder:  p1,
-				ValuePlaceholder2: p2,
-			})
-			if !IsConstantPrepared(val.RelationBetween().Constant(0)) {
-				val, err := GetCqlConstant(val.RelationBetween().Constant(0), column.CQLType)
-				if err != nil {
-					return nil, err
-				}
-				err = values.SetValue(p1, val)
-				if err != nil {
-					return nil, err
-				}
-			}
-			if !IsConstantPrepared(val.RelationBetween().Constant(1)) {
-				val, err := GetCqlConstant(val.RelationBetween().Constant(1), column.CQLType)
-				if err != nil {
-					return nil, err
-				}
-				err = values.SetValue(p2, val)
-				if err != nil {
-					return nil, err
-				}
-			}
-		} else if val.RelationIn() != nil { // col1 IN (1,2,3)
-			column, err := parseColumnContext(tableConfig, val.RelationIn().Column())
-			if err != nil {
-				return nil, err
-			}
-
-			p := params.PushParameter(column, column.CQLType, false)
-			conditions = append(conditions, types.Condition{
-				Column:           column,
-				Operator:         types.IN,
-				ValuePlaceholder: p,
-			})
-			if val.RelationIn().QUESTION_MARK() == nil {
-				valueFn := val.RelationIn().FunctionArgs()
-				if valueFn == nil {
-					return nil, errors.New("could not parse Function arguments")
-				}
-				all := valueFn.AllConstant()
-				if all == nil {
-					return nil, errors.New("could not parse all values inside IN operator")
-				}
-				var inValues []any
-				for _, v := range all {
-					parsed, err := utilities.StringToGo(TrimQuotes(v.GetText()), column.CQLType.DataType())
-					if err != nil {
-						return nil, err
-					}
-					inValues = append(inValues, parsed)
-				}
-				err = values.SetValue(p, val)
-				if err != nil {
-					return nil, err
-				}
-			}
+			condition, err = parseWhereBetween(val.RelationBetween(), tableConfig, params, values)
+		} else if val.RelationIn() != nil {
+			condition, err = parseWhereIn(val.RelationIn(), tableConfig, params, values)
 		} else {
 			return nil, fmt.Errorf("unsupported condition type: `%s`", val.GetText())
 		}
+		if err != nil {
+			return nil, err
+		}
+		conditions = append(conditions, condition)
 	}
 	return conditions, nil
 }
 
-func parseColumnContext(table *schemaMapping.TableConfig, r cql.IColumnContext) (*types.Column, error) {
+func parseWhereCompare(compare cql.IRelationCompareContext, tableConfig *schemaMapping.TableConfig, params *types.QueryParameters, values *types.QueryParameterValues) (types.Condition, error) {
+	op, err := ParseOperator(compare.CompareOperator())
+	if err != nil {
+		return types.Condition{}, err
+	}
+
+	column, err := ParseColumnContext(tableConfig, compare.Column())
+	if err != nil {
+		return types.Condition{}, err
+	}
+
+	p := params.PushParameter(column, column.CQLType, false)
+	if !IsConstantPrepared(compare.Constant()) {
+		val, err := ParseCqlConstant(compare.Constant(), column.CQLType)
+		if err != nil {
+			return types.Condition{}, err
+		}
+		err = values.SetValue(p, val)
+		if err != nil {
+			return types.Condition{}, err
+		}
+	}
+	return types.Condition{
+		Column:           column,
+		Operator:         op,
+		ValuePlaceholder: p,
+	}, nil
+}
+func parseWhereLike(like cql.IRelationLikeContext, tableConfig *schemaMapping.TableConfig, params *types.QueryParameters, values *types.QueryParameterValues) (types.Condition, error) {
+	column, err := ParseColumnContext(tableConfig, like.Column())
+	if err != nil {
+		return types.Condition{}, err
+	}
+
+	p := params.PushParameter(column, column.CQLType, false)
+	if !IsConstantPrepared(like.Constant()) {
+		val, err := ParseCqlConstant(like.Constant(), column.CQLType)
+		if err != nil {
+			return types.Condition{}, err
+		}
+		err = values.SetValue(p, val)
+		if err != nil {
+			return types.Condition{}, err
+		}
+	}
+	return types.Condition{
+		Column:           column,
+		Operator:         types.LIKE,
+		ValuePlaceholder: p,
+	}, nil
+}
+func parseWhereContainsKey(containsKey cql.IRelationContainsKeyContext, tableConfig *schemaMapping.TableConfig, params *types.QueryParameters, values *types.QueryParameterValues) (types.Condition, error) {
+	column, err := ParseColumnContext(tableConfig, containsKey.Column())
+	if err != nil {
+		return types.Condition{}, err
+	}
+	if column.CQLType.Code() != types.MAP {
+		return types.Condition{}, errors.New("CONTAINS KEY are only supported for map")
+	}
+	keyType := column.CQLType.(*types.MapType).KeyType()
+	p := params.PushParameter(column, keyType, false)
+	if !IsConstantPrepared(containsKey.Constant()) {
+		value, err := ParseCqlConstant(containsKey.Constant(), keyType)
+		if err != nil {
+			return types.Condition{}, err
+		}
+		err = values.SetValue(p, value)
+		if err != nil {
+			return types.Condition{}, err
+		}
+	}
+	return types.Condition{
+		Column:           column,
+		Operator:         types.MAP_CONTAINS_KEY,
+		ValuePlaceholder: p,
+	}, nil
+}
+
+func parseWhereContains(contains cql.IRelationContainsContext, tableConfig *schemaMapping.TableConfig, params *types.QueryParameters, values *types.QueryParameterValues) (types.Condition, error) {
+	column, err := ParseColumnContext(tableConfig, contains.Column())
+	if err != nil {
+		return types.Condition{}, err
+	}
+	var operator types.Operator
+	var elementType types.CqlDataType
+	if column.CQLType.Code() == types.LIST {
+		operator = types.ARRAY_INCLUDES
+		elementType = column.CQLType.(*types.ListType).ElementType()
+	} else if column.CQLType.Code() == types.SET {
+		operator = types.MAP_CONTAINS_KEY
+		elementType = column.CQLType.(*types.SetType).ElementType()
+	} else {
+		return types.Condition{}, fmt.Errorf("CONTAINS are only supported for set and list type columns, not %s", column.CQLType.String())
+	}
+
+	p := params.PushParameter(column, elementType, true)
+	if !IsConstantPrepared(contains.Constant()) {
+		value, err := ParseCqlConstant(contains.Constant(), elementType)
+		if err != nil {
+			return types.Condition{}, err
+		}
+		err = values.SetValue(p, value)
+		if err != nil {
+			return types.Condition{}, err
+		}
+	}
+	return types.Condition{
+		Column:           column,
+		Operator:         operator,
+		ValuePlaceholder: p,
+	}, nil
+}
+
+func parseWhereBetween(between cql.IRelationBetweenContext, tableConfig *schemaMapping.TableConfig, params *types.QueryParameters, values *types.QueryParameterValues) (types.Condition, error) {
+	column, err := ParseColumnContext(tableConfig, between.Column())
+	if err != nil {
+		return types.Condition{}, err
+	}
+
+	p1 := params.PushParameter(column, column.CQLType, false)
+	p2 := params.PushParameter(column, column.CQLType, false)
+	if !IsConstantPrepared(between.Constant(0)) {
+		val, err := ParseCqlConstant(between.Constant(0), column.CQLType)
+		if err != nil {
+			return types.Condition{}, err
+		}
+		err = values.SetValue(p1, val)
+		if err != nil {
+			return types.Condition{}, err
+		}
+	}
+	if !IsConstantPrepared(between.Constant(1)) {
+		val, err := ParseCqlConstant(between.Constant(1), column.CQLType)
+		if err != nil {
+			return types.Condition{}, err
+		}
+		err = values.SetValue(p2, val)
+		if err != nil {
+			return types.Condition{}, err
+		}
+	}
+	return types.Condition{
+		Column:            column,
+		Operator:          types.BETWEEN,
+		ValuePlaceholder:  p1,
+		ValuePlaceholder2: p2,
+	}, nil
+}
+
+func parseWhereIn(whereIn cql.IRelationInContext, tableConfig *schemaMapping.TableConfig, params *types.QueryParameters, values *types.QueryParameterValues) (types.Condition, error) {
+	column, err := ParseColumnContext(tableConfig, whereIn.Column())
+	if err != nil {
+		return types.Condition{}, err
+	}
+	p := params.PushParameter(column, column.CQLType, false)
+	if whereIn.QUESTION_MARK() == nil {
+		valueFn := whereIn.FunctionArgs()
+		if valueFn == nil {
+			return types.Condition{}, errors.New("could not parse Function arguments")
+		}
+		all := valueFn.AllConstant()
+		if all == nil {
+			return types.Condition{}, errors.New("could not parse all values inside IN operator")
+		}
+		var inValues []any
+		for _, v := range all {
+			parsed, err := utilities.StringToGo(TrimQuotes(v.GetText()), column.CQLType.DataType())
+			if err != nil {
+				return types.Condition{}, err
+			}
+			inValues = append(inValues, parsed)
+		}
+		err = values.SetValue(p, inValues)
+		if err != nil {
+			return types.Condition{}, err
+		}
+	}
+	return types.Condition{
+		Column:           column,
+		Operator:         types.IN,
+		ValuePlaceholder: p,
+	}, nil
+}
+
+func ParseValueAny(v cql.IValueAnyContext, col *types.Column, p types.Placeholder, values *types.QueryParameterValues) error {
+	if v.QUESTION_MARK() != nil {
+		return nil
+	}
+	if v.Constant() != nil {
+		return ParseConstantContext(v.Constant(), col, p, values)
+	}
+	if v.ValueList() != nil {
+		value, err := ParseListValue(v.ValueList(), col.CQLType)
+		if err != nil {
+			return err
+		}
+		err = values.SetValue(p, value)
+		if err != nil {
+			return err
+		}
+	}
+	if v.ValueMap() != nil {
+		value, err := ParseCqlMapAssignment(v.ValueMap(), col.CQLType)
+		if err != nil {
+			return err
+		}
+		err = values.SetValue(p, value)
+		if err != nil {
+			return err
+		}
+	}
+	if v.ValueSet() != nil {
+		value, err := ParseCqlSetAssignment(v.ValueSet(), col.CQLType)
+		if err != nil {
+			return err
+		}
+		err = values.SetValue(p, value)
+		if err != nil {
+			return err
+		}
+	}
+	return fmt.Errorf("unhandled value set `%s`", v.GetText())
+}
+
+func ParseConstantContext(v cql.IConstantContext, col *types.Column, p types.Placeholder, values *types.QueryParameterValues) error {
+	if v.QUESTION_MARK() != nil {
+		return nil
+	}
+
+	goValue, err := ParseCqlConstant(v, col.CQLType)
+	if err != nil {
+		return err
+	}
+
+	err = values.SetValue(p, goValue)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func ParseColumnContext(table *schemaMapping.TableConfig, r cql.IColumnContext) (*types.Column, error) {
 	if r == nil || r.OBJECT_NAME() == nil {
 		return nil, fmt.Errorf("nil column")
 	}
@@ -493,11 +493,11 @@ func ValidateRequiredPrimaryKeys(tableConfig *schemaMapping.TableConfig, params 
 	return nil
 }
 
-func ParseCqlListAssignment(l cql.IAssignmentListContext, dt types.CqlDataType) ([]types.GoValue, error) {
+func ParseListValue(l cql.IValueListContext, dt types.CqlDataType) ([]types.GoValue, error) {
 	lt := dt.(types.ListType)
 	var result []types.GoValue
 	for _, c := range l.AllConstant() {
-		val, err := GetCqlConstant(c, lt.ElementType())
+		val, err := ParseCqlConstant(c, lt.ElementType())
 		if err != nil {
 			return nil, err
 		}
@@ -506,15 +506,15 @@ func ParseCqlListAssignment(l cql.IAssignmentListContext, dt types.CqlDataType) 
 	return result, nil
 }
 
-func ParseCqlMapAssignment(m cql.IAssignmentMapContext, dt types.CqlDataType) (map[types.GoValue]types.GoValue, error) {
+func ParseCqlMapAssignment(m cql.IValueMapContext, dt types.CqlDataType) (map[types.GoValue]types.GoValue, error) {
 	result := make(map[types.GoValue]types.GoValue)
 	all := m.AllConstant()
 	for i := 0; i+1 < len(all); i += 2 {
-		key, err := GetCqlConstant(all[i], dt)
+		key, err := ParseCqlConstant(all[i], dt)
 		if err != nil {
 			return nil, err
 		}
-		val, err := GetCqlConstant(all[i+1], dt)
+		val, err := ParseCqlConstant(all[i+1], dt)
 		if err != nil {
 			return nil, err
 		}
@@ -523,7 +523,7 @@ func ParseCqlMapAssignment(m cql.IAssignmentMapContext, dt types.CqlDataType) (m
 	return result, nil
 }
 
-func ParseCqlSetAssignment(s cql.IAssignmentSetContext, dt types.CqlDataType) ([]types.GoValue, error) {
+func ParseCqlSetAssignment(s cql.IValueSetContext, dt types.CqlDataType) ([]types.GoValue, error) {
 	st := dt.(types.SetType)
 	var result []types.GoValue
 	all := s.AllConstant()
@@ -534,7 +534,7 @@ func ParseCqlSetAssignment(s cql.IAssignmentSetContext, dt types.CqlDataType) ([
 		if c == nil {
 			continue
 		}
-		val, err := GetCqlConstant(c, st.ElementType())
+		val, err := ParseCqlConstant(c, st.ElementType())
 		if err != nil {
 			return nil, err
 		}
@@ -547,10 +547,10 @@ func IsConstantPrepared(c cql.IConstantContext) bool {
 	return c.QUESTION_MARK() != nil || c.GetText() == "?"
 }
 
-// GetCqlConstant parses a CQL constant value.
+// ParseCqlConstant parses a CQL constant value.
 // Converts CQL constant values to their corresponding Go types with validation.
 // Returns error if constant is invalid or conversion fails.
-func GetCqlConstant(c cql.IConstantContext, dt types.CqlDataType) (types.GoValue, error) {
+func ParseCqlConstant(c cql.IConstantContext, dt types.CqlDataType) (types.GoValue, error) {
 	if c.QUESTION_MARK() != nil || c.GetText() == "?" {
 		return nil, fmt.Errorf("cannot get constant from prepared query")
 	}
@@ -665,7 +665,7 @@ const (
 
 func encodeGoValueToBigtable(column *types.Column, value types.GoValue) ([]*types.BigtableData, error) {
 	if column.CQLType.Code() == types.MAP {
-		mt := column.CQLType.(types.MapType)
+		mt := column.CQLType.(*types.MapType)
 		mv, ok := value.(map[interface{}]interface{})
 		if !ok {
 			return nil, errors.New("failed to parse map")
@@ -686,7 +686,7 @@ func encodeGoValueToBigtable(column *types.Column, value types.GoValue) ([]*type
 		}
 		return results, nil
 	} else if column.CQLType.Code() == types.LIST {
-		lt := column.CQLType.(types.ListType)
+		lt := column.CQLType.(*types.ListType)
 		lv, ok := value.([]any)
 		if !ok {
 			return nil, errors.New("failed to parse list")
@@ -703,10 +703,10 @@ func encodeGoValueToBigtable(column *types.Column, value types.GoValue) ([]*type
 		}
 		return results, nil
 	} else if column.CQLType.Code() == types.SET {
-		st := column.CQLType.(types.ListType)
+		st := column.CQLType.(*types.SetType)
 		lv, ok := value.([]any)
 		if !ok {
-			return nil, errors.New("failed to parse list")
+			return nil, errors.New("failed to parse set")
 		}
 
 		var results []*types.BigtableData
@@ -771,7 +771,55 @@ func cassandraValueToGoValue(dt types.CqlDataType, value *primitive.Value, pv pr
 	if err != nil {
 		return nil, err
 	}
+
+	// the proxy codec returns []*string/whatever type which isn't quite what we're expecting downstream
+	//if dt.Code() == types.LIST || dt.Code() == types.SET {
+	//	goValue = dereferenceSlice(goValue)
+	//}
+
 	return goValue, nil
+}
+
+func dereferenceSlice(goValue types.GoValue) types.GoValue {
+	switch v := goValue.(type) {
+	case []*string:
+		var s = make([]string, len(v))
+		for i, ps := range v {
+			s[i] = *ps
+		}
+		return s
+	case []*int32:
+		var s = make([]int32, len(v))
+		for i, ps := range v {
+			s[i] = *ps
+		}
+		return s
+	case []*int64:
+		var s = make([]int64, len(v))
+		for i, ps := range v {
+			s[i] = *ps
+		}
+		return s
+	case []*bool:
+		var s = make([]bool, len(v))
+		for i, ps := range v {
+			s[i] = *ps
+		}
+		return s
+	case []*float32:
+		var s = make([]float32, len(v))
+		for i, ps := range v {
+			s[i] = *ps
+		}
+		return s
+	case []*float64:
+		var s = make([]float64, len(v))
+		for i, ps := range v {
+			s[i] = *ps
+		}
+		return s
+	}
+	return goValue
 }
 
 // encodeBigIntForBigtable encodes bigint values to bytes.

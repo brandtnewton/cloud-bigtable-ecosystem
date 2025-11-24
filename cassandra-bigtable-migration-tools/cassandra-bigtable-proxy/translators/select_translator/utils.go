@@ -88,7 +88,7 @@ func parseSelectClause(input cql.ISelectElementsContext, table *sm.TableConfig) 
 				// Populate the selected column
 				selected.Sql = fmt.Sprintf("%s['%s']", objectName, mapKey)
 				selected.ColumnName = types.ColumnName(objectName)
-				mt := col.CQLType.(types.MapType)
+				mt := col.CQLType.(*types.MapType)
 				selected.ResultType = mt.ValueType()
 			}
 		}
@@ -293,7 +293,7 @@ func createBtqlFunc(col types.SelectedColumn, tableConfig *sm.TableConfig) (stri
 	if !isTypeAllowedInAggregate(colMeta.CQLType.DataType()) {
 		return "", fmt.Errorf("column not supported for aggregate")
 	}
-	castValue, castErr := common.CastScalarColumn(colMeta)
+	castValue, castErr := CastScalarColumn(colMeta)
 	if castErr != nil {
 		return "", castErr
 	}
@@ -355,7 +355,7 @@ func processAsColumn(selectedColumn types.SelectedColumn, column *types.Column, 
 			columnName = ""
 		}
 		if isGroupBy {
-			castedCol, err := common.CastScalarColumn(column)
+			castedCol, err := CastScalarColumn(column)
 			if err != nil {
 				return "", err
 			}
@@ -398,7 +398,7 @@ Returns:
 */
 func processRegularColumn(selectedColumn types.SelectedColumn, col *types.Column) (string, error) {
 	if !col.CQLType.IsCollection() {
-		return common.CastScalarColumn(col)
+		return CastScalarColumn(col)
 	} else {
 		if col.CQLType.DataType().GetDataTypeCode() == primitive.DataTypeCodeList {
 			return fmt.Sprintf("MAP_VALUES(%s)", selectedColumn.Sql), nil
@@ -459,7 +459,7 @@ func createBigtableSql(t *SelectTranslator, st *types.PreparedSelectQuery) (stri
 			} else {
 				if colMeta, ok := tableConfig.Columns[types.ColumnName(lookupCol)]; ok {
 					if !colMeta.CQLType.IsCollection() {
-						col, err := common.CastScalarColumn(colMeta)
+						col, err := CastScalarColumn(colMeta)
 						if err != nil {
 							return "", err
 						}
@@ -484,7 +484,7 @@ func createBigtableSql(t *SelectTranslator, st *types.PreparedSelectQuery) (stri
 					if colMeta.IsPrimaryKey {
 						orderByClauses = append(orderByClauses, orderByCol.Column+" "+string(orderByCol.Operation))
 					} else if !colMeta.CQLType.IsCollection() {
-						orderByKey, err := common.CastScalarColumn(colMeta)
+						orderByKey, err := CastScalarColumn(colMeta)
 						if err != nil {
 							return "", err
 						}
@@ -519,7 +519,7 @@ func createBtqlWhereClause(clauses []types.Condition, tableConfig *sm.TableConfi
 			// Check if the column is a primitive type and prepend the column family
 			if !col.CQLType.IsCollection() {
 				var castErr error
-				column, castErr = common.CastScalarColumn(col)
+				column, castErr = CastScalarColumn(col)
 				if castErr != nil {
 					return "", castErr
 				}
@@ -566,4 +566,40 @@ func selectedColumnsToMetadata(table *sm.TableConfig, selectClause *types.Select
 		resultColumns = append(resultColumns, &col)
 	}
 	return resultColumns
+}
+
+// CastScalarColumn handles column type casting in queries.
+// Manages type conversion for column values with validation.
+// Returns error if column type is invalid or conversion fails.
+func CastScalarColumn(colMeta *types.Column) (string, error) {
+	if colMeta.CQLType.IsCollection() {
+		return "", fmt.Errorf("cannot cast collection type column '%s'", colMeta.Name)
+	}
+	if colMeta.IsPrimaryKey {
+		// primary keys are stored in structured row keys, not column families, and have type information already, so no need to case
+		return string(colMeta.Name), nil
+	}
+
+	switch colMeta.CQLType.DataType() {
+	case datatype.Int:
+		return fmt.Sprintf("TO_INT64(%s['%s'])", colMeta.ColumnFamily, colMeta.Name), nil
+	case datatype.Bigint:
+		return fmt.Sprintf("TO_INT64(%s['%s'])", colMeta.ColumnFamily, colMeta.Name), nil
+	case datatype.Float:
+		return fmt.Sprintf("TO_FLOAT32(%s['%s'])", colMeta.ColumnFamily, colMeta.Name), nil
+	case datatype.Double:
+		return fmt.Sprintf("TO_FLOAT64(%s['%s'])", colMeta.ColumnFamily, colMeta.Name), nil
+	case datatype.Boolean:
+		return fmt.Sprintf("TO_INT64(%s['%s'])", colMeta.ColumnFamily, colMeta.Name), nil
+	case datatype.Timestamp:
+		return fmt.Sprintf("TO_TIME(%s['%s'])", colMeta.ColumnFamily, colMeta.Name), nil
+	case datatype.Counter:
+		return fmt.Sprintf("%s['']", colMeta.Name), nil
+	case datatype.Blob:
+		return fmt.Sprintf("TO_BLOB(%s['%s'])", colMeta.ColumnFamily, colMeta.Name), nil
+	case datatype.Varchar:
+		return fmt.Sprintf("%s['%s']", colMeta.ColumnFamily, colMeta.Name), nil
+	default:
+		return "", fmt.Errorf("unsupported CQL type: %s", colMeta.CQLType.DataType())
+	}
 }

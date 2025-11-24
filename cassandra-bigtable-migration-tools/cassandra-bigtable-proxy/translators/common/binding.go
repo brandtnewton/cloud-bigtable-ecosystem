@@ -37,15 +37,15 @@ func BindMutations(assignments []types.Assignment, values *types.QueryParameterV
 			}
 			data, err := encodeGoValueToBigtable(v.Column(), value)
 			b.Data = append(b.Data, data...)
-		case *types.ComplexAssignmentAdd:
+		case *types.ComplexAssignmentAppend:
 			colType := v.Column().CQLType.Code()
 			if colType == types.LIST {
-				lt := v.Column().CQLType.(types.ListType)
+				lt := v.Column().CQLType.(*types.ListType)
 				value, err := values.GetValueSlice(v.Value)
 				if err != nil {
 					return err
 				}
-				err = addListElements(value, v.Column().ColumnFamily, &lt, v.IsPrepend, b)
+				err = addListElements(value, v.Column().ColumnFamily, lt, v.IsPrepend, b)
 				if err != nil {
 					return err
 				}
@@ -60,12 +60,12 @@ func BindMutations(assignments []types.Assignment, values *types.QueryParameterV
 				}
 				b.Data = append(b.Data, data...)
 			} else if colType == types.MAP {
-				mt := v.Column().CQLType.(types.MapType)
+				mt := v.Column().CQLType.(*types.MapType)
 				value, err := values.GetValueMap(v.Value)
 				if err != nil {
 					return err
 				}
-				err = addMapEntries(value, &mt, assignment.Column(), b)
+				err = addMapEntries(value, mt, assignment.Column(), b)
 				if err != nil {
 					return err
 				}

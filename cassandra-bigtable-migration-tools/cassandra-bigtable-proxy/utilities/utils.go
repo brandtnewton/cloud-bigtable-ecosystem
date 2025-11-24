@@ -494,6 +494,14 @@ func IsSupportedPrimaryKeyType(dt types.CqlDataType) bool {
 	}
 }
 
+func ParseBigInt(value string) (int64, error) {
+	val, err := strconv.ParseInt(value, 10, 64)
+	if err != nil {
+		return 0, fmt.Errorf("error converting string to int64: %w", err)
+	}
+	return val, err
+}
+
 func StringToGo(value string, cqlType datatype.DataType) (types.GoValue, error) {
 	var iv interface{}
 
@@ -504,21 +512,18 @@ func StringToGo(value string, cqlType datatype.DataType) (types.GoValue, error) 
 			return nil, fmt.Errorf("error converting string to int32: %w", err)
 		}
 		iv = int32(val)
-
 	case datatype.Bigint, datatype.Counter:
-		val, err := strconv.ParseInt(value, 10, 64)
+		val, err := ParseBigInt(value)
 		if err != nil {
-			return nil, fmt.Errorf("error converting string to int64: %w", err)
+			return nil, err
 		}
 		iv = val
-
 	case datatype.Float:
 		val, err := strconv.ParseFloat(value, 32)
 		if err != nil {
 			return nil, fmt.Errorf("error converting string to float32: %w", err)
 		}
 		iv = float32(val)
-
 	case datatype.Double:
 		val, err := strconv.ParseFloat(value, 64)
 		if err != nil {
@@ -535,10 +540,8 @@ func StringToGo(value string, cqlType datatype.DataType) (types.GoValue, error) 
 		} else {
 			iv = int64(0)
 		}
-
 	case datatype.Timestamp:
 		val, err := parseTimestamp(value)
-
 		if err != nil {
 			return nil, fmt.Errorf("error converting string to timestamp: %w", err)
 		}
@@ -547,7 +550,6 @@ func StringToGo(value string, cqlType datatype.DataType) (types.GoValue, error) 
 		iv = value
 	case datatype.Varchar:
 		iv = value
-
 	default:
 		return nil, fmt.Errorf("unsupported CQL type: %s", cqlType)
 

@@ -593,30 +593,43 @@ assignments
    ;
 
 assignmentElement
-   : OBJECT_NAME OPERATOR_EQ QUESTION_MARK (PLUS | MINUS) OBJECT_NAME  // For prepared statement prepend/append
-   | OBJECT_NAME OPERATOR_EQ OBJECT_NAME (PLUS | MINUS) QUESTION_MARK  // For prepared statement append/prepend
-   | OBJECT_NAME OPERATOR_EQ (constant | assignmentMap | assignmentSet | assignmentList)
-   | OBJECT_NAME OPERATOR_EQ QUESTION_MARK
-   | OBJECT_NAME OPERATOR_EQ OBJECT_NAME (PLUS | MINUS) decimalLiteral
-   | OBJECT_NAME OPERATOR_EQ OBJECT_NAME (PLUS | MINUS) assignmentSet
-   | OBJECT_NAME OPERATOR_EQ assignmentSet (PLUS | MINUS) OBJECT_NAME
-   | OBJECT_NAME OPERATOR_EQ OBJECT_NAME (PLUS | MINUS) assignmentMap
-   | OBJECT_NAME OPERATOR_EQ assignmentMap (PLUS | MINUS) OBJECT_NAME
-   | OBJECT_NAME OPERATOR_EQ OBJECT_NAME (PLUS | MINUS) assignmentList
-   | OBJECT_NAME OPERATOR_EQ assignmentList (PLUS | MINUS) OBJECT_NAME
-   | OBJECT_NAME syntaxBracketLs decimalLiteral syntaxBracketRs OPERATOR_EQ constant
+   : assignmentAppend
+   | assignmentPrepend
+   | assignmentEquals
+   | assignmentIndex
    ;
 
-assignmentSet
+assignmentEquals
+   : column OPERATOR_EQ valueAny
+   ;
+
+assignmentPrepend
+   : column OPERATOR_EQ valueAny arithmeticOperator OBJECT_NAME
+   ;
+
+assignmentAppend
+   : column OPERATOR_EQ OBJECT_NAME arithmeticOperator valueAny
+   ;
+
+assignmentIndex
+   : column syntaxBracketLs decimalLiteral syntaxBracketRs OPERATOR_EQ constant
+   ;
+
+valueSet
    : syntaxBracketLc (constant (syntaxComma constant)*)?  syntaxBracketRc
    ;
 
-assignmentMap
+valueMap
    : syntaxBracketLc (constant syntaxColon constant) (syntaxComma constant syntaxColon constant)* syntaxBracketRc
    ;
 
-assignmentList
+valueList
    : syntaxBracketLs (constant (syntaxComma constant)*)? syntaxBracketRs
+   ;
+
+arithmeticOperator
+   : PLUS
+   | MINUS
    ;
 
 assignmentTuple
@@ -674,9 +687,9 @@ expressionList
 expression
    : constant
    | functionCall
-   | assignmentMap
-   | assignmentSet
-   | assignmentList
+   | valueMap
+   | valueSet
+   | valueList
    | assignmentTuple
    ;
 
@@ -798,6 +811,14 @@ functionCall
 
 functionArgs
    : (constant | OBJECT_NAME | functionCall) (syntaxComma (constant | OBJECT_NAME | functionCall))*
+   ;
+
+valueAny
+   : QUESTION_MARK
+   | constant
+   | valueMap
+   | valueSet
+   | valueList
    ;
 
 constant

@@ -3,6 +3,7 @@ package types
 import (
 	"fmt"
 	"reflect"
+	"strings"
 )
 
 const LimitPlaceholder Placeholder = "@limitValue"
@@ -171,8 +172,14 @@ func (q *QueryParameterValues) SetValue(p Placeholder, value any) error {
 }
 
 func validateGoType(expected CqlDataType, v any) error {
-	if expected.GoType() != reflect.TypeOf(v) {
-		return fmt.Errorf("got %T, expected %s (%s)", v, expected.GoType().String(), expected.String())
+	if v == nil {
+		return nil
+	}
+	// hack to ignore pointers in comparison
+	gotType := strings.ReplaceAll(reflect.TypeOf(v).String(), "*", "")
+	expectedType := expected.GoType().String()
+	if gotType != expectedType {
+		return fmt.Errorf("got %s, expected %s (%s)", gotType, expectedType, expected.String())
 	}
 	return nil
 }

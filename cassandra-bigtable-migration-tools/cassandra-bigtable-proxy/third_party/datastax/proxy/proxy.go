@@ -543,7 +543,7 @@ func (c *client) getQueryId(msg *message.Prepare) [16]byte {
 }
 
 func newParser(query string) *cql.CqlParser {
-g	lexer := cql.NewCqlLexer(antlr.NewInputStream(query))
+	lexer := cql.NewCqlLexer(antlr.NewInputStream(query))
 	stream := antlr.NewCommonTokenStream(lexer, antlr.TokenDefaultChannel)
 	return cql.NewCqlParser(stream)
 }

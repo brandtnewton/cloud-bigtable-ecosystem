@@ -410,11 +410,18 @@ func ParseConstantContext(v cql.IConstantContext, col *types.Column, p types.Pla
 }
 
 func ParseColumnContext(table *schemaMapping.TableConfig, r cql.IColumnContext) (*types.Column, error) {
-	if r == nil || r.OBJECT_NAME() == nil {
+	if r == nil {
 		return nil, fmt.Errorf("nil column")
 	}
 
-	col := TrimDoubleQuotes(r.OBJECT_NAME().GetText())
+	var col string
+	if r.OBJECT_NAME() != nil {
+		col = TrimDoubleQuotes(r.OBJECT_NAME().GetText())
+	} else if r.K_KEY() != nil { // hack to handle unquoted `key` column reference that cqlsh does
+		col = "key"
+	} else {
+		return nil, fmt.Errorf("unknown column form: `%s`", r.GetText())
+	}
 
 	return table.GetColumn(types.ColumnName(col))
 }

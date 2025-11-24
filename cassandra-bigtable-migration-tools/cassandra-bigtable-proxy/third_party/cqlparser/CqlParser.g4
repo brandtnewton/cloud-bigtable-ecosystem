@@ -445,12 +445,10 @@ columnDefinitionList
    : (columnDefinition) (syntaxComma columnDefinition)* (syntaxComma primaryKeyElement)?
    ;
 
-//
 columnDefinition
    : column dataType primaryKeyColumn?
    ;
 
-//
 primaryKeyColumn
    : kwPrimary kwKey
    ;
@@ -868,6 +866,7 @@ table
 
 column
    : OBJECT_NAME
+   | K_KEY // hack to handle some queries to system.local with unquoted key column reference from cqlsh
    | DQUOTE OBJECT_NAME DQUOTE
    ;
 

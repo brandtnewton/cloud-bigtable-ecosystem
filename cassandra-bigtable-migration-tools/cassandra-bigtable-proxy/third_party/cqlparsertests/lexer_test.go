@@ -67,7 +67,34 @@ func TestSelectWithKeyColumn(t *testing.T) {
 	require.NotNil(t, elements[0].RelationCompare())
 	require.Equal(t, "\"key\"", elements[0].RelationCompare().Column().OBJECT_NAME().GetText())
 	require.Equal(t, "'foo'", elements[0].RelationCompare().Constant().StringLiteral().GetText())
+}
 
+func TestSelectWithKeyUnquotedColumn(t *testing.T) {
+	p := newParser(`select * from system.local where key='foo'`)
+
+	s := p.Select_()
+
+	require.NotNil(t, s)
+
+	require.NotNil(t, s.SelectElements())
+	require.NotNil(t, s.SelectElements().STAR())
+
+	require.NotNil(t, s.FromSpec())
+	require.NotNil(t, s.FromSpec().Keyspace())
+	require.Equal(t, s.FromSpec().Keyspace().GetText(), "system")
+	require.NotNil(t, s.FromSpec().Table())
+	require.Equal(t, s.FromSpec().Table().GetText(), "local")
+
+	require.NotNil(t, s.SelectElements())
+	require.NotNil(t, s.SelectElements().STAR())
+	require.NotNil(t, s.WhereSpec())
+	require.NotNil(t, s.WhereSpec().RelationElements())
+	require.NotNil(t, s.WhereSpec().RelationElements().AllRelationElement())
+	elements := s.WhereSpec().RelationElements().AllRelationElement()
+	require.Equal(t, 1, len(elements))
+	require.NotNil(t, elements[0].RelationCompare())
+	require.Equal(t, "key", elements[0].RelationCompare().Column().K_KEY().GetText())
+	require.Equal(t, "'foo'", elements[0].RelationCompare().Constant().StringLiteral().GetText())
 }
 
 func TestUpdateWhere(t *testing.T) {

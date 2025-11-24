@@ -103,7 +103,7 @@ func (btc *BigtableClient) convertResultRow(resultRow bigtable.ResultRow, query 
 					// the column may not exist in the table anymore - this happens when a column is dropped because we don't delete any data
 					continue
 				}
-				goVal, err := proxycore.DecodeType(col.CQLType.BigtableStorageType().DataType(), constants.BigtableEncodingVersion, val)
+				goVal, err := decodeBigtableCellValue(col.CQLType, val)
 				if err != nil {
 					return nil, err
 				}
@@ -127,7 +127,7 @@ func (btc *BigtableClient) convertResultRow(resultRow bigtable.ResultRow, query 
 		switch v := val.(type) {
 		case string:
 			// do we need to decode base64?
-			goVal, err := utilities.StringToGo(v, expectedType.DataType())
+			goVal, err := utilities.StringToGo(v, expectedType)
 			if err != nil {
 				return nil, err
 			}
@@ -148,7 +148,7 @@ func (btc *BigtableClient) convertResultRow(resultRow bigtable.ResultRow, query 
 				lt := expectedType.(*types.ListType)
 				var listValues []types.GoValue
 				for _, listElement := range v {
-					goVal, err := proxycore.DecodeType(lt.ElementType().BigtableStorageType().DataType(), constants.BigtableEncodingVersion, listElement)
+					goVal, err := decodeBigtableCellValue(lt.ElementType(), listElement)
 					if err != nil {
 						return nil, err
 					}
@@ -163,7 +163,7 @@ func (btc *BigtableClient) convertResultRow(resultRow bigtable.ResultRow, query 
 					if err != nil {
 						return nil, err
 					}
-					goKey, err := utilities.StringToGo(key, st.ElementType().DataType())
+					goKey, err := utilities.StringToGo(key, st.ElementType())
 					if err != nil {
 						return nil, err
 					}
@@ -173,16 +173,16 @@ func (btc *BigtableClient) convertResultRow(resultRow bigtable.ResultRow, query 
 			} else if expectedType.Code() == types.MAP {
 				mt := expectedType.(*types.MapType)
 				mapValue := make(map[types.GoValue]types.GoValue)
-				for k, val := range v {
-					key, err := decodeBase64(k)
+				for mapKey, mapVal := range v {
+					key, err := decodeBase64(mapKey)
 					if err != nil {
 						return nil, err
 					}
-					goKey, err := utilities.StringToGo(key, mt.KeyType().DataType())
+					goKey, err := utilities.StringToGo(key, mt.KeyType())
 					if err != nil {
 						return nil, err
 					}
-					goVal, err := proxycore.DecodeType(expectedType.BigtableStorageType().DataType(), constants.BigtableEncodingVersion, val)
+					goVal, err := decodeBigtableCellValue(mt.ValueType(), mapVal)
 					if err != nil {
 						return nil, err
 					}
@@ -220,4 +220,8 @@ func (btc *BigtableClient) convertResultRow(resultRow bigtable.ResultRow, query 
 	}
 
 	return result, nil
+}
+
+func decodeBigtableCellValue(t types.CqlDataType, val []byte) (types.GoValue, error) {
+	return proxycore.DecodeType(t.BigtableStorageType().DataType(), constants.BigtableEncodingVersion, val)
 }

@@ -994,6 +994,12 @@ func (s *BaseCqlParserListener) EnterRelationLike(ctx *RelationLikeContext) {}
 // ExitRelationLike is called when production relationLike is exited.
 func (s *BaseCqlParserListener) ExitRelationLike(ctx *RelationLikeContext) {}
 
+// EnterTupleValue is called when production tupleValue is entered.
+func (s *BaseCqlParserListener) EnterTupleValue(ctx *TupleValueContext) {}
+
+// ExitTupleValue is called when production tupleValue is exited.
+func (s *BaseCqlParserListener) ExitTupleValue(ctx *TupleValueContext) {}
+
 // EnterRelationIn is called when production relationIn is entered.
 func (s *BaseCqlParserListener) EnterRelationIn(ctx *RelationInContext) {}
 

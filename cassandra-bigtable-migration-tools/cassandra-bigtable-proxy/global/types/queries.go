@@ -83,7 +83,6 @@ const (
 	LTE              Operator = "<="
 	BETWEEN          Operator = "BETWEEN"
 	LIKE             Operator = "LIKE"
-	BETWEEN_AND      Operator = "BETWEEN-AND"
 	IN               Operator = "IN"
 	ARRAY_INCLUDES   Operator = "ARRAY_INCLUDES"
 	MAP_CONTAINS_KEY Operator = "MAP_CONTAINS_KEY"
@@ -102,7 +101,8 @@ type Condition struct {
 	Column   *Column
 	Operator Operator
 	// points to a placeholder
-	ValuePlaceholder  Placeholder
+	ValuePlaceholder Placeholder
+	// used for BETWEEN operator
 	ValuePlaceholder2 Placeholder
 }
 

@@ -508,10 +508,10 @@ func NewParser(query string) *cql.CqlParser {
 	return cql.NewCqlParser(stream)
 }
 
-func StringToGo(value string, cqlType datatype.DataType) (types.GoValue, error) {
+func StringToGo(value string, cqlType types.CqlDataType) (types.GoValue, error) {
 	var iv interface{}
 
-	switch cqlType {
+	switch cqlType.DataType() {
 	case datatype.Int:
 		val, err := strconv.ParseInt(value, 10, 32)
 		if err != nil {

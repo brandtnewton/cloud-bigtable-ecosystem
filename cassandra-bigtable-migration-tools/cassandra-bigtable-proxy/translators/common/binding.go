@@ -61,8 +61,18 @@ func BindMutations(assignments []types.Assignment, values *types.QueryParameterV
 				if err != nil {
 					return err
 				}
+			} else if colType == types.COUNTER {
+				value, err := values.GetValueInt64(v.Value)
+				if err != nil {
+					return err
+				}
+				if v.Operator == types.MINUS {
+					// bigtable only supports adding, so we need to flip the sign
+					value = value * -1
+				}
+				b.AddMutations(types.NewBigtableCounterOp(assignment.Column().ColumnFamily, value))
 			} else {
-				return fmt.Errorf("uhandled add assignment column type: %s", v.Column().CQLType.String())
+				return fmt.Errorf("unhandled add assignment column type: %s", v.Column().CQLType.String())
 			}
 		default:
 			return fmt.Errorf("unhandled assignment op type %T", v)

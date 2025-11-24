@@ -86,7 +86,7 @@ func GetDecimalLiteral(d cql.IDecimalLiteralContext, cqlType types.CqlDataType) 
 	if d.DECIMAL_LITERAL() == nil {
 		return nil, fmt.Errorf("missing decimal literal value")
 	}
-	return utilities.StringToGo(d.DECIMAL_LITERAL().GetText(), cqlType.DataType())
+	return utilities.StringToGo(d.DECIMAL_LITERAL().GetText(), cqlType)
 }
 
 func ParseBigInt(d cql.IDecimalLiteralContext) (int64, error) {
@@ -103,7 +103,7 @@ func ParseStringLiteral(d cql.IStringLiteralContext, params *types.QueryParamete
 
 	p := params.PushParameterWithoutColumn(types.TypeVarchar)
 
-	val, err := utilities.StringToGo(TrimQuotes(d.STRING_LITERAL().GetText()), datatype.Varchar)
+	val, err := utilities.StringToGo(TrimQuotes(d.STRING_LITERAL().GetText()), types.TypeText)
 	if err != nil {
 		return "", err
 	}
@@ -180,16 +180,11 @@ func parseWhereCompare(compare cql.IRelationCompareContext, tableConfig *schemaM
 	}
 
 	p := params.PushParameter(column, column.CQLType, false)
-	if !IsConstantPrepared(compare.Constant()) {
-		val, err := ParseCqlConstant(compare.Constant(), column.CQLType)
-		if err != nil {
-			return types.Condition{}, err
-		}
-		err = values.SetValue(p, val)
-		if err != nil {
-			return types.Condition{}, err
-		}
+	err = ExtractConstantValue(compare.Constant(), column.CQLType, p, values)
+	if err != nil {
+		return types.Condition{}, err
 	}
+
 	return types.Condition{
 		Column:           column,
 		Operator:         op,
@@ -203,15 +198,9 @@ func parseWhereLike(like cql.IRelationLikeContext, tableConfig *schemaMapping.Ta
 	}
 
 	p := params.PushParameter(column, column.CQLType, false)
-	if !IsConstantPrepared(like.Constant()) {
-		val, err := ParseCqlConstant(like.Constant(), column.CQLType)
-		if err != nil {
-			return types.Condition{}, err
-		}
-		err = values.SetValue(p, val)
-		if err != nil {
-			return types.Condition{}, err
-		}
+	err = ExtractConstantValue(like.Constant(), column.CQLType, p, values)
+	if err != nil {
+		return types.Condition{}, err
 	}
 	return types.Condition{
 		Column:           column,
@@ -228,16 +217,11 @@ func parseWhereContainsKey(containsKey cql.IRelationContainsKeyContext, tableCon
 		return types.Condition{}, errors.New("CONTAINS KEY are only supported for map")
 	}
 	keyType := column.CQLType.(*types.MapType).KeyType()
-	p := params.PushParameter(column, keyType, false)
-	if !IsConstantPrepared(containsKey.Constant()) {
-		value, err := ParseCqlConstant(containsKey.Constant(), keyType)
-		if err != nil {
-			return types.Condition{}, err
-		}
-		err = values.SetValue(p, value)
-		if err != nil {
-			return types.Condition{}, err
-		}
+	p := params.PushParameter(column, keyType, true)
+
+	err = ExtractConstantValue(containsKey.Constant(), column.CQLType, p, values)
+	if err != nil {
+		return types.Condition{}, err
 	}
 	return types.Condition{
 		Column:           column,
@@ -264,15 +248,9 @@ func parseWhereContains(contains cql.IRelationContainsContext, tableConfig *sche
 	}
 
 	p := params.PushParameter(column, elementType, true)
-	if !IsConstantPrepared(contains.Constant()) {
-		value, err := ParseCqlConstant(contains.Constant(), elementType)
-		if err != nil {
-			return types.Condition{}, err
-		}
-		err = values.SetValue(p, value)
-		if err != nil {
-			return types.Condition{}, err
-		}
+	err = ExtractConstantValue(contains.Constant(), elementType, p, values)
+	if err != nil {
+		return types.Condition{}, err
 	}
 	return types.Condition{
 		Column:           column,
@@ -287,27 +265,19 @@ func parseWhereBetween(between cql.IRelationBetweenContext, tableConfig *schemaM
 		return types.Condition{}, err
 	}
 
-	p1 := params.PushParameter(column, column.CQLType, false)
-	p2 := params.PushParameter(column, column.CQLType, false)
-	if !IsConstantPrepared(between.Constant(0)) {
-		val, err := ParseCqlConstant(between.Constant(0), column.CQLType)
-		if err != nil {
-			return types.Condition{}, err
-		}
-		err = values.SetValue(p1, val)
-		if err != nil {
-			return types.Condition{}, err
-		}
+	if len(between.AllConstant()) != 2 {
+		return types.Condition{}, fmt.Errorf("BETWEEN condition must have exactly 2 values")
 	}
-	if !IsConstantPrepared(between.Constant(1)) {
-		val, err := ParseCqlConstant(between.Constant(1), column.CQLType)
-		if err != nil {
-			return types.Condition{}, err
-		}
-		err = values.SetValue(p2, val)
-		if err != nil {
-			return types.Condition{}, err
-		}
+
+	p1 := params.PushParameter(column, column.CQLType, false)
+	err = ExtractConstantValue(between.Constant(0), column.CQLType, p1, values)
+	if err != nil {
+		return types.Condition{}, err
+	}
+	p2 := params.PushParameter(column, column.CQLType, false)
+	err = ExtractConstantValue(between.Constant(1), column.CQLType, p2, values)
+	if err != nil {
+		return types.Condition{}, err
 	}
 	return types.Condition{
 		Column:            column,
@@ -322,28 +292,10 @@ func parseWhereIn(whereIn cql.IRelationInContext, tableConfig *schemaMapping.Tab
 	if err != nil {
 		return types.Condition{}, err
 	}
-	p := params.PushParameter(column, column.CQLType, false)
-	if whereIn.QUESTION_MARK() == nil {
-		valueFn := whereIn.FunctionArgs()
-		if valueFn == nil {
-			return types.Condition{}, errors.New("could not parse Function arguments")
-		}
-		all := valueFn.AllConstant()
-		if all == nil {
-			return types.Condition{}, errors.New("could not parse all values inside IN operator")
-		}
-		var inValues []any
-		for _, v := range all {
-			parsed, err := utilities.StringToGo(TrimQuotes(v.GetText()), column.CQLType.DataType())
-			if err != nil {
-				return types.Condition{}, err
-			}
-			inValues = append(inValues, parsed)
-		}
-		err = values.SetValue(p, inValues)
-		if err != nil {
-			return types.Condition{}, err
-		}
+	p := params.PushParameter(column, types.NewListType(column.CQLType), false)
+	err = ExtractTupleValue(whereIn.TupleValue(), column, p, values)
+	if err != nil {
+		return types.Condition{}, err
 	}
 	return types.Condition{
 		Column:           column,
@@ -352,12 +304,37 @@ func parseWhereIn(whereIn cql.IRelationInContext, tableConfig *schemaMapping.Tab
 	}, nil
 }
 
+func ExtractTupleValue(tuple cql.ITupleValueContext, col *types.Column, p types.Placeholder, values *types.QueryParameterValues) error {
+	if tuple.QUESTION_MARK() != nil {
+		return nil
+	}
+
+	valueFn := tuple.FunctionArgs()
+	all := valueFn.AllConstant()
+	if all == nil || len(all) == 0 {
+		return errors.New("failed to parse values for IN operator")
+	}
+	var inValues []any
+	for _, v := range all {
+		parsed, err := utilities.StringToGo(TrimQuotes(v.GetText()), col.CQLType)
+		if err != nil {
+			return err
+		}
+		inValues = append(inValues, parsed)
+	}
+	err := values.SetValue(p, inValues)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
 func ParseValueAny(v cql.IValueAnyContext, col *types.Column, p types.Placeholder, values *types.QueryParameterValues) error {
 	if v.QUESTION_MARK() != nil {
 		return nil
 	}
 	if v.Constant() != nil {
-		return ParseConstantContext(v.Constant(), col, p, values)
+		return ExtractConstantValue(v.Constant(), col.CQLType, p, values)
 	}
 	if v.ValueList() != nil {
 		value, err := ParseListValue(v.ValueList(), col.CQLType)
@@ -392,12 +369,12 @@ func ParseValueAny(v cql.IValueAnyContext, col *types.Column, p types.Placeholde
 	return fmt.Errorf("unhandled value set `%s`", v.GetText())
 }
 
-func ParseConstantContext(v cql.IConstantContext, col *types.Column, p types.Placeholder, values *types.QueryParameterValues) error {
+func ExtractConstantValue(v cql.IConstantContext, tpe types.CqlDataType, p types.Placeholder, values *types.QueryParameterValues) error {
 	if v.QUESTION_MARK() != nil {
 		return nil
 	}
 
-	goValue, err := ParseCqlConstant(v, col.CQLType)
+	goValue, err := ParseCqlConstant(v, tpe)
 	if err != nil {
 		return err
 	}
@@ -460,7 +437,7 @@ func GetTimestampInfo(timestampContext cql.IUsingTtlTimestampContext, params *ty
 	}
 	params.AddParameterWithoutColumn(types.UsingTimePlaceholder, types.TypeBigint)
 	if literal.DECIMAL_LITERAL() != nil {
-		value, err := utilities.StringToGo(literal.DECIMAL_LITERAL().GetText(), datatype.Bigint)
+		value, err := utilities.StringToGo(literal.DECIMAL_LITERAL().GetText(), types.TypeBigint)
 		if err != nil {
 			return err
 		}
@@ -550,28 +527,24 @@ func ParseCqlSetAssignment(s cql.IValueSetContext, dt types.CqlDataType) ([]type
 	return result, nil
 }
 
-func IsConstantPrepared(c cql.IConstantContext) bool {
-	return c.QUESTION_MARK() != nil || c.GetText() == "?"
-}
-
 // ParseCqlConstant parses a CQL constant value.
 // Converts CQL constant values to their corresponding Go types with validation.
 // Returns error if constant is invalid or conversion fails.
 func ParseCqlConstant(c cql.IConstantContext, dt types.CqlDataType) (types.GoValue, error) {
-	if c.QUESTION_MARK() != nil || c.GetText() == "?" {
+	if c.QUESTION_MARK() != nil {
 		return nil, fmt.Errorf("cannot get constant from prepared query")
 	}
 	if c.StringLiteral() != nil {
-		return utilities.StringToGo(TrimQuotes(c.StringLiteral().GetText()), dt.DataType())
+		return utilities.StringToGo(TrimQuotes(c.StringLiteral().GetText()), dt)
 	}
 	if c.DecimalLiteral() != nil {
-		return utilities.StringToGo(c.DecimalLiteral().GetText(), dt.DataType())
+		return utilities.StringToGo(c.DecimalLiteral().GetText(), dt)
 	}
 	if c.FloatLiteral() != nil {
-		return utilities.StringToGo(c.FloatLiteral().GetText(), dt.DataType())
+		return utilities.StringToGo(c.FloatLiteral().GetText(), dt)
 	}
 	if c.BooleanLiteral() != nil {
-		return utilities.StringToGo(c.BooleanLiteral().GetText(), dt.DataType())
+		return utilities.StringToGo(c.BooleanLiteral().GetText(), dt)
 	}
 	if c.KwNull() != nil {
 		return nil, nil
@@ -771,8 +744,12 @@ func encodeBigIntForBigtable(value interface{}) ([]byte, error) {
 	switch v := value.(type) {
 	case int32:
 		intVal = int64(v)
+	case *int32:
+		intVal = int64(*v)
 	case int64:
 		intVal = v
+	case *int64:
+		intVal = *v
 	default:
 		return nil, fmt.Errorf("unsupported type for bigint: %T", value)
 	}
@@ -794,6 +771,10 @@ func encodeFloat64ForBigtable(value interface{}) ([]byte, error) {
 		floatVal = float64(v)
 	case float64:
 		floatVal = v
+	case *float32:
+		floatVal = float64(*v)
+	case *float64:
+		floatVal = *v
 	default:
 		return nil, fmt.Errorf("unsupported type for float: %T", value)
 	}
@@ -811,29 +792,37 @@ func encodeFloat64ForBigtable(value interface{}) ([]byte, error) {
 // Converts boolean values to byte representation with validation.
 // Returns error if value is invalid or encoding fails.
 func encodeBoolForBigtable(value interface{}) ([]byte, error) {
+	var intVal int64
 	switch v := value.(type) {
 	case bool:
-		var valInBigint int64
 		if v {
-			valInBigint = 1
+			intVal = 1
 		} else {
-			valInBigint = 0
+			intVal = 0
 		}
-		bd, err := proxycore.EncodeType(datatype.Bigint, bigtableEncodingVersion, valInBigint)
-		if err != nil {
-			return nil, err
+	case *bool:
+		if *v {
+			intVal = 1
+		} else {
+			intVal = 0
 		}
-		return bd, nil
 	default:
 		return nil, fmt.Errorf("unsupported type: %T", value)
 	}
+	bd, err := proxycore.EncodeType(datatype.Bigint, bigtableEncodingVersion, intVal)
+	if err != nil {
+		return nil, err
+	}
+	return bd, nil
 }
 
 func encodeTimestampForBigtable(value interface{}) (types.BigtableValue, error) {
 	var t time.Time
 	switch v := value.(type) {
-	case int64:
-		t = time.UnixMilli(v)
+	case time.Time:
+		t = v
+	case *time.Time:
+		t = *v
 	default:
 		return nil, fmt.Errorf("unsupported timestamp type: %T", value)
 	}

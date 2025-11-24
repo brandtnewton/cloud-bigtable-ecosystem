@@ -789,8 +789,12 @@ relationLike
    : column kwLike constant
    ;
 
+tupleValue
+  : QUESTION_MARK | '(' functionArgs ')'
+  ;
+
 relationIn
-  : column kwIn ('(' functionArgs ')' | QUESTION_MARK)
+  : column kwIn tupleValue
   ;
 
 relationContains
@@ -820,15 +824,15 @@ valueAny
    ;
 
 constant
-   : UUID
+   : QUESTION_MARK
+   | kwNull
+   | UUID
    | stringLiteral
    | decimalLiteral
    | floatLiteral
    | hexadecimalLiteral
    | booleanLiteral
    | codeBlock
-   | kwNull
-   | QUESTION_MARK
    ;
 
 decimalLiteral

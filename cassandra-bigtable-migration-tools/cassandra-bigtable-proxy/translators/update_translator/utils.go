@@ -55,7 +55,7 @@ func parseUpdateValues(assignments []cql.IAssignmentElementContext, tableConfig 
 				return nil, fmt.Errorf("failed to parse list collection index: %w", err)
 			}
 			parsed = append(parsed, types.NewComplexAssignmentUpdateIndex(col, index, p))
-			err = common.ParseConstantContext(assignment.Constant(), col, p, values)
+			err = common.ExtractConstantValue(assignment.Constant(), col.CQLType, p, values)
 			if err != nil {
 				return nil, err
 			}

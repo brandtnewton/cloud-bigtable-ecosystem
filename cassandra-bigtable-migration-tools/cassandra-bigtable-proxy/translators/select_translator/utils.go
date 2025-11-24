@@ -511,11 +511,11 @@ func createBigtableSql(t *SelectTranslator, st *types.PreparedSelectQuery) (stri
 // It iterates over the clauses and constructs the WHERE clause by combining the column name, operator, and value of each clause.
 // If the operator is "IN", the value is wrapped with the UNNEST function.
 // The constructed WHERE clause is returned as a string.
-func createBtqlWhereClause(clauses []types.Condition, tableConfig *sm.TableConfig) (string, error) {
-	whereClause := ""
-	for _, val := range clauses {
-		column := "`" + string(val.Column.Name) + "`"
-		if col, ok := tableConfig.Columns[val.Column.Name]; ok {
+func createBtqlWhereClause(conditions []types.Condition, tableConfig *sm.TableConfig) (string, error) {
+	var btqlConditions []string
+	for _, condition := range conditions {
+		column := "`" + string(condition.Column.Name) + "`"
+		if col, ok := tableConfig.Columns[condition.Column.Name]; ok {
 			// Check if the column is a primitive type and prepend the column family
 			if !col.CQLType.IsCollection() {
 				var castErr error
@@ -525,28 +525,28 @@ func createBtqlWhereClause(clauses []types.Condition, tableConfig *sm.TableConfi
 				}
 			}
 		}
-		if whereClause != "" && val.Operator != types.BETWEEN_AND {
-			whereClause += " AND "
-		}
-		if val.Operator == types.BETWEEN {
-			whereClause += fmt.Sprintf("%s BETWEEN %s", column, val.ValuePlaceholder)
-		} else if val.Operator == types.BETWEEN_AND {
-			whereClause += fmt.Sprintf(" AND %s", val.ValuePlaceholder)
-		} else if val.Operator == types.IN {
-			whereClause += fmt.Sprintf("%s IN UNNEST(%s)", column, val.ValuePlaceholder)
-		} else if val.Operator == types.MAP_CONTAINS_KEY {
-			whereClause += fmt.Sprintf("MAP_CONTAINS_KEY(%s, %s)", column, val.ValuePlaceholder)
-		} else if val.Operator == types.ARRAY_INCLUDES {
-			whereClause += fmt.Sprintf("ARRAY_INCLUDES(MAP_VALUES(%s), %s)", column, val.ValuePlaceholder)
+
+		var btql string
+		if condition.Operator == types.BETWEEN {
+			btql = fmt.Sprintf("%s BETWEEN %s AND %s", column, condition.ValuePlaceholder, condition.ValuePlaceholder2)
+		} else if condition.Operator == types.IN {
+			btql = fmt.Sprintf("%s IN UNNEST(%s)", column, condition.ValuePlaceholder)
+		} else if condition.Operator == types.MAP_CONTAINS_KEY {
+			btql = fmt.Sprintf("MAP_CONTAINS_KEY(%s, %s)", column, condition.ValuePlaceholder)
+		} else if condition.Operator == types.ARRAY_INCLUDES {
+			btql = fmt.Sprintf("ARRAY_INCLUDES(MAP_VALUES(%s), %s)", column, condition.ValuePlaceholder)
 		} else {
-			whereClause += fmt.Sprintf("%s %s %s", column, val.Operator, val.ValuePlaceholder)
+			btql = fmt.Sprintf("%s %s %s", column, condition.Operator, condition.ValuePlaceholder)
 		}
+
+		btqlConditions = append(btqlConditions, btql)
 	}
 
-	if whereClause != "" {
-		whereClause = " WHERE " + whereClause
+	if len(btqlConditions) == 0 {
+		return "", nil
 	}
-	return whereClause, nil
+
+	return " WHERE " + strings.Join(btqlConditions, " AND "), nil
 }
 
 func selectedColumnsToMetadata(table *sm.TableConfig, selectClause *types.SelectClause) []*message.ColumnMetadata {

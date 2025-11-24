@@ -80,7 +80,7 @@ func parseInsertValues(input cql.IInsertValuesSpecContext, columns []types.Assig
 			return fmt.Errorf("unhandled error: missing parameter for column '%s'", column.Name)
 		}
 
-		val, err := utilities.StringToGo(common.TrimQuotes(value.GetText()), column.CQLType.DataType())
+		val, err := utilities.StringToGo(common.TrimQuotes(value.GetText()), column.CQLType)
 		err = values.SetValue(placeholder, val)
 		if err != nil {
 			return err

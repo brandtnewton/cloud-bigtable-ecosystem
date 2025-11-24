@@ -13,8 +13,9 @@ type Placeholder string
 type PlaceholderMetadata struct {
 	Key Placeholder
 	// nil if limit or collection index/key
-	Column          *Column
-	Type            CqlDataType
+	Column *Column
+	Type   CqlDataType
+	// indicates that this is a value for accessing a collection column by index or key
 	IsCollectionKey bool
 }
 
@@ -241,11 +242,29 @@ func (q *QueryParameterValues) GetValueMap(p Placeholder) (map[GoValue]GoValue, 
 	if err != nil {
 		return nil, err
 	}
-	slice, ok := v.(map[GoValue]GoValue)
-	if !ok {
-		return nil, fmt.Errorf("query param %s is a %T, not a map", p, v)
+	val := reflect.ValueOf(v)
+
+	if val.Kind() != reflect.Map {
+		return nil, fmt.Errorf("value is a %T, not a map", v)
 	}
-	return slice, nil
+
+	result := make(map[GoValue]GoValue, val.Len())
+
+	// 3. Iterate over the keys of the original map
+	iter := val.MapRange()
+	for iter.Next() {
+		// Get the reflection Value for the key and the value
+		keyVal := iter.Key()
+		valueVal := iter.Value()
+
+		// 4. Use .Interface() to convert the concrete key/value to an any (interface{})
+		keyAny := keyVal.Interface()
+		valueAny := valueVal.Interface()
+
+		// 5. Add to the new map[any]any
+		result[keyAny] = valueAny
+	}
+	return result, nil
 }
 
 func (q *QueryParameterValues) GetValueByColumn(c ColumnName) (any, error) {
@@ -269,6 +288,13 @@ func (q *QueryParameterValues) AsMap() map[Placeholder]GoValue {
 func (q *QueryParameterValues) BigtableParamMap() map[string]any {
 	var result = make(map[string]any)
 	for placeholder, value := range q.values {
+		md := q.params.GetMetadata(placeholder)
+		if md.IsCollectionKey {
+			switch v := value.(type) {
+			case string:
+				value = []byte(v)
+			}
+		}
 		// drop the leading '@' symbol
 		result[string(placeholder)[1:]] = value
 	}

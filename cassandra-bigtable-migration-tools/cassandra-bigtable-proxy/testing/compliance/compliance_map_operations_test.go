@@ -262,6 +262,7 @@ func TestMapOperationWithContainsKeyClause(t *testing.T) {
 			require.Error(t, err)
 			assert.Contains(t, err.Error(), "ALLOW FILTERING")
 		} else {
+			require.NoError(t, err)
 			assert.Equal(t, map[string]string{
 				"info_key_contains_one":   "data_one",
 				"info_key_contains_two":   "data_two",

@@ -113,12 +113,9 @@ func setUpTests() {
 	log.Println(fmt.Sprintf("determined test target to be %s from the cluster name '%s'", testTarget.String(), clusterName))
 
 	log.Println("Creating test tables...")
-	for i, stmt := range getSchemas() {
-		log.Println(fmt.Sprintf("Running create table statement: '%d'...", i))
-		err = session.Query(stmt).Exec()
-		if err != nil {
-			log.Fatalf("could not create table: %v", err)
-		}
+	err = runCqlshAsync(getSchemas())
+	if err != nil {
+		log.Fatalf("could not create table: %v", err)
 	}
 
 	tableNames := []string{
@@ -134,13 +131,14 @@ func setUpTests() {
 		tableNames = append(tableNames, "bigtabledevinstance.orders_big_endian_encoded")
 	}
 
-	// truncate all tables
+	var truncateStatements []string
 	for _, table := range tableNames {
-		log.Println(fmt.Sprintf("truncating table: '%s'...", table))
-		err = session.Query(fmt.Sprintf("TRUNCATE TABLE %s", table)).Exec()
-		if err != nil {
-			log.Fatalf("could not create table: %v", err)
-		}
+		truncateStatements = append(truncateStatements, fmt.Sprintf("TRUNCATE TABLE %s", table))
+	}
+
+	err = runCqlshAsync(truncateStatements)
+	if err != nil {
+		log.Fatalf("could not create table: %v", err)
 	}
 
 	log.Println("All test tables successfully created!")

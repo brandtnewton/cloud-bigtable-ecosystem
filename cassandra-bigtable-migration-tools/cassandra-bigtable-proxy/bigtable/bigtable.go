@@ -26,6 +26,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"cloud.google.com/go/bigtable"
@@ -695,6 +696,11 @@ func (btc *BigtableClient) buildDeleteMutation(ctx context.Context, table *schem
 	return nil
 }
 
+type TableResult struct {
+	Config *schemaMapping.TableConfig
+	Error  error
+}
+
 // ReadTableConfigs - Retrieves schema mapping configurations from the specified config table.
 //
 // Parameters:
@@ -723,7 +729,7 @@ func (btc *BigtableClient) ReadTableConfigs(ctx context.Context, keyspace types.
 	table := client.Open(string(btc.SchemaMappingConfig.SchemaMappingTableName))
 	filter := bigtable.LatestNFilter(1)
 
-	allColumns := make(map[types.TableName][]*types.Column)
+	tables := make(map[types.TableName][]*types.Column)
 
 	var readErr error
 	err = table.ReadRows(ctx, bigtable.InfiniteRange(""), func(row bigtable.Row) bool {
@@ -769,7 +775,7 @@ func (btc *BigtableClient) ReadTableConfigs(ctx context.Context, keyspace types.
 			KeyType:      parsedKeyType,
 		}
 
-		allColumns[tableName] = append(allColumns[tableName], column)
+		tables[tableName] = append(tables[tableName], column)
 
 		return true
 	}, bigtable.RowFilter(filter))
@@ -791,23 +797,46 @@ func (btc *BigtableClient) ReadTableConfigs(ctx context.Context, keyspace types.
 		return nil, fmt.Errorf("%s: %w", errorMessage, err)
 	}
 
-	tableConfigs := make([]*schemaMapping.TableConfig, 0, len(allColumns))
-	for tableName, tableColumns := range allColumns {
-		var intRowKeyEncoding types.IntRowKeyEncodingType
+	// Create a channel to collect results and errors from the goroutines.
+	// Buffer size set to the total number of tables to avoid blocking senders.
+	resultCh := make(chan TableResult, len(tables))
+	var wg sync.WaitGroup
+	for tableName, tableColumns := range tables {
 		// if we already know what encoding the table has, just use that, so we don't have to do the extra network request
 		if existingTable, err := btc.SchemaMappingConfig.GetTableConfig(keyspace, tableName); err == nil {
-			intRowKeyEncoding = existingTable.IntRowKeyEncoding
-		} else {
-			btc.Logger.Info(fmt.Sprintf("loading table info for table %s.%s", keyspace, tableName))
-			tableInfo, err := adminClient.TableInfo(ctx, string(tableName))
-			if err != nil {
-				return nil, err
-			}
-			intRowKeyEncoding = detectTableEncoding(tableInfo, types.OrderedCodeEncoding)
+			resultCh <- TableResult{Config: existingTable, Error: nil}
+			continue
 		}
 
-		tableConfig := schemaMapping.NewTableConfig(keyspace, tableName, btc.BigtableConfig.DefaultColumnFamily, intRowKeyEncoding, tableColumns)
-		tableConfigs = append(tableConfigs, tableConfig)
+		wg.Add(1)
+		tn := tableName
+		tc := tableColumns
+		go func() {
+			defer wg.Done()
+			btc.Logger.Info(fmt.Sprintf("loading table info for table %s.%s", keyspace, tn))
+			tableInfo, err := adminClient.TableInfo(ctx, string(tn))
+			if err != nil {
+				// Send the error back through the channel
+				resultCh <- TableResult{Error: fmt.Errorf("TableInfo failed for %s: %w", tn, err)}
+				return
+			}
+			intRowKeyEncoding := detectTableEncoding(tableInfo, types.OrderedCodeEncoding)
+			tableConfig := schemaMapping.NewTableConfig(keyspace, tn, btc.BigtableConfig.DefaultColumnFamily, intRowKeyEncoding, tc)
+			resultCh <- TableResult{Config: tableConfig, Error: nil}
+		}()
+	}
+
+	go func() {
+		wg.Wait()
+		close(resultCh)
+	}()
+
+	tableConfigs := make([]*schemaMapping.TableConfig, 0, len(tables))
+	for result := range resultCh {
+		if result.Error != nil {
+			return nil, result.Error
+		}
+		tableConfigs = append(tableConfigs, result.Config)
 	}
 
 	otelgo.AddAnnotation(ctx, schemaMappingConfigFetched)

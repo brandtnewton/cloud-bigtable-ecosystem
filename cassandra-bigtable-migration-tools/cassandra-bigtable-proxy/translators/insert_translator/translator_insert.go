@@ -33,13 +33,13 @@ import (
 // Returns: PreparedInsertQuery, build the PreparedInsertQuery and return it with nil value of error. In case of error
 // PreparedInsertQuery will return as nil and error will contains the error object
 
-func (t *InsertTranslator) Translate(query *types.RawQuery, sessionKeyspace types.Keyspace, isPreparedQuery bool) (types.IPreparedQuery, error) {
+func (t *InsertTranslator) Translate(query *types.RawQuery, sessionKeyspace types.Keyspace) (types.IPreparedQuery, error) {
 	insertObj := query.Parser().Insert()
 	if insertObj == nil {
 		return nil, errors.New("could not parse insert object")
 	}
 
-	keyspaceName, tableName, err := common.ParseTarget(insertObj, sessionKeyspace, t.schemaMappingConfig)
+	keyspaceName, tableName, err := common.ParseTarget(insertObj.TableSpec(), sessionKeyspace, t.schemaMappingConfig)
 	if err != nil {
 		return nil, err
 	}
@@ -59,14 +59,16 @@ func (t *InsertTranslator) Translate(query *types.RawQuery, sessionKeyspace type
 		return nil, err
 	}
 
-	err = parseInsertValues(insertObj.InsertValuesSpec(), assignments, params, values, isPreparedQuery)
+	err = parseInsertValues(insertObj.InsertValuesSpec(), assignments, params, values)
 	if err != nil {
 		return nil, err
 	}
 
-	err = common.GetTimestampInfo(insertObj.UsingTtlTimestamp(), params, values)
-	if err != nil {
-		return nil, err
+	if insertObj.UsingTtlTimestamp() != nil {
+		err = common.GetTimestampInfo(insertObj.UsingTtlTimestamp().Timestamp(), params, values)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	err = common.ValidateRequiredPrimaryKeys(tableConfig, params)

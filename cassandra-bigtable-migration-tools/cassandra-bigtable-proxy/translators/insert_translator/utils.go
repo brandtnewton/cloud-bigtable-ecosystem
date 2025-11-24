@@ -7,7 +7,6 @@ import (
 	schemaMapping "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/schema-mapping"
 	cql "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/third_party/cqlparser"
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/translators/common"
-	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/utilities"
 )
 
 // parseInsertColumns() parses columns and values from the Insert query
@@ -50,21 +49,17 @@ func parseInsertColumns(input cql.IInsertColumnSpecContext, tableConfig *schemaM
 	return assignments, nil
 }
 
-func parseInsertValues(input cql.IInsertValuesSpecContext, columns []types.Assignment, params *types.QueryParameters, values *types.QueryParameterValues, isPrepared bool) error {
+func parseInsertValues(input cql.IInsertValuesSpecContext, columns []types.Assignment, params *types.QueryParameters, values *types.QueryParameterValues) error {
 	if input == nil {
 		return errors.New("insert values clause missing or malformed")
 	}
 
-	if isPrepared {
-		return nil
-	}
-
-	valuesExpressionList := input.ExpressionList()
+	valuesExpressionList := input.ValueListSpec()
 	if valuesExpressionList == nil {
 		return errors.New("setParamsFromValues: error while parsing values")
 	}
 
-	allValues := valuesExpressionList.AllExpression()
+	allValues := valuesExpressionList.AllValueAny()
 	if allValues == nil {
 		return errors.New("setParamsFromValues: error while parsing values")
 	}
@@ -80,8 +75,7 @@ func parseInsertValues(input cql.IInsertValuesSpecContext, columns []types.Assig
 			return fmt.Errorf("unhandled error: missing parameter for column '%s'", column.Name)
 		}
 
-		val, err := utilities.StringToGo(common.TrimQuotes(value.GetText()), column.CQLType)
-		err = values.SetValue(placeholder, val)
+		err := common.ExtractValueAny(value, column.CQLType, placeholder, values)
 		if err != nil {
 			return err
 		}

@@ -26,14 +26,14 @@ import (
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/utilities"
 )
 
-func (t *AlterTranslator) Translate(query *types.RawQuery, sessionKeyspace types.Keyspace, _ bool) (types.IPreparedQuery, error) {
+func (t *AlterTranslator) Translate(query *types.RawQuery, sessionKeyspace types.Keyspace) (types.IPreparedQuery, error) {
 	alterTable := query.Parser().AlterTable()
 
-	if alterTable == nil || alterTable.Table() == nil {
+	if alterTable == nil {
 		return nil, errors.New("error while parsing alter statement")
 	}
 
-	keyspaceName, tableName, err := common.ParseTarget(alterTable, sessionKeyspace, t.schemaMappingConfig)
+	keyspaceName, tableName, err := common.ParseTarget(alterTable.TableSpec(), sessionKeyspace, t.schemaMappingConfig)
 	if err != nil {
 		return nil, err
 	}

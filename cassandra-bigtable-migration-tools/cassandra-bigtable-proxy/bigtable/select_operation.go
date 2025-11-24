@@ -193,7 +193,7 @@ func (btc *BigtableClient) convertResultRow(resultRow bigtable.ResultRow, query 
 				return nil, fmt.Errorf("unhandled collection response type: %s", expectedType.String())
 			}
 		case [][]byte: //specific case of listType column in select
-			lt, ok := expectedType.(types.ListType)
+			lt, ok := expectedType.(*types.ListType)
 			if !ok {
 				return nil, fmt.Errorf("expected list result type but got %s", expectedType.String())
 			}

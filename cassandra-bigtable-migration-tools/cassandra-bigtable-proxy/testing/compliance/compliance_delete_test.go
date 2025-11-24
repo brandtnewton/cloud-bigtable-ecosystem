@@ -48,8 +48,8 @@ func TestDeleteOperationWithTimestampFails(t *testing.T) {
 		return
 	}
 
-	require.Error(t, err, "Expected an error for DELETE USING TIMESTAMP")
-	assert.Contains(t, err.Error(), "delete using timestamp is not allowed")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "delete USING TIMESTAMP not supported yet")
 }
 
 func TestDeleteSpecificRecordByPrimaryKey(t *testing.T) {
@@ -98,9 +98,9 @@ func TestNegativeDeleteCases(t *testing.T) {
 		params        []interface{}
 		expectedError string
 	}{
-		{"With Non-PK Condition", `DELETE FROM user_info WHERE name = ? AND age = ? AND balance = ?`, []interface{}{"Oliver", int64(50), float32(100.0)}, "non PRIMARY KEY columns found in where clause: balance"},
-		{"Missing PK Part", `DELETE FROM user_info WHERE name = ? IF EXISTS`, []interface{}{"Michael"}, "some primary key parts are missing: age"},
-		{"Condition on Non-PK Only", `DELETE FROM user_info WHERE credited = ? IF EXISTS`, []interface{}{5000.0}, "non PRIMARY KEY columns found in where clause: credited"},
+		{"With Non-PK Condition", `DELETE FROM user_info WHERE name = ? AND age = ? AND balance = ?`, []interface{}{"Oliver", int64(50), float32(100.0)}, "non-primary key found in where clause: 'balance'"},
+		{"Missing PK Part", `DELETE FROM user_info WHERE name = ? IF EXISTS`, []interface{}{"Michael"}, "missing primary key in where clause: 'age'"},
+		{"Condition on Non-PK Only", `DELETE FROM user_info WHERE credited = ? IF EXISTS`, []interface{}{5000.0}, "non-primary key found in where clause: 'credited'"},
 		{"Invalid Data Type", `DELETE FROM user_info WHERE name = ? AND age = ?`, []interface{}{"Michael", "invalid_age"}, "can not marshal string to bigint"},
 		{"Invalid Table Columns", `DELETE FROM non_existent_table WHERE name = ? AND age = ?`, []interface{}{"Michael", int64(45)}, "table non_existent_table does not exist"},
 		{"Invalid Keyspace", `DELETE FROM invalid_keyspace.user_info WHERE name = ? AND age = ?`, []interface{}{"Michael", int64(45)}, "keyspace 'invalid_keyspace' does not exist"},

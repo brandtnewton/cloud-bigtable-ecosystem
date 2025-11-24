@@ -24,14 +24,14 @@ import (
 	"github.com/datastax/go-cassandra-native-protocol/primitive"
 )
 
-func (t *DropTranslator) Translate(query *types.RawQuery, sessionKeyspace types.Keyspace, isPreparedQuery bool) (types.IPreparedQuery, error) {
+func (t *DropTranslator) Translate(query *types.RawQuery, sessionKeyspace types.Keyspace) (types.IPreparedQuery, error) {
 	dropTableObj := query.Parser().DropTable()
 
-	if dropTableObj == nil || dropTableObj.Table() == nil {
+	if dropTableObj == nil {
 		return nil, errors.New("error while parsing drop table object")
 	}
 
-	keyspaceName, tableName, err := common.ParseTarget(dropTableObj, sessionKeyspace, t.schemaMappingConfig)
+	keyspaceName, tableName, err := common.ParseTarget(dropTableObj.TableSpec(), sessionKeyspace, t.schemaMappingConfig)
 	if err != nil {
 		return nil, err
 	}

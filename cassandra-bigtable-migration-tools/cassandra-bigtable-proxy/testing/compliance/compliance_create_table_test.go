@@ -3,7 +3,6 @@ package compliance
 import (
 	"context"
 	"fmt"
-	"strings"
 	"testing"
 
 	"cloud.google.com/go/bigtable"
@@ -83,7 +82,7 @@ func TestNegativeTestCasesForCreateTable(t *testing.T) {
 		{
 			name:          "Create table with same name as schema mapping table",
 			query:         "CREATE TABLE schema_mapping (num INT PRIMARY KEY, big_num BIGINT)",
-			expectedError: "cannot create a table with the configured schema mapping table name 'schema_mapping'",
+			expectedError: "table name cannot be the same as the configured schema mapping table name 'schema_mapping'",
 			skipCassandra: true,
 		},
 		{
@@ -143,7 +142,7 @@ func TestNegativeTestCasesForCreateTable(t *testing.T) {
 				return
 			}
 			require.Error(t, err, "Expected an error but got none")
-			assert.True(t, strings.Contains(err.Error(), tc.expectedError), "Error message mismatch.\nExpected to contain: %s\nGot: %s", tc.expectedError, err.Error())
+			assert.Contains(t, err.Error(), tc.expectedError)
 		})
 	}
 }

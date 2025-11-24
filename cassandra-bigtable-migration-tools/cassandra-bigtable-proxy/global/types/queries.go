@@ -112,10 +112,10 @@ type Assignment interface {
 }
 
 type ComplexAssignmentAppend struct {
-	column    *Column
-	Operator  ArithmeticOperator
-	Value     Placeholder
-	IsPrepend bool
+	column      *Column
+	Operator    ArithmeticOperator
+	Placeholder Placeholder
+	IsPrepend   bool
 }
 
 func (c ComplexAssignmentAppend) IsIdempotentAssignment() bool {
@@ -123,7 +123,7 @@ func (c ComplexAssignmentAppend) IsIdempotentAssignment() bool {
 }
 
 func NewComplexAssignmentAppend(column *Column, op ArithmeticOperator, value Placeholder, isPrepend bool) Assignment {
-	return &ComplexAssignmentAppend{column: column, Operator: op, Value: value, IsPrepend: isPrepend}
+	return &ComplexAssignmentAppend{column: column, Operator: op, Placeholder: value, IsPrepend: isPrepend}
 }
 
 func (c ComplexAssignmentAppend) Column() *Column {
@@ -156,22 +156,41 @@ func (c AssignmentCounterIncrement) Column() *Column {
 	return c.column
 }
 
-type ComplexAssignmentUpdateIndex struct {
+type ComplexAssignmentUpdateListIndex struct {
 	column *Column
 	// cassandra requires a literal, so no need to handle a parameter for the index
 	Index int64
 	Value Placeholder
 }
 
-func (c ComplexAssignmentUpdateIndex) IsIdempotentAssignment() bool {
+func (c ComplexAssignmentUpdateListIndex) IsIdempotentAssignment() bool {
 	return true
 }
 
-func NewComplexAssignmentUpdateIndex(column *Column, index int64, value Placeholder) Assignment {
-	return &ComplexAssignmentUpdateIndex{column: column, Index: index, Value: value}
+func NewComplexAssignmentUpdateListIndex(column *Column, index int64, value Placeholder) Assignment {
+	return &ComplexAssignmentUpdateListIndex{column: column, Index: index, Value: value}
 }
 
-func (c ComplexAssignmentUpdateIndex) Column() *Column {
+func (c ComplexAssignmentUpdateListIndex) Column() *Column {
+	return c.column
+}
+
+type ComplexAssignmentUpdateMapValue struct {
+	column *Column
+	// cassandra requires a literal, so no need to handle a parameter for the key
+	Key   GoValue
+	Value Placeholder
+}
+
+func (c ComplexAssignmentUpdateMapValue) IsIdempotentAssignment() bool {
+	return true
+}
+
+func NewComplexAssignmentUpdateMapValue(column *Column, index GoValue, value Placeholder) Assignment {
+	return &ComplexAssignmentUpdateMapValue{column: column, Key: index, Value: value}
+}
+
+func (c ComplexAssignmentUpdateMapValue) Column() *Column {
 	return c.column
 }
 

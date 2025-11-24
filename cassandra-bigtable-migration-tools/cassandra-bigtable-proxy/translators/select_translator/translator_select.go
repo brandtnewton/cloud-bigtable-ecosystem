@@ -24,13 +24,13 @@ import (
 	"github.com/datastax/go-cassandra-native-protocol/primitive"
 )
 
-func (t *SelectTranslator) Translate(query *types.RawQuery, sessionKeyspace types.Keyspace, isPreparedQuery bool) (types.IPreparedQuery, error) {
+func (t *SelectTranslator) Translate(query *types.RawQuery, sessionKeyspace types.Keyspace) (types.IPreparedQuery, error) {
 	selectObj := query.Parser().Select_()
 	if selectObj == nil {
 		return nil, errors.New("failed to parse select query")
 	}
 
-	keyspaceName, tableName, err := common.ParseTarget(selectObj.FromSpec(), sessionKeyspace, t.schemaMappingConfig)
+	keyspaceName, tableName, err := common.ParseTarget(selectObj.FromSpec().TableSpec(), sessionKeyspace, t.schemaMappingConfig)
 	if err != nil {
 		return nil, err
 	}
@@ -48,7 +48,7 @@ func (t *SelectTranslator) Translate(query *types.RawQuery, sessionKeyspace type
 	params := types.NewQueryParameters()
 	values := types.NewQueryParameterValues(params)
 
-	conditions, err := common.ParseWhereClause(selectObj.WhereSpec(), tableConfig, params, values, isPreparedQuery)
+	conditions, err := common.ParseWhereClause(selectObj.WhereSpec(), tableConfig, params, values)
 	if err != nil {
 		return nil, err
 	}

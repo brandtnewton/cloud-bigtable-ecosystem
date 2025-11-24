@@ -33,14 +33,14 @@ const (
 	intRowKeyEncodingOptionValueOrderedCode = "ordered_code"
 )
 
-func (t *CreateTranslator) Translate(query *types.RawQuery, sessionKeyspace types.Keyspace, isPreparedQuery bool) (types.IPreparedQuery, error) {
+func (t *CreateTranslator) Translate(query *types.RawQuery, sessionKeyspace types.Keyspace) (types.IPreparedQuery, error) {
 	createTableObj := query.Parser().CreateTable()
 
 	if createTableObj == nil {
 		return nil, errors.New("error while parsing create object")
 	}
 
-	keyspaceName, tableName, err := common.ParseTarget(createTableObj, sessionKeyspace, t.schemaMappingConfig)
+	keyspaceName, tableName, err := common.ParseTarget(createTableObj.TableSpec(), sessionKeyspace, t.schemaMappingConfig)
 	if err != nil {
 		return nil, err
 	}

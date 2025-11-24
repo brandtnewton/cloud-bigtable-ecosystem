@@ -3,6 +3,7 @@ package common
 import (
 	"fmt"
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/global/types"
+	cql "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/third_party/cqlparser"
 	"strings"
 )
 
@@ -37,8 +38,17 @@ var (
 	FuncMax       = newBtqlFunction(types.FuncCodeMax, "MAX", types.TypeBigint)
 )
 
-func ParseCqlFunc(s string) (*BtqlFunction, error) {
-	switch strings.ToLower(s) {
+func ParseCqlFunc(f cql.IFunctionCallContext) (*BtqlFunction, error) {
+	if f.K_UUID() != nil {
+		return nil, fmt.Errorf("unknown function: 'UUID'")
+	}
+	// writetime is a reserved word so we have to handle that case separately
+	if f.K_WRITETIME() != nil {
+		return FuncWriteTime, nil
+	}
+
+	functionName := strings.ToLower(f.OBJECT_NAME().GetText())
+	switch functionName {
 	case "writetime":
 		return FuncWriteTime, nil
 	case "count":
@@ -52,6 +62,6 @@ func ParseCqlFunc(s string) (*BtqlFunction, error) {
 	case "max":
 		return FuncMax, nil
 	default:
-		return nil, fmt.Errorf("unsupported function type: '%s'", s)
+		return nil, fmt.Errorf("unknown function: '%s'", functionName)
 	}
 }

@@ -7,7 +7,6 @@ import (
 	sm "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/schema-mapping"
 	cql "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/third_party/cqlparser"
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/translators/common"
-	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/utilities"
 	"github.com/datastax/go-cassandra-native-protocol/datatype"
 	"github.com/datastax/go-cassandra-native-protocol/message"
 	"github.com/datastax/go-cassandra-native-protocol/primitive"
@@ -38,82 +37,30 @@ func parseSelectClause(input cql.ISelectElementsContext, table *sm.TableConfig) 
 
 	var selectedColumns []types.SelectedColumn
 	for _, val := range input.AllSelectElement() {
-		selected := types.SelectedColumn{
-			Sql: val.GetText(),
-		}
-		alias, err := parseAs(val.AsSpec())
+		alias, err := common.ParseAs(val.AsSpec())
 		if err != nil {
 			return nil, err
 		}
-		selected.Alias = alias
-		if val.FunctionCall() != nil {
-			funcCall := val.FunctionCall()
-			if funcCall.OBJECT_NAME() == nil {
-				return nil, errors.New("function call object is nil")
-			}
-			f, err := common.ParseCqlFunc(funcCall.OBJECT_NAME().GetText())
-			if err != nil {
-				return nil, err
-			}
-
-			var argument string
-			if funcCall.STAR() != nil {
-				argument = funcCall.STAR().GetText()
-			} else {
-				if funcCall.FunctionArgs() == nil {
-					return nil, errors.New("function call argument object is nil")
-				}
-				argument = funcCall.FunctionArgs().GetText()
-			}
-			selected.Func = f.Code()
-			selected.ResultType = f.ReturnType()
-			selected.ColumnName = types.ColumnName(argument)
+		var selected types.SelectedColumn
+		if val.SelectFunction() != nil {
+			selected, err = common.ParseSelectFunction(val.SelectFunction(), alias, table)
+		} else if val.SelectColumn() != nil {
+			selected, err = common.ParseSelectColumn(val.SelectColumn(), alias, table)
+		} else if val.SelectIndex() != nil {
+			selected, err = common.ParseSelectIndex(val.SelectIndex(), alias, table)
 		} else {
-			selected.Sql = val.GetText()
-			selected.ColumnName = types.ColumnName(val.GetText())
-			col, err := table.GetColumn(selected.ColumnName)
-			if err != nil {
-				return nil, err
-			}
-			selected.ResultType = col.CQLType
-
-			if val.MapAccess() != nil {
-				mapAccess := val.MapAccess()
-				objectName := mapAccess.OBJECT_NAME().GetText()
-				mapKey := mapAccess.Constant().GetText()
-
-				// Remove surrounding quotes from mapKey
-				mapKey = common.TrimQuotes(mapKey)
-
-				// Populate the selected column
-				selected.Sql = fmt.Sprintf("%s['%s']", objectName, mapKey)
-				selected.ColumnName = types.ColumnName(objectName)
-				mt := col.CQLType.(*types.MapType)
-				selected.ResultType = mt.ValueType()
-			}
+			return nil, fmt.Errorf("unhandled select column `%s`", val.GetText())
 		}
-
+		if err != nil {
+			return nil, err
+		}
 		if selected.ResultType == nil {
 			return nil, fmt.Errorf("unhandled result type")
 		}
-
 		selectedColumns = append(selectedColumns, selected)
 	}
 
 	return &types.SelectClause{Columns: selectedColumns}, nil
-}
-
-func parseAs(a cql.IAsSpecContext) (string, error) {
-	if a == nil || a.OBJECT_NAME() == nil {
-		return "", nil
-	}
-
-	alias := a.OBJECT_NAME().GetText()
-	if utilities.IsReservedCqlKeyword(alias) {
-		return "", fmt.Errorf("cannot use reserved word as alias: '%s'", alias)
-	}
-
-	return alias, nil
 }
 
 // parseOrderByFromSelect() parse Order By from the Select CqlQuery

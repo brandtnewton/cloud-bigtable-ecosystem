@@ -27,6 +27,7 @@ import (
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/utilities"
 	"io"
 	"net"
+	"strings"
 	"sync"
 	"time"
 
@@ -552,7 +553,7 @@ func (c *client) getQueryId(msg *message.Prepare) [16]byte {
 //
 // Returns: nil
 func (c *client) handleServerPreparedQuery(query *types.RawQuery, id [16]byte) {
-	preparedQuery, err := c.prepareQuery(query, true)
+	preparedQuery, err := c.prepareQuery(query)
 	if err != nil {
 		c.proxy.logger.Error(translatorErrorMessage, zap.String(Query, query.RawCql()), zap.Error(err))
 		c.sender.Send(query.Header(), &message.Invalid{ErrorMessage: err.Error()})
@@ -568,15 +569,15 @@ func (c *client) handleServerPreparedQuery(query *types.RawQuery, id [16]byte) {
 	c.sender.Send(query.Header(), response)
 }
 
-func (c *client) prepareQuery(query *types.RawQuery, isPreparedQuery bool) (types.IPreparedQuery, error) {
-	preparedQuery, err := c.proxy.translator.TranslateQuery(query, c.sessionKeyspace, isPreparedQuery)
+func (c *client) prepareQuery(query *types.RawQuery) (types.IPreparedQuery, error) {
+	preparedQuery, err := c.proxy.translator.TranslateQuery(query, c.sessionKeyspace)
 	if err != nil {
 		return nil, err
 	}
 
 	btPreparedQuery, err := c.proxy.bClient.PrepareStatement(c.ctx, preparedQuery)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to prepare bigtable statement `%s`: %w", preparedQuery.BigtableQuery(), err)
 	}
 	preparedQuery.SetBigtablePreparedQuery(btPreparedQuery)
 
@@ -629,19 +630,18 @@ func (c *client) handleBatch(raw *frame.RawFrame, msg *partialBatch) {
 		return
 	}
 	otelgo.AddAnnotation(otelCtx, sendingBulkApplyMutation)
-	var errorMessage string
-	hasError := false
+	var errs []string
 	for tableName, mutations := range bulkMutations.Mutations() {
 		res, err := c.proxy.bClient.ApplyBulkMutation(otelCtx, keyspace, tableName, mutations)
 		if err != nil || res.FailedRows != "" {
 			c.proxy.otelInst.RecordError(span, err)
-			hasError = true
-			errorMessage = errorMessage + res.FailedRows + "\n"
+			errs = append(errs, res.FailedRows)
 		}
 	}
 	otelgo.AddAnnotation(otelCtx, gotBulkApplyResp)
-	if hasError {
-		c.sender.Send(raw.Header, &message.ServerError{ErrorMessage: errorMessage})
+	if len(errs) > 0 {
+		c.sender.Send(raw.Header, &message.ServerError{ErrorMessage: strings.Join(errs, "\n")})
+		return
 	}
 	c.sender.Send(raw.Header, &message.VoidResult{})
 }
@@ -660,6 +660,10 @@ func (c *client) bindBulkOperations(msg *partialBatch, pv primitive.ProtocolVers
 			return nil, "", fmt.Errorf("prepared query not found in cache")
 		}
 
+		if preparedStmt.Keyspace() != "" {
+			keyspace = preparedStmt.Keyspace()
+		}
+
 		executableQuery, err := c.proxy.translator.BindQuery(preparedStmt, msg.BatchPositionalValues[index], pv)
 		if err != nil {
 			return nil, "", err
@@ -669,6 +673,9 @@ func (c *client) bindBulkOperations(msg *partialBatch, pv primitive.ProtocolVers
 			return nil, "", fmt.Errorf("query type '%s' not compatible with bulk", executableQuery.QueryType().String())
 		}
 		tableMutationsMap.AddMutation(mutation)
+	}
+	if keyspace == "" {
+		keyspace = c.sessionKeyspace
 	}
 	return tableMutationsMap, keyspace, nil
 }
@@ -694,7 +701,7 @@ func (c *client) handleQuery(raw *frame.RawFrame, msg *partialQuery) {
 	var otelErr error
 	defer c.proxy.otelInst.RecordMetrics(otelCtx, handleQuery, startTime, rawQuery.QueryType().String(), c.sessionKeyspace, otelErr)
 
-	query, err := c.prepareQuery(rawQuery, false)
+	query, err := c.prepareQuery(rawQuery)
 	if err != nil {
 		c.proxy.logger.Error(translatorErrorMessage, zap.String(Query, msg.query), zap.Error(err))
 		c.sender.Send(raw.Header, &message.Invalid{ErrorMessage: err.Error()})

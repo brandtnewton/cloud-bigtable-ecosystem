@@ -24,13 +24,13 @@ import (
 	"github.com/datastax/go-cassandra-native-protocol/primitive"
 )
 
-func (t *DeleteTranslator) Translate(query *types.RawQuery, sessionKeyspace types.Keyspace, isPreparedQuery bool) (types.IPreparedQuery, error) {
+func (t *DeleteTranslator) Translate(query *types.RawQuery, sessionKeyspace types.Keyspace) (types.IPreparedQuery, error) {
 	deleteObj := query.Parser().Delete_()
 	if deleteObj == nil {
 		return nil, errors.New("error while parsing delete object")
 	}
 
-	keyspaceName, tableName, err := common.ParseTarget(deleteObj.FromSpec(), sessionKeyspace, t.schemaMappingConfig)
+	keyspaceName, tableName, err := common.ParseTarget(deleteObj.FromSpec().TableSpec(), sessionKeyspace, t.schemaMappingConfig)
 	if err != nil {
 		return nil, err
 	}
@@ -45,12 +45,12 @@ func (t *DeleteTranslator) Translate(query *types.RawQuery, sessionKeyspace type
 	params := types.NewQueryParameters()
 	values := types.NewQueryParameterValues(params)
 
-	selectedColumns, err := parseDeleteColumns(deleteObj.DeleteColumnList(), tableConfig, params, values)
+	selectedColumns, err := parseDeleteColumns(deleteObj.DeleteColumnList(), tableConfig)
 	if err != nil {
 		return nil, err
 	}
 
-	conditions, err := common.ParseWhereClause(deleteObj.WhereSpec(), tableConfig, params, values, isPreparedQuery)
+	conditions, err := common.ParseWhereClause(deleteObj.WhereSpec(), tableConfig, params, values)
 	if err != nil {
 		return nil, err
 	}
@@ -61,13 +61,20 @@ func (t *DeleteTranslator) Translate(query *types.RawQuery, sessionKeyspace type
 		}
 	}
 
+	if deleteObj.UsingTimestampSpec() != nil {
+		err := common.GetTimestampInfo(deleteObj.UsingTimestampSpec().Timestamp(), params, values)
+		if err != nil {
+			return nil, err
+		}
+	}
+
 	err = common.ValidateRequiredPrimaryKeysOnly(tableConfig, conditions)
 	if err != nil {
 		return nil, err
 	}
 
 	if params.Has(types.UsingTimePlaceholder) {
-		return nil, fmt.Errorf("delete USING TIMESTAMP not supported")
+		return nil, fmt.Errorf("delete USING TIMESTAMP not supported yet")
 	}
 
 	st := types.NewPreparedDeleteQuery(keyspaceName, tableName, ifExist, query.RawCql(), conditions, params, selectedColumns, values)

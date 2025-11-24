@@ -12,7 +12,7 @@ type UseTranslator struct {
 	schemaMappingConfig *schemaMapping.SchemaMappingConfig
 }
 
-func (t *UseTranslator) Translate(query *types.RawQuery, _ types.Keyspace, _ bool) (types.IPreparedQuery, error) {
+func (t *UseTranslator) Translate(query *types.RawQuery, _ types.Keyspace) (types.IPreparedQuery, error) {
 	use := query.Parser().Use_()
 	if use == nil {
 		return nil, fmt.Errorf("failed to parse USE statement")

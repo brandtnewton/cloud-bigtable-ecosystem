@@ -22,32 +22,6 @@ var (
 	validTableName = regexp.MustCompile(`^[a-zA-Z_][a-zA-Z0-9_]*$`)
 )
 
-// cqlTypeToEmptyPrimitive returns a keeping type value for a given CQL type.
-func cqlTypeToEmptyPrimitive(cqlType datatype.DataType, isPrimaryKey bool) interface{} {
-	switch cqlType {
-	case datatype.Int:
-		return int32(0)
-	case datatype.Bigint:
-		return int64(0)
-	case datatype.Float:
-		return float32(0)
-	case datatype.Double:
-		return float64(0)
-	case datatype.Boolean:
-		return false
-	case datatype.Timestamp:
-		return time.Time{}
-	case datatype.Blob:
-		return []byte{}
-	case datatype.Varchar:
-		if !isPrimaryKey {
-			return []byte{}
-		}
-		return string("")
-	}
-	return nil
-}
-
 func ParseArithmeticOperator(a cql.IArithmeticOperatorContext) (types.ArithmeticOperator, error) {
 	if a == nil {
 		return "", fmt.Errorf("nil arithmetic operator")
@@ -60,26 +34,22 @@ func ParseArithmeticOperator(a cql.IArithmeticOperatorContext) (types.Arithmetic
 	return "", fmt.Errorf("unsupported arithmetic operator: `%s`", a.GetText())
 }
 
-func ParseDecimalLiteral(d cql.IDecimalLiteralContext, cqlType types.CqlDataType, params *types.QueryParameters, values *types.QueryParameterValues) (types.Placeholder, error) {
+func ExtractDecimalLiteral(d cql.IDecimalLiteralContext, cqlType types.CqlDataType, p types.Placeholder, values *types.QueryParameterValues) error {
 	if d == nil {
-		return "", nil
+		return fmt.Errorf("decimal literal missing")
 	}
-
-	p := params.PushParameterWithoutColumn(cqlType)
-
 	if d.QUESTION_MARK() != nil {
-		return p, nil
+		return nil
 	}
-
 	val, err := GetDecimalLiteral(d, cqlType)
 	if err != nil {
-		return "", err
+		return err
 	}
 	err = values.SetValue(p, val)
 	if err != nil {
-		return "", err
+		return err
 	}
-	return p, nil
+	return nil
 }
 
 func GetDecimalLiteral(d cql.IDecimalLiteralContext, cqlType types.CqlDataType) (types.GoValue, error) {
@@ -90,28 +60,10 @@ func GetDecimalLiteral(d cql.IDecimalLiteralContext, cqlType types.CqlDataType) 
 }
 
 func ParseBigInt(d cql.IDecimalLiteralContext) (int64, error) {
-	if d.DECIMAL_LITERAL() == nil {
+	if d == nil || d.DECIMAL_LITERAL() == nil {
 		return 0, fmt.Errorf("missing decimal literal value")
 	}
 	return utilities.ParseBigInt(d.GetText())
-}
-
-func ParseStringLiteral(d cql.IStringLiteralContext, params *types.QueryParameters, values *types.QueryParameterValues) (types.Placeholder, error) {
-	if d == nil {
-		return "", nil
-	}
-
-	p := params.PushParameterWithoutColumn(types.TypeVarchar)
-
-	val, err := utilities.StringToGo(TrimQuotes(d.STRING_LITERAL().GetText()), types.TypeText)
-	if err != nil {
-		return "", err
-	}
-	err = values.SetValue(p, val)
-	if err != nil {
-		return "", err
-	}
-	return p, nil
 }
 
 func ParseOperator(op cql.ICompareOperatorContext) (types.Operator, error) {
@@ -136,7 +88,7 @@ func ParseOperator(op cql.ICompareOperatorContext) (types.Operator, error) {
 	return "", fmt.Errorf("unknown operator type: `%s`", op.GetText())
 }
 
-func ParseWhereClause(input cql.IWhereSpecContext, tableConfig *schemaMapping.TableConfig, params *types.QueryParameters, values *types.QueryParameterValues, isPrepared bool) ([]types.Condition, error) {
+func ParseWhereClause(input cql.IWhereSpecContext, tableConfig *schemaMapping.TableConfig, params *types.QueryParameters, values *types.QueryParameterValues) ([]types.Condition, error) {
 	if input == nil {
 		return nil, nil
 	}
@@ -329,15 +281,17 @@ func ExtractTupleValue(tuple cql.ITupleValueContext, col *types.Column, p types.
 	return nil
 }
 
-func ParseValueAny(v cql.IValueAnyContext, col *types.Column, p types.Placeholder, values *types.QueryParameterValues) error {
+func ExtractValueAny(v cql.IValueAnyContext, dt types.CqlDataType, p types.Placeholder, values *types.QueryParameterValues) error {
 	if v.QUESTION_MARK() != nil {
 		return nil
 	}
+	// todo handle function call
+	// todo handle tuple
 	if v.Constant() != nil {
-		return ExtractConstantValue(v.Constant(), col.CQLType, p, values)
+		return ExtractConstantValue(v.Constant(), dt, p, values)
 	}
 	if v.ValueList() != nil {
-		value, err := ParseListValue(v.ValueList(), col.CQLType)
+		value, err := ParseListValue(v.ValueList(), dt)
 		if err != nil {
 			return err
 		}
@@ -347,7 +301,7 @@ func ParseValueAny(v cql.IValueAnyContext, col *types.Column, p types.Placeholde
 		}
 	}
 	if v.ValueMap() != nil {
-		value, err := ParseCqlMapAssignment(v.ValueMap(), col.CQLType)
+		value, err := ParseCqlMapAssignment(v.ValueMap(), dt)
 		if err != nil {
 			return err
 		}
@@ -357,7 +311,7 @@ func ParseValueAny(v cql.IValueAnyContext, col *types.Column, p types.Placeholde
 		}
 	}
 	if v.ValueSet() != nil {
-		value, err := ParseCqlSetAssignment(v.ValueSet(), col.CQLType)
+		value, err := ParseCqlSetAssignment(v.ValueSet(), dt)
 		if err != nil {
 			return err
 		}
@@ -423,28 +377,19 @@ func TrimDoubleQuotes(s string) string {
 	return strings.ReplaceAll(s, `""`, `"`)
 }
 
-func GetTimestampInfo(timestampContext cql.IUsingTtlTimestampContext, params *types.QueryParameters, values *types.QueryParameterValues) error {
+func GetTimestampInfo(timestampContext cql.ITimestampContext, params *types.QueryParameters, values *types.QueryParameterValues) error {
 	if timestampContext == nil {
 		return nil
 	}
-	timestampInfo := timestampContext.Timestamp()
-	if timestampInfo == nil {
-		return nil
-	}
-	literal := timestampInfo.DecimalLiteral()
+
+	literal := timestampContext.DecimalLiteral()
 	if literal == nil {
 		return nil
 	}
 	params.AddParameterWithoutColumn(types.UsingTimePlaceholder, types.TypeBigint)
-	if literal.DECIMAL_LITERAL() != nil {
-		value, err := utilities.StringToGo(literal.DECIMAL_LITERAL().GetText(), types.TypeBigint)
-		if err != nil {
-			return err
-		}
-		err = values.SetValue(types.UsingTimePlaceholder, value)
-		if err != nil {
-			return err
-		}
+	err := ExtractDecimalLiteral(timestampContext.DecimalLiteral(), types.TypeBigint, types.UsingTimePlaceholder, values)
+	if err != nil {
+		return err
 	}
 	return nil
 }
@@ -478,7 +423,7 @@ func ValidateRequiredPrimaryKeys(tableConfig *schemaMapping.TableConfig, params 
 }
 
 func ParseListValue(l cql.IValueListContext, dt types.CqlDataType) ([]types.GoValue, error) {
-	lt := dt.(types.ListType)
+	lt := dt.(*types.ListType)
 	var result []types.GoValue
 	for _, c := range l.AllConstant() {
 		val, err := ParseCqlConstant(c, lt.ElementType())
@@ -508,7 +453,7 @@ func ParseCqlMapAssignment(m cql.IValueMapContext, dt types.CqlDataType) (map[ty
 }
 
 func ParseCqlSetAssignment(s cql.IValueSetContext, dt types.CqlDataType) ([]types.GoValue, error) {
-	st := dt.(types.SetType)
+	st := dt.(*types.SetType)
 	var result []types.GoValue
 	all := s.AllConstant()
 	if len(all) == 0 {
@@ -646,14 +591,14 @@ const (
 // encodeScalarForBigtable converts a value to its byte representation based on CQL type.
 // Handles type conversion and encoding according to the protocol version.
 // Returns error if value type is invalid or encoding fails.
-func encodeScalarForBigtable(value types.GoValue, cqlType datatype.DataType) (types.BigtableValue, error) {
+func encodeScalarForBigtable(value types.GoValue, cqlType types.CqlDataType) (types.BigtableValue, error) {
 	if value == nil {
 		return nil, nil
 	}
 
 	var iv interface{}
 	var dt datatype.DataType
-	switch cqlType {
+	switch cqlType.DataType() {
 	case datatype.Int, datatype.Bigint:
 		return encodeBigIntForBigtable(value)
 	case datatype.Float, datatype.Double:
@@ -829,41 +774,47 @@ func encodeTimestampForBigtable(value interface{}) (types.BigtableValue, error) 
 	return proxycore.EncodeType(datatype.Timestamp, bigtableEncodingVersion, t)
 }
 
-// scalarToString converts a primitive value to its string representation.
-// Handles various data types and returns a formatted string.
-// Returns error if value type is invalid or conversion fails.
 func scalarToString(val interface{}) (string, error) {
 	switch v := val.(type) {
 	case string:
 		return v, nil
+	case *string:
+		return *v, nil
 	case int32:
 		return strconv.Itoa(int(v)), nil
+	case *int32:
+		return strconv.Itoa(int(*v)), nil
 	case int:
 		return strconv.Itoa(v), nil
+	case *int:
+		return strconv.Itoa(*v), nil
 	case int64:
 		return strconv.FormatInt(v, 10), nil
+	case *int64:
+		return strconv.FormatInt(*v, 10), nil
 	case float32:
 		return strconv.FormatFloat(float64(v), 'f', -1, 32), nil
+	case *float32:
+		return strconv.FormatFloat(float64(*v), 'f', -1, 32), nil
 	case float64:
 		return strconv.FormatFloat(v, 'f', -1, 64), nil
+	case *float64:
+		return strconv.FormatFloat(*v, 'f', -1, 64), nil
 	case bool:
 		return strconv.FormatBool(v), nil
+	case *bool:
+		return strconv.FormatBool(*v), nil
 	default:
 		return "", fmt.Errorf("unsupported type: %T", v)
 	}
 }
 
-type TableOperation interface {
-	Table() cql.ITableContext
-	Keyspace() cql.IKeyspaceContext
-}
-
-func ParseTarget(op TableOperation, sessionKeyspace types.Keyspace, config *schemaMapping.SchemaMappingConfig) (types.Keyspace, types.TableName, error) {
-	if op.Table() == nil || op.Table().GetText() == "" {
+func ParseTarget(tableSpec cql.ITableSpecContext, sessionKeyspace types.Keyspace, config *schemaMapping.SchemaMappingConfig) (types.Keyspace, types.TableName, error) {
+	if tableSpec == nil || tableSpec.Table() == nil {
 		return "", "", errors.New("invalid input parameters found for table")
 	}
 
-	tableNameString := op.Table().GetText()
+	tableNameString := tableSpec.Table().GetText()
 	if !validTableName.MatchString(tableNameString) {
 		return "", "", errors.New("invalid table name parsed from query")
 	}
@@ -874,8 +825,8 @@ func ParseTarget(op TableOperation, sessionKeyspace types.Keyspace, config *sche
 	}
 
 	keyspaceName := sessionKeyspace
-	if op.Keyspace() != nil && op.Keyspace().GetText() != "" {
-		keyspaceName = types.Keyspace(op.Keyspace().GetText())
+	if tableSpec.Keyspace() != nil && tableSpec.Keyspace().GetText() != "" {
+		keyspaceName = types.Keyspace(tableSpec.Keyspace().GetText())
 	}
 
 	if keyspaceName == "" {
@@ -883,4 +834,71 @@ func ParseTarget(op TableOperation, sessionKeyspace types.Keyspace, config *sche
 	}
 
 	return keyspaceName, tableName, nil
+}
+
+func ParseSelectIndex(si cql.ISelectIndexContext, alias string, table *schemaMapping.TableConfig) (types.SelectedColumn, error) {
+	col, err := ParseColumnContext(table, si.Column())
+	if err != nil {
+		return types.SelectedColumn{}, err
+	}
+	if col.CQLType.Code() == types.MAP {
+		mt := col.CQLType.(*types.MapType)
+		mapKey, err := ParseCqlConstant(si.Constant(), mt.KeyType())
+		if err != nil {
+			return types.SelectedColumn{}, err
+		}
+		colQualifier, err := scalarToColumnQualifier(mapKey)
+		if err != nil {
+			return types.SelectedColumn{}, err
+		}
+		return *types.NewSelectedColumnMapElement(si.GetText(), col.Name, alias, mt.ValueType(), colQualifier), nil
+	} else if col.CQLType.Code() == types.LIST {
+		index, err := ParseBigInt(si.Constant().DecimalLiteral())
+		if err != nil {
+			return types.SelectedColumn{}, err
+		}
+		lt := col.CQLType.(*types.ListType)
+		return *types.NewSelectedColumnListElement(si.GetText(), col.Name, alias, lt.ElementType(), index), nil
+	} else {
+		return types.SelectedColumn{}, fmt.Errorf("cannot access index/key of column type %s", col.CQLType.String())
+	}
+}
+
+func ParseSelectColumn(si cql.ISelectColumnContext, alias string, table *schemaMapping.TableConfig) (types.SelectedColumn, error) {
+	col, err := ParseColumnContext(table, si.Column())
+	if err != nil {
+		return types.SelectedColumn{}, err
+	}
+	return *types.NewSelectedColumn(string(col.Name), col.Name, alias, col.CQLType), nil
+}
+
+func ParseSelectFunction(sf cql.ISelectFunctionContext, alias string, table *schemaMapping.TableConfig) (types.SelectedColumn, error) {
+	f, err := ParseCqlFunc(sf.FunctionCall())
+	if err != nil {
+		return types.SelectedColumn{}, err
+	}
+
+	var argument string
+	if sf.FunctionCall().STAR() != nil {
+		argument = "*"
+	} else {
+		if sf.FunctionCall().FunctionArgs() == nil {
+			return types.SelectedColumn{}, errors.New("function call argument object is nil")
+		}
+		argument = sf.FunctionCall().FunctionArgs().GetText()
+	}
+	return *types.NewSelectedColumnFunction(sf.FunctionCall().GetText(), types.ColumnName(argument), alias, f.ReturnType(), f.Code()), nil
+}
+
+func ParseAs(a cql.IAsSpecContext) (string, error) {
+	if a == nil || a.OBJECT_NAME() == nil {
+		return "", nil
+	}
+
+	alias := a.OBJECT_NAME().GetText()
+	if utilities.IsReservedCqlKeyword(alias) {
+		return "", fmt.Errorf("cannot use reserved word as alias: '%s'", alias)
+	}
+
+	return alias, nil
 }

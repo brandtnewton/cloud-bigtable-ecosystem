@@ -41,15 +41,31 @@ func (c BtqlFuncCode) String() string {
 // an output of query translating, and is also used for response construction.
 type SelectedColumn struct {
 	// Sql is the original value of the selected column, including functions, not including alias. e.g. "region" or "count(*)"
-	Sql       string
-	Func      BtqlFuncCode
-	Alias     string
-	MapKey    Placeholder
-	ListIndex Placeholder
+	Sql  string
+	Func BtqlFuncCode
+	// placeholders are NOT allowed
+	MapKey ColumnQualifier
+	// placeholders are NOT allowed
+	ListIndex int64
 	// ColumnName is the name of the underlying column in a function, or map key
 	// access. e.g. the column name of "max(price)" is "price"
 	ColumnName ColumnName
+	Alias      string
 	ResultType CqlDataType
+}
+
+func NewSelectedColumn(sql string, columnName ColumnName, alias string, resultType CqlDataType) *SelectedColumn {
+	return &SelectedColumn{Sql: sql, ColumnName: columnName, Alias: alias, ResultType: resultType, ListIndex: -1}
+}
+
+func NewSelectedColumnListElement(sql string, columnName ColumnName, alias string, resultType CqlDataType, listIndex int64) *SelectedColumn {
+	return &SelectedColumn{Sql: sql, Alias: alias, ColumnName: columnName, ResultType: resultType, ListIndex: listIndex}
+}
+func NewSelectedColumnMapElement(sql string, columnName ColumnName, alias string, resultType CqlDataType, key ColumnQualifier) *SelectedColumn {
+	return &SelectedColumn{Sql: sql, Alias: alias, ColumnName: columnName, ResultType: resultType, MapKey: key, ListIndex: -1}
+}
+func NewSelectedColumnFunction(sql string, columnName ColumnName, alias string, resultType CqlDataType, funcCode BtqlFuncCode) *SelectedColumn {
+	return &SelectedColumn{Sql: sql, Alias: alias, ColumnName: columnName, ResultType: resultType, Func: funcCode, ListIndex: -1}
 }
 
 // PreparedSelectQuery represents the mapping of a select query along with its translation details.

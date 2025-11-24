@@ -32,10 +32,10 @@ func TestSelect(t *testing.T) {
 	require.NotNil(t, s.SelectElements().STAR())
 
 	require.NotNil(t, s.FromSpec())
-	require.NotNil(t, s.FromSpec().Keyspace())
-	require.Equal(t, s.FromSpec().Keyspace().GetText(), "system")
-	require.NotNil(t, s.FromSpec().Table())
-	require.Equal(t, s.FromSpec().Table().GetText(), "local")
+	require.NotNil(t, s.FromSpec().TableSpec().Keyspace())
+	require.Equal(t, s.FromSpec().TableSpec().Keyspace().GetText(), "system")
+	require.NotNil(t, s.FromSpec().TableSpec().Table())
+	require.Equal(t, s.FromSpec().TableSpec().Table().GetText(), "local")
 
 	require.NotNil(t, s.SelectElements())
 	require.NotNil(t, s.SelectElements().STAR())
@@ -52,10 +52,10 @@ func TestSelectWithKeyColumn(t *testing.T) {
 	require.NotNil(t, s.SelectElements().STAR())
 
 	require.NotNil(t, s.FromSpec())
-	require.NotNil(t, s.FromSpec().Keyspace())
-	require.Equal(t, s.FromSpec().Keyspace().GetText(), "system")
-	require.NotNil(t, s.FromSpec().Table())
-	require.Equal(t, s.FromSpec().Table().GetText(), "local")
+	require.NotNil(t, s.FromSpec().TableSpec().Keyspace())
+	require.Equal(t, s.FromSpec().TableSpec().Keyspace().GetText(), "system")
+	require.NotNil(t, s.FromSpec().TableSpec().Table())
+	require.Equal(t, s.FromSpec().TableSpec().Table().GetText(), "local")
 
 	require.NotNil(t, s.SelectElements())
 	require.NotNil(t, s.SelectElements().STAR())
@@ -80,10 +80,10 @@ func TestSelectWithKeyUnquotedColumn(t *testing.T) {
 	require.NotNil(t, s.SelectElements().STAR())
 
 	require.NotNil(t, s.FromSpec())
-	require.NotNil(t, s.FromSpec().Keyspace())
-	require.Equal(t, s.FromSpec().Keyspace().GetText(), "system")
-	require.NotNil(t, s.FromSpec().Table())
-	require.Equal(t, s.FromSpec().Table().GetText(), "local")
+	require.NotNil(t, s.FromSpec().TableSpec().Keyspace())
+	require.Equal(t, s.FromSpec().TableSpec().Keyspace().GetText(), "system")
+	require.NotNil(t, s.FromSpec().TableSpec().Table())
+	require.Equal(t, s.FromSpec().TableSpec().Table().GetText(), "local")
 
 	require.NotNil(t, s.SelectElements())
 	require.NotNil(t, s.SelectElements().STAR())
@@ -105,6 +105,16 @@ func TestUpdateWhere(t *testing.T) {
 
 	require.NotNil(t, u.WhereSpec())
 	require.Equal(t, 2, len(u.WhereSpec().RelationElements().AllRelationElement()))
+}
+func TestSelectWriteTime(t *testing.T) {
+	p := newParser("SELECT name, age, code, WRITETIME(code) FROM bigtabledevinstance.user_info WHERE name = ? AND age = ?")
+
+	u := p.Select_()
+	require.NotNil(t, u)
+
+	require.NotNil(t, u.SelectElements())
+	col := u.SelectElements().AllSelectElement()[3]
+	require.NotNil(t, col.SelectFunction())
 }
 
 func newParser(query string) *cql.CqlParser {

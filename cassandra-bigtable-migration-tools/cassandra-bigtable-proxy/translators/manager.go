@@ -73,26 +73,16 @@ func NewTranslatorManager(logger *zap.Logger, schemaMappingConfig *schemaMapping
 	}
 }
 
-func (t *TranslatorManager) TranslateQuery(q *types.RawQuery, sessionKeyspace types.Keyspace, isPreparedQuery bool) (types.IPreparedQuery, error) {
+func (t *TranslatorManager) TranslateQuery(q *types.RawQuery, sessionKeyspace types.Keyspace) (types.IPreparedQuery, error) {
 	queryTranslator, err := t.getTranslator(q.QueryType())
 	if err != nil {
 		return nil, err
 	}
 
-	preparedQuery, err := queryTranslator.Translate(q, sessionKeyspace, isPreparedQuery)
+	preparedQuery, err := queryTranslator.Translate(q, sessionKeyspace)
 
 	if err != nil {
 		return nil, err
-	}
-
-	if !isPreparedQuery &&
-		// queries that can never have parameters return nil
-		preparedQuery.Parameters() != nil {
-		// ALL values should be set for adhoc queries
-		err = common.ValidateAllParamsSet(preparedQuery.Parameters(), preparedQuery.InitialValues())
-		if err != nil {
-			return nil, err
-		}
 	}
 
 	t.Logger.Debug("translated query", zap.String("cql", q.RawCql()), zap.String("btql", preparedQuery.BigtableQuery()))

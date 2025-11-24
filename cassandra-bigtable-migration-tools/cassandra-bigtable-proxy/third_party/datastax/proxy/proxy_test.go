@@ -434,16 +434,16 @@ type MockTranslator struct {
 	mock.Mock
 }
 
-func (m *MockTranslator) TranslateInsertQuerytoBigtable(queryStr string, protocolV primitive.ProtocolVersion, isPreparedQuery bool) (*translators.PreparedInsertQuery, error) {
+func (m *MockTranslator) TranslateInsertQuerytoBigtable(queryStr string, protocolV primitive.ProtocolVersion) (*translators.PreparedInsertQuery, error) {
 	args := m.Called(queryStr)
 	return args.Get(0).(*translators.PreparedInsertQuery), args.Error(1)
 }
 
-func (m *MockTranslator) TranslateDeleteQuerytoBigtable(query string, isPreparedQuery bool) (*translators.PreparedDeleteQuery, error) {
+func (m *MockTranslator) TranslateDeleteQuerytoBigtable(query string) (*translators.PreparedDeleteQuery, error) {
 	args := m.Called(query)
 	return args.Get(0).(*translators.PreparedDeleteQuery), args.Error(1)
 }
-func (m *MockTranslator) TranslateUpdateQuerytoBigtable(query string, isPreparedQuery bool) (*translators.PreparedUpdateQuery, error) {
+func (m *MockTranslator) TranslateUpdateQuerytoBigtable(query string) (*translators.PreparedUpdateQuery, error) {
 	args := m.Called(query)
 	return args.Get(0).(*translators.PreparedUpdateQuery), args.Error(1)
 }

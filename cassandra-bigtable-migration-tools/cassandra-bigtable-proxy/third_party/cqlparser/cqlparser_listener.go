@@ -370,6 +370,9 @@ type CqlParserListener interface {
 	// EnterAssignmentAppend is called when entering the assignmentAppend production.
 	EnterAssignmentAppend(c *AssignmentAppendContext)
 
+	// EnterIndexOrKeyAccess is called when entering the indexOrKeyAccess production.
+	EnterIndexOrKeyAccess(c *IndexOrKeyAccessContext)
+
 	// EnterAssignmentIndex is called when entering the assignmentIndex production.
 	EnterAssignmentIndex(c *AssignmentIndexContext)
 
@@ -418,8 +421,8 @@ type CqlParserListener interface {
 	// EnterColumnList is called when entering the columnList production.
 	EnterColumnList(c *ColumnListContext)
 
-	// EnterExpressionList is called when entering the expressionList production.
-	EnterExpressionList(c *ExpressionListContext)
+	// EnterValueListSpec is called when entering the valueListSpec production.
+	EnterValueListSpec(c *ValueListSpecContext)
 
 	// EnterExpression is called when entering the expression production.
 	EnterExpression(c *ExpressionContext)
@@ -435,6 +438,9 @@ type CqlParserListener interface {
 
 	// EnterKwLike is called when entering the kwLike production.
 	EnterKwLike(c *KwLikeContext)
+
+	// EnterTableSpec is called when entering the tableSpec production.
+	EnterTableSpec(c *TableSpecContext)
 
 	// EnterFromSpec is called when entering the fromSpec production.
 	EnterFromSpec(c *FromSpecContext)
@@ -457,11 +463,17 @@ type CqlParserListener interface {
 	// EnterSelectElement is called when entering the selectElement production.
 	EnterSelectElement(c *SelectElementContext)
 
+	// EnterSelectColumn is called when entering the selectColumn production.
+	EnterSelectColumn(c *SelectColumnContext)
+
+	// EnterSelectFunction is called when entering the selectFunction production.
+	EnterSelectFunction(c *SelectFunctionContext)
+
+	// EnterSelectIndex is called when entering the selectIndex production.
+	EnterSelectIndex(c *SelectIndexContext)
+
 	// EnterAsSpec is called when entering the asSpec production.
 	EnterAsSpec(c *AsSpecContext)
-
-	// EnterMapAccess is called when entering the mapAccess production.
-	EnterMapAccess(c *MapAccessContext)
 
 	// EnterRelationElements is called when entering the relationElements production.
 	EnterRelationElements(c *RelationElementsContext)
@@ -1279,6 +1291,9 @@ type CqlParserListener interface {
 	// ExitAssignmentAppend is called when exiting the assignmentAppend production.
 	ExitAssignmentAppend(c *AssignmentAppendContext)
 
+	// ExitIndexOrKeyAccess is called when exiting the indexOrKeyAccess production.
+	ExitIndexOrKeyAccess(c *IndexOrKeyAccessContext)
+
 	// ExitAssignmentIndex is called when exiting the assignmentIndex production.
 	ExitAssignmentIndex(c *AssignmentIndexContext)
 
@@ -1327,8 +1342,8 @@ type CqlParserListener interface {
 	// ExitColumnList is called when exiting the columnList production.
 	ExitColumnList(c *ColumnListContext)
 
-	// ExitExpressionList is called when exiting the expressionList production.
-	ExitExpressionList(c *ExpressionListContext)
+	// ExitValueListSpec is called when exiting the valueListSpec production.
+	ExitValueListSpec(c *ValueListSpecContext)
 
 	// ExitExpression is called when exiting the expression production.
 	ExitExpression(c *ExpressionContext)
@@ -1344,6 +1359,9 @@ type CqlParserListener interface {
 
 	// ExitKwLike is called when exiting the kwLike production.
 	ExitKwLike(c *KwLikeContext)
+
+	// ExitTableSpec is called when exiting the tableSpec production.
+	ExitTableSpec(c *TableSpecContext)
 
 	// ExitFromSpec is called when exiting the fromSpec production.
 	ExitFromSpec(c *FromSpecContext)
@@ -1366,11 +1384,17 @@ type CqlParserListener interface {
 	// ExitSelectElement is called when exiting the selectElement production.
 	ExitSelectElement(c *SelectElementContext)
 
+	// ExitSelectColumn is called when exiting the selectColumn production.
+	ExitSelectColumn(c *SelectColumnContext)
+
+	// ExitSelectFunction is called when exiting the selectFunction production.
+	ExitSelectFunction(c *SelectFunctionContext)
+
+	// ExitSelectIndex is called when exiting the selectIndex production.
+	ExitSelectIndex(c *SelectIndexContext)
+
 	// ExitAsSpec is called when exiting the asSpec production.
 	ExitAsSpec(c *AsSpecContext)
-
-	// ExitMapAccess is called when exiting the mapAccess production.
-	ExitMapAccess(c *MapAccessContext)
 
 	// ExitRelationElements is called when exiting the relationElements production.
 	ExitRelationElements(c *RelationElementsContext)

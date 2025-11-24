@@ -33,36 +33,80 @@ func BindMutations(assignments []types.Assignment, values *types.QueryParameterV
 			colType := v.Column().CQLType.Code()
 			if colType == types.LIST {
 				lt := v.Column().CQLType.(*types.ListType)
-				value, err := values.GetValueSlice(v.Value)
-				if err != nil {
-					return err
-				}
-				err = addListElements(value, v.Column().ColumnFamily, lt, v.IsPrepend, b)
-				if err != nil {
-					return err
+				if v.Operator == types.PLUS {
+					value, err := values.GetValueSlice(v.Placeholder)
+					if err != nil {
+						return err
+					}
+					err = addListElements(value, v.Column().ColumnFamily, lt, v.IsPrepend, b)
+					if err != nil {
+						return err
+					}
+				} else if v.Operator == types.MINUS {
+					value, err := values.GetValueSlice(v.Placeholder)
+					if err != nil {
+						return err
+					}
+					var bigtableValues []types.BigtableValue
+					for _, lv := range value {
+						bv, err := encodeScalarForBigtable(lv, lt.ElementType())
+						if err != nil {
+							return err
+						}
+						bigtableValues = append(bigtableValues, bv)
+					}
+					b.AddMutations(types.NewBigtableDeleteListElementsOp(v.Column().ColumnFamily, bigtableValues))
+				} else {
+					return fmt.Errorf("unsupported append operation on list %s", v.Operator)
 				}
 			} else if colType == types.SET {
-				value, err := values.GetValueSlice(v.Value)
-				if err != nil {
-					return err
+				if v.Operator == types.PLUS {
+					value, err := values.GetValueSlice(v.Placeholder)
+					if err != nil {
+						return err
+					}
+					ops, err := addSetElements(value, v.Column().ColumnFamily)
+					if err != nil {
+						return err
+					}
+					b.AddMutations(ops...)
+				} else if v.Operator == types.MINUS {
+					value, err := values.GetValueSlice(v.Placeholder)
+					if err != nil {
+						return err
+					}
+					err = removeSetElements(value, v.Column().ColumnFamily, b)
+					if err != nil {
+						return err
+					}
+				} else {
+					return fmt.Errorf("unsupported append operation on set %s", v.Operator)
 				}
-				data, err := addSetElements(value, v.Column().ColumnFamily)
-				if err != nil {
-					return err
-				}
-				b.AddMutations(data...)
 			} else if colType == types.MAP {
 				mt := v.Column().CQLType.(*types.MapType)
-				value, err := values.GetValueMap(v.Value)
-				if err != nil {
-					return err
-				}
-				err = addMapEntries(value, mt, assignment.Column(), b)
-				if err != nil {
-					return err
+				if v.Operator == types.PLUS {
+					value, err := values.GetValueMap(v.Placeholder)
+					if err != nil {
+						return err
+					}
+					err = addMapEntries(value, mt, assignment.Column(), b)
+					if err != nil {
+						return err
+					}
+				} else if v.Operator == types.MINUS {
+					value, err := values.GetValueSlice(v.Placeholder)
+					if err != nil {
+						return err
+					}
+					err = removeMapEntries(value, v.Column(), b)
+					if err != nil {
+						return err
+					}
+				} else {
+					return fmt.Errorf("unsupported append operation on set %s", v.Operator)
 				}
 			} else if colType == types.COUNTER {
-				value, err := values.GetValueInt64(v.Value)
+				value, err := values.GetValueInt64(v.Placeholder)
 				if err != nil {
 					return err
 				}
@@ -74,6 +118,30 @@ func BindMutations(assignments []types.Assignment, values *types.QueryParameterV
 			} else {
 				return fmt.Errorf("unhandled add assignment column type: %s", v.Column().CQLType.String())
 			}
+		case *types.ComplexAssignmentUpdateListIndex:
+			value, err := values.GetValue(v.Value)
+			if err != nil {
+				return err
+			}
+			encoded, err := encodeScalarForBigtable(value, v.Column().CQLType)
+			if err != nil {
+				return err
+			}
+			b.AddMutations(types.NewBigtableSetIndexOp(v.Column().ColumnFamily, v.Index, encoded))
+		case *types.ComplexAssignmentUpdateMapValue:
+			value, err := values.GetValue(v.Value)
+			if err != nil {
+				return err
+			}
+			mt, ok := v.Column().CQLType.(*types.MapType)
+			if !ok {
+				return fmt.Errorf("cannot set map value on column type %s", v.Column().CQLType.String())
+			}
+			op, err := mapValueToBigtable(v.Key, value, mt, v.Column().ColumnFamily)
+			if err != nil {
+				return err
+			}
+			b.AddMutations(op)
 		default:
 			return fmt.Errorf("unhandled assignment op type %T", v)
 		}
@@ -103,11 +171,11 @@ func encodeSetValue(assignment *types.ComplexAssignmentSet, values *types.QueryP
 		}
 		for k, v := range mv {
 			// todo use key specific encode
-			keyEncoded, err := encodeScalarForBigtable(k, mt.KeyType().DataType())
+			keyEncoded, err := encodeScalarForBigtable(k, mt.KeyType())
 			if err != nil {
 				return nil, err
 			}
-			valueBytes, err := encodeScalarForBigtable(v, mt.ValueType().DataType())
+			valueBytes, err := encodeScalarForBigtable(v, mt.ValueType())
 			if err != nil {
 				return nil, err
 			}
@@ -120,7 +188,7 @@ func encodeSetValue(assignment *types.ComplexAssignmentSet, values *types.QueryP
 			return nil, err
 		}
 		for i, v := range lv {
-			valueBytes, err := encodeScalarForBigtable(v, lt.ElementType().DataType())
+			valueBytes, err := encodeScalarForBigtable(v, lt.ElementType())
 			if err != nil {
 				return nil, err
 			}
@@ -142,7 +210,7 @@ func encodeSetValue(assignment *types.ComplexAssignmentSet, values *types.QueryP
 		if err != nil {
 			return nil, err
 		}
-		v, err := encodeScalarForBigtable(value, col.CQLType.DataType())
+		v, err := encodeScalarForBigtable(value, col.CQLType)
 		if err != nil {
 			return nil, err
 		}
@@ -210,7 +278,7 @@ func addListElements(listValues []types.GoValue, cf types.ColumnFamily, lt *type
 		column := getListIndexColumn(i, len(listValues), isPrepend)
 
 		// Format the value
-		formattedVal, err := encodeScalarForBigtable(v, lt.ElementType().DataType())
+		formattedVal, err := encodeScalarForBigtable(v, lt.ElementType())
 		if err != nil {
 			return fmt.Errorf("error converting string to %s value: %w", lt.String(), err)
 		}
@@ -293,7 +361,7 @@ func encodeTimestampIndex(millis int64, nanos int32) []byte {
 //	}
 //	output.ComplexOps[colFamily] = &ComplexOperation{
 //		UpdateListIndex: index,
-//		Value:           val,
+//		Placeholder:           val,
 //	}
 //	return nil
 //}
@@ -398,31 +466,36 @@ func removeSetElements(keys []types.GoValue, colFamily types.ColumnFamily, outpu
 // Returns error if key/value types don't match map types or conversion fails.
 func addMapEntries(mapValue map[types.GoValue]types.GoValue, mt *types.MapType, column *types.Column, output *types.BigtableWriteMutation) error {
 	for k, v := range mapValue {
-		col, err := scalarToColumnQualifier(k)
+		op, err := mapValueToBigtable(k, v, mt, column.ColumnFamily)
 		if err != nil {
 			return fmt.Errorf("error converting map key: %w", err)
 		}
-		valueFormatted, err := encodeScalarForBigtable(v, mt.ValueType().DataType())
-		if err != nil {
-			return fmt.Errorf("error converting string to %s value: %w", mt.String(), err)
-		}
-		output.AddMutations(types.NewWriteCellOp(column.ColumnFamily, col, valueFormatted))
+		output.AddMutations(op)
 	}
 	return nil
 }
 
-// removeMapEntries removes key-value pairs from a map column in raw queries.
-// Processes key removal with validation of key existence and type.
-// Returns error if key type doesn't match map key type.
-func removeMapEntries(val interface{}, column *types.Column, output *types.BigtableWriteMutation) error {
-	keys, ok := val.([]string)
-	if !ok {
-		return fmt.Errorf("expected []string for remove operation, got %T", val)
+func mapValueToBigtable(k types.GoValue, v types.GoValue, mt *types.MapType, cf types.ColumnFamily) (types.IBigtableMutationOp, error) {
+	col, err := scalarToColumnQualifier(k)
+	if err != nil {
+		return nil, fmt.Errorf("error converting map key: %w", err)
 	}
+	valueFormatted, err := encodeScalarForBigtable(v, mt.ValueType())
+	if err != nil {
+		return nil, fmt.Errorf("error converting string to %s value: %w", mt.String(), err)
+	}
+	return types.NewWriteCellOp(cf, col, valueFormatted), nil
+}
+
+func removeMapEntries(keys []types.GoValue, column *types.Column, output *types.BigtableWriteMutation) error {
 	for _, key := range keys {
+		encodedKey, err := scalarToColumnQualifier(key)
+		if err != nil {
+			return err
+		}
 		output.AddMutations(types.NewDeleteColumnOp(types.BigtableColumn{
 			Family: column.ColumnFamily,
-			Column: types.ColumnQualifier(key),
+			Column: encodedKey,
 		}))
 	}
 	return nil
@@ -441,7 +514,7 @@ func updateMapIndex(key interface{}, value interface{}, dt *types.MapType, colFa
 		return fmt.Errorf("expected string for map value, got %T", key)
 	}
 
-	val, err := encodeScalarForBigtable(v, dt.ValueType().DataType())
+	val, err := encodeScalarForBigtable(v, dt.ValueType())
 	if err != nil {
 		return err
 	}
@@ -498,18 +571,10 @@ func BindSelectColumns(table *schemaMapping.TableConfig, selectedColumns []types
 		if err != nil {
 			return nil, err
 		}
-		if selectedColumn.ListIndex != "" {
-			val, err := values.GetValueInt64(selectedColumn.ListIndex)
-			if err != nil {
-				return nil, err
-			}
-			bc = types.NewBoundIndexColumn(col, int(val))
+		if selectedColumn.ListIndex != -1 {
+			bc = types.NewBoundIndexColumn(col, int(selectedColumn.ListIndex))
 		} else if selectedColumn.MapKey != "" {
-			val, err := values.GetValue(selectedColumn.ListIndex)
-			if err != nil {
-				return nil, err
-			}
-			c, err := scalarToColumnQualifier(val)
+			c, err := scalarToColumnQualifier(selectedColumn.MapKey)
 			if err != nil {
 				return nil, err
 			}

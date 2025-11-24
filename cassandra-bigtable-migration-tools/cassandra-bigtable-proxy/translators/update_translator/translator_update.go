@@ -24,14 +24,14 @@ import (
 	"github.com/datastax/go-cassandra-native-protocol/primitive"
 )
 
-func (t *UpdateTranslator) Translate(query *types.RawQuery, sessionKeyspace types.Keyspace, isPreparedQuery bool) (types.IPreparedQuery, error) {
+func (t *UpdateTranslator) Translate(query *types.RawQuery, sessionKeyspace types.Keyspace) (types.IPreparedQuery, error) {
 	updateObj := query.Parser().Update()
 
 	if updateObj == nil {
 		return nil, errors.New("error parsing the update object")
 	}
 
-	keyspaceName, tableName, err := common.ParseTarget(updateObj, sessionKeyspace, t.schemaMappingConfig)
+	keyspaceName, tableName, err := common.ParseTarget(updateObj.TableSpec(), sessionKeyspace, t.schemaMappingConfig)
 	if err != nil {
 		return nil, err
 	}
@@ -64,14 +64,16 @@ func (t *UpdateTranslator) Translate(query *types.RawQuery, sessionKeyspace type
 		return nil, errors.New("error parsing update: where clause required")
 	}
 
-	whereClause, err := common.ParseWhereClause(updateObj.WhereSpec(), tableConfig, params, values, isPreparedQuery)
+	whereClause, err := common.ParseWhereClause(updateObj.WhereSpec(), tableConfig, params, values)
 	if err != nil {
 		return nil, err
 	}
 
-	err = common.GetTimestampInfo(updateObj.UsingTtlTimestamp(), params, values)
-	if err != nil {
-		return nil, err
+	if updateObj.UsingTtlTimestamp() != nil {
+		err := common.GetTimestampInfo(updateObj.UsingTtlTimestamp().Timestamp(), params, values)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	var ifExist = updateObj.IfExist() != nil

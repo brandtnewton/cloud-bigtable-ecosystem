@@ -12,7 +12,7 @@ type DescTranslator struct {
 	schemaMappingConfig *schemaMapping.SchemaMappingConfig
 }
 
-func (t *DescTranslator) Translate(query *types.RawQuery, sessionKeyspace types.Keyspace, _ bool) (types.IPreparedQuery, error) {
+func (t *DescTranslator) Translate(query *types.RawQuery, sessionKeyspace types.Keyspace) (types.IPreparedQuery, error) {
 	s := query.Parser().DescribeStatement()
 	if s == nil || s.DescribeTarget() == nil {
 		return nil, fmt.Errorf("failed to parse USE statement")

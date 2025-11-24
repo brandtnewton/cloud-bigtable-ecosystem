@@ -274,7 +274,7 @@ func (btc *BigtableClient) buildMutation(ctx context.Context, table *schemaMappi
 		case *types.DeleteCellsOp:
 			mut.DeleteCellsInFamily(string(m.Family))
 		case *types.BigtableSetIndexOp:
-			reqTimestamp, err := btc.getIndexOpTimestamp(ctx, table, input.RowKey(), m.Family, m.Index)
+			reqTimestamp, err := btc.getIndexOpTimestamp(ctx, table, input.RowKey(), m.Family, int(m.Index))
 			if err != nil {
 				return 0, err
 			}
@@ -893,7 +893,7 @@ func (btc *BigtableClient) ApplyBulkMutation(ctx context.Context, keyspace types
 	table, err := btc.SchemaMappingConfig.GetTableConfig(keyspace, tableName)
 	if err != nil {
 		return BulkOperationResponse{
-			FailedRows: "All Rows are failed",
+			FailedRows: fmt.Sprintf("All Rows are failed because: %s", err.Error()),
 		}, err
 	}
 
@@ -910,19 +910,19 @@ func (btc *BigtableClient) ApplyBulkMutation(ctx context.Context, keyspace types
 			_, err := btc.buildMutation(ctx, table, v, mut)
 			if err != nil {
 				return BulkOperationResponse{
-					FailedRows: "All Rows are failed",
+					FailedRows: fmt.Sprintf("All Rows are failed because: %s", err.Error()),
 				}, err
 			}
 		case *types.BoundDeleteQuery:
 			err := btc.buildDeleteMutation(ctx, table, v, mut)
 			if err != nil {
 				return BulkOperationResponse{
-					FailedRows: "All Rows are failed",
+					FailedRows: fmt.Sprintf("All Rows are failed because: %s", err.Error()),
 				}, err
 			}
 		default:
 			return BulkOperationResponse{
-				FailedRows: "All Rows are failed",
+				FailedRows: fmt.Sprintf("All Rows are failed because: unsupported bulk operation: %T", v),
 			}, fmt.Errorf("unhandled bulk mutation type %T", md)
 		}
 	}

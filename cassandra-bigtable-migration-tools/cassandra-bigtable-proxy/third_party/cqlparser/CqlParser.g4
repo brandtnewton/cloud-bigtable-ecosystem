@@ -130,7 +130,7 @@ resource
    | kwFunction (keyspace DOT)? function_
    | kwAll kwKeyspaces
    | kwKeyspace keyspace
-   | (kwTable)? (keyspace DOT)? table
+   | (kwTable)? tableSpec
    | kwAll kwRoles
    | kwRole role
    ;
@@ -156,7 +156,7 @@ createTrigger
    ;
 
 createMaterializedView
-   : kwCreate kwMaterialized kwView ifNotExist? (keyspace DOT)? materializedView kwAs kwSelect columnList kwFrom (keyspace DOT)? table materializedViewWhere kwPrimary kwKey syntaxBracketLr columnList syntaxBracketRr (kwWith materializedViewOptions)?
+   : kwCreate kwMaterialized kwView ifNotExist? (keyspace DOT)? materializedView kwAs kwSelect columnList kwFrom tableSpec materializedViewWhere kwPrimary kwKey syntaxBracketLr columnList syntaxBracketRr (kwWith materializedViewOptions)?
    ;
 
 materializedViewWhere
@@ -283,7 +283,7 @@ alterTypeAlterType
    ;
 
 alterTable
-   : kwAlter kwTable (keyspace DOT)? table alterTableOperation
+   : kwAlter kwTable tableSpec alterTableOperation
    ;
 
 alterTableOperation
@@ -375,7 +375,7 @@ dropFunction
    ;
 
 dropTrigger
-   : kwDrop kwTrigger ifExist? trigger kwOn (keyspace DOT)? table
+   : kwDrop kwTrigger ifExist? trigger kwOn tableSpec
    ;
 
 dropRole
@@ -383,7 +383,7 @@ dropRole
    ;
 
 dropTable
-   : kwDrop kwTable ifExist? (keyspace DOT)? table
+   : kwDrop kwTable ifExist? tableSpec
    ;
 
 dropKeyspace
@@ -395,7 +395,7 @@ dropIndex
    ;
 
 createTable
-   : kwCreate kwTable ifNotExist? (keyspace DOT)? table syntaxBracketLr columnDefinitionList syntaxBracketRr withElement?
+   : kwCreate kwTable ifNotExist? tableSpec syntaxBracketLr columnDefinitionList syntaxBracketRr withElement?
    ;
 
 withElement
@@ -526,11 +526,11 @@ use_
    ;
 
 truncate
-   : kwTruncate (kwTable)? (keyspace DOT)? table
+   : kwTruncate (kwTable)? tableSpec
    ;
 
 createIndex
-   : kwCreate kwIndex ifNotExist? indexName? kwOn (keyspace DOT)? table syntaxBracketLr indexColumnSpec syntaxBracketRr
+   : kwCreate kwIndex ifNotExist? indexName? kwOn tableSpec syntaxBracketLr indexColumnSpec syntaxBracketRr
    ;
 
 indexName
@@ -566,12 +566,12 @@ deleteColumnList
    ;
 
 deleteColumnItem
-   : OBJECT_NAME
-   | OBJECT_NAME LS_BRACKET (stringLiteral | decimalLiteral) RS_BRACKET
+   : selectColumn asSpec?
+   | selectIndex asSpec?
    ;
 
 update
-   : beginBatch? kwUpdate (keyspace DOT)? table usingTtlTimestamp? kwSet assignments whereSpec (ifExist | ifSpec)? statementSeparator?
+   : beginBatch? kwUpdate tableSpec usingTtlTimestamp? kwSet assignments whereSpec (ifExist | ifSpec)? statementSeparator?
    ;
 
 ifSpec
@@ -609,8 +609,12 @@ assignmentAppend
    : column OPERATOR_EQ OBJECT_NAME arithmeticOperator valueAny
    ;
 
+indexOrKeyAccess
+   : syntaxBracketLs constant syntaxBracketRs
+   ;
+
 assignmentIndex
-   : column syntaxBracketLs decimalLiteral syntaxBracketRs OPERATOR_EQ constant
+   : column indexOrKeyAccess OPERATOR_EQ constant
    ;
 
 valueSet
@@ -635,7 +639,7 @@ assignmentTuple
    ;
 
 insert
-   : beginBatch? kwInsert kwInto (keyspace DOT)? table insertColumnSpec? insertValuesSpec ifNotExist? usingTtlTimestamp? statementSeparator?
+   : beginBatch? kwInsert kwInto tableSpec insertColumnSpec? insertValuesSpec ifNotExist? usingTtlTimestamp? statementSeparator?
    ;
 
 usingTtlTimestamp
@@ -666,7 +670,7 @@ ifExist
    ;
 
 insertValuesSpec
-   : kwValues '(' expressionList ')'
+   : kwValues '(' valueListSpec ')'
    | kwJson constant
    ;
 
@@ -678,8 +682,8 @@ columnList
    : column (syntaxComma column)*
    ;
 
-expressionList
-   : expression (syntaxComma expression)*
+valueListSpec
+   : valueAny (syntaxComma valueAny)*
    ;
 
 expression
@@ -706,8 +710,12 @@ kwLike
    : K_LIKE
    ;
 
+tableSpec
+   : (keyspace DOT)? table
+   ;
+
 fromSpec
-   : kwFrom (keyspace DOT)? table
+   : kwFrom tableSpec
    ;
 
 orderSpec
@@ -731,20 +739,26 @@ selectElements
    ;
 
 selectElement
-   : OBJECT_NAME '.' '*'                  // Table wildcard
-   | OBJECT_NAME asSpec?                  // Column with optional alias
-   | functionCall asSpec?                 // Function call with optional alias
-   | mapAccess                            // Map access (alias handled in mapAccess rule)
+   : selectColumn asSpec?
+   | selectFunction asSpec?
+   | selectIndex asSpec?
+   ;
+
+selectColumn
+   : column
+   ;
+
+selectFunction
+   : functionCall
+   ;
+
+selectIndex
+   : column syntaxBracketLs constant syntaxBracketRs
    ;
 
 asSpec
    : kwAs OBJECT_NAME
    ;
-
-mapAccess
-   : OBJECT_NAME '[' constant ']' asSpec?  // Rule to handle map accessor with optional alias
-   ;
-
 
 relationElements
    : (relationElement) (kwAnd relationElement)*
@@ -809,6 +823,7 @@ functionCall
    : OBJECT_NAME '(' STAR ')'
    | OBJECT_NAME '(' functionArgs? ')'
    | K_UUID '(' ')'
+   | K_WRITETIME '(' functionArgs? ')'
    ;
 
 functionArgs
@@ -818,9 +833,11 @@ functionArgs
 valueAny
    : QUESTION_MARK
    | constant
+   | functionCall
    | valueMap
    | valueSet
    | valueList
+   | assignmentTuple
    ;
 
 constant

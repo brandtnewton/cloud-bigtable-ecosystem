@@ -63,13 +63,13 @@ func NewBigtableCounterOp(family ColumnFamily, value int64) IBigtableMutationOp 
 
 type BigtableSetIndexOp struct {
 	Family ColumnFamily
-	Index  int
+	Index  int64
 	Value  BigtableValue
 }
 
 func (b BigtableSetIndexOp) _x() {}
 
-func NewBigtableSetIndexOp(family ColumnFamily, index int, value BigtableValue) IBigtableMutationOp {
+func NewBigtableSetIndexOp(family ColumnFamily, index int64, value BigtableValue) IBigtableMutationOp {
 	return &BigtableSetIndexOp{Family: family, Index: index, Value: value}
 }
 

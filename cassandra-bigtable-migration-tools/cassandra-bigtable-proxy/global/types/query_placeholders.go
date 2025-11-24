@@ -253,7 +253,7 @@ func (q *QueryParameterValues) GetValueMap(p Placeholder) (map[GoValue]GoValue, 
 	// 3. Iterate over the keys of the original map
 	iter := val.MapRange()
 	for iter.Next() {
-		// Get the reflection Value for the key and the value
+		// Get the reflection Placeholder for the key and the value
 		keyVal := iter.Key()
 		valueVal := iter.Value()
 

@@ -17,7 +17,6 @@
 package alter_translator
 
 import (
-	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/translators"
 	"testing"
 
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/global/types"
@@ -37,23 +36,30 @@ func TestTranslateAlterTableToBigtable(t *testing.T) {
 		{Name: "username", CQLType: types.TypeVarchar, KeyType: types.KeyTypeRegular, PkPrecedence: 0},
 	})
 
+	type AlterWant struct {
+		keyspace    types.Keyspace
+		table       types.TableName
+		ifNotExists bool
+		addColumns  []types.CreateColumn
+		dropColumns []types.ColumnName
+	}
+
 	var tests = []struct {
 		name            string
 		query           string
-		want            *translators.AlterTableStatementMap
+		want            *AlterWant
 		tableConfig     *schemaMapping.TableConfig
 		error           string
-		defaultKeyspace string
+		defaultKeyspace types.Keyspace
 	}{
 		{
 			name:        "Add column with explicit keyspace",
 			query:       "ALTER TABLE test_keyspace.user_info ADD firstname text",
 			tableConfig: userInfoTable,
-			want: &translators.AlterTableStatementMap{
-				Table:     "user_info",
-				Keyspace:  "test_keyspace",
-				QueryType: "alter",
-				AddColumns: []types.CreateColumn{{
+			want: &AlterWant{
+				table:    "user_info",
+				keyspace: "test_keyspace",
+				addColumns: []types.CreateColumn{{
 					Name:     "firstname",
 					Index:    0,
 					TypeInfo: utilities.ParseCqlTypeOrDie("text"),
@@ -66,11 +72,10 @@ func TestTranslateAlterTableToBigtable(t *testing.T) {
 			name:        "Add column with default keyspace",
 			query:       "ALTER TABLE user_info ADD firstname varchar",
 			tableConfig: userInfoTable,
-			want: &translators.AlterTableStatementMap{
-				Table:     "user_info",
-				Keyspace:  "test_keyspace",
-				QueryType: "alter",
-				AddColumns: []types.CreateColumn{{
+			want: &AlterWant{
+				table:    "user_info",
+				keyspace: "test_keyspace",
+				addColumns: []types.CreateColumn{{
 					Name:     "firstname",
 					Index:    0,
 					TypeInfo: types.TypeVarchar,
@@ -99,11 +104,10 @@ func TestTranslateAlterTableToBigtable(t *testing.T) {
 			name:        "Add multiple columns with explicit keyspace",
 			query:       "ALTER TABLE test_keyspace.user_info ADD firstname text, number_of_cats int",
 			tableConfig: userInfoTable,
-			want: &translators.AlterTableStatementMap{
-				Table:     "user_info",
-				Keyspace:  "test_keyspace",
-				QueryType: "alter",
-				AddColumns: []types.CreateColumn{{
+			want: &AlterWant{
+				table:    "user_info",
+				keyspace: "test_keyspace",
+				addColumns: []types.CreateColumn{{
 					Name:     "firstname",
 					Index:    0,
 					TypeInfo: utilities.ParseCqlTypeOrDie("text"),
@@ -120,11 +124,10 @@ func TestTranslateAlterTableToBigtable(t *testing.T) {
 			name:        "Add multiple columns with default keyspace",
 			query:       "ALTER TABLE user_info ADD firstname text, number_of_toes int",
 			tableConfig: userInfoTable,
-			want: &translators.AlterTableStatementMap{
-				Table:     "user_info",
-				Keyspace:  "test_keyspace",
-				QueryType: "alter",
-				AddColumns: []types.CreateColumn{{
+			want: &AlterWant{
+				table:    "user_info",
+				keyspace: "test_keyspace",
+				addColumns: []types.CreateColumn{{
 					Name:     "firstname",
 					Index:    0,
 					TypeInfo: utilities.ParseCqlTypeOrDie("text"),
@@ -141,11 +144,10 @@ func TestTranslateAlterTableToBigtable(t *testing.T) {
 			name:        "Drop column with explicit keyspace",
 			query:       "ALTER TABLE test_keyspace.user_info DROP email",
 			tableConfig: userInfoTable,
-			want: &translators.AlterTableStatementMap{
-				Table:       "user_info",
-				Keyspace:    "test_keyspace",
-				QueryType:   "alter",
-				DropColumns: []string{"email"},
+			want: &AlterWant{
+				table:       "user_info",
+				keyspace:    "test_keyspace",
+				dropColumns: []types.ColumnName{"email"},
 			},
 			error:           "",
 			defaultKeyspace: "",
@@ -154,11 +156,10 @@ func TestTranslateAlterTableToBigtable(t *testing.T) {
 			name:        "Drop column with default keyspace",
 			query:       "ALTER TABLE user_info DROP email",
 			tableConfig: userInfoTable,
-			want: &translators.AlterTableStatementMap{
-				Table:       "user_info",
-				Keyspace:    "test_keyspace",
-				QueryType:   "alter",
-				DropColumns: []string{"email"},
+			want: &AlterWant{
+				table:       "user_info",
+				keyspace:    "test_keyspace",
+				dropColumns: []types.ColumnName{"email"},
 			},
 			error:           "",
 			defaultKeyspace: "test_keyspace",
@@ -175,11 +176,10 @@ func TestTranslateAlterTableToBigtable(t *testing.T) {
 			name:        "Drop multiple columns with explicit keyspace",
 			query:       "ALTER TABLE test_keyspace.user_info DROP email, username",
 			tableConfig: userInfoTable,
-			want: &translators.AlterTableStatementMap{
-				Table:       "user_info",
-				Keyspace:    "test_keyspace",
-				QueryType:   "alter",
-				DropColumns: []string{"email", "username"},
+			want: &AlterWant{
+				table:       "user_info",
+				keyspace:    "test_keyspace",
+				dropColumns: []types.ColumnName{"email", "username"},
 			},
 			error:           "",
 			defaultKeyspace: "",
@@ -188,11 +188,10 @@ func TestTranslateAlterTableToBigtable(t *testing.T) {
 			name:        "Drop multiple columns with default keyspace",
 			query:       "ALTER TABLE user_info DROP email, username",
 			tableConfig: userInfoTable,
-			want: &translators.AlterTableStatementMap{
-				Table:       "user_info",
-				Keyspace:    "test_keyspace",
-				QueryType:   "alter",
-				DropColumns: []string{"email", "username"},
+			want: &AlterWant{
+				table:       "user_info",
+				keyspace:    "test_keyspace",
+				dropColumns: []types.ColumnName{"email", "username"},
 			},
 			error:           "",
 			defaultKeyspace: "test_keyspace",
@@ -259,18 +258,23 @@ func TestTranslateAlterTableToBigtable(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			require.NotNil(t, tt.tableConfig, "tests must define a table config")
 			smc := schemaMapping.NewSchemaMappingConfig("schema_mapping", "cf1", zap.NewNop(), []*schemaMapping.TableConfig{tt.tableConfig})
-			tr := &translators.TranslatorManager{
-				Logger:              nil,
-				SchemaMappingConfig: smc,
-			}
-			got, err := tr.TranslateAlterTableToBigtable(tt.query, tt.defaultKeyspace)
+			tr := NewAlterTranslator(smc)
+			p := utilities.NewParser(tt.query)
+			query := types.NewRawQuery(nil, tt.defaultKeyspace, tt.query, p, types.QueryTypeAlter)
+			got, err := tr.Translate(query, tt.defaultKeyspace, false)
 			if tt.error != "" {
 				require.Error(t, err)
 				assert.Equal(t, tt.error, err.Error())
 			} else {
 				require.NoError(t, err)
 			}
-			assert.Equal(t, tt.want, got)
+			gotAlter, ok := got.(*types.AlterTableStatementMap)
+			require.Truef(t, ok, "wrong query type")
+			assert.Equal(t, tt.want.table, gotAlter.Table())
+			assert.Equal(t, tt.want.keyspace, gotAlter.Keyspace())
+			assert.Equal(t, tt.want.ifNotExists, gotAlter.IfNotExists)
+			assert.Equal(t, tt.want.addColumns, gotAlter.AddColumns)
+			assert.Equal(t, tt.want.dropColumns, gotAlter.DropColumns)
 		})
 	}
 }

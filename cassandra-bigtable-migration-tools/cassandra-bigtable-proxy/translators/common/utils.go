@@ -670,72 +670,6 @@ const (
 	maxNanos                = int32(9999)
 )
 
-func encodeGoValueToBigtable(column *types.Column, value types.GoValue) ([]*types.BigtableData, error) {
-	if column.CQLType.Code() == types.MAP {
-		mt := column.CQLType.(*types.MapType)
-		mv, ok := value.(map[interface{}]interface{})
-		if !ok {
-			return nil, errors.New("failed to parse map")
-		}
-
-		var results []*types.BigtableData
-		for k, v := range mv {
-			// todo use key specific encode
-			keyEncoded, err := encodeScalarForBigtable(k, mt.KeyType().DataType())
-			if err != nil {
-				return nil, err
-			}
-			valueBytes, err := encodeScalarForBigtable(v, mt.ValueType().DataType())
-			if err != nil {
-				return nil, err
-			}
-			results = append(results, &types.BigtableData{Family: column.ColumnFamily, Column: types.ColumnQualifier(keyEncoded), Bytes: valueBytes})
-		}
-		return results, nil
-	} else if column.CQLType.Code() == types.LIST {
-		lt := column.CQLType.(*types.ListType)
-		lv, ok := value.([]any)
-		if !ok {
-			return nil, errors.New("failed to parse list")
-		}
-
-		var results []*types.BigtableData
-		for i, v := range lv {
-			valueBytes, err := encodeScalarForBigtable(v, lt.ElementType().DataType())
-			if err != nil {
-				return nil, err
-			}
-			// todo use list index encoder
-			results = append(results, &types.BigtableData{Family: column.ColumnFamily, Column: types.ColumnQualifier(fmt.Sprintf("%d", i)), Bytes: valueBytes})
-		}
-		return results, nil
-	} else if column.CQLType.Code() == types.SET {
-		st := column.CQLType.(*types.SetType)
-		lv, ok := value.([]any)
-		if !ok {
-			return nil, errors.New("failed to parse set")
-		}
-
-		var results []*types.BigtableData
-		for _, v := range lv {
-			// todo use key specific encode
-			valueBytes, err := encodeScalarForBigtable(v, st.ElementType().DataType())
-			if err != nil {
-				return nil, err
-			}
-			// todo use correct column value
-			results = append(results, &types.BigtableData{Family: column.ColumnFamily, Column: types.ColumnQualifier(fmt.Sprintf("%v", valueBytes)), Bytes: []byte("")})
-		}
-		return results, nil
-	}
-
-	v, err := encodeScalarForBigtable(value, column.CQLType.DataType())
-	if err != nil {
-		return nil, err
-	}
-	return []*types.BigtableData{{Family: column.ColumnFamily, Column: types.ColumnQualifier(column.Name), Bytes: v}}, nil
-}
-
 // encodeScalarForBigtable converts a value to its byte representation based on CQL type.
 // Handles type conversion and encoding according to the protocol version.
 // Returns error if value type is invalid or encoding fails.
@@ -780,9 +714,9 @@ func cassandraValueToGoValue(dt types.CqlDataType, value *primitive.Value, pv pr
 	}
 
 	// the proxy codec returns []*string/whatever type which isn't quite what we're expecting downstream
-	//if dt.Code() == types.LIST || dt.Code() == types.SET {
-	//	goValue = dereferenceSlice(goValue)
-	//}
+	if dt.Code() == types.LIST || dt.Code() == types.SET {
+		goValue = dereferenceSlice(goValue)
+	}
 
 	return goValue, nil
 }

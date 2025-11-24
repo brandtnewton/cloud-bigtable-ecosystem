@@ -254,16 +254,6 @@ func emptyRowsResult() *message.RowsResult {
 
 func (btc *BigtableClient) buildMutation(ctx context.Context, table *schemaMapping.TableConfig, input *types.BigtableWriteMutation, mut *bigtable.Mutation) (int, error) {
 	var mutationCount = 0
-	// Delete column families
-	for _, cf := range input.DelColumnFamily {
-		mut.DeleteCellsInFamily(string(cf))
-		mutationCount++
-	}
-
-	for _, counterOp := range input.CounterOps {
-		mut.AddIntToCell(string(counterOp.Family), "", counterTimestamp, counterOp.Value)
-		mutationCount++
-	}
 
 	var timestamp bigtable.Timestamp
 	if input.UsingTimestamp != nil && input.UsingTimestamp.HasUsingTimestamp {
@@ -272,32 +262,30 @@ func (btc *BigtableClient) buildMutation(ctx context.Context, table *schemaMappi
 		timestamp = bigtable.Time(time.Now())
 	}
 
-	for _, indexOp := range input.SetIndexOps {
-		reqTimestamp, err := btc.getIndexOpTimestamp(ctx, table, input.RowKey(), indexOp.Family, indexOp.Index)
-		if err != nil {
-			return 0, err
+	for _, mutationOp := range input.Mutations() {
+		switch m := mutationOp.(type) {
+		case *types.WriteCellOp:
+			mut.Set(string(m.Family), string(m.Column), timestamp, m.Bytes)
+		case *types.DeleteColumnOp:
+			mut.DeleteCellsInColumn(string(m.Column.Family), string(m.Column.Column))
+		case *types.BigtableCounterOp:
+			mut.AddIntToCell(string(m.Family), "", counterTimestamp, m.Value)
+		case *types.DeleteCellsOp:
+			mut.DeleteCellsInFamily(string(m.Family))
+		case *types.BigtableSetIndexOp:
+			reqTimestamp, err := btc.getIndexOpTimestamp(ctx, table, input.RowKey(), m.Family, m.Index)
+			if err != nil {
+				return 0, err
+			}
+			mut.Set(string(m.Family), reqTimestamp, timestamp, m.Value)
+		case *types.BigtableDeleteListElementsOp:
+			err := btc.setMutationForListDelete(ctx, table, input.RowKey(), m.Family, m.Values, mut)
+			if err != nil {
+				return 0, err
+			}
+		default:
+			return 0, fmt.Errorf("unhandled mutation type %T", mutationOp)
 		}
-		mut.Set(string(indexOp.Family), reqTimestamp, timestamp, indexOp.Value)
-		mutationCount++
-	}
-
-	for _, deleteOp := range input.DeleteListElementsOps {
-		err := btc.setMutationForListDelete(ctx, table, input.RowKey(), deleteOp.Family, deleteOp.Values, mut)
-		if err != nil {
-			return 0, err
-		}
-		mutationCount++
-	}
-
-	// Delete specific column qualifiers
-	for _, q := range input.DelColumns {
-		mut.DeleteCellsInColumn(string(q.Family), string(q.Column))
-		mutationCount++
-	}
-
-	// Set values for columns
-	for _, d := range input.Data {
-		mut.Set(string(d.Family), string(d.Column), timestamp, d.Bytes)
 		mutationCount++
 	}
 	return mutationCount, nil
@@ -889,15 +877,15 @@ func (btc *BigtableClient) ApplyBulkMutation(ctx context.Context, keyspace types
 		}
 		mut := rowKeyToMutationMap[rowKey]
 		switch v := md.(type) {
-		case types.BigtableWriteMutation:
-			_, err := btc.buildMutation(ctx, table, &v, mut)
+		case *types.BigtableWriteMutation:
+			_, err := btc.buildMutation(ctx, table, v, mut)
 			if err != nil {
 				return BulkOperationResponse{
 					FailedRows: "All Rows are failed",
 				}, err
 			}
-		case types.BoundDeleteQuery:
-			err := btc.buildDeleteMutation(ctx, table, &v, mut)
+		case *types.BoundDeleteQuery:
+			err := btc.buildDeleteMutation(ctx, table, v, mut)
 			if err != nil {
 				return BulkOperationResponse{
 					FailedRows: "All Rows are failed",

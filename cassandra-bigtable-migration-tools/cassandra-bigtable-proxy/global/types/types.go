@@ -80,12 +80,6 @@ func (k Keyspace) GetMetadata() KeyspaceMetadata {
 	}
 }
 
-type BigtableData struct {
-	Family ColumnFamily
-	Column ColumnQualifier
-	Bytes  BigtableValue
-}
-
 type Column struct {
 	Name         ColumnName
 	ColumnFamily ColumnFamily

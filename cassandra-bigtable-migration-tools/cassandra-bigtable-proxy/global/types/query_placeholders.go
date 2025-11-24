@@ -219,11 +219,21 @@ func (q *QueryParameterValues) GetValueSlice(p Placeholder) ([]GoValue, error) {
 	if err != nil {
 		return nil, err
 	}
-	slice, ok := v.([]GoValue)
-	if !ok {
+
+	val := reflect.ValueOf(v)
+
+	if val.Kind() != reflect.Slice {
 		return nil, fmt.Errorf("query param %s is a %T, not a slice", p, v)
 	}
-	return slice, nil
+
+	length := val.Len()
+	result := make([]GoValue, length)
+
+	for i := 0; i < length; i++ {
+		result[i] = val.Index(i).Interface()
+	}
+
+	return result, nil
 }
 
 func (q *QueryParameterValues) GetValueMap(p Placeholder) (map[GoValue]GoValue, error) {

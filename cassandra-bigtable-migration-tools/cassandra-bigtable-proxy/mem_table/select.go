@@ -78,7 +78,7 @@ func projectRow(source types.GoRow, columns []types.SelectedColumn) types.GoRow 
 	for _, col := range columns {
 		val, exists := source[string(col.ColumnName)]
 		if exists {
-			// Use Alias if present, otherwise use original Column Name
+			// Use Alias if present, otherwise use original Family Name
 			targetKey := col.Alias
 			if targetKey == "" {
 				targetKey = string(col.ColumnName)

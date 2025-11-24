@@ -24,7 +24,7 @@ import (
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/mem_table"
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/responsehandler"
 	cql "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/third_party/cqlparser"
-	"github.com/antlr4-go/antlr/v4"
+	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/utilities"
 	"io"
 	"net"
 	"sync"
@@ -496,7 +496,7 @@ func (c *client) handlePrepare(raw *frame.RawFrame, msg *message.Prepare) {
 		keyspace = types.Keyspace(msg.Keyspace)
 	}
 
-	p := newParser(msg.Query)
+	p := utilities.NewParser(msg.Query)
 	qt, err := parseQueryType(p)
 	if err != nil {
 		c.proxy.logger.Error("error parsing query to see if it's handled", zap.String(Query, msg.Query), zap.Error(err))
@@ -540,12 +540,6 @@ func parseQueryType(p *cql.CqlParser) (types.QueryType, error) {
 func (c *client) getQueryId(msg *message.Prepare) [16]byte {
 	// Generating unique prepared query_id
 	return md5.Sum([]byte(msg.Query + string(c.sessionKeyspace)))
-}
-
-func newParser(query string) *cql.CqlParser {
-	lexer := cql.NewCqlLexer(antlr.NewInputStream(query))
-	stream := antlr.NewCommonTokenStream(lexer, antlr.TokenDefaultChannel)
-	return cql.NewCqlParser(stream)
 }
 
 // handleServerPreparedQuery handle prepared query that was supposed to run on cassandra server
@@ -686,7 +680,7 @@ func (c *client) handleQuery(raw *frame.RawFrame, msg *partialQuery) {
 		attribute.String("CqlQuery", msg.query),
 	})
 
-	p := newParser(msg.query)
+	p := utilities.NewParser(msg.query)
 	qt, err := parseQueryType(p)
 	if err != nil {
 		c.proxy.logger.Error("error parsing query to see if it's handled", zap.String(Query, msg.query), zap.Error(err))

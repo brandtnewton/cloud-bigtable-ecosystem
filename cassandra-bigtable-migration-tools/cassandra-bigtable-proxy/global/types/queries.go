@@ -1,9 +1,5 @@
 package types
 
-import (
-	"time"
-)
-
 type OrderOperation string
 
 const (
@@ -68,78 +64,10 @@ func (b *BoundKeyColumn) Column() *Column {
 	return b.column
 }
 
-type BoundTimestampInfo struct {
-	Timestamp         time.Time
-	HasUsingTimestamp bool
-}
-
 type IBigtableMutation interface {
 	Keyspace() Keyspace
 	Table() TableName
 	RowKey() RowKey
-}
-
-// BigtableWriteMutation holds the results from parseComplexOperations.
-type BigtableWriteMutation struct {
-	cqlQuery              string
-	queryType             QueryType
-	keyspace              Keyspace
-	table                 TableName
-	IfSpec                IfSpec
-	rowKey                RowKey
-	UsingTimestamp        *BoundTimestampInfo
-	Data                  []*BigtableData
-	DelColumnFamily       []ColumnFamily
-	DelColumns            []*BigtableColumn
-	CounterOps            []BigtableCounterOp
-	SetIndexOps           []BigtableSetIndexOp
-	DeleteListElementsOps []BigtableDeleteListElementsOp
-}
-
-func NewBigtableWriteMutation(keyspace Keyspace, table TableName, cqlQuery string, ifSpec IfSpec, qt QueryType, rowKey RowKey) *BigtableWriteMutation {
-	return &BigtableWriteMutation{keyspace: keyspace, table: table, cqlQuery: cqlQuery, IfSpec: ifSpec, queryType: qt, rowKey: rowKey}
-}
-
-func (b BigtableWriteMutation) CqlQuery() string {
-	return b.cqlQuery
-}
-
-func (b BigtableWriteMutation) BigtableQuery() string {
-	return ""
-}
-
-func (b BigtableWriteMutation) AsBulkMutation() (IBigtableMutation, bool) {
-	return b, true
-}
-
-func (b BigtableWriteMutation) QueryType() QueryType {
-	return b.queryType
-}
-
-func (b BigtableWriteMutation) Keyspace() Keyspace {
-	return b.keyspace
-}
-
-func (b BigtableWriteMutation) Table() TableName {
-	return b.table
-}
-
-func (b BigtableWriteMutation) RowKey() RowKey {
-	return b.rowKey
-}
-
-type BigtableCounterOp struct {
-	Family ColumnFamily
-	Value  int64
-}
-type BigtableSetIndexOp struct {
-	Family ColumnFamily
-	Index  int
-	Value  BigtableValue
-}
-type BigtableDeleteListElementsOp struct {
-	Family ColumnFamily
-	Values []BigtableValue
 }
 
 type Operator string

@@ -108,7 +108,16 @@ var plusMinusRegex = regexp.MustCompile(`^[-+]*$`)
 var rowsRegex = regexp.MustCompile(`^\(\d+ rows\)$`)
 
 func cqlshExec(query string) (string, error) {
-	cmd := exec.Command("cqlsh", "--request-timeout=60", "-e", query)
+	return cqlshExecWithKeyspace("", query)
+}
+func cqlshExecWithKeyspace(keyspace string, query string) (string, error) {
+
+	var cmd *exec.Cmd
+	if keyspace != "" {
+		cmd = exec.Command("cqlsh", "-k", keyspace, "--request-timeout=60", "-e", query)
+	} else {
+		cmd = exec.Command("cqlsh", "--request-timeout=60", "-e", query)
+	}
 
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout = &stdout

@@ -20,7 +20,6 @@ import (
 	"fmt"
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/third_party/datastax/proxycore"
 	"regexp"
-	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -541,11 +540,7 @@ func StringToGo(value string, cqlType types.CqlDataType) (types.GoValue, error) 
 		if err != nil {
 			return nil, fmt.Errorf("error converting string to bool: %w", err)
 		}
-		if val {
-			iv = int64(1)
-		} else {
-			iv = int64(0)
-		}
+		return val, nil
 	case datatype.Timestamp:
 		val, err := parseTimestamp(value)
 		if err != nil {
@@ -624,12 +619,6 @@ func parseTimestamp(timestampStr string) (time.Time, error) {
 
 	// If all formats fail, return the last error
 	return time.Time{}, err
-}
-
-func SortColumnNames(cols []types.ColumnName) {
-	slices.SortFunc(cols, func(a, b types.ColumnName) int {
-		return strings.Compare(string(a), string(b))
-	})
 }
 
 func isSupportedCollectionElementType(dt datatype.DataType) bool {

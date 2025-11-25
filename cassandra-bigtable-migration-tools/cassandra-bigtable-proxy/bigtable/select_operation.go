@@ -225,7 +225,7 @@ func rowValueToGoValue(val any, expectedType types.CqlDataType) (types.GoValue, 
 	case int64:
 		// special case handling of ints because Bigtable often uses int64 instead of int32
 		switch expectedType.Code() {
-		case types.BIGINT:
+		case types.BIGINT, types.COUNTER:
 			return v, nil
 		case types.INT:
 			return int32(v), nil

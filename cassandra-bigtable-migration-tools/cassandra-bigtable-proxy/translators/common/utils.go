@@ -789,7 +789,7 @@ func ParseSelectFunction(sf cql.ISelectFunctionContext, alias string, table *sch
 		if err != nil {
 			return types.SelectedColumn{}, err
 		}
-		return *types.NewSelectedColumnFunction(sf.FunctionCall().GetText(), "*", alias, types.TypeBigint, f), nil
+		return *types.NewSelectedColumnFunction("system.count(*)", "*", alias, types.TypeBigint, f), nil
 	case types.FuncCodeAvg, types.FuncCodeSum, types.FuncCodeMin, types.FuncCodeMax:
 		col, err := parseSingleColumnFunctionArg(sf.FunctionCall(), table)
 		if err != nil {
@@ -805,7 +805,10 @@ func ParseSelectFunction(sf cql.ISelectFunctionContext, alias string, table *sch
 		if f == types.FuncCodeAvg && (col.CQLType.Code() == types.BIGINT || col.CQLType.Code() == types.INT || col.CQLType.Code() == types.COUNTER) {
 			resultType = types.TypeDouble
 		}
-		return *types.NewSelectedColumnFunction(sf.FunctionCall().GetText(), col.Name, alias, resultType, f), nil
+
+		// example: system.avg(price)
+		sql := fmt.Sprintf("system.%s(%s)", strings.ToLower(f.String()), col.Name)
+		return *types.NewSelectedColumnFunction(sql, col.Name, alias, resultType, f), nil
 	default:
 		return types.SelectedColumn{}, fmt.Errorf("unhandled function type `%s`", sf.FunctionCall().GetText())
 	}

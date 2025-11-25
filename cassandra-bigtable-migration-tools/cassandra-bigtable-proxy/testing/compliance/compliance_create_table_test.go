@@ -17,6 +17,8 @@ func TestCreateIfNotExist(t *testing.T) {
 	defer cleanupTable(t, table)
 	err := session.Query(fmt.Sprintf("CREATE TABLE %s (id TEXT PRIMARY KEY, name TEXT)", table)).Exec()
 	assert.NoError(t, err)
+	err = session.Query(fmt.Sprintf("INSERT INTO %s (id, name) VALUES (?, ?)", table), "user1", "larry").Exec()
+	assert.NoError(t, err)
 	err = session.Query(fmt.Sprintf("CREATE TABLE %s (id TEXT PRIMARY KEY, name TEXT)", table)).Exec()
 	assert.Error(t, err)
 	err = session.Query(fmt.Sprintf("CREATE TABLE IF NOT EXISTS %s (id TEXT PRIMARY KEY, name TEXT)", table)).Exec()

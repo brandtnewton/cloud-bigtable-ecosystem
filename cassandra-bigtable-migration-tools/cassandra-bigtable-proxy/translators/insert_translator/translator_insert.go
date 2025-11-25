@@ -24,15 +24,6 @@ import (
 	"github.com/datastax/go-cassandra-native-protocol/primitive"
 )
 
-// TranslateInsert() parses Columns from the Insert CqlQuery
-//
-// Parameters:
-//   - queryStr: Read the query, parse its columns, values, table name, type of query and keyspaces etc.
-//   - protocolV: Array of Columns Names
-//
-// Returns: PreparedInsertQuery, build the PreparedInsertQuery and return it with nil value of error. In case of error
-// PreparedInsertQuery will return as nil and error will contains the error object
-
 func (t *InsertTranslator) Translate(query *types.RawQuery, sessionKeyspace types.Keyspace) (types.IPreparedQuery, error) {
 	insertObj := query.Parser().Insert()
 	if insertObj == nil {

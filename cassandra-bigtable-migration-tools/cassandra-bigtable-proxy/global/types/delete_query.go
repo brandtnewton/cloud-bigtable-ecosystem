@@ -69,11 +69,11 @@ type BoundDeleteQuery struct {
 	Columns  []BoundSelectColumn
 }
 
-func (b BoundDeleteQuery) CqlQuery() string {
+func (b *BoundDeleteQuery) CqlQuery() string {
 	return b.cqlQuery
 }
 
-func (b BoundDeleteQuery) BigtableQuery() string {
+func (b *BoundDeleteQuery) BigtableQuery() string {
 	return ""
 }
 
@@ -81,22 +81,22 @@ func NewBoundDeleteQuery(keyspace Keyspace, table TableName, cqlQuery string, ro
 	return &BoundDeleteQuery{keyspace: keyspace, table: table, cqlQuery: cqlQuery, rowKey: rowKey, IfExists: ifExists, Columns: columns}
 }
 
-func (b BoundDeleteQuery) AsBulkMutation() (IBigtableMutation, bool) {
+func (b *BoundDeleteQuery) AsBulkMutation() (IBigtableMutation, bool) {
 	return b, true
 }
 
-func (b BoundDeleteQuery) QueryType() QueryType {
+func (b *BoundDeleteQuery) QueryType() QueryType {
 	return QueryTypeDelete
 }
 
-func (b BoundDeleteQuery) Keyspace() Keyspace {
+func (b *BoundDeleteQuery) Keyspace() Keyspace {
 	return b.keyspace
 }
 
-func (b BoundDeleteQuery) Table() TableName {
+func (b *BoundDeleteQuery) Table() TableName {
 	return b.table
 }
 
-func (b BoundDeleteQuery) RowKey() RowKey {
+func (b *BoundDeleteQuery) RowKey() RowKey {
 	return b.rowKey
 }

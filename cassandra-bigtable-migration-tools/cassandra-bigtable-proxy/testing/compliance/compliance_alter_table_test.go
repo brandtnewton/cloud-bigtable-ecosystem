@@ -16,25 +16,25 @@ func TestAlterTable(t *testing.T) {
 	t.Logf("running test %s with random table name %s", t.Name(), table)
 	err := session.Query(fmt.Sprintf("CREATE TABLE %s (id TEXT PRIMARY KEY, name TEXT)", table)).Exec()
 	//defer cleanupTable(t, table)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	err = session.Query(fmt.Sprintf("ALTER TABLE %s ADD age INT", table)).Exec()
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	err = session.Query(fmt.Sprintf("INSERT INTO %s (id, name, age) VALUES ('%s', '%s', %d)", table, "abc", "bob", 32)).Exec()
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	err = session.Query(fmt.Sprintf("ALTER TABLE %s DROP age", table)).Exec()
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	err = session.Query(fmt.Sprintf("ALTER TABLE %s ADD weight FLOAT", table)).Exec()
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	err = session.Query(fmt.Sprintf("INSERT INTO %s (id, name, weight) VALUES (?, ?, ?)", table), "abc", "bob", float32(190.5)).Exec()
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	err = session.Query(fmt.Sprintf("DROP TABLE  %s", table)).Exec()
-	assert.NoError(t, err)
+	require.NoError(t, err)
 }
 
 func TestNegativeTestCasesForAlterTable(t *testing.T) {

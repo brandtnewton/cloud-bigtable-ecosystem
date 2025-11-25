@@ -31,7 +31,7 @@ func TestUnsupportedFunctionInSelectQuery(t *testing.T) {
 
 	require.Error(t, err, "Expected an error for an unsupported function, but got none")
 	if testTarget != TestTargetCassandra {
-		assert.Contains(t, err.Error(), "unknown function 'xxxx'", "Error message did not match expected output")
+		assert.Contains(t, err.Error(), "unknown function: 'xxxx'", "Error message did not match expected output")
 	}
 }
 

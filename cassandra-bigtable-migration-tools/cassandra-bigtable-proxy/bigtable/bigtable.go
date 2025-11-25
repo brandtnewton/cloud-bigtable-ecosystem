@@ -802,15 +802,16 @@ func (btc *BigtableClient) ReadTableConfigs(ctx context.Context, keyspace types.
 	resultCh := make(chan TableResult, len(tables))
 	var wg sync.WaitGroup
 	for tableName, tableColumns := range tables {
+		tn := tableName
+		tc := tableColumns
 		// if we already know what encoding the table has, just use that, so we don't have to do the extra network request
 		if existingTable, err := btc.SchemaMappingConfig.GetTableConfig(keyspace, tableName); err == nil {
-			resultCh <- TableResult{Config: existingTable, Error: nil}
+			tableConfig := schemaMapping.NewTableConfig(keyspace, tn, btc.BigtableConfig.DefaultColumnFamily, existingTable.IntRowKeyEncoding, tc)
+			resultCh <- TableResult{Config: tableConfig, Error: nil}
 			continue
 		}
 
 		wg.Add(1)
-		tn := tableName
-		tc := tableColumns
 		go func() {
 			defer wg.Done()
 			btc.Logger.Info(fmt.Sprintf("loading table info for table %s.%s", keyspace, tn))

@@ -372,6 +372,12 @@ func (s *BaseCqlParserListener) EnterAlterTableColumnDefinition(ctx *AlterTableC
 func (s *BaseCqlParserListener) ExitAlterTableColumnDefinition(ctx *AlterTableColumnDefinitionContext) {
 }
 
+// EnterAlterTableAddColumn is called when production alterTableAddColumn is entered.
+func (s *BaseCqlParserListener) EnterAlterTableAddColumn(ctx *AlterTableAddColumnContext) {}
+
+// ExitAlterTableAddColumn is called when production alterTableAddColumn is exited.
+func (s *BaseCqlParserListener) ExitAlterTableAddColumn(ctx *AlterTableAddColumnContext) {}
+
 // EnterAlterRole is called when production alterRole is entered.
 func (s *BaseCqlParserListener) EnterAlterRole(ctx *AlterRoleContext) {}
 

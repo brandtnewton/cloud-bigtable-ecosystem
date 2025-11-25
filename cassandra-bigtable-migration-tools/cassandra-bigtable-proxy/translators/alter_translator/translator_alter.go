@@ -59,15 +59,17 @@ func (t *AlterTranslator) Translate(query *types.RawQuery, sessionKeyspace types
 	}
 	var addColumns []types.CreateColumn
 	if alterTable.AlterTableOperation().AlterTableAdd() != nil {
-		for i, addColumn := range alterTable.AlterTableOperation().AlterTableAdd().AlterTableColumnDefinition().AllColumn() {
-			dt, err := utilities.ParseCqlType(alterTable.AlterTableOperation().AlterTableAdd().AlterTableColumnDefinition().DataType(i))
+		for i, addColumn := range alterTable.AlterTableOperation().AlterTableAdd().AlterTableColumnDefinition().AllAlterTableAddColumn() {
+			dt, err := utilities.ParseCqlType(addColumn.DataType())
 			if err != nil {
 				return nil, err
 			}
 
+			col := addColumn.Column().GetText()
+
 			addColumns = append(addColumns, types.CreateColumn{
 				TypeInfo: dt,
-				Name:     types.ColumnName(addColumn.GetText()),
+				Name:     types.ColumnName(col),
 				Index:    int32(i),
 			})
 		}

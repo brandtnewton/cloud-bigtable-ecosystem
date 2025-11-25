@@ -332,7 +332,11 @@ alterTableAdd
    ;
 
 alterTableColumnDefinition
-   : column dataType (syntaxComma column dataType)*
+   : alterTableAddColumn (syntaxComma alterTableAddColumn)*
+   ;
+
+alterTableAddColumn
+   : column dataType
    ;
 
 alterRole

@@ -7,61 +7,30 @@ import (
 	"strings"
 )
 
-type BtqlFunction struct {
-	code       types.BtqlFuncCode
-	str        string
-	returnType types.CqlDataType
-}
-
-func newBtqlFunction(code types.BtqlFuncCode, str string, returnType types.CqlDataType) *BtqlFunction {
-	return &BtqlFunction{code: code, str: str, returnType: returnType}
-}
-
-func (b BtqlFunction) Code() types.BtqlFuncCode {
-	return b.code
-}
-
-func (b BtqlFunction) String() string {
-	return b.str
-}
-
-func (b BtqlFunction) ReturnType() types.CqlDataType {
-	return b.returnType
-}
-
-var (
-	FuncWriteTime = newBtqlFunction(types.FuncCodeWriteTime, "WRITETIME", types.TypeBigint)
-	FuncCount     = newBtqlFunction(types.FuncCodeCount, "COUNT", types.TypeBigint)
-	FuncAvg       = newBtqlFunction(types.FuncCodeAvg, "AVG", types.TypeBigint)
-	FuncSum       = newBtqlFunction(types.FuncCodeSum, "SUM", types.TypeBigint)
-	FuncMin       = newBtqlFunction(types.FuncCodeMin, "MIN", types.TypeBigint)
-	FuncMax       = newBtqlFunction(types.FuncCodeMax, "MAX", types.TypeBigint)
-)
-
-func ParseCqlFunc(f cql.IFunctionCallContext) (*BtqlFunction, error) {
+func ParseCqlFunc(f cql.IFunctionCallContext) (types.BtqlFuncCode, error) {
 	if f.K_UUID() != nil {
-		return nil, fmt.Errorf("unknown function: 'UUID'")
+		return types.FuncCodeUnknown, fmt.Errorf("unknown function: 'UUID'")
 	}
-	// writetime is a reserved word so we have to handle that case separately
+	// writetime is a reserved word, so we have to handle that case separately
 	if f.K_WRITETIME() != nil {
-		return FuncWriteTime, nil
+		return types.FuncCodeWriteTime, nil
 	}
 
 	functionName := strings.ToLower(f.OBJECT_NAME().GetText())
 	switch functionName {
 	case "writetime":
-		return FuncWriteTime, nil
+		return types.FuncCodeWriteTime, nil
 	case "count":
-		return FuncCount, nil
+		return types.FuncCodeCount, nil
 	case "avg":
-		return FuncAvg, nil
+		return types.FuncCodeAvg, nil
 	case "sum":
-		return FuncSum, nil
+		return types.FuncCodeSum, nil
 	case "min":
-		return FuncMin, nil
+		return types.FuncCodeMin, nil
 	case "max":
-		return FuncMax, nil
+		return types.FuncCodeMax, nil
 	default:
-		return nil, fmt.Errorf("unknown function: '%s'", functionName)
+		return types.FuncCodeUnknown, fmt.Errorf("unknown function: '%s'", functionName)
 	}
 }

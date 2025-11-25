@@ -237,9 +237,9 @@ func createBtqlFunc(col types.SelectedColumn, tableConfig *sm.TableConfig) (stri
 	if col.Func == types.FuncCodeWriteTime {
 		// todo what about collections?
 		if col.Alias != "" {
-			return fmt.Sprintf("WRITE_TIMESTAMP(%s, '%s') AS %s", colMeta.ColumnFamily, colMeta.Name, col.Alias), nil
+			return fmt.Sprintf("UNIX_MICROS(WRITE_TIMESTAMP(%s, '%s')) AS %s", colMeta.ColumnFamily, colMeta.Name, col.Alias), nil
 		}
-		return fmt.Sprintf("WRITE_TIMESTAMP(%s, '%s')", colMeta.ColumnFamily, colMeta.Name), nil
+		return fmt.Sprintf("UNIX_MICROS(WRITE_TIMESTAMP(%s, '%s'))", colMeta.ColumnFamily, colMeta.Name), nil
 	}
 
 	castValue, castErr := CastScalarColumn(colMeta)
@@ -502,13 +502,16 @@ func selectedColumnsToMetadata(table *sm.TableConfig, selectClause *types.Select
 	if selectClause.IsStar {
 		return table.GetMetadata()
 	}
-
 	var resultColumns []*message.ColumnMetadata
 	for i, c := range selectClause.Columns {
+		name := c.Sql
+		if c.Alias != "" {
+			name = c.Alias
+		}
 		var col = message.ColumnMetadata{
 			Keyspace: string(table.Keyspace),
 			Table:    string(table.Name),
-			Name:     string(c.ColumnName),
+			Name:     name,
 			Index:    int32(i),
 			Type:     c.ResultType.DataType(),
 		}
@@ -549,6 +552,6 @@ func CastScalarColumn(colMeta *types.Column) (string, error) {
 	case datatype.Varchar:
 		return fmt.Sprintf("%s['%s']", colMeta.ColumnFamily, colMeta.Name), nil
 	default:
-		return "", fmt.Errorf("unsupported CQL type: %s", colMeta.CQLType.DataType())
+		return "", fmt.Errorf("unsupported CQL type: %s", colMeta.CQLType.DataType().String())
 	}
 }

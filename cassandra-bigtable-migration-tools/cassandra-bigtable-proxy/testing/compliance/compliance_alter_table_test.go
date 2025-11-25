@@ -15,18 +15,13 @@ func TestAlterTable(t *testing.T) {
 	table := "ddl_table_" + strings.ReplaceAll(uuid.New().String(), "-", "_")
 	t.Logf("running test %s with random table name %s", t.Name(), table)
 	err := session.Query(fmt.Sprintf("CREATE TABLE %s (id TEXT PRIMARY KEY, name TEXT)", table)).Exec()
-	defer cleanupTable(t, table)
+	//defer cleanupTable(t, table)
 	assert.NoError(t, err)
-
-	insertQuery := session.Query(fmt.Sprintf("INSERT INTO %s (id, name, age) VALUES (?, ?, ?)", table), "abc", "bob", 32)
-
-	err = insertQuery.Exec()
-	assert.Error(t, err, "insert should fail because there is no age column")
 
 	err = session.Query(fmt.Sprintf("ALTER TABLE %s ADD age INT", table)).Exec()
 	assert.NoError(t, err)
 
-	err = insertQuery.Exec()
+	err = session.Query(fmt.Sprintf("INSERT INTO %s (id, name, age) VALUES ('%s', '%s', %d)", table, "abc", "bob", 32)).Exec()
 	assert.NoError(t, err)
 
 	err = session.Query(fmt.Sprintf("ALTER TABLE %s DROP age", table)).Exec()

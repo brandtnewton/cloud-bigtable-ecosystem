@@ -557,7 +557,7 @@ func StringToGo(value string, cqlType types.CqlDataType) (types.GoValue, error) 
 	case datatype.Varchar:
 		iv = value
 	default:
-		return nil, fmt.Errorf("unsupported CQL type: %s", cqlType)
+		return nil, fmt.Errorf("unsupported CQL type: %s", cqlType.String())
 
 	}
 	return iv, nil

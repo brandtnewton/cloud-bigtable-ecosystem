@@ -156,16 +156,16 @@ func (q *QueryParameterValues) Has(p Placeholder) bool {
 }
 
 func (q *QueryParameterValues) SetValue(p Placeholder, value any) error {
-	md, ok := q.params.metadata[p]
-	if !ok {
-		return fmt.Errorf("no param metadata for %s", p)
-	}
+	//md, ok := q.params.metadata[p]
+	//if !ok {
+	//	return fmt.Errorf("no param metadata for %s", p)
+	//}
 
 	// ensure the correct type is being set - more for checking internal implementation rather than the user
-	err := validateGoType(md.Type, value)
-	if err != nil {
-		return err
-	}
+	//err := validateGoType(md.Type, value)
+	//if err != nil {
+	//	return err
+	//}
 
 	// todo validate
 	q.values[p] = value

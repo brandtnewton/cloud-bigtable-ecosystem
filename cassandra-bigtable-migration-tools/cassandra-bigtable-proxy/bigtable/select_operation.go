@@ -27,7 +27,6 @@ import (
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/utilities"
 	"github.com/datastax/go-cassandra-native-protocol/message"
 	"go.uber.org/zap"
-	"strings"
 	"time"
 )
 
@@ -85,14 +84,14 @@ func (btc *BigtableClient) convertResultRow(resultRow bigtable.ResultRow, query 
 	result := make(types.GoRow)
 	for i, colMeta := range resultRow.Metadata.Columns {
 		var val any
-		colName := colMeta.Name
-		err := resultRow.GetByName(colName, &val)
+		key := colMeta.Name
+		err := resultRow.GetByName(key, &val)
 		if err != nil {
 			return nil, err
 		}
 
 		// all scalars in system column family when "select *" is used
-		if scalarsMap, ok := val.(map[string][]uint8); ok && colName == string(table.SystemColumnFamily) {
+		if scalarsMap, ok := val.(map[string][]uint8); ok && key == string(table.SystemColumnFamily) {
 			for k, val := range scalarsMap {
 				key, err := decodeBase64(k)
 				if err != nil {
@@ -113,113 +112,152 @@ func (btc *BigtableClient) convertResultRow(resultRow bigtable.ResultRow, query 
 		}
 
 		var expectedType types.CqlDataType
-		if strings.Contains(colName, "$col") || !query.SelectClause.IsStar {
-			colName = string(query.SelectClause.Columns[i].ColumnName)
-			expectedType = query.SelectClause.Columns[i].ResultType
-		} else {
-			col, err := table.GetColumn(types.ColumnName(colName))
+		if query.SelectClause.IsStar {
+			col, err := table.GetColumn(types.ColumnName(key))
 			if err != nil {
 				return nil, err
 			}
 			expectedType = col.CQLType
+		} else {
+			// use the result name because that applies the correct alias
+			key = query.ResultColumnMetadata[i].Name
+			// use the selected column because that has the CQLType
+			expectedType = query.SelectClause.Columns[i].ResultType
 		}
 
-		switch v := val.(type) {
-		case string:
-			// do we need to decode base64?
-			goVal, err := utilities.StringToGo(v, expectedType)
-			if err != nil {
-				return nil, err
-			}
-			result[colName] = goVal
-		case []byte:
-			result[colName] = v
-		case map[string]*int64:
-			// counters are always a column family with a single column with an empty qualifier
-			counterValue, ok := v[""]
-			if ok {
-				result[colName] = *counterValue
-			} else {
-				// default the counter to 0
-				result[colName] = int64(0)
-			}
-		case map[string][]uint8:
-			if expectedType.Code() == types.LIST {
-				lt := expectedType.(*types.ListType)
-				var listValues []types.GoValue
-				for _, listElement := range v {
-					goVal, err := decodeBigtableCellValue(lt.ElementType(), listElement)
-					if err != nil {
-						return nil, err
-					}
-					listValues = append(listValues, goVal)
-				}
-				result[colName] = listValues
-			} else if expectedType.Code() == types.SET {
-				st := expectedType.(*types.SetType)
-				var setValues []types.GoValue
-				for k := range v {
-					key, err := decodeBase64(k)
-					if err != nil {
-						return nil, err
-					}
-					goKey, err := utilities.StringToGo(key, st.ElementType())
-					if err != nil {
-						return nil, err
-					}
-					setValues = append(setValues, goKey)
-				}
-				result[colName] = setValues
-			} else if expectedType.Code() == types.MAP {
-				mt := expectedType.(*types.MapType)
-				mapValue := make(map[types.GoValue]types.GoValue)
-				for mapKey, mapVal := range v {
-					key, err := decodeBase64(mapKey)
-					if err != nil {
-						return nil, err
-					}
-					goKey, err := utilities.StringToGo(key, mt.KeyType())
-					if err != nil {
-						return nil, err
-					}
-					goVal, err := decodeBigtableCellValue(mt.ValueType(), mapVal)
-					if err != nil {
-						return nil, err
-					}
-					mapValue[goKey] = goVal
-				}
-				result[colName] = mapValue
-			} else {
-				return nil, fmt.Errorf("unhandled collection response type: %s", expectedType.String())
-			}
-		case [][]byte: //specific case of listType column in select
-			lt, ok := expectedType.(*types.ListType)
-			if !ok {
-				return nil, fmt.Errorf("expected list result type but got %s", expectedType.String())
-			}
+		if _, ok := result[key]; ok {
+			return nil, fmt.Errorf("result already set for column `%s`", key)
+		}
+
+		goValue, err := rowValueToGoValue(val, expectedType)
+		if err != nil {
+			return nil, err
+		}
+		result[key] = goValue
+	}
+
+	return result, nil
+}
+
+func rowValueToGoValue(val any, expectedType types.CqlDataType) (types.GoValue, error) {
+	switch v := val.(type) {
+	case string:
+		// do we need to decode base64?
+		goVal, err := utilities.StringToGo(v, expectedType)
+		if err != nil {
+			return nil, err
+		}
+		return goVal, nil
+	case []byte:
+		return v, nil
+	case map[string]*int64:
+		// counters are always a column family with a single column with an empty qualifier
+		counterValue, ok := v[""]
+		if ok {
+			return *counterValue, nil
+		} else {
+			// default the counter to 0
+			return int64(0), nil
+		}
+	case map[string][]uint8:
+		if expectedType.Code() == types.LIST {
+			lt := expectedType.(*types.ListType)
 			var listValues []types.GoValue
 			for _, listElement := range v {
-				goVal, err := proxycore.DecodeType(lt.ElementType().BigtableStorageType().DataType(), constants.BigtableEncodingVersion, listElement)
+				goVal, err := decodeBigtableCellValue(lt.ElementType(), listElement)
 				if err != nil {
 					return nil, err
 				}
 				listValues = append(listValues, goVal)
 			}
-			result[colName] = listValues
-		case int64, float64:
-			result[colName] = v
-		case float32:
-			result[colName] = float64(v)
-		case time.Time:
-			result[colName] = v
-		case nil:
-			result[colName] = nil
-		default:
-			return nil, fmt.Errorf("unsupported Bigtable SQL type  %T for column %s", v, colName)
+			return listValues, nil
+		} else if expectedType.Code() == types.SET {
+			st := expectedType.(*types.SetType)
+			var setValues []types.GoValue
+			for k := range v {
+				key, err := decodeBase64(k)
+				if err != nil {
+					return nil, err
+				}
+				goKey, err := utilities.StringToGo(key, st.ElementType())
+				if err != nil {
+					return nil, err
+				}
+				setValues = append(setValues, goKey)
+			}
+			return setValues, nil
+		} else if expectedType.Code() == types.MAP {
+			mt := expectedType.(*types.MapType)
+			mapValue := make(map[types.GoValue]types.GoValue)
+			for mapKey, mapVal := range v {
+				key, err := decodeBase64(mapKey)
+				if err != nil {
+					return nil, err
+				}
+				goKey, err := utilities.StringToGo(key, mt.KeyType())
+				if err != nil {
+					return nil, err
+				}
+				goVal, err := decodeBigtableCellValue(mt.ValueType(), mapVal)
+				if err != nil {
+					return nil, err
+				}
+				mapValue[goKey] = goVal
+			}
+			return mapValue, nil
+		} else {
+			return nil, fmt.Errorf("unhandled collection response type: %s", expectedType.String())
 		}
+	case [][]byte: //specific case of listType column in select
+		lt, ok := expectedType.(*types.ListType)
+		if !ok {
+			return nil, fmt.Errorf("expected list result type but got %s", expectedType.String())
+		}
+		var listValues []types.GoValue
+		for _, listElement := range v {
+			goVal, err := decodeBigtableCellValue(lt.ElementType(), listElement)
+			if err != nil {
+				return nil, err
+			}
+			listValues = append(listValues, goVal)
+		}
+		return listValues, nil
+	case int64:
+		// special case handling of ints because Bigtable often uses int64 instead of int32
+		switch expectedType.Code() {
+		case types.BIGINT:
+			return v, nil
+		case types.INT:
+			return int32(v), nil
+		default:
+			return nil, fmt.Errorf("unhandled type coersion: %T to %s", v, expectedType.String())
+		}
+	case float64:
+		switch expectedType.Code() {
+		case types.FLOAT:
+			return float32(v), nil
+		case types.DOUBLE:
+			return v, nil
+		default:
+			return nil, fmt.Errorf("unhandled type coersion: %T to %s", v, expectedType.String())
+		}
+	case float32:
+		switch expectedType.Code() {
+		case types.FLOAT:
+			return v, nil
+		case types.DOUBLE:
+			return float64(v), nil
+		default:
+			return nil, fmt.Errorf("unhandled type coersion: %T to %s", v, expectedType.String())
+		}
+	case time.Time:
+		return v, nil
+	case nil:
+		return nil, nil
+	default:
+		return nil, fmt.Errorf("unsupported Bigtable SQL type  %T", v)
 	}
 
-	return result, nil
 }
 
 func decodeBigtableCellValue(t types.CqlDataType, val []byte) (types.GoValue, error) {

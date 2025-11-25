@@ -297,6 +297,7 @@ func ExtractValueAny(v cql.IValueAnyContext, dt types.CqlDataType, p types.Place
 		if err != nil {
 			return err
 		}
+		return nil
 	}
 	if v.ValueMap() != nil {
 		value, err := ParseCqlMapAssignment(v.ValueMap(), dt)
@@ -307,6 +308,7 @@ func ExtractValueAny(v cql.IValueAnyContext, dt types.CqlDataType, p types.Place
 		if err != nil {
 			return err
 		}
+		return nil
 	}
 	if v.ValueSet() != nil {
 		value, err := ParseCqlSetAssignment(v.ValueSet(), dt)
@@ -317,6 +319,7 @@ func ExtractValueAny(v cql.IValueAnyContext, dt types.CqlDataType, p types.Place
 		if err != nil {
 			return err
 		}
+		return nil
 	}
 	return fmt.Errorf("unhandled value set `%s`", v.GetText())
 }
@@ -434,14 +437,18 @@ func ParseListValue(l cql.IValueListContext, dt types.CqlDataType) ([]types.GoVa
 }
 
 func ParseCqlMapAssignment(m cql.IValueMapContext, dt types.CqlDataType) (map[types.GoValue]types.GoValue, error) {
+	mt, ok := dt.(*types.MapType)
+	if !ok {
+		return nil, fmt.Errorf("cannot parse map assignment for column type `%s`", dt.String())
+	}
 	result := make(map[types.GoValue]types.GoValue)
 	all := m.AllConstant()
 	for i := 0; i+1 < len(all); i += 2 {
-		key, err := ParseCqlConstant(all[i], dt)
+		key, err := ParseCqlConstant(all[i], mt.KeyType())
 		if err != nil {
 			return nil, err
 		}
-		val, err := ParseCqlConstant(all[i+1], dt)
+		val, err := ParseCqlConstant(all[i+1], mt.ValueType())
 		if err != nil {
 			return nil, err
 		}
@@ -529,7 +536,7 @@ func encodeScalarForBigtable(value types.GoValue, cqlType types.CqlDataType) (ty
 		iv = value
 		dt = datatype.Varchar
 	default:
-		return nil, fmt.Errorf("unsupported CQL type: %s", cqlType)
+		return nil, fmt.Errorf("unsupported CQL type: %s", cqlType.String())
 	}
 
 	bd, err := proxycore.EncodeType(dt, bigtableEncodingVersion, iv)
@@ -812,17 +819,64 @@ func ParseSelectFunction(sf cql.ISelectFunctionContext, alias string, table *sch
 	if err != nil {
 		return types.SelectedColumn{}, err
 	}
-
-	var argument string
-	if sf.FunctionCall().STAR() != nil {
-		argument = "*"
-	} else {
-		if sf.FunctionCall().FunctionArgs() == nil {
-			return types.SelectedColumn{}, errors.New("function call argument object is nil")
+	switch f {
+	case types.FuncCodeWriteTime:
+		col, err := parseSingleColumnFunctionArg(sf.FunctionCall(), table)
+		if err != nil {
+			return types.SelectedColumn{}, err
 		}
-		argument = sf.FunctionCall().FunctionArgs().GetText()
+		return *types.NewSelectedColumnFunction(sf.FunctionCall().GetText(), col.Name, alias, types.TypeBigint, f), nil
+	case types.FuncCodeCount:
+		err := parseStarFunctionArg(sf.FunctionCall())
+		if err != nil {
+			return types.SelectedColumn{}, err
+		}
+		return *types.NewSelectedColumnFunction(sf.FunctionCall().GetText(), "*", alias, types.TypeBigint, f), nil
+	case types.FuncCodeAvg, types.FuncCodeSum, types.FuncCodeMin, types.FuncCodeMax:
+		col, err := parseSingleColumnFunctionArg(sf.FunctionCall(), table)
+		if err != nil {
+			return types.SelectedColumn{}, err
+		}
+
+		if !isNumericType(col.CQLType) {
+			return types.SelectedColumn{}, fmt.Errorf("invalid aggregate type: %s", col.CQLType.String())
+		}
+
+		resultType := col.CQLType
+		// integer type columns need to have result a result type that captures decimal values
+		if f == types.FuncCodeAvg && (col.CQLType.Code() == types.BIGINT || col.CQLType.Code() == types.INT || col.CQLType.Code() == types.COUNTER) {
+			resultType = types.TypeDouble
+		}
+		return *types.NewSelectedColumnFunction(sf.FunctionCall().GetText(), col.Name, alias, resultType, f), nil
+	default:
+		return types.SelectedColumn{}, fmt.Errorf("unhandled function type `%s`", sf.FunctionCall().GetText())
 	}
-	return *types.NewSelectedColumnFunction(sf.FunctionCall().GetText(), types.ColumnName(argument), alias, f.ReturnType(), f.Code()), nil
+}
+
+func isNumericType(t types.CqlDataType) bool {
+	return t.Code() == types.BIGINT || t.Code() == types.INT || t.Code() == types.FLOAT || t.Code() == types.DOUBLE || t.Code() == types.COUNTER
+}
+
+func parseSingleColumnFunctionArg(fn cql.IFunctionCallContext, table *schemaMapping.TableConfig) (*types.Column, error) {
+	if fn.FunctionArgs() == nil || len(fn.FunctionArgs().AllOBJECT_NAME()) != 1 {
+		return nil, fmt.Errorf("expected 1 column argument for `%s`", fn.GetText())
+	}
+	if len(fn.FunctionArgs().AllFunctionCall()) != 0 {
+		return nil, fmt.Errorf("expected 1 column argument for `%s`", fn.GetText())
+	}
+	arg := fn.FunctionArgs().OBJECT_NAME(0).GetText()
+	col, err := table.GetColumn(types.ColumnName(arg))
+	if err != nil {
+		return nil, fmt.Errorf("expected valid column in function arguments `%s`", fn.GetText())
+	}
+	return col, nil
+}
+
+func parseStarFunctionArg(fn cql.IFunctionCallContext) error {
+	if fn.STAR() == nil {
+		return fmt.Errorf("expected '*' argument for `%s`", fn.GetText())
+	}
+	return nil
 }
 
 func ParseAs(a cql.IAsSpecContext) (string, error) {

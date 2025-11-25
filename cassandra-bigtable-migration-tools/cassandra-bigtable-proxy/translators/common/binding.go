@@ -38,10 +38,11 @@ func BindMutations(assignments []types.Assignment, values *types.QueryParameterV
 					if err != nil {
 						return err
 					}
-					err = addListElements(value, v.Column().ColumnFamily, lt, v.IsPrepend, b)
+					mutations, err := addListElements(value, v.Column().ColumnFamily, lt, v.IsPrepend)
 					if err != nil {
 						return err
 					}
+					b.AddMutations(mutations...)
 				} else if v.Operator == types.MINUS {
 					value, err := values.GetValueSlice(v.Placeholder)
 					if err != nil {
@@ -170,8 +171,7 @@ func encodeSetValue(assignment *types.ComplexAssignmentSet, values *types.QueryP
 			return nil, err
 		}
 		for k, v := range mv {
-			// todo use key specific encode
-			keyEncoded, err := encodeScalarForBigtable(k, mt.KeyType())
+			keyEncoded, err := scalarToColumnQualifier(k)
 			if err != nil {
 				return nil, err
 			}
@@ -179,22 +179,16 @@ func encodeSetValue(assignment *types.ComplexAssignmentSet, values *types.QueryP
 			if err != nil {
 				return nil, err
 			}
-			results = append(results, types.NewWriteCellOp(col.ColumnFamily, types.ColumnQualifier(keyEncoded), valueBytes))
+			results = append(results, types.NewWriteCellOp(col.ColumnFamily, keyEncoded, valueBytes))
 		}
 	} else if col.CQLType.Code() == types.LIST {
 		lt := col.CQLType.(*types.ListType)
 		lv, err := values.GetValueSlice(assignment.Value)
+		mutations, err := addListElements(lv, col.ColumnFamily, lt, false)
 		if err != nil {
 			return nil, err
 		}
-		for i, v := range lv {
-			valueBytes, err := encodeScalarForBigtable(v, lt.ElementType())
-			if err != nil {
-				return nil, err
-			}
-			// todo use list index encoder
-			results = append(results, types.NewWriteCellOp(col.ColumnFamily, types.ColumnQualifier(fmt.Sprintf("%d", i)), valueBytes))
-		}
+		results = append(results, mutations...)
 	} else if col.CQLType.Code() == types.SET {
 		lv, err := values.GetValueSlice(assignment.Value)
 		if err != nil {
@@ -269,10 +263,8 @@ func encodeSetValue(assignment *types.ComplexAssignmentSet, values *types.QueryP
 //	}
 //}
 
-// addListElements adds elements to a list column in raw queries.
-// Handles both append and prepend operations with type validation and conversion.
-// Returns error if value type doesn't match list element type or conversion fails.
-func addListElements(listValues []types.GoValue, cf types.ColumnFamily, lt *types.ListType, isPrepend bool, output *types.BigtableWriteMutation) error {
+func addListElements(listValues []types.GoValue, cf types.ColumnFamily, lt *types.ListType, isPrepend bool) ([]types.IBigtableMutationOp, error) {
+	var results []types.IBigtableMutationOp
 	for i, v := range listValues {
 		// Calculate encoded timestamp for the list element
 		column := getListIndexColumn(i, len(listValues), isPrepend)
@@ -280,11 +272,11 @@ func addListElements(listValues []types.GoValue, cf types.ColumnFamily, lt *type
 		// Format the value
 		formattedVal, err := encodeScalarForBigtable(v, lt.ElementType())
 		if err != nil {
-			return fmt.Errorf("error converting string to %s value: %w", lt.String(), err)
+			return nil, fmt.Errorf("error converting string to %s value: %w", lt.String(), err)
 		}
-		output.AddMutations(types.NewWriteCellOp(cf, column, formattedVal))
+		results = append(results, types.NewWriteCellOp(cf, column, formattedVal))
 	}
-	return nil
+	return results, nil
 }
 
 // getListIndexColumn generates encoded timestamp bytes.

@@ -85,6 +85,7 @@ type PreparedSelectQuery struct {
 }
 
 type SelectClause struct {
+	// if IsStar is true, Columns will be nil/empty
 	IsStar  bool
 	Columns []SelectedColumn
 }

@@ -178,6 +178,9 @@ type CqlParserListener interface {
 	// EnterAlterTableColumnDefinition is called when entering the alterTableColumnDefinition production.
 	EnterAlterTableColumnDefinition(c *AlterTableColumnDefinitionContext)
 
+	// EnterAlterTableAddColumn is called when entering the alterTableAddColumn production.
+	EnterAlterTableAddColumn(c *AlterTableAddColumnContext)
+
 	// EnterAlterRole is called when entering the alterRole production.
 	EnterAlterRole(c *AlterRoleContext)
 
@@ -1098,6 +1101,9 @@ type CqlParserListener interface {
 
 	// ExitAlterTableColumnDefinition is called when exiting the alterTableColumnDefinition production.
 	ExitAlterTableColumnDefinition(c *AlterTableColumnDefinitionContext)
+
+	// ExitAlterTableAddColumn is called when exiting the alterTableAddColumn production.
+	ExitAlterTableAddColumn(c *AlterTableAddColumnContext)
 
 	// ExitAlterRole is called when exiting the alterRole production.
 	ExitAlterRole(c *AlterRoleContext)

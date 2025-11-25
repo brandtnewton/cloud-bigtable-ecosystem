@@ -140,7 +140,7 @@ func TestBackwardsCompatibleData(t *testing.T) {
 		},
 		{
 			name:   "timestamp column",
-			query:  `INSERT INTO all_columns (name, time_col) VALUES ('compatability_8', '2024-01-01 12:00:00+0000') USING TIMESTAMP 1764084624204000`,
+			query:  `INSERT INTO all_columns (name, time_col) VALUES ('compatability_8', '2024-08-12T12:34:56Z') USING TIMESTAMP 1764084624204000`,
 			rowKey: "compatability_8",
 			want: bigtable.Row{
 				"cf1": []bigtable.ReadItem{
@@ -148,9 +148,8 @@ func TestBackwardsCompatibleData(t *testing.T) {
 						Row:       "compatability_8",
 						Column:    "cf1:time_col",
 						Timestamp: 1764084624204000,
-						// 1704110400000 (ms since epoch) in 8-byte Big Endian
-						Value:  []uint8{0x00, 0x00, 0x01, 0x8C, 0xA5, 0x47, 0x16, 0x00},
-						Labels: nil,
+						Value:     []uint8{0x0, 0x0, 0x1, 0x91, 0x46, 0x95, 0x9d, 0x80},
+						Labels:    nil,
 					},
 				},
 			},
@@ -192,15 +191,15 @@ func TestBackwardsCompatibleData(t *testing.T) {
 		},
 		{
 			name:   "map<timestamp, double>",
-			query:  `INSERT INTO all_columns (name, ts_double_map) VALUES ('compatability_11', {'2024-01-01 12:00:00+0000': 99.9}) USING TIMESTAMP 1764084624204000`,
+			query:  `INSERT INTO all_columns (name, ts_double_map) VALUES ('compatability_11', {'2024-01-02T12:34:56Z': 99.9}) USING TIMESTAMP 1764084624204000`,
 			rowKey: "compatability_11",
 			want: bigtable.Row{
 				"ts_double_map": []bigtable.ReadItem{
 					{
 						Row:       "compatability_11",
-						Column:    "ts_double_map:12341234",
+						Column:    "ts_double_map:2024-01-02T12:34:56Z",
 						Timestamp: 1764084624204000,
-						Value:     []uint8{0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00},
+						Value:     []uint8{0x40, 0x58, 0xf9, 0x99, 0x99, 0x99, 0x99, 0x9a},
 						Labels:    nil,
 					},
 				},
@@ -293,12 +292,19 @@ func TestBackwardsCompatibleData(t *testing.T) {
 			rowKey:           "compatability_15",
 			ignoreColumnName: true,
 			want: bigtable.Row{
-				"cf1": []bigtable.ReadItem{
+				"list_double": []bigtable.ReadItem{
 					{
 						Row:       "compatability_15",
 						Column:    "ignored",
 						Timestamp: 1764084624204000,
-						Value:     []byte("TODO_SERIALIZED_LIST_BYTES"),
+						Value:     []uint8{0x3f, 0xf1, 0x99, 0x99, 0x99, 0x99, 0x99, 0x9a},
+						Labels:    nil,
+					},
+					{
+						Row:       "compatability_15",
+						Column:    "ignored",
+						Timestamp: 1764084624204000,
+						Value:     []uint8{0x40, 0x1, 0x99, 0x99, 0x99, 0x99, 0x99, 0x9a},
 						Labels:    nil,
 					},
 				},

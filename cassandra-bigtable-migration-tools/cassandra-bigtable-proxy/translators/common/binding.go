@@ -124,7 +124,11 @@ func BindMutations(assignments []types.Assignment, values *types.QueryParameterV
 			if err != nil {
 				return err
 			}
-			encoded, err := encodeScalarForBigtable(value, v.Column().CQLType)
+			lt, ok := v.Column().CQLType.(*types.ListType)
+			if !ok {
+				return fmt.Errorf("cannot set list value on column type %s", v.Column().CQLType.String())
+			}
+			encoded, err := encodeScalarForBigtable(value, lt.ElementType())
 			if err != nil {
 				return err
 			}

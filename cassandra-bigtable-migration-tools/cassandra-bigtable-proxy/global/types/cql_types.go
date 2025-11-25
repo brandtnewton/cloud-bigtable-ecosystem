@@ -76,6 +76,8 @@ func (s ScalarType) GoType() reflect.Type {
 
 func (s ScalarType) BigtableStorageType() CqlDataType {
 	switch s.code {
+	case BOOLEAN:
+		return TypeBigint
 	case INT, TINYINT:
 		return TypeBigint
 	default:

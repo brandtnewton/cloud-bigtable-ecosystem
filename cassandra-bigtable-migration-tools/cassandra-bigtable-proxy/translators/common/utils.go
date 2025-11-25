@@ -742,10 +742,10 @@ func scalarToString(val interface{}) (string, error) {
 		return strconv.FormatBool(*v), nil
 	case *time.Time:
 		// todo confirm this is correct
-		return strconv.FormatInt(v.UnixMicro(), 10), nil
+		return strconv.FormatInt(v.UnixMilli(), 10), nil
 	case time.Time:
 		// todo confirm this is correct
-		return strconv.FormatInt(v.UnixMicro(), 10), nil
+		return strconv.FormatInt(v.UnixMilli(), 10), nil
 	default:
 		return "", fmt.Errorf("unsupported type: %T", v)
 	}

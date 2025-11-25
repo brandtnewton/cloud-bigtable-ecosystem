@@ -6,6 +6,7 @@ import (
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/global/types"
 	schemaMapping "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/schema-mapping"
 	"github.com/datastax/go-cassandra-native-protocol/primitive"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -407,12 +408,51 @@ func addSetElements(setValues []types.GoValue, cf types.ColumnFamily) ([]types.I
 	return results, nil
 }
 
-func scalarToColumnQualifier(v types.GoValue) (types.ColumnQualifier, error) {
-	s, err := scalarToString(v)
-	if err != nil {
-		return "", err
+func scalarToColumnQualifier(val types.GoValue) (types.ColumnQualifier, error) {
+	switch v := val.(type) {
+	case string:
+		return types.ColumnQualifier(v), nil
+	case *string:
+		return types.ColumnQualifier(*v), nil
+	case int32:
+		return types.ColumnQualifier(strconv.Itoa(int(v))), nil
+	case *int32:
+		return types.ColumnQualifier(strconv.Itoa(int(*v))), nil
+	case int:
+		return types.ColumnQualifier(strconv.Itoa(v)), nil
+	case *int:
+		return types.ColumnQualifier(strconv.Itoa(*v)), nil
+	case int64:
+		return types.ColumnQualifier(strconv.FormatInt(v, 10)), nil
+	case *int64:
+		return types.ColumnQualifier(strconv.FormatInt(*v, 10)), nil
+	case float32:
+		return types.ColumnQualifier(strconv.FormatFloat(float64(v), 'f', -1, 32)), nil
+	case *float32:
+		return types.ColumnQualifier(strconv.FormatFloat(float64(*v), 'f', -1, 32)), nil
+	case float64:
+		return types.ColumnQualifier(strconv.FormatFloat(v, 'f', -1, 64)), nil
+	case *float64:
+		return types.ColumnQualifier(strconv.FormatFloat(*v, 'f', -1, 64)), nil
+	case bool:
+		if v {
+			return "1", nil
+		} else {
+			return "0", nil
+		}
+	case *bool:
+		if *v {
+			return "1", nil
+		} else {
+			return "0", nil
+		}
+	case *time.Time:
+		return types.ColumnQualifier(strconv.FormatInt(v.UnixMilli(), 10)), nil
+	case time.Time:
+		return types.ColumnQualifier(strconv.FormatInt(v.UnixMilli(), 10)), nil
+	default:
+		return "", fmt.Errorf("unsupported type: %T", v)
 	}
-	return types.ColumnQualifier(s), nil
 }
 
 // removeSetElements removes elements from a set column in raw queries.

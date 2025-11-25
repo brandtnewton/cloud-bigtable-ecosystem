@@ -11,7 +11,6 @@ import (
 	"github.com/datastax/go-cassandra-native-protocol/datatype"
 	"github.com/datastax/go-cassandra-native-protocol/primitive"
 	"regexp"
-	"strconv"
 	"strings"
 	"time"
 )
@@ -708,47 +707,6 @@ func encodeTimestampForBigtable(value interface{}) (types.BigtableValue, error) 
 		return nil, fmt.Errorf("unsupported timestamp type: %T", value)
 	}
 	return proxycore.EncodeType(datatype.Timestamp, bigtableEncodingVersion, t)
-}
-
-func scalarToString(val interface{}) (string, error) {
-	switch v := val.(type) {
-	case string:
-		return v, nil
-	case *string:
-		return *v, nil
-	case int32:
-		return strconv.Itoa(int(v)), nil
-	case *int32:
-		return strconv.Itoa(int(*v)), nil
-	case int:
-		return strconv.Itoa(v), nil
-	case *int:
-		return strconv.Itoa(*v), nil
-	case int64:
-		return strconv.FormatInt(v, 10), nil
-	case *int64:
-		return strconv.FormatInt(*v, 10), nil
-	case float32:
-		return strconv.FormatFloat(float64(v), 'f', -1, 32), nil
-	case *float32:
-		return strconv.FormatFloat(float64(*v), 'f', -1, 32), nil
-	case float64:
-		return strconv.FormatFloat(v, 'f', -1, 64), nil
-	case *float64:
-		return strconv.FormatFloat(*v, 'f', -1, 64), nil
-	case bool:
-		return strconv.FormatBool(v), nil
-	case *bool:
-		return strconv.FormatBool(*v), nil
-	case *time.Time:
-		// todo confirm this is correct
-		return strconv.FormatInt(v.UnixMilli(), 10), nil
-	case time.Time:
-		// todo confirm this is correct
-		return strconv.FormatInt(v.UnixMilli(), 10), nil
-	default:
-		return "", fmt.Errorf("unsupported type: %T", v)
-	}
 }
 
 func ParseTarget(tableSpec cql.ITableSpecContext, sessionKeyspace types.Keyspace, config *schemaMapping.SchemaMappingConfig) (types.Keyspace, types.TableName, error) {

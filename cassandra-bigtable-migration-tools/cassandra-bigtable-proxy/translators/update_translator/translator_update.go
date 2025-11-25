@@ -55,6 +55,14 @@ func (t *UpdateTranslator) Translate(query *types.RawQuery, sessionKeyspace type
 	params := types.NewQueryParameters()
 	values := types.NewQueryParameterValues(params)
 
+	// update query USING TIMESTAMP clauses are before the VALUES clause
+	if updateObj.UsingTtlTimestamp() != nil {
+		err := common.GetTimestampInfo(updateObj.UsingTtlTimestamp().Timestamp(), params, values)
+		if err != nil {
+			return nil, err
+		}
+	}
+
 	assignments, err := parseUpdateValues(allAssignmentObj, tableConfig, params, values)
 	if err != nil {
 		return nil, err
@@ -67,13 +75,6 @@ func (t *UpdateTranslator) Translate(query *types.RawQuery, sessionKeyspace type
 	whereClause, err := common.ParseWhereClause(updateObj.WhereSpec(), tableConfig, params, values)
 	if err != nil {
 		return nil, err
-	}
-
-	if updateObj.UsingTtlTimestamp() != nil {
-		err := common.GetTimestampInfo(updateObj.UsingTtlTimestamp().Timestamp(), params, values)
-		if err != nil {
-			return nil, err
-		}
 	}
 
 	var ifExist = updateObj.IfExist() != nil

@@ -542,7 +542,7 @@ func StringToGo(value string, cqlType types.CqlDataType) (types.GoValue, error) 
 		}
 		return val, nil
 	case datatype.Timestamp:
-		val, err := parseTimestamp(value)
+		val, err := parseCqlTimestamp(value)
 		if err != nil {
 			return nil, fmt.Errorf("error converting string to timestamp: %w", err)
 		}
@@ -558,67 +558,44 @@ func StringToGo(value string, cqlType types.CqlDataType) (types.GoValue, error) 
 	return iv, nil
 }
 
-// parseTimestamp(): Parse a timestamp string in various formats.
-// Supported formats
-// "2024-02-05T14:00:00Z",
-// "2024-02-05 14:00:00",
-// "2024/02/05 14:00:00",
-// "1672522562000",          // Unix timestamp (milliseconds)
-func parseTimestamp(timestampStr string) (time.Time, error) {
-	// Define multiple layouts to try
-	layouts := []string{
-		time.RFC3339,          // ISO 8601 format
-		"2006-01-02 15:04:05", // Common date-time format
-		"2006/01/02 15:04:05", // Common date-time format with slashes
-	}
+var cqlTimestampFormats = []string{
+	time.RFC3339,
+	"2006-01-02 15:04:05",
+	"2006-01-02 15:04-0700",
+	"2006-01-02 15:04:05-0700",
+	"2006-01-02 15:04:05.000-0700",
+	"2006-01-02T15:04-0700",
+	"2006-01-02T15:04:05-0700",
+	"2006-01-02T15:04:05.000-0700",
+	// it's possible to specify just the date - this will set the time to 00:00:00
+	"2006-01-02",
+}
 
-	var parsedTime time.Time
-	var err error
+// parseCqlTimestamp(): Parse a timestamp string in various formats.
+// https://cassandra.apache.org/doc/4.1/cassandra/cql/types.html
+func parseCqlTimestamp(timestampStr string) (time.Time, error) {
+
+	// todo weird place to handle this and this is not at all robust
+	if strings.ToLower(timestampStr) == "totimestamp(now())" {
+		return time.Now().UTC(), nil
+	}
 
 	// Try to parse the timestamp using each layout
-	for _, layout := range layouts {
-		if timestampStr == "totimestamp(now())" {
-			timestampStr = time.Now().Format(time.RFC3339)
-		}
-		parsedTime, err = time.Parse(layout, timestampStr)
+	for _, format := range cqlTimestampFormats {
+		parsedTime, err := time.Parse(format, timestampStr)
 		if err == nil {
-			return parsedTime, nil
-		}
-	}
-	// Try to parse as Unix timestamp (in seconds, milliseconds, or microseconds)
-	if unixTime, err := strconv.ParseInt(timestampStr, 10, 64); err == nil {
-		timestrlen := timestampStr
-		if len(timestampStr) > 0 && timestampStr[0] == '-' {
-			timestrlen = timestampStr[1:]
-		}
-		if len(timestrlen) <= 19 {
-			// Handle timestamps in milliseconds (Cassandra supports millisecond epoch time)
-			secs := unixTime / 1000
-			nanos := (unixTime % 1000) * int64(time.Millisecond)
-			return time.Unix(secs, nanos).UTC(), nil
-		} else {
-			return time.Time{}, fmt.Errorf("invalid unix timestamp: %s", timestampStr)
-		}
-		// checking if value is float
-	} else if floatTime, err := strconv.ParseFloat(timestampStr, 64); err == nil {
-		unixTime := int64(floatTime)
-		unixStr := strconv.FormatInt(unixTime, 10)
-		timestrlen := unixStr
-		if len(unixStr) > 0 && unixStr[0] == '-' {
-			timestrlen = timestampStr[1:]
-		}
-		if len(timestrlen) <= 18 {
-			// Handle timestamps in milliseconds (Cassandra supports millisecond epoch time)
-			secs := unixTime / 1000
-			nanos := (unixTime % 1000) * int64(time.Millisecond)
-			return time.Unix(secs, nanos).UTC(), nil
-		} else {
-			return time.Time{}, fmt.Errorf("invalid unix timestamp: %s", timestampStr)
+			return parsedTime.UTC(), nil
 		}
 	}
 
-	// If all formats fail, return the last error
-	return time.Time{}, err
+	if unixTime, err := strconv.ParseInt(timestampStr, 10, 64); err == nil {
+		return time.UnixMilli(unixTime).UTC(), nil
+	} else if floatTime, err := strconv.ParseFloat(timestampStr, 64); err == nil {
+		unixTime := int64(floatTime)
+		return time.UnixMilli(unixTime).UTC(), nil
+	}
+
+	return time.Time{}, fmt.Errorf("unable to parse timestamp for value '%s'", timestampStr)
 }
 
 func isSupportedCollectionElementType(dt datatype.DataType) bool {

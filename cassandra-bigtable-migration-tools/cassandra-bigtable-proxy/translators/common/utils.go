@@ -387,7 +387,7 @@ func GetTimestampInfo(timestampContext cql.ITimestampContext, params *types.Quer
 		return nil
 	}
 	params.AddParameterWithoutColumn(types.UsingTimePlaceholder, types.TypeBigint)
-	err := ExtractDecimalLiteral(timestampContext.DecimalLiteral(), types.TypeBigint, types.UsingTimePlaceholder, values)
+	err := ExtractDecimalLiteral(literal, types.TypeBigint, types.UsingTimePlaceholder, values)
 	if err != nil {
 		return err
 	}

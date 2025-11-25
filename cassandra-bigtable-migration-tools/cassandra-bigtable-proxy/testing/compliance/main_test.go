@@ -17,6 +17,8 @@
 package compliance
 
 import (
+	"cloud.google.com/go/bigtable"
+	"context"
 	"fmt"
 	"log"
 	"os"
@@ -78,10 +80,15 @@ func TestMain(m *testing.M) {
 // note: we don't destroy any tables here because recreating every table, for every test would cause Bigtable to rate limit us.
 func cleanUpTests() {
 	session.Close()
+	err := client.Close()
+	if err != nil {
+		fmt.Printf("failed to close bigtable connection: %s", err.Error())
+	}
 }
 
 var gcpProjectId = ""
 var instanceId = ""
+var client *bigtable.Client
 
 func setUpTests() {
 	gcpProjectId = os.Getenv("PROJECT_ID")
@@ -94,7 +101,7 @@ func setUpTests() {
 	}
 
 	var err error
-	session, err = createSession(instanceId)
+	session, err = createSession("bigtabledevinstance")
 	if err != nil {
 		log.Fatalf("could not connect to the session: %v", err)
 	}
@@ -144,6 +151,11 @@ func setUpTests() {
 	}
 
 	log.Println("All test tables successfully created!")
+
+	client, err = bigtable.NewClient(context.Background(), gcpProjectId, instanceId)
+	if err != nil {
+		log.Fatalf("could not open bigtable connection: %v", err)
+	}
 }
 
 func cleanupTable(t *testing.T, table string) {

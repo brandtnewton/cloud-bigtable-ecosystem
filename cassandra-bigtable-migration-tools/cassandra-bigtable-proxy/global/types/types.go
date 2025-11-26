@@ -183,7 +183,6 @@ func (q QueryType) String() string {
 
 type IExecutableQuery interface {
 	Keyspace() Keyspace
-	Table() TableName
 	QueryType() QueryType
 	AsBulkMutation() (IBigtableMutation, bool)
 	CqlQuery() string
@@ -191,7 +190,6 @@ type IExecutableQuery interface {
 }
 type IPreparedQuery interface {
 	Keyspace() Keyspace
-	Table() TableName
 	CqlQuery() string
 	QueryType() QueryType
 	Parameters() *QueryParameters

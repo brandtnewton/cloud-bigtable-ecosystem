@@ -31,7 +31,7 @@ func (t *TruncateTranslator) Translate(query *types.RawQuery, sessionKeyspace ty
 		return nil, errors.New("error while parsing truncate query")
 	}
 
-	keyspace, table, err := common.ParseTarget(truncateTableObj.TableSpec(), sessionKeyspace, t.schemaMappingConfig)
+	keyspace, table, err := common.ParseTableSpec(truncateTableObj.TableSpec(), sessionKeyspace, t.schemaMappingConfig)
 	if err != nil {
 		return nil, err
 	}

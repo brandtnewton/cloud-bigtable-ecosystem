@@ -30,7 +30,7 @@ func (t *DeleteTranslator) Translate(query *types.RawQuery, sessionKeyspace type
 		return nil, errors.New("error while parsing delete object")
 	}
 
-	keyspaceName, tableName, err := common.ParseTarget(deleteObj.FromSpec().TableSpec(), sessionKeyspace, t.schemaMappingConfig)
+	keyspaceName, tableName, err := common.ParseTableSpec(deleteObj.FromSpec().TableSpec(), sessionKeyspace, t.schemaMappingConfig)
 	if err != nil {
 		return nil, err
 	}

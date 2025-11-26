@@ -709,13 +709,13 @@ func encodeTimestampForBigtable(value interface{}) (types.BigtableValue, error) 
 	return proxycore.EncodeType(datatype.Timestamp, bigtableEncodingVersion, t)
 }
 
-func ParseTarget(tableSpec cql.ITableSpecContext, sessionKeyspace types.Keyspace, config *schemaMapping.SchemaMappingConfig) (types.Keyspace, types.TableName, error) {
+func ParseTableSpec(tableSpec cql.ITableSpecContext, sessionKeyspace types.Keyspace, config *schemaMapping.SchemaMappingConfig) (types.Keyspace, types.TableName, error) {
 	if tableSpec == nil || tableSpec.Table() == nil {
 		return "", "", errors.New("invalid input parameters found for table")
 	}
 
 	tableNameString := tableSpec.Table().GetText()
-	if !validTableName.MatchString(tableNameString) {
+	if !IsValidIdentifier(tableNameString) {
 		return "", "", errors.New("invalid table name parsed from query")
 	}
 	tableName := types.TableName(tableNameString)
@@ -724,16 +724,29 @@ func ParseTarget(tableSpec cql.ITableSpecContext, sessionKeyspace types.Keyspace
 		return "", "", fmt.Errorf("table name cannot be the same as the configured schema mapping table name '%s'", tableName)
 	}
 
-	keyspaceName := sessionKeyspace
-	if tableSpec.Keyspace() != nil && tableSpec.Keyspace().GetText() != "" {
-		keyspaceName = types.Keyspace(tableSpec.Keyspace().GetText())
+	keyspace, err := ParseKeyspace(tableSpec.Keyspace(), sessionKeyspace)
+	if err != nil {
+		return "", "", err
 	}
+	return keyspace, tableName, nil
+}
 
-	if keyspaceName == "" {
-		return "", "", errors.New("missing keyspace. keyspace is required")
+func ParseKeyspace(k cql.IKeyspaceContext, sessionKeyspace types.Keyspace) (types.Keyspace, error) {
+	keyspaceString := string(sessionKeyspace)
+	if k != nil && k.OBJECT_NAME() != nil {
+		keyspaceString = k.OBJECT_NAME().GetText()
 	}
+	if keyspaceString == "" {
+		return "", errors.New("no keyspace specified")
+	}
+	if !IsValidIdentifier(keyspaceString) {
+		return "", errors.New("invalid keyspace name parsed from query")
+	}
+	return types.Keyspace(keyspaceString), nil
+}
 
-	return keyspaceName, tableName, nil
+func IsValidIdentifier(i string) bool {
+	return validTableName.MatchString(i)
 }
 
 func ParseSelectIndex(si cql.ISelectIndexContext, alias string, table *schemaMapping.TableConfig) (types.SelectedColumn, error) {

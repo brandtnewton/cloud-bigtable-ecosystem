@@ -33,7 +33,7 @@ func (t *AlterTranslator) Translate(query *types.RawQuery, sessionKeyspace types
 		return nil, errors.New("error while parsing alter statement")
 	}
 
-	keyspaceName, tableName, err := common.ParseTarget(alterTable.TableSpec(), sessionKeyspace, t.schemaMappingConfig)
+	keyspaceName, tableName, err := common.ParseTableSpec(alterTable.TableSpec(), sessionKeyspace, t.schemaMappingConfig)
 	if err != nil {
 		return nil, err
 	}

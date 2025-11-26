@@ -31,7 +31,7 @@ func (t *UpdateTranslator) Translate(query *types.RawQuery, sessionKeyspace type
 		return nil, errors.New("error parsing the update object")
 	}
 
-	keyspaceName, tableName, err := common.ParseTarget(updateObj.TableSpec(), sessionKeyspace, t.schemaMappingConfig)
+	keyspaceName, tableName, err := common.ParseTableSpec(updateObj.TableSpec(), sessionKeyspace, t.schemaMappingConfig)
 	if err != nil {
 		return nil, err
 	}

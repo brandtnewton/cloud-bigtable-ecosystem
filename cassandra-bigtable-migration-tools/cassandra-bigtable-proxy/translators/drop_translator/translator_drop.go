@@ -31,7 +31,7 @@ func (t *DropTranslator) Translate(query *types.RawQuery, sessionKeyspace types.
 		return nil, errors.New("error while parsing drop table object")
 	}
 
-	keyspaceName, tableName, err := common.ParseTarget(dropTableObj.TableSpec(), sessionKeyspace, t.schemaMappingConfig)
+	keyspaceName, tableName, err := common.ParseTableSpec(dropTableObj.TableSpec(), sessionKeyspace, t.schemaMappingConfig)
 	if err != nil {
 		return nil, err
 	}

@@ -79,10 +79,10 @@ func BuildPreparedResultResponse(id [16]byte, query types.IPreparedQuery) (*mess
 		md := params.GetMetadata(p)
 
 		var col = message.ColumnMetadata{
-			Keyspace: string(query.Keyspace()),
-			Table:    string(query.Table()),
-			Index:    int32(i),
-			Type:     md.Type.DataType(),
+			//Keyspace: string(query.Keyspace()),
+			//Table:    string(query.Table()),
+			Index: int32(i),
+			Type:  md.Type.DataType(),
 		}
 		variableMetadata = append(variableMetadata, &col)
 

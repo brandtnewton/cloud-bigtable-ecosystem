@@ -30,7 +30,7 @@ func (t *SelectTranslator) Translate(query *types.RawQuery, sessionKeyspace type
 		return nil, errors.New("failed to parse select query")
 	}
 
-	keyspaceName, tableName, err := common.ParseTarget(selectObj.FromSpec().TableSpec(), sessionKeyspace, t.schemaMappingConfig)
+	keyspaceName, tableName, err := common.ParseTableSpec(selectObj.FromSpec().TableSpec(), sessionKeyspace, t.schemaMappingConfig)
 	if err != nil {
 		return nil, err
 	}

@@ -270,9 +270,10 @@ func encodeSetValue(assignment *types.ComplexAssignmentSet, values *types.QueryP
 
 func addListElements(listValues []types.GoValue, cf types.ColumnFamily, lt *types.ListType, isPrepend bool) ([]types.IBigtableMutationOp, error) {
 	var results []types.IBigtableMutationOp
+	now := time.Now()
 	for i, v := range listValues {
 		// Calculate encoded timestamp for the list element
-		column := getListIndexColumn(i, len(listValues), isPrepend)
+		column := getListIndexColumn(now, i, len(listValues), isPrepend)
 
 		// Format the value
 		formattedVal, err := encodeScalarForBigtable(v, lt.ElementType())
@@ -287,14 +288,14 @@ func addListElements(listValues []types.GoValue, cf types.ColumnFamily, lt *type
 // getListIndexColumn generates encoded timestamp bytes.
 // Creates timestamp byte representation for specific positions with validation.
 // Returns error if position is invalid or encoding fails.
-func getListIndexColumn(index int, totalLength int, prepend bool) types.ColumnQualifier {
-	now := time.Now().UnixMilli()
+func getListIndexColumn(now time.Time, index int, totalLength int, prepend bool) types.ColumnQualifier {
+	nowMilli := now.UnixMilli()
 	if prepend {
-		now = referenceTime - (now - referenceTime)
+		nowMilli = referenceTime - (nowMilli - referenceTime)
 	}
 
 	nanos := maxNanos - int32(totalLength) + int32(index)
-	encodedStr := string(encodeTimestampIndex(now, nanos))
+	encodedStr := string(encodeTimestampIndex(nowMilli, nanos))
 	return types.ColumnQualifier(encodedStr)
 }
 

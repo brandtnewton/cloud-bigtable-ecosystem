@@ -62,6 +62,30 @@ func (s *BaseCqlParserListener) EnterDescribeTarget(ctx *DescribeTargetContext) 
 // ExitDescribeTarget is called when production describeTarget is exited.
 func (s *BaseCqlParserListener) ExitDescribeTarget(ctx *DescribeTargetContext) {}
 
+// EnterDescribeTargetKeyspaces is called when production describeTargetKeyspaces is entered.
+func (s *BaseCqlParserListener) EnterDescribeTargetKeyspaces(ctx *DescribeTargetKeyspacesContext) {}
+
+// ExitDescribeTargetKeyspaces is called when production describeTargetKeyspaces is exited.
+func (s *BaseCqlParserListener) ExitDescribeTargetKeyspaces(ctx *DescribeTargetKeyspacesContext) {}
+
+// EnterDescribeTargetTables is called when production describeTargetTables is entered.
+func (s *BaseCqlParserListener) EnterDescribeTargetTables(ctx *DescribeTargetTablesContext) {}
+
+// ExitDescribeTargetTables is called when production describeTargetTables is exited.
+func (s *BaseCqlParserListener) ExitDescribeTargetTables(ctx *DescribeTargetTablesContext) {}
+
+// EnterDescribeTargetTable is called when production describeTargetTable is entered.
+func (s *BaseCqlParserListener) EnterDescribeTargetTable(ctx *DescribeTargetTableContext) {}
+
+// ExitDescribeTargetTable is called when production describeTargetTable is exited.
+func (s *BaseCqlParserListener) ExitDescribeTargetTable(ctx *DescribeTargetTableContext) {}
+
+// EnterDescribeTargetKeyspace is called when production describeTargetKeyspace is entered.
+func (s *BaseCqlParserListener) EnterDescribeTargetKeyspace(ctx *DescribeTargetKeyspaceContext) {}
+
+// ExitDescribeTargetKeyspace is called when production describeTargetKeyspace is exited.
+func (s *BaseCqlParserListener) ExitDescribeTargetKeyspace(ctx *DescribeTargetKeyspaceContext) {}
+
 // EnterRevoke is called when production revoke is entered.
 func (s *BaseCqlParserListener) EnterRevoke(ctx *RevokeContext) {}
 

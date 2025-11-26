@@ -28,6 +28,18 @@ type CqlParserListener interface {
 	// EnterDescribeTarget is called when entering the describeTarget production.
 	EnterDescribeTarget(c *DescribeTargetContext)
 
+	// EnterDescribeTargetKeyspaces is called when entering the describeTargetKeyspaces production.
+	EnterDescribeTargetKeyspaces(c *DescribeTargetKeyspacesContext)
+
+	// EnterDescribeTargetTables is called when entering the describeTargetTables production.
+	EnterDescribeTargetTables(c *DescribeTargetTablesContext)
+
+	// EnterDescribeTargetTable is called when entering the describeTargetTable production.
+	EnterDescribeTargetTable(c *DescribeTargetTableContext)
+
+	// EnterDescribeTargetKeyspace is called when entering the describeTargetKeyspace production.
+	EnterDescribeTargetKeyspace(c *DescribeTargetKeyspaceContext)
+
 	// EnterRevoke is called when entering the revoke production.
 	EnterRevoke(c *RevokeContext)
 
@@ -951,6 +963,18 @@ type CqlParserListener interface {
 
 	// ExitDescribeTarget is called when exiting the describeTarget production.
 	ExitDescribeTarget(c *DescribeTargetContext)
+
+	// ExitDescribeTargetKeyspaces is called when exiting the describeTargetKeyspaces production.
+	ExitDescribeTargetKeyspaces(c *DescribeTargetKeyspacesContext)
+
+	// ExitDescribeTargetTables is called when exiting the describeTargetTables production.
+	ExitDescribeTargetTables(c *DescribeTargetTablesContext)
+
+	// ExitDescribeTargetTable is called when exiting the describeTargetTable production.
+	ExitDescribeTargetTable(c *DescribeTargetTableContext)
+
+	// ExitDescribeTargetKeyspace is called when exiting the describeTargetKeyspace production.
+	ExitDescribeTargetKeyspace(c *DescribeTargetKeyspaceContext)
 
 	// ExitRevoke is called when exiting the revoke production.
 	ExitRevoke(c *RevokeContext)

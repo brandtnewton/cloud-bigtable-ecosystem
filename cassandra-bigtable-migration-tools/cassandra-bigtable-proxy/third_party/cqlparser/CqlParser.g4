@@ -89,11 +89,26 @@ describeStatement
    ;
 
 describeTarget
+   : describeTargetKeyspaces
+   | describeTargetTables
+   | describeTargetTable
+   | describeTargetKeyspace
+   ;
+
+describeTargetKeyspaces
    : kwKeyspaces
-   | kwTables
-   | kwTable (keyspace DOT)? table
-   | kwKeyspace keyspace
-   | keyspace
+   ;
+
+describeTargetTables
+   : kwTables
+   ;
+
+describeTargetTable
+   : kwTable? tableSpec
+   ;
+
+describeTargetKeyspace
+   : kwKeyspace? keyspace
    ;
 
 revoke

@@ -40,7 +40,7 @@ func (t *CreateTranslator) Translate(query *types.RawQuery, sessionKeyspace type
 		return nil, errors.New("error while parsing create object")
 	}
 
-	keyspaceName, tableName, err := common.ParseTarget(createTableObj.TableSpec(), sessionKeyspace, t.schemaMappingConfig)
+	keyspaceName, tableName, err := common.ParseTableSpec(createTableObj.TableSpec(), sessionKeyspace, t.schemaMappingConfig)
 	if err != nil {
 		return nil, err
 	}

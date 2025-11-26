@@ -97,7 +97,7 @@ func TestTranslateAlterTableToBigtable(t *testing.T) {
 			query:           "ALTER TABLE . ADD firstname text",
 			tableConfig:     userInfoTable,
 			want:            nil,
-			error:           "invalid input parameters found for table",
+			error:           "failed to parse table name",
 			defaultKeyspace: "test_keyspace",
 		},
 		{

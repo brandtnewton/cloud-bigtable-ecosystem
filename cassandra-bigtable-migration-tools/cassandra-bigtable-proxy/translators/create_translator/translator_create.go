@@ -34,10 +34,9 @@ const (
 )
 
 func (t *CreateTranslator) Translate(query *types.RawQuery, sessionKeyspace types.Keyspace) (types.IPreparedQuery, error) {
-	createTableObj := query.Parser().CreateTable()
-
-	if createTableObj == nil {
-		return nil, errors.New("error while parsing create object")
+	createTableObj, err := query.Parser().CreateTable()
+	if err != nil {
+		return nil, err
 	}
 
 	keyspaceName, tableName, err := common.ParseTableSpec(createTableObj.TableSpec(), sessionKeyspace, t.schemaMappingConfig)
@@ -45,7 +44,7 @@ func (t *CreateTranslator) Translate(query *types.RawQuery, sessionKeyspace type
 		return nil, err
 	}
 
-	var pmks []types.CreateTablePrimaryKeyConfig
+	var primaryKeys []types.CreateTablePrimaryKeyConfig
 	var columns []types.CreateColumn
 
 	if createTableObj.ColumnDefinitionList().GetText() == "" {
@@ -69,14 +68,14 @@ func (t *CreateTranslator) Translate(query *types.RawQuery, sessionKeyspace type
 		})
 
 		if col.PrimaryKeyColumn() != nil {
-			pmks = append(pmks, types.CreateTablePrimaryKeyConfig{
+			primaryKeys = append(primaryKeys, types.CreateTablePrimaryKeyConfig{
 				Name:    types.ColumnName(col.Column().GetText()),
 				KeyType: types.KeyTypePartition,
 			})
 		}
 	}
 
-	if len(pmks) > 1 {
+	if len(primaryKeys) > 1 {
 		return nil, errors.New("multiple inline primary key columns not allowed")
 	}
 
@@ -105,39 +104,39 @@ func (t *CreateTranslator) Translate(query *types.RawQuery, sessionKeyspace type
 
 	// nil if inline primary key definition used
 	if createTableObj.ColumnDefinitionList().PrimaryKeyElement() != nil {
-		if len(pmks) > 0 {
+		if len(primaryKeys) > 0 {
 			return nil, errors.New("cannot specify both primary key clause and inline primary key")
 		}
 		singleKey := createTableObj.ColumnDefinitionList().PrimaryKeyElement().PrimaryKeyDefinition().SinglePrimaryKey()
 		compoundKey := createTableObj.ColumnDefinitionList().PrimaryKeyElement().PrimaryKeyDefinition().CompoundKey()
 		compositeKey := createTableObj.ColumnDefinitionList().PrimaryKeyElement().PrimaryKeyDefinition().CompositeKey()
 		if singleKey != nil {
-			pmks = []types.CreateTablePrimaryKeyConfig{
+			primaryKeys = []types.CreateTablePrimaryKeyConfig{
 				{
 					Name:    types.ColumnName(singleKey.GetText()),
 					KeyType: types.KeyTypePartition,
 				},
 			}
 		} else if compoundKey != nil {
-			pmks = append(pmks, types.CreateTablePrimaryKeyConfig{
+			primaryKeys = append(primaryKeys, types.CreateTablePrimaryKeyConfig{
 				Name:    types.ColumnName(compoundKey.PartitionKey().GetText()),
 				KeyType: types.KeyTypePartition,
 			})
 			for _, clusterKey := range compoundKey.ClusteringKeyList().AllClusteringKey() {
-				pmks = append(pmks, types.CreateTablePrimaryKeyConfig{
+				primaryKeys = append(primaryKeys, types.CreateTablePrimaryKeyConfig{
 					Name:    types.ColumnName(clusterKey.Column().GetText()),
 					KeyType: types.KeyTypeClustering,
 				})
 			}
 		} else if compositeKey != nil {
 			for _, partitionKey := range compositeKey.PartitionKeyList().AllPartitionKey() {
-				pmks = append(pmks, types.CreateTablePrimaryKeyConfig{
+				primaryKeys = append(primaryKeys, types.CreateTablePrimaryKeyConfig{
 					Name:    types.ColumnName(partitionKey.Column().GetText()),
 					KeyType: types.KeyTypePartition,
 				})
 			}
 			for _, clusterKey := range compositeKey.ClusteringKeyList().AllClusteringKey() {
-				pmks = append(pmks, types.CreateTablePrimaryKeyConfig{
+				primaryKeys = append(primaryKeys, types.CreateTablePrimaryKeyConfig{
 					Name:    types.ColumnName(clusterKey.Column().GetText()),
 					KeyType: types.KeyTypeClustering,
 				})
@@ -154,11 +153,11 @@ func (t *CreateTranslator) Translate(query *types.RawQuery, sessionKeyspace type
 		}
 	}
 
-	if len(pmks) == 0 {
+	if len(primaryKeys) == 0 {
 		return nil, errors.New("no primary key found in create table statement")
 	}
 
-	for _, pmk := range pmks {
+	for _, pmk := range primaryKeys {
 		colIndex := slices.IndexFunc(columns, func(col types.CreateColumn) bool {
 			return col.Name == pmk.Name
 		})
@@ -171,7 +170,7 @@ func (t *CreateTranslator) Translate(query *types.RawQuery, sessionKeyspace type
 		}
 	}
 	ifNotExists := createTableObj.IfNotExist() != nil
-	var stmt = types.NewCreateTableStatementMap(keyspaceName, tableName, query.RawCql(), ifNotExists, columns, pmks, rowKeyEncoding)
+	var stmt = types.NewCreateTableStatementMap(keyspaceName, tableName, query.RawCql(), ifNotExists, columns, primaryKeys, rowKeyEncoding)
 	return stmt, nil
 }
 

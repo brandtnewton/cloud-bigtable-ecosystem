@@ -88,7 +88,7 @@ func TestCqlshError(t *testing.T) {
 
 	_, err := cqlshScanToMap(`INSERT INTO bigtabledevinstance.no_such_table (name, age, code) VALUES ('foo', 1, 2)`)
 	require.Error(t, err)
-	require.Contains(t, err.Error(), "table no_such_table does not exist")
+	require.Contains(t, err.Error(), "table 'no_such_table' does not exist")
 }
 
 func TestCqlshCreateTable(t *testing.T) {

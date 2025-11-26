@@ -25,7 +25,10 @@ import (
 )
 
 func (t *DropTranslator) Translate(query *types.RawQuery, sessionKeyspace types.Keyspace) (types.IPreparedQuery, error) {
-	dropTableObj := query.Parser().DropTable()
+	dropTableObj, err := query.Parser().DropTable()
+	if err != nil {
+		return nil, err
+	}
 
 	if dropTableObj == nil {
 		return nil, errors.New("error while parsing drop table object")

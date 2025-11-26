@@ -17,7 +17,6 @@
 package delete_translator
 
 import (
-	"errors"
 	"fmt"
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/global/types"
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/translators/common"
@@ -25,9 +24,9 @@ import (
 )
 
 func (t *DeleteTranslator) Translate(query *types.RawQuery, sessionKeyspace types.Keyspace) (types.IPreparedQuery, error) {
-	deleteObj := query.Parser().Delete_()
-	if deleteObj == nil {
-		return nil, errors.New("error while parsing delete object")
+	deleteObj, err := query.Parser().Delete_()
+	if err != nil {
+		return nil, err
 	}
 
 	keyspaceName, tableName, err := common.ParseTableSpec(deleteObj.FromSpec().TableSpec(), sessionKeyspace, t.schemaMappingConfig)

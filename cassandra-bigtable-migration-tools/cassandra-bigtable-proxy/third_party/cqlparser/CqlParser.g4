@@ -901,6 +901,9 @@ keyspace
 
 table
    : OBJECT_NAME
+   | K_KEYSPACES
+   | K_TABLES
+   | K_FUNCTIONS
    | DQUOTE OBJECT_NAME DQUOTE
    ;
 

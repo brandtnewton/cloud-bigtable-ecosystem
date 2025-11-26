@@ -117,7 +117,7 @@ func TestLimitAndOrderByOperations(t *testing.T) {
 		if testTarget == TestTargetCassandra {
 			assert.Contains(t, err.Error(), "no viable alternative at input '1'")
 		} else {
-			assert.Contains(t, err.Error(), "order_by section not have proper values")
+			assert.Contains(t, err.Error(), "parsing error")
 		}
 
 		// ORDER BY a non-existent column

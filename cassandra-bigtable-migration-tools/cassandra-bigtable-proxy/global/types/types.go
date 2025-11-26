@@ -18,7 +18,7 @@ package types
 
 import (
 	"cloud.google.com/go/bigtable"
-	cql "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/third_party/cqlparser"
+	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/parser"
 	"github.com/datastax/go-cassandra-native-protocol/frame"
 	"github.com/datastax/go-cassandra-native-protocol/message"
 	"github.com/datastax/go-cassandra-native-protocol/primitive"
@@ -213,15 +213,15 @@ type RawQuery struct {
 	cql             string
 	qt              QueryType
 	sessionKeyspace Keyspace
-	parser          *cql.CqlParser
+	parser          *parser.ProxyCqlParser
 	startTime       time.Time
 }
 
-func NewRawQuery(header *frame.Header, sessionKeyspace Keyspace, cql string, parser *cql.CqlParser, qt QueryType) *RawQuery {
+func NewRawQuery(header *frame.Header, sessionKeyspace Keyspace, cql string, parser *parser.ProxyCqlParser, qt QueryType) *RawQuery {
 	return NewRawQueryWithTime(header, sessionKeyspace, cql, parser, qt, time.Now().UTC())
 }
 
-func NewRawQueryWithTime(header *frame.Header, sessionKeyspace Keyspace, cql string, parser *cql.CqlParser, qt QueryType, t time.Time) *RawQuery {
+func NewRawQueryWithTime(header *frame.Header, sessionKeyspace Keyspace, cql string, parser *parser.ProxyCqlParser, qt QueryType, t time.Time) *RawQuery {
 	return &RawQuery{
 		header:          header,
 		sessionKeyspace: sessionKeyspace,
@@ -240,7 +240,7 @@ func (r *RawQuery) RawCql() string {
 	return r.cql
 }
 
-func (r *RawQuery) Parser() *cql.CqlParser {
+func (r *RawQuery) Parser() *parser.ProxyCqlParser {
 	return r.parser
 }
 

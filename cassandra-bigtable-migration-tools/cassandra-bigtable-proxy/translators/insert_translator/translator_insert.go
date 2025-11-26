@@ -17,7 +17,6 @@
 package insert_translator
 
 import (
-	"errors"
 	"fmt"
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/global/types"
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/translators/common"
@@ -25,9 +24,9 @@ import (
 )
 
 func (t *InsertTranslator) Translate(query *types.RawQuery, sessionKeyspace types.Keyspace) (types.IPreparedQuery, error) {
-	insertObj := query.Parser().Insert()
-	if insertObj == nil {
-		return nil, errors.New("could not parse insert object")
+	insertObj, err := query.Parser().Insert()
+	if err != nil {
+		return nil, err
 	}
 
 	keyspaceName, tableName, err := common.ParseTableSpec(insertObj.TableSpec(), sessionKeyspace, t.schemaMappingConfig)

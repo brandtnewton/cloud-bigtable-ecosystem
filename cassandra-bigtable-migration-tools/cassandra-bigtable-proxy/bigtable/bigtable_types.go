@@ -17,24 +17,11 @@
 package bigtableclient
 
 import (
-	"cloud.google.com/go/bigtable"
-	btpb "cloud.google.com/go/bigtable/apiv2/bigtablepb"
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/global/types"
-	schemaMapping "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/schema-mapping"
-	"go.uber.org/zap"
 )
 
 type BulkOperationResponse struct {
 	FailedRows string
-}
-
-type BigtableClient struct {
-	Clients             map[string]*bigtable.Client
-	AdminClients        map[string]*bigtable.AdminClient
-	Logger              *zap.Logger
-	SqlClient           btpb.BigtableClient
-	BigtableConfig      *types.BigtableConfig
-	SchemaMappingConfig *schemaMapping.SchemaMappingConfig
 }
 
 type BigtableBulkMutation struct {

@@ -22,7 +22,7 @@ type QueryExecutorManager struct {
 	executors []IQueryExecutor
 }
 
-func NewQueryExecutorManager(logger *zap.Logger, s *schemaMapping.SchemaMappingConfig, bt bigtableModule.BigTableClientIface, systemTables *mem_table.InMemEngine) *QueryExecutorManager {
+func NewQueryExecutorManager(logger *zap.Logger, s *schemaMapping.SchemaMappingConfig, bt *bigtableModule.BigtableDmlClient, systemTables *mem_table.InMemEngine) *QueryExecutorManager {
 	return &QueryExecutorManager{
 		logger: logger,
 		executors: []IQueryExecutor{

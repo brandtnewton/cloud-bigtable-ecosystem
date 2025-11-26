@@ -153,14 +153,14 @@ func maybeParseQuickStartArgs(args *types.CliArgs) (*types.ProxyInstanceConfig, 
 
 	bigtableConfig := &types.BigtableConfig{
 		ProjectID: args.QuickStartProjectId,
-		Instances: map[types.Keyspace]*types.InstancesMapping{
+		Instances: map[types.Keyspace]*types.InstanceMapping{
 			keyspace: {
-				BigtableInstance: args.QuickStartInstanceId,
-				Keyspace:         keyspace,
-				AppProfileID:     assignWithFallbacks(args.QuickStartAppProfile, DefaultAppProfileId),
+				InstanceId:   types.BigtableInstance(args.QuickStartInstanceId),
+				Keyspace:     keyspace,
+				AppProfileID: assignWithFallbacks(args.QuickStartAppProfile, DefaultAppProfileId),
 			},
 		},
-		SchemaMappingTable: assignWithFallbacks(args.QuickStartSchemaMappingTable, DefaultSchemaMappingTableName),
+		SchemaMappingTable: types.TableName(assignWithFallbacks(args.QuickStartSchemaMappingTable, DefaultSchemaMappingTableName)),
 		Session: &types.Session{
 			GrpcChannels: DefaultBigtableGrpcChannels,
 		},

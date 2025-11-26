@@ -17,7 +17,6 @@
 package select_translator
 
 import (
-	"errors"
 	"fmt"
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/global/types"
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/translators/common"
@@ -25,9 +24,9 @@ import (
 )
 
 func (t *SelectTranslator) Translate(query *types.RawQuery, sessionKeyspace types.Keyspace) (types.IPreparedQuery, error) {
-	selectObj := query.Parser().Select_()
-	if selectObj == nil {
-		return nil, errors.New("failed to parse select query")
+	selectObj, err := query.Parser().Select_()
+	if err != nil {
+		return nil, err
 	}
 
 	keyspaceName, tableName, err := common.ParseTableSpec(selectObj.FromSpec().TableSpec(), sessionKeyspace, t.schemaMappingConfig)

@@ -17,7 +17,6 @@
 package truncate_translator
 
 import (
-	"errors"
 	"fmt"
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/global/types"
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/translators/common"
@@ -25,17 +24,19 @@ import (
 )
 
 func (t *TruncateTranslator) Translate(query *types.RawQuery, sessionKeyspace types.Keyspace) (types.IPreparedQuery, error) {
-	truncateTableObj := query.Parser().Truncate()
-
-	if truncateTableObj == nil {
-		return nil, errors.New("error while parsing truncate query")
+	truncateTableObj, err := query.Parser().Truncate()
+	if err != nil {
+		return nil, err
 	}
 
 	keyspace, table, err := common.ParseTableSpec(truncateTableObj.TableSpec(), sessionKeyspace, t.schemaMappingConfig)
 	if err != nil {
 		return nil, err
 	}
-
+	_, err = t.schemaMappingConfig.GetTableConfig(keyspace, table)
+	if err != nil {
+		return nil, err
+	}
 	stmt := types.NewTruncateTableStatementMap(keyspace, table, query.RawCql())
 	return stmt, nil
 }

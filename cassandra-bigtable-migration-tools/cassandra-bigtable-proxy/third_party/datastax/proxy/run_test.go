@@ -192,16 +192,16 @@ func TestRun(t *testing.T) {
 	var tbData []*schemaMapping.TableConfig = nil
 	bgtmockface := new(mockbigtable.BigTableClientIface)
 	bgtmockface.On("ReadTableConfigs", ctx, "bigtabledevinstancetest").Return(tbData, nil)
-	bgtmockface.On("LoadConfigs", mock.AnythingOfType("*responsehandler.TypeHandler"), mock.AnythingOfType("*schemaMapping.SchemaMappingConfig")).Return(tbData, nil)
+	bgtmockface.On("LoadConfigs", mock.AnythingOfType("*responsehandler.TypeHandler"), mock.AnythingOfType("*schemaMapping.schemas")).Return(tbData, nil)
 
 	bgtmockface.On("Close").Return()
 
 	// Override the factory function to return the mock
-	originalNewBigTableClient := bt.NewBigtableClient
-	bt.NewBigtableClient = func(client map[string]*bigtable.Client, adminClients map[string]*bigtable.AdminClient, logger *zap.Logger, config *types.BigtableConfig, responseHandler rh.ResponseHandlerIface, schemaMapping *schemaMapping.SchemaMappingConfig) bt.BigTableClientIface {
+	originalNewBigTableClient := bt.NewBigtableDmlClient
+	bt.NewBigtableDmlClient = func(client map[string]*bigtable.Client, adminClients map[string]*bigtable.AdminClient, logger *zap.Logger, config *types.BigtableConfig, responseHandler rh.ResponseHandlerIface, schemaMapping *schemaMapping.SchemaMappingConfig) bt.BigTableClientIface {
 		return bgtmockface
 	}
-	defer func() { bt.NewBigtableClient = originalNewBigTableClient }()
+	defer func() { bt.NewBigtableDmlClient = originalNewBigTableClient }()
 
 	err := Run(ctx, []string{})
 	require.NoError(t, err)

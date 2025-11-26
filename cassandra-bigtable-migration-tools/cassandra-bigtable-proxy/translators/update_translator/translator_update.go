@@ -25,7 +25,10 @@ import (
 )
 
 func (t *UpdateTranslator) Translate(query *types.RawQuery, sessionKeyspace types.Keyspace) (types.IPreparedQuery, error) {
-	updateObj := query.Parser().Update()
+	updateObj, err := query.Parser().Update()
+	if err != nil {
+		return nil, err
+	}
 
 	if updateObj == nil {
 		return nil, errors.New("error parsing the update object")

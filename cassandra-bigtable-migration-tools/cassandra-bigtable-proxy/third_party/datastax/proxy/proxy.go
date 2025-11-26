@@ -22,16 +22,15 @@ import (
 	"fmt"
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/executors"
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/mem_table"
+	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/parser"
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/responsehandler"
 	cql "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/third_party/cqlparser"
-	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/utilities"
 	"io"
 	"net"
 	"strings"
 	"sync"
 	"time"
 
-	"cloud.google.com/go/bigtable"
 	bigtableModule "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/bigtable"
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/global/types"
 	otelgo "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/otel"
@@ -55,8 +54,6 @@ var ErrProxyClosed = errors.New("proxy closed")
 var ErrProxyAlreadyConnected = errors.New("proxy already connected")
 var ErrProxyNotConnected = errors.New("proxy not connected")
 
-const systemQueryMetadataNotFoundError = "data not found %s[%v]"
-
 const preparedIdSize = 16
 const Query = "CqlQuery"
 const BtqlQuery = "BtqlQuery"
@@ -69,22 +66,8 @@ const errorWhileDecoding = "Error while decoding bytes - "
 const unhandledScenario = "Unhandled execution Scenario for prepared CqlQuery"
 const errQueryNotPrepared = "query is not prepared"
 const (
-	handleQuery            = "handleQuery"
-	handleBatch            = "Batch"
-	handleExecuteForDelete = "handleExecuteForDelete"
-	handleExecuteForUpdate = "handleExecuteForUpdate"
-	handleExecuteForSelect = "handleExecuteForSelect"
-	cassandraQuery         = "Cassandra CqlQuery"
-	rowKey                 = "GoRow Key"
-)
-
-var (
-	systemSchema        = "system_schema"
-	keyspaces           = "keyspaces"
-	tables              = "tables"
-	metaDataColumns     = "metaDataColumns"
-	systemVirtualSchema = "system_virtual_schema"
-	local               = "local"
+	handleQuery = "handleQuery"
+	handleBatch = "Batch"
 )
 
 // Events
@@ -114,11 +97,12 @@ type Proxy struct {
 	closed             chan struct{}
 	localNode          *node
 	nodes              []*node
-	bClient            bigtableModule.BigTableClientIface
+	clientManager      *types.BigtableClientManager
+	schemaManager      *schemaMapping.SchemaManager
+	bigtableClient     *bigtableModule.BigtableDmlClient
 	translator         *translators.TranslatorManager
 	executor           *executors.QueryExecutorManager
 	systemTables       *mem_table.InMemEngine
-	schemaMapping      *schemaMapping.SchemaMappingConfig
 	otelInst           *otelgo.OpenTelemetry
 	otelShutdown       func(context.Context) error
 }
@@ -136,30 +120,21 @@ func (p *Proxy) OnEvent(event proxycore.Event) {
 	}
 }
 
-func createBigtableConnection(ctx context.Context, config *types.ProxyInstanceConfig) (map[string]*bigtable.Client, map[string]*bigtable.AdminClient, error) {
-	bigtableClients, adminClients, err := bigtableModule.CreateClientsForInstances(ctx, config)
-	if err != nil {
-		return nil, nil, fmt.Errorf("failed to create bigtable client: %w", err)
-	}
-	return bigtableClients, adminClients, nil
-}
-
 func NewProxy(ctx context.Context, logger *zap.Logger, config *types.ProxyInstanceConfig) (*Proxy, error) {
-	bigtableClients, adminClients, err := createBigtableConnection(ctx, config)
+	clientManager, err := types.CreateBigtableClientManager(ctx, config)
 	if err != nil {
 		return nil, err
 	}
-	schemaMappingConfig := schemaMapping.NewSchemaMappingConfig(types.TableName(config.BigtableConfig.SchemaMappingTable), config.BigtableConfig.DefaultColumnFamily, logger, nil)
-	bigtableCl := bigtableModule.NewBigtableClient(bigtableClients, adminClients, logger, config.BigtableConfig, schemaMappingConfig)
-	for k := range config.BigtableConfig.Instances {
-		tableConfigs, err := bigtableCl.ReadTableConfigs(ctx, k)
-		if err != nil {
-			return nil, err
-		}
-		schemaMappingConfig.UpdateTables(tableConfigs)
+
+	schemaManager := schemaMapping.NewBigtableDdlClient(logger, clientManager, config.BigtableConfig)
+	err = schemaManager.Initialize(ctx)
+	if err != nil {
+		return nil, err
 	}
-	bigtableCl.LoadConfigs(schemaMappingConfig)
-	translator := translators.NewTranslatorManager(logger, schemaMappingConfig, config.BigtableConfig.DefaultIntRowKeyEncoding)
+
+	bigtableClient := bigtableModule.NewBigtableDmlClient(clientManager, logger, config.BigtableConfig, schemaManager)
+
+	translator := translators.NewTranslatorManager(logger, schemaManager.Schemas(), config.BigtableConfig.DefaultIntRowKeyEncoding)
 
 	// Enable OpenTelemetry traces by setting environment variable GOOGLE_API_GO_EXPERIMENTAL_TELEMETRY_PLATFORM_TRACING to the case-insensitive value "opentelemetry" before loading the client library.
 	otelConfig := &otelgo.OTelConfig{}
@@ -189,19 +164,20 @@ func NewProxy(ctx context.Context, logger *zap.Logger, config *types.ProxyInstan
 	systemTables := mem_table.NewInMemEngine()
 
 	proxy := &Proxy{
-		ctx:           ctx,
-		config:        config,
-		logger:        logger,
-		clients:       make(map[*client]struct{}),
-		listeners:     make(map[*net.Listener]struct{}),
-		closed:        make(chan struct{}),
-		bClient:       bigtableCl,
-		translator:    translator,
-		executor:      executors.NewQueryExecutorManager(logger, schemaMappingConfig, bigtableCl, systemTables),
-		schemaMapping: schemaMappingConfig,
-		systemTables:  systemTables,
-		otelInst:      otelInst,
-		otelShutdown:  shutdownOTel,
+		ctx:            ctx,
+		config:         config,
+		logger:         logger,
+		clients:        make(map[*client]struct{}),
+		listeners:      make(map[*net.Listener]struct{}),
+		closed:         make(chan struct{}),
+		clientManager:  clientManager,
+		schemaManager:  schemaManager,
+		bigtableClient: bigtableClient,
+		translator:     translator,
+		executor:       executors.NewQueryExecutorManager(logger, schemaManager.Schemas(), bigtableClient, systemTables),
+		systemTables:   systemTables,
+		otelInst:       otelInst,
+		otelShutdown:   shutdownOTel,
 	}
 
 	return proxy, nil
@@ -253,7 +229,7 @@ func (p *Proxy) Connect() error {
 
 	p.sessions[p.cluster.NegotiatedVersion].Store("", sess)
 
-	err = InitializeSystemTables(p.schemaMapping, p.systemTables, p)
+	err = InitializeSystemTables(p.schemaManager.Schemas(), p.systemTables, p)
 	if err != nil {
 		return fmt.Errorf("failed to initialize system tables: %w", err)
 	}
@@ -326,7 +302,7 @@ func (p *Proxy) Close() error {
 		delete(p.clients, cl)
 	}
 
-	p.bClient.Close()
+	p.clientManager.Close()
 	if p.otelShutdown != nil {
 		err = p.otelShutdown(p.ctx)
 	}
@@ -497,7 +473,7 @@ func (c *client) handlePrepare(raw *frame.RawFrame, msg *message.Prepare) {
 		keyspace = types.Keyspace(msg.Keyspace)
 	}
 
-	p := utilities.NewParser(msg.Query)
+	p := parser.NewParser(msg.Query)
 	qt, err := parseQueryType(p)
 	if err != nil {
 		c.proxy.logger.Error("error parsing query to see if it's handled", zap.String(Query, msg.Query), zap.Error(err))
@@ -509,8 +485,8 @@ func (c *client) handlePrepare(raw *frame.RawFrame, msg *message.Prepare) {
 	c.handleServerPreparedQuery(rawQuery, id)
 }
 
-func parseQueryType(p *cql.CqlParser) (types.QueryType, error) {
-	tok := p.GetTokenStream().LT(1)
+func parseQueryType(p *parser.ProxyCqlParser) (types.QueryType, error) {
+	tok := p.GetFirstToken()
 	t := tok.GetTokenType()
 	switch t {
 	case cql.CqlLexerK_SELECT:
@@ -575,7 +551,7 @@ func (c *client) prepareQuery(query *types.RawQuery) (types.IPreparedQuery, erro
 		return nil, err
 	}
 
-	btPreparedQuery, err := c.proxy.bClient.PrepareStatement(c.ctx, preparedQuery)
+	btPreparedQuery, err := c.proxy.bigtableClient.PrepareStatement(c.ctx, preparedQuery)
 	if err != nil {
 		return nil, fmt.Errorf("failed to prepare bigtable statement `%s`: %w", preparedQuery.BigtableQuery(), err)
 	}
@@ -632,7 +608,7 @@ func (c *client) handleBatch(raw *frame.RawFrame, msg *partialBatch) {
 	otelgo.AddAnnotation(otelCtx, sendingBulkApplyMutation)
 	var errs []string
 	for tableName, mutations := range bulkMutations.Mutations() {
-		res, err := c.proxy.bClient.ApplyBulkMutation(otelCtx, keyspace, tableName, mutations)
+		res, err := c.proxy.bigtableClient.ApplyBulkMutation(otelCtx, keyspace, tableName, mutations)
 		if err != nil || res.FailedRows != "" {
 			c.proxy.otelInst.RecordError(span, err)
 			errs = append(errs, res.FailedRows)
@@ -687,7 +663,7 @@ func (c *client) handleQuery(raw *frame.RawFrame, msg *partialQuery) {
 		attribute.String("CqlQuery", msg.query),
 	})
 
-	p := utilities.NewParser(msg.query)
+	p := parser.NewParser(msg.query)
 	qt, err := parseQueryType(p)
 	if err != nil {
 		c.proxy.logger.Error("error parsing query to see if it's handled", zap.String(Query, msg.query), zap.Error(err))
@@ -806,7 +782,7 @@ func (c *client) handleEvent(event proxycore.Event) {
 // handlePostDDLEvent handles common operations after DDL statements (CREATE, ALTER, DROP)
 func (c *client) handlePostDDLEvent(hdr *frame.Header, changeType primitive.SchemaChangeType, keyspace, table string) {
 	// refresh system metadata
-	err := ReloadSystemTables(c.proxy.schemaMapping, c.proxy.systemTables, c.proxy)
+	err := ReloadSystemTables(c.proxy.schemaManager.Schemas(), c.proxy.systemTables, c.proxy)
 	if err != nil {
 		c.proxy.logger.Error("Failed to refresh system metadata cache", zap.Error(err))
 		_, span := c.proxy.otelInst.StartSpan(c.proxy.ctx, "handlePostDDLEvent", nil)

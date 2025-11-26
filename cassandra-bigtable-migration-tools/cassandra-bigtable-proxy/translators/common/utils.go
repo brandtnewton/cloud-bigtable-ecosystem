@@ -710,37 +710,64 @@ func encodeTimestampForBigtable(value interface{}) (types.BigtableValue, error) 
 }
 
 func ParseTableSpec(tableSpec cql.ITableSpecContext, sessionKeyspace types.Keyspace, config *schemaMapping.SchemaMappingConfig) (types.Keyspace, types.TableName, error) {
-	if tableSpec == nil || tableSpec.Table() == nil || tableSpec.Table().OBJECT_NAME() == nil {
-		return "", "", errors.New("invalid input parameters found for table")
-	}
-
-	tableNameString := tableSpec.Table().OBJECT_NAME().GetText()
-	if !IsValidIdentifier(tableNameString) {
-		return "", "", errors.New("invalid table name parsed from query")
-	}
-	tableName := types.TableName(tableNameString)
-
-	if tableName == config.SchemaMappingTableName {
-		return "", "", fmt.Errorf("table name cannot be the same as the configured schema mapping table name '%s'", tableName)
+	if tableSpec == nil {
+		return "", "", errors.New("failed to parse table name")
 	}
 
 	keyspace, err := ParseKeyspace(tableSpec.Keyspace(), sessionKeyspace)
 	if err != nil {
 		return "", "", err
 	}
-	return keyspace, tableName, nil
+	table, err := ParseTable(tableSpec.Table(), config)
+	if err != nil {
+		return "", "", err
+	}
+	return keyspace, table, nil
+}
+
+func ParseTable(t cql.ITableContext, config *schemaMapping.SchemaMappingConfig) (types.TableName, error) {
+	if t == nil {
+		return "", errors.New("failed to parse table name")
+	}
+
+	// some system tables use keywords so we need to handle them explicitly
+	if t.K_TABLES() != nil {
+		return "tables", nil
+	} else if t.K_KEYSPACES() != nil {
+		return "keyspaces", nil
+	} else if t.K_FUNCTIONS() != nil {
+		return "functions", nil
+	}
+
+	if t.OBJECT_NAME() == nil {
+		return "", errors.New("failed to parse table name")
+	}
+
+	name := t.OBJECT_NAME().GetText()
+	if name == "" {
+		return "", errors.New("failed to parse table name")
+	}
+	if !IsValidIdentifier(name) {
+		return "", fmt.Errorf("invalid table name: `%s`", name)
+	}
+
+	tableName := types.TableName(name)
+	if tableName == config.SchemaMappingTableName {
+		return "", fmt.Errorf("table name cannot be the same as the configured schema mapping table name '%s'", tableName)
+	}
+	return tableName, nil
 }
 
 func ParseKeyspace(k cql.IKeyspaceContext, sessionKeyspace types.Keyspace) (types.Keyspace, error) {
 	keyspaceString := string(sessionKeyspace)
 	if k != nil && k.OBJECT_NAME() != nil {
-		keyspaceString = k.OBJECT_NAME().GetText()
+		keyspaceString = TrimDoubleQuotes(k.OBJECT_NAME().GetText())
 	}
 	if keyspaceString == "" {
 		return "", errors.New("no keyspace specified")
 	}
 	if !IsValidIdentifier(keyspaceString) {
-		return "", errors.New("invalid keyspace name parsed from query")
+		return "", fmt.Errorf("invalid keyspace name: `%s`", keyspaceString)
 	}
 	return types.Keyspace(keyspaceString), nil
 }

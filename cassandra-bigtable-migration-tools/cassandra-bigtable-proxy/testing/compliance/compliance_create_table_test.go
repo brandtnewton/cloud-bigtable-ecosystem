@@ -95,7 +95,7 @@ func TestNegativeTestCasesForCreateTable(t *testing.T) {
 		{
 			name:          "Create table with empty keys",
 			query:         "CREATE TABLE fail_empty_primary_key (num INT, big_num BIGINT, PRIMARY KEY ())",
-			expectedError: "no primary key found in create table statement",
+			expectedError: "parsing error",
 		},
 		{
 			name:          "Create table no column definition for pmk",

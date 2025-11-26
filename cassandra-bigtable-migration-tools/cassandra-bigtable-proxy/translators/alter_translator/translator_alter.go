@@ -27,10 +27,9 @@ import (
 )
 
 func (t *AlterTranslator) Translate(query *types.RawQuery, sessionKeyspace types.Keyspace) (types.IPreparedQuery, error) {
-	alterTable := query.Parser().AlterTable()
-
-	if alterTable == nil {
-		return nil, errors.New("error while parsing alter statement")
+	alterTable, err := query.Parser().AlterTable()
+	if err != nil {
+		return nil, err
 	}
 
 	keyspaceName, tableName, err := common.ParseTableSpec(alterTable.TableSpec(), sessionKeyspace, t.schemaMappingConfig)

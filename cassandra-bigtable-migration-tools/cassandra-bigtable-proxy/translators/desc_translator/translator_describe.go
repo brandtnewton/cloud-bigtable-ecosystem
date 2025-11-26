@@ -14,9 +14,9 @@ type DescTranslator struct {
 }
 
 func (t *DescTranslator) Translate(query *types.RawQuery, sessionKeyspace types.Keyspace) (types.IPreparedQuery, error) {
-	s := query.Parser().DescribeStatement()
-	if s == nil || s.DescribeTarget() == nil {
-		return nil, fmt.Errorf("failed to parse USE statement")
+	s, err := query.Parser().DescribeStatement()
+	if err != nil {
+		return nil, err
 	}
 
 	d := s.DescribeTarget()

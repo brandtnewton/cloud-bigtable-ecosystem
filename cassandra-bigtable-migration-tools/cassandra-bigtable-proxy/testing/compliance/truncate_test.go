@@ -64,12 +64,12 @@ func TestNegativeTruncateCases(t *testing.T) {
 		{
 			name:          "malformed truncate command",
 			query:         "TRUNCATE",
-			expectedError: "invalid input parameters found for table",
+			expectedError: "failed to parse table name",
 		},
 		{
 			name:          "malformed truncate command",
 			query:         "TRUNCATE TABLE ",
-			expectedError: "invalid input parameters found for table",
+			expectedError: "failed to parse table name",
 		},
 		{
 			name:          "truncate schema_mapping table",

@@ -152,7 +152,7 @@ func TestNegativeTestCasesForUpdateOperations(t *testing.T) {
 			name:          "Update with nonexistent table",
 			query:         "UPDATE bigtabledevinstance.random_table SET code=? where name=? and age=?",
 			params:        []interface{}{724, "Smith", int64(36)},
-			expectedError: "table random_table does not exist",
+			expectedError: "table 'random_table' does not exist",
 		},
 		{
 			name:          "Update with incorrect column name",

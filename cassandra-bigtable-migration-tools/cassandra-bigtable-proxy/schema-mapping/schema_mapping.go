@@ -22,8 +22,6 @@ import (
 	"slices"
 	"strings"
 	"sync"
-
-	"go.uber.org/zap"
 )
 
 const (
@@ -33,7 +31,6 @@ const (
 // SchemaMappingConfig contains the schema information for all tables, across
 // all Bigtable instances, managed by this proxy.
 type SchemaMappingConfig struct {
-	Logger                 *zap.Logger
 	mu                     sync.RWMutex
 	tables                 map[types.Keyspace]map[types.TableName]*TableConfig
 	SystemColumnFamily     types.ColumnFamily
@@ -41,7 +38,7 @@ type SchemaMappingConfig struct {
 }
 
 // NewSchemaMappingConfig is a constructor for SchemaMappingConfig. Please use this instead of direct initialization.
-func NewSchemaMappingConfig(schemaMappingTableName types.TableName, systemColumnFamily types.ColumnFamily, logger *zap.Logger, tableConfigs []*TableConfig) *SchemaMappingConfig {
+func NewSchemaMappingConfig(schemaMappingTableName types.TableName, systemColumnFamily types.ColumnFamily, tableConfigs []*TableConfig) *SchemaMappingConfig {
 	tablesMap := make(map[types.Keyspace]map[types.TableName]*TableConfig)
 
 	tableConfigs = append(tableConfigs, getSystemTableConfigs()...)
@@ -54,7 +51,6 @@ func NewSchemaMappingConfig(schemaMappingTableName types.TableName, systemColumn
 		tablesMap[tableConfig.Keyspace][tableConfig.Name] = tableConfig
 	}
 	return &SchemaMappingConfig{
-		Logger:                 logger,
 		SchemaMappingTableName: schemaMappingTableName,
 		SystemColumnFamily:     systemColumnFamily,
 		tables:                 tablesMap,
@@ -122,14 +118,15 @@ func (c *SchemaMappingConfig) ReplaceTables(keyspace types.Keyspace, tableConfig
 	return nil
 }
 
-func (c *SchemaMappingConfig) UpdateTables(tableConfigs []*TableConfig) {
+func (c *SchemaMappingConfig) UpdateTables(keyspace types.Keyspace, tableConfigs []*TableConfig) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
+	if _, exists := c.tables[keyspace]; !exists {
+		c.tables[keyspace] = make(map[types.TableName]*TableConfig)
+	}
+
 	for _, tableConfig := range tableConfigs {
-		if _, exists := c.tables[tableConfig.Keyspace]; !exists {
-			c.tables[tableConfig.Keyspace] = make(map[types.TableName]*TableConfig)
-		}
 		c.tables[tableConfig.Keyspace][tableConfig.Name] = tableConfig
 	}
 }
@@ -154,7 +151,7 @@ func (c *SchemaMappingConfig) GetTableConfig(k types.Keyspace, t types.TableName
 	}
 	tableConfig, ok := keyspace[t]
 	if !ok {
-		return nil, fmt.Errorf("table %s does not exist", t)
+		return nil, fmt.Errorf("table '%s' does not exist", t)
 	}
 	return tableConfig, nil
 }

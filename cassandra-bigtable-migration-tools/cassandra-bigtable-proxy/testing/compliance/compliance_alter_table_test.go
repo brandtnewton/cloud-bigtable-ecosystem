@@ -82,7 +82,7 @@ func TestNegativeTestCasesForAlterTable(t *testing.T) {
 		{
 			name:          "Alter a table that does not exist",
 			query:         "ALTER TABLE non_existent_table ADD some_col text",
-			expectedError: "table non_existent_table does not exist",
+			expectedError: "table 'non_existent_table' does not exist",
 		},
 		{
 			name:          "Alter a table in a non-existent keyspace",

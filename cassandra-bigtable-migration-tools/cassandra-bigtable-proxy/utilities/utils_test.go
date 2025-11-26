@@ -1042,7 +1042,7 @@ func TestFromDataCode(t *testing.T) {
 		})
 	}
 
-	// ## Test Cases for Errors ##
+	// ## Test Cases for errs ##
 	// These tests ensure the function fails gracefully.
 	errorTests := []struct {
 		name        string

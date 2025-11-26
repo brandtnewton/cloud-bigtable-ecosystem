@@ -284,7 +284,7 @@ var mockProxy = &Proxy{
 
 // Create mock for handleExecutionForDeletePreparedQuery/handleExecutionForSelectPreparedQuery/handleExecutionForInsertPreparedQuery functions.
 type MockBigtableClient struct {
-	bigtableModule.BigtableClient
+	bigtableModule.BigtableDmlClient
 	InsertRowFunc          func(ctx context.Context, data *translators.PreparedInsertQuery) error
 	UpdateRowFunc          func(ctx context.Context, data *translators.PreparedUpdateQuery) error
 	DeleteRowFunc          func(ctx context.Context, data *translators.PreparedDeleteQuery) error
@@ -350,9 +350,9 @@ func Test_handleExecutionForDeletePreparedQuery(t *testing.T) {
 		translator: &translators.TranslatorManager{
 			SchemaMappingConfig: mockTableSchemaConfig,
 		},
-		logger:  zap.NewNop(),
-		ctx:     context.Background(),
-		bClient: nil, // update client to include all function
+		logger:         zap.NewNop(),
+		ctx:            context.Background(),
+		bigtableClient: nil, // update client to include all function
 		otelInst: &otelgo.OpenTelemetry{Config: &otelgo.OTelConfig{
 			ServiceName: "test",
 			OTELEnabled: false,
@@ -722,7 +722,7 @@ func Test_detectEmptyPrimaryKey(t *testing.T) {
 	}
 }
 
-// Implement the methods from the BigtableClient that you need to mock
+// Implement the methods from the BigtableDmlClient that you need to mock
 func (m *MockBigtableClient) GetSchemaMappingConfigs(ctx context.Context, instanceID, schemaMappingTable string) (map[string]map[string]*schemaMapping.TableConfig, error) {
 	tbData := make(map[string]map[string]*schemaMapping.TableConfig)
 	return tbData, nil
@@ -734,14 +734,14 @@ func TestNewProxy(t *testing.T) {
 	var tbData []*schemaMapping.TableConfig = nil
 	bgtmockface := new(mockbigtable.BigTableClientIface)
 	bgtmockface.On("ReadTableConfigs", ctx, mock.AnythingOfType("string")).Return(tbData, nil)
-	bgtmockface.On("LoadConfigs", mock.AnythingOfType("*responsehandler.TypeHandler"), mock.AnythingOfType("*schemaMapping.SchemaMappingConfig")).Return(tbData, nil)
+	bgtmockface.On("LoadConfigs", mock.AnythingOfType("*responsehandler.TypeHandler"), mock.AnythingOfType("*schemaMapping.schemas")).Return(tbData, nil)
 
 	// Override the factory function to return the mock
-	originalNewBigTableClient := bt.NewBigtableClient
-	bt.NewBigtableClient = func(client map[string]*bigtable.Client, adminClients map[string]*bigtable.AdminClient, logger *zap.Logger, config *types.BigtableConfig, responseHandler rh.ResponseHandlerIface, schemaMapping *schemaMapping.SchemaMappingConfig) bt.BigTableClientIface {
+	originalNewBigTableClient := bt.NewBigtableDmlClient
+	bt.NewBigtableDmlClient = func(client map[string]*bigtable.Client, adminClients map[string]*bigtable.AdminClient, logger *zap.Logger, config *types.BigtableConfig, responseHandler rh.ResponseHandlerIface, schemaMapping *schemaMapping.SchemaMappingConfig) bt.BigTableClientIface {
 		return bgtmockface
 	}
-	defer func() { bt.NewBigtableClient = originalNewBigTableClient }()
+	defer func() { bt.NewBigtableDmlClient = originalNewBigTableClient }()
 	prox, err := NewProxy(ctx, logger, &types.ProxyInstanceConfig{
 		Options: &types.CliArgs{
 			ProtocolVersion:    primitive.ProtocolVersion4,
@@ -1060,9 +1060,9 @@ func TestPrepareSelectType(t *testing.T) {
 		preparedQueries: make(map[[16]byte]interface{}),
 		sender:          mockSender,
 		proxy: &Proxy{
-			schemaMapping: GetSchemaMappingConfig(),
-			logger:        mockProxy.logger,
-			bClient:       bigTablemockiface,
+			schemaMapping:  GetSchemaMappingConfig(),
+			logger:         mockProxy.logger,
+			bigtableClient: bigTablemockiface,
 			translator: &translators.TranslatorManager{
 				SchemaMappingConfig: GetSchemaMappingConfig(),
 			},
@@ -1115,9 +1115,9 @@ func TestPrepareSelectTypeWithClauseFunction(t *testing.T) {
 		preparedQueries: make(map[[16]byte]interface{}),
 		sender:          mockSender,
 		proxy: &Proxy{
-			schemaMapping: GetSchemaMappingConfig(),
-			logger:        mockProxy.logger,
-			bClient:       bigTablemockiface,
+			schemaMapping:  GetSchemaMappingConfig(),
+			logger:         mockProxy.logger,
+			bigtableClient: bigTablemockiface,
 			translator: &translators.TranslatorManager{
 				SchemaMappingConfig: GetSchemaMappingConfig(),
 			},
@@ -1205,9 +1205,9 @@ func TestHandleExecuteForInsert(t *testing.T) {
 		preparedQueries: make(map[[16]byte]interface{}),
 		sender:          mockSender,
 		proxy: &Proxy{
-			bClient:       bigTablemockiface,
-			schemaMapping: GetSchemaMappingConfig(),
-			logger:        mockProxy.logger,
+			bigtableClient: bigTablemockiface,
+			schemaMapping:  GetSchemaMappingConfig(),
+			logger:         mockProxy.logger,
 			translator: &translators.TranslatorManager{
 				SchemaMappingConfig: GetSchemaMappingConfig(),
 			},
@@ -1271,9 +1271,9 @@ func TestHandleExecuteForSelect(t *testing.T) {
 		preparedQueries: make(map[[16]byte]interface{}),
 		sender:          mockSender,
 		proxy: &Proxy{
-			bClient:       bigTablemockiface,
-			schemaMapping: GetSchemaMappingConfig(),
-			logger:        mockProxy.logger,
+			bigtableClient: bigTablemockiface,
+			schemaMapping:  GetSchemaMappingConfig(),
+			logger:         mockProxy.logger,
 			translator: &translators.TranslatorManager{
 				SchemaMappingConfig: GetSchemaMappingConfig(),
 			},
@@ -1386,9 +1386,9 @@ func TestHandleExecuteForDelete(t *testing.T) {
 		preparedQueries: make(map[[16]byte]interface{}),
 		sender:          mockSender,
 		proxy: &Proxy{
-			bClient:       bigTablemockiface,
-			schemaMapping: GetSchemaMappingConfig(),
-			logger:        mockProxy.logger,
+			bigtableClient: bigTablemockiface,
+			schemaMapping:  GetSchemaMappingConfig(),
+			logger:         mockProxy.logger,
 			translator: &translators.TranslatorManager{
 				SchemaMappingConfig: GetSchemaMappingConfig(),
 			},
@@ -1435,9 +1435,9 @@ func TestHandleExecuteForUpdate(t *testing.T) {
 		preparedQueries: make(map[[16]byte]any),
 		sender:          mockSender,
 		proxy: &Proxy{
-			bClient:       bigTablemockiface,
-			schemaMapping: GetSchemaMappingConfig(),
-			logger:        mockProxy.logger,
+			bigtableClient: bigTablemockiface,
+			schemaMapping:  GetSchemaMappingConfig(),
+			logger:         mockProxy.logger,
 			translator: &translators.TranslatorManager{
 				SchemaMappingConfig: GetSchemaMappingConfig(),
 			},
@@ -1496,9 +1496,9 @@ func TestHandleQueryInsert(t *testing.T) {
 		preparedQueries: make(map[[16]byte]interface{}),
 		sender:          mockSender,
 		proxy: &Proxy{
-			bClient:       bigTablemockiface,
-			schemaMapping: GetSchemaMappingConfig(),
-			logger:        mockProxy.logger,
+			bigtableClient: bigTablemockiface,
+			schemaMapping:  GetSchemaMappingConfig(),
+			logger:         mockProxy.logger,
 			translator: &translators.TranslatorManager{
 				SchemaMappingConfig: GetSchemaMappingConfig(),
 			},
@@ -1526,9 +1526,9 @@ func TestHandleQueryUpdate(t *testing.T) {
 		preparedQueries: make(map[[16]byte]interface{}),
 		sender:          mockSender,
 		proxy: &Proxy{
-			bClient:       bigTablemockiface,
-			schemaMapping: GetSchemaMappingConfig(),
-			logger:        mockProxy.logger,
+			bigtableClient: bigTablemockiface,
+			schemaMapping:  GetSchemaMappingConfig(),
+			logger:         mockProxy.logger,
 			translator: &translators.TranslatorManager{
 				SchemaMappingConfig: GetSchemaMappingConfig(),
 			},
@@ -1557,9 +1557,9 @@ func TestHandleQueryDelete(t *testing.T) {
 		preparedQueries: make(map[[16]byte]interface{}),
 		sender:          mockSender,
 		proxy: &Proxy{
-			bClient:       bigTablemockiface,
-			schemaMapping: GetSchemaMappingConfig(),
-			logger:        mockProxy.logger,
+			bigtableClient: bigTablemockiface,
+			schemaMapping:  GetSchemaMappingConfig(),
+			logger:         mockProxy.logger,
 			translator: &translators.TranslatorManager{
 				SchemaMappingConfig: GetSchemaMappingConfig(),
 			},
@@ -1586,9 +1586,9 @@ func TestHandleBatchUpdate(t *testing.T) {
 		preparedQueries: make(map[[16]byte]interface{}),
 		sender:          mockSender,
 		proxy: &Proxy{
-			bClient:       bigTablemockiface,
-			schemaMapping: GetSchemaMappingConfig(),
-			logger:        mockProxy.logger,
+			bigtableClient: bigTablemockiface,
+			schemaMapping:  GetSchemaMappingConfig(),
+			logger:         mockProxy.logger,
 			translator: &translators.TranslatorManager{
 				SchemaMappingConfig: GetSchemaMappingConfig(),
 			},
@@ -1624,9 +1624,9 @@ func TestHandleBatchInsert(t *testing.T) {
 		preparedQueries: make(map[[16]byte]interface{}),
 		sender:          mockSender,
 		proxy: &Proxy{
-			bClient:       bigTablemockiface,
-			schemaMapping: GetSchemaMappingConfig(),
-			logger:        mockProxy.logger,
+			bigtableClient: bigTablemockiface,
+			schemaMapping:  GetSchemaMappingConfig(),
+			logger:         mockProxy.logger,
 			translator: &translators.TranslatorManager{
 				SchemaMappingConfig: GetSchemaMappingConfig(),
 			},
@@ -1684,9 +1684,9 @@ func TestHandleBatchSelect(t *testing.T) {
 		preparedQueries: make(map[[16]byte]interface{}),
 		sender:          mockSender,
 		proxy: &Proxy{
-			bClient:       bigTablemockiface,
-			schemaMapping: GetSchemaMappingConfig(),
-			logger:        mockProxy.logger,
+			bigtableClient: bigTablemockiface,
+			schemaMapping:  GetSchemaMappingConfig(),
+			logger:         mockProxy.logger,
 			translator: &translators.TranslatorManager{
 				SchemaMappingConfig: GetSchemaMappingConfig(),
 			},
@@ -1722,9 +1722,9 @@ func TestHandleBatchDelete(t *testing.T) {
 		preparedQueries: make(map[[16]byte]interface{}),
 		sender:          mockSender,
 		proxy: &Proxy{
-			bClient:       bigTablemockiface,
-			schemaMapping: GetSchemaMappingConfig(),
-			logger:        mockProxy.logger,
+			bigtableClient: bigTablemockiface,
+			schemaMapping:  GetSchemaMappingConfig(),
+			logger:         mockProxy.logger,
 			translator: &translators.TranslatorManager{
 				SchemaMappingConfig: GetSchemaMappingConfig(),
 			},
@@ -1835,8 +1835,8 @@ func TestClose(t *testing.T) {
 		translator: &translators.TranslatorManager{
 			SchemaMappingConfig: GetSchemaMappingConfig(),
 		},
-		closed:  make(chan struct{}),
-		bClient: bigTablemockiface,
+		closed:         make(chan struct{}),
+		bigtableClient: bigTablemockiface,
 	}
 	err := proxy.Close()
 	assert.NoError(t, err)
@@ -2032,9 +2032,9 @@ func TestHandleQuerySelect(t *testing.T) {
 		preparedQueries: make(map[[16]byte]interface{}),
 		sender:          mockSender,
 		proxy: &Proxy{
-			bClient:       bigTablemockiface,
-			schemaMapping: GetSchemaMappingConfig(),
-			logger:        mockProxy.logger,
+			bigtableClient: bigTablemockiface,
+			schemaMapping:  GetSchemaMappingConfig(),
+			logger:         mockProxy.logger,
 			translator: &translators.TranslatorManager{
 				SchemaMappingConfig: GetSchemaMappingConfig(),
 			},

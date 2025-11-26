@@ -501,12 +501,6 @@ func ParseBigInt(value string) (int64, error) {
 	return val, err
 }
 
-func NewParser(query string) *cql.CqlParser {
-	lexer := cql.NewCqlLexer(antlr.NewInputStream(query))
-	stream := antlr.NewCommonTokenStream(lexer, antlr.TokenDefaultChannel)
-	return cql.NewCqlParser(stream)
-}
-
 func StringToGo(value string, cqlType types.CqlDataType) (types.GoValue, error) {
 	var iv interface{}
 

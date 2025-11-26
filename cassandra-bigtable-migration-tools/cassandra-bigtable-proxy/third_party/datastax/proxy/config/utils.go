@@ -95,15 +95,15 @@ func loadListenerConfig(args *types.CliArgs, l *yamlListener, config *yamlProxyC
 	if instanceIdsDefined && instancesDefined {
 		return nil, fmt.Errorf("only one of 'instances' or 'instance_ids' should be set for listener %s on port %d", l.Name, l.Port)
 	}
-	var instances = make(map[types.Keyspace]*types.InstancesMapping)
+	var instances = make(map[types.Keyspace]*types.InstanceMapping)
 	if len(l.Bigtable.Instances) != 0 {
 		for _, i := range l.Bigtable.Instances {
 			appProfileId := assignWithFallbacks(i.AppProfileID, defaultAppProfileId)
 			keyspace := types.Keyspace(i.Keyspace)
-			instances[keyspace] = &types.InstancesMapping{
-				BigtableInstance: i.BigtableInstance,
-				Keyspace:         keyspace,
-				AppProfileID:     appProfileId,
+			instances[keyspace] = &types.InstanceMapping{
+				InstanceId:   types.BigtableInstance(i.BigtableInstance),
+				Keyspace:     keyspace,
+				AppProfileID: appProfileId,
 			}
 		}
 	} else {
@@ -111,10 +111,10 @@ func loadListenerConfig(args *types.CliArgs, l *yamlListener, config *yamlProxyC
 		for _, id := range instanceIds {
 			id = strings.TrimSpace(id)
 			keyspace := types.Keyspace(id)
-			instances[keyspace] = &types.InstancesMapping{
-				BigtableInstance: id,
-				Keyspace:         keyspace,
-				AppProfileID:     defaultAppProfileId,
+			instances[keyspace] = &types.InstanceMapping{
+				InstanceId:   types.BigtableInstance(id),
+				Keyspace:     keyspace,
+				AppProfileID: defaultAppProfileId,
 			}
 		}
 	}
@@ -127,7 +127,7 @@ func loadListenerConfig(args *types.CliArgs, l *yamlListener, config *yamlProxyC
 	bigtableConfig := &types.BigtableConfig{
 		ProjectID:          projectId,
 		Instances:          instances,
-		SchemaMappingTable: schemaMappingTable,
+		SchemaMappingTable: types.TableName(schemaMappingTable),
 		Session: &types.Session{
 			GrpcChannels: l.Bigtable.Session.GrpcChannels,
 		},

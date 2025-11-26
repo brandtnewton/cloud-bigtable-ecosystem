@@ -131,7 +131,7 @@ func (btc *BigtableClient) convertResultRow(resultRow bigtable.ResultRow, query 
 
 		goValue, err := rowValueToGoValue(val, expectedType)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("failed to convert result for '%s': %w", key, err)
 		}
 		result[key] = goValue
 	}
@@ -229,6 +229,8 @@ func rowValueToGoValue(val any, expectedType types.CqlDataType) (types.GoValue, 
 			return v, nil
 		case types.INT:
 			return int32(v), nil
+		case types.BOOLEAN:
+			return v == 1, nil
 		default:
 			return nil, fmt.Errorf("unhandled type coersion: %T to %s", v, expectedType.String())
 		}
@@ -254,6 +256,8 @@ func rowValueToGoValue(val any, expectedType types.CqlDataType) (types.GoValue, 
 		return v, nil
 	case nil:
 		return nil, nil
+	case []*string:
+		return v, nil
 	default:
 		return nil, fmt.Errorf("unsupported Bigtable SQL type  %T", v)
 	}

@@ -160,16 +160,6 @@ func parseGroupByColumn(input cql.IGroupSpecContext) []string {
 	return columns
 }
 
-// createBtqlSelectClause() processes the selected columns, formats them, and returns a map of aliases to metadata and a slice of formatted columns.
-// Parameters:
-//   - t : Translator instance
-//   - selectedColumns: []types
-//   - tableName : table name on which query is being executes
-//   - keySpace : keyspace name on which query is being executed
-//
-// Returns:
-//   - []string column containing formatted selected columns for bigtable query
-//   - error if any
 func createBtqlSelectClause(tableConfig *sm.TableConfig, s *types.SelectClause, isGroupBy bool) (string, error) {
 	if s.IsStar {
 		return "*", nil
@@ -194,28 +184,6 @@ func createBtqlSelectClause(tableConfig *sm.TableConfig, s *types.SelectClause, 
 	return strings.Join(columns, ", "), nil
 }
 
-// createBtqlFunc processes columns that have aggregate functions applied to them in a SELECT query.
-// It handles special cases like COUNT(*) and validates if the column and function types are allowed in aggregates.
-//
-// Parameters:
-//   - t: Translator instance containing schema mapping configuration
-//   - columnMetadata: Contains information about the selected column including function name and aliases
-//   - tableName: Columns of the table being queried
-//   - keySpace: Keyspace name where the table exists
-//   - columns: Slice of strings containing the processed column expressions
-//
-// Returns:
-//   - []string: Updated slice of columns with the processed function column
-//   - string: The data type of the column after function application
-//   - error: Error if column metadata is not found, or if column/function type is not supported for aggregation
-//
-// The function performs the following operations:
-//  1. Handles COUNT(*) as a special case
-//  2. Validates column existence in schema mapping
-//  3. Checks if column data type is allowed in aggregates
-//  4. Validates if the aggregate function is supported
-//  5. Applies any necessary type casting (converting cql select columns to respective bigtable columns)
-//  6. Formats the column expression with function and alias if specified
 func createBtqlFunc(col types.SelectedColumn, tableConfig *sm.TableConfig) (string, error) {
 	if col.Func == types.FuncCodeCount && col.ColumnName == "*" {
 		if col.Alias != "" {
@@ -280,50 +248,23 @@ func createBtqlSelectCol(tableConfig *sm.TableConfig, selectedColumn types.Selec
 	if err != nil {
 		return "", err
 	}
-	if selectedColumn.Alias != "" {
-		c, err := processAsColumn(selectedColumn, col, isGroupBy)
+	var sql string
+	if isGroupBy {
+		sql, err = CastScalarColumn(col)
 		if err != nil {
 			return "", err
 		}
-		return c, nil
-	}
-	c, err := processRegularColumn(selectedColumn, col)
-	if err != nil {
-		return "", err
-	}
-	return c, nil
-}
-
-func processAsColumn(selectedColumn types.SelectedColumn, column *types.Column, isGroupBy bool) (string, error) {
-	var columnFamily types.ColumnFamily
-	if !column.CQLType.IsCollection() {
-		var columnName = selectedColumn.Sql
-		if column.CQLType == types.TypeCounter {
-			// counters are stored as counter_col['']
-			columnFamily = column.ColumnFamily
-			columnName = ""
-		}
-		if isGroupBy {
-			castedCol, err := CastScalarColumn(column)
-			if err != nil {
-				return "", err
-			}
-			return castedCol + " as " + selectedColumn.Alias, nil
-		} else if column.IsPrimaryKey {
-			return fmt.Sprintf("%s as %s", columnName, selectedColumn.Alias), nil
-		} else {
-			return fmt.Sprintf("%s['%s'] as %s", columnFamily, columnName, selectedColumn.Alias), nil
-		}
 	} else {
-		if column.CQLType.DataType().GetDataTypeCode() == primitive.DataTypeCodeList {
-			return fmt.Sprintf("MAP_VALUES(%s) as %s", selectedColumn.Sql, selectedColumn.Alias), nil
-		} else {
-			if selectedColumn.MapKey != "" {
-				return fmt.Sprintf("%s['%s'] as %s", selectedColumn.ColumnName, selectedColumn.MapKey, selectedColumn.Alias), nil
-			}
-			return fmt.Sprintf("`%s` as %s", selectedColumn.Sql, selectedColumn.Alias), nil
+		sql, err = processRegularColumn(selectedColumn, col)
+		if err != nil {
+			return "", err
 		}
 	}
+
+	if selectedColumn.Alias != "" {
+		sql = fmt.Sprintf("%s as %s", sql, selectedColumn.Alias)
+	}
+	return sql, nil
 }
 
 /*

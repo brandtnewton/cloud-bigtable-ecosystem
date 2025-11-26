@@ -101,6 +101,7 @@ func TestCqlshCreateTable(t *testing.T) {
 	require.NoError(t, err)
 
 	results, err := cqlshScanToMap(`SELECT id AS i, username AS u, is_admin FROM bigtabledevinstance.cqlsh_create_table_test WHERE id='u1'`)
+	require.NoError(t, err)
 	assert.Equal(t, []map[string]string{{"i": "u1", "u": "admin", "is_admin": "False"}}, results)
 }
 

@@ -86,7 +86,7 @@ type BigTableClientIface interface {
 	DropTable(ctx context.Context, data *types.DropTableQuery) error
 	UpdateRow(ctx context.Context, input *types.BigtableWriteMutation) (*message.RowsResult, error)
 	PrepareStatement(ctx context.Context, query types.IPreparedQuery) (*bigtable.PreparedStatement, error)
-	ExecutePreparedStatement(ctx context.Context, query *types.BoundSelectQuery) (*message.RowsResult, error)
+	ExecutePreparedStatement(ctx context.Context, query *types.ExecutableSelectQuery) (*message.RowsResult, error)
 	// Functions realted to updating the intance properties.
 	LoadConfigs(schemaConfig *schemaMapping.SchemaMappingConfig)
 }
@@ -119,7 +119,7 @@ func (btc *BigtableClient) Execute(ctx context.Context, query types.IExecutableQ
 		return btc.DeleteRow(ctx, q)
 	case *types.BigtableWriteMutation:
 		return btc.mutateRow(ctx, q)
-	case *types.BoundSelectQuery:
+	case *types.ExecutableSelectQuery:
 		return btc.ExecutePreparedStatement(ctx, q)
 	case *types.CreateTableStatementMap:
 		err := btc.CreateTable(ctx, q)

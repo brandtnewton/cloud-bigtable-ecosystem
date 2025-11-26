@@ -5,7 +5,7 @@ import (
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/global/types"
 )
 
-func (e *InMemEngine) Execute(query *types.BoundSelectQuery) ([]types.GoRow, error) {
+func (e *InMemEngine) Execute(query *types.ExecutableSelectQuery) ([]types.GoRow, error) {
 	data, err := e.GetTable(query.Keyspace(), query.Table())
 	if err != nil {
 		return nil, err

@@ -1263,7 +1263,7 @@ func TestHandleExecuteForSelect(t *testing.T) {
 	bigTablemockiface := new(mockbigtable.BigTableClientIface)
 
 	// PrepareStatement mock
-	bigTablemockiface.On("PrepareStatement", ctx, mock.AnythingOfType("responsehandler.BoundSelectQuery")).
+	bigTablemockiface.On("PrepareStatement", ctx, mock.AnythingOfType("responsehandler.ExecutableSelectQuery")).
 		Return(preparedStatement, nil)
 
 	client := client{

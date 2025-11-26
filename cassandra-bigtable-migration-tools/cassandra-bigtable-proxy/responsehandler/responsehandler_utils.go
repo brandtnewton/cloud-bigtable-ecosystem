@@ -40,7 +40,7 @@ func selectedColumnsToMetadata(keyspace types.Keyspace, table types.TableName, c
 	return resultColumns
 }
 
-func BuildRowsResultResponse(st *types.BoundSelectQuery, rows []types.GoRow, pv primitive.ProtocolVersion) (*message.RowsResult, error) {
+func BuildRowsResultResponse(st *types.ExecutableSelectQuery, rows []types.GoRow, pv primitive.ProtocolVersion) (*message.RowsResult, error) {
 	var outputRows []message.Row
 	for _, row := range rows {
 		var outputRow []message.Column

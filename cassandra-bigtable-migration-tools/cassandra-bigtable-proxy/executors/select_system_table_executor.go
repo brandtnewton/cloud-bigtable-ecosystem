@@ -24,7 +24,7 @@ func (d *selectSystemTableExecutor) CanRun(q types.IExecutableQuery) bool {
 }
 
 func (d *selectSystemTableExecutor) Execute(_ context.Context, c types.ICassandraClient, q types.IExecutableQuery) (message.Message, error) {
-	query, ok := q.(*types.BoundSelectQuery)
+	query, ok := q.(*types.ExecutableSelectQuery)
 	if !ok {
 		return nil, fmt.Errorf("unsupported query")
 	}

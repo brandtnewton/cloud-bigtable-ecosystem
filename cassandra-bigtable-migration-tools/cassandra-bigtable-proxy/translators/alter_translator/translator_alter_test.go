@@ -89,7 +89,7 @@ func TestTranslateAlterTableToBigtable(t *testing.T) {
 			query:           "ALTER TABLE user_info ADD firstname text",
 			tableConfig:     userInfoTable,
 			want:            nil,
-			error:           "missing keyspace. keyspace is required",
+			error:           "no keyspace specified",
 			defaultKeyspace: "",
 		},
 		{
@@ -97,7 +97,7 @@ func TestTranslateAlterTableToBigtable(t *testing.T) {
 			query:           "ALTER TABLE . ADD firstname text",
 			tableConfig:     userInfoTable,
 			want:            nil,
-			error:           "error while parsing alter statement",
+			error:           "invalid input parameters found for table",
 			defaultKeyspace: "test_keyspace",
 		},
 		{
@@ -169,7 +169,7 @@ func TestTranslateAlterTableToBigtable(t *testing.T) {
 			query:           "ALTER TABLE user_info DROP email",
 			tableConfig:     userInfoTable,
 			want:            nil,
-			error:           "missing keyspace. keyspace is required",
+			error:           "no keyspace specified",
 			defaultKeyspace: "",
 		},
 		{
@@ -201,7 +201,7 @@ func TestTranslateAlterTableToBigtable(t *testing.T) {
 			query:           "ALTER TABLE user_info DROP firstname, lastname",
 			tableConfig:     userInfoTable,
 			want:            nil,
-			error:           "missing keyspace. keyspace is required",
+			error:           "no keyspace specified",
 			defaultKeyspace: "",
 		},
 		{
@@ -261,15 +261,17 @@ func TestTranslateAlterTableToBigtable(t *testing.T) {
 			tr := NewAlterTranslator(smc)
 			p := utilities.NewParser(tt.query)
 			query := types.NewRawQuery(nil, tt.defaultKeyspace, tt.query, p, types.QueryTypeAlter)
-			got, err := tr.Translate(query, tt.defaultKeyspace, false)
+			got, err := tr.Translate(query, tt.defaultKeyspace)
 			if tt.error != "" {
 				require.Error(t, err)
 				assert.Equal(t, tt.error, err.Error())
+				return
 			} else {
 				require.NoError(t, err)
 			}
-			gotAlter, ok := got.(*types.AlterTableStatementMap)
-			require.Truef(t, ok, "wrong query type")
+			require.NotNil(t, got)
+			require.IsType(t, &types.AlterTableStatementMap{}, got)
+			gotAlter := got.(*types.AlterTableStatementMap)
 			assert.Equal(t, tt.want.table, gotAlter.Table())
 			assert.Equal(t, tt.want.keyspace, gotAlter.Keyspace())
 			assert.Equal(t, tt.want.ifNotExists, gotAlter.IfNotExists)

@@ -710,11 +710,11 @@ func encodeTimestampForBigtable(value interface{}) (types.BigtableValue, error) 
 }
 
 func ParseTableSpec(tableSpec cql.ITableSpecContext, sessionKeyspace types.Keyspace, config *schemaMapping.SchemaMappingConfig) (types.Keyspace, types.TableName, error) {
-	if tableSpec == nil || tableSpec.Table() == nil {
+	if tableSpec == nil || tableSpec.Table() == nil || tableSpec.Table().OBJECT_NAME() == nil {
 		return "", "", errors.New("invalid input parameters found for table")
 	}
 
-	tableNameString := tableSpec.Table().GetText()
+	tableNameString := tableSpec.Table().OBJECT_NAME().GetText()
 	if !IsValidIdentifier(tableNameString) {
 		return "", "", errors.New("invalid table name parsed from query")
 	}

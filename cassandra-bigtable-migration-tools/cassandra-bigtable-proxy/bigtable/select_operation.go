@@ -40,7 +40,7 @@ import (
 //   - *message.RowsResult: The result of the select statement.
 //   - time.Duration: The total elapsed time for the operation.
 //   - error: Error if the statement preparation or execution fails.
-func (btc *BigtableClient) ExecutePreparedStatement(ctx context.Context, query *types.BoundSelectQuery) (*message.RowsResult, error) {
+func (btc *BigtableClient) ExecutePreparedStatement(ctx context.Context, query *types.ExecutableSelectQuery) (*message.RowsResult, error) {
 	if query.CachedBTPrepare == nil {
 		return nil, fmt.Errorf("cannot execute select query because prepared bigtable query is nil")
 	}
@@ -75,7 +75,7 @@ func (btc *BigtableClient) ExecutePreparedStatement(ctx context.Context, query *
 	return responsehandler.BuildRowsResultResponse(query, rows, query.ProtocolVersion)
 }
 
-func (btc *BigtableClient) convertResultRow(resultRow bigtable.ResultRow, query *types.BoundSelectQuery) (types.GoRow, error) {
+func (btc *BigtableClient) convertResultRow(resultRow bigtable.ResultRow, query *types.ExecutableSelectQuery) (types.GoRow, error) {
 	table, err := btc.SchemaMappingConfig.GetTableConfig(query.Keyspace(), query.Table())
 	if err != nil {
 		return nil, err

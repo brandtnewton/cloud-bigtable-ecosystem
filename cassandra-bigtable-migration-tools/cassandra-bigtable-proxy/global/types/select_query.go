@@ -146,7 +146,7 @@ func (p *PreparedSelectQuery) CqlQuery() string {
 	return p.cqlQuery
 }
 
-type BoundSelectQuery struct {
+type ExecutableSelectQuery struct {
 	keyspace             Keyspace
 	table                TableName
 	cqlQuery             string
@@ -161,8 +161,8 @@ type BoundSelectQuery struct {
 	Values               *QueryParameterValues
 }
 
-func NewBoundSelectQuery(query *PreparedSelectQuery, protocolVersion primitive.ProtocolVersion, values *QueryParameterValues) *BoundSelectQuery {
-	return &BoundSelectQuery{
+func NewExecutableSelectQuery(query *PreparedSelectQuery, protocolVersion primitive.ProtocolVersion, values *QueryParameterValues) *ExecutableSelectQuery {
+	return &ExecutableSelectQuery{
 		keyspace:             query.keyspace,
 		table:                query.table,
 		cqlQuery:             query.cqlQuery,
@@ -178,26 +178,26 @@ func NewBoundSelectQuery(query *PreparedSelectQuery, protocolVersion primitive.P
 	}
 }
 
-func (b *BoundSelectQuery) CqlQuery() string {
+func (b *ExecutableSelectQuery) CqlQuery() string {
 	return b.cqlQuery
 }
 
-func (b *BoundSelectQuery) BigtableQuery() string {
+func (b *ExecutableSelectQuery) BigtableQuery() string {
 	return b.TranslatedQuery
 }
 
-func (b *BoundSelectQuery) AsBulkMutation() (IBigtableMutation, bool) {
+func (b *ExecutableSelectQuery) AsBulkMutation() (IBigtableMutation, bool) {
 	return nil, false
 }
 
-func (b *BoundSelectQuery) QueryType() QueryType {
+func (b *ExecutableSelectQuery) QueryType() QueryType {
 	return QueryTypeSelect
 }
 
-func (b *BoundSelectQuery) Keyspace() Keyspace {
+func (b *ExecutableSelectQuery) Keyspace() Keyspace {
 	return b.keyspace
 }
 
-func (b *BoundSelectQuery) Table() TableName {
+func (b *ExecutableSelectQuery) Table() TableName {
 	return b.table
 }

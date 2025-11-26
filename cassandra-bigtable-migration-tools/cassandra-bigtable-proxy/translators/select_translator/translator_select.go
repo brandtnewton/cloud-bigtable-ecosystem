@@ -99,6 +99,6 @@ func (t *SelectTranslator) Bind(st types.IPreparedQuery, values *types.QueryPara
 			return nil, fmt.Errorf("LIMIT must be strictly positive")
 		}
 	}
-	query := types.NewBoundSelectQuery(sst, pv, values)
+	query := types.NewExecutableSelectQuery(sst, pv, values)
 	return query, nil
 }

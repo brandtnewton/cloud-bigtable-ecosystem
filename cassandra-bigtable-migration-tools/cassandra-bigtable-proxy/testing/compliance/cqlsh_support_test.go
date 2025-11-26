@@ -112,7 +112,7 @@ func TestCqlshUseKeyspace(t *testing.T) {
 	_, err := cqlshExec(`SELECT * FROM user_info LIMIT 1`)
 	require.Error(t, err)
 	if testTarget == TestTargetProxy {
-		assert.Contains(t, err.Error(), "missing keyspace")
+		assert.Contains(t, err.Error(), "no keyspace specified")
 	}
 
 	// setting the keyspace should allow subsequent queries to omit keyspace because it's now set on the client session

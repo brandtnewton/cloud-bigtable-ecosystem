@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/third_party/datastax/proxycore"
 	"regexp"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -550,6 +551,22 @@ func StringToGo(value string, cqlType types.CqlDataType) (types.GoValue, error) 
 
 	}
 	return iv, nil
+}
+
+func CreateKeyOrderedValueSlice[T any](data map[string]T) []T {
+	keys := make([]string, 0, len(data))
+	for k := range data {
+		keys = append(keys, k)
+	}
+
+	sort.Strings(keys)
+
+	result := make([]T, 0, len(keys))
+	for _, k := range keys {
+		result = append(result, data[k])
+	}
+
+	return result
 }
 
 var cqlTimestampFormats = []string{

@@ -121,12 +121,15 @@ func TestSelectStarWithAllDatatypes(t *testing.T) {
 	birthDate := time.UnixMicro(1672531200000)
 	ts1 := time.UnixMicro(1672531200000).UTC()
 
+	// use a long list to better expose any issues in results order
+	textList := []string{"item1", "item2", "item3", "item0", "item9", "item1.0", "item01", "item00", "item"}
+
 	// 2. Insert the comprehensive record
 	err := session.Query(`
 		INSERT INTO bigtabledevinstance.user_info (name, age, code, credited, balance, is_active, birth_date, zip_code, extra_info, tags, set_int, list_text, map_text_int, ts_text_map) 
 		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		"TestUserStar", int64(25), 101, 1000.50, float32(500.25), true, birthDate, int64(54321),
-		map[string]string{"key1": "value1"}, []string{"tag1", "tag2"}, []int{1, 2}, []string{"item1", "item2"},
+		map[string]string{"key1": "value1"}, []string{"tag1", "tag2"}, []int{1, 2}, textList,
 		map[string]int{"key1": 1}, map[time.Time]string{ts1: "value1"},
 	).Exec()
 	require.NoError(t, err, "Failed to insert the comprehensive record")
@@ -153,7 +156,7 @@ func TestSelectStarWithAllDatatypes(t *testing.T) {
 	assert.Equal(t, map[string]string{"key1": "value1"}, resultMap["extra_info"])
 	assert.ElementsMatch(t, []string{"tag1", "tag2"}, resultMap["tags"])
 	assert.ElementsMatch(t, []int{1, 2}, resultMap["set_int"])
-	assert.Equal(t, []string{"item1", "item2"}, resultMap["list_text"])
+	assert.Equal(t, textList, resultMap["list_text"])
 	assert.Equal(t, map[string]int{"key1": 1}, resultMap["map_text_int"])
 	assert.Equal(t, map[time.Time]string{ts1: "value1"}, resultMap["ts_text_map"])
 }

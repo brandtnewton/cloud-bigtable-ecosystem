@@ -64,12 +64,12 @@ func TestNegativeTruncateCases(t *testing.T) {
 		{
 			name:          "malformed truncate command",
 			query:         "TRUNCATE",
-			expectedError: "failed to parse table name",
+			expectedError: "parsing error",
 		},
 		{
 			name:          "malformed truncate command",
 			query:         "TRUNCATE TABLE ",
-			expectedError: "failed to parse table name",
+			expectedError: "parsing error",
 		},
 		{
 			name:          "truncate schema_mapping table",

@@ -129,6 +129,10 @@ func (btc *BigtableDmlClient) convertResultRow(resultRow bigtable.ResultRow, que
 			return nil, fmt.Errorf("result already set for column `%s`", key)
 		}
 
+		if key == "list_text" {
+			btc.Logger.Log(zap.InfoLevel, "list_text", zap.Any("value", val))
+		}
+
 		goValue, err := rowValueToGoValue(val, expectedType)
 		if err != nil {
 			return nil, fmt.Errorf("failed to convert result for '%s': %w", key, err)
@@ -162,14 +166,20 @@ func rowValueToGoValue(val any, expectedType types.CqlDataType) (types.GoValue, 
 	case map[string][]uint8:
 		if expectedType.Code() == types.LIST {
 			lt := expectedType.(*types.ListType)
-			var listValues []types.GoValue
-			for _, listElement := range v {
+			decodedMap := make(map[string]types.GoValue)
+			for k, listElement := range v {
+				key, err := decodeBase64(k)
+				if err != nil {
+					return nil, err
+				}
 				goVal, err := decodeBigtableCellValue(lt.ElementType(), listElement)
 				if err != nil {
 					return nil, err
 				}
-				listValues = append(listValues, goVal)
+				decodedMap[key] = goVal
 			}
+			// we need to sort the results by their decoded column qualifiers, to get the correct list order
+			listValues := utilities.CreateKeyOrderedValueSlice(decodedMap)
 			return listValues, nil
 		} else if expectedType.Code() == types.SET {
 			st := expectedType.(*types.SetType)

@@ -25,21 +25,6 @@ import (
 	"github.com/datastax/go-cassandra-native-protocol/primitive"
 )
 
-func selectedColumnsToMetadata(keyspace types.Keyspace, table types.TableName, columns []types.SelectedColumn) []*message.ColumnMetadata {
-	var resultColumns []*message.ColumnMetadata
-	for i, c := range columns {
-		var col = message.ColumnMetadata{
-			Keyspace: string(keyspace),
-			Table:    string(table),
-			Name:     string(c.ColumnName),
-			Index:    int32(i),
-			Type:     c.ResultType.DataType(),
-		}
-		resultColumns = append(resultColumns, &col)
-	}
-	return resultColumns
-}
-
 func BuildRowsResultResponse(st *types.ExecutableSelectQuery, rows []types.GoRow, pv primitive.ProtocolVersion) (*message.RowsResult, error) {
 	var outputRows []message.Row
 	for _, row := range rows {

@@ -17,795 +17,253 @@
 package insert_translator
 
 import (
-	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/bindings"
-	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/translators"
-	"reflect"
-	"testing"
-
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/global/types"
-	schemaMapping "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/schema-mapping"
-	cql "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/third_party/cqlparser"
-	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/utilities"
-	"github.com/antlr4-go/antlr/v4"
-	"github.com/datastax/go-cassandra-native-protocol/datatype"
-	"github.com/datastax/go-cassandra-native-protocol/message"
-	"github.com/datastax/go-cassandra-native-protocol/primitive"
+	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/parser"
+	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/testing/mockdata"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"go.uber.org/zap"
+	"testing
 )
 
-func parseInsertQuery(query string) cql.IInsertContext {
-	lexer := cql.NewCqlLexer(antlr.NewInputStream(query))
-	stream := antlr.NewCommonTokenStream(lexer, antlr.TokenDefaultChannel)
-	p := cql.NewCqlParser(stream)
-	insertObj := p.Insert()
-	insertObj.KwInto()
-	return insertObj
+type Want struct {
+	Keyspace      types.Keyspace
+	Table         types.TableName
+	IfNotExists   bool
+	Assignments   []types.Assignment
+	InitialValues map[types.Placeholder]types.GoValue
+	AllParams     []types.Placeholder
 }
 
-func Test_setParamsFromValues(t *testing.T) {
-	var protocalV primitive.ProtocolVersion = 4
-	response := make(map[string]interface{})
-	val, _ := bindings.encodeScalarForBigtable("Test", datatype.Varchar, protocalV)
-	specialCharVal, _ := bindings.encodeScalarForBigtable("#!@#$%^&*()_+", datatype.Varchar, protocalV)
-	response["name"] = val
-	specialCharResponse := make(map[string]interface{})
-	specialCharResponse["name"] = specialCharVal
-	var respValue []interface{}
-	var emptyRespValue []interface{}
-	respValue = append(respValue, val)
-	specialCharRespValue := []interface{}{specialCharVal}
-	unencrypted := make(map[string]interface{})
-	unencrypted["name"] = "Test"
-	unencryptedForSpecialChar := make(map[string]interface{})
-	unencryptedForSpecialChar["name"] = "#!@#$%^&*()_+"
-	type args struct {
-		input           cql.IInsertValuesSpecContext
-		columns         []*types.Column
-		schemaMapping   *schemaMapping.SchemaMappingConfig
-		protocolV       primitive.ProtocolVersion
-		isPreparedQuery bool
-	}
+func TestSelectTranslator_Translate(t *testing.T) {
 	tests := []struct {
-		name    string
-		args    args
-		want    map[string]interface{}
-		want1   []interface{}
-		want2   map[string]interface{}
-		wantErr bool
+		name            string
+		query           string
+		sessionKeyspace types.Keyspace
+		want            *Want
+		wantErr         string
 	}{
 		{
-			name: "success with special characters",
-			args: args{
-				input: parseInsertQuery("INSERT INTO xobani_derived.user_info ( name ) VALUES ('#!@#$%^&*()_+')").InsertValuesSpec(),
-				columns: []*types.Column{
-					{
-						Name:         "name",
-						ColumnFamily: "cf1",
-						CQLType:      utilities.ParseCqlTypeOrDie("varchar"),
-					},
+			name:  "success with prepared query",
+			query: "INSERT INTO test_keyspace.test_table (pk1, pk2) VALUES (?, ?)",
+			want: &Want{
+				Keyspace:    "test_keyspace",
+				Table:       "test_table",
+				IfNotExists: false,
+				Assignments: []types.Assignment{
+					types.NewComplexAssignmentSet(mockdata.GetColumnOrDie("test_keyspace", "test_table", "pk1"), "@value0"),
+					types.NewComplexAssignmentSet(mockdata.GetColumnOrDie("test_keyspace", "test_table", "pk2"), "@value1"),
 				},
-				schemaMapping:   translators.GetSchemaMappingConfig(types.OrderedCodeEncoding),
-				protocolV:       protocalV,
-				isPreparedQuery: false,
+				InitialValues: make(map[types.Placeholder]types.GoValue, 0),
+				AllParams: []types.Placeholder{
+					"@value0",
+					"@value1",
+				},
 			},
-			want:    specialCharResponse,
-			want1:   specialCharRespValue,
-			want2:   unencryptedForSpecialChar,
-			wantErr: false,
 		},
 		{
-			name: "success",
-			args: args{
-				input: parseInsertQuery("INSERT INTO xobani_derived.user_info ( name ) VALUES ('Test')").InsertValuesSpec(),
-				columns: []*types.Column{
-					{
-						Name:         "name",
-						ColumnFamily: "cf1",
-						CQLType:      utilities.ParseCqlTypeOrDie("varchar"),
-					},
+			name:  "success with prepared query and USING TIMESTAMP",
+			query: "INSERT INTO test_keyspace.test_table (pk2, col_blob, col_bool, list_text, col_int, col_bigint, pk1) VALUES (?, ?, ?, ?, ?, ?, ?) USING TIMESTAMP ?",
+			want: &Want{
+				Keyspace:    "test_keyspace",
+				Table:       "test_table",
+				IfNotExists: false,
+				Assignments: []types.Assignment{
+					types.NewComplexAssignmentSet(mockdata.GetColumnOrDie("test_keyspace", "test_table", "pk2"), "@value0"),
+					types.NewComplexAssignmentSet(mockdata.GetColumnOrDie("test_keyspace", "test_table", "col_blob"), "@value1"),
+					types.NewComplexAssignmentSet(mockdata.GetColumnOrDie("test_keyspace", "test_table", "col_bool"), "@value2"),
+					types.NewComplexAssignmentSet(mockdata.GetColumnOrDie("test_keyspace", "test_table", "list_text"), "@value3"),
+					types.NewComplexAssignmentSet(mockdata.GetColumnOrDie("test_keyspace", "test_table", "col_int"), "@value4"),
+					types.NewComplexAssignmentSet(mockdata.GetColumnOrDie("test_keyspace", "test_table", "col_bigint"), "@value5"),
+					types.NewComplexAssignmentSet(mockdata.GetColumnOrDie("test_keyspace", "test_table", "pk1"), "@value6"),
 				},
-				schemaMapping:   translators.GetSchemaMappingConfig(types.OrderedCodeEncoding),
-				protocolV:       protocalV,
-				isPreparedQuery: false,
+				InitialValues: make(map[types.Placeholder]types.GoValue, 0),
+				AllParams: []types.Placeholder{
+					"@value0",
+					"@value1",
+					"@value2",
+					"@value3",
+					"@value4",
+					"@value5",
+					"@value6",
+					types.UsingTimePlaceholder,
+				},
 			},
-			want:    response,
-			want1:   respValue,
-			want2:   unencrypted,
-			wantErr: false,
 		},
 		{
-			name: "success in prepare query",
-			args: args{
-				input: parseInsertQuery("INSERT INTO xobani_derived.user_info ( name ) VALUES ('?')").InsertValuesSpec(),
-				columns: []*types.Column{
-					{
-						Name:         "name",
-						ColumnFamily: "cf1",
-						CQLType:      utilities.ParseCqlTypeOrDie("varchar"),
-					},
+			name:  "success with adhoc query and USING TIMESTAMP",
+			query: "INSERT INTO test_keyspace.test_table (pk2, col_blob, col_bool, list_text, col_int, col_bigint, pk1) VALUES ('u123', '0x0000003', true, ['item1', 'item2', 'item1'], 3, 8242842848, 'org1') USING TIMESTAMP 234242424",
+			want: &Want{
+				Keyspace:    "test_keyspace",
+				Table:       "test_table",
+				IfNotExists: false,
+				Assignments: []types.Assignment{
+					types.NewComplexAssignmentSet(mockdata.GetColumnOrDie("test_keyspace", "test_table", "pk2"), "@value0"),
+					types.NewComplexAssignmentSet(mockdata.GetColumnOrDie("test_keyspace", "test_table", "col_blob"), "@value1"),
+					types.NewComplexAssignmentSet(mockdata.GetColumnOrDie("test_keyspace", "test_table", "col_bool"), "@value2"),
+					types.NewComplexAssignmentSet(mockdata.GetColumnOrDie("test_keyspace", "test_table", "list_text"), "@value3"),
+					types.NewComplexAssignmentSet(mockdata.GetColumnOrDie("test_keyspace", "test_table", "col_int"), "@value4"),
+					types.NewComplexAssignmentSet(mockdata.GetColumnOrDie("test_keyspace", "test_table", "col_bigint"), "@value5"),
+					types.NewComplexAssignmentSet(mockdata.GetColumnOrDie("test_keyspace", "test_table", "pk1"), "@value6"),
 				},
-				schemaMapping:   translators.GetSchemaMappingConfig(types.OrderedCodeEncoding),
-				protocolV:       protocalV,
-				isPreparedQuery: true,
+				InitialValues: map[types.Placeholder]types.GoValue{
+					"@value0":                  "u123",
+					"@value1":                  "0x0000003",
+					"@value2":                  true,
+					"@value3":                  []types.GoValue{"item1", "item2", "item1"},
+					"@value4":                  int32(3),
+					"@value5":                  int64(8242842848),
+					"@value6":                  "org1",
+					types.UsingTimePlaceholder: int64(234242424),
+				},
+				AllParams: []types.Placeholder{
+					"@value0",
+					"@value1",
+					"@value2",
+					"@value3",
+					"@value4",
+					"@value5",
+					"@value6",
+					types.UsingTimePlaceholder,
+				},
 			},
-			want:    make(map[string]interface{}),
-			want1:   emptyRespValue,
-			want2:   make(map[string]interface{}),
-			wantErr: false,
 		},
 		{
-			name: "failed",
-			args: args{
-				input: nil,
-				columns: []*types.Column{
-					{
-						Name:         "name",
-						ColumnFamily: "cf1",
-						CQLType:      utilities.ParseCqlTypeOrDie("varchar"),
-					},
+			name:  "session keyspace",
+			query: "INSERT INTO test_table (pk1, pk2) VALUES (?, ?)",
+			want: &Want{
+				Keyspace:    "test_keyspace",
+				Table:       "test_table",
+				IfNotExists: false,
+				Assignments: []types.Assignment{
+					types.NewComplexAssignmentSet(mockdata.GetColumnOrDie("test_keyspace", "test_table", "pk1"), "@value0"),
+					types.NewComplexAssignmentSet(mockdata.GetColumnOrDie("test_keyspace", "test_table", "pk2"), "@value1"),
 				},
-				schemaMapping:   translators.GetSchemaMappingConfig(types.OrderedCodeEncoding),
-				protocolV:       protocalV,
-				isPreparedQuery: false,
+				InitialValues: make(map[types.Placeholder]types.GoValue, 0),
+				AllParams: []types.Placeholder{
+					"@value0",
+					"@value1",
+				},
 			},
+			sessionKeyspace: "test_keyspace",
+		},
+		{
+			name:  "insert a map with special characters and key words",
+			query: "INSERT INTO test_keyspace.test_table (pk1, pk2, map_text_text) VALUES ('abc', 'pkval', {'foo': 'bar', 'key:': ':value', 'k}': '{v:k}'})",
+			want: &Want{
+				Table:    "test_table",
+				Keyspace: "test_keyspace",
+				Assignments: []types.Assignment{
+					types.NewComplexAssignmentSet(mockdata.GetColumnOrDie("test_keyspace", "test_table", "pk1"), "@value0"),
+					types.NewComplexAssignmentSet(mockdata.GetColumnOrDie("test_keyspace", "test_table", "pk2"), "@value1"),
+					types.NewComplexAssignmentSet(mockdata.GetColumnOrDie("test_keyspace", "test_table", "map_text_text"), "@value2"),
+				},
+				InitialValues: map[types.Placeholder]types.GoValue{
+					"@value0": "abc",
+					"@value1": "pkval",
+					"@value2": map[types.GoValue]types.GoValue{"foo": "bar", "key:": ":value", "k}": "{v:k}"},
+				},
+				AllParams: []types.Placeholder{
+					"@value0",
+					"@value1",
+					"@value2",
+				},
+			},
+		},
+		{
+			name:  "escaped single quotes",
+			query: "INSERT INTO test_keyspace.test_table (pk1, pk2, col_int) VALUES ('abc', 'pkva''l', 3)",
+			want: &Want{
+				Table:    "test_table",
+				Keyspace: "test_keyspace",
+				Assignments: []types.Assignment{
+					types.NewComplexAssignmentSet(mockdata.GetColumnOrDie("test_keyspace", "test_table", "pk1"), "@value0"),
+					types.NewComplexAssignmentSet(mockdata.GetColumnOrDie("test_keyspace", "test_table", "pk2"), "@value1"),
+					types.NewComplexAssignmentSet(mockdata.GetColumnOrDie("test_keyspace", "test_table", "col_int"), "@value2"),
+				},
+				InitialValues: map[types.Placeholder]types.GoValue{
+					"@value0": "abc",
+					"@value1": "pkva'l",
+					"@value2": int32(3),
+				},
+				AllParams: []types.Placeholder{
+					"@value0",
+					"@value1",
+					"@value2",
+				},
+			},
+		},
+		{
+			name:    "no keyspace",
+			query:   "INSERT INTO test_table (pk1, pk2, col_int) VALUES ('abc', 'pkva''l', 3)",
 			want:    nil,
-			want1:   nil,
-			want2:   nil,
-			wantErr: true,
+			wantErr: "no keyspace specified",
 		},
 		{
-			name: "failed",
-			args: args{
-				input: parseInsertQuery("INSERT INTO xobani_derived.user_info ( name ) VALUES").InsertValuesSpec(),
-				columns: []*types.Column{
-					{
-						Name:         "name",
-						ColumnFamily: "cf1",
-						CQLType:      utilities.ParseCqlTypeOrDie("varchar"),
-					},
-				},
-				schemaMapping:   translators.GetSchemaMappingConfig(types.OrderedCodeEncoding),
-				protocolV:       protocalV,
-				isPreparedQuery: false,
-			},
+			name:    "no such table",
+			query:   "INSERT INTO test_keyspace.no_such_table (pk1, pk2, col_int) VALUES ('abc', 'pkva''l', 3)",
 			want:    nil,
-			want1:   nil,
-			want2:   nil,
-			wantErr: true,
+			wantErr: "table 'no_such_table' does not exist",
 		},
 		{
-			name: "failed",
-			args: args{
-				input:           parseInsertQuery("INSERT INTO xobani_derived.user_info ( name ) VALUES").InsertValuesSpec(),
-				columns:         nil,
-				schemaMapping:   translators.GetSchemaMappingConfig(types.OrderedCodeEncoding),
-				protocolV:       protocalV,
-				isPreparedQuery: false,
-			},
-			want:    nil,
-			want1:   nil,
-			want2:   nil,
-			wantErr: true,
+			name:            "no such keyspace",
+			query:           "INSERT INTO no_such_keyspace.test_table (pk1, pk2, col_int) VALUES ('abc', 'pkva''l', 3)",
+			want:            nil,
+			wantErr:         "keyspace 'no_such_keyspace' does not exist",
+			sessionKeyspace: "test_keyspace",
 		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			tc, _ := tt.args.schemaMapping.GetTableConfig("test_keyspace", "user_info")
-			got, got1, got2, err := parseAdHocValues(tt.args.input, tt.args.columns, tc, tt.args.protocolV, tt.args.isPreparedQuery)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("parseAdHocValues() error = %v, wantErr %v", err, tt.wantErr)
-				return
-			}
-			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("parseAdHocValues() got = %v, wantNewColumns %v", got, tt.want)
-			}
-			if !reflect.DeepEqual(got1, tt.want1) {
-				t.Errorf("parseAdHocValues() got1 = %v, wantNewColumns %v", got1, tt.want1)
-			}
-			if !reflect.DeepEqual(got2, tt.want2) {
-				t.Errorf("parseAdHocValues() got2 = %v, wantNewColumns %v", got2, tt.want2)
-			}
-		})
-	}
-}
+		{
+			name:    "invalid query syntax (should error)",
+			query:   "INSERT INTO test_keyspace.test_table",
+			want:    nil,
+			wantErr: "parsing error",
+		},
+		{
+			name:    "invalid query syntax (should error)",
+			query:   "INSERT INTO test_keyspace.",
+			want:    nil,
+			wantErr: "parsing error",
+		},
 
-func formatValueUnsafe(t *testing.T, value string, cqlType datatype.DataType, protocolV primitive.ProtocolVersion) []byte {
-	result, err := bindings.encodeScalarForBigtable(value, cqlType, protocolV)
-	require.NoError(t, err)
-	return result
-}
-
-func TestTranslator_TranslateInsertQuerytoBigtable(t *testing.T) {
-	var protocolV primitive.ProtocolVersion = 4
-	type fields struct {
-		Logger              *zap.Logger
-		SchemaMappingConfig *schemaMapping.SchemaMappingConfig
-	}
-	type args struct {
-		queryStr        string
-		protocolV       primitive.ProtocolVersion
-		isPreparedQuery bool
-	}
-
-	// Define values and format them
-	textValue := "test-text"
-	blobValue := "0x0000000000000003"
-	booleanValue := "true"
-	timestampValue := "2024-08-12T12:34:56Z"
-	intValue := "123"
-	bigIntValue := "1234567890"
-	column10 := "column10"
-
-	formattedText, _ := bindings.encodeScalarForBigtable(textValue, datatype.Varchar, protocolV)
-	formattedBlob, _ := bindings.encodeScalarForBigtable(blobValue, datatype.Blob, protocolV)
-	formattedBoolean, _ := bindings.encodeScalarForBigtable(booleanValue, datatype.Boolean, protocolV)
-	formattedTimestamp, _ := bindings.encodeScalarForBigtable(timestampValue, datatype.Timestamp, protocolV)
-	formattedInt, _ := bindings.encodeScalarForBigtable(intValue, datatype.Int, protocolV)
-	formattedBigInt, _ := bindings.encodeScalarForBigtable(bigIntValue, datatype.Bigint, protocolV)
-	formattedcolumn10text, _ := bindings.encodeScalarForBigtable(column10, datatype.Varchar, protocolV)
-
-	values := []interface{}{
-		formattedBlob,
-		formattedBoolean,
-		formattedTimestamp,
-		formattedInt,
-		formattedBigInt,
-	}
-
-	response := map[string]interface{}{
-		"column1":  formattedText,
-		"column2":  formattedBlob,
-		"column3":  formattedBoolean,
-		"column5":  formattedTimestamp,
-		"column6":  formattedInt,
-		"column9":  formattedBigInt,
-		"column10": formattedcolumn10text,
-	}
-
-	query := "INSERT INTO test_keyspace.test_table (column1, column2, column3, column5, column6, column9, column10) VALUES ('" +
-		textValue + "', '" + blobValue + "', " + booleanValue + ", '" + timestampValue + "', " + intValue + ", " + bigIntValue + ", " + column10 + ")"
-
-	preparedQuery := "INSERT INTO test_keyspace.test_table (column1, column2, column3, column5, column6, column9, column10) VALUES ('?', '?', '?', '?', '?', '?', '?')"
-	// CqlQuery with USING TIMESTAMP
-	preparedQueryWithTimestamp := "INSERT INTO test_keyspace.test_table (column1, column2, column3, column5, column6, column9, column10) VALUES (?, ?, ?, ?, ?, ?, ?) USING TIMESTAMP ?"
-
-	tests := []struct {
-		name    string
-		fields  fields
-		args    args
-		want    *translators.PreparedInsertQuery
-		wantErr bool
-	}{{
-		name: "success with prepared query and USING TIMESTAMP",
-		args: args{
-			queryStr:        preparedQueryWithTimestamp,
-			protocolV:       protocolV,
-			isPreparedQuery: true,
-		},
-		fields: fields{
-			SchemaMappingConfig: translators.GetSchemaMappingConfig(types.OrderedCodeEncoding),
-		},
-		want: &translators.PreparedInsertQuery{
-			CqlQuery:  preparedQueryWithTimestamp,
-			QueryType: "INSERT",
-			Table:     "test_table",
-			Keyspace:  "test_keyspace",
-			Columns: []*types.Column{
-				{Name: "column1", ColumnFamily: "cf1", CQLType: utilities.ParseCqlTypeOrDie("varchar"), IsPrimaryKey: true},
-				{Name: "column2", ColumnFamily: "cf1", CQLType: utilities.ParseCqlTypeOrDie("blob"), IsPrimaryKey: false},
-				{Name: "column3", ColumnFamily: "cf1", CQLType: utilities.ParseCqlTypeOrDie("boolean"), IsPrimaryKey: false},
-				{Name: "column5", ColumnFamily: "cf1", CQLType: utilities.ParseCqlTypeOrDie("timestamp"), IsPrimaryKey: false},
-				{Name: "column6", ColumnFamily: "cf1", CQLType: utilities.ParseCqlTypeOrDie("int"), IsPrimaryKey: false},
-				{Name: "column9", ColumnFamily: "cf1", CQLType: utilities.ParseCqlTypeOrDie("bigint"), IsPrimaryKey: false},
-				{Name: "column10", ColumnFamily: "cf1", CQLType: utilities.ParseCqlTypeOrDie("varchar"), IsPrimaryKey: true},
-			},
-			Columns:     nil, // undefined because this is a prepared query
-			Params:      nil, // undefined because this is a prepared query
-			ParamKeys:   []string{"column1", "column2", "column3", "column5", "column6", "column9", "column10"},
-			PrimaryKeys: []string{"column1", "column10"},
-			RowKey:      "", // undefined because this is a prepared query
-			TimestampInfo: TimestampInfo{
-				Timestamp:         0,
-				HasUsingTimestamp: true,
-				Index:             7,
-			}, // Should include the custom timestamp parameter
-		},
-		wantErr: false,
-	},
 		{
-			name: "success with prepared query",
-			args: args{
-				queryStr:        preparedQuery,
-				protocolV:       protocolV,
-				isPreparedQuery: true,
-			},
-			fields: fields{
-				SchemaMappingConfig: translators.GetSchemaMappingConfig(types.OrderedCodeEncoding),
-			},
-			want: &translators.PreparedInsertQuery{
-				CqlQuery:  preparedQuery,
-				QueryType: "INSERT",
-				Table:     "test_table",
-				Keyspace:  "test_keyspace",
-				Columns: []*types.Column{
-					{Name: "column1", ColumnFamily: "cf1", CQLType: utilities.ParseCqlTypeOrDie("varchar"), IsPrimaryKey: true},
-					{Name: "column2", ColumnFamily: "cf1", CQLType: utilities.ParseCqlTypeOrDie("blob"), IsPrimaryKey: false},
-					{Name: "column3", ColumnFamily: "cf1", CQLType: utilities.ParseCqlTypeOrDie("boolean"), IsPrimaryKey: false},
-					{Name: "column5", ColumnFamily: "cf1", CQLType: utilities.ParseCqlTypeOrDie("timestamp"), IsPrimaryKey: false},
-					{Name: "column6", ColumnFamily: "cf1", CQLType: utilities.ParseCqlTypeOrDie("int"), IsPrimaryKey: false},
-					{Name: "column9", ColumnFamily: "cf1", CQLType: utilities.ParseCqlTypeOrDie("bigint"), IsPrimaryKey: false},
-					{Name: "column10", ColumnFamily: "cf1", CQLType: utilities.ParseCqlTypeOrDie("varchar"), IsPrimaryKey: true},
-				},
-				Columns:     nil, // undefined because this is a prepared query
-				Params:      nil, // undefined because this is a prepared query
-				ParamKeys:   []string{"column1", "column2", "column3", "column5", "column6", "column9", "column10"},
-				PrimaryKeys: []string{"column1", "column10"}, // assuming column1 and column10 are primary keys
-				RowKey:      "",                              // assuming row key format
-			},
-			wantErr: false,
-		},
-		{
-			name: "success",
-			args: args{
-				queryStr:        query,
-				protocolV:       protocolV,
-				isPreparedQuery: false,
-			},
-			fields: fields{
-				SchemaMappingConfig: translators.GetSchemaMappingConfig(types.OrderedCodeEncoding),
-			},
-			want: &translators.PreparedInsertQuery{
-				CqlQuery:  query,
-				QueryType: "INSERT",
-				Table:     "test_table",
-				Keyspace:  "test_keyspace",
-				Columns: []*types.Column{
-					{Name: "column2", ColumnFamily: "cf1", CQLType: utilities.ParseCqlTypeOrDie("blob"), IsPrimaryKey: false},
-					{Name: "column3", ColumnFamily: "cf1", CQLType: utilities.ParseCqlTypeOrDie("boolean"), IsPrimaryKey: false},
-					{Name: "column5", ColumnFamily: "cf1", CQLType: utilities.ParseCqlTypeOrDie("timestamp"), IsPrimaryKey: false},
-					{Name: "column6", ColumnFamily: "cf1", CQLType: utilities.ParseCqlTypeOrDie("int"), IsPrimaryKey: false},
-					{Name: "column9", ColumnFamily: "cf1", CQLType: utilities.ParseCqlTypeOrDie("bigint"), IsPrimaryKey: false},
-				},
-				Columns:     values,
-				Params:      response,
-				ParamKeys:   []string{"column1", "column2", "column3", "column5", "column6", "column9", "column10"},
-				PrimaryKeys: []string{"column1", "column10"}, // assuming column1 and column10 are primary keys
-				RowKey:      "test-text\x00\x01column10",     // assuming row key format
-			},
-			wantErr: false,
-		},
-		{
-			name: "with keyspace in query, without default keyspace",
-			args: args{
-				queryStr:        "INSERT INTO test_keyspace.test_table (column1, column10) VALUES ('abc', 'pkval')",
-				protocolV:       protocolV,
-				isPreparedQuery: false,
-			},
-			fields: fields{
-				SchemaMappingConfig: translators.GetSchemaMappingConfig(types.OrderedCodeEncoding),
-			},
-			want: &translators.PreparedInsertQuery{
-				CqlQuery:  "INSERT INTO test_keyspace.test_table (column1, column10) VALUES ('abc', 'pkval')",
-				QueryType: "INSERT",
-				Table:     "test_table",
-				Keyspace:  "test_keyspace",
-				Params: map[string]interface{}{
-					"column1":  []byte("abc"),
-					"column10": []byte("pkval"),
-				},
-				PrimaryKeys: []string{"column1", "column10"},
-				ParamKeys:   []string{"column1", "column10"},
-				RowKey:      "abc\x00\x01pkval",
-			},
-			wantErr: false,
-		},
-		{
-			name: "insert a map with special characters",
-			args: args{
-				queryStr:        "INSERT INTO test_keyspace.test_table (column1, column10, map_text_text) VALUES ('abc', 'pkval', {'foo': 'bar', 'key:': ':value', 'k}': '{v:k}'})",
-				protocolV:       protocolV,
-				isPreparedQuery: false,
-			},
-			fields: fields{
-				SchemaMappingConfig: translators.GetSchemaMappingConfig(types.OrderedCodeEncoding),
-			},
-			want: &translators.PreparedInsertQuery{
-				CqlQuery:  "INSERT INTO test_keyspace.test_table (column1, column10, map_text_text) VALUES ('abc', 'pkval', {'foo': 'bar', 'key:': ':value', 'k}': '{v:k}'})",
-				QueryType: "INSERT",
-				Table:     "test_table",
-				Keyspace:  "test_keyspace",
-				Params: map[string]interface{}{
-					"column1":       []byte("abc"),
-					"column10":      []byte("pkval"),
-					"map_text_text": map[string]string{"foo": "bar", "key:": ":value", "k}": "{v:k}"},
-				},
-				Columns: []*types.Column{
-					{
-						Name:         "foo",
-						ColumnFamily: "map_text_text",
-						CQLType:      utilities.ParseCqlTypeOrDie("varchar"),
-					},
-					{
-						Name:         "key:",
-						ColumnFamily: "map_text_text",
-						CQLType:      utilities.ParseCqlTypeOrDie("varchar"),
-					},
-					{
-						Name:         "k}",
-						ColumnFamily: "map_text_text",
-						CQLType:      utilities.ParseCqlTypeOrDie("varchar"),
-					},
-				},
-				Columns: []interface{}{
-					formatValueUnsafe(t, "bar", datatype.Varchar, primitive.ProtocolVersion4),
-					formatValueUnsafe(t, ":value", datatype.Varchar, primitive.ProtocolVersion4),
-					formatValueUnsafe(t, "{v:k}", datatype.Varchar, primitive.ProtocolVersion4),
-				},
-				DeleteColumnFamilies: []string{
-					"map_text_text",
-				},
-				PrimaryKeys: []string{"column1", "column10"},
-				ParamKeys:   []string{"column1", "column10", "map_text_text"},
-				RowKey:      "abc\x00\x01pkval",
-			},
-			wantErr: false,
-		},
-		{
-			name: "with keyspace in query, with default keyspace",
-			args: args{
-				queryStr:        "INSERT INTO test_keyspace.test_table (column1, column10) VALUES ('abc', 'pkval')",
-				protocolV:       protocolV,
-				isPreparedQuery: false,
-			},
-			fields: fields{
-				SchemaMappingConfig: translators.GetSchemaMappingConfig(types.OrderedCodeEncoding),
-			},
-			want: &translators.PreparedInsertQuery{
-				CqlQuery:  "INSERT INTO test_keyspace.test_table (column1, column10) VALUES ('abc', 'pkval')",
-				QueryType: "INSERT",
-				Table:     "test_table",
-				Keyspace:  "test_keyspace",
-				Params: map[string]interface{}{
-					"column1":  []byte("abc"),
-					"column10": []byte("pkval"),
-				},
-				Columns:     nil,
-				PrimaryKeys: []string{"column1", "column10"},
-				ParamKeys:   []string{"column1", "column10"},
-				RowKey:      "abc\x00\x01pkval",
-			},
-			wantErr: false,
-		},
-		{
-			name: "with double single quotes in a literal",
-			args: args{
-				queryStr:        "INSERT INTO test_keyspace.test_table (column1, column10, text_col) VALUES ('abc', 'pkval''s', 'text''s')",
-				protocolV:       protocolV,
-				isPreparedQuery: false,
-			},
-			fields: fields{
-				SchemaMappingConfig: translators.GetSchemaMappingConfig(types.OrderedCodeEncoding),
-			},
-			want: &translators.PreparedInsertQuery{
-				CqlQuery:  "INSERT INTO test_keyspace.test_table (column1, column10, text_col) VALUES ('abc', 'pkval''s', 'text''s')",
-				QueryType: "INSERT",
-				Table:     "test_table",
-				Keyspace:  "test_keyspace",
-				Params: map[string]interface{}{
-					"column1":  []byte("abc"),
-					"column10": []byte("pkval's"),
-					"text_col": []byte("text's"),
-				},
-				Columns: []*types.Column{
-					{
-						Name:         "text_col",
-						ColumnFamily: "cf1",
-						CQLType:      utilities.ParseCqlTypeOrDie("varchar"),
-					},
-				},
-				Columns: []interface{}{
-					formatValueUnsafe(t, "text's", datatype.Varchar, primitive.ProtocolVersion4),
-				},
-				PrimaryKeys: []string{"column1", "column10"},
-				ParamKeys:   []string{"column1", "column10", "text_col"},
-				RowKey:      "abc\x00\x01pkval's",
-			},
-			wantErr: false,
-		},
-		{
-			name: "with empty key value",
-			args: args{
-				queryStr:        "INSERT INTO test_keyspace.test_table (column1, column10, text_col) VALUES ('', 'pkval''s', 'text''s')",
-				protocolV:       protocolV,
-				isPreparedQuery: false,
-			},
-			fields: fields{
-				SchemaMappingConfig: translators.GetSchemaMappingConfig(types.OrderedCodeEncoding),
-			},
-			want: &translators.PreparedInsertQuery{
-				CqlQuery:  "INSERT INTO test_keyspace.test_table (column1, column10, text_col) VALUES ('', 'pkval''s', 'text''s')",
-				QueryType: "INSERT",
-				Table:     "test_table",
-				Keyspace:  "test_keyspace",
-				Params: map[string]interface{}{
-					"column1":  []byte(""),
-					"column10": []byte("pkval's"),
-					"text_col": []byte("text's"),
-				},
-				Columns: []*types.Column{
-					{
-						Name:         "text_col",
-						ColumnFamily: "cf1",
-						CQLType:      utilities.ParseCqlTypeOrDie("varchar"),
-					},
-				},
-				Columns: []interface{}{
-					formatValueUnsafe(t, "text's", datatype.Varchar, primitive.ProtocolVersion4),
-				},
-				PrimaryKeys: []string{"column1", "column10"},
-				ParamKeys:   []string{"column1", "column10", "text_col"},
-				RowKey:      "\x00\x00\x00\x01pkval's",
-			},
-			wantErr: false,
-		},
-		{
-			name: "without keyspace in query, with default keyspace",
-			args: args{
-				queryStr:        "INSERT INTO test_table (column1, column10) VALUES ('abc', 'pkval')",
-				protocolV:       protocolV,
-				isPreparedQuery: false,
-			},
-			fields: fields{
-				SchemaMappingConfig: translators.GetSchemaMappingConfig(types.OrderedCodeEncoding),
-			},
-			want: &translators.PreparedInsertQuery{
-				CqlQuery:  "INSERT INTO test_table (column1, column10) VALUES ('abc', 'pkval')",
-				QueryType: "INSERT",
-				Table:     "test_table",
-				Keyspace:  "test_keyspace",
-				Params: map[string]interface{}{
-					"column1":  []byte("abc"),
-					"column10": []byte("pkval"),
-				},
-				PrimaryKeys: []string{"column1", "column10"},
-				ParamKeys:   []string{"column1", "column10"},
-				RowKey:      "abc\x00\x01pkval",
-			},
-			wantErr: false,
-		},
-		{
-			name: "without keyspace in query, without default keyspace (should error)",
-			args: args{
-				queryStr:        "INSERT INTO test_table (column1) VALUES ('abc')",
-				protocolV:       protocolV,
-				isPreparedQuery: false,
-			},
-			fields: fields{
-				SchemaMappingConfig: translators.GetSchemaMappingConfig(types.OrderedCodeEncoding),
-			},
+			name:    "invalid query syntax (should error)",
+			query:   "INSERT INTO .test_table",
 			want:    nil,
-			wantErr: true,
+			wantErr: "parsing error",
+		},
+
+		{
+			name:    "invalid query syntax (should error)",
+			query:   "INSERT INTO test_keyspace.test_table () VALUES ()",
+			want:    nil,
+			wantErr: "parsing error",
 		},
 		{
-			name: "invalid query syntax (should error)",
-			args: args{
-				queryStr:        "INSERT INTO test_keyspace.test_table",
-				protocolV:       protocolV,
-				isPreparedQuery: false,
-			},
-			fields: fields{
-				SchemaMappingConfig: translators.GetSchemaMappingConfig(types.OrderedCodeEncoding),
-			},
+			name:    "invalid query syntax (should error)",
+			query:   "INSERT INTO test_keyspace.test_table (col_ts, col_int, pk1) VALUES (?, ?,?)",
 			want:    nil,
-			wantErr: true,
-		},
-		{
-			name: "parser returns empty table (should error)",
-			args: args{
-				queryStr:        "INSERT INTO test_keyspace. VALUES ('abc')",
-				protocolV:       protocolV,
-				isPreparedQuery: false,
-			},
-			fields: fields{
-				SchemaMappingConfig: translators.GetSchemaMappingConfig(types.OrderedCodeEncoding),
-			},
-			want:    nil,
-			wantErr: true,
-		},
-		{
-			name: "parser returns empty keyspace (should error)",
-			args: args{
-				queryStr:        "INSERT INTO .test_table VALUES ('abc')",
-				protocolV:       protocolV,
-				isPreparedQuery: false,
-			},
-			fields: fields{
-				SchemaMappingConfig: translators.GetSchemaMappingConfig(types.OrderedCodeEncoding),
-			},
-			want:    nil,
-			wantErr: true,
-		},
-		{
-			name: "parser returns empty columns/values (should error)",
-			args: args{
-				queryStr:        "INSERT INTO test_keyspace.test_table () VALUES ()",
-				protocolV:       protocolV,
-				isPreparedQuery: false,
-			},
-			fields: fields{
-				SchemaMappingConfig: translators.GetSchemaMappingConfig(types.OrderedCodeEncoding),
-			},
-			want:    nil,
-			wantErr: true,
-		},
-		{
-			name: "keyspace does not exist (should error)",
-			args: args{
-				queryStr:        "INSERT INTO invalid_keyspace.test_table (column1) VALUES ('abc')",
-				protocolV:       protocolV,
-				isPreparedQuery: false,
-			},
-			fields: fields{
-				SchemaMappingConfig: translators.GetSchemaMappingConfig(types.OrderedCodeEncoding),
-			},
-			want:    nil,
-			wantErr: true,
-		},
-		{
-			name: "table does not exist (should error)",
-			args: args{
-				queryStr:        "INSERT INTO test_keyspace.invalid_table (column1) VALUES ('abc')",
-				protocolV:       protocolV,
-				isPreparedQuery: false,
-			},
-			fields: fields{
-				SchemaMappingConfig: translators.GetSchemaMappingConfig(types.OrderedCodeEncoding),
-			},
-			want:    nil,
-			wantErr: true,
+			wantErr: "missing primary key: 'pk2'",
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			tr := &translators.TranslatorManager{
-				Logger:              zap.NewNop(),
-				SchemaMappingConfig: tt.fields.SchemaMappingConfig,
-			}
-			got, err := tr.TranslateInsert(tt.args.queryStr, tt.args.protocolV, tt.args.isPreparedQuery, "test_keyspace")
-			if tt.wantErr {
+			tr := NewInsertTranslator(mockdata.GetSchemaMappingConfig())
+			got, err := tr.Translate(types.NewRawQuery(nil, tt.sessionKeyspace, tt.query, parser.NewParser(tt.query), types.QueryTypeDelete), tt.sessionKeyspace)
+
+			if tt.wantErr != "" {
 				require.Error(t, err)
+				assert.Contains(t, err.Error(), tt.wantErr)
 				return
 			}
 
 			require.NoError(t, err)
-			// order of Columns is not deterministic so compare separately
-			assert.ElementsMatch(t, tt.want.Columns, got.Columns)
-			got.Columns = tt.want.Columns
-			// order of Columns is not deterministic so compare separately
-			assert.ElementsMatch(t, tt.want.Columns, got.Columns)
-			got.Columns = tt.want.Columns
-			assert.Equal(t, tt.want, got)
-		})
-	}
-}
-
-func TestTranslator_BuildInsertPrepareQuery(t *testing.T) {
-	type fields struct {
-		Logger              *zap.Logger
-		SchemaMappingConfig *schemaMapping.SchemaMappingConfig
-	}
-	type args struct {
-		columnsResponse []*types.Column
-		values          []*primitive.Value
-		st              *translators.PreparedInsertQuery
-		protocolV       primitive.ProtocolVersion
-	}
-	tests := []struct {
-		name    string
-		fields  fields
-		args    args
-		want    *translators.PreparedInsertQuery
-		wantErr bool
-	}{
-		{
-			name: "Valid Input",
-			fields: fields{
-				Logger:              zap.NewNop(),
-				SchemaMappingConfig: translators.GetSchemaMappingConfig(types.OrderedCodeEncoding),
-			},
-			args: args{
-				columnsResponse: []*types.Column{
-					{
-						Name:         "pk_1_text",
-						ColumnFamily: "cf1",
-						CQLType:      utilities.ParseCqlTypeOrDie("varchar"),
-						IsPrimaryKey: true,
-					},
-				},
-				values: []*primitive.Value{
-					{Contents: []byte("")},
-				},
-				st: &translators.PreparedInsertQuery{
-					CqlQuery:    "INSERT INTO test_keyspace.non_primitive_table(pk_1_text) VALUES (?)",
-					QueryType:   "Insert",
-					Table:       "non_primitive_table",
-					Keyspace:    "test_keyspace",
-					PrimaryKeys: []string{"pk_1_text"},
-					RowKey:      "",
-					Columns: []*types.Column{
-						{
-							Name:         "pk_1_text",
-							ColumnFamily: "cf1",
-							CQLType:      utilities.ParseCqlTypeOrDie("varchar"),
-							IsPrimaryKey: true,
-						},
-					},
-					Params: map[string]interface{}{
-						"pk_1_text": &primitive.Value{Contents: []byte("123")},
-					},
-					ParamKeys:     []string{"pk_1_text"},
-					IfNotExists:   false,
-					TimestampInfo: TimestampInfo{},
-					VariableMetadata: []*message.ColumnMetadata{
-						{
-							Name: "pk_1_text",
-							Type: datatype.Varchar,
-						},
-					},
-				},
-				protocolV: 4,
-			},
-			want: &translators.PreparedInsertQuery{
-				CqlQuery:    "INSERT INTO test_keyspace.test_table(pk_1_text) VALUES (?)",
-				QueryType:   "Insert",
-				Table:       "test_table",
-				Keyspace:    "test_keyspace",
-				PrimaryKeys: []string{"pk_1_text"},
-				RowKey:      "",
-				Columns: []*types.Column{
-					{
-						Name:         "pk_1_text",
-						ColumnFamily: "cf1",
-						CQLType:      utilities.ParseCqlTypeOrDie("varchar"),
-						IsPrimaryKey: true,
-					},
-				},
-				Columns: []interface{}{
-					&primitive.Value{Contents: []byte("123")},
-				},
-				Params: map[string]interface{}{
-					"pk_1_text": &primitive.Value{Contents: []byte("123")},
-				},
-				ParamKeys:     []string{"pk_1_text"},
-				IfNotExists:   false,
-				TimestampInfo: TimestampInfo{},
-				VariableMetadata: []*message.ColumnMetadata{
-					{
-						Name: "pk_1_text",
-						Type: datatype.Varchar,
-					},
-				},
-			},
-			wantErr: false,
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			tr := &translators.TranslatorManager{
-				Logger:              tt.fields.Logger,
-				SchemaMappingConfig: tt.fields.SchemaMappingConfig,
-			}
-			got, err := tr.BindInsert(tt.args.columnsResponse, tt.args.values, tt.args.st, tt.args.protocolV)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("TranslatorManager.BindInsert() error = %v, wantErr %v", err, tt.wantErr)
-				return
-			}
-			if got.RowKey != tt.want.RowKey {
-				t.Errorf("TranslatorManager.BindInsert() RowKey = %v, wantNewColumns %v", got.RowKey, tt.want.RowKey)
-			}
+			gotInsert := got.(*types.PreparedInsertQuery)
+			assert.Equal(t, tt.want.Keyspace, gotInsert.Keyspace())
+			assert.Equal(t, tt.want.Table, gotInsert.Table())
+			assert.Equal(t, tt.want.IfNotExists, gotInsert.IfNotExists)
+			assert.Equal(t, tt.want.Assignments, gotInsert.Assignments)
+			assert.Equal(t, tt.want.InitialValues, gotInsert.InitialValues())
+			assert.Equal(t, tt.want.AllParams, gotInsert.Parameters().AllKeys())
 		})
 	}
 }

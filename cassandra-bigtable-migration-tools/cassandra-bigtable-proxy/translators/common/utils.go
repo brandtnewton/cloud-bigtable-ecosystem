@@ -457,7 +457,10 @@ func ParseCqlMapAssignment(m cql.IValueMapContext, dt types.CqlDataType) (map[ty
 }
 
 func ParseCqlSetAssignment(s cql.IValueSetContext, dt types.CqlDataType) ([]types.GoValue, error) {
-	st := dt.(*types.SetType)
+	st, ok := dt.(*types.SetType)
+	if !ok {
+		return nil, fmt.Errorf("cannot perform set assignment on column of type %s", dt.String())
+	}
 	var result []types.GoValue
 	all := s.AllConstant()
 	if len(all) == 0 {

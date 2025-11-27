@@ -19,25 +19,24 @@ package mockdata
 import (
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/global/types"
 	schemaMapping "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/schema-mapping"
-	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/utilities"
 	"log"
 )
 
 func GetSchemaMappingConfig() *schemaMapping.SchemaMappingConfig {
 	var (
 		testTableColumns = []*types.Column{
-			{Name: "column1", CQLType: utilities.ParseCqlTypeOrDie("varchar"), KeyType: types.KeyTypePartition, IsPrimaryKey: true, PkPrecedence: 1},
-			{Name: "column10", CQLType: utilities.ParseCqlTypeOrDie("varchar"), KeyType: types.KeyTypeClustering, IsPrimaryKey: true, PkPrecedence: 2},
+			{Name: "pk1", CQLType: types.TypeVarchar, KeyType: types.KeyTypePartition, IsPrimaryKey: true, PkPrecedence: 1},
+			{Name: "pk2", CQLType: types.TypeVarchar, KeyType: types.KeyTypeClustering, IsPrimaryKey: true, PkPrecedence: 2},
 			// Regular columns
-			{Name: "column2", CQLType: utilities.ParseCqlTypeOrDie("blob"), KeyType: types.KeyTypeRegular},
-			{Name: "column3", CQLType: utilities.ParseCqlTypeOrDie("boolean"), KeyType: types.KeyTypeRegular},
-			{Name: "column4", CQLType: utilities.ParseCqlTypeOrDie("list<text>"), KeyType: types.KeyTypeRegular},
-			{Name: "column5", CQLType: utilities.ParseCqlTypeOrDie("timestamp"), KeyType: types.KeyTypeRegular},
-			{Name: "column6", CQLType: utilities.ParseCqlTypeOrDie("int"), KeyType: types.KeyTypeRegular},
-			{Name: "column7", CQLType: utilities.ParseCqlTypeOrDie("set<text>"), KeyType: types.KeyTypeRegular},
-			{Name: "column8", CQLType: utilities.ParseCqlTypeOrDie("map<varchar,boolean>"), KeyType: types.KeyTypeRegular},
-			{Name: "column9", CQLType: utilities.ParseCqlTypeOrDie("bigint"), KeyType: types.KeyTypeRegular},
-			{Name: "column11", CQLType: utilities.ParseCqlTypeOrDie("set<text>"), KeyType: types.KeyTypeRegular},
+			{Name: "col_blob", CQLType: types.TypeBlob},
+			{Name: "col_bool", CQLType: types.TypeBoolean},
+			{Name: "list_text", CQLType: types.NewListType(types.TypeText)},
+			{Name: "col_ts", CQLType: types.TypeTimestamp},
+			{Name: "col_int", CQLType: types.TypeInt},
+			{Name: "col_bigint", CQLType: types.TypeBigint},
+			{Name: "set_text", CQLType: types.NewSetType(types.TypeText)},
+			{Name: "map_varchar_bool", CQLType: types.NewMapType(types.TypeVarchar, types.TypeBoolean)},
+			{Name: "map_text_text", CQLType: types.NewMapType(types.TypeText, types.TypeText)},
 		}
 
 		userInfoColumns = []*types.Column{

@@ -17,147 +17,143 @@
 package drop_translator
 
 import (
-	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/translators"
+	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/global/types"
+	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/parser"
+	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/testing/mockdata"
+	"github.com/stretchr/testify/require"
 	"testing"
 
-	schemaMapping "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/schema-mapping"
 	"github.com/stretchr/testify/assert"
-	"go.uber.org/zap"
 )
 
 func TestTranslateDropTableToBigtable(t *testing.T) {
+	type Want struct {
+		Keyspace types.Keyspace
+		Table    types.TableName
+		IfExists bool
+	}
+
 	var tests = []struct {
 		name            string
 		query           string
-		want            *translators.DropTableStatementMap
-		hasError        bool
-		defaultKeyspace string
+		want            *Want
+		error           string
+		defaultKeyspace types.Keyspace
 	}{
 
 		{
 			name:  "Drop table with explicit keyspace",
 			query: "DROP TABLE my_keyspace.my_table",
-			want: &translators.DropTableStatementMap{
-				Table:     "my_table",
-				Keyspace:  "my_keyspace",
-				QueryType: "drop",
-				IfExists:  false,
+			want: &Want{
+				Table:    "my_table",
+				Keyspace: "my_keyspace",
+				IfExists: false,
 			},
-			hasError:        false,
 			defaultKeyspace: "",
 		},
 		{
 			name:  "Drop table with IF EXISTS clause",
 			query: "DROP TABLE IF EXISTS my_keyspace.my_table",
-			want: &translators.DropTableStatementMap{
-				Table:     "my_table",
-				Keyspace:  "my_keyspace",
-				QueryType: "drop",
-				IfExists:  true,
+			want: &Want{
+				Table:    "my_table",
+				Keyspace: "my_keyspace",
+				IfExists: true,
 			},
-			hasError:        false,
 			defaultKeyspace: "",
 		},
 		{
 			name:  "Drop table with explicit keyspace and default keyspace",
 			query: "DROP TABLE my_keyspace.my_table;",
-			want: &translators.DropTableStatementMap{
-				Table:     "my_table",
-				Keyspace:  "my_keyspace",
-				QueryType: "drop",
-				IfExists:  false,
+			want: &Want{
+				Table:    "my_table",
+				Keyspace: "my_keyspace",
+				IfExists: false,
 			},
-			hasError:        false,
 			defaultKeyspace: "my_keyspace",
 		},
 		{
 			name:  "Drop table with default keyspace",
 			query: "DROP TABLE my_table",
-			want: &translators.DropTableStatementMap{
-				Table:     "my_table",
-				Keyspace:  "my_keyspace",
-				QueryType: "drop",
-				IfExists:  false,
+			want: &Want{
+				Table:    "my_table",
+				Keyspace: "my_keyspace",
+				IfExists: false,
 			},
-			hasError:        false,
 			defaultKeyspace: "my_keyspace",
 		},
 		{
 			name:            "Drop table without keyspace and no default keyspace",
 			query:           "DROP TABLE my_table",
 			want:            nil,
-			hasError:        true,
+			error:           "no keyspace specified",
 			defaultKeyspace: "",
 		},
 		{
 			name:  "Drop table without semicolon",
 			query: "DROP TABLE my_keyspace.my_table",
-			want: &translators.DropTableStatementMap{
-				Table:     "my_table",
-				Keyspace:  "my_keyspace",
-				QueryType: "drop",
-				IfExists:  false,
+			want: &Want{
+				Table:    "my_table",
+				Keyspace: "my_keyspace",
+				IfExists: false,
 			},
-			hasError:        false,
 			defaultKeyspace: "my_keyspace",
 		},
 		{
 			name:            "Drop table with empty table name",
 			query:           "DROP TABLE my_keyspace.;",
 			want:            nil,
-			hasError:        true,
+			error:           "parsing error",
 			defaultKeyspace: "my_keyspace",
 		},
 		{
 			name:            "Drop table with empty keyspace(Should return error as query syntax is not valid)",
 			query:           "DROP TABLE .my_table",
 			want:            nil,
-			hasError:        true,
+			error:           "parsing error",
 			defaultKeyspace: "my_keyspace",
 		},
 		{
 			name:  "IF EXISTS without keyspace, with default keyspace",
 			query: "DROP TABLE IF EXISTS my_table;",
-			want: &translators.DropTableStatementMap{
-				Table:     "my_table",
-				Keyspace:  "my_keyspace",
-				QueryType: "drop",
-				IfExists:  true,
+			want: &Want{
+				Table:    "my_table",
+				Keyspace: "my_keyspace",
+				IfExists: true,
 			},
-			hasError:        false,
 			defaultKeyspace: "my_keyspace",
 		},
 		{
 			name:            "IF EXISTS without keyspace, without default keyspace (should error)",
 			query:           "DROP TABLE IF EXISTS my_table",
 			want:            nil,
-			hasError:        true,
+			error:           "no keyspace specified",
 			defaultKeyspace: "",
 		},
 		{
 			name:            "completely invalid syntax (should error)",
 			query:           "DROP my_keyspace.my_table",
 			want:            nil,
-			hasError:        true,
+			error:           "parsing error",
 			defaultKeyspace: "my_keyspace",
 		},
 	}
 
-	tr := &translators.TranslatorManager{
-		Logger:              nil,
-		SchemaMappingConfig: schemaMapping.NewSchemaMappingConfig("schema_mapping", "cf1", zap.NewNop(), []*schemaMapping.TableConfig{}),
-	}
-
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := tr.TranslateDrop(tt.query, tt.defaultKeyspace)
-			if tt.hasError {
-				assert.Error(t, err)
-			} else {
-				assert.NoError(t, err)
+			tr := NewDropTranslator(mockdata.GetSchemaMappingConfig())
+			got, err := tr.Translate(types.NewRawQuery(nil, tt.defaultKeyspace, tt.query, parser.NewParser(tt.query), types.QueryTypeDelete), tt.defaultKeyspace)
+			if tt.error != "" {
+				require.Error(t, err)
+				assert.Contains(t, err.Error(), tt.error)
+				return
 			}
-			assert.True(t, (err != nil) == tt.hasError, tt.hasError)
-			assert.Equal(t, tt.want, got)
+
+			require.NoError(t, err)
+			gotDrop := got.(*types.DropTableQuery)
+			assert.Equal(t, tt.want.Keyspace, gotDrop.Keyspace())
+			assert.Equal(t, tt.want.Table, gotDrop.Table())
+			assert.Equal(t, tt.want.IfExists, gotDrop.IfExists)
+
 		})
 	}
 }

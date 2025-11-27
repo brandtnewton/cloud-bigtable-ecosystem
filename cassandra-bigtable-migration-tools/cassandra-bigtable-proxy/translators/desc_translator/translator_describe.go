@@ -23,21 +23,21 @@ func (t *DescTranslator) Translate(query *types.RawQuery, sessionKeyspace types.
 
 	var result types.IDescribeQueryVariant
 	if d.DescribeTargetKeyspaces() != nil { // "DESC KEYSPACES;"
-		result = types.NewDescribeKeyspacesQuery(query.RawCql())
+		result = types.NewDescribeKeyspacesQuery()
 	} else if d.DescribeTargetTables() != nil { // "DESC TABLES;"
-		result = types.NewDescribeTablesQuery(query.RawCql())
+		result = types.NewDescribeTablesQuery()
 	} else if d.DescribeTargetTable() != nil { // "DESC TABLE [$KEYSPACE.]$TABLE;"
 		keyspace, table, err := common.ParseTableSpec(d.DescribeTargetTable().TableSpec(), sessionKeyspace, t.schemaMappingConfig)
 		if err != nil {
 			return nil, err
 		}
-		result = types.NewDescribeTableQuery(query.RawCql(), keyspace, table)
+		result = types.NewDescribeTableQuery(keyspace, table)
 	} else if d.DescribeTargetKeyspace() != nil { // "DESC KEYSPACE $KEYSPACE;"
 		keyspace, err := common.ParseKeyspace(d.DescribeTargetKeyspace().Keyspace(), sessionKeyspace)
 		if err != nil {
 			return nil, err
 		}
-		result = types.NewDescribeKeyspaceQuery(query.RawCql(), keyspace)
+		result = types.NewDescribeKeyspaceQuery(keyspace)
 	} else {
 		return nil, errors.New("failed to parse describe query")
 	}

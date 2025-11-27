@@ -68,7 +68,7 @@ func NewTableConfig(
 			Type:     column.CQLType.DataType(),
 		}
 		columnMap[column.Name] = column
-		if column.KeyType != types.KeyTypeRegular {
+		if column.KeyType == types.KeyTypePartition || column.KeyType == types.KeyTypeClustering {
 			// this field is redundant - make sure it's in sync with other fields
 			column.IsPrimaryKey = true
 			pks = append(pks, column)

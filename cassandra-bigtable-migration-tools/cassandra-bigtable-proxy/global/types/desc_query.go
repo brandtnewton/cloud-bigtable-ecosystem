@@ -75,7 +75,6 @@ type IDescribeQueryVariant interface {
 }
 
 type DescribeKeyspacesQuery struct {
-	cqlQuery string
 }
 
 func (d DescribeKeyspacesQuery) isDescQuery() {
@@ -85,12 +84,11 @@ func (d DescribeKeyspacesQuery) Keyspace() Keyspace {
 	return ""
 }
 
-func NewDescribeKeyspacesQuery(cqlQuery string) IDescribeQueryVariant {
-	return &DescribeKeyspacesQuery{cqlQuery: cqlQuery}
+func NewDescribeKeyspacesQuery() IDescribeQueryVariant {
+	return &DescribeKeyspacesQuery{}
 }
 
 type DescribeTablesQuery struct {
-	cqlQuery string
 }
 
 func (d DescribeTablesQuery) isDescQuery() {
@@ -100,12 +98,11 @@ func (d DescribeTablesQuery) Keyspace() Keyspace {
 	return ""
 }
 
-func NewDescribeTablesQuery(cqlQuery string) IDescribeQueryVariant {
-	return &DescribeTablesQuery{cqlQuery: cqlQuery}
+func NewDescribeTablesQuery() IDescribeQueryVariant {
+	return &DescribeTablesQuery{}
 }
 
 type DescribeTableQuery struct {
-	cqlQuery string
 	keyspace Keyspace
 	table    TableName
 }
@@ -121,12 +118,11 @@ func (d DescribeTableQuery) Keyspace() Keyspace {
 	return d.keyspace
 }
 
-func NewDescribeTableQuery(cqlQuery string, keyspace Keyspace, table TableName) IDescribeQueryVariant {
-	return &DescribeTableQuery{cqlQuery: cqlQuery, keyspace: keyspace, table: table}
+func NewDescribeTableQuery(keyspace Keyspace, table TableName) IDescribeQueryVariant {
+	return &DescribeTableQuery{keyspace: keyspace, table: table}
 }
 
 type DescribeKeyspaceQuery struct {
-	cqlQuery string
 	keyspace Keyspace
 }
 
@@ -137,6 +133,6 @@ func (d DescribeKeyspaceQuery) Keyspace() Keyspace {
 	return d.keyspace
 }
 
-func NewDescribeKeyspaceQuery(cqlQuery string, keyspace Keyspace) IDescribeQueryVariant {
-	return &DescribeKeyspaceQuery{cqlQuery: cqlQuery, keyspace: keyspace}
+func NewDescribeKeyspaceQuery(keyspace Keyspace) IDescribeQueryVariant {
+	return &DescribeKeyspaceQuery{keyspace: keyspace}
 }

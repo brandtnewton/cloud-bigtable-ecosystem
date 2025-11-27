@@ -20,7 +20,6 @@ import (
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/global/types"
 	schemaMapping "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/schema-mapping"
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/utilities"
-	"go.uber.org/zap"
 	"log"
 )
 
@@ -44,6 +43,8 @@ func GetSchemaMappingConfig() *schemaMapping.SchemaMappingConfig {
 		userInfoColumns = []*types.Column{
 			{Name: "name", CQLType: types.TypeVarchar, KeyType: types.KeyTypePartition, IsPrimaryKey: true, PkPrecedence: 0},
 			{Name: "age", CQLType: types.TypeBigint, KeyType: types.KeyTypeClustering, IsPrimaryKey: true, PkPrecedence: 1},
+			{Name: "email", CQLType: types.TypeText},
+			{Name: "username", CQLType: types.TypeText},
 		}
 	)
 
@@ -73,7 +74,6 @@ func GetSchemaMappingConfig() *schemaMapping.SchemaMappingConfig {
 	return schemaMapping.NewSchemaMappingConfig(
 		"schema_mapping",
 		"cf1",
-		zap.NewNop(),
 		allTableConfigs,
 	)
 }

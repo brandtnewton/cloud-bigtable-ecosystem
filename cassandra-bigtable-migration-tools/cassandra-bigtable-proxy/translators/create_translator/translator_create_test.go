@@ -17,34 +17,41 @@
 package create_translator
 
 import (
-	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/translators"
+	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/parser"
+	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/testing/mockdata"
 	"testing"
 
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/global/types"
-	schemaMapping "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/schema-mapping"
 	u "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/utilities"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"go.uber.org/zap"
 )
 
 func TestTranslateCreateTableToBigtable(t *testing.T) {
+	type Want struct {
+		Keyspace          types.Keyspace
+		Table             types.TableName
+		IfNotExists       bool
+		Columns           []types.CreateColumn
+		PrimaryKeys       []types.CreateTablePrimaryKeyConfig
+		IntRowKeyEncoding types.IntRowKeyEncodingType
+	}
+
 	tests := []struct {
 		name                     string
 		query                    string
 		defaultIntRowKeyEncoding types.IntRowKeyEncodingType
-		want                     *translators.CreateTableStatementMap
+		want                     *Want
 		error                    string
-		defaultKeyspace          string
+		defaultKeyspace          types.Keyspace
 	}{
 		{
 			name:                     "success",
 			query:                    "CREATE TABLE my_keyspace.my_table (user_id varchar, order_num int, name varchar, PRIMARY KEY (user_id, order_num))",
 			defaultIntRowKeyEncoding: types.OrderedCodeEncoding,
-			want: &translators.CreateTableStatementMap{
+			want: &Want{
 				Table:             "my_table",
 				Keyspace:          "my_keyspace",
-				QueryType:         "create",
 				IfNotExists:       false,
 				IntRowKeyEncoding: types.OrderedCodeEncoding,
 				Columns: []types.CreateColumn{
@@ -64,7 +71,7 @@ func TestTranslateCreateTableToBigtable(t *testing.T) {
 						TypeInfo: u.ParseCqlTypeOrDie("varchar"),
 					},
 				},
-				PrimaryKeys: []translators.CreateTablePrimaryKeyConfig{
+				PrimaryKeys: []types.CreateTablePrimaryKeyConfig{
 					{
 						Name:    "user_id",
 						KeyType: "partition_key",
@@ -82,10 +89,9 @@ func TestTranslateCreateTableToBigtable(t *testing.T) {
 			name:                     "if not exists",
 			query:                    "CREATE TABLE IF NOT EXISTS my_keyspace.my_table (user_id varchar, order_num int, name varchar, PRIMARY KEY (user_id))",
 			defaultIntRowKeyEncoding: types.OrderedCodeEncoding,
-			want: &translators.CreateTableStatementMap{
+			want: &Want{
 				Table:             "my_table",
 				Keyspace:          "my_keyspace",
-				QueryType:         "create",
 				IntRowKeyEncoding: types.OrderedCodeEncoding,
 				IfNotExists:       true,
 				Columns: []types.CreateColumn{
@@ -105,7 +111,7 @@ func TestTranslateCreateTableToBigtable(t *testing.T) {
 						TypeInfo: u.ParseCqlTypeOrDie("varchar"),
 					},
 				},
-				PrimaryKeys: []translators.CreateTablePrimaryKeyConfig{
+				PrimaryKeys: []types.CreateTablePrimaryKeyConfig{
 					{
 						Name:    "user_id",
 						KeyType: "partition_key",
@@ -119,10 +125,9 @@ func TestTranslateCreateTableToBigtable(t *testing.T) {
 			name:                     "single inline primary key",
 			query:                    "CREATE TABLE cycling.cyclist_name (id varchar PRIMARY KEY, lastname varchar, firstname varchar);",
 			defaultIntRowKeyEncoding: types.OrderedCodeEncoding,
-			want: &translators.CreateTableStatementMap{
+			want: &Want{
 				Table:             "cyclist_name",
 				Keyspace:          "cycling",
-				QueryType:         "create",
 				IntRowKeyEncoding: types.OrderedCodeEncoding,
 				IfNotExists:       false,
 				Columns: []types.CreateColumn{
@@ -142,10 +147,10 @@ func TestTranslateCreateTableToBigtable(t *testing.T) {
 						TypeInfo: u.ParseCqlTypeOrDie("varchar"),
 					},
 				},
-				PrimaryKeys: []translators.CreateTablePrimaryKeyConfig{
+				PrimaryKeys: []types.CreateTablePrimaryKeyConfig{
 					{
 						Name:    "id",
-						KeyType: u.KEY_TYPE_PARTITION,
+						KeyType: types.KeyTypePartition,
 					},
 				},
 			},
@@ -156,10 +161,9 @@ func TestTranslateCreateTableToBigtable(t *testing.T) {
 			name:                     "composite primary key",
 			query:                    "CREATE TABLE cycling.cyclist_composite (id text, lastname varchar, firstname varchar, PRIMARY KEY ((id, lastname), firstname)));",
 			defaultIntRowKeyEncoding: types.OrderedCodeEncoding,
-			want: &translators.CreateTableStatementMap{
+			want: &Want{
 				Table:             "cyclist_composite",
 				Keyspace:          "cycling",
-				QueryType:         "create",
 				IntRowKeyEncoding: types.OrderedCodeEncoding,
 				IfNotExists:       false,
 				Columns: []types.CreateColumn{
@@ -179,7 +183,7 @@ func TestTranslateCreateTableToBigtable(t *testing.T) {
 						TypeInfo: u.ParseCqlTypeOrDie("varchar"),
 					},
 				},
-				PrimaryKeys: []translators.CreateTablePrimaryKeyConfig{
+				PrimaryKeys: []types.CreateTablePrimaryKeyConfig{
 					{
 						Name:    "id",
 						KeyType: "partition_key",
@@ -201,17 +205,16 @@ func TestTranslateCreateTableToBigtable(t *testing.T) {
 			name:                     "with keyspace in query, without default keyspace",
 			query:                    "CREATE TABLE test_keyspace.test_table (column1 varchar, column10 int, PRIMARY KEY (column1, column10))",
 			defaultIntRowKeyEncoding: types.OrderedCodeEncoding,
-			want: &translators.CreateTableStatementMap{
+			want: &Want{
 				Table:             "test_table",
 				Keyspace:          "test_keyspace",
-				QueryType:         "create",
 				IntRowKeyEncoding: types.OrderedCodeEncoding,
 				IfNotExists:       false,
 				Columns: []types.CreateColumn{
 					{Name: "column1", Index: 0, TypeInfo: u.ParseCqlTypeOrDie("varchar")},
 					{Name: "column10", Index: 1, TypeInfo: u.ParseCqlTypeOrDie("int")},
 				},
-				PrimaryKeys: []translators.CreateTablePrimaryKeyConfig{
+				PrimaryKeys: []types.CreateTablePrimaryKeyConfig{
 					{Name: "column1", KeyType: "partition_key"},
 					{Name: "column10", KeyType: "clustering"},
 				},
@@ -223,17 +226,16 @@ func TestTranslateCreateTableToBigtable(t *testing.T) {
 			name:                     "with keyspace in query, with default keyspace",
 			query:                    "CREATE TABLE test_keyspace.test_table (column1 varchar, column10 int, PRIMARY KEY (column1, column10))",
 			defaultIntRowKeyEncoding: types.OrderedCodeEncoding,
-			want: &translators.CreateTableStatementMap{
+			want: &Want{
 				Table:             "test_table",
 				Keyspace:          "test_keyspace",
-				QueryType:         "create",
 				IntRowKeyEncoding: types.OrderedCodeEncoding,
 				IfNotExists:       false,
 				Columns: []types.CreateColumn{
 					{Name: "column1", Index: 0, TypeInfo: u.ParseCqlTypeOrDie("varchar")},
 					{Name: "column10", Index: 1, TypeInfo: u.ParseCqlTypeOrDie("int")},
 				},
-				PrimaryKeys: []translators.CreateTablePrimaryKeyConfig{
+				PrimaryKeys: []types.CreateTablePrimaryKeyConfig{
 					{Name: "column1", KeyType: "partition_key"},
 					{Name: "column10", KeyType: "clustering"},
 				},
@@ -245,17 +247,16 @@ func TestTranslateCreateTableToBigtable(t *testing.T) {
 			name:                     "without keyspace in query, with default keyspace",
 			query:                    "CREATE TABLE test_table (column1 varchar, column10 int, PRIMARY KEY (column1, column10))",
 			defaultIntRowKeyEncoding: types.OrderedCodeEncoding,
-			want: &translators.CreateTableStatementMap{
+			want: &Want{
 				Table:             "test_table",
 				Keyspace:          "my_keyspace",
-				QueryType:         "create",
 				IntRowKeyEncoding: types.OrderedCodeEncoding,
 				IfNotExists:       false,
 				Columns: []types.CreateColumn{
 					{Name: "column1", Index: 0, TypeInfo: u.ParseCqlTypeOrDie("varchar")},
 					{Name: "column10", Index: 1, TypeInfo: u.ParseCqlTypeOrDie("int")},
 				},
-				PrimaryKeys: []translators.CreateTablePrimaryKeyConfig{
+				PrimaryKeys: []types.CreateTablePrimaryKeyConfig{
 					{Name: "column1", KeyType: "partition_key"},
 					{Name: "column10", KeyType: "clustering"},
 				},
@@ -268,17 +269,16 @@ func TestTranslateCreateTableToBigtable(t *testing.T) {
 			query: "CREATE TABLE my_keyspace.test_table (column1 varchar, column10 int, PRIMARY KEY (column1, column10)) WITH int_row_key_encoding='big_endian'",
 			// should be different from the int_row_key_encoding value
 			defaultIntRowKeyEncoding: types.OrderedCodeEncoding,
-			want: &translators.CreateTableStatementMap{
+			want: &Want{
 				Table:             "test_table",
 				Keyspace:          "my_keyspace",
-				QueryType:         "create",
 				IntRowKeyEncoding: types.BigEndianEncoding,
 				IfNotExists:       false,
 				Columns: []types.CreateColumn{
 					{Name: "column1", Index: 0, TypeInfo: u.ParseCqlTypeOrDie("varchar")},
 					{Name: "column10", Index: 1, TypeInfo: u.ParseCqlTypeOrDie("int")},
 				},
-				PrimaryKeys: []translators.CreateTablePrimaryKeyConfig{
+				PrimaryKeys: []types.CreateTablePrimaryKeyConfig{
 					{Name: "column1", KeyType: "partition_key"},
 					{Name: "column10", KeyType: "clustering"},
 				},
@@ -291,17 +291,16 @@ func TestTranslateCreateTableToBigtable(t *testing.T) {
 			query: "CREATE TABLE my_keyspace.test_table (column1 varchar, column10 int, PRIMARY KEY (column1, column10)) WITH int_row_key_encoding='ordered_code'",
 			// should be different from the int_row_key_encoding value
 			defaultIntRowKeyEncoding: types.BigEndianEncoding,
-			want: &translators.CreateTableStatementMap{
+			want: &Want{
 				Table:             "test_table",
 				Keyspace:          "my_keyspace",
-				QueryType:         "create",
 				IntRowKeyEncoding: types.OrderedCodeEncoding,
 				IfNotExists:       false,
 				Columns: []types.CreateColumn{
 					{Name: "column1", Index: 0, TypeInfo: u.ParseCqlTypeOrDie("varchar")},
 					{Name: "column10", Index: 1, TypeInfo: u.ParseCqlTypeOrDie("int")},
 				},
-				PrimaryKeys: []translators.CreateTablePrimaryKeyConfig{
+				PrimaryKeys: []types.CreateTablePrimaryKeyConfig{
 					{Name: "column1", KeyType: "partition_key"},
 					{Name: "column10", KeyType: "clustering"},
 				},
@@ -312,19 +311,18 @@ func TestTranslateCreateTableToBigtable(t *testing.T) {
 		{
 			name:  "with int_row_key_encoding option set to an unsupported value",
 			query: "CREATE TABLE my_keyspace.test_table (column1 varchar, column10 int, PRIMARY KEY (column1, column10)) WITH int_row_key_encoding='pig_latin'",
-			// should be different than the int_row_key_encoding value
+			// should be different from the int_row_key_encoding value
 			defaultIntRowKeyEncoding: types.BigEndianEncoding,
-			want: &translators.CreateTableStatementMap{
+			want: &Want{
 				Table:             "test_table",
 				Keyspace:          "my_keyspace",
-				QueryType:         "create",
 				IntRowKeyEncoding: types.OrderedCodeEncoding,
 				IfNotExists:       false,
 				Columns: []types.CreateColumn{
 					{Name: "column1", Index: 0, TypeInfo: u.ParseCqlTypeOrDie("varchar")},
 					{Name: "column10", Index: 1, TypeInfo: u.ParseCqlTypeOrDie("int")},
 				},
-				PrimaryKeys: []translators.CreateTablePrimaryKeyConfig{
+				PrimaryKeys: []types.CreateTablePrimaryKeyConfig{
 					{Name: "column1", KeyType: "partition_key"},
 					{Name: "column10", KeyType: "clustering"},
 				},
@@ -336,14 +334,14 @@ func TestTranslateCreateTableToBigtable(t *testing.T) {
 			name:            "without keyspace in query, without default keyspace (should error)",
 			query:           "CREATE TABLE test_table (column1 varchar, column10 int, PRIMARY KEY (column1, column10))",
 			want:            nil,
-			error:           "missing keyspace. keyspace is required",
+			error:           "no keyspace specified",
 			defaultKeyspace: "",
 		},
 		{
 			name:            "parser returns empty table (should error)",
 			query:           "CREATE TABLE test_keyspace. (column1 varchar, column10 int, PRIMARY KEY (column1, column10))",
 			want:            nil,
-			error:           "invalid table name parsed from query",
+			error:           "parsing error",
 			defaultKeyspace: "test_keyspace",
 		},
 		{
@@ -361,17 +359,17 @@ func TestTranslateCreateTableToBigtable(t *testing.T) {
 			defaultKeyspace: "test_keyspace",
 		},
 		{
-			name:            "parser returns error when multiple inline pmks",
+			name:            "parser returns error when multiple inline primary keys",
 			query:           "CREATE TABLE test_keyspace.table1 (column1 varchar PRIMARY KEY, column10 int PRIMARY KEY, column11 int)",
 			want:            nil,
 			error:           "multiple inline primary key columns not allowed",
 			defaultKeyspace: "test_keyspace",
 		},
 		{
-			name:            "parser returns error empty pmks",
+			name:            "parser returns error empty primary keys",
 			query:           "CREATE TABLE test_keyspace.table1 (column1 varchar, column10 int, PRIMARY KEY ())",
 			want:            nil,
-			error:           "no primary key found in create table statement",
+			error:           "parsing error",
 			defaultKeyspace: "test_keyspace",
 		},
 		{
@@ -396,24 +394,24 @@ func TestTranslateCreateTableToBigtable(t *testing.T) {
 			defaultKeyspace: "test_keyspace",
 		},
 		{
-			name:            "parser returns error empty pmks",
+			name:            "parser returns error empty primary keys",
 			query:           "CREATE TABLE test_keyspace.table1 ()",
 			want:            nil,
-			error:           "malformed create table statement",
+			error:           "parsing error",
 			defaultKeyspace: "test_keyspace",
 		},
 		{
-			name:            "parser returns error empty pmks",
+			name:            "parser returns error empty primary keys",
 			query:           "CREATE TABLE test_keyspace.table",
 			want:            nil,
-			error:           "malformed create table statement",
+			error:           "parsing error",
 			defaultKeyspace: "test_keyspace",
 		},
 		{
-			name:            "parser returns error empty pmks",
+			name:            "parser returns error empty primary keys",
 			query:           "CREATE TABLE test_keyspace.table",
 			want:            nil,
-			error:           "malformed create table statement",
+			error:           "parsing error",
 			defaultKeyspace: "test_keyspace",
 		},
 		{
@@ -427,34 +425,39 @@ func TestTranslateCreateTableToBigtable(t *testing.T) {
 			name:            "same name as schema mapping table",
 			query:           "CREATE TABLE test_keyspace.schema_mapping (column1 varchar, column10 int, PRIMARY KEY (column1, column10))",
 			want:            nil,
-			error:           "cannot create a table with the configured schema mapping table name 'schema_mapping'",
+			error:           "table name cannot be the same as the configured schema mapping table name 'schema_mapping'",
 			defaultKeyspace: "test_keyspace",
 		},
 		{
 			name:            "reserved table name",
 			query:           "CREATE TABLE test_keyspace.table (column1 varchar, column10 int, PRIMARY KEY (column1, column10))",
 			want:            nil,
-			error:           "cannot create a table with reserved keyword as name: 'table'",
+			error:           "parsing error",
 			defaultKeyspace: "test_keyspace",
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			tr := &translators.TranslatorManager{
-				Logger:                   nil,
-				SchemaMappingConfig:      schemaMapping.NewSchemaMappingConfig("schema_mapping", "cf1", zap.NewNop(), nil),
-				DefaultIntRowKeyEncoding: tt.defaultIntRowKeyEncoding,
-			}
-			got, err := tr.TranslateCreateTableToBigtable(tt.query, tt.defaultKeyspace)
+			tr := NewCreateTranslator(mockdata.GetSchemaMappingConfig(), tt.defaultIntRowKeyEncoding)
+			query := types.NewRawQuery(nil, tt.defaultKeyspace, tt.query, parser.NewParser(tt.query), types.QueryTypeCreate)
+			got, err := tr.Translate(query, tt.defaultKeyspace)
 			if tt.error != "" {
 				require.Error(t, err)
-				assert.Equal(t, tt.error, err.Error())
+				assert.Contains(t, err.Error(), tt.error)
 				assert.Nil(t, got)
-			} else {
-				require.NoError(t, err)
-				assert.Equal(t, tt.want, got)
+				return
 			}
+			require.NoError(t, err)
+			require.NotNil(t, got)
+			require.IsType(t, &types.CreateTableStatementMap{}, got)
+			gotCreate := got.(*types.CreateTableStatementMap)
+			assert.Equal(t, tt.want.Table, gotCreate.Table())
+			assert.Equal(t, tt.want.Keyspace, gotCreate.Keyspace())
+			assert.Equal(t, tt.want.IfNotExists, gotCreate.IfNotExists)
+			assert.Equal(t, tt.want.Columns, gotCreate.Columns)
+			assert.Equal(t, tt.want.PrimaryKeys, gotCreate.PrimaryKeys)
+			assert.Equal(t, tt.want.IntRowKeyEncoding, gotCreate.IntRowKeyEncoding)
 		})
 	}
 }

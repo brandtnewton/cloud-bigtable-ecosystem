@@ -33,6 +33,8 @@ func GetSchemaMappingConfig() *schemaMapping.SchemaMappingConfig {
 			{Name: "list_text", CQLType: types.NewListType(types.TypeText)},
 			{Name: "col_ts", CQLType: types.TypeTimestamp},
 			{Name: "col_int", CQLType: types.TypeInt},
+			{Name: "col_float", CQLType: types.TypeFloat},
+			{Name: "col_double", CQLType: types.TypeDouble},
 			{Name: "col_bigint", CQLType: types.TypeBigint},
 			{Name: "set_text", CQLType: types.NewSetType(types.TypeText)},
 			{Name: "map_varchar_bool", CQLType: types.NewMapType(types.TypeVarchar, types.TypeBoolean)},

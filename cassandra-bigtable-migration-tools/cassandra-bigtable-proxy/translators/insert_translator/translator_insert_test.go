@@ -22,7 +22,7 @@ import (
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/testing/mockdata"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"testing
+	"testing"
 )
 
 type Want struct {

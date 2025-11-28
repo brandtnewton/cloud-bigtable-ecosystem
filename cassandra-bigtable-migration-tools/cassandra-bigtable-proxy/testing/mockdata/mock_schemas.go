@@ -42,8 +42,8 @@ func GetSchemaMappingConfig() *schemaMapping.SchemaMappingConfig {
 		}
 
 		userInfoColumns = []*types.Column{
-			{Name: "name", CQLType: types.TypeVarchar, KeyType: types.KeyTypePartition, IsPrimaryKey: true, PkPrecedence: 0},
-			{Name: "age", CQLType: types.TypeBigInt, KeyType: types.KeyTypeClustering, IsPrimaryKey: true, PkPrecedence: 1},
+			{Name: "name", CQLType: types.TypeVarchar, KeyType: types.KeyTypePartition, IsPrimaryKey: true, PkPrecedence: 1},
+			{Name: "age", CQLType: types.TypeBigInt, KeyType: types.KeyTypeClustering, IsPrimaryKey: true, PkPrecedence: 2},
 			{Name: "email", CQLType: types.TypeText},
 			{Name: "username", CQLType: types.TypeText},
 		}
@@ -79,6 +79,43 @@ func GetSchemaMappingConfig() *schemaMapping.SchemaMappingConfig {
 	)
 }
 
+func CreateQueryParameterValuesFromMap2(table *schemaMapping.TableConfig, values map[types.ColumnName]types.GoValue) *types.QueryParameterValues {
+	params := types.NewQueryParameters()
+	result := types.NewQueryParameterValues(params)
+	for colName, val := range values {
+		col, err := table.GetColumn(colName)
+		if err != nil {
+			log.Fatalf(err.Error())
+		}
+		p := params.PushParameter(col, col.CQLType, false)
+		err = result.SetValue(p, val)
+		if err != nil {
+			log.Fatalf("failed to set value: %s", err.Error())
+		}
+	}
+	return result
+}
+func CreateQueryParameterValuesFromMap(values map[*types.Column]types.GoValue) *types.QueryParameterValues {
+	params := types.NewQueryParameters()
+	result := types.NewQueryParameterValues(params)
+	for col, val := range values {
+		p := params.PushParameter(col, col.CQLType, false)
+		err := result.SetValue(p, val)
+		if err != nil {
+			log.Fatalf("failed to set value: %s", err.Error())
+		}
+	}
+	return result
+}
+
+func GetTableOrDie(k types.Keyspace, t types.TableName) *schemaMapping.TableConfig {
+	config, err := GetSchemaMappingConfig().GetTableConfig(k, t)
+	if err != nil {
+		log.Fatalf("no such table or keyspace: %s", err.Error())
+	}
+	return config
+}
+
 func GetColumnOrDie(k types.Keyspace, t types.TableName, c types.ColumnName) *types.Column {
 	config, err := GetSchemaMappingConfig().GetTableConfig(k, t)
 	if err != nil {
@@ -86,7 +123,7 @@ func GetColumnOrDie(k types.Keyspace, t types.TableName, c types.ColumnName) *ty
 	}
 	column, err := config.GetColumn(c)
 	if err != nil {
-		log.Fatalf("no such column: %s", err.Error())
+		log.Fatalf("no such column `%s` in table %s.%s", err.Error(), k, t)
 	}
 	return column
 }

@@ -308,32 +308,7 @@ func FromDataCode(dt datatype.DataType) (types.CqlDataType, error) {
 	}
 }
 
-// defaultIfEmpty() returns a default string value if the provided value is empty.
-// Useful for setting default configuration values.
-func defaultIfEmpty(value, defaultValue string) string {
-	if value == "" {
-		return defaultValue
-	}
-	return value
-}
-
-// defaultIfZero() returns a default integer value if the provided value is zero.
-// Useful for setting default configuration values.
-func defaultIfZero(value, defaultValue int) int {
-	if value == 0 {
-		return defaultValue
-	}
-	return value
-}
-
-// TypeConversion() converts a Go data type to a Cassandra protocol-compliant byte array.
-//
-// Parameters:
-//   - s: The data to be converted.
-//   - protocalV: Cassandra protocol version.
-//
-// Returns: Byte array in Cassandra protocol format or an error if conversion fails.
-func TypeConversion(s any, pv primitive.ProtocolVersion) ([]byte, error) {
+func TypeConversion(s types.GoValue, pv primitive.ProtocolVersion) ([]byte, error) {
 	var bytes []byte
 	var err error
 	switch v := s.(type) {

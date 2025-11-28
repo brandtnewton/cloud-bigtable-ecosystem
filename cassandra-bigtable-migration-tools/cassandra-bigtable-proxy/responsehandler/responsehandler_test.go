@@ -25,7 +25,6 @@ import (
 	"github.com/datastax/go-cassandra-native-protocol/datatype"
 	"github.com/datastax/go-cassandra-native-protocol/message"
 	"github.com/datastax/go-cassandra-native-protocol/primitive"
-	"github.com/google/go-cmp/cmp"
 	"go.uber.org/zap"
 )
 
@@ -1636,83 +1635,3 @@ func TestTypeHandler_HandleListType(t *testing.T) {
 		})
 	}
 }
-
-func TestBuildResponseForSystemQueries(t *testing.T) {
-	protocolVersion := primitive.ProtocolVersion4
-
-	tests := []struct {
-		name         string
-		rows         [][]interface{}
-		want         []message.Row
-		wantErr      bool
-		expectedRows int
-	}{
-		{
-			name: "Valid Keyspace Metadata Encoding",
-			rows: [][]any{
-				{"keyspace1", true, map[string]string{"class": "SimpleStrategy", "replication_factor": "1"}},
-			},
-			wantErr:      false,
-			expectedRows: 3,
-		},
-		{
-			name: "Valid Table Metadata Encoding",
-			rows: [][]any{
-				{"keyspace1", "table1", "99p", 0.01, map[string]string{"keys": "ALL", "rows_per_partition": "NONE"}, []string{"compound"}},
-			},
-			wantErr:      false,
-			expectedRows: 6,
-		},
-		{
-			name: "Valid Columns Metadata Encoding",
-			rows: [][]any{
-				{"keyspace1", "table1", "column1", "none", "regular", 0, "text"},
-			},
-			wantErr:      false,
-			expectedRows: 7,
-		},
-		{
-			name: "Failure Case - Invalid Data CQLType",
-			rows: [][]any{
-				{"keyspace1", make(chan int)}, // Passing an unsupported type to cause failure
-			},
-			wantErr:      true,
-			expectedRows: 0,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got, err := BuildResponseForSystemQueries(tt.rows, protocolVersion)
-
-			if (err != nil) != tt.wantErr {
-				t.Errorf("BuildResponseForSystemQueries() error = %v, wantErr %v", err, tt.wantErr)
-				return
-			}
-			if !tt.wantErr {
-				// Use cmp.Equal with custom comparer
-				totalReturnedRows := len(got[0])
-				if tt.expectedRows != totalReturnedRows {
-					t.Errorf("Mismatch in encoded system query metadata response:\n%s", cmp.Diff(tt.want, got, customComparer))
-				}
-			}
-		})
-	}
-}
-
-// Custom comparer to ignore ordering of map keys
-var customComparer = cmp.FilterValues(func(x, y interface{}) bool {
-	_, xOk := x.(map[string]string)
-	_, yOk := y.(map[string]string)
-	return xOk && yOk
-}, cmp.Comparer(func(x, y map[string]string) bool {
-	if len(x) != len(y) {
-		return false
-	}
-	for k, v := range x {
-		if y[k] != v {
-			return false
-		}
-	}
-	return true
-}))

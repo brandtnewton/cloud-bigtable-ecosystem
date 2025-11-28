@@ -91,6 +91,11 @@ func (q *QueryParameters) getNextParameter() Placeholder {
 	return Placeholder(fmt.Sprintf("@value%d", len(q.ordered)))
 }
 
+func (q *QueryParameters) BuildParameter(c *Column, dataType CqlDataType, isCollectionKey bool) *QueryParameters {
+	_ = q.PushParameter(c, dataType, isCollectionKey)
+	return q
+}
+
 func (q *QueryParameters) PushParameter(c *Column, dataType CqlDataType, isCollectionKey bool) Placeholder {
 	p := q.getNextParameter()
 	q.AddParameter(c, p, dataType, isCollectionKey)

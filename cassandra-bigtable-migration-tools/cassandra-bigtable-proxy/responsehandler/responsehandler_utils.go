@@ -20,7 +20,6 @@ import (
 	"fmt"
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/global/types"
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/third_party/datastax/proxycore"
-	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/utilities"
 	"github.com/datastax/go-cassandra-native-protocol/message"
 	"github.com/datastax/go-cassandra-native-protocol/primitive"
 )
@@ -88,20 +87,4 @@ func BuildPreparedResultResponse(id [16]byte, query types.IPreparedQuery) (*mess
 			Columns:   variableMetadata,
 		},
 	}, nil
-}
-
-func BuildResponseForSystemQueries(rows [][]interface{}, pv primitive.ProtocolVersion) ([]message.Row, error) {
-	var allRows []message.Row
-	for _, row := range rows {
-		var mr message.Row
-		for _, val := range row {
-			encodedByte, err := utilities.TypeConversion(val, pv)
-			if err != nil {
-				return allRows, err
-			}
-			mr = append(mr, encodedByte)
-		}
-		allRows = append(allRows, mr)
-	}
-	return allRows, nil
 }

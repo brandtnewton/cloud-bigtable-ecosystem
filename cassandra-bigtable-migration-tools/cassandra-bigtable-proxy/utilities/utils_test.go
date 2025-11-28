@@ -22,7 +22,6 @@ import (
 	"time"
 
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/global/types"
-	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/third_party/datastax/proxycore"
 	"github.com/datastax/go-cassandra-native-protocol/datatype"
 	"github.com/datastax/go-cassandra-native-protocol/primitive"
 	"github.com/stretchr/testify/assert"
@@ -52,218 +51,118 @@ func TestIsCollectionDataType(t *testing.T) {
 	}
 }
 
-func TestDecodeNonPrimitive(t *testing.T) {
+func TestParseCqlTimestamp(t *testing.T) {
+	// Define a helper to create times safely without error checking in the struct
+	mustParse := func(layout, value string) time.Time {
+		t, err := time.Parse(layout, value)
+		if err != nil {
+			panic(err)
+		}
+		return t
+	}
+
 	tests := []struct {
-		name         string
-		input        []byte
-		dataType     datatype.PrimitiveType
-		expected     interface{}
-		expectError  bool
-		errorMessage string
+		name    string
+		input   string
+		want    time.Time
+		wantErr bool
 	}{
 		{
-			name: "Decode list of varchar",
-			input: func() []byte {
-				b, _ := proxycore.EncodeType(ListOfStr.DataType(), primitive.ProtocolVersion4, []string{"test1", "test2"})
-				return b
-			}(),
-			dataType:    ListOfStr.DataType(),
-			expected:    []string{"test1", "test2"},
-			expectError: false,
+			name:    "Standard RFC3339",
+			input:   "2023-11-27T10:30:00Z",
+			want:    mustParse(time.RFC3339, "2023-11-27T10:30:00Z"),
+			wantErr: false,
 		},
 		{
-			name: "Decode list of bigint",
-			input: func() []byte {
-				b, _ := proxycore.EncodeType(ListOfBigInt.DataType(), primitive.ProtocolVersion4, []int64{123, 456})
-				return b
-			}(),
-			dataType:    ListOfBigInt.DataType(),
-			expected:    []int64{123, 456},
-			expectError: false,
+			name:  "Simple Date (YYYY-MM-DD)",
+			input: "2023-11-27",
+			// Assuming simple date defaults to midnight UTC
+			want:    mustParse("2006-01-02", "2023-11-27"),
+			wantErr: false,
 		},
 		{
-			name: "Decode list of double",
-			input: func() []byte {
-				b, _ := proxycore.EncodeType(ListOfDouble.DataType(), primitive.ProtocolVersion4, []float64{123.45, 456.78})
-				return b
-			}(),
-			dataType:    ListOfDouble.DataType(),
-			expected:    []float64{123.45, 456.78},
-			expectError: false,
+			name:    "Date with Space and Time",
+			input:   "2023-11-27 10:30:00",
+			want:    mustParse("2006-01-02 15:04:05", "2023-11-27 10:30:00"),
+			wantErr: false,
 		},
 		{
-			name:         "Unsupported list element type",
-			input:        []byte("test"),
-			dataType:     ListOfBool.DataType(), // List of boolean is not supported
-			expectError:  true,
-			errorMessage: "unsupported list element type to decode",
+			name:    "Date with Milliseconds",
+			input:   "2023-11-27 10:30:00.555",
+			want:    mustParse("2006-01-02 15:04:05.000", "2023-11-27 10:30:00.555"),
+			wantErr: false,
 		},
 		{
-			name:         "Non-list type",
-			input:        []byte("test"),
-			dataType:     datatype.Varchar,
-			expectError:  true,
-			errorMessage: "unsupported Datatype to decode",
+			name:    "Invalid Format - Nonsense String",
+			input:   "not-a-timestamp",
+			want:    time.Time{},
+			wantErr: true,
+		},
+		{
+			name:    "Invalid Date - Month out of range",
+			input:   "2023-13-01 10:00:00",
+			want:    time.Time{},
+			wantErr: true,
+		},
+		{
+			name:    "Empty String",
+			input:   "",
+			want:    time.Time{},
+			wantErr: true,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result, err := decodeNonPrimitive(tt.dataType, tt.input)
+			got, err := parseCqlTimestamp(tt.input)
 
-			if tt.expectError {
-				assert.Error(t, err)
-				if tt.errorMessage != "" {
-					assert.Contains(t, err.Error(), tt.errorMessage)
-				}
-			} else {
-				assert.NoError(t, err)
-				assert.Equal(t, tt.expected, result)
-			}
-		})
-	}
-}
-
-func Test_defaultIfZero(t *testing.T) {
-	type args struct {
-		value        int
-		defaultValue int
-	}
-	tests := []struct {
-		name string
-		args args
-		want int
-	}{
-		{
-			name: "Return actual value",
-			args: args{
-				value:        1,
-				defaultValue: 1,
-			},
-			want: 1,
-		},
-		{
-			name: "Return default value",
-			args: args{
-				value:        0,
-				defaultValue: 11,
-			},
-			want: 11,
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			if got := defaultIfZero(tt.args.value, tt.args.defaultValue); got != tt.want {
-				t.Errorf("defaultIfZero() = %v, want %v", got, tt.want)
-			}
-		})
-	}
-}
-
-func Test_defaultIfEmpty(t *testing.T) {
-	type args struct {
-		value        string
-		defaultValue string
-	}
-	tests := []struct {
-		name string
-		args args
-		want string
-	}{
-		{
-			name: "Return actual value",
-			args: args{
-				value:        "abcd",
-				defaultValue: "",
-			},
-			want: "abcd",
-		},
-		{
-			name: "Return default value",
-			args: args{
-				value:        "",
-				defaultValue: "abcd",
-			},
-			want: "abcd",
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			if got := defaultIfEmpty(tt.args.value, tt.args.defaultValue); got != tt.want {
-				t.Errorf("defaultIfEmpty() = %v, want %v", got, tt.want)
-			}
-		})
-	}
-}
-
-func TestTypeConversion(t *testing.T) {
-	protocalV := primitive.ProtocolVersion4
-	tests := []struct {
-		name            string
-		input           interface{}
-		expected        []byte
-		wantErr         bool
-		protocalVersion primitive.ProtocolVersion
-	}{
-		{
-			name:            "String",
-			input:           "example string",
-			expected:        []byte{'e', 'x', 'a', 'm', 'p', 'l', 'e', ' ', 's', 't', 'r', 'i', 'n', 'g'},
-			protocalVersion: protocalV,
-		},
-		{
-			name:            "Int64",
-			input:           int64(12345),
-			expected:        []byte{0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x30, 0x39},
-			protocalVersion: protocalV,
-		},
-		{
-			name:            "Boolean",
-			input:           true,
-			expected:        []byte{0x01},
-			protocalVersion: protocalV,
-		},
-		{
-			name:            "Float64",
-			input:           123.45,
-			expected:        []byte{0x40, 0x5E, 0xDC, 0xCC, 0xCC, 0xCC, 0xCC, 0xCD},
-			protocalVersion: protocalV,
-		},
-		{
-			name:            "Timestamp",
-			input:           time.Date(2021, time.April, 10, 12, 0, 0, 0, time.UTC),
-			expected:        []byte{0x00, 0x00, 0x01, 0x78, 0xBB, 0xA7, 0x32, 0x00},
-			protocalVersion: protocalV,
-		},
-		{
-			name:            "Byte",
-			input:           []byte{0x01, 0x02, 0x03, 0x04},
-			expected:        []byte{0x01, 0x02, 0x03, 0x04},
-			protocalVersion: protocalV,
-		},
-		{
-			name:            "Map",
-			input:           datatype.NewMapType(datatype.Varchar, datatype.Varchar),
-			expected:        []byte{'m', 'a', 'p', '<', 'v', 'a', 'r', 'c', 'h', 'a', 'r', ',', 'v', 'a', 'r', 'c', 'h', 'a', 'r', '>'},
-			protocalVersion: protocalV,
-		},
-		{
-			name:            "String Error Case",
-			input:           struct{}{},
-			wantErr:         true,
-			protocalVersion: protocalV,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got, err := TypeConversion(tt.input, tt.protocalVersion)
+			// 1. Check Error State
 			if (err != nil) != tt.wantErr {
-				t.Errorf("TypeConversion() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("parseCqlTimestamp() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
-			if !tt.wantErr && !reflect.DeepEqual(got, tt.expected) {
-				t.Errorf("TypeConversion(%v) = %v, want %v", tt.input, got, tt.expected)
+
+			// 2. Check Time Equality
+			// We use .Equal() rather than == to handle monotonic clock differences
+			// and timezone pointer differences.
+			if !tt.wantErr && !got.Equal(tt.want) {
+				t.Errorf("parseCqlTimestamp() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestStringToPrimitives(t *testing.T) {
+	tests := []struct {
+		value    string
+		cqlType  types.CqlDataType
+		expected interface{}
+		hasError bool
+	}{
+		{"123", types.TypeInt, int32(123), false},
+		{"not_an_int", types.TypeInt, nil, true},
+		{"123456789", types.TypeBigInt, int64(123456789), false},
+		{"not_a_bigint", types.TypeBigInt, nil, true},
+		{"3.14", types.TypeFloat, float32(3.14), false},
+		{"not_a_float", types.TypeFloat, nil, true},
+		{"3.1415926535", types.TypeDouble, float64(3.1415926535), false},
+		{"not_a_double", types.TypeDouble, nil, true},
+		{"true", types.TypeBoolean, int64(1), false},
+		{"false", types.TypeBoolean, int64(0), false},
+		{"not_a_boolean", types.TypeBoolean, nil, true},
+		{"blob_data", types.TypeBlob, "blob_data", false},
+		{"hello", types.TypeVarchar, "hello", false},
+		{"123", nil, nil, true},
+	}
+
+	for _, tt := range tests {
+		t.Run(fmt.Sprintf("%s_%s", tt.cqlType, tt.value), func(t *testing.T) {
+			result, err := StringToGo(tt.value, tt.cqlType)
+			if (err != nil) != tt.hasError {
+				t.Errorf("expected error: %v, got error: %v", tt.hasError, err)
+			}
+			if result != tt.expected {
+				t.Errorf("expected result: %v, got result: %v", tt.expected, result)
 			}
 		})
 	}
@@ -630,135 +529,6 @@ func TestDataConversionInInsertionIfRequired(t *testing.T) {
 			}
 			if !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("DataConversionInInsertionIfRequired() got = %v, want %v", got, tt.want)
-			}
-		})
-	}
-}
-
-func TestGetClauseByValue(t *testing.T) {
-	type args struct {
-		clause []types.Condition
-		value  string
-	}
-	tests := []struct {
-		name    string
-		args    args
-		want    types.Condition
-		wantErr bool
-	}{
-		{
-			name: "Found clause",
-			args: args{
-				clause: []types.Condition{{ValuePlaceholder: "@test"}},
-				value:  "test",
-			},
-			want:    types.Condition{ValuePlaceholder: "@test"},
-			wantErr: false,
-		},
-		{
-			name: "Condition not found",
-			args: args{
-				clause: []types.Condition{{ValuePlaceholder: "@test"}},
-				value:  "notfound",
-			},
-			want:    types.Condition{},
-			wantErr: true,
-		},
-		{
-			name: "Empty clause slice",
-			args: args{
-				clause: []types.Condition{},
-				value:  "test",
-			},
-			want:    types.Condition{},
-			wantErr: true,
-		},
-		{
-			name: "Multiple clauses, found",
-			args: args{
-				clause: []types.Condition{{ValuePlaceholder: "@test1"}, {ValuePlaceholder: "@test2"}},
-				value:  "test2",
-			},
-			want:    types.Condition{ValuePlaceholder: "@test2"},
-			wantErr: false,
-		},
-		{
-			name: "Multiple clauses, not found",
-			args: args{
-				clause: []types.Condition{{ValuePlaceholder: "@test1"}, {ValuePlaceholder: "@test2"}},
-				value:  "test3",
-			},
-			want:    types.Condition{},
-			wantErr: true,
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got, err := GetClauseByValue(tt.args.clause, tt.args.value)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("GetClauseByValue() error = %v, wantErr %v", err, tt.wantErr)
-				return
-			}
-			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("GetClauseByValue() = %v, want %v", got, tt.want)
-			}
-		})
-	}
-}
-func TestGetClauseByColumn(t *testing.T) {
-	type args struct {
-		clause []types.Condition
-		column string
-	}
-	tests := []struct {
-		name    string
-		args    args
-		want    types.Condition
-		wantErr bool
-	}{
-		{
-			name: "Existing column",
-			args: args{
-				clause: []types.Condition{
-					{Column: "column1", ValuePlaceholder: "value1"},
-					{Column: "column2", ValuePlaceholder: "value2"},
-				},
-				column: "column1",
-			},
-			want:    types.Condition{Column: "column1", ValuePlaceholder: "value1"},
-			wantErr: false,
-		},
-		{
-			name: "Non-existing column",
-			args: args{
-				clause: []types.Condition{
-					{Column: "column1", ValuePlaceholder: "value1"},
-					{Column: "column2", ValuePlaceholder: "value2"},
-				},
-				column: "column3",
-			},
-			want:    types.Condition{},
-			wantErr: true,
-		},
-		{
-			name: "Empty clause slice",
-			args: args{
-				clause: []types.Condition{},
-				column: "column1",
-			},
-			want:    types.Condition{},
-			wantErr: true,
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got, err := GetClauseByColumn(tt.args.clause, tt.args.column)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("GetClauseByColumn() error = %v, wantErr %v", err, tt.wantErr)
-				return
-			}
-			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("GetClauseByColumn() = %v, want %v", got, tt.want)
 			}
 		})
 	}

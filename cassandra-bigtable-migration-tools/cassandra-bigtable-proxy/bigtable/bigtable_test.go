@@ -868,7 +868,7 @@ var testCreateTableStatementMap = translators.CreateTableStatementMap{
 		{
 			Name:     "id",
 			Index:    1,
-			TypeInfo: types.TypeBigint,
+			TypeInfo: types.TypeBigInt,
 		},
 		{
 			Name:     "name",
@@ -933,7 +933,7 @@ func TestCreateTable(t *testing.T) {
 		},
 		"id": {
 			Name:         "id",
-			CQLType:      types.TypeBigint,
+			CQLType:      types.TypeBigInt,
 			IsPrimaryKey: true,
 			PkPrecedence: 2,
 			KeyType:      "clustering",
@@ -1186,7 +1186,7 @@ func TestAlterTable(t *testing.T) {
 		},
 		"id": {
 			Name:         "id",
-			CQLType:      types.TypeBigint,
+			CQLType:      types.TypeBigInt,
 			IsPrimaryKey: true,
 			PkPrecedence: 2,
 			KeyType:      "clustering",

@@ -168,7 +168,7 @@ func parseWhereContainsKey(containsKey cql.IRelationContainsKeyContext, tableCon
 	keyType := column.CQLType.(*types.MapType).KeyType()
 	p := params.PushParameter(column, keyType, true)
 
-	err = ExtractConstantValue(containsKey.Constant(), column.CQLType, p, values)
+	err = ExtractConstantValue(containsKey.Constant(), keyType, p, values)
 	if err != nil {
 		return types.Condition{}, err
 	}
@@ -386,8 +386,8 @@ func GetTimestampInfo(timestampContext cql.ITimestampContext, params *types.Quer
 	if literal == nil {
 		return nil
 	}
-	params.AddParameterWithoutColumn(types.UsingTimePlaceholder, types.TypeBigint)
-	err := ExtractDecimalLiteral(literal, types.TypeBigint, types.UsingTimePlaceholder, values)
+	params.AddParameterWithoutColumn(types.UsingTimePlaceholder, types.TypeBigInt)
+	err := ExtractDecimalLiteral(literal, types.TypeBigInt, types.UsingTimePlaceholder, values)
 	if err != nil {
 		return err
 	}
@@ -826,13 +826,13 @@ func ParseSelectFunction(sf cql.ISelectFunctionContext, alias string, table *sch
 		if err != nil {
 			return types.SelectedColumn{}, err
 		}
-		return *types.NewSelectedColumnFunction(sf.FunctionCall().GetText(), col.Name, alias, types.TypeBigint, f), nil
+		return *types.NewSelectedColumnFunction(sf.FunctionCall().GetText(), col.Name, alias, types.TypeBigInt, f), nil
 	case types.FuncCodeCount:
 		err := parseStarFunctionArg(sf.FunctionCall())
 		if err != nil {
 			return types.SelectedColumn{}, err
 		}
-		return *types.NewSelectedColumnFunction("system.count(*)", "*", alias, types.TypeBigint, f), nil
+		return *types.NewSelectedColumnFunction("system.count(*)", "*", alias, types.TypeBigInt, f), nil
 	case types.FuncCodeAvg, types.FuncCodeSum, types.FuncCodeMin, types.FuncCodeMax:
 		col, err := parseSingleColumnFunctionArg(sf.FunctionCall(), table)
 		if err != nil {

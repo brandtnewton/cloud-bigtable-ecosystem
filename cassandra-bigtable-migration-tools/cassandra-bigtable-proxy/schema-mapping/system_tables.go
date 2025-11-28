@@ -174,7 +174,7 @@ var (
 		{Name: "compression_parameters", CQLType: types.TypeVarchar},
 		{Name: "default_time_to_live", CQLType: types.TypeInt},
 		{Name: "default_validator", CQLType: types.TypeVarchar},
-		{Name: "dropped_columns", CQLType: types.NewMapType(types.TypeVarchar, types.TypeBigint)},
+		{Name: "dropped_columns", CQLType: types.NewMapType(types.TypeVarchar, types.TypeBigInt)},
 		{Name: "gc_grace_seconds", CQLType: types.TypeInt},
 		{Name: "is_dense", CQLType: types.TypeBoolean},
 		{Name: "key_validator", CQLType: types.TypeVarchar},

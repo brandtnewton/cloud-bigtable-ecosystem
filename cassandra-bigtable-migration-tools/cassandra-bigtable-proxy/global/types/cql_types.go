@@ -77,9 +77,9 @@ func (s ScalarType) GoType() reflect.Type {
 func (s ScalarType) BigtableStorageType() CqlDataType {
 	switch s.code {
 	case BOOLEAN:
-		return TypeBigint
+		return TypeBigInt
 	case INT, TINYINT:
-		return TypeBigint
+		return TypeBigInt
 	default:
 		return s
 	}
@@ -119,7 +119,7 @@ func (s ScalarType) IsFrozen() bool {
 var (
 	TypeAscii     CqlDataType = newScalarType("ascii", ASCII, datatype.Varchar, reflect.TypeOf(""))
 	TypeVarchar   CqlDataType = newScalarType("varchar", VARCHAR, datatype.Varchar, reflect.TypeOf(""))
-	TypeBigint    CqlDataType = newScalarType("bigint", BIGINT, datatype.Bigint, reflect.TypeOf(int64(0)))
+	TypeBigInt    CqlDataType = newScalarType("bigint", BIGINT, datatype.Bigint, reflect.TypeOf(int64(0)))
 	TypeBlob      CqlDataType = newScalarType("blob", BLOB, datatype.Blob, reflect.TypeOf([]byte{}))
 	TypeBoolean   CqlDataType = newScalarType("boolean", BOOLEAN, datatype.Boolean, reflect.TypeOf(false))
 	TypeCounter   CqlDataType = newScalarType("counter", COUNTER, datatype.Counter, reflect.TypeOf(int64(0)))

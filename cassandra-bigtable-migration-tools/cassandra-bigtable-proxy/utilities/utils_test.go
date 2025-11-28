@@ -878,7 +878,7 @@ func TestGetCassandraColumnType(t *testing.T) {
 		{"int", types.TypeInt, NO_ERROR_EXPECTED},
 		{"float", types.TypeFloat, NO_ERROR_EXPECTED},
 		{"double", types.TypeDouble, NO_ERROR_EXPECTED},
-		{"bigint", types.TypeBigint, NO_ERROR_EXPECTED},
+		{"bigint", types.TypeBigInt, NO_ERROR_EXPECTED},
 		{"boolean", types.TypeBoolean, NO_ERROR_EXPECTED},
 		{"uuid", types.TypeUuid, NO_ERROR_EXPECTED},
 		{"map<text, boolean>", types.NewMapType(types.TypeText, types.TypeBoolean), NO_ERROR_EXPECTED},
@@ -916,8 +916,8 @@ func TestGetCassandraColumnType(t *testing.T) {
 		// Future scope items below:
 		{"map<text, int>", types.NewMapType(types.TypeText, types.TypeInt), NO_ERROR_EXPECTED},
 		{"map<varchar, int>", types.NewMapType(types.TypeVarchar, types.TypeInt), NO_ERROR_EXPECTED},
-		{"map<text, bigint>", types.NewMapType(types.TypeText, types.TypeBigint), NO_ERROR_EXPECTED},
-		{"map<varchar, bigint>", types.NewMapType(types.TypeVarchar, types.TypeBigint), NO_ERROR_EXPECTED},
+		{"map<text, bigint>", types.NewMapType(types.TypeText, types.TypeBigInt), NO_ERROR_EXPECTED},
+		{"map<varchar, bigint>", types.NewMapType(types.TypeVarchar, types.TypeBigInt), NO_ERROR_EXPECTED},
 		{"map<text, float>", types.NewMapType(types.TypeText, types.TypeFloat), NO_ERROR_EXPECTED},
 		{"map<varchar, float>", types.NewMapType(types.TypeVarchar, types.TypeFloat), NO_ERROR_EXPECTED},
 		{"map<text, double>", types.NewMapType(types.TypeText, types.TypeDouble), NO_ERROR_EXPECTED},
@@ -928,7 +928,7 @@ func TestGetCassandraColumnType(t *testing.T) {
 		{"map<timestamp, varchar>", types.NewMapType(types.TypeTimestamp, types.TypeVarchar), NO_ERROR_EXPECTED},
 		{"map<timestamp, boolean>", types.NewMapType(types.TypeTimestamp, types.TypeBoolean), NO_ERROR_EXPECTED},
 		{"map<timestamp, int>", types.NewMapType(types.TypeTimestamp, types.TypeInt), NO_ERROR_EXPECTED},
-		{"map<timestamp, bigint>", types.NewMapType(types.TypeTimestamp, types.TypeBigint), NO_ERROR_EXPECTED},
+		{"map<timestamp, bigint>", types.NewMapType(types.TypeTimestamp, types.TypeBigInt), NO_ERROR_EXPECTED},
 		{"map<timestamp, float>", types.NewMapType(types.TypeTimestamp, types.TypeFloat), NO_ERROR_EXPECTED},
 		{"map<timestamp, double>", types.NewMapType(types.TypeTimestamp, types.TypeDouble), NO_ERROR_EXPECTED},
 		{"map<timestamp, timestamp>", types.NewMapType(types.TypeTimestamp, types.TypeTimestamp), NO_ERROR_EXPECTED},
@@ -938,7 +938,7 @@ func TestGetCassandraColumnType(t *testing.T) {
 		{"list<asdfasdf>", nil, "failed"},       // we don't get a good error because the lexer doesn't recognize the invalid type
 		{"frozen<asdfasdf>", nil, "failed"},     // we don't get a good error because the lexer doesn't recognize the invalid type
 		{"set<int>", types.NewSetType(types.TypeInt), NO_ERROR_EXPECTED},
-		{"set<bigint>", types.NewSetType(types.TypeBigint), NO_ERROR_EXPECTED},
+		{"set<bigint>", types.NewSetType(types.TypeBigInt), NO_ERROR_EXPECTED},
 		{"set<float>", types.NewSetType(types.TypeFloat), NO_ERROR_EXPECTED},
 		{"set<double>", types.NewSetType(types.TypeDouble), NO_ERROR_EXPECTED},
 		{"set<boolean>", types.NewSetType(types.TypeBoolean), NO_ERROR_EXPECTED},
@@ -976,7 +976,7 @@ func TestFromDataCode(t *testing.T) {
 		expected types.CqlDataType
 	}{
 		{"Ascii", datatype.Ascii, types.TypeAscii},
-		{"Bigint", datatype.Bigint, types.TypeBigint},
+		{"Bigint", datatype.Bigint, types.TypeBigInt},
 		{"Blob", datatype.Blob, types.TypeBlob},
 		{"Boolean", datatype.Boolean, types.TypeBoolean},
 		{"Counter", datatype.Counter, types.TypeCounter},

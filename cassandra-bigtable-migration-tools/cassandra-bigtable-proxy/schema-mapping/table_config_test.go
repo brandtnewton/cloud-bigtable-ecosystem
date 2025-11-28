@@ -27,7 +27,7 @@ func TestTableConfig_Describe(t *testing.T) {
 				{
 					Name:         "org_id",
 					ColumnFamily: "cf1",
-					CQLType:      types.TypeBigint,
+					CQLType:      types.TypeBigInt,
 					IsPrimaryKey: true,
 					PkPrecedence: 1,
 					KeyType:      types.KeyTypePartition,
@@ -35,7 +35,7 @@ func TestTableConfig_Describe(t *testing.T) {
 				{
 					Name:         "user_id",
 					ColumnFamily: "cf1",
-					CQLType:      types.TypeBigint,
+					CQLType:      types.TypeBigInt,
 					IsPrimaryKey: true,
 					PkPrecedence: 2,
 					KeyType:      types.KeyTypeClustering,
@@ -49,7 +49,7 @@ func TestTableConfig_Describe(t *testing.T) {
 				{
 					Name:         "org_id",
 					ColumnFamily: "cf1",
-					CQLType:      types.TypeBigint,
+					CQLType:      types.TypeBigInt,
 					IsPrimaryKey: true,
 					PkPrecedence: 1,
 					KeyType:      types.KeyTypePartition,
@@ -57,7 +57,7 @@ func TestTableConfig_Describe(t *testing.T) {
 				{
 					Name:         "user_id",
 					ColumnFamily: "cf1",
-					CQLType:      types.TypeBigint,
+					CQLType:      types.TypeBigInt,
 					IsPrimaryKey: true,
 					PkPrecedence: 2,
 					KeyType:      types.KeyTypePartition,
@@ -65,7 +65,7 @@ func TestTableConfig_Describe(t *testing.T) {
 				{
 					Name:         "group_id",
 					ColumnFamily: "cf1",
-					CQLType:      types.TypeBigint,
+					CQLType:      types.TypeBigInt,
 					IsPrimaryKey: true,
 					PkPrecedence: 3,
 					KeyType:      types.KeyTypeClustering,
@@ -87,7 +87,7 @@ func TestTableConfig_Describe(t *testing.T) {
 				{
 					Name:         "org_id",
 					ColumnFamily: "cf1",
-					CQLType:      types.TypeBigint,
+					CQLType:      types.TypeBigInt,
 					IsPrimaryKey: true,
 					PkPrecedence: 1,
 					KeyType:      types.KeyTypePartition,
@@ -95,7 +95,7 @@ func TestTableConfig_Describe(t *testing.T) {
 				{
 					Name:         "user_id",
 					ColumnFamily: "cf1",
-					CQLType:      types.TypeBigint,
+					CQLType:      types.TypeBigInt,
 					IsPrimaryKey: false,
 					PkPrecedence: 0,
 					KeyType:      types.KeyTypeRegular,

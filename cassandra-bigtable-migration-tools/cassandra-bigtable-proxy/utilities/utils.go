@@ -156,7 +156,7 @@ var reservedKeywords = map[string]bool{
 var (
 	MapOfStrToStr     = types.NewMapType(types.TypeVarchar, types.TypeVarchar)
 	MapOfStrToInt     = types.NewMapType(types.TypeVarchar, types.TypeInt)
-	MapOfStrToBigInt  = types.NewMapType(types.TypeVarchar, types.TypeBigint)
+	MapOfStrToBigInt  = types.NewMapType(types.TypeVarchar, types.TypeBigInt)
 	MapOfStrToBool    = types.NewMapType(types.TypeVarchar, types.TypeBoolean)
 	MapOfStrToFloat   = types.NewMapType(types.TypeVarchar, types.TypeFloat)
 	MapOfStrToDouble  = types.NewMapType(types.TypeVarchar, types.TypeDouble)
@@ -164,13 +164,13 @@ var (
 	MapOfTimeToTime   = types.NewMapType(types.TypeTimestamp, types.TypeTimestamp)
 	MapOfTimeToStr    = types.NewMapType(types.TypeTimestamp, types.TypeVarchar)
 	MapOfTimeToInt    = types.NewMapType(types.TypeTimestamp, types.TypeInt)
-	MapOfTimeToBigInt = types.NewMapType(types.TypeTimestamp, types.TypeBigint)
+	MapOfTimeToBigInt = types.NewMapType(types.TypeTimestamp, types.TypeBigInt)
 	MapOfTimeToFloat  = types.NewMapType(types.TypeTimestamp, types.TypeFloat)
 	MapOfTimeToDouble = types.NewMapType(types.TypeTimestamp, types.TypeDouble)
 	MapOfTimeToBool   = types.NewMapType(types.TypeTimestamp, types.TypeBoolean)
 	SetOfStr          = types.NewSetType(types.TypeVarchar)
 	SetOfInt          = types.NewSetType(types.TypeInt)
-	SetOfBigInt       = types.NewSetType(types.TypeBigint)
+	SetOfBigInt       = types.NewSetType(types.TypeBigInt)
 	SetOfBool         = types.NewSetType(types.TypeBoolean)
 	SetOfFloat        = types.NewSetType(types.TypeFloat)
 	SetOfDouble       = types.NewSetType(types.TypeDouble)
@@ -178,7 +178,7 @@ var (
 	ListOfStr         = types.NewListType(types.TypeVarchar)
 	ListOfBool        = types.NewListType(types.TypeBoolean)
 	ListOfInt         = types.NewListType(types.TypeInt)
-	ListOfBigInt      = types.NewListType(types.TypeBigint)
+	ListOfBigInt      = types.NewListType(types.TypeBigInt)
 	ListOfFloat       = types.NewListType(types.TypeFloat)
 	ListOfDouble      = types.NewListType(types.TypeDouble)
 	ListOfTimeStamp   = types.NewListType(types.TypeTimestamp)
@@ -232,7 +232,7 @@ func FromDataCode(dt datatype.DataType) (types.CqlDataType, error) {
 	case primitive.DataTypeCodeAscii:
 		return types.TypeAscii, nil
 	case primitive.DataTypeCodeBigint:
-		return types.TypeBigint, nil
+		return types.TypeBigInt, nil
 	case primitive.DataTypeCodeBlob:
 		return types.TypeBlob, nil
 	case primitive.DataTypeCodeBoolean:
@@ -775,7 +775,7 @@ func ParseCqlType(dtc cql.IDataTypeContext) (types.CqlDataType, error) {
 		if err != nil {
 			return nil, err
 		}
-		return types.TypeBigint, nil
+		return types.TypeBigInt, nil
 	case "boolean":
 		err := validateNoDataTypeDefinition(dtc)
 		if err != nil {

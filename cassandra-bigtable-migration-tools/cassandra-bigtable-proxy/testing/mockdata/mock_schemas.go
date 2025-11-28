@@ -35,7 +35,7 @@ func GetSchemaMappingConfig() *schemaMapping.SchemaMappingConfig {
 			{Name: "col_int", CQLType: types.TypeInt},
 			{Name: "col_float", CQLType: types.TypeFloat},
 			{Name: "col_double", CQLType: types.TypeDouble},
-			{Name: "col_bigint", CQLType: types.TypeBigint},
+			{Name: "col_bigint", CQLType: types.TypeBigInt},
 			{Name: "set_text", CQLType: types.NewSetType(types.TypeText)},
 			{Name: "map_varchar_bool", CQLType: types.NewMapType(types.TypeVarchar, types.TypeBoolean)},
 			{Name: "map_text_text", CQLType: types.NewMapType(types.TypeText, types.TypeText)},
@@ -43,7 +43,7 @@ func GetSchemaMappingConfig() *schemaMapping.SchemaMappingConfig {
 
 		userInfoColumns = []*types.Column{
 			{Name: "name", CQLType: types.TypeVarchar, KeyType: types.KeyTypePartition, IsPrimaryKey: true, PkPrecedence: 0},
-			{Name: "age", CQLType: types.TypeBigint, KeyType: types.KeyTypeClustering, IsPrimaryKey: true, PkPrecedence: 1},
+			{Name: "age", CQLType: types.TypeBigInt, KeyType: types.KeyTypeClustering, IsPrimaryKey: true, PkPrecedence: 1},
 			{Name: "email", CQLType: types.TypeText},
 			{Name: "username", CQLType: types.TypeText},
 		}

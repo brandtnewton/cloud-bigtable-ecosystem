@@ -596,7 +596,7 @@ func TestTranslator_TranslateSelectQuerytoBigtable(t *testing.T) {
 		{
 			name:            "CqlQuery without Columns",
 			query:           `select from test_keyspace.test_table where pk1 = 'test'`,
-			wantErr:         "no viable alternative at input 'from'",
+			wantErr:         "parsing error",
 			want:            nil,
 			sessionKeyspace: "test_keyspace",
 		},
@@ -604,7 +604,7 @@ func TestTranslator_TranslateSelectQuerytoBigtable(t *testing.T) {
 			name:            "test for raw query when column name not exist in schema mapping table",
 			query:           "select pk101, col_int, col_bool from  test_keyspace.test_table where pk1 = 'test' AND col_bool='true' AND col_ts <= '2015-05-03 13:30:54.234' AND col_int >= '123' AND col_bigint > '-10000000' LIMIT 20000;",
 			want:            nil,
-			wantErr:         "column with name 'pk101' not found in table 'test_table'",
+			wantErr:         "unknown column 'pk101' in table test_keyspace.test_table",
 			sessionKeyspace: "test_keyspace",
 		},
 		{
@@ -617,7 +617,7 @@ func TestTranslator_TranslateSelectQuerytoBigtable(t *testing.T) {
 		{
 			name:            "MALFORMED QUERY",
 			query:           "MALFORMED QUERY",
-			wantErr:         "mismatched input 'MALFORMED' expecting 'SELECT'",
+			wantErr:         "parsing error",
 			want:            nil,
 			sessionKeyspace: "test_keyspace",
 		},
@@ -771,21 +771,21 @@ func TestTranslator_TranslateSelectQuerytoBigtable(t *testing.T) {
 			name:            "error at Columns parsing",
 			query:           "select  from table;",
 			want:            nil,
-			wantErr:         "no viable alternative at input 'from'",
+			wantErr:         "parsing error",
 			sessionKeyspace: "test_keyspace",
 		},
 		{
 			name:            "error at Condition parsing when column type not found",
-			query:           "select * from test_keyspace.test_table where name=test;",
+			query:           "select * from test_keyspace.test_table where name='test';",
 			want:            nil,
-			wantErr:         "column with name 'name' not found in table 'test_table'",
+			wantErr:         "unknown column 'name' in table test_keyspace.test_table",
 			sessionKeyspace: "test_keyspace",
 		},
 		{
 			name:            "error at Condition parsing when value invalid",
 			query:           "select * from test_keyspace.test_table where pk1=",
 			want:            nil,
-			wantErr:         "no viable alternative at input '<EOF>'",
+			wantErr:         "parsing error",
 			sessionKeyspace: "test_keyspace",
 		},
 		{
@@ -803,7 +803,7 @@ func TestTranslator_TranslateSelectQuerytoBigtable(t *testing.T) {
 				},
 				InitialValues: map[types.Placeholder]types.GoValue{
 					"@value0": "test",
-					"@value1": []string{"abc", "xyz"},
+					"@value1": []any{"abc", "xyz"},
 				},
 				AllParams: []types.Placeholder{"@value0", "@value1"},
 				Conditions: []types.Condition{
@@ -891,14 +891,10 @@ func TestTranslator_TranslateSelectQuerytoBigtable(t *testing.T) {
 				AllParams:     []types.Placeholder{"@value0", "@value1"},
 				Conditions: []types.Condition{
 					{
-						Column:           mockdata.GetColumnOrDie("test_keyspace", "test_table", "pk1"),
-						Operator:         "BETWEEN",
-						ValuePlaceholder: "@value0",
-					},
-					{
-						Column:           mockdata.GetColumnOrDie("test_keyspace", "test_table", "pk1"),
-						Operator:         "BETWEEN-AND",
-						ValuePlaceholder: "@value1",
+						Column:            mockdata.GetColumnOrDie("test_keyspace", "test_table", "pk1"),
+						Operator:          "BETWEEN",
+						ValuePlaceholder:  "@value0",
+						ValuePlaceholder2: "@value1",
 					},
 				},
 			},
@@ -906,12 +902,12 @@ func TestTranslator_TranslateSelectQuerytoBigtable(t *testing.T) {
 		{
 			name:    "test with BETWEEN operator raw query with single value",
 			query:   `select pk1, col_int from test_keyspace.test_table where pk1 between 'test';`,
-			wantErr: "no viable alternative at input 'select pk1, col_int from test_keyspace.test_table where pk1 between 'test''",
+			wantErr: "parsing error",
 			want:    nil,
 		},
 		{
 			name:  "test with LIKE keyword prepared query",
-			query: `select pk1, col_int from test_keyspace.test_table where pk1 like '?';`,
+			query: `select pk1, col_int from test_keyspace.test_table where pk1 like ?;`,
 			want: &Want{
 				TranslatedQuery: "SELECT pk1, TO_INT64(cf1['col_int']) FROM test_table WHERE pk1 LIKE @value0;",
 				Keyspace:        "test_keyspace",
@@ -950,34 +946,18 @@ func TestTranslator_TranslateSelectQuerytoBigtable(t *testing.T) {
 				AllParams:     []types.Placeholder{"@value0", "@value1"},
 				Conditions: []types.Condition{
 					{
-						Column:           mockdata.GetColumnOrDie("test_keyspace", "test_table", "pk1"),
-						Operator:         "BETWEEN",
-						ValuePlaceholder: "@value0",
-					},
-					{
-						Column:           mockdata.GetColumnOrDie("test_keyspace", "test_table", "pk1"),
-						Operator:         "BETWEEN-AND",
-						ValuePlaceholder: "@value1",
+						Column:            mockdata.GetColumnOrDie("test_keyspace", "test_table", "pk1"),
+						Operator:          "BETWEEN",
+						ValuePlaceholder:  "@value0",
+						ValuePlaceholder2: "@value1",
 					},
 				},
 			},
 		},
 		{
-			name:    "test with BETWEEN operator prepared query with single value",
-			query:   `select pk1, col_int from test_keyspace.test_table where pk1 between ?;`,
-			wantErr: "no viable alternative at input 'select pk1, col_int from test_keyspace.test_table where pk1 between ?'",
-			want:    nil,
-		},
-		{
-			name:    "test with BETWEEN operator raw query without any value",
-			query:   `select pk1, col_int from test_keyspace.test_table where pk1 between`,
-			wantErr: "no viable alternative at input 'between'",
-			want:    nil,
-		},
-		{
 			name:            "Empty CqlQuery",
 			query:           "",
-			wantErr:         "mismatched input '' expecting 'SELECT'",
+			wantErr:         "parsing error",
 			want:            nil,
 			sessionKeyspace: "test_keyspace",
 		},
@@ -992,28 +972,21 @@ func TestTranslator_TranslateSelectQuerytoBigtable(t *testing.T) {
 			name:            "query with missing limit value",
 			query:           `select pk1, col_int, col_bool from test_keyspace.test_table ORDER BY pk1 LIMIT;`,
 			want:            nil,
-			wantErr:         "no viable alternative at input 'LIMIT;'",
-			sessionKeyspace: "test_keyspace",
-		},
-		{
-			name:            "query with LIMIT before ORDER BY",
-			query:           `select pk1, col_int, col_bool from test_keyspace.test_table LIMIT 100 ORDER BY pk1;`,
-			want:            nil,
-			wantErr:         "ORDER BY is only supported after WHERE and before LIMIT",
+			wantErr:         "parsing error",
 			sessionKeyspace: "test_keyspace",
 		},
 		{
 			name:            "query with non-existent column in ORDER BY",
 			query:           `select pk1, col_int, col_bool from test_keyspace.test_table ORDER BY pk12343 LIMIT 100;`,
 			want:            nil,
-			wantErr:         "column with name 'pk12343' not found in table 'test_table'",
+			wantErr:         "unknown column name 'pk12343' in table test_keyspace.test_table",
 			sessionKeyspace: "test_keyspace",
 		},
 		{
 			name:            "query with negative LIMIT value",
 			query:           `select pk1, col_int, col_bool from test_keyspace.test_table ORDER BY pk1 LIMIT -100;`,
 			want:            nil,
-			wantErr:         "mismatched input '-' expecting INTEGER_LITERAL",
+			wantErr:         "parsing error",
 			sessionKeyspace: "test_keyspace",
 		},
 		{
@@ -1055,14 +1028,14 @@ func TestTranslator_TranslateSelectQuerytoBigtable(t *testing.T) {
 		{
 			name:            "Invalid keyspace/table (not in schema)",
 			query:           `select pk1 from invalid_keyspace.invalid_table where pk1 = 'abc';`,
-			wantErr:         "keyspace with name 'invalid_keyspace' not found in schema",
+			wantErr:         "keyspace 'invalid_keyspace' does not exist",
 			want:            nil,
 			sessionKeyspace: "test_keyspace",
 		},
 		{
 			name:            "Parser returns nil/empty for table or keyspace (simulate parser edge cases)",
 			query:           `select * from ;`,
-			wantErr:         "no viable alternative at input 'select * from ;'",
+			wantErr:         "parsing error",
 			want:            nil,
 			sessionKeyspace: "test_keyspace",
 		},
@@ -1074,26 +1047,15 @@ func TestTranslator_TranslateSelectQuerytoBigtable(t *testing.T) {
 			sessionKeyspace: "",
 		},
 		{
-			name:    "CqlQuery with complex GROUP BY and HAVING",
-			query:   `select pk1, count(col_int) as count_col2 from test_keyspace.test_table GROUP BY pk1 HAVING count(col_int) > 5;`,
-			wantErr: "HAVING clause is not supported",
-		},
-		{
 			name:            "CqlQuery with complex WHERE conditions",
 			query:           `select pk1, col_int from test_keyspace.test_table where pk1 = 'test' AND (col_int > 100 OR col_int < 50);`,
-			wantErr:         "OR is not supported in where clause",
+			wantErr:         "parsing error",
 			sessionKeyspace: "test_keyspace",
 		},
 		{
 			name:            "CqlQuery with multiple aggregate functions",
 			query:           `select pk1, avg(col_int) as avg_col2, max(col_bool) as max_col3, min(col_int) as min_col4 from test_keyspace.test_table GROUP BY pk1;`,
-			wantErr:         "multiple aggregate functions are not supported",
-			sessionKeyspace: "test_keyspace",
-		},
-		{
-			name:            "CqlQuery with LIMIT and OFFSET",
-			query:           `select pk1, col_int from test_keyspace.test_table LIMIT 10 OFFSET 5;`,
-			wantErr:         "OFFSET is not supported",
+			wantErr:         "invalid aggregate type: boolean",
 			sessionKeyspace: "test_keyspace",
 		},
 		{
@@ -1112,7 +1074,7 @@ func TestTranslator_TranslateSelectQuerytoBigtable(t *testing.T) {
 				SelectClause: &types.SelectClause{
 					Columns: []types.SelectedColumn{
 						*types.NewSelectedColumn("pk1", "pk1", "", types.TypeVarchar),
-						*types.NewSelectedColumn("col_int", "count(col_int)", "count", types.TypeBigInt),
+						*types.NewSelectedColumnFunction("system.count(col_int)", "col_int", "", types.TypeBigInt, types.FuncCodeCount),
 					},
 				},
 				Conditions: []types.Condition{

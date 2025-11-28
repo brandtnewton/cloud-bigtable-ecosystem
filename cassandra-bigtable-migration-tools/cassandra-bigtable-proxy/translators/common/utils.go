@@ -828,11 +828,12 @@ func ParseSelectFunction(sf cql.ISelectFunctionContext, alias string, table *sch
 		}
 		return *types.NewSelectedColumnFunction(sf.FunctionCall().GetText(), col.Name, alias, types.TypeBigInt, f), nil
 	case types.FuncCodeCount:
-		err := parseStarFunctionArg(sf.FunctionCall())
+		value, err := parseStarOrColumnFunctionArg(sf.FunctionCall(), table)
 		if err != nil {
 			return types.SelectedColumn{}, err
 		}
-		return *types.NewSelectedColumnFunction("system.count(*)", "*", alias, types.TypeBigInt, f), nil
+		sql := fmt.Sprintf("system.count(%s)", value)
+		return *types.NewSelectedColumnFunction(sql, types.ColumnName(value), alias, types.TypeBigInt, f), nil
 	case types.FuncCodeAvg, types.FuncCodeSum, types.FuncCodeMin, types.FuncCodeMax:
 		col, err := parseSingleColumnFunctionArg(sf.FunctionCall(), table)
 		if err != nil {
@@ -876,11 +877,15 @@ func parseSingleColumnFunctionArg(fn cql.IFunctionCallContext, table *schemaMapp
 	return col, nil
 }
 
-func parseStarFunctionArg(fn cql.IFunctionCallContext) error {
-	if fn.STAR() == nil {
-		return fmt.Errorf("expected '*' argument for `%s`", fn.GetText())
+func parseStarOrColumnFunctionArg(fn cql.IFunctionCallContext, table *schemaMapping.TableConfig) (string, error) {
+	if fn.STAR() != nil {
+		return "*", nil
 	}
-	return nil
+	col, err := parseSingleColumnFunctionArg(fn, table)
+	if err != nil {
+		return "", err
+	}
+	return string(col.Name), nil
 }
 
 func ParseAs(a cql.IAsSpecContext) (string, error) {

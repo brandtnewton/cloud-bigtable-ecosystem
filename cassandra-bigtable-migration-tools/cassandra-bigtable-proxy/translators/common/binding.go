@@ -218,56 +218,6 @@ func encodeSetValue(assignment *types.ComplexAssignmentSet, values *types.QueryP
 	return results, nil
 }
 
-// handleListOperation processes list operations in raw queries.
-// Manages simple assignment, append, prepend, and index-based operations on list columns.
-// Returns error if operation type is invalid or value type doesn't match expected type.
-//func handleListOperation(val interface{}, column *types.Columns, lt *types.ListType, colFamily types.ColumnFamily, output *AdHocQueryValues) error {
-//	switch v := val.(type) {
-//	case ComplexAssignment:
-//		switch v.Operation {
-//		case "+":
-//			valueToProcess := v.Right
-//			if v.IsPrepend {
-//				valueToProcess = v.Left
-//			}
-//			return addListElements(valueToProcess.([]string), colFamily, lt, v.IsPrepend, output)
-//		case "-":
-//			keys, ok := v.Right.([]string)
-//			if !ok {
-//				return fmt.Errorf("expected []string for remove operation, got %T", v.Right)
-//			}
-//			return removeListElements(keys, colFamily, column, output)
-//		case "update_index":
-//			idx, ok := v.Left.(string)
-//			if !ok {
-//				return fmt.Errorf("expected string for index, got %T", v.Left)
-//			}
-//			listType, ok := column.CQLType.(*types.ListType)
-//			if !ok {
-//				return fmt.Errorf("expected list type column for list operation")
-//			}
-//			dt := listType.ElementType().DataType()
-//			return updateListIndex(idx, v.Right, colFamily, dt, output)
-//		default:
-//			return fmt.Errorf("unsupported list operation: %s", v.Operation)
-//		}
-//	default:
-//		// Simple assignment (replace)
-//		output.DelColumnFamily = append(output.DelColumnFamily, column.ColumnFamily)
-//		var listValues []string
-//		if val != nil {
-//			switch v := val.(type) {
-//			case []string:
-//				listValues = v
-//			default:
-//				return fmt.Errorf("expected []string for list operation, got %T", val)
-//			}
-//		}
-//
-//		return addListElements(listValues, colFamily, lt, false, output)
-//	}
-//}
-
 func addListElements(listValues []types.GoValue, cf types.ColumnFamily, lt *types.ListType, isPrepend bool) ([]types.IBigtableMutationOp, error) {
 	var results []types.IBigtableMutationOp
 	now := time.Now()
@@ -386,34 +336,6 @@ func removeSetElements(keys []types.GoValue, colFamily types.ColumnFamily, outpu
 	return nil
 }
 
-// handleMapOperation processes map operations in raw queries.
-// Manages simple assignment/replace complete map, add, remove, and update at index operations on map columns.
-// Returns error if operation type is invalid or value type doesn't match map key/value
-//func handleMapOperation(val interface{}, column *types.Columns, mt *types.MapType, colFamily types.ColumnFamily, output *BigtableWriteMutation) error {
-//	// Check if key type is VARCHAR or TIMESTAMP
-//	if mt.KeyType().DataType() == datatype.Varchar || mt.KeyType().DataType() == datatype.Timestamp {
-//		switch v := val.(type) {
-//		case Assignment:
-//			switch v.Operation {
-//			case "+":
-//				return addMapEntries(v.Right, mt, column, output)
-//			case "-":
-//				return removeMapEntries(v.Right, column, output)
-//			case "update_index":
-//				return updateMapIndex(v.Left, v.Right, mt, colFamily, output)
-//			default:
-//				return fmt.Errorf("unsupported map operation: %s", v.Operation)
-//			}
-//		default:
-//			// Simple assignment (replace)
-//			output.DelColumnFamily = append(output.DelColumnFamily, column.ColumnFamily)
-//			return addMapEntries(val, mt, column, output)
-//		}
-//	} else {
-//		return fmt.Errorf("unsupported map key type: %s", mt.KeyType().String())
-//	}
-//}
-
 // addMapEntries adds key-value pairs to a map column in raw queries.
 // Handles type validation and conversion for both keys and values.
 // Returns error if key/value types don't match map types or conversion fails.
@@ -451,28 +373,6 @@ func removeMapEntries(keys []types.GoValue, column *types.Column, output *types.
 			Column: encodedKey,
 		}))
 	}
-	return nil
-}
-
-// updateMapIndex updates a specific key in a map column.
-// Handles type conversion and validation for both key and value.
-// Returns error if key doesn't exist or value type doesn't match map value type.
-func updateMapIndex(key interface{}, value interface{}, dt *types.MapType, colFamily types.ColumnFamily, output *types.BigtableWriteMutation) error {
-	k, ok := key.(string)
-	if !ok {
-		return fmt.Errorf("expected string for map key, got %T", key)
-	}
-	v, ok := value.(string)
-	if !ok {
-		return fmt.Errorf("expected string for map value, got %T", key)
-	}
-
-	val, err := EncodeScalarForBigtable(v, dt.ValueType())
-	if err != nil {
-		return err
-	}
-	// For map index update, treat as a single entry add
-	output.AddMutations(types.NewWriteCellOp(colFamily, types.ColumnQualifier(k), val))
 	return nil
 }
 
@@ -516,7 +416,7 @@ func BindQueryParams(params *types.QueryParameters, initialValues map[types.Plac
 	return result, nil
 }
 
-func BindSelectColumns(table *schemaMapping.TableConfig, selectedColumns []types.SelectedColumn, values *types.QueryParameterValues) ([]types.BoundSelectColumn, error) {
+func BindSelectColumns(table *schemaMapping.TableConfig, selectedColumns []types.SelectedColumn) ([]types.BoundSelectColumn, error) {
 	var boundColumns []types.BoundSelectColumn
 	for _, selectedColumn := range selectedColumns {
 		var bc types.BoundSelectColumn

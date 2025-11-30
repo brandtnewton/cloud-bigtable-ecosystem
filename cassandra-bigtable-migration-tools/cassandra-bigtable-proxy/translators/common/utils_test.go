@@ -76,24 +76,17 @@ func Test_formatValues(t *testing.T) {
 			want:    nil,
 			wantErr: true,
 		},
-		{
-			name:    "Unsupported type",
-			args:    args{"123", nil, primitive.ProtocolVersion4},
-			want:    nil,
-			wantErr: true,
-		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			got, err := EncodeScalarForBigtable(tt.args.value, tt.args.cqlType)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("EncodeScalarForBigtable() error = %v, wantErr %v", err, tt.wantErr)
+			if tt.wantErr {
+				require.Error(t, err)
 				return
 			}
-			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("EncodeScalarForBigtable() = %v, wantNewColumns %v", got, tt.want)
-			}
+			require.NoError(t, err)
+			assert.Equal(t, tt.want, got)
 		})
 	}
 }

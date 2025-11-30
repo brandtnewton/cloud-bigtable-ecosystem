@@ -51,7 +51,7 @@ func BindMutations(assignments []types.Assignment, values *types.QueryParameterV
 					}
 					var bigtableValues []types.BigtableValue
 					for _, lv := range value {
-						bv, err := encodeScalarForBigtable(lv, lt.ElementType())
+						bv, err := EncodeScalarForBigtable(lv, lt.ElementType())
 						if err != nil {
 							return err
 						}
@@ -129,7 +129,7 @@ func BindMutations(assignments []types.Assignment, values *types.QueryParameterV
 			if !ok {
 				return fmt.Errorf("cannot set list value on column type %s", v.Column().CQLType.String())
 			}
-			encoded, err := encodeScalarForBigtable(value, lt.ElementType())
+			encoded, err := EncodeScalarForBigtable(value, lt.ElementType())
 			if err != nil {
 				return err
 			}
@@ -180,7 +180,7 @@ func encodeSetValue(assignment *types.ComplexAssignmentSet, values *types.QueryP
 			if err != nil {
 				return nil, err
 			}
-			valueBytes, err := encodeScalarForBigtable(v, mt.ValueType())
+			valueBytes, err := EncodeScalarForBigtable(v, mt.ValueType())
 			if err != nil {
 				return nil, err
 			}
@@ -209,7 +209,7 @@ func encodeSetValue(assignment *types.ComplexAssignmentSet, values *types.QueryP
 		if err != nil {
 			return nil, err
 		}
-		v, err := encodeScalarForBigtable(value, col.CQLType)
+		v, err := EncodeScalarForBigtable(value, col.CQLType)
 		if err != nil {
 			return nil, err
 		}
@@ -276,7 +276,7 @@ func addListElements(listValues []types.GoValue, cf types.ColumnFamily, lt *type
 		column := getListIndexColumn(now, i, len(listValues), isPrepend)
 
 		// Format the value
-		formattedVal, err := encodeScalarForBigtable(v, lt.ElementType())
+		formattedVal, err := EncodeScalarForBigtable(v, lt.ElementType())
 		if err != nil {
 			return nil, fmt.Errorf("error converting string to %s value: %w", lt.String(), err)
 		}
@@ -433,7 +433,7 @@ func mapValueToBigtable(k types.GoValue, v types.GoValue, mt *types.MapType, cf 
 	if err != nil {
 		return nil, fmt.Errorf("error converting map key: %w", err)
 	}
-	valueFormatted, err := encodeScalarForBigtable(v, mt.ValueType())
+	valueFormatted, err := EncodeScalarForBigtable(v, mt.ValueType())
 	if err != nil {
 		return nil, fmt.Errorf("error converting string to %s value: %w", mt.String(), err)
 	}
@@ -467,7 +467,7 @@ func updateMapIndex(key interface{}, value interface{}, dt *types.MapType, colFa
 		return fmt.Errorf("expected string for map value, got %T", key)
 	}
 
-	val, err := encodeScalarForBigtable(v, dt.ValueType())
+	val, err := EncodeScalarForBigtable(v, dt.ValueType())
 	if err != nil {
 		return err
 	}

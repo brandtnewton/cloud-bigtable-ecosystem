@@ -423,7 +423,10 @@ func ValidateRequiredPrimaryKeys(tableConfig *schemaMapping.TableConfig, params 
 }
 
 func ParseListValue(l cql.IValueListContext, dt types.CqlDataType) ([]types.GoValue, error) {
-	lt := dt.(*types.ListType)
+	lt, ok := dt.(*types.ListType)
+	if !ok {
+		return nil, fmt.Errorf("cannot parse list value for non-list type: %s", dt.String())
+	}
 	var result []types.GoValue
 	for _, c := range l.AllConstant() {
 		val, err := ParseCqlConstant(c, lt.ElementType())
@@ -510,10 +513,10 @@ const (
 	maxNanos                = int32(9999)
 )
 
-// encodeScalarForBigtable converts a value to its byte representation based on CQL type.
+// EncodeScalarForBigtable converts a value to its byte representation based on CQL type.
 // Handles type conversion and encoding according to the protocol version.
 // Returns error if value type is invalid or encoding fails.
-func encodeScalarForBigtable(value types.GoValue, cqlType types.CqlDataType) (types.BigtableValue, error) {
+func EncodeScalarForBigtable(value types.GoValue, cqlType types.CqlDataType) (types.BigtableValue, error) {
 	if value == nil {
 		return nil, nil
 	}

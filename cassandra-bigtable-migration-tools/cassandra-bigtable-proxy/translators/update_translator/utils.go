@@ -104,8 +104,7 @@ func ParseAppend(columnContext cql.IColumnContext, op cql.IArithmeticOperatorCon
 	} else if col.CQLType.Code() == types.LIST {
 		valueType = col.CQLType
 	} else if col.CQLType.Code() == types.SET {
-		st := col.CQLType.(*types.SetType)
-		valueType = types.NewListType(st.ElementType())
+		valueType = col.CQLType
 	} else if col.CQLType.Code() == types.COUNTER {
 		valueType = col.CQLType
 	} else {
@@ -117,5 +116,9 @@ func ParseAppend(columnContext cql.IColumnContext, op cql.IArithmeticOperatorCon
 	if err != nil {
 		return nil, err
 	}
-	return types.NewComplexAssignmentAppend(col, operator, p, isPrepend), nil
+	if col.CQLType.Code() == types.COUNTER {
+		return types.NewAssignmentCounterIncrement(col, operator, p), nil
+	} else {
+		return types.NewComplexAssignmentAppend(col, operator, p, isPrepend), nil
+	}
 }

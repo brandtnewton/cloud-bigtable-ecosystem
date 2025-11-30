@@ -17,115 +17,94 @@
 package truncate_translator
 
 import (
-	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/translators"
+	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/global/types"
+	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/parser"
+	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/testing/mockdata"
+	"github.com/stretchr/testify/require"
 	"testing"
 
-	schemaMapping "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/schema-mapping"
 	"github.com/stretchr/testify/assert"
-	"go.uber.org/zap"
 )
 
 func TestTranslateTruncateTableToBigtable(t *testing.T) {
 	var tests = []struct {
 		name            string
 		query           string
-		want            *translators.TruncateTableStatementMap
-		hasError        bool
-		defaultKeyspace string
+		want            *types.TruncateTableStatementMap
+		wantErr         string
+		defaultKeyspace types.Keyspace
 	}{
 		{
-			name:  "Truncate table with explicit keyspace",
-			query: "TRUNCATE TABLE my_keyspace.my_table",
-			want: &translators.TruncateTableStatementMap{
-				Table:     "my_table",
-				Keyspace:  "my_keyspace",
-				QueryType: "truncate",
-			},
-			hasError:        false,
+			name:            "explicit keyspace",
+			query:           "TRUNCATE TABLE test_keyspace.test_table",
+			want:            types.NewTruncateTableStatementMap("test_keyspace", "test_table", "TRUNCATE TABLE test_keyspace.test_table"),
 			defaultKeyspace: "",
 		},
 		{
-			name:  "Truncate table with explicit keyspace and default keyspace",
-			query: "TRUNCATE TABLE my_keyspace.my_table;",
-			want: &translators.TruncateTableStatementMap{
-				Table:     "my_table",
-				Keyspace:  "my_keyspace",
-				QueryType: "truncate",
-			},
-			hasError:        false,
-			defaultKeyspace: "my_keyspace",
+			name:            "no explicit keyspace",
+			query:           "TRUNCATE TABLE test_table",
+			want:            types.NewTruncateTableStatementMap("test_keyspace", "test_table", "TRUNCATE TABLE test_table"),
+			defaultKeyspace: "test_keyspace",
 		},
-		{
-			name:  "Truncate table with default keyspace",
-			query: "TRUNCATE TABLE my_table",
-			want: &translators.TruncateTableStatementMap{
-				Table:     "my_table",
-				Keyspace:  "my_keyspace",
-				QueryType: "truncate",
-			},
-			hasError:        false,
-			defaultKeyspace: "my_keyspace",
-		},
-		{
-			name:            "Truncate table without keyspace and no default keyspace",
-			query:           "TRUNCATE TABLE my_table",
-			want:            nil,
-			hasError:        true,
-			defaultKeyspace: "",
-		},
-		{
-			name:  "Truncate table without semicolon",
-			query: "TRUNCATE TABLE my_keyspace.my_table",
-			want: &translators.TruncateTableStatementMap{
-				Table:     "my_table",
-				Keyspace:  "my_keyspace",
-				QueryType: "truncate",
-			},
-			hasError:        false,
-			defaultKeyspace: "my_keyspace",
-		},
-		{
-			name:            "Truncate table with empty table name",
-			query:           "TRUNCATE TABLE my_keyspace.;",
-			want:            nil,
-			hasError:        true,
-			defaultKeyspace: "my_keyspace",
-		},
-		{
-			name:            "Truncate table with empty keyspace(Should return error as query syntax is not valid)",
-			query:           "TRUNCATE TABLE .my_table",
-			want:            nil,
-			hasError:        true,
-			defaultKeyspace: "",
-		},
-		{
-			name:  "no 'table' keyword because it's optional",
-			query: "TRUNCATE my_keyspace.my_table",
-			want: &translators.TruncateTableStatementMap{
-				Table:     "my_table",
-				Keyspace:  "my_keyspace",
-				QueryType: "truncate",
-			},
-			hasError:        false,
-			defaultKeyspace: "my_keyspace",
-		},
-	}
 
-	tr := &translators.TranslatorManager{
-		Logger:              nil,
-		SchemaMappingConfig: schemaMapping.NewSchemaMappingConfig("schema_mapping", "cf1", zap.NewNop(), []*schemaMapping.TableConfig{}),
+		{
+			name:            "explicit keyspace AND session keyspace",
+			query:           "TRUNCATE TABLE test_keyspace.test_table",
+			want:            types.NewTruncateTableStatementMap("test_keyspace", "test_table", "TRUNCATE TABLE test_keyspace.test_table"),
+			defaultKeyspace: "other_keyspace",
+		},
+		{
+			name:            "missing keyspace",
+			query:           "TRUNCATE TABLE test_table",
+			want:            nil,
+			wantErr:         "no keyspace specified",
+			defaultKeyspace: "",
+		},
+		{
+			name:            "no table anme",
+			query:           "TRUNCATE TABLE",
+			want:            nil,
+			wantErr:         "parsing error",
+			defaultKeyspace: "",
+		},
+		{
+			name:            "malformed keyspace",
+			query:           "TRUNCATE TABLE .table",
+			want:            nil,
+			wantErr:         "parsing error",
+			defaultKeyspace: "",
+		},
+		{
+			name:            "unknown table",
+			query:           "TRUNCATE TABLE test_keyspace.unknown_table",
+			want:            nil,
+			wantErr:         "table 'unknown_table' does not exist",
+			defaultKeyspace: "",
+		},
+		{
+			name:            "unknown keyspace",
+			query:           "TRUNCATE TABLE unknown_keyspace.test_table",
+			want:            nil,
+			wantErr:         "keyspace 'unknown_keyspace' does not exist",
+			defaultKeyspace: "",
+		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := tr.TranslateTruncateTableToBigtable(tt.query, tt.defaultKeyspace)
-			if tt.hasError {
-				assert.Error(t, err)
-			} else {
-				assert.NoError(t, err)
+
+			tr := NewTruncateTranslator(mockdata.GetSchemaMappingConfig())
+			got, err := tr.Translate(types.NewRawQuery(nil, tt.defaultKeyspace, tt.query, parser.NewParser(tt.query), types.QueryTypeDelete), tt.defaultKeyspace)
+
+			if tt.wantErr != "" {
+				require.Error(t, err)
+				assert.Contains(t, err.Error(), tt.wantErr)
+				return
 			}
-			assert.True(t, (err != nil) == tt.hasError, tt.hasError)
-			assert.Equal(t, tt.want, got)
+
+			require.NoError(t, err)
+			gotTruncate := got.(*types.TruncateTableStatementMap)
+			assert.Equal(t, tt.want, gotTruncate)
 		})
 	}
 }

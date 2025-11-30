@@ -212,6 +212,20 @@ func TestSelectTranslator_Translate(t *testing.T) {
 			sessionKeyspace: "test_keyspace",
 		},
 		{
+			name:            "not enough values",
+			query:           "INSERT INTO test_keyspace.test_table (pk1, pk2, col_int) VALUES ('abc', 'foo')",
+			want:            nil,
+			wantErr:         "found mismatch between column count (3) value count (2)",
+			sessionKeyspace: "test_keyspace",
+		},
+		{
+			name:            "not enough columns",
+			query:           "INSERT INTO test_keyspace.test_table (pk1, pk2) VALUES ('abc', 'foo', 3)",
+			want:            nil,
+			wantErr:         "found mismatch between column count (2) value count (3)",
+			sessionKeyspace: "test_keyspace",
+		},
+		{
 			name:    "invalid query syntax (should error)",
 			query:   "INSERT INTO test_keyspace.test_table",
 			want:    nil,
@@ -239,7 +253,7 @@ func TestSelectTranslator_Translate(t *testing.T) {
 		},
 		{
 			name:    "invalid query syntax (should error)",
-			query:   "INSERT INTO test_keyspace.test_table (col_ts, col_int, pk1) VALUES (?, ?,?)",
+			query:   "INSERT INTO test_keyspace.test_table (col_ts, col_int, pk1) VALUES (?, ?, ?)",
 			want:    nil,
 			wantErr: "missing primary key: 'pk2'",
 		},

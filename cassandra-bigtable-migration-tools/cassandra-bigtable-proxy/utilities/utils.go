@@ -19,7 +19,6 @@ package utilities
 import (
 	"fmt"
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/third_party/datastax/proxycore"
-	"regexp"
 	"sort"
 	"strconv"
 	"strings"
@@ -614,8 +613,6 @@ func IsSupportedColumnType(dt types.CqlDataType) bool {
 		return false
 	}
 }
-
-var cqlGenericTypeRegex = regexp.MustCompile(`^(\w+)<(.+)>$`)
 
 func ParseCqlTypeOrDie(typeStr string) types.CqlDataType {
 	t, err := ParseCqlTypeString(typeStr)

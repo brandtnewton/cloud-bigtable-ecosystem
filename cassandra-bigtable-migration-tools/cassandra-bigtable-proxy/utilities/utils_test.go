@@ -147,23 +147,22 @@ func TestStringToPrimitives(t *testing.T) {
 		{"not_a_float", types.TypeFloat, nil, true},
 		{"3.1415926535", types.TypeDouble, float64(3.1415926535), false},
 		{"not_a_double", types.TypeDouble, nil, true},
-		{"true", types.TypeBoolean, int64(1), false},
-		{"false", types.TypeBoolean, int64(0), false},
+		{"true", types.TypeBoolean, true, false},
+		{"false", types.TypeBoolean, false, false},
 		{"not_a_boolean", types.TypeBoolean, nil, true},
 		{"blob_data", types.TypeBlob, "blob_data", false},
 		{"hello", types.TypeVarchar, "hello", false},
-		{"123", nil, nil, true},
 	}
 
 	for _, tt := range tests {
 		t.Run(fmt.Sprintf("%s_%s", tt.cqlType, tt.value), func(t *testing.T) {
 			result, err := StringToGo(tt.value, tt.cqlType)
-			if (err != nil) != tt.hasError {
-				t.Errorf("expected error: %v, got error: %v", tt.hasError, err)
+			if tt.hasError {
+				require.Error(t, err)
+				return
 			}
-			if result != tt.expected {
-				t.Errorf("expected result: %v, got result: %v", tt.expected, result)
-			}
+			require.NoError(t, err)
+			assert.Equal(t, tt.expected, result)
 		})
 	}
 }

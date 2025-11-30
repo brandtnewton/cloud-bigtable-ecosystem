@@ -17,724 +17,659 @@
 package update_translator
 
 import (
-	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/translators"
-	"reflect"
+	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/parser"
+	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/testing/mockdata"
 	"testing"
+	"time"
 
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/global/types"
-	schemaMapping "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/schema-mapping"
-	"github.com/datastax/go-cassandra-native-protocol/datatype"
-	"github.com/datastax/go-cassandra-native-protocol/message"
-	"github.com/datastax/go-cassandra-native-protocol/primitive"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"go.uber.org/zap"
 )
 
+type Want struct {
+	Keyspace      types.Keyspace
+	Table         types.TableName
+	IfExists      bool
+	Values        []types.Assignment
+	Clauses       []types.Condition
+	AllParams     []types.Placeholder
+	InitialValues map[types.Placeholder]types.GoValue
+}
+
 func TestTranslator_TranslateUpdateQuerytoBigtable(t *testing.T) {
-	const NO_ERROR_EXPECTED = ""
-	type fields struct {
-		Logger *zap.Logger
-	}
-	type args struct {
-		query string
-	}
-
-	valueBlob := "0x0000000000000003"
-	setBlob, err := translators.encodeScalarForBigtable(valueBlob, datatype.Blob)
-	if err != nil {
-		t.Errorf("encodeScalarForBigtable() error = %v", err)
-	}
-
-	valueTimestamp := "2024-08-12T12:34:56Z"
-	setTimestamp, err := translators.encodeScalarForBigtable(valueTimestamp, datatype.Timestamp)
-	if err != nil {
-		t.Errorf("encodeScalarForBigtable() error = %v", err)
-	}
-
-	valueInt := "123"
-	setInt, err := translators.encodeScalarForBigtable(valueInt, datatype.Int)
-	if err != nil {
-		t.Errorf("encodeScalarForBigtable() error = %v", err)
-	}
-
-	valueBigInt := "1234567890"
-	setBigInt, err := translators.encodeScalarForBigtable(valueBigInt, datatype.Bigint)
-	if err != nil {
-		t.Errorf("encodeScalarForBigtable() error = %v", err)
-	}
-
-	setTrueBool, err := translators.encodeScalarForBigtable("true", datatype.Boolean)
-	if err != nil {
-		t.Errorf("encodeScalarForBigtable() error = %v", err)
-	}
-
 	tests := []struct {
 		name            string
-		fields          fields
-		sessionKeyspace string
-		args            args
-		want            *translators.PreparedUpdateQuery
+		sessionKeyspace types.Keyspace
+		query           string
+		want            *Want
 		wantErr         string
 	}{
 		{
-			name: "update blob column",
-			args: args{
-				query: "UPDATE test_keyspace.test_table SET column2 = '0x0000000000000003' WHERE column1 = 'testText' AND column10 = 'column10';",
-			},
-			wantErr: NO_ERROR_EXPECTED,
-			want: &translators.PreparedUpdateQuery{
-				ParamKeys: []string{"set1", "value1", "value2"},
-				Params: map[string]interface{}{
-					"set1":   setBlob,
-					"value1": "testText",
-					"value2": "column10",
+			name:  "update blob column",
+			query: "UPDATE test_keyspace.test_table SET col_blob = '0x0000000000000003' WHERE pk1 = 'testText' AND pk2 = 'pk2';",
+			want: &Want{
+				Keyspace:  "test_keyspace",
+				Table:     "test_table",
+				AllParams: []types.Placeholder{"@value0", "@value1", "@value2"},
+				InitialValues: map[types.Placeholder]types.GoValue{
+					"@value0": "0x0000000000000003",
+					"@value1": "testText",
+					"@value2": "pk2",
 				},
-				RowKey:            "testText\x00\x01column10",
-				Keyspace:          "test_keyspace",
-				ComplexOperations: map[string]*ComplexOperation{},
-			},
-		},
-		{
-			name: "update boolean column",
-			args: args{
-				query: "UPDATE test_keyspace.test_table SET column3 = true WHERE column1 = 'testText' AND column10 = 'column10';",
-			},
-			wantErr: NO_ERROR_EXPECTED,
-			want: &translators.PreparedUpdateQuery{
-				ParamKeys: []string{"set1", "value1", "value2"},
-				Params: map[string]interface{}{
-					"set1":   setTrueBool,
-					"value1": "testText",
-					"value2": "column10",
+				IfExists: false,
+				Values: []types.Assignment{
+					types.NewComplexAssignmentSet(mockdata.GetColumnOrDie("test_keyspace", "test_table", "col_blob"), "@value0"),
 				},
-				RowKey:            "testText\x00\x01column10",
-				Keyspace:          "test_keyspace",
-				ComplexOperations: map[string]*ComplexOperation{},
-			},
-		},
-		{
-			name: "update timestamp column",
-			args: args{
-				query: "UPDATE test_keyspace.test_table SET column5 = '2024-08-12T12:34:56Z' WHERE column1 = 'testText' AND column10 = 'column10';",
-			},
-			wantErr: NO_ERROR_EXPECTED,
-			want: &translators.PreparedUpdateQuery{
-				ParamKeys: []string{"set1", "value1", "value2"},
-				Params: map[string]interface{}{
-					"set1":   setTimestamp,
-					"value1": "testText",
-					"value2": "column10",
-				},
-				RowKey:            "testText\x00\x01column10",
-				Keyspace:          "test_keyspace",
-				ComplexOperations: map[string]*ComplexOperation{},
-			},
-		},
-		{
-			name: "update int column",
-			args: args{
-				query: "UPDATE test_keyspace.test_table SET column6 = 123 WHERE column1 = 'testText' AND column10 = 'column10';",
-			},
-			wantErr: NO_ERROR_EXPECTED,
-			want: &translators.PreparedUpdateQuery{
-				ParamKeys: []string{"set1", "value1", "value2"},
-				Params: map[string]interface{}{
-					"set1":   setInt,
-					"value1": "testText",
-					"value2": "column10",
-				},
-				RowKey:            "testText\x00\x01column10",
-				Keyspace:          "test_keyspace",
-				ComplexOperations: map[string]*ComplexOperation{},
-			},
-		},
-		{
-			name: "update set<varchar> column",
-			args: args{
-				query: "UPDATE test_keyspace.test_table SET column7 = {'item1', 'item2'} WHERE column1 = 'testText' AND column10 = 'column10';",
-			},
-			wantErr: NO_ERROR_EXPECTED,
-			want: &translators.PreparedUpdateQuery{
-				ParamKeys: []string{"set1", "value1", "value2"},
-				Params: map[string]interface{}{
-					"set1":   []string{"item1", "item2"},
-					"value1": "testText",
-					"value2": "column10",
-				},
-				RowKey:            "testText\x00\x01column10",
-				Keyspace:          "test_keyspace",
-				ComplexOperations: map[string]*ComplexOperation{},
-			},
-		},
-		{
-			name: "update map<varchar,boolean> column",
-			args: args{
-				query: "UPDATE test_keyspace.test_table SET column8 = {'key1': true, 'key2': false} WHERE column1 = 'testText' AND column10 = 'column10';",
-			},
-			wantErr: NO_ERROR_EXPECTED,
-			want: &translators.PreparedUpdateQuery{
-				ParamKeys: []string{"set1", "value1", "value2"},
-				Params: map[string]interface{}{
-					"set1":   map[string]string{"key1": "true", "key2": "false"},
-					"value1": "testText",
-					"value2": "column10",
-				},
-				RowKey:            "testText\x00\x01column10",
-				Keyspace:          "test_keyspace",
-				ComplexOperations: map[string]*ComplexOperation{},
-			},
-		},
-		{
-			name: "update bigint column",
-			args: args{
-				query: "UPDATE test_keyspace.test_table SET column9 = 1234567890 WHERE column1 = 'testText' AND column10 = 'column10';",
-			},
-			wantErr: NO_ERROR_EXPECTED,
-			want: &translators.PreparedUpdateQuery{
-				ParamKeys: []string{"set1", "value1", "value2"},
-				Params: map[string]interface{}{
-					"set1":   setBigInt,
-					"value1": "testText",
-					"value2": "column10",
-				},
-				RowKey:            "testText\x00\x01column10",
-				Keyspace:          "test_keyspace",
-				ComplexOperations: map[string]*ComplexOperation{},
-			},
-		},
-		{
-			name: "with keyspace in query, without default keyspace",
-			args: args{
-				query: "UPDATE test_keyspace.test_table SET column2 = 'abc' WHERE column10 = 'pkval' AND column1 = 'abc';",
-			},
-			fields:  fields{},
-			wantErr: NO_ERROR_EXPECTED,
-			want: &translators.PreparedUpdateQuery{
-				ParamKeys: []string{"set1", "value1", "value2"},
-				Params: map[string]interface{}{
-					"set1":   []byte("abc"),
-					"value1": "pkval",
-					"value2": "abc",
-				},
-				RowKey:            "abc\x00\x01pkval",
-				Keyspace:          "test_keyspace",
-				ComplexOperations: map[string]*ComplexOperation{},
-			},
-		},
-		{
-			name: "append to set column with + operator",
-			args: args{
-				query: "UPDATE test_keyspace.test_table SET column7 = column7 + {'item3'} WHERE column1 = 'testText' AND column10 = 'column10';",
-			},
-			wantErr: NO_ERROR_EXPECTED,
-			want: &translators.PreparedUpdateQuery{
-				ParamKeys: []string{"set1", "value1", "value2"},
-				Params: map[string]interface{}{
-					"set1": translators.Assignment{
-						Column:    "column7",
-						Operation: "+",
-						Left:      "column7",
-						Right:     []string{"item3"},
+				Clauses: []types.Condition{
+					{
+						Column:           mockdata.GetColumnOrDie("test_keyspace", "test_table", "pk1"),
+						Operator:         types.EQ,
+						ValuePlaceholder: "@value1",
 					},
-					"value1": "testText",
-					"value2": "column10",
-				},
-				RowKey:            "testText\x00\x01column10",
-				Keyspace:          "test_keyspace",
-				ComplexOperations: map[string]*ComplexOperation{},
-			},
-		},
-		{
-			name: "subtract from set column with - operator",
-			args: args{
-				query: "UPDATE test_keyspace.test_table SET column7 = column7 - {'item2'} WHERE column1 = 'testText' AND column10 = 'column10';",
-			},
-			wantErr: NO_ERROR_EXPECTED,
-			want: &translators.PreparedUpdateQuery{
-				ParamKeys: []string{"set1", "value1", "value2"},
-				Params: map[string]interface{}{
-					"set1": translators.Assignment{
-						Column:    "column7",
-						Operation: "-",
-						Left:      "column7",
-						Right:     []string{"item2"},
-					},
-					"value1": "testText",
-					"value2": "column10",
-				},
-				RowKey:            "testText\x00\x01column10",
-				Keyspace:          "test_keyspace",
-				ComplexOperations: map[string]*ComplexOperation{},
-			},
-		},
-		{
-			name: "counter operation",
-			args: args{
-				query: "UPDATE test_keyspace.test_table SET counter_col = counter_col + 1 WHERE column1 = 'testText' AND column10 = 'column10';",
-			},
-			wantErr: NO_ERROR_EXPECTED,
-			want: &translators.PreparedUpdateQuery{
-				ParamKeys: []string{"set1", "value1", "value2"},
-				Params: map[string]interface{}{
-					"set1": translators.Assignment{
-						Column:    "counter_col",
-						Operation: "+",
-						Left:      "counter_col",
-						Right:     "1",
-					},
-					"value1": "testText",
-					"value2": "column10",
-				},
-				ComplexOperations: map[string]*ComplexOperation{
-					"counter_col": {
-						IncrementType:  translators.Increment,
-						IncrementValue: 1,
+					{
+						Column:           mockdata.GetColumnOrDie("test_keyspace", "test_table", "pk2"),
+						Operator:         types.EQ,
+						ValuePlaceholder: "@value2",
 					},
 				},
-				RowKey:   "testText\x00\x01column10",
-				Keyspace: "test_keyspace",
 			},
 		},
 		{
-			name: "counter operation with invalid operator",
-			args: args{
-				query: "UPDATE test_keyspace.test_table SET counter_col = counter_col * 1 WHERE column1 = 'testText' AND column10 = 'column10';",
-			},
-			wantErr: "unsupported counter operation",
-		},
-		{
-			name: "counter operation decrement",
-			args: args{
-				query: "UPDATE test_keyspace.test_table SET counter_col = counter_col - 9 WHERE column1 = 'testText' AND column10 = 'column10';",
-			},
-			wantErr: NO_ERROR_EXPECTED,
-			want: &translators.PreparedUpdateQuery{
-				ParamKeys: []string{"set1", "value1", "value2"},
-				Params: map[string]interface{}{
-					"set1": translators.Assignment{
-						Column:    "counter_col",
-						Operation: "-",
-						Left:      "counter_col",
-						Right:     "9",
-					},
-					"value1": "testText",
-					"value2": "column10",
+			name:  "update boolean column",
+			query: "UPDATE test_keyspace.test_table SET col_bool = true WHERE pk1 = 'testText' AND pk2 = 'pk2';",
+			want: &Want{
+				Keyspace:  "test_keyspace",
+				Table:     "test_table",
+				IfExists:  false,
+				AllParams: []types.Placeholder{"@value0", "@value1", "@value2"},
+				InitialValues: map[types.Placeholder]types.GoValue{
+					"@value0": true,
+					"@value1": "testText",
+					"@value2": "pk2",
 				},
-				ComplexOperations: map[string]*ComplexOperation{
-					"counter_col": {
-						IncrementType:  translators.Decrement,
-						IncrementValue: 9,
+				Values: []types.Assignment{
+					types.NewComplexAssignmentSet(mockdata.GetColumnOrDie("test_keyspace", "test_table", "col_bool"), "@value0"),
+				},
+				Clauses: []types.Condition{
+					{
+						Column:           mockdata.GetColumnOrDie("test_keyspace", "test_table", "pk1"),
+						Operator:         types.EQ,
+						ValuePlaceholder: "@value1",
+					},
+					{
+						Column:           mockdata.GetColumnOrDie("test_keyspace", "test_table", "pk2"),
+						Operator:         types.EQ,
+						ValuePlaceholder: "@value2",
 					},
 				},
-				RowKey:   "testText\x00\x01column10",
-				Keyspace: "test_keyspace",
 			},
 		},
 		{
-			name: "counter operation increment a negative value",
-			args: args{
-				query: "UPDATE test_keyspace.test_table SET counter_col = counter_col + -9 WHERE column1 = 'testText' AND column10 = 'column10';",
-			},
-			wantErr: NO_ERROR_EXPECTED,
-			want: &translators.PreparedUpdateQuery{
-				ParamKeys: []string{"set1", "value1", "value2"},
-				Params: map[string]interface{}{
-					"set1": translators.Assignment{
-						Column:    "counter_col",
-						Operation: "+",
-						Left:      "counter_col",
-						Right:     "-9",
+			name:  "update timestamp column",
+			query: "UPDATE test_keyspace.test_table SET col_ts = '2024-08-12T12:34:56Z' WHERE pk1 = 'testText' AND pk2 = 'pk2';",
+			want: &Want{
+				Keyspace:  "test_keyspace",
+				Table:     "test_table",
+				AllParams: []types.Placeholder{"@value0", "@value1", "@value2"},
+				InitialValues: map[types.Placeholder]types.GoValue{
+					"@value0": time.Date(2024, 8, 12, 12, 34, 56, 0, time.UTC),
+					"@value1": "testText",
+					"@value2": "pk2",
+				},
+				Values: []types.Assignment{
+					types.NewComplexAssignmentSet(mockdata.GetColumnOrDie("test_keyspace", "test_table", "col_ts"), "@value0"),
+				},
+				Clauses: []types.Condition{
+					{
+						Column:           mockdata.GetColumnOrDie("test_keyspace", "test_table", "pk1"),
+						Operator:         types.EQ,
+						ValuePlaceholder: "@value1",
 					},
-					"value1": "testText",
-					"value2": "column10",
-				},
-				ComplexOperations: map[string]*ComplexOperation{
-					"counter_col": {
-						IncrementType:  translators.Increment,
-						IncrementValue: -9,
+					{
+						Column:           mockdata.GetColumnOrDie("test_keyspace", "test_table", "pk2"),
+						Operator:         types.EQ,
+						ValuePlaceholder: "@value2",
 					},
 				},
-				RowKey:   "testText\x00\x01column10",
-				Keyspace: "test_keyspace",
 			},
 		},
 		{
-			name: "with keyspace in query, with default keyspace",
-			args: args{
-				query: "UPDATE test_keyspace.test_table SET column2 = 'abc' WHERE column10 = 'pkval' AND column1 = 'abc';",
-			},
-			fields:  fields{},
-			wantErr: NO_ERROR_EXPECTED,
-			want: &translators.PreparedUpdateQuery{
-				ParamKeys: []string{"set1", "value1", "value2"},
-				Params: map[string]interface{}{
-					"set1":   []byte("abc"),
-					"value1": "pkval",
-					"value2": "abc",
+			name:  "update int column",
+			query: "UPDATE test_keyspace.test_table SET col_int = 123 WHERE pk1 = 'testText' AND pk2 = 'pk2';",
+			want: &Want{
+				Keyspace:  "test_keyspace",
+				Table:     "test_table",
+				AllParams: []types.Placeholder{"@value0", "@value1", "@value2"},
+				InitialValues: map[types.Placeholder]types.GoValue{
+					"@value0": int32(123),
+					"@value1": "testText",
+					"@value2": "pk2",
 				},
-				RowKey:            "abc\x00\x01pkval",
-				Keyspace:          "test_keyspace",
-				ComplexOperations: map[string]*ComplexOperation{},
-			},
-		},
-		{
-			name: "update with empty list assignment",
-			args: args{
-				query: "UPDATE test_keyspace.test_table SET column7 = [] WHERE column1 = 'testText' AND column10 = 'column10';",
-			},
-			wantErr: NO_ERROR_EXPECTED,
-			want: &translators.PreparedUpdateQuery{
-				ParamKeys: []string{"set1", "value1", "value2"},
-				Params: map[string]interface{}{
-					"set1":   []string(nil),
-					"value1": "testText",
-					"value2": "column10",
+				Values: []types.Assignment{
+					types.NewComplexAssignmentSet(mockdata.GetColumnOrDie("test_keyspace", "test_table", "col_int"), "@value0"),
 				},
-				RowKey:            "testText\x00\x01column10",
-				Keyspace:          "test_keyspace",
-				ComplexOperations: map[string]*ComplexOperation{},
-			},
-		},
-		{
-			name: "update with list assignment",
-			args: args{
-				query: "UPDATE test_keyspace.test_table SET column7 = ['item1', 'item2'] WHERE column1 = 'testText' AND column10 = 'column10';",
-			},
-			wantErr: NO_ERROR_EXPECTED,
-			want: &translators.PreparedUpdateQuery{
-				ParamKeys: []string{"set1", "value1", "value2"},
-				Params: map[string]interface{}{
-					"set1":   []string{"item1", "item2"},
-					"value1": "testText",
-					"value2": "column10",
+				Clauses: []types.Condition{
+					{
+						Column:           mockdata.GetColumnOrDie("test_keyspace", "test_table", "pk1"),
+						Operator:         types.EQ,
+						ValuePlaceholder: "@value1",
+					},
+					{
+						Column:           mockdata.GetColumnOrDie("test_keyspace", "test_table", "pk2"),
+						Operator:         types.EQ,
+						ValuePlaceholder: "@value2",
+					},
 				},
-				RowKey:            "testText\x00\x01column10",
-				Keyspace:          "test_keyspace",
-				ComplexOperations: map[string]*ComplexOperation{},
 			},
 		},
 		{
-			name: "update with map assignment",
-			args: args{
-				query: "UPDATE test_keyspace.test_table SET column8 = {'key1': true, 'key2': false} WHERE column1 = 'testText' AND column10 = 'column10';",
-			},
-			want: &translators.PreparedUpdateQuery{
-				ParamKeys: []string{"set1", "value1", "value2"},
-				Params: map[string]interface{}{
-					"set1":   map[string]string{"key1": "true", "key2": "false"},
-					"value1": "testText",
-					"value2": "column10",
+			name:  "update set<varchar> column",
+			query: "UPDATE test_keyspace.test_table SET set_text = {'item1', 'item2'} WHERE pk1 = 'testText' AND pk2 = 'pk2';",
+			want: &Want{
+				Keyspace:  "test_keyspace",
+				Table:     "test_table",
+				AllParams: []types.Placeholder{"@value0", "@value1", "@value2"},
+				InitialValues: map[types.Placeholder]types.GoValue{
+					"@value0": []types.GoValue{"item1", "item2"},
+					"@value1": "testText",
+					"@value2": "pk2",
 				},
-				RowKey:            "testText\x00\x01column10",
-				Keyspace:          "test_keyspace",
-				ComplexOperations: map[string]*ComplexOperation{},
-			},
-		},
-		{
-			name: "update with set assignment",
-			args: args{
-				query: "UPDATE test_keyspace.test_table SET column7 = {'item1', 'item2'} WHERE column1 = 'testText' AND column10 = 'column10';",
-			},
-			want: &translators.PreparedUpdateQuery{
-				ParamKeys: []string{"set1", "value1", "value2"},
-				Params: map[string]interface{}{
-					"set1":   []string{"item1", "item2"},
-					"value1": "testText",
-					"value2": "column10",
+				Values: []types.Assignment{
+					types.NewComplexAssignmentSet(mockdata.GetColumnOrDie("test_keyspace", "test_table", "set_text"), "@value0"),
 				},
-				RowKey:            "testText\x00\x01column10",
-				Keyspace:          "test_keyspace",
-				ComplexOperations: map[string]*ComplexOperation{},
+				Clauses: []types.Condition{
+					{
+						Column:           mockdata.GetColumnOrDie("test_keyspace", "test_table", "pk1"),
+						Operator:         types.EQ,
+						ValuePlaceholder: "@value1",
+					},
+					{
+						Column:           mockdata.GetColumnOrDie("test_keyspace", "test_table", "pk2"),
+						Operator:         types.EQ,
+						ValuePlaceholder: "@value2",
+					},
+				},
 			},
 		},
 		{
-			name: "attempt to update primary key with collection (should error)",
-			args: args{
-				query: "UPDATE test_keyspace.test_table SET column1 = ['item1'] WHERE column10 = 'column10';",
+			name:  "update map<varchar,boolean> column",
+			query: "UPDATE test_keyspace.test_table SET map_text_bool = {'key1': true, 'key2': false} WHERE pk1 = 'testText' AND pk2 = 'pk2';",
+			want: &Want{
+				Keyspace:  "test_keyspace",
+				Table:     "test_table",
+				AllParams: []types.Placeholder{"@value0", "@value1", "@value2"},
+				InitialValues: map[types.Placeholder]types.GoValue{
+					"@value0": map[types.GoValue]types.GoValue{"key1": true, "key2": false},
+					"@value1": "testText",
+					"@value2": "pk2",
+				},
+				Values: []types.Assignment{
+					types.NewComplexAssignmentSet(mockdata.GetColumnOrDie("test_keyspace", "test_table", "map_text_bool"), "@value0"),
+				},
+				Clauses: []types.Condition{
+					{
+						Column:           mockdata.GetColumnOrDie("test_keyspace", "test_table", "pk1"),
+						Operator:         types.EQ,
+						ValuePlaceholder: "@value1",
+					},
+					{
+						Column:           mockdata.GetColumnOrDie("test_keyspace", "test_table", "pk2"),
+						Operator:         types.EQ,
+						ValuePlaceholder: "@value2",
+					},
+				},
 			},
-			wantErr: "primary key not allowed to assignments",
 		},
 		{
-			name: "invalid collection syntax (should error)",
-			args: args{
-				query: "UPDATE test_keyspace.test_table SET column7 = ['item1', WHERE column1 = 'testText';",
+			name:  "update bigint column",
+			query: "UPDATE test_keyspace.test_table SET col_bigint = 1234567890 WHERE pk1 = 'testText' AND pk2 = 'pk2';",
+			want: &Want{
+				Keyspace:  "test_keyspace",
+				Table:     "test_table",
+				AllParams: []types.Placeholder{"@value0", "@value1", "@value2"},
+				InitialValues: map[types.Placeholder]types.GoValue{
+					"@value0": int64(1234567890),
+					"@value1": "testText",
+					"@value2": "pk2",
+				},
+				Values: []types.Assignment{
+					types.NewComplexAssignmentSet(mockdata.GetColumnOrDie("test_keyspace", "test_table", "col_bigint"), "@value0"),
+				},
+				Clauses: []types.Condition{
+					{
+						Column:           mockdata.GetColumnOrDie("test_keyspace", "test_table", "pk1"),
+						Operator:         types.EQ,
+						ValuePlaceholder: "@value1",
+					},
+					{
+						Column:           mockdata.GetColumnOrDie("test_keyspace", "test_table", "pk2"),
+						Operator:         types.EQ,
+						ValuePlaceholder: "@value2",
+					},
+				},
 			},
-			// note - this exact error doesn't matter
-			wantErr: "not allowed",
 		},
 		{
-			name: "collection assignment to non-collection column (should error)",
-			args: args{
-				query: "UPDATE test_keyspace.test_table SET column6 = ['item1'] WHERE column1 = 'testText';",
+			name:  "with keyspace in query, without default keyspace",
+			query: "UPDATE test_keyspace.test_table SET col_blob = 'abc' WHERE pk2 = 'pkval' AND pk1 = 'abc';",
+			want: &Want{
+				Keyspace:  "test_keyspace",
+				Table:     "test_table",
+				AllParams: []types.Placeholder{"@value0", "@value1", "@value2"},
+				InitialValues: map[types.Placeholder]types.GoValue{
+					"@value0": "abc",
+					"@value1": "pkval",
+					"@value2": "abc",
+				},
+				Values: []types.Assignment{
+					types.NewComplexAssignmentSet(mockdata.GetColumnOrDie("test_keyspace", "test_table", "col_blob"), "@value0"),
+				},
+				Clauses: []types.Condition{
+					{
+						Column:           mockdata.GetColumnOrDie("test_keyspace", "test_table", "pk2"),
+						Operator:         types.EQ,
+						ValuePlaceholder: "@value1",
+					},
+					{
+						Column:           mockdata.GetColumnOrDie("test_keyspace", "test_table", "pk1"),
+						Operator:         types.EQ,
+						ValuePlaceholder: "@value2",
+					},
+				},
 			},
-			wantErr: "invalid syntax",
 		},
 		{
-			name: "without keyspace in query, with default keyspace",
-			args: args{
-				query: "UPDATE test_table SET column2 = 'abc' WHERE column10 = 'pkval' AND column1 = 'abc';",
+			name:  "append to set column with + operator",
+			query: "UPDATE test_keyspace.test_table SET set_text = set_text + {'item3'} WHERE pk1 = 'testText' AND pk2 = 'pk2';",
+			want: &Want{
+				Keyspace:  "test_keyspace",
+				Table:     "test_table",
+				AllParams: []types.Placeholder{"@value0", "@value1", "@value2"},
+				InitialValues: map[types.Placeholder]types.GoValue{
+					"@value0": []types.GoValue{"item3"},
+					"@value1": "testText",
+					"@value2": "pk2",
+				},
+				Values: []types.Assignment{
+					types.NewComplexAssignmentAppend(mockdata.GetColumnOrDie("test_keyspace", "test_table", "set_text"), types.PLUS, "@value0", false),
+				},
+				Clauses: []types.Condition{
+					{
+						Column:           mockdata.GetColumnOrDie("test_keyspace", "test_table", "pk1"),
+						Operator:         types.EQ,
+						ValuePlaceholder: "@value1",
+					},
+					{
+						Column:           mockdata.GetColumnOrDie("test_keyspace", "test_table", "pk2"),
+						Operator:         types.EQ,
+						ValuePlaceholder: "@value2",
+					},
+				},
 			},
+		},
+		{
+			name:  "subtract from set column with - operator",
+			query: "UPDATE test_keyspace.test_table SET set_text = set_text - {'item2'} WHERE pk1 = 'testText' AND pk2 = 'pk2';",
+			want: &Want{
+				Keyspace:  "test_keyspace",
+				Table:     "test_table",
+				AllParams: []types.Placeholder{"@value0", "@value1", "@value2"},
+				InitialValues: map[types.Placeholder]types.GoValue{
+					"@value0": []types.GoValue{"item2"},
+					"@value1": "testText",
+					"@value2": "pk2",
+				},
+				Values: []types.Assignment{
+					types.NewComplexAssignmentAppend(mockdata.GetColumnOrDie("test_keyspace", "test_table", "set_text"), types.MINUS, "@value0", false),
+				},
+				Clauses: []types.Condition{
+					{
+						Column:           mockdata.GetColumnOrDie("test_keyspace", "test_table", "pk1"),
+						Operator:         types.EQ,
+						ValuePlaceholder: "@value1",
+					},
+					{
+						Column:           mockdata.GetColumnOrDie("test_keyspace", "test_table", "pk2"),
+						Operator:         types.EQ,
+						ValuePlaceholder: "@value2",
+					},
+				},
+			},
+		},
+		{
+			name:  "counter operation",
+			query: "UPDATE test_keyspace.test_table SET col_counter = col_counter + 1 WHERE pk1 = 'testText' AND pk2 = 'pk2';",
+			want: &Want{
+				Keyspace:  "test_keyspace",
+				Table:     "test_table",
+				AllParams: []types.Placeholder{"@value0", "@value1", "@value2"},
+				InitialValues: map[types.Placeholder]types.GoValue{
+					"@value0": int64(1),
+					"@value1": "testText",
+					"@value2": "pk2",
+				},
+				Values: []types.Assignment{
+					types.NewAssignmentCounterIncrement(mockdata.GetColumnOrDie("test_keyspace", "test_table", "col_counter"), types.PLUS, "@value0"),
+				},
+				Clauses: []types.Condition{
+					{
+						Column:           mockdata.GetColumnOrDie("test_keyspace", "test_table", "pk1"),
+						Operator:         types.EQ,
+						ValuePlaceholder: "@value1",
+					},
+					{
+						Column:           mockdata.GetColumnOrDie("test_keyspace", "test_table", "pk2"),
+						Operator:         types.EQ,
+						ValuePlaceholder: "@value2",
+					},
+				},
+			},
+		},
+		{
+			name:    "counter operation with invalid operator",
+			query:   "UPDATE test_keyspace.test_table SET col_counter = col_counter * 1 WHERE pk1 = 'testText' AND pk2 = 'pk2';",
+			wantErr: "parsing error",
+		},
+		{
+			name:  "counter operation decrement",
+			query: "UPDATE test_keyspace.test_table SET col_counter = col_counter - 9 WHERE pk1 = 'testText' AND pk2 = 'pk2';",
+			want: &Want{
+				Keyspace:  "test_keyspace",
+				Table:     "test_table",
+				AllParams: []types.Placeholder{"@value0", "@value1", "@value2"},
+				Values: []types.Assignment{
+					types.NewAssignmentCounterIncrement(mockdata.GetColumnOrDie("test_keyspace", "test_table", "col_counter"), types.MINUS, "@value0"),
+				},
+				InitialValues: map[types.Placeholder]types.GoValue{
+					"@value0": int64(9),
+					"@value1": "testText",
+					"@value2": "pk2",
+				},
+				Clauses: []types.Condition{
+					{
+						Column:           mockdata.GetColumnOrDie("test_keyspace", "test_table", "pk1"),
+						Operator:         types.EQ,
+						ValuePlaceholder: "@value1",
+					},
+					{
+						Column:           mockdata.GetColumnOrDie("test_keyspace", "test_table", "pk2"),
+						Operator:         types.EQ,
+						ValuePlaceholder: "@value2",
+					},
+				},
+			},
+		},
+		{
+			name:  "counter operation increment a negative value",
+			query: "UPDATE test_keyspace.test_table SET col_counter = col_counter + -9 WHERE pk1 = 'testText' AND pk2 = 'pk2';",
+			want: &Want{
+				Keyspace:  "test_keyspace",
+				Table:     "test_table",
+				AllParams: []types.Placeholder{"@value0", "@value1", "@value2"},
+				InitialValues: map[types.Placeholder]types.GoValue{
+					"@value0": int64(-9),
+					"@value1": "testText",
+					"@value2": "pk2",
+				},
+				Values: []types.Assignment{
+					types.NewAssignmentCounterIncrement(mockdata.GetColumnOrDie("test_keyspace", "test_table", "col_counter"), types.PLUS, "@value0"),
+				},
+				Clauses: []types.Condition{
+					{
+						Column:           mockdata.GetColumnOrDie("test_keyspace", "test_table", "pk1"),
+						Operator:         types.EQ,
+						ValuePlaceholder: "@value1",
+					},
+					{
+						Column:           mockdata.GetColumnOrDie("test_keyspace", "test_table", "pk2"),
+						Operator:         types.EQ,
+						ValuePlaceholder: "@value2",
+					},
+				},
+			},
+		},
+		{
+			name:  "with keyspace in query, with default keyspace",
+			query: "UPDATE test_keyspace.test_table SET col_blob = 'abc' WHERE pk2 = 'pkval' AND pk1 = 'abc';",
+			want: &Want{
+				Keyspace:  "test_keyspace",
+				Table:     "test_table",
+				AllParams: []types.Placeholder{"@value0", "@value1", "@value2"},
+				InitialValues: map[types.Placeholder]types.GoValue{
+					"@value0": "abc",
+					"@value1": "pkval",
+					"@value2": "abc",
+				},
+				Values: []types.Assignment{
+					types.NewComplexAssignmentSet(mockdata.GetColumnOrDie("test_keyspace", "test_table", "col_blob"), "@value0"),
+				},
+				Clauses: []types.Condition{
+
+					{
+						Column:           mockdata.GetColumnOrDie("test_keyspace", "test_table", "pk2"),
+						Operator:         types.EQ,
+						ValuePlaceholder: "@value1",
+					},
+					{
+						Column:           mockdata.GetColumnOrDie("test_keyspace", "test_table", "pk1"),
+						Operator:         types.EQ,
+						ValuePlaceholder: "@value2",
+					},
+				},
+			},
+		},
+		{
+			name:    "assign list to set",
+			query:   "UPDATE test_keyspace.test_table SET set_text = ['item1'] WHERE pk1 = 'testText' AND pk2 = 'pk2';",
+			wantErr: "cannot parse list value for non-list type: set<text>",
+		},
+		{
+			name:  "update with list assignment",
+			query: "UPDATE test_keyspace.test_table SET set_text = {'item1', 'item2'} WHERE pk1 = 'testText' AND pk2 = 'pk2';",
+			want: &Want{
+				Keyspace:  "test_keyspace",
+				Table:     "test_table",
+				AllParams: []types.Placeholder{"@value0", "@value1", "@value2"},
+				InitialValues: map[types.Placeholder]types.GoValue{
+					"@value0": []types.GoValue{"item1", "item2"},
+					"@value1": "testText",
+					"@value2": "pk2",
+				},
+				Values: []types.Assignment{
+					types.NewComplexAssignmentSet(mockdata.GetColumnOrDie("test_keyspace", "test_table", "set_text"), "@value0"),
+				},
+				Clauses: []types.Condition{
+					{
+						Column:           mockdata.GetColumnOrDie("test_keyspace", "test_table", "pk1"),
+						Operator:         types.EQ,
+						ValuePlaceholder: "@value1",
+					},
+					{
+						Column:           mockdata.GetColumnOrDie("test_keyspace", "test_table", "pk2"),
+						Operator:         types.EQ,
+						ValuePlaceholder: "@value2",
+					},
+				},
+			},
+		},
+		{
+			name:  "update with map assignment",
+			query: "UPDATE test_keyspace.test_table SET map_text_bool = {'key1': true, 'key2': false} WHERE pk1 = 'testText' AND pk2 = 'pk2';",
+			want: &Want{
+				Keyspace:  "test_keyspace",
+				Table:     "test_table",
+				AllParams: []types.Placeholder{"@value0", "@value1", "@value2"},
+				InitialValues: map[types.Placeholder]types.GoValue{
+					"@value0": map[types.GoValue]types.GoValue{"key1": true, "key2": false},
+					"@value1": "testText",
+					"@value2": "pk2",
+				},
+				Values: []types.Assignment{
+					types.NewComplexAssignmentSet(mockdata.GetColumnOrDie("test_keyspace", "test_table", "map_text_bool"), "@value0"),
+				},
+				Clauses: []types.Condition{
+					{
+						Column:           mockdata.GetColumnOrDie("test_keyspace", "test_table", "pk1"),
+						Operator:         types.EQ,
+						ValuePlaceholder: "@value1",
+					},
+					{
+						Column:           mockdata.GetColumnOrDie("test_keyspace", "test_table", "pk2"),
+						Operator:         types.EQ,
+						ValuePlaceholder: "@value2",
+					},
+				},
+			},
+		},
+		{
+			name:  "update with set assignment",
+			query: "UPDATE test_keyspace.test_table SET set_text = {'item1', 'item2'} WHERE pk1 = 'testText' AND pk2 = 'pk2';",
+			want: &Want{
+				Keyspace:  "test_keyspace",
+				Table:     "test_table",
+				AllParams: []types.Placeholder{"@value0", "@value1", "@value2"},
+				InitialValues: map[types.Placeholder]types.GoValue{
+					"@value0": []types.GoValue{"item1", "item2"},
+					"@value1": "testText",
+					"@value2": "pk2",
+				},
+				Values: []types.Assignment{
+					types.NewComplexAssignmentSet(mockdata.GetColumnOrDie("test_keyspace", "test_table", "set_text"), "@value0"),
+				},
+				Clauses: []types.Condition{
+					{
+						Column:           mockdata.GetColumnOrDie("test_keyspace", "test_table", "pk1"),
+						Operator:         types.EQ,
+						ValuePlaceholder: "@value1",
+					},
+					{
+						Column:           mockdata.GetColumnOrDie("test_keyspace", "test_table", "pk2"),
+						Operator:         types.EQ,
+						ValuePlaceholder: "@value2",
+					},
+				},
+			},
+		},
+		{
+			name:    "attempt to update primary key with collection (should error)",
+			query:   "UPDATE test_keyspace.test_table SET pk1 = ['item1'] WHERE pk2 = 'pk2';",
+			wantErr: "cannot parse list value for non-list type: varchar",
+		},
+		{
+			name:    "invalid collection syntax (should error)",
+			query:   "UPDATE test_keyspace.test_table SET set_text = ['item1', WHERE pk1 = 'testText';",
+			wantErr: "parsing error",
+		},
+		{
+			name:    "collection assignment to non-collection column (should error)",
+			query:   "UPDATE test_keyspace.test_table SET col_blob = ['item1'] WHERE pk1 = 'testText';",
+			wantErr: "cannot parse list value for non-list type: blob",
+		},
+		{
+			name:            "without keyspace in query, with default keyspace",
+			query:           "UPDATE test_table SET col_blob = 'abc' WHERE pk2 = 'pkval' AND pk1 = 'abc';",
 			sessionKeyspace: "test_keyspace",
-			fields:          fields{},
 			wantErr:         "",
-			want: &translators.PreparedUpdateQuery{
-				ParamKeys: []string{"set1", "value1", "value2"},
-				Params: map[string]interface{}{
-					"set1":   []byte("abc"),
-					"value1": "pkval",
-					"value2": "abc",
+			want: &Want{
+				Keyspace:  "test_keyspace",
+				Table:     "test_table",
+				AllParams: []types.Placeholder{"@value0", "@value1", "@value2"},
+				InitialValues: map[types.Placeholder]types.GoValue{
+					"@value0": "abc",
+					"@value1": "pkval",
+					"@value2": "abc",
 				},
-				RowKey:            "abc\x00\x01pkval",
-				Keyspace:          "test_keyspace",
-				ComplexOperations: map[string]*ComplexOperation{},
+				Values: []types.Assignment{
+					types.NewComplexAssignmentSet(mockdata.GetColumnOrDie("test_keyspace", "test_table", "col_blob"), "@value0"),
+				},
+				Clauses: []types.Condition{
+					{
+						Column:           mockdata.GetColumnOrDie("test_keyspace", "test_table", "pk2"),
+						Operator:         types.EQ,
+						ValuePlaceholder: "@value1",
+					},
+					{
+						Column:           mockdata.GetColumnOrDie("test_keyspace", "test_table", "pk1"),
+						Operator:         types.EQ,
+						ValuePlaceholder: "@value2",
+					},
+				},
 			},
 		},
 		{
-			name: "invalid index update missing bracket (should error)",
-			args: args{
-				query: "UPDATE test_keyspace.test_table SET column71 = 'newItem' WHERE column1 = 'testText';",
-			},
+			name:    "invalid index update missing bracket (should error)",
+			query:   "UPDATE test_keyspace.test_table SET column71 = 'newItem' WHERE pk1 = 'testText';",
 			wantErr: "unknown column 'column71'",
 		},
 		{
-			name: "without keyspace in query, without default keyspace (should error)",
-			args: args{
-				query: "UPDATE test_table SET column2 = 'abc' WHERE column10 = 'pkval' AND column1 = 'abc';",
-			},
-			fields:  fields{},
-			wantErr: "invalid input parameters found for keyspace",
+			name:    "without keyspace in query, without default keyspace (should error)",
+			query:   "UPDATE test_table SET col_blob = 'abc' WHERE pk2 = 'pkval' AND pk1 = 'abc';",
+			wantErr: "no keyspace specified",
 		},
 		{
-			name: "without keyspace in query, but with session keyspace is ok",
-			args: args{
-				query: "UPDATE test_table SET column2 = 'abc' WHERE column10 = 'pkval' AND column1 = 'abc';",
-			},
-			sessionKeyspace: "test_keyspace",
-			fields:          fields{},
-			want: &translators.PreparedUpdateQuery{
-				ParamKeys: []string{"set1", "value1", "value2"},
-				Params: map[string]interface{}{
-					"set1":   []byte("abc"),
-					"value1": "pkval",
-					"value2": "abc",
-				},
-				RowKey:            "abc\x00\x01pkval",
-				Keyspace:          "test_keyspace",
-				ComplexOperations: map[string]*ComplexOperation{},
-			},
+			name:    "invalid query syntax (should error)",
+			query:   "UPDATE test_keyspace.test_table",
+			wantErr: "parsing error",
 		},
 		{
-			name: "invalid query syntax (should error)",
-			args: args{
-				query: "UPDATE test_keyspace.test_table",
-			},
-			fields:  fields{},
-			wantErr: "error parsing",
+			name:    "parser returns empty table (should error)",
+			query:   "UPDATE test_keyspace. SET pk1 = 'abc' WHERE pk2 = 'pkval';",
+			wantErr: "parsing error",
 		},
 		{
-			name: "parser returns empty table (should error)",
-			args: args{
-				query: "UPDATE test_keyspace. SET column1 = 'abc' WHERE column10 = 'pkval';",
-			},
-			fields:  fields{},
-			wantErr: "does not exist",
+			name:    "parser returns empty keyspace (should error)",
+			query:   "UPDATE .test_table SET pk1 = 'abc' WHERE pk2 = 'pkval';",
+			wantErr: "parsing error",
 		},
 		{
-			name: "parser returns empty keyspace (should error)",
-			args: args{
-				query: "UPDATE .test_table SET column1 = 'abc' WHERE column10 = 'pkval';",
-			},
-			fields:  fields{},
-			wantErr: "invalid input parameters found for keyspace",
+			name:    "parser returns empty set clause (should error)",
+			query:   "UPDATE test_keyspace.test_table SET WHERE pk2 = 'pkval';",
+			wantErr: "parsing error",
 		},
 		{
-			name: "parser returns empty set clause (should error)",
-			args: args{
-				query: "UPDATE test_keyspace.test_table SET WHERE column10 = 'pkval';",
-			},
-			fields:  fields{},
-			wantErr: " ",
-		},
-		{
-			name: "keyspace does not exist (should error)",
-			args: args{
-				query: "UPDATE invalid_keyspace.test_table SET column1 = 'abc' WHERE column10 = 'pkval';",
-			},
-			fields:  fields{},
+			name:    "keyspace does not exist (should error)",
+			query:   "UPDATE invalid_keyspace.test_table SET pk1 = 'abc' WHERE pk2 = 'pkval';",
 			wantErr: "keyspace 'invalid_keyspace' does not exist",
 		},
 		{
-			name: "table does not exist (should error)",
-			args: args{
-				query: "UPDATE test_keyspace.invalid_table SET column1 = 'abc' WHERE column10 = 'pkval';",
-			},
-			fields:  fields{},
-			wantErr: "table invalid_table does not exist",
+			name:    "table does not exist (should error)",
+			query:   "UPDATE test_keyspace.invalid_table SET pk1 = 'abc' WHERE pk2 = 'pkval';",
+			wantErr: "table 'invalid_table' does not exist",
 		},
 		{
-			name: "missing primary key in where clause (should error)",
-			args: args{
-				query: "UPDATE test_keyspace.test_table SET column2 = 'abc' WHERE column1 = 'testText'", // Missing column10
-			},
-			fields:  fields{},
-			wantErr: "some primary key parts are missing: column10",
+			name:    "missing primary key in where clause (should error)",
+			query:   "UPDATE test_keyspace.test_table SET col_blob = 'abc' WHERE pk1 = 'testText'", // Missing pk2
+			wantErr: "missing primary key in where clause: 'pk2'",
 			want:    nil,
 		},
 		{
-			name: "missing all primary keys in where clause (should error)",
-			args: args{
-				query: "UPDATE test_keyspace.test_table SET column2 = 'abc' WHERE column3 = true", // No PK columns
-			},
-			fields:  fields{},
-			wantErr: "some primary key parts are missing:",
+			name:    "missing all primary keys in where clause (should error)",
+			query:   "UPDATE test_keyspace.test_table SET col_blob = 'abc' WHERE column3 = true", // No PK columns
+			wantErr: "unknown column 'column3' in table test_keyspace.test_table",
 			want:    nil,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			schemaMappingConfig := translators.GetSchemaMappingConfig(types.OrderedCodeEncoding)
+			tr := NewUpdateTranslator(mockdata.GetSchemaMappingConfig())
+			got, err := tr.Translate(types.NewRawQuery(nil, tt.sessionKeyspace, tt.query, parser.NewParser(tt.query), types.QueryTypeDelete), tt.sessionKeyspace)
 
-			tr := &translators.TranslatorManager{
-				Logger:              tt.fields.Logger,
-				SchemaMappingConfig: schemaMappingConfig,
-			}
-			got, err := tr.TranslateUpdate(tt.args.query, false, tt.sessionKeyspace)
-			if tt.wantErr != NO_ERROR_EXPECTED {
+			if tt.wantErr != "" {
 				require.Error(t, err)
 				assert.Contains(t, err.Error(), tt.wantErr)
 				return
 			}
-			require.NoError(t, err)
-			assert.Equal(t, tt.want.RowKey, got.RowKey)
-			assert.Equal(t, tt.want.Keyspace, got.Keyspace)
-			assert.Equal(t, tt.want.ComplexOperations, got.ComplexOperations)
-			assert.Equal(t, tt.want.Params, got.Params)
-		})
-	}
-}
 
-func TestTranslator_BuildUpdatePrepareQuery(t *testing.T) {
-	type fields struct {
-		Logger              *zap.Logger
-		SchemaMappingConfig *schemaMapping.SchemaMappingConfig
-	}
-	type args struct {
-		columnsResponse []*types.Column
-		values          []*primitive.Value
-		st              *translators.PreparedUpdateQuery
-		protocolV       primitive.ProtocolVersion
-	}
-	tests := []struct {
-		name    string
-		fields  fields
-		args    args
-		want    *translators.PreparedUpdateQuery
-		wantErr bool
-	}{
-		{
-			name: "Valid Input",
-			fields: fields{
-				Logger:              zap.NewNop(),
-				SchemaMappingConfig: translators.GetSchemaMappingConfig(types.OrderedCodeEncoding),
-			},
-			args: args{
-				values: []*primitive.Value{
-					{Contents: []byte("")},
-					{Contents: []byte("")},
-				},
-				columnsResponse: []*types.Column{
-					{
-						Name:         "pk_1_text",
-						ColumnFamily: "",
-						CQLType:      types.TypeVarchar,
-					},
-				},
-				st: &translators.PreparedUpdateQuery{
-					Query:       "Update blob_col=? FROM non_primitive_table where pk_1_text=?",
-					QueryType:   "Update",
-					Table:       "non_primitive_table",
-					Keyspace:    "test_keyspace",
-					PrimaryKeys: []string{"pk_1_text"},
-					RowKey:      "pk_1_text_value", // Example RowKey based on pk_1_text
-					Clauses: []types.Condition{
-						{
-							Column:           "pk_1_text",
-							Operator:         "=",
-							ValuePlaceholder: "",
-							IsPrimaryKey:     true,
-						},
-					},
-					VariableMetadata: []*message.ColumnMetadata{
-						{
-							Name: "blob_col",
-							Type: datatype.Blob,
-						},
-						{
-							Name: "pk_1_text",
-							Type: datatype.Varchar,
-						},
-					},
-				},
-			},
-			want: &translators.PreparedUpdateQuery{
-				Query:       "Update blob_col=? FROM non_primitive_table where pk_1_text=?",
-				QueryType:   "Update",
-				Keyspace:    "test_keyspace",
-				PrimaryKeys: []string{"pk_1_text"},
-				RowKey:      "",
-				Table:       "non_primitive_table",
-				Clauses: []types.Condition{
-					{
-						Column:           "pk_1_text",
-						Operator:         "=",
-						ValuePlaceholder: "",
-						IsPrimaryKey:     true,
-					},
-				},
-				Columns: []*types.Column{
-					{
-						Name:         "blob_col",
-						ColumnFamily: "",
-						CQLType:      types.TypeBlob,
-					},
-				},
-				Values: []interface{}{[]interface{}(nil)},
-			},
-			wantErr: false,
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			tr := &translators.TranslatorManager{
-				Logger:              tt.fields.Logger,
-				SchemaMappingConfig: tt.fields.SchemaMappingConfig,
-			}
-			got, err := tr.BindUpdate(tt.args.columnsResponse, tt.args.values, tt.args.st, tt.args.protocolV)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("TranslatorManager.BindUpdate() error = %v, wantErr %v", err, tt.wantErr)
-				return
-			}
-			// Comparing specific fields as the whole struct comparison might fail due to dynamic parts
-			if got != nil && tt.want != nil {
-				if got.Query != tt.want.Query {
-					t.Errorf("TranslatorManager.BindUpdate() CqlQuery = %v, wantNewColumns %v", got.Query, tt.want.Query)
-				}
-				if !reflect.DeepEqual(got.PrimaryKeys, tt.want.PrimaryKeys) {
-					t.Errorf("TranslatorManager.BindUpdate() PrimaryKeys = %v, wantNewColumns %v", got.PrimaryKeys, tt.want.PrimaryKeys)
-				}
-				if len(got.Clauses) != len(tt.want.Clauses) {
-					t.Errorf("TranslatorManager.BindUpdate() Conditions length mismatch = %d, wantNewColumns %d", len(got.Clauses), len(tt.want.Clauses))
-				} else {
-					for i := range got.Clauses {
-						if !reflect.DeepEqual(got.Clauses[i], tt.want.Clauses[i]) {
-							t.Errorf("TranslatorManager.BindUpdate() Condition[%d] = %v, wantNewColumns %v", i, got.Clauses[i], tt.want.Clauses[i])
-						}
-					}
-				}
-			} else if !(got == nil && tt.want == nil) {
-				t.Errorf("TranslatorManager.BindUpdate() = %v, wantNewColumns %v", got, tt.want)
-			}
+			require.NoError(t, err)
+			gotUpdate := got.(*types.PreparedUpdateQuery)
+			assert.Equal(t, tt.want.Keyspace, gotUpdate.Keyspace())
+			assert.Equal(t, tt.want.Table, gotUpdate.Table())
+			assert.Equal(t, tt.want.IfExists, gotUpdate.IfExists)
+			assert.Equal(t, tt.want.Values, gotUpdate.Values)
+			assert.Equal(t, tt.want.Clauses, gotUpdate.Clauses)
+			assert.Equal(t, tt.want.AllParams, gotUpdate.Parameters().AllKeys())
+			assert.Equal(t, tt.want.InitialValues, gotUpdate.InitialValues())
 		})
 	}
 }

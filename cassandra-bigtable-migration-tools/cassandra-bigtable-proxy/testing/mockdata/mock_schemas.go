@@ -19,6 +19,8 @@ package mockdata
 import (
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/global/types"
 	schemaMapping "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/schema-mapping"
+	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/third_party/datastax/proxycore"
+	"github.com/datastax/go-cassandra-native-protocol/primitive"
 	"log"
 )
 
@@ -36,9 +38,11 @@ func GetSchemaMappingConfig() *schemaMapping.SchemaMappingConfig {
 			{Name: "col_float", CQLType: types.TypeFloat},
 			{Name: "col_double", CQLType: types.TypeDouble},
 			{Name: "col_bigint", CQLType: types.TypeBigInt},
+			{Name: "col_counter", CQLType: types.TypeCounter},
 			{Name: "set_text", CQLType: types.NewSetType(types.TypeText)},
 			{Name: "map_varchar_bool", CQLType: types.NewMapType(types.TypeVarchar, types.TypeBoolean)},
 			{Name: "map_text_text", CQLType: types.NewMapType(types.TypeText, types.TypeText)},
+			{Name: "map_text_bool", CQLType: types.NewMapType(types.TypeText, types.TypeBoolean)},
 		}
 
 		userInfoColumns = []*types.Column{
@@ -106,6 +110,14 @@ func CreateQueryParameterValuesFromMap(values map[*types.Column]types.GoValue) *
 		}
 	}
 	return result
+}
+
+func EncodePrimitiveValueOrDie(v any, dt types.CqlDataType, pv primitive.ProtocolVersion) *primitive.Value {
+	bytes, err := proxycore.EncodeType(dt.DataType(), pv, v)
+	if err != nil {
+		log.Fatalf("failed to encode primitive value: %s", err.Error())
+	}
+	return primitive.NewValue(bytes)
 }
 
 func GetTableOrDie(k types.Keyspace, t types.TableName) *schemaMapping.TableConfig {

@@ -86,14 +86,93 @@ func Test_formatValues(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := encodeScalarForBigtable(tt.args.value, tt.args.cqlType)
+			got, err := EncodeScalarForBigtable(tt.args.value, tt.args.cqlType)
 			if (err != nil) != tt.wantErr {
-				t.Errorf("encodeScalarForBigtable() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("EncodeScalarForBigtable() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
 			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("encodeScalarForBigtable() = %v, wantNewColumns %v", got, tt.want)
+				t.Errorf("EncodeScalarForBigtable() = %v, wantNewColumns %v", got, tt.want)
 			}
+		})
+	}
+}
+
+func Test_bindValues(t *testing.T) {
+	tests := []struct {
+		name          string
+		params        *types.QueryParameters
+		initialValues map[types.Placeholder]types.GoValue
+		values        []*primitive.Value
+		pv            primitive.ProtocolVersion
+		want          map[types.Placeholder]types.GoValue
+		err           string
+	}{
+		{
+			name: "success",
+			params: types.NewQueryParameters().
+				BuildParameter(mockdata.GetColumnOrDie("test_keyspace", "test_table", "pk1"), types.TypeVarchar, false).
+				BuildParameter(mockdata.GetColumnOrDie("test_keyspace", "test_table", "pk2"), types.TypeVarchar, false),
+			initialValues: make(map[types.Placeholder]types.GoValue),
+			values: []*primitive.Value{
+				mockdata.EncodePrimitiveValueOrDie("abc", types.TypeText, primitive.ProtocolVersion4),
+				mockdata.EncodePrimitiveValueOrDie("def", types.TypeText, primitive.ProtocolVersion4),
+			},
+			want: map[types.Placeholder]types.GoValue{
+				"@value0": "abc",
+				"@value1": "def",
+			},
+			err: "",
+		},
+		{
+			name: "too many input values",
+			params: types.NewQueryParameters().
+				BuildParameter(mockdata.GetColumnOrDie("test_keyspace", "test_table", "pk1"), types.TypeVarchar, false).
+				BuildParameter(mockdata.GetColumnOrDie("test_keyspace", "test_table", "pk2"), types.TypeVarchar, false),
+			initialValues: make(map[types.Placeholder]types.GoValue),
+			values: []*primitive.Value{
+				mockdata.EncodePrimitiveValueOrDie("abc", types.TypeText, primitive.ProtocolVersion4),
+				mockdata.EncodePrimitiveValueOrDie("def", types.TypeText, primitive.ProtocolVersion4),
+				// unexpected value
+				mockdata.EncodePrimitiveValueOrDie("xyz", types.TypeText, primitive.ProtocolVersion4),
+			},
+			want: nil,
+			err:  "expected 2 prepared values but got 3",
+		},
+		{
+			name: "too few input values",
+			params: types.NewQueryParameters().
+				BuildParameter(mockdata.GetColumnOrDie("test_keyspace", "test_table", "pk1"), types.TypeVarchar, false).
+				BuildParameter(mockdata.GetColumnOrDie("test_keyspace", "test_table", "pk2"), types.TypeVarchar, false),
+			initialValues: make(map[types.Placeholder]types.GoValue),
+			values: []*primitive.Value{
+				mockdata.EncodePrimitiveValueOrDie("abc", types.TypeText, primitive.ProtocolVersion4),
+			},
+			want: nil,
+			err:  "expected 2 prepared values but got 1",
+		},
+		{
+			name: "wrong input type",
+			params: types.NewQueryParameters().
+				BuildParameter(mockdata.GetColumnOrDie("test_keyspace", "user_info", "age"), types.NewListType(types.TypeBigInt), false),
+			initialValues: make(map[types.Placeholder]types.GoValue),
+			values: []*primitive.Value{
+				mockdata.EncodePrimitiveValueOrDie("abcdefgh", types.TypeText, primitive.ProtocolVersion4),
+			},
+			want: nil,
+			err:  "cannot decode CQL list<bigint>",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			values, err := BindQueryParams(tt.params, tt.initialValues, tt.values, tt.pv)
+			if tt.err != "" {
+				require.Error(t, err)
+				assert.Contains(t, err.Error(), tt.err)
+				return
+			}
+			require.NoError(t, err)
+			assert.Equal(t, tt.want, values.AsMap())
 		})
 	}
 }

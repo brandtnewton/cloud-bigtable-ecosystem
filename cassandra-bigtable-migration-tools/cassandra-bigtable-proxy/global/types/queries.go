@@ -130,17 +130,9 @@ func (c ComplexAssignmentAppend) Column() *Column {
 	return c.column
 }
 
-type IncrementOperationType int
-
-const (
-	None IncrementOperationType = iota
-	Increment
-	Decrement
-)
-
 type AssignmentCounterIncrement struct {
 	column *Column
-	Op     IncrementOperationType
+	Op     ArithmeticOperator
 	Value  Placeholder
 }
 
@@ -148,7 +140,7 @@ func (c AssignmentCounterIncrement) IsIdempotentAssignment() bool {
 	return false
 }
 
-func NewAssignmentCounterIncrement(column *Column, op IncrementOperationType, value Placeholder) Assignment {
+func NewAssignmentCounterIncrement(column *Column, op ArithmeticOperator, value Placeholder) Assignment {
 	return &AssignmentCounterIncrement{column: column, Op: op, Value: value}
 }
 

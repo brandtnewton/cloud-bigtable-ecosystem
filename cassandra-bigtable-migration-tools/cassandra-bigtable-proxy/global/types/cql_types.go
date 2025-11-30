@@ -120,7 +120,7 @@ var (
 	TypeAscii     CqlDataType = newScalarType("ascii", ASCII, datatype.Varchar, reflect.TypeOf(""))
 	TypeVarchar   CqlDataType = newScalarType("varchar", VARCHAR, datatype.Varchar, reflect.TypeOf(""))
 	TypeBigInt    CqlDataType = newScalarType("bigint", BIGINT, datatype.Bigint, reflect.TypeOf(int64(0)))
-	TypeBlob      CqlDataType = newScalarType("blob", BLOB, datatype.Blob, reflect.TypeOf([]byte{}))
+	TypeBlob      CqlDataType = newScalarType("blob", BLOB, datatype.Blob, reflect.TypeOf(""))
 	TypeBoolean   CqlDataType = newScalarType("boolean", BOOLEAN, datatype.Boolean, reflect.TypeOf(false))
 	TypeCounter   CqlDataType = newScalarType("counter", COUNTER, datatype.Counter, reflect.TypeOf(int64(0)))
 	TypeDate      CqlDataType = newScalarType("date", DATE, datatype.Date, reflect.TypeOf(time.Time{}))

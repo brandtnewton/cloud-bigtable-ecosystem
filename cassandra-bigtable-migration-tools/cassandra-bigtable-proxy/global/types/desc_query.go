@@ -21,8 +21,7 @@ func (a *DescribeQuery) Desc() IDescribeQueryVariant {
 }
 
 func (a *DescribeQuery) Table() TableName {
-	//TODO implement me
-	panic("implement me")
+	return ""
 }
 
 func NewDescribeQuery(cqlQuery string, desc IDescribeQueryVariant) *DescribeQuery {

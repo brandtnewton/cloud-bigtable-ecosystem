@@ -74,7 +74,7 @@ func TestNegativeTruncateCases(t *testing.T) {
 		{
 			name:          "truncate schema_mapping table",
 			query:         "TRUNCATE TABLE schema_mapping",
-			expectedError: "table name cannot be the same as the configured schema mapping table name 'schema_mapping'",
+			expectedError: "table 'schema_mapping' does not exist",
 		},
 	}
 

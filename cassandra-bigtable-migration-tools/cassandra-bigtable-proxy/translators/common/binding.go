@@ -23,6 +23,13 @@ func BindMutations(assignments []types.Assignment, values *types.QueryParameterV
 			if err != nil {
 				return err
 			}
+			if v.Op == types.PLUS {
+				// nothing to do
+			} else if v.Op == types.MINUS {
+				value = value * -1
+			} else {
+				return fmt.Errorf("unhandled counter operator '%s'", v.Op)
+			}
 			b.AddMutations(types.NewBigtableCounterOp(v.Column().ColumnFamily, value))
 		case *types.ComplexAssignmentSet:
 			mutations, err := encodeSetValue(v, values)
@@ -107,16 +114,6 @@ func BindMutations(assignments []types.Assignment, values *types.QueryParameterV
 				} else {
 					return fmt.Errorf("unsupported append operation on set %s", v.Operator)
 				}
-			} else if colType == types.COUNTER {
-				value, err := values.GetValueInt64(v.Placeholder)
-				if err != nil {
-					return err
-				}
-				if v.Operator == types.MINUS {
-					// bigtable only supports adding, so we need to flip the sign
-					value = value * -1
-				}
-				b.AddMutations(types.NewBigtableCounterOp(assignment.Column().ColumnFamily, value))
 			} else {
 				return fmt.Errorf("unhandled add assignment column type: %s", v.Column().CQLType.String())
 			}

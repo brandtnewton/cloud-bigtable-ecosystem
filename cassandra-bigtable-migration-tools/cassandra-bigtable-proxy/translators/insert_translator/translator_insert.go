@@ -29,7 +29,7 @@ func (t *InsertTranslator) Translate(query *types.RawQuery, sessionKeyspace type
 		return nil, err
 	}
 
-	keyspaceName, tableName, err := common.ParseTableSpec(insertObj.TableSpec(), sessionKeyspace, t.schemaMappingConfig)
+	keyspaceName, tableName, err := common.ParseTableSpec(insertObj.TableSpec(), sessionKeyspace)
 	if err != nil {
 		return nil, err
 	}

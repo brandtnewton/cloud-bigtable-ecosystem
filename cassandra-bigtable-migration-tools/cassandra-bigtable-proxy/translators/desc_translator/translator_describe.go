@@ -27,7 +27,7 @@ func (t *DescTranslator) Translate(query *types.RawQuery, sessionKeyspace types.
 	} else if d.DescribeTargetTables() != nil { // "DESC TABLES;"
 		result = types.NewDescribeTablesQuery()
 	} else if d.DescribeTargetTable() != nil { // "DESC TABLE [$KEYSPACE.]$TABLE;"
-		keyspace, table, err := common.ParseTableSpec(d.DescribeTargetTable().TableSpec(), sessionKeyspace, t.schemaMappingConfig)
+		keyspace, table, err := common.ParseTableSpec(d.DescribeTargetTable().TableSpec(), sessionKeyspace)
 		if err != nil {
 			return nil, err
 		}

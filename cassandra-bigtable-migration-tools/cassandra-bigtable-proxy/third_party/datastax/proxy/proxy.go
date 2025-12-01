@@ -134,7 +134,7 @@ func NewProxy(ctx context.Context, logger *zap.Logger, config *types.ProxyInstan
 
 	bigtableClient := bigtableModule.NewBigtableClient(clientManager, logger, config.BigtableConfig, schemaManager)
 
-	translator := translators.NewTranslatorManager(logger, schemaManager.Schemas(), config.BigtableConfig.DefaultIntRowKeyEncoding)
+	translator := translators.NewTranslatorManager(logger, schemaManager.Schemas(), config.BigtableConfig)
 
 	// Enable OpenTelemetry traces by setting environment variable GOOGLE_API_GO_EXPERIMENTAL_TELEMETRY_PLATFORM_TRACING to the case-insensitive value "opentelemetry" before loading the client library.
 	otelConfig := &otelgo.OTelConfig{}

@@ -104,6 +104,9 @@ func (btc *BigtableAdapter) mutateRow(ctx context.Context, input *types.Bigtable
 	tbl := client.Open(string(input.Table()))
 
 	mutationCount, err := btc.buildMutation(ctx, tbl, input, mut)
+	if err != nil {
+		return nil, err
+	}
 
 	if input.IfSpec.IfExists || input.IfSpec.IfNotExists {
 		predicateFilter := bigtable.CellsPerRowLimitFilter(1)
@@ -259,7 +262,8 @@ func (btc *BigtableAdapter) DeleteRow(ctx context.Context, deleteQueryData *type
 		predicateFilter := bigtable.CellsPerRowLimitFilter(1)
 		conditionalMutation := bigtable.NewCondMutation(predicateFilter, mut, nil)
 		matched := true
-		if err := table.Apply(ctx, string(deleteQueryData.RowKey()), conditionalMutation, bigtable.GetCondMutationResult(&matched)); err != nil {
+		err := table.Apply(ctx, string(deleteQueryData.RowKey()), conditionalMutation, bigtable.GetCondMutationResult(&matched))
+		if err != nil {
 			return nil, err
 		}
 
@@ -269,7 +273,8 @@ func (btc *BigtableAdapter) DeleteRow(ctx context.Context, deleteQueryData *type
 			return GenerateAppliedRowsResult(deleteQueryData.Keyspace(), deleteQueryData.Table(), true), nil
 		}
 	} else {
-		if err := table.Apply(ctx, string(deleteQueryData.RowKey()), mut); err != nil {
+		err := table.Apply(ctx, string(deleteQueryData.RowKey()), mut)
+		if err != nil {
 			return nil, err
 		}
 	}
@@ -364,7 +369,6 @@ func (btc *BigtableAdapter) ApplyBulkMutation(ctx context.Context, keyspace type
 	otelgo.AddAnnotation(ctx, applyingBulkMutation)
 
 	errs, err := table.ApplyBulk(ctx, rowKeys, mutations)
-
 	if err != nil {
 		return BulkOperationResponse{
 			FailedRows: "All Rows are failed",

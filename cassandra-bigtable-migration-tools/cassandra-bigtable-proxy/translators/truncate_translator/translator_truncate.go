@@ -29,7 +29,7 @@ func (t *TruncateTranslator) Translate(query *types.RawQuery, sessionKeyspace ty
 		return nil, err
 	}
 
-	keyspace, table, err := common.ParseTableSpec(truncateTableObj.TableSpec(), sessionKeyspace, t.schemaMappingConfig)
+	keyspace, table, err := common.ParseTableSpec(truncateTableObj.TableSpec(), sessionKeyspace)
 	if err != nil {
 		return nil, err
 	}

@@ -29,7 +29,7 @@ func (t *DeleteTranslator) Translate(query *types.RawQuery, sessionKeyspace type
 		return nil, err
 	}
 
-	keyspaceName, tableName, err := common.ParseTableSpec(deleteObj.FromSpec().TableSpec(), sessionKeyspace, t.schemaMappingConfig)
+	keyspaceName, tableName, err := common.ParseTableSpec(deleteObj.FromSpec().TableSpec(), sessionKeyspace)
 	if err != nil {
 		return nil, err
 	}
@@ -96,7 +96,7 @@ func (t *DeleteTranslator) Bind(st types.IPreparedQuery, values *types.QueryPara
 		return nil, fmt.Errorf("key encoding failed: %w", err)
 	}
 
-	cols, err := common.BindSelectColumns(tableConfig, dst.SelectedColumns, values)
+	cols, err := common.BindSelectColumns(tableConfig, dst.SelectedColumns)
 	if err != nil {
 		return nil, err
 	}

@@ -38,13 +38,11 @@ import (
 type TranslatorManager struct {
 	Logger              *zap.Logger
 	SchemaMappingConfig *schemaMapping.SchemaMetadata
-	// determines the encoding for int row keys in all new tables
-	DefaultIntRowKeyEncoding types.IntRowKeyEncodingType
-	translators              map[types.QueryType]types.IQueryTranslator
-	config                   *types.BigtableConfig
+	translators         map[types.QueryType]types.IQueryTranslator
+	config              *types.BigtableConfig
 }
 
-func NewTranslatorManager(logger *zap.Logger, schemaMappingConfig *schemaMapping.SchemaMetadata, defaultIntRowKeyEncoding types.IntRowKeyEncodingType, config *types.BigtableConfig) *TranslatorManager {
+func NewTranslatorManager(logger *zap.Logger, schemaMappingConfig *schemaMapping.SchemaMetadata, config *types.BigtableConfig) *TranslatorManager {
 	// add more translators here
 	translators := []types.IQueryTranslator{
 		select_translator.NewSelectTranslator(schemaMappingConfig),
@@ -52,7 +50,7 @@ func NewTranslatorManager(logger *zap.Logger, schemaMappingConfig *schemaMapping
 		update_translator.NewUpdateTranslator(schemaMappingConfig),
 		delete_translator.NewDeleteTranslator(schemaMappingConfig),
 		truncate_translator.NewTruncateTranslator(schemaMappingConfig),
-		create_translator.NewCreateTranslator(schemaMappingConfig, defaultIntRowKeyEncoding),
+		create_translator.NewCreateTranslator(schemaMappingConfig, config.DefaultIntRowKeyEncoding),
 		alter_translator.NewAlterTranslator(schemaMappingConfig),
 		drop_translator.NewDropTranslator(schemaMappingConfig),
 		use_translator.NewUseTranslator(schemaMappingConfig),
@@ -67,11 +65,10 @@ func NewTranslatorManager(logger *zap.Logger, schemaMappingConfig *schemaMapping
 		tm[t.QueryType()] = t
 	}
 	return &TranslatorManager{
-		Logger:                   logger,
-		SchemaMappingConfig:      schemaMappingConfig,
-		DefaultIntRowKeyEncoding: defaultIntRowKeyEncoding,
-		translators:              tm,
-		config:                   config,
+		Logger:              logger,
+		SchemaMappingConfig: schemaMappingConfig,
+		translators:         tm,
+		config:              config,
 	}
 }
 

@@ -110,7 +110,7 @@ func TestNegativeTestCasesForAlterTable(t *testing.T) {
 		{
 			name:          "Alter schema_mapping table not allowed",
 			query:         "ALTER TABLE schema_mapping DROP all_your_data",
-			expectedError: "table name cannot be the same as the configured schema mapping table name 'schema_mapping'",
+			expectedError: "table 'schema_mapping' does not exist",
 			skipCassandra: true,
 		},
 	}
@@ -128,8 +128,8 @@ func TestNegativeTestCasesForAlterTable(t *testing.T) {
 				require.Error(t, err)
 				return
 			}
-			require.Error(t, err, "Expected an error but got none")
-			assert.Contains(t, err.Error(), tc.expectedError, "Error message mismatch")
+			require.Error(t, err)
+			assert.Contains(t, err.Error(), tc.expectedError)
 		})
 	}
 }

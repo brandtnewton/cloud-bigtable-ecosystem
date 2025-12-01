@@ -24,7 +24,6 @@ import (
 	"sort"
 
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/global/types"
-	"github.com/datastax/go-cassandra-native-protocol/message"
 )
 
 func CreateTableMap(tables []*TableSchema) map[types.TableName]*TableSchema {
@@ -33,34 +32,6 @@ func CreateTableMap(tables []*TableSchema) map[types.TableName]*TableSchema {
 		result[table.Name] = table
 	}
 	return result
-}
-
-// getTimestampColumnName() constructs the appropriate name for a column used in a writetime function.
-//
-// Parameters:
-//   - aliasName: A string representing the alias of the column, if any.
-//   - columnName: The actual name of the column for which the writetime function is being constructed.
-//
-// Returns: A string which is either the alias name or the expression "writetime(columnName)" if no alias is provided.
-func getTimestampColumnName(aliasName string, columnName string) string {
-	if aliasName == "" {
-		return "writetime(" + columnName + ")"
-	}
-	return aliasName
-}
-
-// cloneColumnMetadata() clones the metadata from cache.
-//
-// Parameters:
-//   - metadata: Columns metadata from cache
-//   - index: Index for the column
-//
-// Returns:
-// - Pointers to ColumnMetadata structs containing metadata for each requested column.
-func cloneColumnMetadata(metadata *message.ColumnMetadata, index int32) *message.ColumnMetadata {
-	columnMd := metadata.Clone()
-	columnMd.Index = index
-	return columnMd
 }
 
 // sortPrimaryKeys sorts the primary key columns of each table based on their precedence.

@@ -159,6 +159,16 @@ func Test_SelectEngine(t *testing.T) {
 			},
 		},
 		{
+			name:  "limit",
+			query: "select age, name from test_keyspace.user_info where age>=51 limit 1",
+			want: []types.GoRow{
+				{
+					"name": "u2",
+					"age":  int64(51),
+				},
+			},
+		},
+		{
 			name:  "count(*)",
 			query: "select count(*) from test_keyspace.user_info",
 			want: []types.GoRow{

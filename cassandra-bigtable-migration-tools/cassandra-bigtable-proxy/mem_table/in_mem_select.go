@@ -24,6 +24,17 @@ func (e *InMemEngine) Execute(query *types.ExecutableSelectQuery) ([]types.GoRow
 		}
 	}
 
+	// apply limit
+	if query.Values.Has(types.LimitPlaceholder) {
+		limit, err := query.Values.GetValueInt32(types.LimitPlaceholder)
+		if err != nil {
+			return nil, err
+		}
+		if limit < int32(len(filtered)) {
+			filtered = filtered[:limit]
+		}
+	}
+
 	// handle aggregates if present
 	for _, col := range query.SelectClause.Columns {
 		if col.Func == types.FuncCodeCount {

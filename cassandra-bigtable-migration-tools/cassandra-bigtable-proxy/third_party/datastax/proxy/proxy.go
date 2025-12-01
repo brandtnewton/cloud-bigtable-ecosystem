@@ -684,12 +684,6 @@ func (c *client) handleQuery(raw *frame.RawFrame, msg *partialQuery) {
 		return
 	}
 	values := types.NewQueryParameterValues(query.Parameters())
-	err = values.SetInitialValues(query.InitialValues())
-	if err != nil {
-		c.proxy.logger.Error(translatorErrorMessage, zap.String(Query, msg.query), zap.Error(err))
-		c.sender.Send(raw.Header, &message.Invalid{ErrorMessage: err.Error()})
-		return
-	}
 	executableQuery, err := c.proxy.translator.BindQueryParameters(query, values, raw.Header.Version)
 	if err != nil {
 		c.proxy.logger.Error(translatorErrorMessage, zap.String(Query, msg.query), zap.Error(err))

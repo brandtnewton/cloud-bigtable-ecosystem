@@ -34,7 +34,7 @@ func (t *InsertTranslator) Translate(query *types.RawQuery, sessionKeyspace type
 		return nil, err
 	}
 
-	tableConfig, err := t.schemaMappingConfig.GetTableConfig(keyspaceName, tableName)
+	table, err := t.schemaMappingConfig.GetTableConfig(keyspaceName, tableName)
 	if err != nil {
 		return nil, err
 	}
@@ -42,31 +42,41 @@ func (t *InsertTranslator) Translate(query *types.RawQuery, sessionKeyspace type
 	ifNotExists := insertObj.IfNotExist() != nil
 
 	params := types.NewQueryParameters()
-	values := types.NewQueryParameterValues(params)
 
-	assignments, err := parseInsertColumns(insertObj.InsertColumnSpec(), tableConfig, params)
+	columns, err := parseInsertColumns(insertObj.InsertColumnSpec(), table, params)
 	if err != nil {
 		return nil, err
 	}
 
-	err = parseInsertValues(insertObj.InsertValuesSpec(), assignments, params, values)
+	values, err := parseInsertValues(insertObj.InsertValuesSpec(), columns, params)
 	if err != nil {
 		return nil, err
 	}
 
+	var usingTimestamp types.DynamicValue
 	if insertObj.UsingTtlTimestamp() != nil {
-		err = common.GetTimestampInfo(insertObj.UsingTtlTimestamp().Timestamp(), params, values)
+		usingTimestamp, err = common.GetTimestampInfo(insertObj.UsingTtlTimestamp().Timestamp(), params)
 		if err != nil {
 			return nil, err
 		}
 	}
 
-	err = common.ValidateRequiredPrimaryKeys(tableConfig, params)
-	if err != nil {
-		return nil, err
+	var rowKeys []types.DynamicValue
+	for _, key := range table.PrimaryKeys {
+		var val types.DynamicValue
+		for _, value := range values {
+			if value.Column().Name == key.Name {
+				val = value.Value
+				break
+			}
+		}
+		if val == nil {
+			return nil, fmt.Errorf("missing value for primary key `%s`", key.Name)
+		}
+		rowKeys = append(rowKeys, val)
 	}
 
-	st := types.NewPreparedInsertQuery(keyspaceName, tableName, ifNotExists, query.RawCql(), params, assignments, values)
+	st := types.NewPreparedInsertQuery(keyspaceName, tableName, ifNotExists, query.RawCql(), params, values, rowKeys, usingTimestamp)
 
 	return st, nil
 }
@@ -81,7 +91,7 @@ func (t *InsertTranslator) Bind(st types.IPreparedQuery, values *types.QueryPara
 		return nil, err
 	}
 
-	rowKey, err := common.BindRowKey(tableConfig, values)
+	rowKey, err := common.BindRowKey(tableConfig, ist.RowKeys, values)
 	if err != nil {
 		return nil, fmt.Errorf("key encoding failed: %w", err)
 	}

@@ -15,16 +15,16 @@ var kOrderedCodeDelimiter = []byte("\x00\x01")
 // BindRowKey creates an ordered row key.
 // Generates a byte-encoded row key from primary key values with validation.
 // Returns error if key type is invalid or encoding fails.
-func BindRowKey(tableConfig *schemaMapping.TableSchema, values *types.QueryParameterValues) (types.RowKey, error) {
+func BindRowKey(tableConfig *schemaMapping.TableSchema, rowKeyValues []types.DynamicValue, values *types.QueryParameterValues) (types.RowKey, error) {
 	var result []byte
 	var trailingEmptyFields []byte
 	for i, pmk := range tableConfig.PrimaryKeys {
 		if i != pmk.PkPrecedence-1 {
 			return "", fmt.Errorf("wrong order for primary keys")
 		}
-		value, err := values.GetValueByColumn(pmk.Name)
+		value, err := rowKeyValues[i].GetValue(values)
 		if err != nil {
-			return "", fmt.Errorf("missing primary key `%s`", pmk.Name)
+			return "", err
 		}
 
 		var orderEncodedField []byte

@@ -7,17 +7,14 @@ import (
 
 // PreparedInsertQuery represents the mapping of an insert query along with its translation details.
 type PreparedInsertQuery struct {
-	keyspace      Keyspace
-	table         TableName
-	IfNotExists   bool
-	cqlQuery      string
-	params        *QueryParameters
-	Assignments   []Assignment
-	initialValues map[Placeholder]GoValue
-}
-
-func (p *PreparedInsertQuery) InitialValues() map[Placeholder]GoValue {
-	return p.initialValues
+	keyspace       Keyspace
+	table          TableName
+	IfNotExists    bool
+	cqlQuery       string
+	params         *QueryParameters
+	Assignments    []Assignment
+	RowKeys        []DynamicValue
+	UsingTimestamp DynamicValue
 }
 
 func (p *PreparedInsertQuery) IsIdempotent() bool {
@@ -43,8 +40,8 @@ func (p *PreparedInsertQuery) BigtableQuery() string {
 	return ""
 }
 
-func NewPreparedInsertQuery(keyspace Keyspace, table TableName, ifNotExists bool, cqlQuery string, params *QueryParameters, assignments []Assignment, initialValues *QueryParameterValues) *PreparedInsertQuery {
-	return &PreparedInsertQuery{keyspace: keyspace, table: table, IfNotExists: ifNotExists, cqlQuery: cqlQuery, params: params, Assignments: assignments, initialValues: initialValues.values}
+func NewPreparedInsertQuery(keyspace Keyspace, table TableName, ifNotExists bool, cqlQuery string, params *QueryParameters, assignments []Assignment, rowKeys []DynamicValue, usingTimestamp DynamicValue) *PreparedInsertQuery {
+	return &PreparedInsertQuery{keyspace: keyspace, table: table, IfNotExists: ifNotExists, cqlQuery: cqlQuery, params: params, Assignments: assignments, RowKeys: rowKeys, UsingTimestamp: usingTimestamp}
 }
 
 func (p *PreparedInsertQuery) Keyspace() Keyspace {

@@ -101,29 +101,30 @@ type Condition struct {
 	Column   *Column
 	Operator Operator
 	// points to a placeholder
-	ValuePlaceholder Placeholder
+	Value DynamicValue
 	// used for BETWEEN operator
-	ValuePlaceholder2 Placeholder
+	Value2 DynamicValue
 }
 
 type Assignment interface {
 	Column() *Column
 	IsIdempotentAssignment() bool
+	Value() DynamicValue
 }
 
 type ComplexAssignmentAppend struct {
-	column      *Column
-	Operator    ArithmeticOperator
-	Placeholder Placeholder
-	IsPrepend   bool
+	column    *Column
+	Operator  ArithmeticOperator
+	Value     DynamicValue
+	IsPrepend bool
 }
 
 func (c ComplexAssignmentAppend) IsIdempotentAssignment() bool {
 	return false
 }
 
-func NewComplexAssignmentAppend(column *Column, op ArithmeticOperator, value Placeholder, isPrepend bool) Assignment {
-	return &ComplexAssignmentAppend{column: column, Operator: op, Placeholder: value, IsPrepend: isPrepend}
+func NewComplexAssignmentAppend(column *Column, op ArithmeticOperator, value DynamicValue, isPrepend bool) Assignment {
+	return &ComplexAssignmentAppend{column: column, Operator: op, Value: value, IsPrepend: isPrepend}
 }
 
 func (c ComplexAssignmentAppend) Column() *Column {
@@ -133,14 +134,14 @@ func (c ComplexAssignmentAppend) Column() *Column {
 type AssignmentCounterIncrement struct {
 	column *Column
 	Op     ArithmeticOperator
-	Value  Placeholder
+	Value  DynamicValue
 }
 
 func (c AssignmentCounterIncrement) IsIdempotentAssignment() bool {
 	return false
 }
 
-func NewAssignmentCounterIncrement(column *Column, op ArithmeticOperator, value Placeholder) Assignment {
+func NewAssignmentCounterIncrement(column *Column, op ArithmeticOperator, value DynamicValue) Assignment {
 	return &AssignmentCounterIncrement{column: column, Op: op, Value: value}
 }
 
@@ -152,14 +153,14 @@ type ComplexAssignmentUpdateListIndex struct {
 	column *Column
 	// cassandra requires a literal, so no need to handle a parameter for the index
 	Index int64
-	Value Placeholder
+	Value DynamicValue
 }
 
 func (c ComplexAssignmentUpdateListIndex) IsIdempotentAssignment() bool {
 	return true
 }
 
-func NewComplexAssignmentUpdateListIndex(column *Column, index int64, value Placeholder) Assignment {
+func NewComplexAssignmentUpdateListIndex(column *Column, index int64, value DynamicValue) Assignment {
 	return &ComplexAssignmentUpdateListIndex{column: column, Index: index, Value: value}
 }
 
@@ -171,14 +172,14 @@ type ComplexAssignmentUpdateMapValue struct {
 	column *Column
 	// cassandra requires a literal, so no need to handle a parameter for the key
 	Key   GoValue
-	Value Placeholder
+	Value DynamicValue
 }
 
 func (c ComplexAssignmentUpdateMapValue) IsIdempotentAssignment() bool {
 	return true
 }
 
-func NewComplexAssignmentUpdateMapValue(column *Column, index GoValue, value Placeholder) Assignment {
+func NewComplexAssignmentUpdateMapValue(column *Column, index GoValue, value DynamicValue) Assignment {
 	return &ComplexAssignmentUpdateMapValue{column: column, Key: index, Value: value}
 }
 
@@ -188,15 +189,19 @@ func (c ComplexAssignmentUpdateMapValue) Column() *Column {
 
 type ComplexAssignmentSet struct {
 	column *Column
-	Value  Placeholder
+	value  DynamicValue
+}
+
+func (c ComplexAssignmentSet) Value() DynamicValue {
+	return c.value
 }
 
 func (c ComplexAssignmentSet) IsIdempotentAssignment() bool {
 	return true
 }
 
-func NewComplexAssignmentSet(column *Column, value Placeholder) Assignment {
-	return &ComplexAssignmentSet{column: column, Value: value}
+func NewComplexAssignmentSet(column *Column, value DynamicValue) Assignment {
+	return &ComplexAssignmentSet{column: column, value: value}
 }
 
 func (c ComplexAssignmentSet) Column() *Column {

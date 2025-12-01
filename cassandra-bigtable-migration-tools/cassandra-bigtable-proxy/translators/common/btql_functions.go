@@ -7,7 +7,7 @@ import (
 	"strings"
 )
 
-func ParseCqlFunc(f cql.IFunctionCallContext) (types.BtqlFuncCode, error) {
+func ParseCqlFunc(f cql.IFunctionCallContext) (types.CqlFuncCode, error) {
 	if f.K_UUID() != nil {
 		return types.FuncCodeUnknown, fmt.Errorf("unknown function: 'UUID'")
 	}

@@ -235,7 +235,7 @@ func isTypeAllowedInAggregate(dt datatype.DataType) bool {
 }
 
 // funcAllowedInAggregate checks if a given function name is allowed within an aggregate function.
-func funcAllowedInAggregate(f types.BtqlFuncCode) bool {
+func funcAllowedInAggregate(f types.CqlFuncCode) bool {
 	return f == types.FuncCodeAvg || f == types.FuncCodeSum || f == types.FuncCodeMin || f == types.FuncCodeMax || f == types.FuncCodeCount
 }
 
@@ -418,15 +418,15 @@ func createBtqlWhereClause(conditions []types.Condition, tableConfig *sm.TableSc
 
 		var btql string
 		if condition.Operator == types.BETWEEN {
-			btql = fmt.Sprintf("%s BETWEEN %s AND %s", column, condition.ValuePlaceholder, condition.ValuePlaceholder2)
+			btql = fmt.Sprintf("%s BETWEEN %s AND %s", column, condition.Value, condition.Value2)
 		} else if condition.Operator == types.IN {
-			btql = fmt.Sprintf("%s IN UNNEST(%s)", column, condition.ValuePlaceholder)
+			btql = fmt.Sprintf("%s IN UNNEST(%s)", column, condition.Value)
 		} else if condition.Operator == types.MAP_CONTAINS_KEY {
-			btql = fmt.Sprintf("MAP_CONTAINS_KEY(%s, %s)", column, condition.ValuePlaceholder)
+			btql = fmt.Sprintf("MAP_CONTAINS_KEY(%s, %s)", column, condition.Value)
 		} else if condition.Operator == types.ARRAY_INCLUDES {
-			btql = fmt.Sprintf("ARRAY_INCLUDES(MAP_VALUES(%s), %s)", column, condition.ValuePlaceholder)
+			btql = fmt.Sprintf("ARRAY_INCLUDES(MAP_VALUES(%s), %s)", column, condition.Value)
 		} else {
-			btql = fmt.Sprintf("%s %s %s", column, condition.Operator, condition.ValuePlaceholder)
+			btql = fmt.Sprintf("%s %s %s", column, condition.Operator, condition.Value)
 		}
 
 		btqlConditions = append(btqlConditions, btql)

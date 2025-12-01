@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"reflect"
 	"strings"
+	"time"
 )
 
 const LimitPlaceholder Placeholder = "@limitValue"
@@ -12,53 +13,32 @@ type Placeholder string
 
 type PlaceholderMetadata struct {
 	Key Placeholder
-	// nil if limit or collection index/key
-	Column *Column
-	Type   CqlDataType
+
+	Type CqlDataType
 	// indicates that this is a value for accessing a collection column by index or key
 	IsCollectionKey bool
 }
 
-func newPlaceholderMetadata(key Placeholder, column *Column, tpe CqlDataType, isCollectionKey bool) PlaceholderMetadata {
-	return PlaceholderMetadata{Key: key, Column: column, Type: tpe, IsCollectionKey: isCollectionKey}
+func newPlaceholderMetadata(key Placeholder, tpe CqlDataType, isCollectionKey bool) PlaceholderMetadata {
+	return PlaceholderMetadata{Key: key, Type: tpe, IsCollectionKey: isCollectionKey}
 }
 
 type QueryParameters struct {
 	ordered []Placeholder
-	// note: not all placeholders will be associated with a column - e.g. limit ?
-	columnLookup map[ColumnName]Placeholder
+
 	// might be different from the column - like if we're doing a "CONTAINS" on a list, this would be the element type
 	metadata map[Placeholder]PlaceholderMetadata
 }
 
 func NewQueryParameters() *QueryParameters {
 	return &QueryParameters{
-		ordered:      nil,
-		columnLookup: make(map[ColumnName]Placeholder),
-		metadata:     make(map[Placeholder]PlaceholderMetadata),
+		ordered:  nil,
+		metadata: make(map[Placeholder]PlaceholderMetadata),
 	}
 }
 
-func (q *QueryParameters) AllColumns() []ColumnName {
-	var names []ColumnName
-	for name := range q.columnLookup {
-		names = append(names, name)
-	}
-	return names
-}
 func (q *QueryParameters) AllKeys() []Placeholder {
 	return q.ordered
-}
-
-// RemainingKeys builds a list of placeholders that still need values
-func (q *QueryParameters) RemainingKeys(initialValues map[Placeholder]GoValue) []Placeholder {
-	var result []Placeholder
-	for _, p := range q.AllKeys() {
-		if _, ok := initialValues[p]; !ok {
-			result = append(result, p)
-		}
-	}
-	return result
 }
 
 func (q *QueryParameters) Count() int {
@@ -82,43 +62,30 @@ func (q *QueryParameters) GetParameter(i int) Placeholder {
 	return q.ordered[i]
 }
 
-func (q *QueryParameters) GetPlaceholderForColumn(c ColumnName) (Placeholder, bool) {
-	p, ok := q.columnLookup[c]
-	return p, ok
-}
-
 func (q *QueryParameters) getNextParameter() Placeholder {
 	return Placeholder(fmt.Sprintf("@value%d", len(q.ordered)))
 }
 
-func (q *QueryParameters) BuildParameter(c *Column, dataType CqlDataType, isCollectionKey bool) *QueryParameters {
-	_ = q.PushParameter(c, dataType, isCollectionKey)
+func (q *QueryParameters) BuildParameter(dataType CqlDataType, isCollectionKey bool) *QueryParameters {
+	_ = q.PushParameter(dataType, isCollectionKey)
 	return q
 }
 
-func (q *QueryParameters) PushParameter(c *Column, dataType CqlDataType, isCollectionKey bool) Placeholder {
+func (q *QueryParameters) PushParameter(dataType CqlDataType, isCollectionKey bool) Placeholder {
 	p := q.getNextParameter()
-	q.AddParameter(c, p, dataType, isCollectionKey)
-	return p
-}
-func (q *QueryParameters) PushParameterWithoutColumn(dataType CqlDataType) Placeholder {
-	p := q.getNextParameter()
-	q.AddParameterWithoutColumn(p, dataType)
+	q.AddParameter(p, dataType, isCollectionKey)
 	return p
 }
 
-func (q *QueryParameters) AddParameter(c *Column, p Placeholder, dt CqlDataType, isCollectionKey bool) {
+func (q *QueryParameters) AddParameter(p Placeholder, dt CqlDataType, isCollectionKey bool) {
 	q.ordered = append(q.ordered, p)
-	q.metadata[p] = newPlaceholderMetadata(p, c, dt, isCollectionKey)
-	q.columnLookup[c.Name] = p
+	q.metadata[p] = newPlaceholderMetadata(p, dt, isCollectionKey)
 }
 
 func (q *QueryParameters) AddParameterWithoutColumn(p Placeholder, dt CqlDataType) {
 	q.ordered = append(q.ordered, p)
-	q.metadata[p] = newPlaceholderMetadata(p, nil, dt, false)
+	q.metadata[p] = newPlaceholderMetadata(p, dt, false)
 }
-
-const UsingTimePlaceholder Placeholder = "@usingTimeValue"
 
 func (q *QueryParameters) GetMetadata(p Placeholder) PlaceholderMetadata {
 	// assume you are passing in a valid placeholder
@@ -128,6 +95,7 @@ func (q *QueryParameters) GetMetadata(p Placeholder) PlaceholderMetadata {
 
 type QueryParameterValues struct {
 	params *QueryParameters
+	time   time.Time
 	values map[Placeholder]GoValue
 }
 
@@ -135,25 +103,12 @@ func (q *QueryParameterValues) Params() *QueryParameters {
 	return q.params
 }
 
-func EmptyQueryParameterValues() *QueryParameterValues {
-	return &QueryParameterValues{params: NewQueryParameters(), values: make(map[Placeholder]GoValue)}
+func (q *QueryParameterValues) Time() time.Time {
+	return q.time
 }
 
-func NewQueryParameterValues(params *QueryParameters) *QueryParameterValues {
-	return &QueryParameterValues{params: params, values: make(map[Placeholder]GoValue)}
-}
-
-func (q *QueryParameterValues) SetInitialValues(initialValues map[Placeholder]GoValue) error {
-	for p, v := range initialValues {
-		if !q.Has(p) {
-			return fmt.Errorf("unexpected placeholder %s", p)
-		}
-		err := q.SetValue(p, v)
-		if err != nil {
-			return fmt.Errorf("error setting initial value for placeholder %s: %w", p, err)
-		}
-	}
-	return nil
+func NewQueryParameterValues(params *QueryParameters, time time.Time) *QueryParameterValues {
+	return &QueryParameterValues{params: params, values: make(map[Placeholder]GoValue), time: time}
 }
 
 func (q *QueryParameterValues) Has(p Placeholder) bool {
@@ -190,7 +145,7 @@ func validateGoType(expected CqlDataType, v any) error {
 	return nil
 }
 
-func (q *QueryParameterValues) GetValue(p Placeholder) (any, error) {
+func (q *QueryParameterValues) GetValue(p Placeholder) (GoValue, error) {
 	if v, ok := q.values[p]; ok {
 		return v, nil
 	}
@@ -270,17 +225,6 @@ func (q *QueryParameterValues) GetValueMap(p Placeholder) (map[GoValue]GoValue, 
 		result[keyAny] = valueAny
 	}
 	return result, nil
-}
-
-func (q *QueryParameterValues) GetValueByColumn(c ColumnName) (any, error) {
-	p, ok := q.params.columnLookup[c]
-	if !ok {
-		return nil, fmt.Errorf("no parameter assosiated with column %s", c)
-	}
-	if v, ok := q.values[p]; ok {
-		return v, nil
-	}
-	return nil, fmt.Errorf("no query param for %s", p)
 }
 
 func (q *QueryParameterValues) CountSetValues() int {

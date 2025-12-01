@@ -6,18 +6,14 @@ import (
 )
 
 type PreparedUpdateQuery struct {
-	keyspace      Keyspace  // Keyspace to which the table belongs
-	table         TableName // Table involved in the query
-	IfExists      bool
-	cqlQuery      string           // Original query string
-	Values        []Assignment     // Columns to be updated
-	Clauses       []Condition      // List of clauses in the update query
-	params        *QueryParameters // Parameters for the query
-	initialValues map[Placeholder]GoValue
-}
-
-func (p *PreparedUpdateQuery) InitialValues() map[Placeholder]GoValue {
-	return p.initialValues
+	keyspace       Keyspace
+	table          TableName
+	IfExists       bool
+	cqlQuery       string
+	Values         []Assignment
+	RowKeys        []DynamicValue
+	params         *QueryParameters
+	UsingTimestamp DynamicValue
 }
 
 func (p *PreparedUpdateQuery) IsIdempotent() bool {
@@ -30,8 +26,8 @@ func (p *PreparedUpdateQuery) IsIdempotent() bool {
 	return true
 }
 
-func NewPreparedUpdateQuery(keyspace Keyspace, table TableName, ifExists bool, cqlQuery string, values []Assignment, clauses []Condition, params *QueryParameters, initialValues *QueryParameterValues) *PreparedUpdateQuery {
-	return &PreparedUpdateQuery{keyspace: keyspace, table: table, IfExists: ifExists, cqlQuery: cqlQuery, Values: values, Clauses: clauses, params: params, initialValues: initialValues.values}
+func NewPreparedUpdateQuery(keyspace Keyspace, table TableName, ifExists bool, cqlQuery string, values []Assignment, rowKeys []DynamicValue, params *QueryParameters, usingTimestamp DynamicValue) *PreparedUpdateQuery {
+	return &PreparedUpdateQuery{keyspace: keyspace, table: table, IfExists: ifExists, cqlQuery: cqlQuery, Values: values, RowKeys: rowKeys, params: params, UsingTimestamp: usingTimestamp}
 }
 
 func (p *PreparedUpdateQuery) BigtableQuery() string {

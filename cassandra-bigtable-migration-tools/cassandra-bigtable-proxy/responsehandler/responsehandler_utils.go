@@ -59,7 +59,7 @@ func BuildPreparedResultResponse(id [16]byte, query types.IPreparedQuery) (*mess
 
 	params := query.Parameters()
 	// only return the parameters we still need values for
-	for i, p := range params.RemainingKeys(query.InitialValues()) {
+	for i, p := range params.AllKeys() {
 		md := params.GetMetadata(p)
 
 		var col = message.ColumnMetadata{

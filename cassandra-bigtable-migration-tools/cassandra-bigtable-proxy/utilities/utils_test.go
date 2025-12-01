@@ -224,7 +224,7 @@ func TestIsSupportedColumnType(t *testing.T) {
 		{"Unsupported List Element", types.NewListType(types.NewListType(types.TypeInt)), false},
 		{"Unsupported Set Element", ParseCqlTypeOrDie("set<blob>"), false},
 		{"Unsupported Map Key", ParseCqlTypeOrDie("map<blob,text>"), false},
-		{"Unsupported Map ValuePlaceholder", ParseCqlTypeOrDie("map<text,uuid>"), false},
+		{"Unsupported Map Value", ParseCqlTypeOrDie("map<text,uuid>"), false},
 		{"Nested Collection - List of Maps", types.NewListType(types.NewMapType(types.TypeVarchar, types.TypeInt)), false},
 		// --- Negative Cases: Frozen Types ---
 		{"Frozen List", ParseCqlTypeOrDie("frozen<list<int>>"), false},

@@ -194,8 +194,6 @@ type IPreparedQuery interface {
 	CqlQuery() string
 	QueryType() QueryType
 	Parameters() *QueryParameters
-	// InitialValues - values that were already set in the query and not parameterized
-	InitialValues() map[Placeholder]GoValue
 	ResponseColumns() []*message.ColumnMetadata
 	// SetBigtablePreparedQuery - only implemented for "select" queries for now because Bigtable SQL only supports reads
 	SetBigtablePreparedQuery(s *bigtable.PreparedStatement)

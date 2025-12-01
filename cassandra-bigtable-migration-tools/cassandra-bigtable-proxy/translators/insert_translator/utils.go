@@ -17,7 +17,7 @@ import (
 //   - schemaMapping: JSON Config which maintains column and its datatypes info.
 //
 // Returns: ColumnsResponse struct and error if any
-func parseInsertColumns(input cql.IInsertColumnSpecContext, tableConfig *schemaMapping.TableSchema, params *types.QueryParameters) ([]types.Assignment, error) {
+func parseInsertColumns(input cql.IInsertColumnSpecContext, tableConfig *schemaMapping.TableSchema, params *types.QueryParameters) ([]*types.Column, error) {
 
 	if input == nil {
 		return nil, errors.New("parseInsertColumns: No Input paramaters found for columns")
@@ -36,50 +36,46 @@ func parseInsertColumns(input cql.IInsertColumnSpecContext, tableConfig *schemaM
 		return nil, errors.New("parseInsertColumns: No Columns found in the Insert CqlQuery")
 	}
 
-	var assignments []types.Assignment
+	var result []*types.Column
 	for _, val := range columns {
 		columnName := types.ColumnName(val.GetText())
 		col, err := tableConfig.GetColumn(columnName)
 		if err != nil {
 			return nil, err
 		}
-		assignments = append(assignments, types.NewComplexAssignmentSet(col, params.PushParameter(col, col.CQLType, false)))
+		result = append(result, col)
 	}
 
-	return assignments, nil
+	return result, nil
 }
 
-func parseInsertValues(input cql.IInsertValuesSpecContext, columns []types.Assignment, params *types.QueryParameters, values *types.QueryParameterValues) error {
+func parseInsertValues(input cql.IInsertValuesSpecContext, columns []*types.Column, params *types.QueryParameters) ([]types.Assignment, error) {
 	if input == nil {
-		return errors.New("insert values clause missing or malformed")
+		return nil, errors.New("insert values clause missing or malformed")
 	}
 
 	valuesExpressionList := input.ValueListSpec()
 	if valuesExpressionList == nil {
-		return errors.New("setParamsFromValues: error while parsing values")
+		return nil, errors.New("setParamsFromValues: error while parsing values")
 	}
 
 	allValues := valuesExpressionList.AllValueAny()
 	if allValues == nil {
-		return errors.New("setParamsFromValues: error while parsing values")
+		return nil, errors.New("setParamsFromValues: error while parsing values")
 	}
 
 	if len(allValues) != len(columns) {
-		return fmt.Errorf("found mismatch between column count (%d) value count (%d)", len(columns), len(allValues))
+		return nil, fmt.Errorf("found mismatch between column count (%d) value count (%d)", len(columns), len(allValues))
 	}
 
-	for i, value := range allValues {
-		column := columns[i].Column()
-		placeholder, ok := params.GetPlaceholderForColumn(column.Name)
-		if !ok {
-			return fmt.Errorf("unhandled error: missing parameter for column '%s'", column.Name)
-		}
-
-		err := common.ExtractValueAny(value, column.CQLType, placeholder, values)
+	var assignments []types.Assignment
+	for i, v := range allValues {
+		column := columns[i]
+		value, err := common.ExtractValueAny(v, column.CQLType, params)
 		if err != nil {
-			return err
+			return nil, err
 		}
+		assignments = append(assignments, types.NewComplexAssignmentSet(column, value))
 	}
-
-	return nil
+	return assignments, nil
 }

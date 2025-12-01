@@ -39,7 +39,7 @@ func (t *UpdateTranslator) Translate(query *types.RawQuery, sessionKeyspace type
 		return nil, err
 	}
 
-	tableConfig, err := t.schemaMappingConfig.GetTableConfig(keyspaceName, tableName)
+	table, err := t.schemaMappingConfig.GetTableConfig(keyspaceName, tableName)
 	if err != nil {
 		return nil, err
 	}
@@ -56,39 +56,33 @@ func (t *UpdateTranslator) Translate(query *types.RawQuery, sessionKeyspace type
 	}
 
 	params := types.NewQueryParameters()
-	values := types.NewQueryParameterValues(params)
 
 	// update query USING TIMESTAMP clauses are before the VALUES clause
+	var usingTimestamp types.DynamicValue
 	if updateObj.UsingTtlTimestamp() != nil {
-		err := common.GetTimestampInfo(updateObj.UsingTtlTimestamp().Timestamp(), params, values)
+		usingTimestamp, err = common.GetTimestampInfo(updateObj.UsingTtlTimestamp().Timestamp(), params)
 		if err != nil {
 			return nil, err
 		}
 	}
 
-	assignments, err := parseUpdateValues(allAssignmentObj, tableConfig, params, values)
-	if err != nil {
-		return nil, err
-	}
-
-	if updateObj.WhereSpec() == nil {
-		return nil, errors.New("error parsing update: where clause required")
-	}
-
-	whereClause, err := common.ParseWhereClause(updateObj.WhereSpec(), tableConfig, params, values)
+	assignments, err := parseUpdateValues(allAssignmentObj, table, params)
 	if err != nil {
 		return nil, err
 	}
 
 	var ifExist = updateObj.IfExist() != nil
 
-	err = common.ValidateRequiredPrimaryKeysOnly(tableConfig, whereClause)
+	conditions, err := common.ParseWhereClause(updateObj.WhereSpec(), table, params)
+	if err != nil {
+		return nil, err
+	}
+	rowKeys, err := common.ConvertStrictConditionsToRowKeyValues(table, conditions)
 	if err != nil {
 		return nil, err
 	}
 
-	st := types.NewPreparedUpdateQuery(keyspaceName, tableName, ifExist, query.RawCql(), assignments, whereClause, params, values)
-
+	st := types.NewPreparedUpdateQuery(keyspaceName, tableName, ifExist, query.RawCql(), assignments, rowKeys, params, usingTimestamp)
 	return st, nil
 }
 
@@ -102,7 +96,7 @@ func (t *UpdateTranslator) Bind(st types.IPreparedQuery, values *types.QueryPara
 		return nil, err
 	}
 
-	rowKey, err := common.BindRowKey(tableConfig, values)
+	rowKey, err := common.BindRowKey(tableConfig, ust.RowKeys, values)
 	if err != nil {
 		return nil, err
 	}

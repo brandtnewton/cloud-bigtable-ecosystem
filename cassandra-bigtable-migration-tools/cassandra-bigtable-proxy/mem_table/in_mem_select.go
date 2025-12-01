@@ -69,7 +69,7 @@ func matchesConditions(row types.GoRow, conditions []types.Condition, parameterV
 			return false, fmt.Errorf("unknown column '%s' on table", col)
 		}
 
-		queryValue, err := parameterValues.GetValue(cond.ValuePlaceholder)
+		queryValue, err := parameterValues.GetValue(cond.Value)
 		if err != nil {
 			return false, err
 		}

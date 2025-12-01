@@ -6,43 +6,12 @@ import (
 	"github.com/datastax/go-cassandra-native-protocol/primitive"
 )
 
-type BtqlFuncCode int
-
-const (
-	FuncCodeUnknown BtqlFuncCode = iota
-	FuncCodeWriteTime
-	FuncCodeCount
-	FuncCodeAvg
-	FuncCodeSum
-	FuncCodeMin
-	FuncCodeMax
-)
-
-func (c BtqlFuncCode) String() string {
-	switch c {
-	case FuncCodeWriteTime:
-		return "writetime"
-	case FuncCodeCount:
-		return "count"
-	case FuncCodeAvg:
-		return "avg"
-	case FuncCodeSum:
-		return "sum"
-	case FuncCodeMin:
-		return "min"
-	case FuncCodeMax:
-		return "max"
-	default:
-		return "unknown"
-	}
-}
-
 // SelectedColumn describes a column that was selected as part of a query. It's
 // an output of query translating, and is also used for response construction.
 type SelectedColumn struct {
 	// Sql is the original value of the selected column, including functions, not including alias. e.g. "region" or "count(*)"
 	Sql  string
-	Func BtqlFuncCode
+	Func CqlFuncCode
 	// placeholders are NOT allowed
 	MapKey ColumnQualifier
 	// placeholders are NOT allowed
@@ -64,7 +33,7 @@ func NewSelectedColumnListElement(sql string, columnName ColumnName, alias strin
 func NewSelectedColumnMapElement(sql string, columnName ColumnName, alias string, resultType CqlDataType, key ColumnQualifier) *SelectedColumn {
 	return &SelectedColumn{Sql: sql, Alias: alias, ColumnName: columnName, ResultType: resultType, MapKey: key, ListIndex: -1}
 }
-func NewSelectedColumnFunction(sql string, columnName ColumnName, alias string, resultType CqlDataType, funcCode BtqlFuncCode) *SelectedColumn {
+func NewSelectedColumnFunction(sql string, columnName ColumnName, alias string, resultType CqlDataType, funcCode CqlFuncCode) *SelectedColumn {
 	return &SelectedColumn{Sql: sql, Alias: alias, ColumnName: columnName, ResultType: resultType, Func: funcCode, ListIndex: -1}
 }
 

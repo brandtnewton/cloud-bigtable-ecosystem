@@ -34,7 +34,7 @@ func (t *DeleteTranslator) Translate(query *types.RawQuery, sessionKeyspace type
 		return nil, err
 	}
 
-	tableConfig, err := t.schemaMappingConfig.GetTableConfig(keyspaceName, tableName)
+	table, err := t.schemaMappingConfig.GetTableConfig(keyspaceName, tableName)
 	if err != nil {
 		return nil, err
 	}
@@ -42,41 +42,27 @@ func (t *DeleteTranslator) Translate(query *types.RawQuery, sessionKeyspace type
 	var ifExist = deleteObj.IfExist() != nil
 
 	params := types.NewQueryParameters()
-	values := types.NewQueryParameterValues(params)
 
-	selectedColumns, err := parseDeleteColumns(deleteObj.DeleteColumnList(), tableConfig)
+	selectedColumns, err := parseDeleteColumns(deleteObj.DeleteColumnList(), table)
 	if err != nil {
 		return nil, err
 	}
 
-	conditions, err := common.ParseWhereClause(deleteObj.WhereSpec(), tableConfig, params, values)
+	conditions, err := common.ParseWhereClause(deleteObj.WhereSpec(), table, params)
 	if err != nil {
 		return nil, err
-	}
-
-	for _, condition := range conditions {
-		if condition.Operator != "=" {
-			return nil, fmt.Errorf("primary key conditions can only be equals")
-		}
 	}
 
 	if deleteObj.UsingTimestampSpec() != nil {
-		err := common.GetTimestampInfo(deleteObj.UsingTimestampSpec().Timestamp(), params, values)
-		if err != nil {
-			return nil, err
-		}
+		return nil, fmt.Errorf("delete USING TIMESTAMP not supported yet")
 	}
 
-	err = common.ValidateRequiredPrimaryKeysOnly(tableConfig, conditions)
+	rowKeys, err := common.ConvertStrictConditionsToRowKeyValues(table, conditions)
 	if err != nil {
 		return nil, err
 	}
 
-	if params.Has(types.UsingTimePlaceholder) {
-		return nil, fmt.Errorf("delete USING TIMESTAMP not supported yet")
-	}
-
-	st := types.NewPreparedDeleteQuery(keyspaceName, tableName, ifExist, query.RawCql(), conditions, params, selectedColumns, values)
+	st := types.NewPreparedDeleteQuery(keyspaceName, tableName, ifExist, query.RawCql(), rowKeys, params, selectedColumns)
 
 	return st, nil
 }
@@ -91,7 +77,7 @@ func (t *DeleteTranslator) Bind(st types.IPreparedQuery, values *types.QueryPara
 		return nil, err
 	}
 
-	rowKey, err := common.BindRowKey(tableConfig, values)
+	rowKey, err := common.BindRowKey(tableConfig, dst.RowKey, values)
 	if err != nil {
 		return nil, fmt.Errorf("key encoding failed: %w", err)
 	}

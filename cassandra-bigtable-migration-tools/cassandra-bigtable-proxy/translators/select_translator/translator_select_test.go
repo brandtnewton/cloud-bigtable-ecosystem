@@ -74,29 +74,29 @@ func TestTranslator_TranslateSelectQuerytoBigtable(t *testing.T) {
 				},
 				Conditions: []types.Condition{
 					{
-						Column:           mockdata.GetColumnOrDie("test_keyspace", "test_table", "pk1"),
-						Operator:         types.EQ,
-						ValuePlaceholder: "@value0",
+						Column:   mockdata.GetColumnOrDie("test_keyspace", "test_table", "pk1"),
+						Operator: types.EQ,
+						Value:    "@value0",
 					},
 					{
-						Column:           mockdata.GetColumnOrDie("test_keyspace", "test_table", "col_bool"),
-						Operator:         types.EQ,
-						ValuePlaceholder: "@value1",
+						Column:   mockdata.GetColumnOrDie("test_keyspace", "test_table", "col_bool"),
+						Operator: types.EQ,
+						Value:    "@value1",
 					},
 					{
-						Column:           mockdata.GetColumnOrDie("test_keyspace", "test_table", "col_ts"),
-						Operator:         types.LTE,
-						ValuePlaceholder: "@value2",
+						Column:   mockdata.GetColumnOrDie("test_keyspace", "test_table", "col_ts"),
+						Operator: types.LTE,
+						Value:    "@value2",
 					},
 					{
-						Column:           mockdata.GetColumnOrDie("test_keyspace", "test_table", "col_int"),
-						Operator:         types.GTE,
-						ValuePlaceholder: "@value3",
+						Column:   mockdata.GetColumnOrDie("test_keyspace", "test_table", "col_int"),
+						Operator: types.GTE,
+						Value:    "@value3",
 					},
 					{
-						Column:           mockdata.GetColumnOrDie("test_keyspace", "test_table", "col_bigint"),
-						Operator:         types.GT,
-						ValuePlaceholder: "@value4",
+						Column:   mockdata.GetColumnOrDie("test_keyspace", "test_table", "col_bigint"),
+						Operator: types.GT,
+						Value:    "@value4",
 					},
 				},
 				OrderBy: types.OrderBy{
@@ -135,9 +135,9 @@ func TestTranslator_TranslateSelectQuerytoBigtable(t *testing.T) {
 				},
 				Conditions: []types.Condition{
 					{
-						Column:           mockdata.GetColumnOrDie("test_keyspace", "test_table", "list_text"),
-						Operator:         types.ARRAY_INCLUDES,
-						ValuePlaceholder: "@value0",
+						Column:   mockdata.GetColumnOrDie("test_keyspace", "test_table", "list_text"),
+						Operator: types.ARRAY_INCLUDES,
+						Value:    "@value0",
 					},
 				},
 				OrderBy: types.OrderBy{
@@ -166,9 +166,9 @@ func TestTranslator_TranslateSelectQuerytoBigtable(t *testing.T) {
 				},
 				Conditions: []types.Condition{
 					{
-						Column:           mockdata.GetColumnOrDie("test_keyspace", "test_table", "map_text_text"),
-						Operator:         "MAP_CONTAINS_KEY",
-						ValuePlaceholder: "@value0",
+						Column:   mockdata.GetColumnOrDie("test_keyspace", "test_table", "map_text_text"),
+						Operator: "MAP_CONTAINS_KEY",
+						Value:    "@value0",
 					},
 				},
 				OrderBy: types.OrderBy{
@@ -195,9 +195,9 @@ func TestTranslator_TranslateSelectQuerytoBigtable(t *testing.T) {
 				},
 				Conditions: []types.Condition{
 					{
-						Column:           mockdata.GetColumnOrDie("test_keyspace", "test_table", "set_text"),
-						Operator:         "MAP_CONTAINS_KEY", // We are considering set as map internally
-						ValuePlaceholder: "@value0",
+						Column:   mockdata.GetColumnOrDie("test_keyspace", "test_table", "set_text"),
+						Operator: "MAP_CONTAINS_KEY", // We are considering set as map internally
+						Value:    "@value0",
 					},
 				},
 				OrderBy: types.OrderBy{
@@ -225,9 +225,9 @@ func TestTranslator_TranslateSelectQuerytoBigtable(t *testing.T) {
 				},
 				Conditions: []types.Condition{
 					{
-						Column:           mockdata.GetColumnOrDie("test_keyspace", "test_table", "pk1"),
-						Operator:         "=",
-						ValuePlaceholder: "@value0",
+						Column:   mockdata.GetColumnOrDie("test_keyspace", "test_table", "pk1"),
+						Operator: "=",
+						Value:    "@value0",
 					},
 				},
 				OrderBy: types.OrderBy{
@@ -254,9 +254,9 @@ func TestTranslator_TranslateSelectQuerytoBigtable(t *testing.T) {
 				},
 				Conditions: []types.Condition{
 					{
-						Column:           mockdata.GetColumnOrDie("test_keyspace", "test_table", "col_int"),
-						Operator:         "IN",
-						ValuePlaceholder: "@value0",
+						Column:   mockdata.GetColumnOrDie("test_keyspace", "test_table", "col_int"),
+						Operator: "IN",
+						Value:    "@value0",
 					},
 				},
 				InitialValues: map[types.Placeholder]types.GoValue{
@@ -280,9 +280,9 @@ func TestTranslator_TranslateSelectQuerytoBigtable(t *testing.T) {
 				},
 				Conditions: []types.Condition{
 					{
-						Column:           mockdata.GetColumnOrDie("test_keyspace", "test_table", "col_bigint"),
-						Operator:         "IN",
-						ValuePlaceholder: "@value0",
+						Column:   mockdata.GetColumnOrDie("test_keyspace", "test_table", "col_bigint"),
+						Operator: "IN",
+						Value:    "@value0",
 					},
 				},
 				InitialValues: map[types.Placeholder]types.GoValue{
@@ -306,9 +306,9 @@ func TestTranslator_TranslateSelectQuerytoBigtable(t *testing.T) {
 				},
 				Conditions: []types.Condition{
 					{
-						Column:           mockdata.GetColumnOrDie("test_keyspace", "test_table", "col_float"),
-						Operator:         "IN",
-						ValuePlaceholder: "@value0",
+						Column:   mockdata.GetColumnOrDie("test_keyspace", "test_table", "col_float"),
+						Operator: "IN",
+						Value:    "@value0",
 					},
 				},
 				InitialValues: map[types.Placeholder]types.GoValue{
@@ -332,9 +332,9 @@ func TestTranslator_TranslateSelectQuerytoBigtable(t *testing.T) {
 				},
 				Conditions: []types.Condition{
 					{
-						Column:           mockdata.GetColumnOrDie("test_keyspace", "test_table", "col_double"),
-						Operator:         "IN",
-						ValuePlaceholder: "@value0",
+						Column:   mockdata.GetColumnOrDie("test_keyspace", "test_table", "col_double"),
+						Operator: "IN",
+						Value:    "@value0",
 					},
 				},
 				InitialValues: map[types.Placeholder]types.GoValue{
@@ -358,9 +358,9 @@ func TestTranslator_TranslateSelectQuerytoBigtable(t *testing.T) {
 				},
 				Conditions: []types.Condition{
 					{
-						Column:           mockdata.GetColumnOrDie("test_keyspace", "test_table", "col_bool"),
-						Operator:         "IN",
-						ValuePlaceholder: "@value0",
+						Column:   mockdata.GetColumnOrDie("test_keyspace", "test_table", "col_bool"),
+						Operator: "IN",
+						Value:    "@value0",
 					},
 				},
 				InitialValues: map[types.Placeholder]types.GoValue{
@@ -393,9 +393,9 @@ func TestTranslator_TranslateSelectQuerytoBigtable(t *testing.T) {
 				AllParams:     []types.Placeholder{"@value0"},
 				Conditions: []types.Condition{
 					{
-						Column:           mockdata.GetColumnOrDie("test_keyspace", "test_table", "col_int"),
-						Operator:         "IN",
-						ValuePlaceholder: "@value0",
+						Column:   mockdata.GetColumnOrDie("test_keyspace", "test_table", "col_int"),
+						Operator: "IN",
+						Value:    "@value0",
 					},
 				},
 			},
@@ -423,9 +423,9 @@ func TestTranslator_TranslateSelectQuerytoBigtable(t *testing.T) {
 				AllParams:     []types.Placeholder{"@value0"},
 				Conditions: []types.Condition{
 					{
-						Column:           mockdata.GetColumnOrDie("test_keyspace", "test_table", "col_bigint"),
-						Operator:         "IN",
-						ValuePlaceholder: "@value0",
+						Column:   mockdata.GetColumnOrDie("test_keyspace", "test_table", "col_bigint"),
+						Operator: "IN",
+						Value:    "@value0",
 					},
 				},
 			},
@@ -447,9 +447,9 @@ func TestTranslator_TranslateSelectQuerytoBigtable(t *testing.T) {
 				AllParams:     []types.Placeholder{"@value0"},
 				Conditions: []types.Condition{
 					{
-						Column:           mockdata.GetColumnOrDie("test_keyspace", "test_table", "col_float"),
-						Operator:         "IN",
-						ValuePlaceholder: "@value0",
+						Column:   mockdata.GetColumnOrDie("test_keyspace", "test_table", "col_float"),
+						Operator: "IN",
+						Value:    "@value0",
 					},
 				},
 			},
@@ -471,9 +471,9 @@ func TestTranslator_TranslateSelectQuerytoBigtable(t *testing.T) {
 				AllParams:     []types.Placeholder{"@value0"},
 				Conditions: []types.Condition{
 					{
-						Column:           mockdata.GetColumnOrDie("test_keyspace", "test_table", "col_double"),
-						Operator:         "IN",
-						ValuePlaceholder: "@value0",
+						Column:   mockdata.GetColumnOrDie("test_keyspace", "test_table", "col_double"),
+						Operator: "IN",
+						Value:    "@value0",
 					},
 				},
 			},
@@ -495,9 +495,9 @@ func TestTranslator_TranslateSelectQuerytoBigtable(t *testing.T) {
 				AllParams:     []types.Placeholder{"@value0"},
 				Conditions: []types.Condition{
 					{
-						Column:           mockdata.GetColumnOrDie("test_keyspace", "test_table", "col_bool"),
-						Operator:         "IN",
-						ValuePlaceholder: "@value0",
+						Column:   mockdata.GetColumnOrDie("test_keyspace", "test_table", "col_bool"),
+						Operator: "IN",
+						Value:    "@value0",
 					},
 				},
 			},
@@ -519,9 +519,9 @@ func TestTranslator_TranslateSelectQuerytoBigtable(t *testing.T) {
 				AllParams:     []types.Placeholder{"@value0"},
 				Conditions: []types.Condition{
 					{
-						Column:           mockdata.GetColumnOrDie("test_keyspace", "test_table", "col_blob"),
-						Operator:         "IN",
-						ValuePlaceholder: "@value0",
+						Column:   mockdata.GetColumnOrDie("test_keyspace", "test_table", "col_blob"),
+						Operator: "IN",
+						Value:    "@value0",
 					},
 				},
 			},
@@ -549,9 +549,9 @@ func TestTranslator_TranslateSelectQuerytoBigtable(t *testing.T) {
 				},
 				Conditions: []types.Condition{
 					{
-						Column:           mockdata.GetColumnOrDie("test_keyspace", "test_table", "pk1"),
-						Operator:         "=",
-						ValuePlaceholder: "@value0",
+						Column:   mockdata.GetColumnOrDie("test_keyspace", "test_table", "pk1"),
+						Operator: "=",
+						Value:    "@value0",
 					},
 				},
 				OrderBy: types.OrderBy{
@@ -578,9 +578,9 @@ func TestTranslator_TranslateSelectQuerytoBigtable(t *testing.T) {
 				},
 				Conditions: []types.Condition{
 					{
-						Column:           mockdata.GetColumnOrDie("test_keyspace", "test_table", "pk1"),
-						Operator:         "=",
-						ValuePlaceholder: "@value0",
+						Column:   mockdata.GetColumnOrDie("test_keyspace", "test_table", "pk1"),
+						Operator: "=",
+						Value:    "@value0",
 					},
 				},
 				OrderBy: types.OrderBy{
@@ -637,34 +637,34 @@ func TestTranslator_TranslateSelectQuerytoBigtable(t *testing.T) {
 				},
 				Conditions: []types.Condition{
 					{
-						Column:           mockdata.GetColumnOrDie("test_keyspace", "test_table", "pk1"),
-						Operator:         "=",
-						ValuePlaceholder: "@value0",
+						Column:   mockdata.GetColumnOrDie("test_keyspace", "test_table", "pk1"),
+						Operator: "=",
+						Value:    "@value0",
 					},
 					{
-						Column:           mockdata.GetColumnOrDie("test_keyspace", "test_table", "col_bool"),
-						Operator:         "=",
-						ValuePlaceholder: "@value1",
+						Column:   mockdata.GetColumnOrDie("test_keyspace", "test_table", "col_bool"),
+						Operator: "=",
+						Value:    "@value1",
 					},
 					{
-						Column:           mockdata.GetColumnOrDie("test_keyspace", "test_table", "col_ts"),
-						Operator:         "<=",
-						ValuePlaceholder: "@value2",
+						Column:   mockdata.GetColumnOrDie("test_keyspace", "test_table", "col_ts"),
+						Operator: "<=",
+						Value:    "@value2",
 					},
 					{
-						Column:           mockdata.GetColumnOrDie("test_keyspace", "test_table", "col_int"),
-						Operator:         ">=",
-						ValuePlaceholder: "@value3",
+						Column:   mockdata.GetColumnOrDie("test_keyspace", "test_table", "col_int"),
+						Operator: ">=",
+						Value:    "@value3",
 					},
 					{
-						Column:           mockdata.GetColumnOrDie("test_keyspace", "test_table", "col_bigint"),
-						Operator:         ">",
-						ValuePlaceholder: "@value4",
+						Column:   mockdata.GetColumnOrDie("test_keyspace", "test_table", "col_bigint"),
+						Operator: ">",
+						Value:    "@value4",
 					},
 					{
-						Column:           mockdata.GetColumnOrDie("test_keyspace", "test_table", "col_bigint"),
-						Operator:         "<",
-						ValuePlaceholder: "@value5",
+						Column:   mockdata.GetColumnOrDie("test_keyspace", "test_table", "col_bigint"),
+						Operator: "<",
+						Value:    "@value5",
 					},
 				},
 				OrderBy: types.OrderBy{
@@ -699,34 +699,34 @@ func TestTranslator_TranslateSelectQuerytoBigtable(t *testing.T) {
 				},
 				Conditions: []types.Condition{
 					{
-						Column:           mockdata.GetColumnOrDie("test_keyspace", "test_table", "pk1"),
-						Operator:         "=",
-						ValuePlaceholder: "@value0",
+						Column:   mockdata.GetColumnOrDie("test_keyspace", "test_table", "pk1"),
+						Operator: "=",
+						Value:    "@value0",
 					},
 					{
-						Column:           mockdata.GetColumnOrDie("test_keyspace", "test_table", "col_int"),
-						Operator:         "=",
-						ValuePlaceholder: "@value1",
+						Column:   mockdata.GetColumnOrDie("test_keyspace", "test_table", "col_int"),
+						Operator: "=",
+						Value:    "@value1",
 					},
 					{
-						Column:           mockdata.GetColumnOrDie("test_keyspace", "test_table", "col_bool"),
-						Operator:         "=",
-						ValuePlaceholder: "@value2",
+						Column:   mockdata.GetColumnOrDie("test_keyspace", "test_table", "col_bool"),
+						Operator: "=",
+						Value:    "@value2",
 					},
 					{
-						Column:           mockdata.GetColumnOrDie("test_keyspace", "test_table", "col_ts"),
-						Operator:         "=",
-						ValuePlaceholder: "@value3",
+						Column:   mockdata.GetColumnOrDie("test_keyspace", "test_table", "col_ts"),
+						Operator: "=",
+						Value:    "@value3",
 					},
 					{
-						Column:           mockdata.GetColumnOrDie("test_keyspace", "test_table", "col_int"),
-						Operator:         "=",
-						ValuePlaceholder: "@value4",
+						Column:   mockdata.GetColumnOrDie("test_keyspace", "test_table", "col_int"),
+						Operator: "=",
+						Value:    "@value4",
 					},
 					{
-						Column:           mockdata.GetColumnOrDie("test_keyspace", "test_table", "col_bigint"),
-						Operator:         "=",
-						ValuePlaceholder: "@value5",
+						Column:   mockdata.GetColumnOrDie("test_keyspace", "test_table", "col_bigint"),
+						Operator: "=",
+						Value:    "@value5",
 					},
 				},
 				InitialValues: map[types.Placeholder]types.GoValue{},
@@ -808,14 +808,14 @@ func TestTranslator_TranslateSelectQuerytoBigtable(t *testing.T) {
 				AllParams: []types.Placeholder{"@value0", "@value1"},
 				Conditions: []types.Condition{
 					{
-						Column:           mockdata.GetColumnOrDie("test_keyspace", "test_table", "pk1"),
-						Operator:         "=",
-						ValuePlaceholder: "@value0",
+						Column:   mockdata.GetColumnOrDie("test_keyspace", "test_table", "pk1"),
+						Operator: "=",
+						Value:    "@value0",
 					},
 					{
-						Column:           mockdata.GetColumnOrDie("test_keyspace", "test_table", "pk1"),
-						Operator:         "IN",
-						ValuePlaceholder: "@value1",
+						Column:   mockdata.GetColumnOrDie("test_keyspace", "test_table", "pk1"),
+						Operator: "IN",
+						Value:    "@value1",
 					},
 				},
 			},
@@ -838,14 +838,14 @@ func TestTranslator_TranslateSelectQuerytoBigtable(t *testing.T) {
 				AllParams:     []types.Placeholder{"@value0", "@value1"},
 				Conditions: []types.Condition{
 					{
-						Column:           mockdata.GetColumnOrDie("test_keyspace", "test_table", "pk1"),
-						Operator:         "=",
-						ValuePlaceholder: "@value0",
+						Column:   mockdata.GetColumnOrDie("test_keyspace", "test_table", "pk1"),
+						Operator: "=",
+						Value:    "@value0",
 					},
 					{
-						Column:           mockdata.GetColumnOrDie("test_keyspace", "test_table", "pk1"),
-						Operator:         "IN",
-						ValuePlaceholder: "@value1",
+						Column:   mockdata.GetColumnOrDie("test_keyspace", "test_table", "pk1"),
+						Operator: "IN",
+						Value:    "@value1",
 					},
 				},
 			},
@@ -868,9 +868,9 @@ func TestTranslator_TranslateSelectQuerytoBigtable(t *testing.T) {
 				AllParams:     []types.Placeholder{"@value0"},
 				Conditions: []types.Condition{
 					{
-						Column:           mockdata.GetColumnOrDie("test_keyspace", "test_table", "pk1"),
-						Operator:         "LIKE",
-						ValuePlaceholder: "@value0",
+						Column:   mockdata.GetColumnOrDie("test_keyspace", "test_table", "pk1"),
+						Operator: "LIKE",
+						Value:    "@value0",
 					},
 				},
 			},
@@ -891,10 +891,10 @@ func TestTranslator_TranslateSelectQuerytoBigtable(t *testing.T) {
 				AllParams:     []types.Placeholder{"@value0", "@value1"},
 				Conditions: []types.Condition{
 					{
-						Column:            mockdata.GetColumnOrDie("test_keyspace", "test_table", "pk1"),
-						Operator:          "BETWEEN",
-						ValuePlaceholder:  "@value0",
-						ValuePlaceholder2: "@value1",
+						Column:   mockdata.GetColumnOrDie("test_keyspace", "test_table", "pk1"),
+						Operator: "BETWEEN",
+						Value:    "@value0",
+						Value2:   "@value1",
 					},
 				},
 			},
@@ -922,9 +922,9 @@ func TestTranslator_TranslateSelectQuerytoBigtable(t *testing.T) {
 				AllParams:     []types.Placeholder{"@value0"},
 				Conditions: []types.Condition{
 					{
-						Column:           mockdata.GetColumnOrDie("test_keyspace", "test_table", "pk1"),
-						Operator:         "LIKE",
-						ValuePlaceholder: "@value0",
+						Column:   mockdata.GetColumnOrDie("test_keyspace", "test_table", "pk1"),
+						Operator: "LIKE",
+						Value:    "@value0",
 					},
 				},
 			},
@@ -946,10 +946,10 @@ func TestTranslator_TranslateSelectQuerytoBigtable(t *testing.T) {
 				AllParams:     []types.Placeholder{"@value0", "@value1"},
 				Conditions: []types.Condition{
 					{
-						Column:            mockdata.GetColumnOrDie("test_keyspace", "test_table", "pk1"),
-						Operator:          "BETWEEN",
-						ValuePlaceholder:  "@value0",
-						ValuePlaceholder2: "@value1",
+						Column:   mockdata.GetColumnOrDie("test_keyspace", "test_table", "pk1"),
+						Operator: "BETWEEN",
+						Value:    "@value0",
+						Value2:   "@value1",
 					},
 				},
 			},
@@ -1003,7 +1003,7 @@ func TestTranslator_TranslateSelectQuerytoBigtable(t *testing.T) {
 				},
 				InitialValues: map[types.Placeholder]types.GoValue{"@value0": "abc"},
 				AllParams:     []types.Placeholder{"@value0"},
-				Conditions:    []types.Condition{{Column: mockdata.GetColumnOrDie("test_keyspace", "test_table", "pk1"), Operator: "=", ValuePlaceholder: "@value0"}},
+				Conditions:    []types.Condition{{Column: mockdata.GetColumnOrDie("test_keyspace", "test_table", "pk1"), Operator: "=", Value: "@value0"}},
 			},
 			sessionKeyspace: "other_keyspace",
 		},
@@ -1021,7 +1021,7 @@ func TestTranslator_TranslateSelectQuerytoBigtable(t *testing.T) {
 				},
 				InitialValues: map[types.Placeholder]types.GoValue{"@value0": "abc"},
 				AllParams:     []types.Placeholder{"@value0"},
-				Conditions:    []types.Condition{{Column: mockdata.GetColumnOrDie("test_keyspace", "test_table", "pk1"), Operator: "=", ValuePlaceholder: "@value0"}},
+				Conditions:    []types.Condition{{Column: mockdata.GetColumnOrDie("test_keyspace", "test_table", "pk1"), Operator: "=", Value: "@value0"}},
 			},
 			sessionKeyspace: "test_keyspace",
 		},
@@ -1079,9 +1079,9 @@ func TestTranslator_TranslateSelectQuerytoBigtable(t *testing.T) {
 				},
 				Conditions: []types.Condition{
 					{
-						Column:           mockdata.GetColumnOrDie("test_keyspace", "test_table", "pk1"),
-						Operator:         "=",
-						ValuePlaceholder: "@value0",
+						Column:   mockdata.GetColumnOrDie("test_keyspace", "test_table", "pk1"),
+						Operator: "=",
+						Value:    "@value0",
 					},
 				},
 				InitialValues: map[types.Placeholder]types.GoValue{

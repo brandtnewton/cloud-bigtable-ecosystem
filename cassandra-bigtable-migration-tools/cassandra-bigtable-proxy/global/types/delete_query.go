@@ -10,15 +10,10 @@ type PreparedDeleteQuery struct {
 	keyspace        Keyspace  // Keyspace to which the table belongs
 	table           TableName // Table involved in the query
 	IfExists        bool
-	cqlQuery        string      // Original query string
-	Conditions      []Condition // List of clauses in the delete query
+	cqlQuery        string // Original query string
 	params          *QueryParameters
+	RowKey          []DynamicValue
 	SelectedColumns []SelectedColumn
-	initialValues   map[Placeholder]GoValue
-}
-
-func (p *PreparedDeleteQuery) InitialValues() map[Placeholder]GoValue {
-	return p.initialValues
 }
 
 func (p *PreparedDeleteQuery) IsIdempotent() bool {
@@ -44,8 +39,8 @@ func (p *PreparedDeleteQuery) BigtableQuery() string {
 	return ""
 }
 
-func NewPreparedDeleteQuery(keyspace Keyspace, table TableName, ifExists bool, cqlQuery string, conditions []Condition, params *QueryParameters, selectedColumns []SelectedColumn, initialValues *QueryParameterValues) *PreparedDeleteQuery {
-	return &PreparedDeleteQuery{keyspace: keyspace, table: table, cqlQuery: cqlQuery, Conditions: conditions, params: params, IfExists: ifExists, SelectedColumns: selectedColumns, initialValues: initialValues.values}
+func NewPreparedDeleteQuery(keyspace Keyspace, table TableName, ifExists bool, cqlQuery string, rowKey []DynamicValue, params *QueryParameters, selectedColumns []SelectedColumn) *PreparedDeleteQuery {
+	return &PreparedDeleteQuery{keyspace: keyspace, table: table, cqlQuery: cqlQuery, RowKey: rowKey, params: params, IfExists: ifExists, SelectedColumns: selectedColumns}
 }
 
 func (p *PreparedDeleteQuery) Keyspace() Keyspace {

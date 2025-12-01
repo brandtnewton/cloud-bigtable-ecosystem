@@ -9,7 +9,7 @@ import (
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/translators/common"
 )
 
-func parseUpdateValues(assignments []cql.IAssignmentElementContext, tableConfig *schemaMapping.TableSchema, params *types.QueryParameters, values *types.QueryParameterValues) ([]types.Assignment, error) {
+func parseUpdateValues(assignments []cql.IAssignmentElementContext, tableConfig *schemaMapping.TableSchema, params *types.QueryParameters) ([]types.Assignment, error) {
 	if len(assignments) == 0 {
 		return nil, errors.New("invalid input")
 	}
@@ -22,22 +22,21 @@ func parseUpdateValues(assignments []cql.IAssignmentElementContext, tableConfig 
 			if err != nil {
 				return nil, err
 			}
-			p := params.PushParameter(col, col.CQLType, col.CQLType.IsCollection())
-			parsed = append(parsed, types.NewComplexAssignmentSet(col, p))
-			err = common.ExtractValueAny(assignment.ValueAny(), col.CQLType, p, values)
+			value, err := common.ExtractValueAny(assignment.ValueAny(), col.CQLType, params)
 			if err != nil {
 				return nil, err
 			}
+			parsed = append(parsed, types.NewComplexAssignmentSet(col, value))
 		} else if a.AssignmentAppend() != nil {
 			assignment := a.AssignmentAppend()
-			append_, err := ParseAppend(assignment.Column(), assignment.ArithmeticOperator(), assignment.ValueAny(), false, tableConfig, params, values)
+			append_, err := ParseAppend(assignment.Column(), assignment.ArithmeticOperator(), assignment.ValueAny(), false, tableConfig, params)
 			if err != nil {
 				return nil, err
 			}
 			parsed = append(parsed, append_)
 		} else if a.AssignmentPrepend() != nil {
 			assignment := a.AssignmentPrepend()
-			prepend, err := ParseAppend(assignment.Column(), assignment.ArithmeticOperator(), assignment.ValueAny(), true, tableConfig, params, values)
+			prepend, err := ParseAppend(assignment.Column(), assignment.ArithmeticOperator(), assignment.ValueAny(), true, tableConfig, params)
 			if err != nil {
 				return nil, err
 			}
@@ -54,12 +53,11 @@ func parseUpdateValues(assignments []cql.IAssignmentElementContext, tableConfig 
 				if err != nil {
 					return nil, fmt.Errorf("failed to parse map key: %w", err)
 				}
-				p := params.PushParameter(col, mt.ValueType(), false)
-				parsed = append(parsed, types.NewComplexAssignmentUpdateMapValue(col, keyValue, p))
-				err = common.ExtractConstantValue(assignment.Constant(), mt.ValueType(), p, values)
+				value, err := common.ExtractConstantValue(assignment.Constant(), mt.ValueType(), params)
 				if err != nil {
 					return nil, err
 				}
+				parsed = append(parsed, types.NewComplexAssignmentUpdateMapValue(col, keyValue, value))
 			} else if col.CQLType.Code() == types.LIST {
 				lt := col.CQLType.(*types.ListType)
 				// cql doesn't allow parameterized index access so no need to handle that here
@@ -67,12 +65,11 @@ func parseUpdateValues(assignments []cql.IAssignmentElementContext, tableConfig 
 				if err != nil {
 					return nil, fmt.Errorf("failed to parse list collection index: %w", err)
 				}
-				p := params.PushParameter(col, lt.ElementType(), false)
-				parsed = append(parsed, types.NewComplexAssignmentUpdateListIndex(col, index, p))
-				err = common.ExtractConstantValue(assignment.Constant(), lt.ElementType(), p, values)
+				value, err := common.ExtractConstantValue(assignment.Constant(), lt.ElementType(), params)
 				if err != nil {
 					return nil, err
 				}
+				parsed = append(parsed, types.NewComplexAssignmentUpdateListIndex(col, index, value))
 			} else {
 				return nil, fmt.Errorf("cannot do key or index based access on type %s", col.CQLType.String())
 			}
@@ -81,7 +78,7 @@ func parseUpdateValues(assignments []cql.IAssignmentElementContext, tableConfig 
 	return parsed, nil
 }
 
-func ParseAppend(columnContext cql.IColumnContext, op cql.IArithmeticOperatorContext, valueAny cql.IValueAnyContext, isPrepend bool, tableConfig *schemaMapping.TableSchema, params *types.QueryParameters, values *types.QueryParameterValues) (types.Assignment, error) {
+func ParseAppend(columnContext cql.IColumnContext, op cql.IArithmeticOperatorContext, valueAny cql.IValueAnyContext, isPrepend bool, tableConfig *schemaMapping.TableSchema, params *types.QueryParameters) (types.Assignment, error) {
 	col, err := common.ParseColumnContext(tableConfig, columnContext)
 	if err != nil {
 		return nil, err
@@ -111,14 +108,13 @@ func ParseAppend(columnContext cql.IColumnContext, op cql.IArithmeticOperatorCon
 		return nil, fmt.Errorf("cannot append on column type: %s", col.CQLType.String())
 	}
 
-	p := params.PushParameter(col, valueType, false)
-	err = common.ExtractValueAny(valueAny, valueType, p, values)
+	value, err := common.ExtractValueAny(valueAny, valueType, params)
 	if err != nil {
 		return nil, err
 	}
 	if col.CQLType.Code() == types.COUNTER {
-		return types.NewAssignmentCounterIncrement(col, operator, p), nil
+		return types.NewAssignmentCounterIncrement(col, operator, value), nil
 	} else {
-		return types.NewComplexAssignmentAppend(col, operator, p, isPrepend), nil
+		return types.NewComplexAssignmentAppend(col, operator, value, isPrepend), nil
 	}
 }

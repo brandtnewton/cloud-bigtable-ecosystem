@@ -53,7 +53,7 @@ type rawCliArgs struct {
 	AppProfile          string `yaml:"app-profile" help:"Bigtable App Profile to use." default:"default"`
 	Port                int    `yaml:"port" help:"Port to serve CQL traffic on." default:"9042"`
 	DefaultColumnFamily string `yaml:"default-column-family" help:"The Bigtable column family used for storing scalar values." default:"cf1"`
-	SchemaMappingTable  string `yaml:"schema-mapping-table" help:"The Bigtable table name used for storing schema information (automatically created by the proxy)." default:"schema_mapping"`
+	SchemaMappingTable  string `yaml:"metadata-table" help:"The Bigtable table name used for storing schema information (automatically created by the proxy)." default:"schema_mapping"`
 }
 
 func ParseCliArgs(args []string) (*types.CliArgs, error) {

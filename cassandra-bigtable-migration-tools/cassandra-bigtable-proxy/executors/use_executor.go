@@ -4,12 +4,12 @@ import (
 	"context"
 	"fmt"
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/global/types"
-	schemaMapping "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/schema-mapping"
+	schemaMapping "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/metadata"
 	"github.com/datastax/go-cassandra-native-protocol/message"
 )
 
 type useExecutor struct {
-	schemaMappings *schemaMapping.SchemaMappingConfig
+	schemaMappings *schemaMapping.SchemaMetadata
 }
 
 func (d *useExecutor) CanRun(q types.IExecutableQuery) bool {
@@ -30,6 +30,6 @@ func (d *useExecutor) Execute(_ context.Context, c types.ICassandraClient, q typ
 	return &message.SetKeyspaceResult{Keyspace: string(use.Keyspace())}, nil
 }
 
-func newUseExecutor(schemaMappings *schemaMapping.SchemaMappingConfig) IQueryExecutor {
+func newUseExecutor(schemaMappings *schemaMapping.SchemaMetadata) IQueryExecutor {
 	return &useExecutor{schemaMappings: schemaMappings}
 }

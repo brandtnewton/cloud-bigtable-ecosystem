@@ -14,7 +14,7 @@
  * the License.
  */
 
-package schemaMapping
+package metadata
 
 import (
 	"cloud.google.com/go/bigtable"
@@ -27,8 +27,8 @@ import (
 	"github.com/datastax/go-cassandra-native-protocol/message"
 )
 
-func CreateTableMap(tables []*TableConfig) map[types.TableName]*TableConfig {
-	var result = make(map[types.TableName]*TableConfig)
+func CreateTableMap(tables []*TableSchema) map[types.TableName]*TableSchema {
+	var result = make(map[types.TableName]*TableSchema)
 	for _, table := range tables {
 		result[table.Name] = table
 	}

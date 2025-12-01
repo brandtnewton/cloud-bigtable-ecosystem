@@ -4,7 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/global/types"
-	schemaMapping "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/schema-mapping"
+	schemaMapping "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/metadata"
 	cql "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/third_party/cqlparser"
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/third_party/datastax/proxycore"
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/utilities"
@@ -85,7 +85,7 @@ func ParseOperator(op cql.ICompareOperatorContext) (types.Operator, error) {
 	return "", fmt.Errorf("unknown operator type: `%s`", op.GetText())
 }
 
-func ParseWhereClause(input cql.IWhereSpecContext, tableConfig *schemaMapping.TableConfig, params *types.QueryParameters, values *types.QueryParameterValues) ([]types.Condition, error) {
+func ParseWhereClause(input cql.IWhereSpecContext, tableConfig *schemaMapping.TableSchema, params *types.QueryParameters, values *types.QueryParameterValues) ([]types.Condition, error) {
 	if input == nil {
 		return nil, nil
 	}
@@ -117,7 +117,7 @@ func ParseWhereClause(input cql.IWhereSpecContext, tableConfig *schemaMapping.Ta
 	return conditions, nil
 }
 
-func parseWhereCompare(compare cql.IRelationCompareContext, tableConfig *schemaMapping.TableConfig, params *types.QueryParameters, values *types.QueryParameterValues) (types.Condition, error) {
+func parseWhereCompare(compare cql.IRelationCompareContext, tableConfig *schemaMapping.TableSchema, params *types.QueryParameters, values *types.QueryParameterValues) (types.Condition, error) {
 	op, err := ParseOperator(compare.CompareOperator())
 	if err != nil {
 		return types.Condition{}, err
@@ -140,7 +140,7 @@ func parseWhereCompare(compare cql.IRelationCompareContext, tableConfig *schemaM
 		ValuePlaceholder: p,
 	}, nil
 }
-func parseWhereLike(like cql.IRelationLikeContext, tableConfig *schemaMapping.TableConfig, params *types.QueryParameters, values *types.QueryParameterValues) (types.Condition, error) {
+func parseWhereLike(like cql.IRelationLikeContext, tableConfig *schemaMapping.TableSchema, params *types.QueryParameters, values *types.QueryParameterValues) (types.Condition, error) {
 	column, err := ParseColumnContext(tableConfig, like.Column())
 	if err != nil {
 		return types.Condition{}, err
@@ -157,7 +157,7 @@ func parseWhereLike(like cql.IRelationLikeContext, tableConfig *schemaMapping.Ta
 		ValuePlaceholder: p,
 	}, nil
 }
-func parseWhereContainsKey(containsKey cql.IRelationContainsKeyContext, tableConfig *schemaMapping.TableConfig, params *types.QueryParameters, values *types.QueryParameterValues) (types.Condition, error) {
+func parseWhereContainsKey(containsKey cql.IRelationContainsKeyContext, tableConfig *schemaMapping.TableSchema, params *types.QueryParameters, values *types.QueryParameterValues) (types.Condition, error) {
 	column, err := ParseColumnContext(tableConfig, containsKey.Column())
 	if err != nil {
 		return types.Condition{}, err
@@ -179,7 +179,7 @@ func parseWhereContainsKey(containsKey cql.IRelationContainsKeyContext, tableCon
 	}, nil
 }
 
-func parseWhereContains(contains cql.IRelationContainsContext, tableConfig *schemaMapping.TableConfig, params *types.QueryParameters, values *types.QueryParameterValues) (types.Condition, error) {
+func parseWhereContains(contains cql.IRelationContainsContext, tableConfig *schemaMapping.TableSchema, params *types.QueryParameters, values *types.QueryParameterValues) (types.Condition, error) {
 	column, err := ParseColumnContext(tableConfig, contains.Column())
 	if err != nil {
 		return types.Condition{}, err
@@ -208,7 +208,7 @@ func parseWhereContains(contains cql.IRelationContainsContext, tableConfig *sche
 	}, nil
 }
 
-func parseWhereBetween(between cql.IRelationBetweenContext, tableConfig *schemaMapping.TableConfig, params *types.QueryParameters, values *types.QueryParameterValues) (types.Condition, error) {
+func parseWhereBetween(between cql.IRelationBetweenContext, tableConfig *schemaMapping.TableSchema, params *types.QueryParameters, values *types.QueryParameterValues) (types.Condition, error) {
 	column, err := ParseColumnContext(tableConfig, between.Column())
 	if err != nil {
 		return types.Condition{}, err
@@ -236,7 +236,7 @@ func parseWhereBetween(between cql.IRelationBetweenContext, tableConfig *schemaM
 	}, nil
 }
 
-func parseWhereIn(whereIn cql.IRelationInContext, tableConfig *schemaMapping.TableConfig, params *types.QueryParameters, values *types.QueryParameterValues) (types.Condition, error) {
+func parseWhereIn(whereIn cql.IRelationInContext, tableConfig *schemaMapping.TableSchema, params *types.QueryParameters, values *types.QueryParameterValues) (types.Condition, error) {
 	column, err := ParseColumnContext(tableConfig, whereIn.Column())
 	if err != nil {
 		return types.Condition{}, err
@@ -340,7 +340,7 @@ func ExtractConstantValue(v cql.IConstantContext, tpe types.CqlDataType, p types
 	return nil
 }
 
-func ParseColumnContext(table *schemaMapping.TableConfig, r cql.IColumnContext) (*types.Column, error) {
+func ParseColumnContext(table *schemaMapping.TableSchema, r cql.IColumnContext) (*types.Column, error) {
 	if r == nil {
 		return nil, fmt.Errorf("nil column")
 	}
@@ -394,7 +394,7 @@ func GetTimestampInfo(timestampContext cql.ITimestampContext, params *types.Quer
 	return nil
 }
 
-func ValidateRequiredPrimaryKeysOnly(tableConfig *schemaMapping.TableConfig, conditions []types.Condition) error {
+func ValidateRequiredPrimaryKeysOnly(tableConfig *schemaMapping.TableSchema, conditions []types.Condition) error {
 	seen := make(map[types.ColumnName]bool)
 	for _, c := range conditions {
 		if !c.Column.IsPrimaryKey {
@@ -411,7 +411,7 @@ func ValidateRequiredPrimaryKeysOnly(tableConfig *schemaMapping.TableConfig, con
 
 	return nil
 }
-func ValidateRequiredPrimaryKeys(tableConfig *schemaMapping.TableConfig, params *types.QueryParameters) error {
+func ValidateRequiredPrimaryKeys(tableConfig *schemaMapping.TableSchema, params *types.QueryParameters) error {
 	// primary key counts are very small for legitimate use cases so greedy iterations are fine
 	for _, wantKey := range tableConfig.PrimaryKeys {
 		_, ok := params.GetPlaceholderForColumn(wantKey.Name)
@@ -715,7 +715,7 @@ func encodeTimestampForBigtable(value interface{}) (types.BigtableValue, error) 
 	return proxycore.EncodeType(datatype.Timestamp, bigtableEncodingVersion, t)
 }
 
-func ParseTableSpec(tableSpec cql.ITableSpecContext, sessionKeyspace types.Keyspace, config *schemaMapping.SchemaMappingConfig) (types.Keyspace, types.TableName, error) {
+func ParseTableSpec(tableSpec cql.ITableSpecContext, sessionKeyspace types.Keyspace) (types.Keyspace, types.TableName, error) {
 	if tableSpec == nil {
 		return "", "", errors.New("failed to parse table name")
 	}
@@ -724,14 +724,14 @@ func ParseTableSpec(tableSpec cql.ITableSpecContext, sessionKeyspace types.Keysp
 	if err != nil {
 		return "", "", err
 	}
-	table, err := ParseTable(tableSpec.Table(), config)
+	table, err := ParseTable(tableSpec.Table())
 	if err != nil {
 		return "", "", err
 	}
 	return keyspace, table, nil
 }
 
-func ParseTable(t cql.ITableContext, config *schemaMapping.SchemaMappingConfig) (types.TableName, error) {
+func ParseTable(t cql.ITableContext) (types.TableName, error) {
 	if t == nil {
 		return "", errors.New("failed to parse table name")
 	}
@@ -758,9 +758,6 @@ func ParseTable(t cql.ITableContext, config *schemaMapping.SchemaMappingConfig) 
 	}
 
 	tableName := types.TableName(name)
-	if tableName == config.SchemaMappingTableName {
-		return "", fmt.Errorf("table name cannot be the same as the configured schema mapping table name '%s'", tableName)
-	}
 	return tableName, nil
 }
 
@@ -782,7 +779,7 @@ func IsValidIdentifier(i string) bool {
 	return validTableName.MatchString(i)
 }
 
-func ParseSelectIndex(si cql.ISelectIndexContext, alias string, table *schemaMapping.TableConfig) (types.SelectedColumn, error) {
+func ParseSelectIndex(si cql.ISelectIndexContext, alias string, table *schemaMapping.TableSchema) (types.SelectedColumn, error) {
 	col, err := ParseColumnContext(table, si.Column())
 	if err != nil {
 		return types.SelectedColumn{}, err
@@ -810,7 +807,7 @@ func ParseSelectIndex(si cql.ISelectIndexContext, alias string, table *schemaMap
 	}
 }
 
-func ParseSelectColumn(si cql.ISelectColumnContext, alias string, table *schemaMapping.TableConfig) (types.SelectedColumn, error) {
+func ParseSelectColumn(si cql.ISelectColumnContext, alias string, table *schemaMapping.TableSchema) (types.SelectedColumn, error) {
 	col, err := ParseColumnContext(table, si.Column())
 	if err != nil {
 		return types.SelectedColumn{}, err
@@ -818,7 +815,7 @@ func ParseSelectColumn(si cql.ISelectColumnContext, alias string, table *schemaM
 	return *types.NewSelectedColumn(string(col.Name), col.Name, alias, col.CQLType), nil
 }
 
-func ParseSelectFunction(sf cql.ISelectFunctionContext, alias string, table *schemaMapping.TableConfig) (types.SelectedColumn, error) {
+func ParseSelectFunction(sf cql.ISelectFunctionContext, alias string, table *schemaMapping.TableSchema) (types.SelectedColumn, error) {
 	f, err := ParseCqlFunc(sf.FunctionCall())
 	if err != nil {
 		return types.SelectedColumn{}, err
@@ -865,7 +862,7 @@ func isNumericType(t types.CqlDataType) bool {
 	return t.Code() == types.BIGINT || t.Code() == types.INT || t.Code() == types.FLOAT || t.Code() == types.DOUBLE || t.Code() == types.COUNTER
 }
 
-func parseSingleColumnFunctionArg(fn cql.IFunctionCallContext, table *schemaMapping.TableConfig) (*types.Column, error) {
+func parseSingleColumnFunctionArg(fn cql.IFunctionCallContext, table *schemaMapping.TableSchema) (*types.Column, error) {
 	if fn.FunctionArgs() == nil || len(fn.FunctionArgs().AllOBJECT_NAME()) != 1 {
 		return nil, fmt.Errorf("expected 1 column argument for `%s`", fn.GetText())
 	}
@@ -880,7 +877,7 @@ func parseSingleColumnFunctionArg(fn cql.IFunctionCallContext, table *schemaMapp
 	return col, nil
 }
 
-func parseStarOrColumnFunctionArg(fn cql.IFunctionCallContext, table *schemaMapping.TableConfig) (string, error) {
+func parseStarOrColumnFunctionArg(fn cql.IFunctionCallContext, table *schemaMapping.TableSchema) (string, error) {
 	if fn.STAR() != nil {
 		return "*", nil
 	}

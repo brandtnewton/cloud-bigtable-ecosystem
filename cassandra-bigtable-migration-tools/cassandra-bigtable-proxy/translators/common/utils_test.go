@@ -18,7 +18,7 @@ package common
 
 import (
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/global/types"
-	schemaMapping "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/schema-mapping"
+	schemaMapping "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/metadata"
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/testing/mockdata"
 	"github.com/datastax/go-cassandra-native-protocol/primitive"
 	"github.com/stretchr/testify/assert"
@@ -173,7 +173,7 @@ func Test_bindValues(t *testing.T) {
 func Test_validateRequiredPrimaryKeys(t *testing.T) {
 	tests := []struct {
 		name  string
-		table *schemaMapping.TableConfig
+		table *schemaMapping.TableSchema
 		keys  *types.QueryParameters
 		err   string
 	}{
@@ -234,7 +234,7 @@ func Test_validateRequiredPrimaryKeys(t *testing.T) {
 func TestCreateOrderedCodeKey(t *testing.T) {
 	tests := []struct {
 		name        string
-		tableConfig *schemaMapping.TableConfig
+		tableConfig *schemaMapping.TableSchema
 		values      map[types.ColumnName]types.GoValue
 		want        []byte
 		wantErr     bool

@@ -33,8 +33,8 @@ import (
 
 	bigtableModule "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/bigtable"
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/global/types"
+	schemaMapping "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/metadata"
 	otelgo "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/otel"
-	schemaMapping "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/schema-mapping"
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/third_party/datastax/proxycore"
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/translators"
 	"github.com/datastax/go-cassandra-native-protocol/datatype"
@@ -98,8 +98,8 @@ type Proxy struct {
 	localNode          *node
 	nodes              []*node
 	clientManager      *types.BigtableClientManager
-	schemaManager      *schemaMapping.SchemaManager
-	bigtableClient     *bigtableModule.BigtableDmlClient
+	schemaManager      *schemaMapping.MetadataStore
+	bigtableClient     *bigtableModule.BigtableAdapter
 	translator         *translators.TranslatorManager
 	executor           *executors.QueryExecutorManager
 	systemTables       *mem_table.InMemEngine
@@ -126,13 +126,13 @@ func NewProxy(ctx context.Context, logger *zap.Logger, config *types.ProxyInstan
 		return nil, err
 	}
 
-	schemaManager := schemaMapping.NewBigtableDdlClient(logger, clientManager, config.BigtableConfig)
+	schemaManager := schemaMapping.NewMetadataStore(logger, clientManager, config.BigtableConfig)
 	err = schemaManager.Initialize(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	bigtableClient := bigtableModule.NewBigtableDmlClient(clientManager, logger, config.BigtableConfig, schemaManager)
+	bigtableClient := bigtableModule.NewBigtableClient(clientManager, logger, config.BigtableConfig, schemaManager)
 
 	translator := translators.NewTranslatorManager(logger, schemaManager.Schemas(), config.BigtableConfig.DefaultIntRowKeyEncoding)
 

@@ -4,14 +4,14 @@ import (
 	"context"
 	"fmt"
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/global/types"
-	schemaMapping "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/schema-mapping"
+	schemaMapping "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/metadata"
 	"github.com/datastax/go-cassandra-native-protocol/datatype"
 	"github.com/datastax/go-cassandra-native-protocol/message"
 	"sort"
 )
 
 type describeExecutor struct {
-	schemaMappings *schemaMapping.SchemaMappingConfig
+	schemaMappings *schemaMapping.SchemaMetadata
 }
 
 func (d *describeExecutor) CanRun(q types.IExecutableQuery) bool {
@@ -37,7 +37,7 @@ func (d *describeExecutor) Execute(_ context.Context, _ types.ICassandraClient, 
 	}
 }
 
-func newDescribeExecutor(schemaMappings *schemaMapping.SchemaMappingConfig) IQueryExecutor {
+func newDescribeExecutor(schemaMappings *schemaMapping.SchemaMetadata) IQueryExecutor {
 	return &describeExecutor{schemaMappings: schemaMappings}
 }
 

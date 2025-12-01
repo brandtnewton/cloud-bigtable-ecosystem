@@ -1,4 +1,4 @@
-package schemaMapping
+package metadata
 
 import (
 	"cloud.google.com/go/bigtable"
@@ -16,18 +16,18 @@ import (
 	"sync"
 )
 
-type SchemaManager struct {
+type MetadataStore struct {
 	logger  *zap.Logger
 	clients *types.BigtableClientManager
-	schemas *SchemaMappingConfig
+	schemas *SchemaMetadata
 	config  *types.BigtableConfig
 }
 
-func NewBigtableDdlClient(logger *zap.Logger, clients *types.BigtableClientManager, config *types.BigtableConfig) *SchemaManager {
-	return &SchemaManager{logger: logger, clients: clients, config: config, schemas: NewSchemaMappingConfig(config.SchemaMappingTable, config.DefaultColumnFamily, nil)}
+func NewMetadataStore(logger *zap.Logger, clients *types.BigtableClientManager, config *types.BigtableConfig) *MetadataStore {
+	return &MetadataStore{logger: logger, clients: clients, config: config, schemas: NewSchemaMetadata(config.DefaultColumnFamily, nil)}
 }
 
-func (b *SchemaManager) Initialize(ctx context.Context) error {
+func (b *MetadataStore) Initialize(ctx context.Context) error {
 	for keyspace := range b.config.Instances {
 		err := b.createSchemaMappingTableMaybe(ctx, keyspace)
 		if err != nil {
@@ -42,7 +42,7 @@ func (b *SchemaManager) Initialize(ctx context.Context) error {
 	return nil
 }
 
-func (b *SchemaManager) Schemas() *SchemaMappingConfig {
+func (b *MetadataStore) Schemas() *SchemaMetadata {
 	return b.schemas
 }
 
@@ -66,17 +66,17 @@ const (
 )
 
 type TableResult struct {
-	Config *TableConfig
+	Config *TableSchema
 	Error  error
 }
 
-func (b *SchemaManager) readKeyspace(ctx context.Context, keyspace types.Keyspace) ([]*TableConfig, error) {
+func (b *MetadataStore) readKeyspace(ctx context.Context, keyspace types.Keyspace) ([]*TableSchema, error) {
 	client, err := b.clients.GetClient(keyspace)
 	if err != nil {
 		return nil, err
 	}
 
-	table := client.Open(string(b.schemas.SchemaMappingTableName))
+	table := client.Open(string(b.config.SchemaMappingTable))
 	filter := bigtable.LatestNFilter(1)
 
 	tables := make(map[types.TableName][]*types.Column)
@@ -182,7 +182,7 @@ func (b *SchemaManager) readKeyspace(ctx context.Context, keyspace types.Keyspac
 		close(resultCh)
 	}()
 
-	tableConfigs := make([]*TableConfig, 0, len(tables))
+	tableConfigs := make([]*TableSchema, 0, len(tables))
 	for result := range resultCh {
 		if result.Error != nil {
 			return nil, result.Error
@@ -194,7 +194,7 @@ func (b *SchemaManager) readKeyspace(ctx context.Context, keyspace types.Keyspac
 }
 
 // This parsing logic defaults the primary key types, because older versions of the proxy set keyType to an empty string. The only key type that we're guessing about is whether the key is a clustering key or not which, for the purposes of the proxy, doesn't matter.
-func (b *SchemaManager) parseKeyType(keyspace types.Keyspace, table types.TableName, column, keyType string, pkPrecedence int) types.KeyType {
+func (b *MetadataStore) parseKeyType(keyspace types.Keyspace, table types.TableName, column, keyType string, pkPrecedence int) types.KeyType {
 	keyType = strings.ToLower(keyType)
 
 	// we used to write 'partition' for partition keys but Cassandra calls it 'partition_key'
@@ -228,7 +228,7 @@ func (b *SchemaManager) parseKeyType(keyspace types.Keyspace, table types.TableN
 	}
 }
 
-func (b *SchemaManager) updateTableSchema(ctx context.Context, keyspace types.Keyspace, tableName types.TableName, pmks []types.CreateTablePrimaryKeyConfig, addCols []types.CreateColumn, dropCols []types.ColumnName) error {
+func (b *MetadataStore) updateTableSchema(ctx context.Context, keyspace types.Keyspace, tableName types.TableName, pmks []types.CreateTablePrimaryKeyConfig, addCols []types.CreateColumn, dropCols []types.ColumnName) error {
 	client, err := b.clients.GetClient(keyspace)
 	if err != nil {
 		return err
@@ -273,7 +273,7 @@ func (b *SchemaManager) updateTableSchema(ctx context.Context, keyspace types.Ke
 	}
 
 	b.logger.Info("updating schema mapping table")
-	table := client.Open(string(b.schemas.SchemaMappingTableName))
+	table := client.Open(string(b.config.SchemaMappingTable))
 	_, err = table.ApplyBulk(ctx, rowKeys, muts)
 
 	if err != nil {
@@ -284,7 +284,7 @@ func (b *SchemaManager) updateTableSchema(ctx context.Context, keyspace types.Ke
 	return nil
 }
 
-func (b *SchemaManager) AlterTable(ctx context.Context, data *types.AlterTableStatementMap) error {
+func (b *MetadataStore) AlterTable(ctx context.Context, data *types.AlterTableStatementMap) error {
 	adminClient, err := b.clients.GetAdmin(data.Keyspace())
 	if err != nil {
 		return err
@@ -322,7 +322,7 @@ func (b *SchemaManager) AlterTable(ctx context.Context, data *types.AlterTableSt
 	return nil
 }
 
-func (b *SchemaManager) DropTable(ctx context.Context, data *types.DropTableQuery) error {
+func (b *MetadataStore) DropTable(ctx context.Context, data *types.DropTableQuery) error {
 	_, err := b.schemas.GetTableConfig(data.Keyspace(), data.Table())
 	if err != nil && !data.IfExists {
 		return err
@@ -338,7 +338,7 @@ func (b *SchemaManager) DropTable(ctx context.Context, data *types.DropTableQuer
 	}
 
 	// first clean up table from schema mapping table because that'b the SoT
-	tbl := client.Open(string(b.schemas.SchemaMappingTableName))
+	tbl := client.Open(string(b.config.SchemaMappingTable))
 	var deleteMuts []*bigtable.Mutation
 	var rowKeysToDelete []string
 	err = tbl.ReadRows(ctx, bigtable.PrefixRange(string(data.Table())+"#"), func(row bigtable.Row) bool {
@@ -388,21 +388,21 @@ func (b *SchemaManager) DropTable(ctx context.Context, data *types.DropTableQuer
 	return nil
 }
 
-func (b *SchemaManager) createSchemaMappingTableMaybe(ctx context.Context, keyspace types.Keyspace) error {
-	b.logger.Info("ensuring schema mapping table exists for keyspace", zap.String("schema_mapping_table", string(b.schemas.SchemaMappingTableName)), zap.String("keyspace", string(keyspace)))
+func (b *MetadataStore) createSchemaMappingTableMaybe(ctx context.Context, keyspace types.Keyspace) error {
+	b.logger.Info("ensuring schema mapping table exists for keyspace", zap.String("schema_mapping_table", string(b.config.SchemaMappingTable)), zap.String("keyspace", string(keyspace)))
 	adminClient, err := b.clients.GetAdmin(keyspace)
 	if err != nil {
 		return err
 	}
 
 	// do a read to check if the table exists to save on admin API write quota
-	exists, err := b.tableResourceExists(ctx, adminClient, b.schemas.SchemaMappingTableName)
+	exists, err := b.tableResourceExists(ctx, adminClient, b.config.SchemaMappingTable)
 	if err != nil {
 		return err
 	}
 	if !exists {
 		b.logger.Info("schema mapping table not found. Automatically creating it...")
-		err = adminClient.CreateTable(ctx, string(b.schemas.SchemaMappingTableName))
+		err = adminClient.CreateTable(ctx, string(b.config.SchemaMappingTable))
 		if status.Code(err) == codes.AlreadyExists {
 			// continue - maybe another Proxy instance raced, and created it instead
 		} else if err != nil {
@@ -412,7 +412,7 @@ func (b *SchemaManager) createSchemaMappingTableMaybe(ctx context.Context, keysp
 		b.logger.Info("schema mapping table created.")
 	}
 
-	err = adminClient.CreateColumnFamily(ctx, string(b.schemas.SchemaMappingTableName), schemaMappingTableColumnFamily)
+	err = adminClient.CreateColumnFamily(ctx, string(b.config.SchemaMappingTable), schemaMappingTableColumnFamily)
 	if status.Code(err) == codes.AlreadyExists {
 		err = nil
 	}
@@ -423,7 +423,7 @@ func (b *SchemaManager) createSchemaMappingTableMaybe(ctx context.Context, keysp
 	return nil
 }
 
-func (b *SchemaManager) CreateTable(ctx context.Context, data *types.CreateTableStatementMap) error {
+func (b *MetadataStore) CreateTable(ctx context.Context, data *types.CreateTableStatementMap) error {
 	client, err := b.clients.GetClient(data.Keyspace())
 	if err != nil {
 		return err
@@ -487,7 +487,7 @@ func (b *SchemaManager) CreateTable(ctx context.Context, data *types.CreateTable
 	return nil
 }
 
-func (b *SchemaManager) addColumnFamilies(columns []types.CreateColumn) (map[string]bigtable.Family, error) {
+func (b *MetadataStore) addColumnFamilies(columns []types.CreateColumn) (map[string]bigtable.Family, error) {
 	columnFamilies := make(map[string]bigtable.Family)
 	for _, col := range columns {
 		if !col.TypeInfo.IsCollection() && col.TypeInfo.Code() != types.COUNTER {
@@ -515,7 +515,7 @@ func (b *SchemaManager) addColumnFamilies(columns []types.CreateColumn) (map[str
 	return columnFamilies, nil
 }
 
-func (b *SchemaManager) tableResourceExists(ctx context.Context, adminClient *bigtable.AdminClient, table types.TableName) (bool, error) {
+func (b *MetadataStore) tableResourceExists(ctx context.Context, adminClient *bigtable.AdminClient, table types.TableName) (bool, error) {
 	_, err := adminClient.TableInfo(ctx, string(table))
 	// todo figure out which error message is for table doesn't exist yet or find better check
 	if status.Code(err) == codes.NotFound || status.Code(err) == codes.InvalidArgument {
@@ -529,8 +529,8 @@ func (b *SchemaManager) tableResourceExists(ctx context.Context, adminClient *bi
 }
 
 // scan the schema mapping table to determine if the table exists
-func (b *SchemaManager) tableSchemaExists(ctx context.Context, client *bigtable.Client, tableName types.TableName) (bool, error) {
-	table := client.Open(string(b.schemas.SchemaMappingTableName))
+func (b *MetadataStore) tableSchemaExists(ctx context.Context, client *bigtable.Client, tableName types.TableName) (bool, error) {
+	table := client.Open(string(b.config.SchemaMappingTable))
 	exists := false
 	err := table.ReadRows(ctx, bigtable.PrefixRange(string(tableName)+"#"), func(row bigtable.Row) bool {
 		exists = true
@@ -539,11 +539,11 @@ func (b *SchemaManager) tableSchemaExists(ctx context.Context, client *bigtable.
 	return exists, err
 }
 
-func (b *SchemaManager) ReloadKeyspaceSchemas(ctx context.Context, keyspace types.Keyspace) error {
+func (b *MetadataStore) ReloadKeyspaceSchemas(ctx context.Context, keyspace types.Keyspace) error {
 	b.logger.Info("reloading keyspace schemas", zap.String("keyspace", string(keyspace)))
 	tableConfigs, err := b.readKeyspace(ctx, keyspace)
 	if err != nil {
-		return fmt.Errorf("error when reloading schema mappings for %s.%s: %w", keyspace, b.schemas.SchemaMappingTableName, err)
+		return fmt.Errorf("error when reloading schema mappings for %s.%s: %w", keyspace, b.config.SchemaMappingTable, err)
 	}
 	err = b.schemas.ReplaceTables(keyspace, tableConfigs)
 	if err != nil {

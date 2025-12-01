@@ -4,7 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/global/types"
-	sm "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/schema-mapping"
+	sm "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/metadata"
 	cql "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/third_party/cqlparser"
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/translators/common"
 	"github.com/datastax/go-cassandra-native-protocol/datatype"
@@ -20,7 +20,7 @@ import (
 //   - input: The Select Element context from the antlr Parser.
 //
 // Returns: Columns Meta and an error if any.
-func parseSelectClause(input cql.ISelectElementsContext, table *sm.TableConfig) (*types.SelectClause, error) {
+func parseSelectClause(input cql.ISelectElementsContext, table *sm.TableSchema) (*types.SelectClause, error) {
 	if input == nil {
 		return nil, errors.New("select clause empty")
 	}
@@ -160,7 +160,7 @@ func parseGroupByColumn(input cql.IGroupSpecContext) []string {
 	return columns
 }
 
-func createBtqlSelectClause(tableConfig *sm.TableConfig, s *types.SelectClause, isGroupBy bool) (string, error) {
+func createBtqlSelectClause(tableConfig *sm.TableSchema, s *types.SelectClause, isGroupBy bool) (string, error) {
 	if s.IsStar {
 		return "*", nil
 	}
@@ -184,7 +184,7 @@ func createBtqlSelectClause(tableConfig *sm.TableConfig, s *types.SelectClause, 
 	return strings.Join(columns, ", "), nil
 }
 
-func createBtqlFunc(col types.SelectedColumn, tableConfig *sm.TableConfig) (string, error) {
+func createBtqlFunc(col types.SelectedColumn, tableConfig *sm.TableSchema) (string, error) {
 	if col.Func == types.FuncCodeCount && col.ColumnName == "*" {
 		if col.Alias != "" {
 			return "count(*) as " + col.Alias, nil
@@ -239,7 +239,7 @@ func funcAllowedInAggregate(f types.BtqlFuncCode) bool {
 	return f == types.FuncCodeAvg || f == types.FuncCodeSum || f == types.FuncCodeMin || f == types.FuncCodeMax || f == types.FuncCodeCount
 }
 
-func createBtqlSelectCol(tableConfig *sm.TableConfig, selectedColumn types.SelectedColumn, isGroupBy bool) (string, error) {
+func createBtqlSelectCol(tableConfig *sm.TableSchema, selectedColumn types.SelectedColumn, isGroupBy bool) (string, error) {
 	colName := selectedColumn.Sql
 	if selectedColumn.MapKey != "" {
 		colName = string(selectedColumn.ColumnName)
@@ -401,7 +401,7 @@ func createBigtableSql(t *SelectTranslator, st *types.PreparedSelectQuery) (stri
 // It iterates over the clauses and constructs the WHERE clause by combining the column name, operator, and value of each clause.
 // If the operator is "IN", the value is wrapped with the UNNEST function.
 // The constructed WHERE clause is returned as a string.
-func createBtqlWhereClause(conditions []types.Condition, tableConfig *sm.TableConfig) (string, error) {
+func createBtqlWhereClause(conditions []types.Condition, tableConfig *sm.TableSchema) (string, error) {
 	var btqlConditions []string
 	for _, condition := range conditions {
 		column := "`" + string(condition.Column.Name) + "`"
@@ -439,7 +439,7 @@ func createBtqlWhereClause(conditions []types.Condition, tableConfig *sm.TableCo
 	return " WHERE " + strings.Join(btqlConditions, " AND "), nil
 }
 
-func selectedColumnsToMetadata(table *sm.TableConfig, selectClause *types.SelectClause) []*message.ColumnMetadata {
+func selectedColumnsToMetadata(table *sm.TableSchema, selectClause *types.SelectClause) []*message.ColumnMetadata {
 	if selectClause.IsStar {
 		return table.GetMetadata()
 	}

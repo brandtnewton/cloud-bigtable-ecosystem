@@ -14,7 +14,7 @@
  * the License.
  */
 
-package schemaMapping
+package metadata
 
 import (
 	"fmt"
@@ -27,8 +27,8 @@ import (
 	"golang.org/x/exp/maps"
 )
 
-// TableConfig contains all schema information about a single table
-type TableConfig struct {
+// TableSchema contains all schema information about a single table
+type TableSchema struct {
 	Keyspace           types.Keyspace
 	Name               types.TableName
 	Columns            map[types.ColumnName]*types.Column
@@ -37,13 +37,13 @@ type TableConfig struct {
 	IntRowKeyEncoding  types.IntRowKeyEncodingType
 }
 
-// NewTableConfig is a constructor for TableConfig. Please use this instead of direct initialization.
+// NewTableConfig is a constructor for TableSchema. Please use this instead of direct initialization.
 func NewTableConfig(
 	keyspace types.Keyspace, table types.TableName,
 	systemColumnFamily types.ColumnFamily,
 	intRowKeyEncoding types.IntRowKeyEncodingType,
 	columns []*types.Column,
-) *TableConfig {
+) *TableSchema {
 	columnMap := make(map[types.ColumnName]*types.Column)
 	var pks []*types.Column = nil
 	for i, column := range columns {
@@ -76,7 +76,7 @@ func NewTableConfig(
 	}
 	sortPrimaryKeys(pks)
 
-	return &TableConfig{
+	return &TableSchema{
 		Keyspace:           keyspace,
 		Name:               table,
 		Columns:            columnMap,
@@ -86,7 +86,7 @@ func NewTableConfig(
 	}
 }
 
-func (t *TableConfig) GetPkByTableNameWithFilter(filterPrimaryKeys []types.ColumnName) []*types.Column {
+func (t *TableSchema) GetPkByTableNameWithFilter(filterPrimaryKeys []types.ColumnName) []*types.Column {
 	var result []*types.Column
 	for _, pmk := range t.PrimaryKeys {
 		if slices.Contains(filterPrimaryKeys, pmk.Name) {
@@ -96,7 +96,7 @@ func (t *TableConfig) GetPkByTableNameWithFilter(filterPrimaryKeys []types.Colum
 	return result
 }
 
-func (t *TableConfig) GetCassandraPositionForColumn(column types.ColumnName) int {
+func (t *TableSchema) GetCassandraPositionForColumn(column types.ColumnName) int {
 	col, err := t.GetColumn(column)
 	if err != nil {
 		return -1
@@ -124,7 +124,7 @@ func (t *TableConfig) GetCassandraPositionForColumn(column types.ColumnName) int
 // GetColumnFamily retrieves the column family for a given column.
 // Returns the column family name from the schema mapping with validation.
 // Returns default column family for primitive types and column name for collections.
-func (t *TableConfig) GetColumnFamily(columnName types.ColumnName) types.ColumnFamily {
+func (t *TableSchema) GetColumnFamily(columnName types.ColumnName) types.ColumnFamily {
 	colType, err := t.GetColumnType(columnName)
 	if err == nil && colType.IsCollection() {
 		return types.ColumnFamily(columnName)
@@ -132,12 +132,12 @@ func (t *TableConfig) GetColumnFamily(columnName types.ColumnName) types.ColumnF
 	return t.SystemColumnFamily
 }
 
-func (t *TableConfig) HasColumn(columnName types.ColumnName) bool {
+func (t *TableSchema) HasColumn(columnName types.ColumnName) bool {
 	_, ok := t.Columns[columnName]
 	return ok
 }
 
-func (t *TableConfig) Describe() string {
+func (t *TableSchema) Describe() string {
 	cols := maps.Values(t.Columns)
 	// sort by metadata index for consistent output
 	slices.SortFunc(cols, func(a, b *types.Column) int {
@@ -192,7 +192,7 @@ func (t *TableConfig) Describe() string {
 	return createTableStmt
 }
 
-func (t *TableConfig) GetColumnWithFallbacks(columns ...string) (*types.Column, bool) {
+func (t *TableSchema) GetColumnWithFallbacks(columns ...string) (*types.Column, bool) {
 	for _, c := range columns {
 		col, ok := t.Columns[types.ColumnName(c)]
 		if ok {
@@ -201,7 +201,7 @@ func (t *TableConfig) GetColumnWithFallbacks(columns ...string) (*types.Column, 
 	}
 	return nil, false
 }
-func (t *TableConfig) GetColumn(columnName types.ColumnName) (*types.Column, error) {
+func (t *TableSchema) GetColumn(columnName types.ColumnName) (*types.Column, error) {
 	col, ok := t.Columns[columnName]
 	if !ok {
 		return nil, fmt.Errorf("unknown column '%s' in table %s.%s", columnName, t.Keyspace, t.Name)
@@ -209,7 +209,7 @@ func (t *TableConfig) GetColumn(columnName types.ColumnName) (*types.Column, err
 	return col, nil
 }
 
-func (t *TableConfig) GetPrimaryKeys() []types.ColumnName {
+func (t *TableSchema) GetPrimaryKeys() []types.ColumnName {
 	var primaryKeys []types.ColumnName
 	for _, pk := range t.PrimaryKeys {
 		primaryKeys = append(primaryKeys, pk.Name)
@@ -217,14 +217,14 @@ func (t *TableConfig) GetPrimaryKeys() []types.ColumnName {
 	return primaryKeys
 }
 
-func (t *TableConfig) GetColumnDataType(columnName types.ColumnName) (datatype.DataType, error) {
+func (t *TableSchema) GetColumnDataType(columnName types.ColumnName) (datatype.DataType, error) {
 	col, err := t.GetColumnType(columnName)
 	if err != nil {
 		return nil, err
 	}
 	return col.DataType(), nil
 }
-func (t *TableConfig) GetColumnType(columnName types.ColumnName) (types.CqlDataType, error) {
+func (t *TableSchema) GetColumnType(columnName types.ColumnName) (types.CqlDataType, error) {
 	col, ok := t.Columns[columnName]
 	if !ok {
 		return nil, fmt.Errorf("undefined column name %s in table %s.%s", columnName, t.Keyspace, t.Name)
@@ -236,7 +236,7 @@ func (t *TableConfig) GetColumnType(columnName types.ColumnName) (types.CqlDataT
 	return col.CQLType, nil
 }
 
-func (t *TableConfig) GetMetadata() []*message.ColumnMetadata {
+func (t *TableSchema) GetMetadata() []*message.ColumnMetadata {
 	var results []*message.ColumnMetadata
 	for _, c := range t.Columns {
 		results = append(results, &c.Metadata)
@@ -244,7 +244,7 @@ func (t *TableConfig) GetMetadata() []*message.ColumnMetadata {
 	return results
 }
 
-func (t *TableConfig) CreateTableMetadata() TableMetaData {
+func (t *TableSchema) CreateTableMetadata() TableMetaData {
 	return TableMetaData{
 		KeyspaceName:          string(t.Keyspace),
 		TableName:             string(t.Name),

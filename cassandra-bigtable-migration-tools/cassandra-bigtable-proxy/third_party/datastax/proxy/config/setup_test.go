@@ -101,7 +101,7 @@ func TestParseCliArgs(t *testing.T) {
 				"--app-profile", "my-app-profile",
 				"--port", "9041",
 				"--default-column-family", "my-default-column-family",
-				"--schema-mapping-table", "my-schema-mapping-table",
+				"--metadata-table", "my-metadata-table",
 			},
 			want: &types.CliArgs{
 				Version:                       false,
@@ -128,7 +128,7 @@ func TestParseCliArgs(t *testing.T) {
 				QuickStartAppProfile:          "my-app-profile",
 				QuickStartPort:                9041,
 				QuickStartDefaultColumnFamily: "my-default-column-family",
-				QuickStartSchemaMappingTable:  "my-schema-mapping-table",
+				QuickStartSchemaMappingTable:  "my-metadata-table",
 			},
 			wantErr: NO_ERROR_EXPECTED,
 		},
@@ -273,7 +273,7 @@ func TestParseProxyConfig(t *testing.T) {
 		},
 		{
 			name: "quick start",
-			args: []string{"-f", wd + "/testdata/no_listeners_config.yaml", "--port=1234", "--project-id=my-project", "--instance-id=my-instance", "--schema-mapping-table=sm", "--default-column-family=df", "--app-profile=cql-proxy"},
+			args: []string{"-f", wd + "/testdata/no_listeners_config.yaml", "--port=1234", "--project-id=my-project", "--instance-id=my-instance", "--metadata-table=sm", "--default-column-family=df", "--app-profile=cql-proxy"},
 			want: []*types.ProxyInstanceConfig{
 				{
 					Port:     1234,
@@ -306,7 +306,7 @@ func TestParseProxyConfig(t *testing.T) {
 		},
 		{
 			name: "quick start with keyspace id",
-			args: []string{"-f", wd + "/testdata/no_listeners_config.yaml", "--port=1234", "--project-id=my-project", "--instance-id=my-instance", "--keyspace-id=my-keyspace", "--schema-mapping-table=sm", "--default-column-family=df", "--app-profile=cql-proxy"},
+			args: []string{"-f", wd + "/testdata/no_listeners_config.yaml", "--port=1234", "--project-id=my-project", "--instance-id=my-instance", "--keyspace-id=my-keyspace", "--metadata-table=sm", "--default-column-family=df", "--app-profile=cql-proxy"},
 			want: []*types.ProxyInstanceConfig{
 				{
 					Port:     1234,
@@ -351,7 +351,7 @@ func TestParseProxyConfig(t *testing.T) {
 		},
 		{
 			name:    "quick start and yaml have same port",
-			args:    []string{"-f", wd + "/testdata/valid_config.yaml", "--port=9092", "--project-id=my-project", "--instance-id=my-instance", "--schema-mapping-table=sm", "--default-column-family=df", "--app-profile=cql-proxy"},
+			args:    []string{"-f", wd + "/testdata/valid_config.yaml", "--port=9092", "--project-id=my-project", "--instance-id=my-instance", "--metadata-table=sm", "--default-column-family=df", "--app-profile=cql-proxy"},
 			want:    nil,
 			wantErr: "multiple listeners configured for port 9092",
 		},

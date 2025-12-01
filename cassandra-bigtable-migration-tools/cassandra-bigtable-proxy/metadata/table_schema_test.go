@@ -1,4 +1,4 @@
-package schemaMapping
+package metadata
 
 import (
 	"testing"
@@ -10,7 +10,7 @@ import (
 func TestTableConfig_Describe(t *testing.T) {
 	tests := []struct {
 		name  string
-		table *TableConfig
+		table *TableSchema
 		want  string
 	}{
 		{

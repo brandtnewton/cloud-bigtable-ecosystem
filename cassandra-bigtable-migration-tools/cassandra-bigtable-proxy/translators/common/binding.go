@@ -4,7 +4,7 @@ import (
 	"encoding/binary"
 	"fmt"
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/global/types"
-	schemaMapping "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/schema-mapping"
+	schemaMapping "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/metadata"
 	"github.com/datastax/go-cassandra-native-protocol/primitive"
 	"strconv"
 	"strings"
@@ -416,7 +416,7 @@ func BindQueryParams(params *types.QueryParameters, initialValues map[types.Plac
 	return result, nil
 }
 
-func BindSelectColumns(table *schemaMapping.TableConfig, selectedColumns []types.SelectedColumn) ([]types.BoundSelectColumn, error) {
+func BindSelectColumns(table *schemaMapping.TableSchema, selectedColumns []types.SelectedColumn) ([]types.BoundSelectColumn, error) {
 	var boundColumns []types.BoundSelectColumn
 	for _, selectedColumn := range selectedColumns {
 		var bc types.BoundSelectColumn

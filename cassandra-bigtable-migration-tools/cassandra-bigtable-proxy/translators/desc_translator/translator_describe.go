@@ -4,13 +4,13 @@ import (
 	"errors"
 	"fmt"
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/global/types"
-	schemaMapping "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/schema-mapping"
+	schemaMapping "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/metadata"
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/translators/common"
 	"github.com/datastax/go-cassandra-native-protocol/primitive"
 )
 
 type DescTranslator struct {
-	schemaMappingConfig *schemaMapping.SchemaMappingConfig
+	schemaMappingConfig *schemaMapping.SchemaMetadata
 }
 
 func (t *DescTranslator) Translate(query *types.RawQuery, sessionKeyspace types.Keyspace) (types.IPreparedQuery, error) {
@@ -56,6 +56,6 @@ func (t *DescTranslator) QueryType() types.QueryType {
 	return types.QueryTypeDescribe
 }
 
-func NewDescTranslator(schemaMappingConfig *schemaMapping.SchemaMappingConfig) types.IQueryTranslator {
+func NewDescTranslator(schemaMappingConfig *schemaMapping.SchemaMetadata) types.IQueryTranslator {
 	return &DescTranslator{schemaMappingConfig: schemaMappingConfig}
 }

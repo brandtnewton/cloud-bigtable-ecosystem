@@ -18,13 +18,13 @@ package mockdata
 
 import (
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/global/types"
-	schemaMapping "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/schema-mapping"
+	schemaMapping "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/metadata"
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/third_party/datastax/proxycore"
 	"github.com/datastax/go-cassandra-native-protocol/primitive"
 	"log"
 )
 
-func GetSchemaMappingConfig() *schemaMapping.SchemaMappingConfig {
+func GetSchemaMappingConfig() *schemaMapping.SchemaMetadata {
 	var (
 		testTableColumns = []*types.Column{
 			{Name: "pk1", CQLType: types.TypeVarchar, KeyType: types.KeyTypePartition, IsPrimaryKey: true, PkPrecedence: 1},
@@ -53,7 +53,7 @@ func GetSchemaMappingConfig() *schemaMapping.SchemaMappingConfig {
 		}
 	)
 
-	var allTableConfigs = []*schemaMapping.TableConfig{
+	var allTableConfigs = []*schemaMapping.TableSchema{
 		schemaMapping.NewTableConfig(
 			"test_keyspace",
 			"test_table",
@@ -76,14 +76,14 @@ func GetSchemaMappingConfig() *schemaMapping.SchemaMappingConfig {
 			userInfoColumns,
 		),
 	}
-	return schemaMapping.NewSchemaMappingConfig(
+	return schemaMapping.NewSchemaMetadata(
 		"schema_mapping",
 		"cf1",
 		allTableConfigs,
 	)
 }
 
-func CreateQueryParameterValuesFromMap2(table *schemaMapping.TableConfig, values map[types.ColumnName]types.GoValue) *types.QueryParameterValues {
+func CreateQueryParameterValuesFromMap2(table *schemaMapping.TableSchema, values map[types.ColumnName]types.GoValue) *types.QueryParameterValues {
 	params := types.NewQueryParameters()
 	result := types.NewQueryParameterValues(params)
 	for colName, val := range values {
@@ -120,7 +120,7 @@ func EncodePrimitiveValueOrDie(v any, dt types.CqlDataType, pv primitive.Protoco
 	return primitive.NewValue(bytes)
 }
 
-func GetTableOrDie(k types.Keyspace, t types.TableName) *schemaMapping.TableConfig {
+func GetTableOrDie(k types.Keyspace, t types.TableName) *schemaMapping.TableSchema {
 	config, err := GetSchemaMappingConfig().GetTableConfig(k, t)
 	if err != nil {
 		log.Fatalf("no such table or keyspace: %s", err.Error())

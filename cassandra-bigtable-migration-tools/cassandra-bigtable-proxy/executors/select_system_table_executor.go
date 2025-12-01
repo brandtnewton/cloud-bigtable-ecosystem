@@ -5,17 +5,17 @@ import (
 	"fmt"
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/global/types"
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/mem_table"
+	schemaMapping "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/metadata"
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/responsehandler"
-	schemaMapping "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/schema-mapping"
 	"github.com/datastax/go-cassandra-native-protocol/message"
 )
 
 type selectSystemTableExecutor struct {
-	schemaMappings *schemaMapping.SchemaMappingConfig
+	schemaMappings *schemaMapping.SchemaMetadata
 	systemTables   *mem_table.InMemEngine
 }
 
-func newSelectSystemTableExecutor(schemaMappings *schemaMapping.SchemaMappingConfig, systemTables *mem_table.InMemEngine) IQueryExecutor {
+func newSelectSystemTableExecutor(schemaMappings *schemaMapping.SchemaMetadata, systemTables *mem_table.InMemEngine) IQueryExecutor {
 	return &selectSystemTableExecutor{schemaMappings: schemaMappings, systemTables: systemTables}
 }
 

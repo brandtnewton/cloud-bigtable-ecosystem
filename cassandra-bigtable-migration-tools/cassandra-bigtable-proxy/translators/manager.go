@@ -19,7 +19,7 @@ package translators
 import (
 	"fmt"
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/global/types"
-	schemaMapping "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/schema-mapping"
+	schemaMapping "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/metadata"
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/translators/alter_translator"
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/translators/common"
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/translators/create_translator"
@@ -37,13 +37,14 @@ import (
 
 type TranslatorManager struct {
 	Logger              *zap.Logger
-	SchemaMappingConfig *schemaMapping.SchemaMappingConfig
+	SchemaMappingConfig *schemaMapping.SchemaMetadata
 	// determines the encoding for int row keys in all new tables
 	DefaultIntRowKeyEncoding types.IntRowKeyEncodingType
 	translators              map[types.QueryType]types.IQueryTranslator
+	config                   *types.BigtableConfig
 }
 
-func NewTranslatorManager(logger *zap.Logger, schemaMappingConfig *schemaMapping.SchemaMappingConfig, defaultIntRowKeyEncoding types.IntRowKeyEncodingType) *TranslatorManager {
+func NewTranslatorManager(logger *zap.Logger, schemaMappingConfig *schemaMapping.SchemaMetadata, defaultIntRowKeyEncoding types.IntRowKeyEncodingType, config *types.BigtableConfig) *TranslatorManager {
 	// add more translators here
 	translators := []types.IQueryTranslator{
 		select_translator.NewSelectTranslator(schemaMappingConfig),
@@ -70,6 +71,7 @@ func NewTranslatorManager(logger *zap.Logger, schemaMappingConfig *schemaMapping
 		SchemaMappingConfig:      schemaMappingConfig,
 		DefaultIntRowKeyEncoding: defaultIntRowKeyEncoding,
 		translators:              tm,
+		config:                   config,
 	}
 }
 
@@ -86,6 +88,11 @@ func (t *TranslatorManager) TranslateQuery(q *types.RawQuery, sessionKeyspace ty
 	}
 
 	t.Logger.Debug("translated query", zap.String("cql", q.RawCql()), zap.String("btql", preparedQuery.BigtableQuery()))
+
+	// ensure user doesn't try to drop or corrupt the schema mapping table
+	if !preparedQuery.Keyspace().IsSystemKeyspace() && preparedQuery.Table() == t.config.SchemaMappingTable {
+		return nil, fmt.Errorf("table name cannot be the same as the configured schema mapping table name '%s'", t.config.SchemaMappingTable)
+	}
 
 	return preparedQuery, err
 }

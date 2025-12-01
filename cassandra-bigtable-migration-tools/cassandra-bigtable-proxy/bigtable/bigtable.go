@@ -30,35 +30,22 @@ import (
 	"google.golang.org/grpc/status"
 
 	btpb "cloud.google.com/go/bigtable/apiv2/bigtablepb"
+	metadata "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/metadata"
 	otelgo "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/otel"
-	schemaMapping "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/schema-mapping"
 	"github.com/datastax/go-cassandra-native-protocol/message"
 	"go.uber.org/zap"
 )
 
-// Events
-const (
-	applyingBigtableMutation = "Applying Insert/Update Mutation"
-	bigtableMutationApplied  = "Insert/Update Mutation Applied"
-	applyingDeleteMutation   = "Applying Delete Mutation"
-	deleteMutationApplied    = "Delete Mutation Applied"
-	applyingBulkMutation     = "Applying Bulk Mutation"
-	bulkMutationApplied      = "Bulk Mutation Applied"
-	// Cassandra doesn't have a time dimension to their counters, so we need to
-	// use the same time for all counters
-	counterTimestamp = 0
-)
-
-type BigtableDmlClient struct {
+type BigtableAdapter struct {
 	clients       *types.BigtableClientManager
 	Logger        *zap.Logger
 	sqlClient     btpb.BigtableClient
 	config        *types.BigtableConfig
-	schemaManager *schemaMapping.SchemaManager
+	schemaManager *metadata.MetadataStore
 }
 
-func NewBigtableDmlClient(clients *types.BigtableClientManager, logger *zap.Logger, config *types.BigtableConfig, schemaManager *schemaMapping.SchemaManager) *BigtableDmlClient {
-	return &BigtableDmlClient{
+func NewBigtableClient(clients *types.BigtableClientManager, logger *zap.Logger, config *types.BigtableConfig, schemaManager *metadata.MetadataStore) *BigtableAdapter {
+	return &BigtableAdapter{
 		clients:       clients,
 		Logger:        logger,
 		config:        config,
@@ -66,7 +53,7 @@ func NewBigtableDmlClient(clients *types.BigtableClientManager, logger *zap.Logg
 	}
 }
 
-func (btc *BigtableDmlClient) Execute(ctx context.Context, query types.IExecutableQuery) (*message.RowsResult, error) {
+func (btc *BigtableAdapter) Execute(ctx context.Context, query types.IExecutableQuery) (*message.RowsResult, error) {
 	switch q := query.(type) {
 	case *types.BoundDeleteQuery:
 		return btc.DeleteRow(ctx, q)
@@ -103,7 +90,7 @@ func (btc *BigtableDmlClient) Execute(ctx context.Context, query types.IExecutab
 //
 // Returns:
 //   - error: Error if the mutation fails.
-func (btc *BigtableDmlClient) mutateRow(ctx context.Context, input *types.BigtableWriteMutation) (*message.RowsResult, error) {
+func (btc *BigtableAdapter) mutateRow(ctx context.Context, input *types.BigtableWriteMutation) (*message.RowsResult, error) {
 	otelgo.AddAnnotation(ctx, applyingBigtableMutation)
 	mut := bigtable.NewMutation()
 
@@ -166,7 +153,7 @@ func emptyRowsResult() *message.RowsResult {
 	}
 }
 
-func (btc *BigtableDmlClient) buildMutation(ctx context.Context, table *bigtable.Table, input *types.BigtableWriteMutation, mut *bigtable.Mutation) (int, error) {
+func (btc *BigtableAdapter) buildMutation(ctx context.Context, table *bigtable.Table, input *types.BigtableWriteMutation, mut *bigtable.Mutation) (int, error) {
 	var mutationCount = 0
 
 	var timestamp bigtable.Timestamp
@@ -205,7 +192,7 @@ func (btc *BigtableDmlClient) buildMutation(ctx context.Context, table *bigtable
 	return mutationCount, nil
 }
 
-func (btc *BigtableDmlClient) DropAllRows(ctx context.Context, data *types.TruncateTableStatementMap) error {
+func (btc *BigtableAdapter) DropAllRows(ctx context.Context, data *types.TruncateTableStatementMap) error {
 	_, err := btc.schemaManager.Schemas().GetTableConfig(data.Keyspace(), data.Table())
 	if err != nil {
 		return err
@@ -239,7 +226,7 @@ func (btc *BigtableDmlClient) DropAllRows(ctx context.Context, data *types.Trunc
 //
 // Returns:
 //   - error: Error if the insertion fails.
-func (btc *BigtableDmlClient) InsertRow(ctx context.Context, input *types.BigtableWriteMutation) (*message.RowsResult, error) {
+func (btc *BigtableAdapter) InsertRow(ctx context.Context, input *types.BigtableWriteMutation) (*message.RowsResult, error) {
 	return btc.mutateRow(ctx, input)
 }
 
@@ -251,11 +238,11 @@ func (btc *BigtableDmlClient) InsertRow(ctx context.Context, input *types.Bigtab
 //
 // Returns:
 //   - error: Error if the update fails.
-func (btc *BigtableDmlClient) UpdateRow(ctx context.Context, input *types.BigtableWriteMutation) (*message.RowsResult, error) {
+func (btc *BigtableAdapter) UpdateRow(ctx context.Context, input *types.BigtableWriteMutation) (*message.RowsResult, error) {
 	return btc.mutateRow(ctx, input)
 }
 
-func (btc *BigtableDmlClient) DeleteRow(ctx context.Context, deleteQueryData *types.BoundDeleteQuery) (*message.RowsResult, error) {
+func (btc *BigtableAdapter) DeleteRow(ctx context.Context, deleteQueryData *types.BoundDeleteQuery) (*message.RowsResult, error) {
 	otelgo.AddAnnotation(ctx, applyingDeleteMutation)
 	client, err := btc.clients.GetClient(deleteQueryData.Keyspace())
 	if err != nil {
@@ -295,7 +282,7 @@ func (btc *BigtableDmlClient) DeleteRow(ctx context.Context, deleteQueryData *ty
 	return &response, nil
 }
 
-func (btc *BigtableDmlClient) buildDeleteMutation(ctx context.Context, table *bigtable.Table, deleteQueryData *types.BoundDeleteQuery, mut *bigtable.Mutation) error {
+func (btc *BigtableAdapter) buildDeleteMutation(ctx context.Context, table *bigtable.Table, deleteQueryData *types.BoundDeleteQuery, mut *bigtable.Mutation) error {
 	if len(deleteQueryData.Columns) > 0 {
 		for _, column := range deleteQueryData.Columns {
 			switch c := column.(type) {
@@ -327,7 +314,7 @@ func (btc *BigtableDmlClient) buildDeleteMutation(ctx context.Context, table *bi
 // Returns:
 //   - BulkOperationResponse: Response indicating the result of the bulk operation.
 //   - error: Error if the bulk mutation fails.
-func (btc *BigtableDmlClient) ApplyBulkMutation(ctx context.Context, keyspace types.Keyspace, tableName types.TableName, mutationData []types.IBigtableMutation) (BulkOperationResponse, error) {
+func (btc *BigtableAdapter) ApplyBulkMutation(ctx context.Context, keyspace types.Keyspace, tableName types.TableName, mutationData []types.IBigtableMutation) (BulkOperationResponse, error) {
 	client, err := btc.clients.GetClient(keyspace)
 	if err != nil {
 		return BulkOperationResponse{
@@ -417,7 +404,7 @@ func (btc *BigtableDmlClient) ApplyBulkMutation(ctx context.Context, keyspace ty
 // Returns:
 //   - string: The timestamp qualifier if found.
 //   - error: An error if the row does not exist, the index is out of bounds, or any other retrieval failure occurs.
-func (btc *BigtableDmlClient) getIndexOpTimestamp(ctx context.Context, table *bigtable.Table, rowKey types.RowKey, columnFamily types.ColumnFamily, index int) (string, error) {
+func (btc *BigtableAdapter) getIndexOpTimestamp(ctx context.Context, table *bigtable.Table, rowKey types.RowKey, columnFamily types.ColumnFamily, index int) (string, error) {
 	row, err := table.ReadRow(ctx, string(rowKey), bigtable.RowFilter(bigtable.ChainFilters(
 		bigtable.FamilyFilter(string(columnFamily)),
 		bigtable.LatestNFilter(1), // this filter is so that we fetch only the latest timestamp value
@@ -455,7 +442,7 @@ func (btc *BigtableDmlClient) getIndexOpTimestamp(ctx context.Context, table *bi
 //
 // Returns:
 //   - error: An error if the row does not exist or if list elements cannot be deleted.
-func (btc *BigtableDmlClient) setMutationForListDelete(ctx context.Context, table *bigtable.Table, rowKey types.RowKey, columnFamily types.ColumnFamily, deleteList []types.BigtableValue, mut *bigtable.Mutation) error {
+func (btc *BigtableAdapter) setMutationForListDelete(ctx context.Context, table *bigtable.Table, rowKey types.RowKey, columnFamily types.ColumnFamily, deleteList []types.BigtableValue, mut *bigtable.Mutation) error {
 	row, err := table.ReadRow(ctx, string(rowKey), bigtable.RowFilter(bigtable.ChainFilters(
 		bigtable.FamilyFilter(string(columnFamily)),
 		bigtable.LatestNFilter(1), // this filter is so that we fetch only the latest timestamp value
@@ -481,7 +468,7 @@ func (btc *BigtableDmlClient) setMutationForListDelete(ctx context.Context, tabl
 }
 
 // PrepareStatement prepares a query for execution using the bigtable SQL client.
-func (btc *BigtableDmlClient) PrepareStatement(ctx context.Context, query types.IPreparedQuery) (*bigtable.PreparedStatement, error) {
+func (btc *BigtableAdapter) PrepareStatement(ctx context.Context, query types.IPreparedQuery) (*bigtable.PreparedStatement, error) {
 	// we don't use bigtable for system queries
 	if query.Keyspace().IsSystemKeyspace() {
 		return nil, nil

@@ -14,7 +14,7 @@
  * the License.
  */
 
-package schemaMapping
+package metadata
 
 import (
 	"fmt"
@@ -28,36 +28,34 @@ const (
 	LimitValue = "limitValue"
 )
 
-// SchemaMappingConfig contains the schema information for all tables, across
+// SchemaMetadata contains the schema information for all tables, across
 // all Bigtable instances, managed by this proxy.
-type SchemaMappingConfig struct {
-	mu                     sync.RWMutex
-	tables                 map[types.Keyspace]map[types.TableName]*TableConfig
-	SystemColumnFamily     types.ColumnFamily
-	SchemaMappingTableName types.TableName
+type SchemaMetadata struct {
+	mu                 sync.RWMutex
+	tables             map[types.Keyspace]map[types.TableName]*TableSchema
+	SystemColumnFamily types.ColumnFamily
 }
 
-// NewSchemaMappingConfig is a constructor for SchemaMappingConfig. Please use this instead of direct initialization.
-func NewSchemaMappingConfig(schemaMappingTableName types.TableName, systemColumnFamily types.ColumnFamily, tableConfigs []*TableConfig) *SchemaMappingConfig {
-	tablesMap := make(map[types.Keyspace]map[types.TableName]*TableConfig)
+// NewSchemaMetadata is a constructor for SchemaMetadata. Please use this instead of direct initialization.
+func NewSchemaMetadata(systemColumnFamily types.ColumnFamily, tableConfigs []*TableSchema) *SchemaMetadata {
+	tablesMap := make(map[types.Keyspace]map[types.TableName]*TableSchema)
 
 	tableConfigs = append(tableConfigs, getSystemTableConfigs()...)
 
 	for _, tableConfig := range tableConfigs {
 		if keyspace, exists := tablesMap[tableConfig.Keyspace]; !exists {
-			keyspace = make(map[types.TableName]*TableConfig)
+			keyspace = make(map[types.TableName]*TableSchema)
 			tablesMap[tableConfig.Keyspace] = keyspace
 		}
 		tablesMap[tableConfig.Keyspace][tableConfig.Name] = tableConfig
 	}
-	return &SchemaMappingConfig{
-		SchemaMappingTableName: schemaMappingTableName,
-		SystemColumnFamily:     systemColumnFamily,
-		tables:                 tablesMap,
+	return &SchemaMetadata{
+		SystemColumnFamily: systemColumnFamily,
+		tables:             tablesMap,
 	}
 }
 
-func (c *SchemaMappingConfig) Keyspaces() []types.Keyspace {
+func (c *SchemaMetadata) Keyspaces() []types.Keyspace {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
 	var results []types.Keyspace
@@ -67,10 +65,10 @@ func (c *SchemaMappingConfig) Keyspaces() []types.Keyspace {
 	return results
 }
 
-func (c *SchemaMappingConfig) Tables() []*TableConfig {
+func (c *SchemaMetadata) Tables() []*TableSchema {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
-	var tables []*TableConfig
+	var tables []*TableSchema
 	for _, keyspace := range c.tables {
 		for _, t := range keyspace {
 			tables = append(tables, t)
@@ -79,7 +77,7 @@ func (c *SchemaMappingConfig) Tables() []*TableConfig {
 	return tables
 }
 
-func (c *SchemaMappingConfig) ValidateKeyspace(keyspace types.Keyspace) error {
+func (c *SchemaMetadata) ValidateKeyspace(keyspace types.Keyspace) error {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
 	_, ok := c.tables[keyspace]
@@ -89,26 +87,26 @@ func (c *SchemaMappingConfig) ValidateKeyspace(keyspace types.Keyspace) error {
 	return nil
 }
 
-func (c *SchemaMappingConfig) GetKeyspace(keyspace types.Keyspace) ([]*TableConfig, error) {
+func (c *SchemaMetadata) GetKeyspace(keyspace types.Keyspace) ([]*TableSchema, error) {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
 	tables, ok := c.tables[keyspace]
 	if !ok {
 		return nil, fmt.Errorf("keyspace '%s' does not exist", keyspace)
 	}
-	var results []*TableConfig = nil
+	var results []*TableSchema = nil
 	for _, table := range tables {
 		results = append(results, table)
 	}
 	return results, nil
 }
 
-func (c *SchemaMappingConfig) ReplaceTables(keyspace types.Keyspace, tableConfigs []*TableConfig) error {
+func (c *SchemaMetadata) ReplaceTables(keyspace types.Keyspace, tableConfigs []*TableSchema) error {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
 	// clear the keyspace
-	c.tables[keyspace] = make(map[types.TableName]*TableConfig)
+	c.tables[keyspace] = make(map[types.TableName]*TableSchema)
 	for _, tableConfig := range tableConfigs {
 		if tableConfig.Keyspace != keyspace {
 			return fmt.Errorf("cannot replace table with keyspace '%s' because we're only updating keyspace '%s'", tableConfig.Keyspace, keyspace)
@@ -118,12 +116,12 @@ func (c *SchemaMappingConfig) ReplaceTables(keyspace types.Keyspace, tableConfig
 	return nil
 }
 
-func (c *SchemaMappingConfig) UpdateTables(keyspace types.Keyspace, tableConfigs []*TableConfig) {
+func (c *SchemaMetadata) UpdateTables(keyspace types.Keyspace, tableConfigs []*TableSchema) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
 	if _, exists := c.tables[keyspace]; !exists {
-		c.tables[keyspace] = make(map[types.TableName]*TableConfig)
+		c.tables[keyspace] = make(map[types.TableName]*TableSchema)
 	}
 
 	for _, tableConfig := range tableConfigs {
@@ -142,7 +140,7 @@ func (c *SchemaMappingConfig) UpdateTables(keyspace types.Keyspace, tableConfigs
 // Returns:
 //   - []types.Column: A slice of types.Column structs representing the primary keys of the table.
 //   - error: Returns an error if the primary key metadata is not found.
-func (c *SchemaMappingConfig) GetTableConfig(k types.Keyspace, t types.TableName) (*TableConfig, error) {
+func (c *SchemaMetadata) GetTableConfig(k types.Keyspace, t types.TableName) (*TableSchema, error) {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
 	keyspace, ok := c.tables[k]
@@ -156,7 +154,7 @@ func (c *SchemaMappingConfig) GetTableConfig(k types.Keyspace, t types.TableName
 	return tableConfig, nil
 }
 
-func (c *SchemaMappingConfig) CountTables() int {
+func (c *SchemaMetadata) CountTables() int {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
 	var result = 0
@@ -167,7 +165,7 @@ func (c *SchemaMappingConfig) CountTables() int {
 }
 
 // ListKeyspaces returns a sorted list of all keyspace names in the schema mapping.
-func (c *SchemaMappingConfig) ListKeyspaces() []types.Keyspace {
+func (c *SchemaMetadata) ListKeyspaces() []types.Keyspace {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
 	keyspaces := make([]types.Keyspace, 0, len(c.tables))

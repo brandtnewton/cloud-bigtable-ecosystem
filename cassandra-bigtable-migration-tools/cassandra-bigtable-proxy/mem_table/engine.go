@@ -3,7 +3,7 @@ package mem_table
 import (
 	"fmt"
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/global/types"
-	schemaMapping "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/schema-mapping"
+	schemaMapping "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/metadata"
 	"reflect"
 	"slices"
 	"strings"
@@ -38,7 +38,7 @@ func (e *InMemEngine) GetTable(keyspace types.Keyspace, table types.TableName) (
 	return t.Data, nil
 }
 
-func (e *InMemEngine) SetData(table *schemaMapping.TableConfig, data []types.GoRow) error {
+func (e *InMemEngine) SetData(table *schemaMapping.TableSchema, data []types.GoRow) error {
 	err := validateData(table, data)
 	if err != nil {
 		return err
@@ -61,7 +61,7 @@ func (e *InMemEngine) SetData(table *schemaMapping.TableConfig, data []types.GoR
 	return nil
 }
 
-func getKey(table *schemaMapping.TableConfig, data types.GoRow) string {
+func getKey(table *schemaMapping.TableSchema, data types.GoRow) string {
 	var values []string
 	for _, pmk := range table.PrimaryKeys {
 		values = append(values, fmt.Sprint(data[string(pmk.Name)]))
@@ -69,7 +69,7 @@ func getKey(table *schemaMapping.TableConfig, data types.GoRow) string {
 	return strings.Join(values, "#")
 }
 
-func validateData(table *schemaMapping.TableConfig, data []types.GoRow) error {
+func validateData(table *schemaMapping.TableSchema, data []types.GoRow) error {
 	for i, row := range data {
 		for _, col := range table.Columns {
 			value, ok := row[string(col.Name)]

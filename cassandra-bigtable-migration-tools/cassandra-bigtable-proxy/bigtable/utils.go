@@ -29,6 +29,19 @@ const (
 	DefaultProfileId = "default"
 )
 
+// Events
+const (
+	applyingBigtableMutation = "Applying Insert/Update Mutation"
+	bigtableMutationApplied  = "Insert/Update Mutation Applied"
+	applyingDeleteMutation   = "Applying Delete Mutation"
+	deleteMutationApplied    = "Delete Mutation Applied"
+	applyingBulkMutation     = "Applying Bulk Mutation"
+	bulkMutationApplied      = "Bulk Mutation Applied"
+	// Cassandra doesn't have a time dimension to their counters, so we need to
+	// use the same time for all counters
+	counterTimestamp = 0
+)
+
 // GetProfileId returns the provided profile ID if it is not empty.
 // If the provided profile ID is empty, it returns a default profile ID.
 func GetProfileId(profileId string) string {

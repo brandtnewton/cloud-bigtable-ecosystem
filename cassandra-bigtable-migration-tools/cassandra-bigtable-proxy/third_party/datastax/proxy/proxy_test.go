@@ -47,9 +47,9 @@ import (
 
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/global/constants"
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/global/types"
+	schemaMapping "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/metadata"
 	mockbigtable "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/mocks/bigtable"
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/responsehandler"
-	schemaMapping "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/schema-mapping"
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/translators"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -284,7 +284,7 @@ var mockProxy = &Proxy{
 
 // Create mock for handleExecutionForDeletePreparedQuery/handleExecutionForSelectPreparedQuery/handleExecutionForInsertPreparedQuery functions.
 type MockBigtableClient struct {
-	bigtableModule.BigtableDmlClient
+	bigtableModule.BigtableAdapter
 	InsertRowFunc          func(ctx context.Context, data *translators.PreparedInsertQuery) error
 	UpdateRowFunc          func(ctx context.Context, data *translators.PreparedUpdateQuery) error
 	DeleteRowFunc          func(ctx context.Context, data *translators.PreparedDeleteQuery) error
@@ -618,12 +618,12 @@ func Test_client_handlePrepare(t *testing.T) {
 	}
 }
 
-var mockTableSchemaConfig = schemaMapping.NewSchemaMappingConfig(
+var mockTableSchemaConfig = schemaMapping.NewSchemaMetadata(
 	"schema_mapping",
 	"cf1",
 
 	zap.NewNop(),
-	[]*schemaMapping.TableConfig{
+	[]*schemaMapping.TableSchema{
 		schemaMapping.NewTableConfig(
 			"sessionKeyspace",
 			"test_table",
@@ -722,26 +722,26 @@ func Test_detectEmptyPrimaryKey(t *testing.T) {
 	}
 }
 
-// Implement the methods from the BigtableDmlClient that you need to mock
-func (m *MockBigtableClient) GetSchemaMappingConfigs(ctx context.Context, instanceID, schemaMappingTable string) (map[string]map[string]*schemaMapping.TableConfig, error) {
-	tbData := make(map[string]map[string]*schemaMapping.TableConfig)
+// Implement the methods from the BigtableAdapter that you need to mock
+func (m *MockBigtableClient) GetSchemaMappingConfigs(ctx context.Context, instanceID, schemaMappingTable string) (map[string]map[string]*schemaMapping.TableSchema, error) {
+	tbData := make(map[string]map[string]*schemaMapping.TableSchema)
 	return tbData, nil
 }
 func TestNewProxy(t *testing.T) {
 	ctx := context.Background()
 	var logger *zap.Logger
 	logger = proxycore.GetOrCreateNopLogger(logger)
-	var tbData []*schemaMapping.TableConfig = nil
+	var tbData []*schemaMapping.TableSchema = nil
 	bgtmockface := new(mockbigtable.BigTableClientIface)
 	bgtmockface.On("ReadTableConfigs", ctx, mock.AnythingOfType("string")).Return(tbData, nil)
 	bgtmockface.On("LoadConfigs", mock.AnythingOfType("*responsehandler.TypeHandler"), mock.AnythingOfType("*schemaMapping.schemas")).Return(tbData, nil)
 
 	// Override the factory function to return the mock
-	originalNewBigTableClient := bt.NewBigtableDmlClient
-	bt.NewBigtableDmlClient = func(client map[string]*bigtable.Client, adminClients map[string]*bigtable.AdminClient, logger *zap.Logger, config *types.BigtableConfig, responseHandler rh.ResponseHandlerIface, schemaMapping *schemaMapping.SchemaMappingConfig) bt.BigTableClientIface {
+	originalNewBigTableClient := bt.NewBigtableClient
+	bt.NewBigtableClient = func(client map[string]*bigtable.Client, adminClients map[string]*bigtable.AdminClient, logger *zap.Logger, config *types.BigtableConfig, responseHandler rh.ResponseHandlerIface, schemaMapping *schemaMapping.SchemaMetadata) bt.BigTableClientIface {
 		return bgtmockface
 	}
-	defer func() { bt.NewBigtableDmlClient = originalNewBigTableClient }()
+	defer func() { bt.NewBigtableClient = originalNewBigTableClient }()
 	prox, err := NewProxy(ctx, logger, &types.ProxyInstanceConfig{
 		Options: &types.CliArgs{
 			ProtocolVersion:    primitive.ProtocolVersion4,
@@ -2054,12 +2054,12 @@ func TestHandleQuerySelect(t *testing.T) {
 func TestHandleDescribeKeyspaces(t *testing.T) {
 	tests := []struct {
 		name          string
-		mockTableMeta []*schemaMapping.TableConfig
+		mockTableMeta []*schemaMapping.TableSchema
 		expectedKeys  []string
 	}{
 		{
 			name: "multiple keyspaces",
-			mockTableMeta: []*schemaMapping.TableConfig{
+			mockTableMeta: []*schemaMapping.TableSchema{
 				schemaMapping.NewTableConfig(
 					"custom_keyspace1",
 					"table1",
@@ -2095,7 +2095,7 @@ func TestHandleDescribeKeyspaces(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			logger := zap.NewNop()
-			schemaMappingConfig := schemaMapping.NewSchemaMappingConfig("schema_mapping", "cf", logger, tt.mockTableMeta)
+			schemaMappingConfig := schemaMapping.NewSchemaMetadata("schema_mapping", "cf", logger, tt.mockTableMeta)
 			proxy := &Proxy{
 				logger:        logger,
 				schemaMapping: schemaMappingConfig,
@@ -2148,7 +2148,7 @@ func TestHandleDescribeKeyspaces(t *testing.T) {
 func TestHandleDescribeTables(t *testing.T) {
 	tests := []struct {
 		name           string
-		mockTableMeta  *schemaMapping.SchemaMappingConfig
+		mockTableMeta  *schemaMapping.SchemaMetadata
 		expectedTables []string
 	}{
 		{
@@ -2346,12 +2346,12 @@ func TestHandlePostDDLEvent(t *testing.T) {
 					},
 				},
 			)
-			schemaMappingConfig := schemaMapping.NewSchemaMappingConfig(
+			schemaMappingConfig := schemaMapping.NewSchemaMetadata(
 				"schema_mapping",
 				"cf",
 
 				logger,
-				[]*schemaMapping.TableConfig{
+				[]*schemaMapping.TableSchema{
 					mockTableMetadata,
 				},
 			)

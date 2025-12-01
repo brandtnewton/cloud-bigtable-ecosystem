@@ -22,13 +22,13 @@ import (
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/global/constants"
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/global/types"
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/mem_table"
-	schemaMapping "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/schema-mapping"
+	schemaMapping "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/metadata"
 	"github.com/datastax/go-cassandra-native-protocol/primitive"
 	"io"
 	"net"
 )
 
-func InitializeSystemTables(schemas *schemaMapping.SchemaMappingConfig, engine *mem_table.InMemEngine, proxy *Proxy) error {
+func InitializeSystemTables(schemas *schemaMapping.SchemaMetadata, engine *mem_table.InMemEngine, proxy *Proxy) error {
 
 	// add all system tables with empty data, so they're at least queryable
 	for _, table := range schemas.Tables() {
@@ -46,7 +46,7 @@ func InitializeSystemTables(schemas *schemaMapping.SchemaMappingConfig, engine *
 	return nil
 }
 
-func ReloadSystemTables(schemas *schemaMapping.SchemaMappingConfig, engine *mem_table.InMemEngine, proxy *Proxy) error {
+func ReloadSystemTables(schemas *schemaMapping.SchemaMetadata, engine *mem_table.InMemEngine, proxy *Proxy) error {
 
 	// add all system tables with empty data, so they're at least queryable
 	for _, table := range schemas.Tables() {
@@ -90,7 +90,7 @@ func ReloadSystemTables(schemas *schemaMapping.SchemaMappingConfig, engine *mem_
 	return nil
 }
 
-func getKeyspaceMetadata(schemas *schemaMapping.SchemaMappingConfig) []types.GoRow {
+func getKeyspaceMetadata(schemas *schemaMapping.SchemaMetadata) []types.GoRow {
 	var rows []types.GoRow
 	for _, keyspace := range schemas.Keyspaces() {
 		md := keyspace.GetMetadata()
@@ -105,7 +105,7 @@ func getKeyspaceMetadata(schemas *schemaMapping.SchemaMappingConfig) []types.GoR
 }
 
 // getTableMetadata converts table metadata into table metadata rows
-func getTableMetadata(schemas *schemaMapping.SchemaMappingConfig) []types.GoRow {
+func getTableMetadata(schemas *schemaMapping.SchemaMetadata) []types.GoRow {
 	var rows []types.GoRow
 	for _, t := range schemas.Tables() {
 		md := t.CreateTableMetadata()
@@ -122,7 +122,7 @@ func getTableMetadata(schemas *schemaMapping.SchemaMappingConfig) []types.GoRow 
 }
 
 // getColumnMetadata converts table metadata into column metadata rows
-func getColumnMetadata(schemas *schemaMapping.SchemaMappingConfig) []types.GoRow {
+func getColumnMetadata(schemas *schemaMapping.SchemaMetadata) []types.GoRow {
 	var rows []types.GoRow
 	for _, table := range schemas.Tables() {
 		for columnName, column := range table.Columns {

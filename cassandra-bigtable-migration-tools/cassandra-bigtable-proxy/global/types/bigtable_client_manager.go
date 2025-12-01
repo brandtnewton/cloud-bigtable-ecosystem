@@ -13,8 +13,16 @@ type BigtableClientSet struct {
 	data  *bigtable.Client
 }
 
+func NewBigtableClientSet(admin *bigtable.AdminClient, data *bigtable.Client) *BigtableClientSet {
+	return &BigtableClientSet{admin: admin, data: data}
+}
+
 type BigtableClientManager struct {
 	clients map[Keyspace]*BigtableClientSet
+}
+
+func NewBigtableClientManager(clients map[Keyspace]*BigtableClientSet) *BigtableClientManager {
+	return &BigtableClientManager{clients: clients}
 }
 
 func CreateBigtableClientManager(ctx context.Context, config *ProxyInstanceConfig) (*BigtableClientManager, error) {
@@ -50,10 +58,7 @@ func createBigtableClientSet(ctx context.Context, config *ProxyInstanceConfig, i
 	if err != nil {
 		return nil, fmt.Errorf("failed to create bigtable client for instance %s: %v", instanceMapping.InstanceId, err)
 	}
-	return &BigtableClientSet{
-		admin: adminClient,
-		data:  client,
-	}, nil
+	return NewBigtableClientSet(adminClient, client), nil
 }
 
 func (b *BigtableClientManager) getClientSet(keyspace Keyspace) (*BigtableClientSet, error) {

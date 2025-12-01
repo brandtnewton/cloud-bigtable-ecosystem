@@ -1,4 +1,4 @@
-package schemaMapping
+package metadata
 
 import (
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/global/types"
@@ -208,8 +208,8 @@ var (
 	})
 )
 
-func getSystemTableConfigs() []*TableConfig {
-	return []*TableConfig{
+func getSystemTableConfigs() []*TableSchema {
+	return []*TableSchema{
 		SystemSchemaTableTables,
 		SystemSchemaTableKeyspace,
 		SystemSchemaTableColumns,

@@ -3,13 +3,13 @@ package use_translator
 import (
 	"fmt"
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/global/types"
-	schemaMapping "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/schema-mapping"
+	schemaMapping "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/metadata"
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/translators/common"
 	"github.com/datastax/go-cassandra-native-protocol/primitive"
 )
 
 type UseTranslator struct {
-	schemaMappingConfig *schemaMapping.SchemaMappingConfig
+	schemaMappingConfig *schemaMapping.SchemaMetadata
 }
 
 func (t *UseTranslator) Translate(query *types.RawQuery, _ types.Keyspace) (types.IPreparedQuery, error) {
@@ -44,6 +44,6 @@ func (t *UseTranslator) QueryType() types.QueryType {
 	return types.QueryTypeUse
 }
 
-func NewUseTranslator(schemaMappingConfig *schemaMapping.SchemaMappingConfig) types.IQueryTranslator {
+func NewUseTranslator(schemaMappingConfig *schemaMapping.SchemaMetadata) types.IQueryTranslator {
 	return &UseTranslator{schemaMappingConfig: schemaMappingConfig}
 }

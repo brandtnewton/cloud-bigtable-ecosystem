@@ -190,6 +190,7 @@ type IExecutableQuery interface {
 }
 type IPreparedQuery interface {
 	Keyspace() Keyspace
+	Table() TableName // empty string if no table involved e.g. "USE keyspace;"
 	CqlQuery() string
 	QueryType() QueryType
 	Parameters() *QueryParameters

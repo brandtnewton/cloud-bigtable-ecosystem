@@ -27,9 +27,9 @@ import (
 	"cloud.google.com/go/bigtable"
 	bt "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/bigtable"
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/global/types"
+	schemaMapping "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/metadata"
 	mockbigtable "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/mocks/bigtable"
 	rh "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/responsehandler"
-	schemaMapping "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/schema-mapping"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap"
@@ -189,7 +189,7 @@ func TestRun(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel() // Ensure resources are released
 	t.Setenv("CONFIG_FILE", "../fakedata/testConfigFile.yaml")
-	var tbData []*schemaMapping.TableConfig = nil
+	var tbData []*schemaMapping.TableSchema = nil
 	bgtmockface := new(mockbigtable.BigTableClientIface)
 	bgtmockface.On("ReadTableConfigs", ctx, "bigtabledevinstancetest").Return(tbData, nil)
 	bgtmockface.On("LoadConfigs", mock.AnythingOfType("*responsehandler.TypeHandler"), mock.AnythingOfType("*schemaMapping.schemas")).Return(tbData, nil)
@@ -197,11 +197,11 @@ func TestRun(t *testing.T) {
 	bgtmockface.On("Close").Return()
 
 	// Override the factory function to return the mock
-	originalNewBigTableClient := bt.NewBigtableDmlClient
-	bt.NewBigtableDmlClient = func(client map[string]*bigtable.Client, adminClients map[string]*bigtable.AdminClient, logger *zap.Logger, config *types.BigtableConfig, responseHandler rh.ResponseHandlerIface, schemaMapping *schemaMapping.SchemaMappingConfig) bt.BigTableClientIface {
+	originalNewBigTableClient := bt.NewBigtableClient
+	bt.NewBigtableClient = func(client map[string]*bigtable.Client, adminClients map[string]*bigtable.AdminClient, logger *zap.Logger, config *types.BigtableConfig, responseHandler rh.ResponseHandlerIface, schemaMapping *schemaMapping.SchemaMetadata) bt.BigTableClientIface {
 		return bgtmockface
 	}
-	defer func() { bt.NewBigtableDmlClient = originalNewBigTableClient }()
+	defer func() { bt.NewBigtableClient = originalNewBigTableClient }()
 
 	err := Run(ctx, []string{})
 	require.NoError(t, err)

@@ -6,7 +6,7 @@ import (
 	bigtableModule "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/bigtable"
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/global/types"
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/mem_table"
-	schemaMapping "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/schema-mapping"
+	schemaMapping "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/metadata"
 	"github.com/datastax/go-cassandra-native-protocol/message"
 	"go.uber.org/zap"
 	"strings"
@@ -22,7 +22,7 @@ type QueryExecutorManager struct {
 	executors []IQueryExecutor
 }
 
-func NewQueryExecutorManager(logger *zap.Logger, s *schemaMapping.SchemaMappingConfig, bt *bigtableModule.BigtableDmlClient, systemTables *mem_table.InMemEngine) *QueryExecutorManager {
+func NewQueryExecutorManager(logger *zap.Logger, s *schemaMapping.SchemaMetadata, bt *bigtableModule.BigtableAdapter, systemTables *mem_table.InMemEngine) *QueryExecutorManager {
 	return &QueryExecutorManager{
 		logger: logger,
 		executors: []IQueryExecutor{

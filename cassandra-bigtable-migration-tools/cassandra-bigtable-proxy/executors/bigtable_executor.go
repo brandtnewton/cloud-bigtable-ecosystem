@@ -8,7 +8,7 @@ import (
 )
 
 type bigtableExecutor struct {
-	bt *bigtableModule.BigtableDmlClient
+	bt *bigtableModule.BigtableAdapter
 }
 
 func (d *bigtableExecutor) CanRun(q types.IExecutableQuery) bool {
@@ -27,6 +27,6 @@ func (d *bigtableExecutor) Execute(ctx context.Context, _ types.ICassandraClient
 	return d.bt.Execute(ctx, q)
 }
 
-func newBigtableExecutor(bt *bigtableModule.BigtableDmlClient) IQueryExecutor {
+func newBigtableExecutor(bt *bigtableModule.BigtableAdapter) IQueryExecutor {
 	return &bigtableExecutor{bt: bt}
 }

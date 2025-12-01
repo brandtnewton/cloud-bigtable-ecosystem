@@ -13,7 +13,7 @@
  * License for the specific language governing permissions and limitations under
  * the License.
  */
-package schemaMapping
+package metadata
 
 import (
 	"fmt"
@@ -28,11 +28,11 @@ import (
 	"go.uber.org/zap"
 )
 
-func getSchemaMappingConfig() *SchemaMappingConfig {
-	return NewSchemaMappingConfig(
+func getSchemaMappingConfig() *SchemaMetadata {
+	return NewSchemaMetadata(
 		"schema_mapping", "cf1",
 		zap.NewNop(),
-		[]*TableConfig{
+		[]*TableSchema{
 			NewTableConfig(
 				"keyspace",
 				"table1",
@@ -92,7 +92,7 @@ func Test_GetColumn(t *testing.T) {
 
 	tests := []struct {
 		name   string
-		fields *SchemaMappingConfig
+		fields *SchemaMetadata
 		args   struct {
 			tableName  string
 			columnName string
@@ -289,7 +289,7 @@ func Test_HandleSpecialColumn(t *testing.T) {
 func Test_GetSpecificColumnsMetadataForSelectedColumns(t *testing.T) {
 	tests := []struct {
 		name          string
-		fields        *SchemaMappingConfig
+		fields        *SchemaMetadata
 		columnsMap    map[string]*types.Column
 		selectedCols  []translators.SelectedColumn
 		tableName     string
@@ -539,7 +539,7 @@ func Test_GetSpecificColumnsMetadataForSelectedColumns(t *testing.T) {
 func Test_GetSpecificColumnsMetadata(t *testing.T) {
 	tests := []struct {
 		name          string
-		fields        *SchemaMappingConfig
+		fields        *SchemaMetadata
 		columnNames   []string
 		tableName     string
 		expectedMeta  []*message.ColumnMetadata
@@ -824,7 +824,7 @@ func Test_CloneColumnMetadata(t *testing.T) {
 func Test_GetAllColumnsMetadata(t *testing.T) {
 	tests := []struct {
 		name          string
-		fields        *SchemaMappingConfig
+		fields        *SchemaMetadata
 		columnsMap    map[string]*types.Column
 		expectedMeta  []*message.ColumnMetadata
 		expectedError error
@@ -1080,7 +1080,7 @@ func Test_GetTimestampColumnName(t *testing.T) {
 func Test_HandleSpecialSelectedColumn(t *testing.T) {
 	tests := []struct {
 		name           string
-		fields         *SchemaMappingConfig
+		fields         *SchemaMetadata
 		columnsMap     map[string]*types.Column
 		columnSelected translators.SelectedColumn
 		index          int32
@@ -1228,7 +1228,7 @@ func Test_HandleSpecialSelectedColumn(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			tc := TableConfig{
+			tc := TableSchema{
 				Keyspace: tt.keySpace,
 				Name:     tt.tableName,
 			}
@@ -1256,12 +1256,12 @@ func Test_HandleSpecialSelectedColumn(t *testing.T) {
 func Test_ListKeyspaces(t *testing.T) {
 	tests := []struct {
 		name     string
-		tables   map[string]map[string]*TableConfig
+		tables   map[string]map[string]*TableSchema
 		expected []string
 	}{
 		{
 			name: "Multiple keyspaces, unsorted input",
-			tables: map[string]map[string]*TableConfig{
+			tables: map[string]map[string]*TableSchema{
 				"zeta":  {},
 				"alpha": {},
 				"beta":  {},
@@ -1270,20 +1270,20 @@ func Test_ListKeyspaces(t *testing.T) {
 		},
 		{
 			name: "Single keyspace",
-			tables: map[string]map[string]*TableConfig{
+			tables: map[string]map[string]*TableSchema{
 				"only": {},
 			},
 			expected: []string{"only"},
 		},
 		{
 			name:     "No keyspaces",
-			tables:   map[string]map[string]*TableConfig{},
+			tables:   map[string]map[string]*TableSchema{},
 			expected: []string{},
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			cfg := &SchemaMappingConfig{tables: tt.tables}
+			cfg := &SchemaMetadata{tables: tt.tables}
 			got := cfg.ListKeyspaces()
 			assert.Equal(t, tt.expected, got)
 		})

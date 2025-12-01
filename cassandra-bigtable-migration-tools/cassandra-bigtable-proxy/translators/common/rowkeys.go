@@ -6,7 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/global/types"
-	schemaMapping "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/schema-mapping"
+	schemaMapping "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/metadata"
 )
 
 var kOrderedCodeEmptyField = []byte("\x00\x00")
@@ -15,7 +15,7 @@ var kOrderedCodeDelimiter = []byte("\x00\x01")
 // BindRowKey creates an ordered row key.
 // Generates a byte-encoded row key from primary key values with validation.
 // Returns error if key type is invalid or encoding fails.
-func BindRowKey(tableConfig *schemaMapping.TableConfig, values *types.QueryParameterValues) (types.RowKey, error) {
+func BindRowKey(tableConfig *schemaMapping.TableSchema, values *types.QueryParameterValues) (types.RowKey, error) {
 	var result []byte
 	var trailingEmptyFields []byte
 	for i, pmk := range tableConfig.PrimaryKeys {

@@ -32,7 +32,7 @@ func (t *AlterTranslator) Translate(query *types.RawQuery, sessionKeyspace types
 		return nil, err
 	}
 
-	keyspaceName, tableName, err := common.ParseTableSpec(alterTable.TableSpec(), sessionKeyspace, t.schemaMappingConfig)
+	keyspaceName, tableName, err := common.ParseTableSpec(alterTable.TableSpec(), sessionKeyspace)
 	if err != nil {
 		return nil, err
 	}

@@ -21,7 +21,7 @@ func TestCastColumns(t *testing.T) {
 				ColumnFamily: "cf1",
 				CQLType:      types.TypeInt,
 			},
-			want:    "TO_INT64(cf1['age'])",
+			want:    "TO_INT64(`cf1`['age'])",
 			wantErr: false,
 		},
 		{
@@ -31,7 +31,7 @@ func TestCastColumns(t *testing.T) {
 				ColumnFamily: "cf1",
 				CQLType:      types.TypeBigInt,
 			},
-			want:    "TO_INT64(cf1['timestamp'])",
+			want:    "TO_INT64(`cf1`['timestamp'])",
 			wantErr: false,
 		},
 		{
@@ -41,7 +41,7 @@ func TestCastColumns(t *testing.T) {
 				ColumnFamily: "cf1",
 				CQLType:      types.TypeFloat,
 			},
-			want:    "TO_FLOAT32(cf1['price'])",
+			want:    "TO_FLOAT32(`cf1`['price'])",
 			wantErr: false,
 		},
 		{
@@ -51,7 +51,7 @@ func TestCastColumns(t *testing.T) {
 				ColumnFamily: "cf1",
 				CQLType:      types.TypeDouble,
 			},
-			want:    "TO_FLOAT64(cf1['value'])",
+			want:    "TO_FLOAT64(`cf1`['value'])",
 			wantErr: false,
 		},
 		{
@@ -61,7 +61,7 @@ func TestCastColumns(t *testing.T) {
 				ColumnFamily: "cf1",
 				CQLType:      types.TypeBoolean,
 			},
-			want:    "TO_INT64(cf1['active'])",
+			want:    "TO_INT64(`cf1`['active'])",
 			wantErr: false,
 		},
 		{
@@ -71,7 +71,7 @@ func TestCastColumns(t *testing.T) {
 				ColumnFamily: "cf1",
 				CQLType:      types.TypeTimestamp,
 			},
-			want:    "TIMESTAMP_FROM_UNIX_MILLIS(cf1['created_at'])",
+			want:    "TIMESTAMP_FROM_UNIX_MILLIS(TO_INT64(`cf1`['created_at']))",
 			wantErr: false,
 		},
 		{
@@ -81,7 +81,7 @@ func TestCastColumns(t *testing.T) {
 				ColumnFamily: "cf1",
 				CQLType:      types.TypeBlob,
 			},
-			want:    "TO_BLOB(cf1['data'])",
+			want:    "TO_BLOB(`cf1`['data'])",
 			wantErr: false,
 		},
 		{
@@ -91,7 +91,7 @@ func TestCastColumns(t *testing.T) {
 				ColumnFamily: "cf1",
 				CQLType:      types.TypeVarchar,
 			},
-			want:    "cf1['name']",
+			want:    "`cf1`['name']",
 			wantErr: false,
 		},
 		{
@@ -101,7 +101,7 @@ func TestCastColumns(t *testing.T) {
 				ColumnFamily: "cf1",
 				CQLType:      types.TypeVarchar,
 			},
-			want:    "cf1['special-name']",
+			want:    "`cf1`['special-name']",
 			wantErr: false,
 		},
 	}

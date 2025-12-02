@@ -56,7 +56,7 @@ func TestTranslator_TranslateSelectQuerytoBigtable(t *testing.T) {
  AND col_ts <= '2015-05-03 13:30:54.234' AND col_int >= 123
  AND col_bigint > -10000000 LIMIT 20;`,
 			want: &Want{
-				TranslatedQuery: "SELECT pk1, TO_INT64(cf1['col_int']), TO_INT64(cf1['col_bool']) FROM test_table WHERE pk1 = 'test' AND TO_INT64(cf1['col_bool']) = 1 AND TIMESTAMP_FROM_UNIX_MILLIS(cf1['col_ts']) <= TIMESTAMP_FROM_UNIX_MILLIS(1430659854234) AND TO_INT64(cf1['col_int']) >= 123 AND TO_INT64(cf1['col_bigint']) > -10000000 LIMIT 20;",
+				TranslatedQuery: "SELECT pk1, TO_INT64(`cf1`['col_int']), TO_INT64(`cf1`['col_bool']) FROM test_table WHERE pk1 = 'test' AND TO_INT64(`cf1`['col_bool']) = 1 AND TIMESTAMP_FROM_UNIX_MILLIS(TO_INT64(`cf1`['col_ts'])) <= TIMESTAMP_FROM_UNIX_MILLIS(1430659854234) AND TO_INT64(`cf1`['col_int']) >= 123 AND TO_INT64(`cf1`['col_bigint']) > -10000000 LIMIT 20;",
 				Table:           "test_table",
 				Keyspace:        "test_keyspace",
 				SelectClause: &types.SelectClause{
@@ -105,7 +105,7 @@ func TestTranslator_TranslateSelectQuerytoBigtable(t *testing.T) {
 			name:  "Select query with list contains clause",
 			query: `select col_int as name from test_keyspace.test_table where list_text CONTAINS 'test';`,
 			want: &Want{
-				TranslatedQuery: "SELECT TO_INT64(cf1['col_int']) as name FROM test_table WHERE ARRAY_INCLUDES(MAP_VALUES(`list_text`), 'test');",
+				TranslatedQuery: "SELECT TO_INT64(`cf1`['col_int']) as name FROM test_table WHERE ARRAY_INCLUDES(MAP_VALUES(`list_text`), 'test');",
 				Table:           "test_table",
 				Keyspace:        "test_keyspace",
 				SelectClause: &types.SelectClause{
@@ -131,7 +131,7 @@ func TestTranslator_TranslateSelectQuerytoBigtable(t *testing.T) {
 			name:  "Select query with map contains key clause",
 			query: `select col_int as name from test_keyspace.test_table where map_text_text CONTAINS KEY 'test';`,
 			want: &Want{
-				TranslatedQuery: "SELECT TO_INT64(cf1['col_int']) as name FROM test_table WHERE MAP_CONTAINS_KEY(`map_text_text`, 'test');",
+				TranslatedQuery: "SELECT TO_INT64(`cf1`['col_int']) as name FROM test_table WHERE MAP_CONTAINS_KEY(`map_text_text`, 'test');",
 				Table:           "test_table",
 				Keyspace:        "test_keyspace",
 				SelectClause: &types.SelectClause{
@@ -157,7 +157,7 @@ func TestTranslator_TranslateSelectQuerytoBigtable(t *testing.T) {
 			name:  "Select query with set contains clause",
 			query: `select col_int as name from test_keyspace.test_table where set_text CONTAINS 'test';`,
 			want: &Want{
-				TranslatedQuery: "SELECT TO_INT64(cf1['col_int']) as name FROM test_table WHERE MAP_CONTAINS_KEY(`set_text`, 'test');",
+				TranslatedQuery: "SELECT TO_INT64(`cf1`['col_int']) as name FROM test_table WHERE MAP_CONTAINS_KEY(`set_text`, 'test');",
 				Table:           "test_table",
 				Keyspace:        "test_keyspace",
 				SelectClause: &types.SelectClause{
@@ -210,7 +210,7 @@ func TestTranslator_TranslateSelectQuerytoBigtable(t *testing.T) {
 			name:  "IN operator with integer values",
 			query: `select pk1 from test_keyspace.test_table where col_int IN (1, 2, 3);`,
 			want: &Want{
-				TranslatedQuery: "SELECT pk1 FROM test_table WHERE TO_INT64(cf1['col_int']) IN UNNEST([1, 2, 3]);",
+				TranslatedQuery: "SELECT pk1 FROM test_table WHERE TO_INT64(`cf1`['col_int']) IN UNNEST([1, 2, 3]);",
 				Table:           "test_table",
 				Keyspace:        "test_keyspace",
 				SelectClause: &types.SelectClause{
@@ -233,7 +233,7 @@ func TestTranslator_TranslateSelectQuerytoBigtable(t *testing.T) {
 			name:  "IN operator with bigint values",
 			query: `select pk1 from test_keyspace.test_table where col_bigint IN (1234567890, 9876543210);`,
 			want: &Want{
-				TranslatedQuery: `SELECT pk1 FROM test_table WHERE TO_INT64(cf1['col_bigint']) IN UNNEST([1234567890, 9876543210]);`,
+				TranslatedQuery: "SELECT pk1 FROM test_table WHERE TO_INT64(`cf1`['col_bigint']) IN UNNEST([1234567890, 9876543210]);",
 				Table:           "test_table",
 				Keyspace:        "test_keyspace",
 				SelectClause: &types.SelectClause{
@@ -256,7 +256,7 @@ func TestTranslator_TranslateSelectQuerytoBigtable(t *testing.T) {
 			name:  "IN operator with float values",
 			query: `select pk1 from test_keyspace.test_table where col_float IN (1.5, 2.5, 3.5);`,
 			want: &Want{
-				TranslatedQuery: "SELECT pk1 FROM test_table WHERE TO_FLOAT32(cf1['col_float']) IN UNNEST([1.5, 2.5, 3.5]);",
+				TranslatedQuery: "SELECT pk1 FROM test_table WHERE TO_FLOAT32(`cf1`['col_float']) IN UNNEST([1.5, 2.5, 3.5]);",
 				Table:           "test_table",
 				Keyspace:        "test_keyspace",
 				SelectClause: &types.SelectClause{
@@ -279,7 +279,7 @@ func TestTranslator_TranslateSelectQuerytoBigtable(t *testing.T) {
 			name:  "IN operator with double values",
 			query: `select pk1 from test_keyspace.test_table where col_double IN (3.1415926535, 2.7182818284);`,
 			want: &Want{
-				TranslatedQuery: "SELECT pk1 FROM test_table WHERE TO_FLOAT64(cf1['col_double']) IN UNNEST([3.1415926535, 2.7182818284]);",
+				TranslatedQuery: "SELECT pk1 FROM test_table WHERE TO_FLOAT64(`cf1`['col_double']) IN UNNEST([3.1415926535, 2.7182818284]);",
 				Table:           "test_table",
 				Keyspace:        "test_keyspace",
 				SelectClause: &types.SelectClause{
@@ -302,7 +302,7 @@ func TestTranslator_TranslateSelectQuerytoBigtable(t *testing.T) {
 			name:  "IN operator with boolean values",
 			query: `select pk1 from test_keyspace.test_table where col_bool IN (true, false);`,
 			want: &Want{
-				TranslatedQuery: "SELECT pk1 FROM test_table WHERE TO_INT64(cf1['col_bool']) IN UNNEST([1, 0]);",
+				TranslatedQuery: "SELECT pk1 FROM test_table WHERE TO_INT64(`cf1`['col_bool']) IN UNNEST([1, 0]);",
 				Table:           "test_table",
 				Keyspace:        "test_keyspace",
 				SelectClause: &types.SelectClause{
@@ -332,7 +332,7 @@ func TestTranslator_TranslateSelectQuerytoBigtable(t *testing.T) {
 			name:  "IN operator with prepared statement placeholder for Int",
 			query: `select pk1 from test_keyspace.test_table where col_int IN ?;`,
 			want: &Want{
-				TranslatedQuery: "SELECT pk1 FROM test_table WHERE TO_INT64(cf1['col_int']) IN UNNEST(@value0);",
+				TranslatedQuery: "SELECT pk1 FROM test_table WHERE TO_INT64(`cf1`['col_int']) IN UNNEST(@value0);",
 				Table:           "test_table",
 				Keyspace:        "test_keyspace",
 				SelectClause: &types.SelectClause{
@@ -361,7 +361,7 @@ func TestTranslator_TranslateSelectQuerytoBigtable(t *testing.T) {
 			name:  "IN operator with prepared statement placeholder for Bigint",
 			query: `select pk1 from test_keyspace.test_table where col_bigint IN ?;`,
 			want: &Want{
-				TranslatedQuery: "SELECT pk1 FROM test_table WHERE TO_INT64(cf1['col_bigint']) IN UNNEST(@value0);",
+				TranslatedQuery: "SELECT pk1 FROM test_table WHERE TO_INT64(`cf1`['col_bigint']) IN UNNEST(@value0);",
 				Table:           "test_table",
 				Keyspace:        "test_keyspace",
 				SelectClause: &types.SelectClause{
@@ -384,7 +384,7 @@ func TestTranslator_TranslateSelectQuerytoBigtable(t *testing.T) {
 			name:  "IN operator with prepared statement placeholder for Float",
 			query: `select pk1 from test_keyspace.test_table where col_float IN ?;`,
 			want: &Want{
-				TranslatedQuery: "SELECT pk1 FROM test_table WHERE TO_FLOAT32(cf1['col_float']) IN UNNEST(@value0);",
+				TranslatedQuery: "SELECT pk1 FROM test_table WHERE TO_FLOAT32(`cf1`['col_float']) IN UNNEST(@value0);",
 				Table:           "test_table",
 				Keyspace:        "test_keyspace",
 				SelectClause: &types.SelectClause{
@@ -407,7 +407,7 @@ func TestTranslator_TranslateSelectQuerytoBigtable(t *testing.T) {
 			name:  "IN operator with prepared statement placeholder for Double",
 			query: `select pk1 from test_keyspace.test_table where col_double IN ?;`,
 			want: &Want{
-				TranslatedQuery: "SELECT pk1 FROM test_table WHERE TO_FLOAT64(cf1['col_double']) IN UNNEST(@value0);",
+				TranslatedQuery: "SELECT pk1 FROM test_table WHERE TO_FLOAT64(`cf1`['col_double']) IN UNNEST(@value0);",
 				Table:           "test_table",
 				Keyspace:        "test_keyspace",
 				SelectClause: &types.SelectClause{
@@ -430,7 +430,7 @@ func TestTranslator_TranslateSelectQuerytoBigtable(t *testing.T) {
 			name:  "IN operator with prepared statement placeholder for Boolean",
 			query: `select pk1 from test_keyspace.test_table where col_bool IN ?;`,
 			want: &Want{
-				TranslatedQuery: "SELECT pk1 FROM test_table WHERE TO_INT64(cf1['col_bool']) IN UNNEST(@value0);",
+				TranslatedQuery: "SELECT pk1 FROM test_table WHERE TO_INT64(`cf1`['col_bool']) IN UNNEST(@value0);",
 				Table:           "test_table",
 				Keyspace:        "test_keyspace",
 				SelectClause: &types.SelectClause{
@@ -453,7 +453,7 @@ func TestTranslator_TranslateSelectQuerytoBigtable(t *testing.T) {
 			name:  "IN operator with prepared statement placeholder for Blob",
 			query: `select pk1 from test_keyspace.test_table where col_blob IN ?;`,
 			want: &Want{
-				TranslatedQuery: "SELECT pk1 FROM test_table WHERE TO_BLOB(cf1['col_blob']) IN UNNEST(@value0);",
+				TranslatedQuery: "SELECT pk1 FROM test_table WHERE TO_BLOB(`cf1`['col_blob']) IN UNNEST(@value0);",
 				Table:           "test_table",
 				Keyspace:        "test_keyspace",
 				SelectClause: &types.SelectClause{
@@ -510,7 +510,7 @@ func TestTranslator_TranslateSelectQuerytoBigtable(t *testing.T) {
 			name:  "As CqlQuery",
 			query: `select col_int as name from test_keyspace.test_table where pk1 = 'test';`,
 			want: &Want{
-				TranslatedQuery: "SELECT TO_INT64(cf1['col_int']) as name FROM test_table WHERE pk1 = 'test';",
+				TranslatedQuery: "SELECT TO_INT64(`cf1`['col_int']) as name FROM test_table WHERE pk1 = 'test';",
 				Table:           "test_table",
 				Keyspace:        "test_keyspace",
 				SelectClause: &types.SelectClause{
@@ -564,7 +564,7 @@ func TestTranslator_TranslateSelectQuerytoBigtable(t *testing.T) {
 			name:  "test for parameterized query success",
 			query: "select pk1, col_int, col_bool from  test_keyspace.test_table where pk1 = ? AND col_bool=? AND col_ts <= ? AND col_int >= ? AND col_bigint > ? AND col_bigint < ? LIMIT 20000;",
 			want: &Want{
-				TranslatedQuery: "SELECT pk1, TO_INT64(cf1['col_int']), TO_INT64(cf1['col_bool']) FROM test_table WHERE pk1 = @value0 AND TO_INT64(cf1['col_bool']) = @value1 AND TIMESTAMP_FROM_UNIX_MILLIS(cf1['col_ts']) <= @value2 AND TO_INT64(cf1['col_int']) >= @value3 AND TO_INT64(cf1['col_bigint']) > @value4 AND TO_INT64(cf1['col_bigint']) < @value5 LIMIT 20000;",
+				TranslatedQuery: "SELECT pk1, TO_INT64(`cf1`['col_int']), TO_INT64(`cf1`['col_bool']) FROM test_table WHERE pk1 = @value0 AND TO_INT64(`cf1`['col_bool']) = @value1 AND TIMESTAMP_FROM_UNIX_MILLIS(TO_INT64(`cf1`['col_ts'])) <= @value2 AND TO_INT64(`cf1`['col_int']) >= @value3 AND TO_INT64(`cf1`['col_bigint']) > @value4 AND TO_INT64(`cf1`['col_bigint']) < @value5 LIMIT 20000;",
 				Table:           "test_table",
 				Keyspace:        "test_keyspace",
 				SelectClause: &types.SelectClause{
@@ -618,7 +618,7 @@ func TestTranslator_TranslateSelectQuerytoBigtable(t *testing.T) {
 			name:  "test for prepared query success",
 			query: "select pk1, col_int, col_bool from test_keyspace.test_table where pk1 = ? AND col_int=? AND col_bool=? AND col_ts=? AND col_int=? AND col_bigint=?;",
 			want: &Want{
-				TranslatedQuery: "SELECT pk1, TO_INT64(cf1['col_int']), TO_INT64(cf1['col_bool']) FROM test_table WHERE pk1 = @value0 AND TO_INT64(cf1['col_int']) = @value1 AND TO_INT64(cf1['col_bool']) = @value2 AND TIMESTAMP_FROM_UNIX_MILLIS(cf1['col_ts']) = @value3 AND TO_INT64(cf1['col_int']) = @value4 AND TO_INT64(cf1['col_bigint']) = @value5;",
+				TranslatedQuery: "SELECT pk1, TO_INT64(`cf1`['col_int']), TO_INT64(`cf1`['col_bool']) FROM test_table WHERE pk1 = @value0 AND TO_INT64(`cf1`['col_int']) = @value1 AND TO_INT64(`cf1`['col_bool']) = @value2 AND TIMESTAMP_FROM_UNIX_MILLIS(TO_INT64(`cf1`['col_ts'])) = @value3 AND TO_INT64(`cf1`['col_int']) = @value4 AND TO_INT64(`cf1`['col_bigint']) = @value5;",
 				Table:           "test_table",
 				Keyspace:        "test_keyspace",
 				SelectClause: &types.SelectClause{
@@ -671,7 +671,7 @@ func TestTranslator_TranslateSelectQuerytoBigtable(t *testing.T) {
 			name:  "test for query without clause success",
 			query: `select pk1, col_int, col_bool from test_keyspace.test_table ORDER BY pk1 LIMIT 20000;`,
 			want: &Want{
-				TranslatedQuery: "SELECT pk1, TO_INT64(cf1['col_int']), TO_INT64(cf1['col_bool']) FROM test_table ORDER BY pk1 asc LIMIT 20000;",
+				TranslatedQuery: "SELECT pk1, TO_INT64(`cf1`['col_int']), TO_INT64(`cf1`['col_bool']) FROM test_table ORDER BY pk1 asc LIMIT 20000;",
 				Table:           "test_table",
 				Keyspace:        "test_keyspace",
 				SelectClause: &types.SelectClause{
@@ -720,7 +720,7 @@ func TestTranslator_TranslateSelectQuerytoBigtable(t *testing.T) {
 			name:  "test with IN operator raw query",
 			query: `select pk1, col_int from test_keyspace.test_table where pk1 = 'test' and pk1 in ('abc', 'xyz');`,
 			want: &Want{
-				TranslatedQuery: "SELECT pk1, TO_INT64(cf1['col_int']) FROM test_table WHERE pk1 = 'test' AND pk1 IN UNNEST(['abc', 'xyz']);",
+				TranslatedQuery: "SELECT pk1, TO_INT64(`cf1`['col_int']) FROM test_table WHERE pk1 = 'test' AND pk1 IN UNNEST(['abc', 'xyz']);",
 				Keyspace:        "test_keyspace",
 				Table:           "test_table",
 				SelectClause: &types.SelectClause{
@@ -749,7 +749,7 @@ func TestTranslator_TranslateSelectQuerytoBigtable(t *testing.T) {
 			name:  "test with IN operator prepared query",
 			query: `select pk1, col_int from test_keyspace.test_table where pk1 = ? and pk1 in ?;`,
 			want: &Want{
-				TranslatedQuery: "SELECT pk1, TO_INT64(cf1['col_int']) FROM test_table WHERE pk1 = @value0 AND pk1 IN UNNEST(@value1);",
+				TranslatedQuery: "SELECT pk1, TO_INT64(`cf1`['col_int']) FROM test_table WHERE pk1 = @value0 AND pk1 IN UNNEST(@value1);",
 				Keyspace:        "test_keyspace",
 				Table:           "test_table",
 				SelectClause: &types.SelectClause{
@@ -778,7 +778,7 @@ func TestTranslator_TranslateSelectQuerytoBigtable(t *testing.T) {
 			name:  "test with LIKE keyword raw query",
 			query: `select pk1, col_int from test_keyspace.test_table where pk1 like 'test%';`,
 			want: &Want{
-				TranslatedQuery: "SELECT pk1, TO_INT64(cf1['col_int']) FROM test_table WHERE pk1 LIKE 'test%';",
+				TranslatedQuery: "SELECT pk1, TO_INT64(`cf1`['col_int']) FROM test_table WHERE pk1 LIKE 'test%';",
 				Keyspace:        "test_keyspace",
 				Table:           "test_table",
 				SelectClause: &types.SelectClause{
@@ -800,7 +800,7 @@ func TestTranslator_TranslateSelectQuerytoBigtable(t *testing.T) {
 			name:  "test with BETWEEN operator raw query",
 			query: `select pk1, col_int from test_keyspace.test_table where pk1 between 'te''st' and 'test2';`,
 			want: &Want{
-				TranslatedQuery: "SELECT pk1, TO_INT64(cf1['col_int']) FROM test_table WHERE pk1 BETWEEN 'te\\'st' AND 'test2';",
+				TranslatedQuery: "SELECT pk1, TO_INT64(`cf1`['col_int']) FROM test_table WHERE pk1 BETWEEN 'te\\'st' AND 'test2';",
 				Keyspace:        "test_keyspace",
 				Table:           "test_table",
 				SelectClause: &types.SelectClause{
@@ -830,7 +830,7 @@ func TestTranslator_TranslateSelectQuerytoBigtable(t *testing.T) {
 			name:  "test with LIKE keyword prepared query",
 			query: `select pk1, col_int from test_keyspace.test_table where pk1 like ?;`,
 			want: &Want{
-				TranslatedQuery: "SELECT pk1, TO_INT64(cf1['col_int']) FROM test_table WHERE pk1 LIKE @value0;",
+				TranslatedQuery: "SELECT pk1, TO_INT64(`cf1`['col_int']) FROM test_table WHERE pk1 LIKE @value0;",
 				Keyspace:        "test_keyspace",
 				Table:           "test_table",
 				SelectClause: &types.SelectClause{
@@ -853,7 +853,7 @@ func TestTranslator_TranslateSelectQuerytoBigtable(t *testing.T) {
 			name:  "test with BETWEEN operator prepared query",
 			query: `select pk1, col_int from test_keyspace.test_table where pk1 between ? and ?;`,
 			want: &Want{
-				TranslatedQuery: "SELECT pk1, TO_INT64(cf1['col_int']) FROM test_table WHERE pk1 BETWEEN @value0 AND @value1;",
+				TranslatedQuery: "SELECT pk1, TO_INT64(`cf1`['col_int']) FROM test_table WHERE pk1 BETWEEN @value0 AND @value1;",
 				Keyspace:        "test_keyspace",
 				Table:           "test_table",
 				SelectClause: &types.SelectClause{
@@ -1023,7 +1023,7 @@ func TestTranslator_TranslateSelectQuerytoBigtable(t *testing.T) {
 		{
 			name:            "where clause comparison functions not supported yet",
 			query:           `SELECT count(*) FROM test_table WHERE name = ? AND col_ts < ToTimestamp(now());`,
-			wantErr:         "parsing errors",
+			wantErr:         "parsing error",
 			sessionKeyspace: "test_keyspace",
 		},
 		{
@@ -1035,19 +1035,44 @@ func TestTranslator_TranslateSelectQuerytoBigtable(t *testing.T) {
 				TranslatedQuery: "SELECT count(*) FROM test_table WHERE TIMESTAMP_FROM_UNIX_MILLIS(TO_INT64(`cf1`['col_ts'])) < TIMESTAMP_FROM_UNIX_MILLIS(1764671400000);",
 				SelectClause: &types.SelectClause{
 					Columns: []types.SelectedColumn{
-						*types.NewSelectedColumn("tags", "tags", "", types.NewListType(types.TypeText)),
+						*types.NewSelectedColumnFunction("system.count(*)", "*", "", types.TypeBigInt, types.FuncCodeCount),
 					},
 				},
 				Conditions: []types.Condition{
 					{
-						Column:   mockdata.GetColumnOrDie("test_keyspace", "user_info", "tags"),
-						Operator: types.CONTAINS,
-						Value:    types.NewParameterizedValue("@value0"),
+						Column:   mockdata.GetColumnOrDie("test_keyspace", "test_table", "col_ts"),
+						Operator: types.LT,
+						Value:    types.NewLiteralValue(time.Date(2025, 12, 2, 10, 30, 0, 0, time.UTC)),
 					},
 				},
 				OrderBy:        types.OrderBy{},
 				GroupByColumns: nil,
-				AllParams:      []types.Placeholder{"@value0"},
+				AllParams:      nil,
+			},
+			sessionKeyspace: "test_keyspace",
+		},
+		{
+			name:  "literal timestamp int",
+			query: `SELECT count(*) FROM test_table WHERE col_ts < 1764671400000;`,
+			want: &Want{
+				Keyspace:        "test_keyspace",
+				Table:           "test_table",
+				TranslatedQuery: "SELECT count(*) FROM test_table WHERE TIMESTAMP_FROM_UNIX_MILLIS(TO_INT64(`cf1`['col_ts'])) < TIMESTAMP_FROM_UNIX_MILLIS(1764671400000);",
+				SelectClause: &types.SelectClause{
+					Columns: []types.SelectedColumn{
+						*types.NewSelectedColumnFunction("system.count(*)", "*", "", types.TypeBigInt, types.FuncCodeCount),
+					},
+				},
+				Conditions: []types.Condition{
+					{
+						Column:   mockdata.GetColumnOrDie("test_keyspace", "test_table", "col_ts"),
+						Operator: types.LT,
+						Value:    types.NewLiteralValue(time.Date(2025, 12, 2, 10, 30, 0, 0, time.UTC)),
+					},
+				},
+				OrderBy:        types.OrderBy{},
+				GroupByColumns: nil,
+				AllParams:      nil,
 			},
 			sessionKeyspace: "test_keyspace",
 		},
@@ -1055,7 +1080,7 @@ func TestTranslator_TranslateSelectQuerytoBigtable(t *testing.T) {
 			name:  "Valid GROUP BY with aggregate and ORDER BY",
 			query: `select pk1, count(col_int) from test_keyspace.test_table where pk1 = 'test' GROUP BY pk1 ORDER BY pk1;`,
 			want: &Want{
-				TranslatedQuery: "SELECT pk1, count(TO_INT64(cf1['col_int'])) FROM test_table WHERE pk1 = 'test' GROUP BY pk1 ORDER BY pk1 asc;",
+				TranslatedQuery: "SELECT pk1, count(TO_INT64(`cf1`['col_int'])) FROM test_table WHERE pk1 = 'test' GROUP BY pk1 ORDER BY pk1 asc;",
 				Table:           "test_table",
 				Keyspace:        "test_keyspace",
 				SelectClause: &types.SelectClause{

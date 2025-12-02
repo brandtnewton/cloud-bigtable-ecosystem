@@ -43,7 +43,7 @@ func TestBindRowKey(t *testing.T) {
 				"def",
 			},
 			want: "",
-			err:  "missing primary key `pk1`",
+			err:  "wrong number of primary keys: want 2 got 1",
 		},
 	}
 	for _, tt := range tests {

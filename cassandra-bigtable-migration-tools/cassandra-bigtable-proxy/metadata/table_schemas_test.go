@@ -146,12 +146,12 @@ func Test_GetColumn(t *testing.T) {
 func Test_ListKeyspaces(t *testing.T) {
 	tests := []struct {
 		name     string
-		tables   map[string]map[string]*TableSchema
+		tables   map[types.Keyspace]map[types.TableName]*TableSchema
 		expected []string
 	}{
 		{
 			name: "Multiple keyspaces, unsorted input",
-			tables: map[string]map[string]*TableSchema{
+			tables: map[types.Keyspace]map[types.TableName]*TableSchema{
 				"zeta":  {},
 				"alpha": {},
 				"beta":  {},
@@ -160,14 +160,14 @@ func Test_ListKeyspaces(t *testing.T) {
 		},
 		{
 			name: "Single keyspace",
-			tables: map[string]map[string]*TableSchema{
+			tables: map[types.Keyspace]map[types.TableName]*TableSchema{
 				"only": {},
 			},
 			expected: []string{"only"},
 		},
 		{
 			name:     "No keyspaces",
-			tables:   map[string]map[string]*TableSchema{},
+			tables:   map[types.Keyspace]map[types.TableName]*TableSchema{},
 			expected: []string{},
 		},
 	}

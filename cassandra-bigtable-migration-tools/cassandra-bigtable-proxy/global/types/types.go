@@ -49,6 +49,15 @@ type RowKey string
 // BigtableValue - a value serialized to bytes for Bigtable
 type BigtableValue []byte
 
+type TypedGoValue struct {
+	Value GoValue
+	Type  CqlDataType
+}
+
+func NewTypedGoValue(value GoValue, Type CqlDataType) *TypedGoValue {
+	return &TypedGoValue{Value: value, Type: Type}
+}
+
 // GoValue - a plain Golang value
 type GoValue any
 

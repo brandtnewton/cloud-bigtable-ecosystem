@@ -396,7 +396,7 @@ func ValidateRequiredPrimaryKeys(tableConfig *schemaMapping.TableSchema, assignm
 	for _, wantKey := range tableConfig.PrimaryKeys {
 		found := false
 		for _, assignment := range assignments {
-			if assignment.Column() == wantKey {
+			if assignment.Column().Name == wantKey.Name {
 				found = true
 				break
 			}

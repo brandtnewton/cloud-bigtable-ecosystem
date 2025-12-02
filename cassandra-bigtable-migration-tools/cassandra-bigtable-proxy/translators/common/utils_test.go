@@ -24,7 +24,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"math"
-	"reflect"
 	"testing"
 )
 
@@ -93,20 +92,18 @@ func Test_formatValues(t *testing.T) {
 
 func Test_bindValues(t *testing.T) {
 	tests := []struct {
-		name          string
-		params        *types.QueryParameters
-		initialValues map[types.Placeholder]types.GoValue
-		values        []*primitive.Value
-		pv            primitive.ProtocolVersion
-		want          map[types.Placeholder]types.GoValue
-		err           string
+		name   string
+		params *types.QueryParameters
+		values []*primitive.Value
+		pv     primitive.ProtocolVersion
+		want   map[types.Placeholder]types.GoValue
+		err    string
 	}{
 		{
 			name: "success",
 			params: types.NewQueryParameters().
-				BuildParameter(mockdata.GetColumnOrDie("test_keyspace", "test_table", "pk1"), types.TypeVarchar, false).
-				BuildParameter(mockdata.GetColumnOrDie("test_keyspace", "test_table", "pk2"), types.TypeVarchar, false),
-			initialValues: make(map[types.Placeholder]types.GoValue),
+				BuildParameter(types.TypeVarchar).
+				BuildParameter(types.TypeVarchar),
 			values: []*primitive.Value{
 				mockdata.EncodePrimitiveValueOrDie("abc", types.TypeText, primitive.ProtocolVersion4),
 				mockdata.EncodePrimitiveValueOrDie("def", types.TypeText, primitive.ProtocolVersion4),
@@ -120,9 +117,8 @@ func Test_bindValues(t *testing.T) {
 		{
 			name: "too many input values",
 			params: types.NewQueryParameters().
-				BuildParameter(mockdata.GetColumnOrDie("test_keyspace", "test_table", "pk1"), types.TypeVarchar, false).
-				BuildParameter(mockdata.GetColumnOrDie("test_keyspace", "test_table", "pk2"), types.TypeVarchar, false),
-			initialValues: make(map[types.Placeholder]types.GoValue),
+				BuildParameter(types.TypeVarchar).
+				BuildParameter(types.TypeVarchar),
 			values: []*primitive.Value{
 				mockdata.EncodePrimitiveValueOrDie("abc", types.TypeText, primitive.ProtocolVersion4),
 				mockdata.EncodePrimitiveValueOrDie("def", types.TypeText, primitive.ProtocolVersion4),
@@ -135,9 +131,8 @@ func Test_bindValues(t *testing.T) {
 		{
 			name: "too few input values",
 			params: types.NewQueryParameters().
-				BuildParameter(mockdata.GetColumnOrDie("test_keyspace", "test_table", "pk1"), types.TypeVarchar, false).
-				BuildParameter(mockdata.GetColumnOrDie("test_keyspace", "test_table", "pk2"), types.TypeVarchar, false),
-			initialValues: make(map[types.Placeholder]types.GoValue),
+				BuildParameter(types.TypeVarchar).
+				BuildParameter(types.TypeVarchar),
 			values: []*primitive.Value{
 				mockdata.EncodePrimitiveValueOrDie("abc", types.TypeText, primitive.ProtocolVersion4),
 			},
@@ -147,8 +142,7 @@ func Test_bindValues(t *testing.T) {
 		{
 			name: "wrong input type",
 			params: types.NewQueryParameters().
-				BuildParameter(mockdata.GetColumnOrDie("test_keyspace", "user_info", "age"), types.NewListType(types.TypeBigInt), false),
-			initialValues: make(map[types.Placeholder]types.GoValue),
+				BuildParameter(types.NewListType(types.TypeBigInt)),
 			values: []*primitive.Value{
 				mockdata.EncodePrimitiveValueOrDie("abcdefgh", types.TypeText, primitive.ProtocolVersion4),
 			},
@@ -158,7 +152,7 @@ func Test_bindValues(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			values, err := BindQueryParams(tt.params, tt.initialValues, tt.values, tt.pv)
+			values, err := BindQueryParams(tt.params, tt.values, tt.pv)
 			if tt.err != "" {
 				require.Error(t, err)
 				assert.Contains(t, err.Error(), tt.err)
@@ -172,55 +166,67 @@ func Test_bindValues(t *testing.T) {
 
 func Test_validateRequiredPrimaryKeys(t *testing.T) {
 	tests := []struct {
-		name  string
-		table *schemaMapping.TableSchema
-		keys  *types.QueryParameters
-		err   string
+		name        string
+		table       *schemaMapping.TableSchema
+		assignments []types.Assignment
+		err         string
 	}{
 		{
 			name:  "success",
 			table: mockdata.GetTableOrDie("test_keyspace", "test_table"),
-			keys: types.NewQueryParameters().
-				BuildParameter(mockdata.GetColumnOrDie("test_keyspace", "test_table", "pk1"), types.TypeVarchar, false).
-				BuildParameter(mockdata.GetColumnOrDie("test_keyspace", "test_table", "pk2"), types.TypeVarchar, false),
+			assignments: []types.Assignment{
+				types.NewComplexAssignmentSet(mockdata.GetColumnOrDie("test_keyspace", "test_table", "pk1"), types.NewParameterizedValue("@value1")),
+				types.NewComplexAssignmentSet(mockdata.GetColumnOrDie("test_keyspace", "test_table", "pk2"), types.NewParameterizedValue("@value2")),
+			},
 			err: "",
 		},
 		{
 			name:  "missing pk2",
 			table: mockdata.GetTableOrDie("test_keyspace", "test_table"),
-			keys: types.NewQueryParameters().
-				BuildParameter(mockdata.GetColumnOrDie("test_keyspace", "test_table", "pk1"), types.TypeVarchar, false),
-			err: "todo",
+			assignments: []types.Assignment{
+				types.NewComplexAssignmentSet(mockdata.GetColumnOrDie("test_keyspace", "test_table", "pk1"), types.NewParameterizedValue("@value1")),
+			},
+			err: "missing primary key: 'pk2'",
 		},
 		{
 			name:  "extra columns ok",
 			table: mockdata.GetTableOrDie("test_keyspace", "test_table"),
-			keys: types.NewQueryParameters().
-				BuildParameter(mockdata.GetColumnOrDie("test_keyspace", "test_table", "pk1"), types.TypeVarchar, false).
-				BuildParameter(mockdata.GetColumnOrDie("test_keyspace", "test_table", "col_text"), types.TypeVarchar, false).
-				BuildParameter(mockdata.GetColumnOrDie("test_keyspace", "test_table", "pk2"), types.TypeVarchar, false),
+			assignments: []types.Assignment{
+				types.NewComplexAssignmentSet(mockdata.GetColumnOrDie("test_keyspace", "test_table", "pk1"), types.NewParameterizedValue("@value1")),
+				types.NewComplexAssignmentSet(mockdata.GetColumnOrDie("test_keyspace", "test_table", "pk2"), types.NewParameterizedValue("@value2")),
+				types.NewComplexAssignmentSet(mockdata.GetColumnOrDie("test_keyspace", "test_table", "col_blob"), types.NewParameterizedValue("@value3")),
+			},
 			err: "",
 		},
 		{
-			name:  "mixed types",
-			table: mockdata.GetTableOrDie("test_keyspace", "user_info"),
-			keys: types.NewQueryParameters().
-				BuildParameter(mockdata.GetColumnOrDie("test_keyspace", "user_info", "name"), types.TypeVarchar, false).
-				BuildParameter(mockdata.GetColumnOrDie("test_keyspace", "user_info", "age"), types.TypeBigInt, false).
-				BuildParameter(mockdata.GetColumnOrDie("test_keyspace", "user_info", "username"), types.TypeVarchar, false),
-			err: "",
-		},
-
-		{
-			name:  "no params",
+			name:  "out of order ok",
 			table: mockdata.GetTableOrDie("test_keyspace", "test_table"),
-			keys:  types.NewQueryParameters(),
-			err:   "todo",
+			assignments: []types.Assignment{
+				types.NewComplexAssignmentSet(mockdata.GetColumnOrDie("test_keyspace", "test_table", "col_blob"), types.NewParameterizedValue("@value0")),
+				types.NewComplexAssignmentSet(mockdata.GetColumnOrDie("test_keyspace", "test_table", "pk2"), types.NewParameterizedValue("@value1")),
+				types.NewComplexAssignmentSet(mockdata.GetColumnOrDie("test_keyspace", "test_table", "pk1"), types.NewParameterizedValue("@value2")),
+			},
+			err: "",
+		},
+		{
+			name:  "mixed types ok",
+			table: mockdata.GetTableOrDie("test_keyspace", "user_info"),
+			assignments: []types.Assignment{
+				types.NewComplexAssignmentSet(mockdata.GetColumnOrDie("test_keyspace", "user_info", "age"), types.NewParameterizedValue("@value1")),
+				types.NewComplexAssignmentSet(mockdata.GetColumnOrDie("test_keyspace", "user_info", "name"), types.NewParameterizedValue("@value2")),
+			},
+			err: "",
+		},
+		{
+			name:        "no params",
+			table:       mockdata.GetTableOrDie("test_keyspace", "test_table"),
+			assignments: []types.Assignment{},
+			err:         "missing primary key: 'pk1'",
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := ValidateRequiredPrimaryKeys(tt.table, tt.keys)
+			err := ValidateRequiredPrimaryKeys(tt.table, tt.assignments)
 			if tt.err != "" {
 				require.Error(t, err)
 				assert.Contains(t, err.Error(), tt.err)
@@ -235,117 +241,119 @@ func TestCreateOrderedCodeKey(t *testing.T) {
 	tests := []struct {
 		name        string
 		tableConfig *schemaMapping.TableSchema
-		values      map[types.Placeholder]types.GoValue
-		want        []byte
-		wantErr     bool
+		values      []*types.TypedGoValue
+		rowKey      []types.DynamicValue
+		want        types.RowKey
+		wantErr     string
 	}{
 		{
 			name: "simple string",
 			tableConfig: schemaMapping.NewTableConfig("keyspace", "table", "cf1", types.OrderedCodeEncoding, []*types.Column{
 				{Name: "user_id", CQLType: types.TypeVarchar, KeyType: types.KeyTypePartition, PkPrecedence: 1},
 			}),
-			values:  map[types.Placeholder]types.GoValue{"user_id": "user1"},
-			want:    []byte("user1"),
-			wantErr: false,
+			values: []*types.TypedGoValue{types.NewTypedGoValue("user1", types.TypeVarchar)},
+			rowKey: []types.DynamicValue{types.NewParameterizedValue("@value0")},
+			want:   "user1",
 		},
 		{
 			name: "int nonzero",
 			tableConfig: schemaMapping.NewTableConfig("keyspace", "table", "cf1", types.OrderedCodeEncoding, []*types.Column{
 				{Name: "user_id", CQLType: types.TypeBigInt, KeyType: types.KeyTypePartition, PkPrecedence: 1},
 			}),
-			values:  map[types.Placeholder]types.GoValue{"user_id": int64(1)},
-			want:    []byte("\x81"),
-			wantErr: false,
+			values: []*types.TypedGoValue{types.NewTypedGoValue(int64(1), types.TypeBigInt)},
+			rowKey: []types.DynamicValue{types.NewParameterizedValue("@value0")},
+			want:   "\x81",
 		},
 		{
 			name: "int32 nonzero",
 			tableConfig: schemaMapping.NewTableConfig("keyspace", "table", "cf1", types.OrderedCodeEncoding, []*types.Column{
 				{Name: "user_id", CQLType: types.TypeInt, KeyType: types.KeyTypePartition, PkPrecedence: 1},
 			}),
-			values:  map[types.Placeholder]types.GoValue{"user_id": int32(1)},
-			want:    []byte("\x81"),
-			wantErr: false,
+			values: []*types.TypedGoValue{types.NewTypedGoValue(int32(1), types.TypeInt)},
+			rowKey: []types.DynamicValue{types.NewParameterizedValue("@value0")},
+			want:   "\x81",
 		},
 		{
 			name: "int32 nonzero big endian",
 			tableConfig: schemaMapping.NewTableConfig("keyspace", "table", "cf1", types.BigEndianEncoding, []*types.Column{
 				{Name: "user_id", CQLType: types.TypeInt, KeyType: types.KeyTypePartition, PkPrecedence: 1},
 			}),
-			values:  map[types.Placeholder]types.GoValue{"user_id": int32(1)},
-			want:    []byte("\x00\xff\x00\xff\x00\xff\x00\xff\x00\xff\x00\xff\x00\xff\x01"),
-			wantErr: false,
+			values: []*types.TypedGoValue{types.NewTypedGoValue(int32(1), types.TypeInt)},
+			rowKey: []types.DynamicValue{types.NewParameterizedValue("@value0")},
+			want:   "\x00\xff\x00\xff\x00\xff\x00\xff\x00\xff\x00\xff\x00\xff\x01",
 		},
 		{
 			name: "int32 max",
 			tableConfig: schemaMapping.NewTableConfig("keyspace", "table", "cf1", types.BigEndianEncoding, []*types.Column{
 				{Name: "user_id", CQLType: types.TypeInt, KeyType: types.KeyTypePartition, PkPrecedence: 1},
 			}),
-			values:  map[types.Placeholder]types.GoValue{"user_id": int32(2147483647)},
-			want:    []byte("\x00\xff\x00\xff\x00\xff\x00\xff\x7f\xff\xff\xff"),
-			wantErr: false,
+			values: []*types.TypedGoValue{types.NewTypedGoValue(int64(2147483647), types.TypeBigInt)},
+			rowKey: []types.DynamicValue{types.NewParameterizedValue("@value0")},
+			want:   "\x00\xff\x00\xff\x00\xff\x00\xff\x7f\xff\xff\xff",
 		},
 		{
 			name: "int64 max",
 			tableConfig: schemaMapping.NewTableConfig("keyspace", "table", "cf1", types.BigEndianEncoding, []*types.Column{
 				{Name: "user_id", CQLType: types.TypeBigInt, KeyType: types.KeyTypePartition, PkPrecedence: 1},
 			}),
-			values:  map[types.Placeholder]types.GoValue{"user_id": int64(9223372036854775807)},
-			want:    []byte("\x7f\xff\xff\xff\xff\xff\xff\xff"),
-			wantErr: false,
+			values: []*types.TypedGoValue{types.NewTypedGoValue(int64(9223372036854775807), types.TypeBigInt)},
+			rowKey: []types.DynamicValue{types.NewParameterizedValue("@value0")},
+			want:   "\x7f\xff\xff\xff\xff\xff\xff\xff",
 		},
 		{
 			name: "negative int",
 			tableConfig: schemaMapping.NewTableConfig("keyspace", "table", "cf1", types.OrderedCodeEncoding, []*types.Column{
 				{Name: "user_id", CQLType: types.TypeBigInt, KeyType: types.KeyTypePartition, PkPrecedence: 1},
 			}),
-			values:  map[types.Placeholder]types.GoValue{"user_id": int64(-1)},
-			want:    []byte("\x7f"),
-			wantErr: false,
+			values: []*types.TypedGoValue{types.NewTypedGoValue(int64(-1), types.TypeBigInt)},
+			rowKey: []types.DynamicValue{types.NewParameterizedValue("@value0")},
+			want:   "\x7f",
 		},
 		{
 			name: "negative int big endian fails",
 			tableConfig: schemaMapping.NewTableConfig("keyspace", "table", "cf1", types.BigEndianEncoding, []*types.Column{
 				{Name: "user_id", CQLType: types.TypeBigInt, KeyType: types.KeyTypePartition, PkPrecedence: 1},
 			}),
-			values:  map[types.Placeholder]types.GoValue{"user_id": int64(-1)},
-			want:    nil,
-			wantErr: true,
+			values:  []*types.TypedGoValue{types.NewTypedGoValue(int64(-1), types.TypeBigInt)},
+			rowKey:  []types.DynamicValue{types.NewParameterizedValue("@value0")},
+			want:    "",
+			wantErr: "row keys with big endian encoding cannot contain negative integer values",
 		},
 		{
 			name: "int zero",
 			tableConfig: schemaMapping.NewTableConfig("keyspace", "table", "cf1", types.OrderedCodeEncoding, []*types.Column{
 				{Name: "user_id", CQLType: types.TypeBigInt, KeyType: types.KeyTypePartition, PkPrecedence: 1},
 			}),
-			values:  map[types.Placeholder]types.GoValue{"user_id": int64(0)},
-			want:    []byte("\x80"),
-			wantErr: false,
+			values: []*types.TypedGoValue{types.NewTypedGoValue(int64(0), types.TypeBigInt)},
+			rowKey: []types.DynamicValue{types.NewParameterizedValue("@value0")},
+			want:   "\x80",
 		},
 		{
 			name: "int64 minvalue",
 			tableConfig: schemaMapping.NewTableConfig("keyspace", "table", "cf1", types.OrderedCodeEncoding, []*types.Column{
 				{Name: "user_id", CQLType: types.TypeBigInt, KeyType: types.KeyTypePartition, PkPrecedence: 1},
 			}),
-			values:  map[types.Placeholder]types.GoValue{"user_id": int64(math.MinInt64)},
-			want:    []byte("\x00\xff\x3f\x80\x00\xff\x00\xff\x00\xff\x00\xff\x00\xff\x00\xff\x00\xff"),
-			wantErr: false,
+			values: []*types.TypedGoValue{types.NewTypedGoValue(int64(math.MinInt64), types.TypeBigInt)},
+			rowKey: []types.DynamicValue{types.NewParameterizedValue("@value0")},
+			want:   "\x00\xff\x3f\x80\x00\xff\x00\xff\x00\xff\x00\xff\x00\xff\x00\xff\x00\xff",
 		},
 		{
 			name: "int64 negative value with leading null byte",
 			tableConfig: schemaMapping.NewTableConfig("keyspace", "table", "cf1", types.OrderedCodeEncoding, []*types.Column{
 				{Name: "user_id", CQLType: types.TypeBigInt, KeyType: types.KeyTypePartition, PkPrecedence: 1},
 			}),
-			values:  map[types.Placeholder]types.GoValue{"user_id": int64(-922337203685473)},
-			want:    []byte("\x00\xff\xfc\xb9\x23\xa2\x9c\x77\x9f"),
-			wantErr: false,
+			values: []*types.TypedGoValue{types.NewTypedGoValue(int64(-922337203685473), types.TypeBigInt)},
+			rowKey: []types.DynamicValue{types.NewParameterizedValue("@value0")},
+			want:   "\x00\xff\xfc\xb9\x23\xa2\x9c\x77\x9f",
 		},
 		{
 			name: "int32 minvalue",
 			tableConfig: schemaMapping.NewTableConfig("keyspace", "table", "cf1", types.OrderedCodeEncoding, []*types.Column{
 				{Name: "user_id", CQLType: types.TypeInt, KeyType: types.KeyTypePartition, PkPrecedence: 1},
 			}),
-			values:  map[types.Placeholder]types.GoValue{"user_id": int64(math.MinInt32)},
-			want:    []byte("\x07\x80\x00\xff\x00\xff\x00\xff"),
-			wantErr: false,
+			values: []*types.TypedGoValue{types.NewTypedGoValue(int64(math.MinInt32), types.TypeInt)},
+			rowKey: []types.DynamicValue{types.NewParameterizedValue("@value0")},
+			want:   "\x07\x80\x00\xff\x00\xff\x00\xff",
 		},
 		{
 			name: "int minvalue combined",
@@ -354,9 +362,17 @@ func TestCreateOrderedCodeKey(t *testing.T) {
 				{Name: "other_id", CQLType: types.TypeInt, KeyType: types.KeyTypePartition, PkPrecedence: 2},
 				{Name: "yet_another_id", CQLType: types.TypeVarchar, KeyType: types.KeyTypePartition, PkPrecedence: 3},
 			}),
-			values:  map[types.Placeholder]types.GoValue{"user_id": int64(math.MinInt64), "other_id": int64(math.MinInt32), "yet_another_id": "id123"},
-			want:    []byte("\x00\xff\x3f\x80\x00\xff\x00\xff\x00\xff\x00\xff\x00\xff\x00\xff\x00\xff\x00\x01\x07\x80\x00\xff\x00\xff\x00\xff\x00\x01\x69\x64\x31\x32\x33"),
-			wantErr: false,
+			values: []*types.TypedGoValue{
+				types.NewTypedGoValue(int64(math.MinInt64), types.TypeInt),
+				types.NewTypedGoValue(int64(math.MinInt32), types.TypeInt),
+				types.NewTypedGoValue("id123", types.TypeVarchar),
+			},
+			rowKey: []types.DynamicValue{
+				types.NewParameterizedValue("@value0"),
+				types.NewParameterizedValue("@value1"),
+				types.NewParameterizedValue("@value2"),
+			},
+			want: "\x00\xff\x3f\x80\x00\xff\x00\xff\x00\xff\x00\xff\x00\xff\x00\xff\x00\xff\x00\x01\x07\x80\x00\xff\x00\xff\x00\xff\x00\x01\x69\x64\x31\x32\x33",
 		},
 		{
 			name: "int mixed",
@@ -364,18 +380,21 @@ func TestCreateOrderedCodeKey(t *testing.T) {
 				{Name: "user_id", CQLType: types.TypeBigInt, KeyType: types.KeyTypePartition, PkPrecedence: 1},
 				{Name: "other_id", CQLType: types.TypeInt, KeyType: types.KeyTypePartition, PkPrecedence: 2},
 			}),
-			values:  map[types.Placeholder]types.GoValue{"user_id": int64(-43232545), "other_id": int64(-12451)},
-			want:    []byte("\x0d\x6c\x52\xdf\x00\x01\x1f\xcf\x5d"),
-			wantErr: false,
+			rowKey: []types.DynamicValue{
+				types.NewLiteralValue(int64(-43232545)),
+				types.NewLiteralValue(int64(-12451)),
+			},
+			want: "\x0d\x6c\x52\xdf\x00\x01\x1f\xcf\x5d",
 		},
 		{
 			name: "int zero big endian",
 			tableConfig: schemaMapping.NewTableConfig("keyspace", "table", "cf1", types.BigEndianEncoding, []*types.Column{
 				{Name: "user_id", CQLType: types.TypeBigInt, KeyType: types.KeyTypePartition, PkPrecedence: 1},
 			}),
-			values:  map[types.Placeholder]types.GoValue{"user_id": int64(0)},
-			want:    []byte("\x00\xff\x00\xff\x00\xff\x00\xff\x00\xff\x00\xff\x00\xff\x00\xff"),
-			wantErr: false,
+			rowKey: []types.DynamicValue{
+				types.NewLiteralValue(int64(0)),
+			},
+			want: "\x00\xff\x00\xff\x00\xff\x00\xff\x00\xff\x00\xff\x00\xff\x00\xff",
 		},
 		{
 			name: "compound key",
@@ -384,13 +403,17 @@ func TestCreateOrderedCodeKey(t *testing.T) {
 				{Name: "team_num", CQLType: types.TypeBigInt, KeyType: types.KeyTypeClustering, PkPrecedence: 2},
 				{Name: "city", CQLType: types.TypeVarchar, KeyType: types.KeyTypeClustering, PkPrecedence: 3},
 			}),
-			values: map[types.Placeholder]types.GoValue{
-				"user_id":  "user1",
-				"team_num": int64(1),
-				"city":     "new york",
+			values: []*types.TypedGoValue{
+				types.NewTypedGoValue("user1", types.TypeVarchar),
+				types.NewTypedGoValue(int64(1), types.TypeBigInt),
+				types.NewTypedGoValue("new york", types.TypeVarchar),
 			},
-			want:    []byte("user1\x00\x01\x81\x00\x01new york"),
-			wantErr: false,
+			rowKey: []types.DynamicValue{
+				types.NewParameterizedValue("@value0"),
+				types.NewParameterizedValue("@value1"),
+				types.NewParameterizedValue("@value2"),
+			},
+			want: "user1\x00\x01\x81\x00\x01new york",
 		},
 		{
 			name: "compound key big endian",
@@ -399,13 +422,12 @@ func TestCreateOrderedCodeKey(t *testing.T) {
 				{Name: "team_num", CQLType: types.TypeBigInt, KeyType: types.KeyTypeClustering, PkPrecedence: 2},
 				{Name: "city", CQLType: types.TypeVarchar, KeyType: types.KeyTypeClustering, PkPrecedence: 3},
 			}),
-			values: map[types.Placeholder]types.GoValue{
-				"user_id":  "user1",
-				"team_num": int64(1),
-				"city":     "new york",
+			rowKey: []types.DynamicValue{
+				types.NewLiteralValue("user1"),
+				types.NewLiteralValue(int64(1)),
+				types.NewLiteralValue("new york"),
 			},
-			want:    []byte("user1\x00\x01\x00\xff\x00\xff\x00\xff\x00\xff\x00\xff\x00\xff\x00\xff\x01\x00\x01new york"),
-			wantErr: false,
+			want: "user1\x00\x01\x00\xff\x00\xff\x00\xff\x00\xff\x00\xff\x00\xff\x00\xff\x01\x00\x01new york",
 		},
 		{
 			name: "unhandled int row key encoding type",
@@ -414,13 +436,13 @@ func TestCreateOrderedCodeKey(t *testing.T) {
 				{Name: "team_num", CQLType: types.TypeBigInt, KeyType: types.KeyTypeClustering, PkPrecedence: 2},
 				{Name: "city", CQLType: types.TypeVarchar, KeyType: types.KeyTypeClustering, PkPrecedence: 3},
 			}),
-			values: map[types.Placeholder]types.GoValue{
-				"user_id":  "user1",
-				"team_num": int64(1),
-				"city":     "new york",
+			rowKey: []types.DynamicValue{
+				types.NewLiteralValue("user1"),
+				types.NewLiteralValue(int64(1)),
+				types.NewLiteralValue("new york"),
 			},
-			want:    nil,
-			wantErr: true,
+			want:    "",
+			wantErr: "unhandled int encoding type",
 		},
 		{
 			name: "compound key with trailing empty",
@@ -430,14 +452,19 @@ func TestCreateOrderedCodeKey(t *testing.T) {
 				{Name: "city", CQLType: types.TypeVarchar, KeyType: types.KeyTypeClustering, PkPrecedence: 3},
 				{Name: "borough", CQLType: types.TypeVarchar, KeyType: types.KeyTypeClustering, PkPrecedence: 4},
 			}),
-			values: map[types.Placeholder]types.GoValue{
-				"user_id":  "user3",
-				"team_num": int64(3),
-				"city":     "",
-				"borough":  "",
+			values: []*types.TypedGoValue{
+				types.NewTypedGoValue("user3", types.TypeVarchar),
+				types.NewTypedGoValue(int64(3), types.TypeBigInt),
+				types.NewTypedGoValue("", types.TypeVarchar),
+				types.NewTypedGoValue("", types.TypeVarchar),
 			},
-			want:    []byte("user3\x00\x01\x83"),
-			wantErr: false,
+			rowKey: []types.DynamicValue{
+				types.NewParameterizedValue("@value0"),
+				types.NewParameterizedValue("@value1"),
+				types.NewParameterizedValue("@value2"),
+				types.NewParameterizedValue("@value3"),
+			},
+			want: "user3\x00\x01\x83",
 		},
 		{
 			name: "compound key with trailing empty big endian",
@@ -447,14 +474,19 @@ func TestCreateOrderedCodeKey(t *testing.T) {
 				{Name: "city", CQLType: types.TypeVarchar, KeyType: types.KeyTypeClustering, PkPrecedence: 3},
 				{Name: "borough", CQLType: types.TypeVarchar, KeyType: types.KeyTypeClustering, PkPrecedence: 4},
 			}),
-			values: map[types.Placeholder]types.GoValue{
-				"user_id":  "user3",
-				"team_num": int64(3),
-				"city":     "",
-				"borough":  "",
+			values: []*types.TypedGoValue{
+				types.NewTypedGoValue("user3", types.TypeVarchar),
+				types.NewTypedGoValue(int64(3), types.TypeBigInt),
+				types.NewTypedGoValue("", types.TypeVarchar),
+				types.NewTypedGoValue("", types.TypeVarchar),
 			},
-			want:    []byte("user3\x00\x01\x00\xff\x00\xff\x00\xff\x00\xff\x00\xff\x00\xff\x00\xff\x03"),
-			wantErr: false,
+			rowKey: []types.DynamicValue{
+				types.NewParameterizedValue("@value0"),
+				types.NewParameterizedValue("@value1"),
+				types.NewParameterizedValue("@value2"),
+				types.NewParameterizedValue("@value3"),
+			},
+			want: "user3\x00\x01\x00\xff\x00\xff\x00\xff\x00\xff\x00\xff\x00\xff\x00\xff\x03",
 		},
 		{
 			name: "compound key with empty middle",
@@ -463,24 +495,27 @@ func TestCreateOrderedCodeKey(t *testing.T) {
 				{Name: "team_id", CQLType: types.TypeBlob, KeyType: types.KeyTypeClustering, PkPrecedence: 2},
 				{Name: "city", CQLType: types.TypeBlob, KeyType: types.KeyTypeClustering, PkPrecedence: 3},
 			}),
-			values: map[types.Placeholder]types.GoValue{
-				"user_id": "\xa2",
-				"team_id": "",
-				"city":    "\xb7",
+			values: []*types.TypedGoValue{
+				types.NewTypedGoValue("\xa2", types.TypeBlob),
+				types.NewTypedGoValue("", types.TypeBlob),
+				types.NewTypedGoValue("\xb7", types.TypeBlob),
 			},
-			want:    []byte("\xa2\x00\x01\x00\x00\x00\x01\xb7"),
-			wantErr: false,
+			rowKey: []types.DynamicValue{
+				types.NewParameterizedValue("@value0"),
+				types.NewParameterizedValue("@value1"),
+				types.NewParameterizedValue("@value2"),
+			},
+			want: "\xa2\x00\x01\x00\x00\x00\x01\xb7",
 		},
 		{
 			name: "bytes with delimiter",
 			tableConfig: schemaMapping.NewTableConfig("keyspace", "table", "cf1", types.OrderedCodeEncoding, []*types.Column{
 				{Name: "user_id", CQLType: types.TypeBlob, KeyType: types.KeyTypePartition, PkPrecedence: 1},
 			}),
-			values: map[types.Placeholder]types.GoValue{
-				"user_id": "\x80\x00\x01\x81",
+			rowKey: []types.DynamicValue{
+				types.NewLiteralValue("\x80\x00\x01\x81"),
 			},
-			want:    []byte("\x80\x00\xff\x01\x81"),
-			wantErr: false,
+			want: "\x80\x00\xff\x01\x81",
 		},
 		{
 			name: "compound key with 2 empty middle fields",
@@ -490,14 +525,13 @@ func TestCreateOrderedCodeKey(t *testing.T) {
 				{Name: "city", CQLType: types.TypeBlob, KeyType: types.KeyTypeClustering, PkPrecedence: 3},
 				{Name: "borough", CQLType: types.TypeBlob, KeyType: types.KeyTypeClustering, PkPrecedence: 4},
 			}),
-			values: map[types.Placeholder]types.GoValue{
-				"user_id":  "\xa2",
-				"team_num": "",
-				"city":     "",
-				"borough":  "\xb7",
+			rowKey: []types.DynamicValue{
+				types.NewLiteralValue("\xa2"),
+				types.NewLiteralValue(""),
+				types.NewLiteralValue(""),
+				types.NewLiteralValue("\xb7"),
 			},
-			want:    []byte("\xa2\x00\x01\x00\x00\x00\x01\x00\x00\x00\x01\xb7"),
-			wantErr: false,
+			want: "\xa2\x00\x01\x00\x00\x00\x01\x00\x00\x00\x01\xb7",
 		},
 		{
 			name: "byte strings",
@@ -505,12 +539,11 @@ func TestCreateOrderedCodeKey(t *testing.T) {
 				{Name: "user_id", CQLType: types.TypeBlob, KeyType: types.KeyTypePartition, PkPrecedence: 1},
 				{Name: "city", CQLType: types.TypeBlob, KeyType: types.KeyTypeClustering, PkPrecedence: 2},
 			}),
-			values: map[types.Placeholder]types.GoValue{
-				"user_id": "\xa5",
-				"city":    "\x90",
+			rowKey: []types.DynamicValue{
+				types.NewLiteralValue("\xa5"),
+				types.NewLiteralValue("\x90"),
 			},
-			want:    []byte("\xa5\x00\x01\x90"),
-			wantErr: false,
+			want: "\xa5\x00\x01\x90",
 		},
 		{
 			name: "empty first value",
@@ -518,12 +551,11 @@ func TestCreateOrderedCodeKey(t *testing.T) {
 				{Name: "user_id", CQLType: types.TypeVarchar, KeyType: types.KeyTypePartition, PkPrecedence: 1},
 				{Name: "city", CQLType: types.TypeBlob, KeyType: types.KeyTypeClustering, PkPrecedence: 2},
 			}),
-			values: map[types.Placeholder]types.GoValue{
-				"user_id": "",
-				"city":    "\xaa",
+			rowKey: []types.DynamicValue{
+				types.NewLiteralValue(""),
+				types.NewLiteralValue("\xaa"),
 			},
-			want:    []byte("\x00\x00\x00\x01\xaa"),
-			wantErr: false,
+			want: "\x00\x00\x00\x01\xaa",
 		},
 		{
 			name: "null escaped",
@@ -532,13 +564,12 @@ func TestCreateOrderedCodeKey(t *testing.T) {
 				{Name: "city", CQLType: types.TypeVarchar, KeyType: types.KeyTypeClustering, PkPrecedence: 2},
 				{Name: "borough", CQLType: types.TypeVarchar, KeyType: types.KeyTypeClustering, PkPrecedence: 3},
 			}),
-			values: map[types.Placeholder]types.GoValue{
-				"user_id": "nn",
-				"city":    "t\x00t",
-				"borough": "end",
+			rowKey: []types.DynamicValue{
+				types.NewLiteralValue("nn"),
+				types.NewLiteralValue("t\x00t"),
+				types.NewLiteralValue("end"),
 			},
-			want:    []byte("nn\x00\x01t\x00\xfft\x00\x01end"),
-			wantErr: false,
+			want: "nn\x00\x01t\x00\xfft\x00\x01end",
 		},
 		{
 			name: "null escaped (big endian)",
@@ -547,43 +578,55 @@ func TestCreateOrderedCodeKey(t *testing.T) {
 				{Name: "team_num", CQLType: types.TypeBigInt, KeyType: types.KeyTypeClustering, PkPrecedence: 2},
 				{Name: "city", CQLType: types.TypeVarchar, KeyType: types.KeyTypeClustering, PkPrecedence: 3},
 			}),
-			values: map[types.Placeholder]types.GoValue{
-				"user_id":  "abcd",
-				"team_num": int64(45),
-				"city":     "name",
+			rowKey: []types.DynamicValue{
+				types.NewLiteralValue("abcd"),
+				types.NewLiteralValue(int64(45)),
+				types.NewLiteralValue("name"),
 			},
-			want:    []byte("abcd\x00\x01\x00\xff\x00\xff\x00\xff\x00\xff\x00\xff\x00\xff\x00\xff\x2d\x00\x01name"),
-			wantErr: false,
-		},
-		{
-			name: "invalid utf8 varchar returns error",
-			tableConfig: schemaMapping.NewTableConfig("keyspace", "table", "cf1", types.OrderedCodeEncoding, []*types.Column{
-				{Name: "user_id", CQLType: types.TypeVarchar, KeyType: types.KeyTypePartition, PkPrecedence: 1},
-			}),
-			values: map[types.Placeholder]types.GoValue{
-				"user_id": string([]uint8{182}),
-			},
-			want:    nil,
-			wantErr: true,
+			want: "abcd\x00\x01\x00\xff\x00\xff\x00\xff\x00\xff\x00\xff\x00\xff\x00\xff\x2d\x00\x01name",
 		},
 		{
 			name: "null char",
 			tableConfig: schemaMapping.NewTableConfig("keyspace", "table", "cf1", types.OrderedCodeEncoding, []*types.Column{
 				{Name: "user_id", CQLType: types.TypeVarchar, KeyType: types.KeyTypePartition, PkPrecedence: 1},
 			}),
-			values: map[types.Placeholder]types.GoValue{
-				"user_id": "\x00\x01",
+			rowKey: []types.DynamicValue{
+				types.NewLiteralValue("\x00\x01"),
 			},
-			want:    []byte("\x00\xff\x01"),
-			wantErr: false,
+			want: "\x00\xff\x01",
+		},
+		{
+			name: "missing parameter",
+			tableConfig: schemaMapping.NewTableConfig("keyspace", "table", "cf1", types.OrderedCodeEncoding, []*types.Column{
+				{Name: "user_id", CQLType: types.TypeVarchar, KeyType: types.KeyTypePartition, PkPrecedence: 1},
+			}),
+			values: []*types.TypedGoValue{},
+			rowKey: []types.DynamicValue{
+				types.NewParameterizedValue("@value1"),
+			},
+			want:    "",
+			wantErr: "no query param for @value1",
+		},
+		{
+			name: "null value",
+			tableConfig: schemaMapping.NewTableConfig("keyspace", "table", "cf1", types.OrderedCodeEncoding, []*types.Column{
+				{Name: "user_id", CQLType: types.TypeVarchar, KeyType: types.KeyTypePartition, PkPrecedence: 1},
+			}),
+			rowKey: []types.DynamicValue{
+				types.NewLiteralValue(nil),
+			},
+			want:    "",
+			wantErr: "value cannot be null for primary key 'user_id'",
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			values := mockdata.CreateQueryParameterValuesFromMap2(tt.tableConfig, tt.values)
-			got, err := BindRowKey(tt.tableConfig, values)
-			if tt.wantErr {
+			values, err := mockdata.CreateQueryParams(tt.values)
+			require.NoError(t, err)
+			got, err := BindRowKey(tt.tableConfig, tt.rowKey, values)
+			if tt.wantErr != "" {
 				require.Error(t, err)
+				assert.Contains(t, err.Error(), tt.wantErr)
 				return
 			}
 			require.NoError(t, err)
@@ -593,209 +636,108 @@ func TestCreateOrderedCodeKey(t *testing.T) {
 }
 
 func TestEncodeBool(t *testing.T) {
+	trueValue := true
+	falseValue := false
 	tests := []struct {
-		name string
-		args struct {
-			value interface{}
-			pv    primitive.ProtocolVersion
-		}
-		want    []byte
-		wantErr bool
+		name    string
+		value   interface{}
+		want    types.BigtableValue
+		wantErr string
 	}{
 		{
-			name: "Valid string 'true'",
-			args: struct {
-				value interface{}
-				pv    primitive.ProtocolVersion
-			}{
-				value: "true",
-				pv:    primitive.ProtocolVersion4,
-			},
-			want:    []byte{0, 0, 0, 0, 0, 0, 0, 1},
-			wantErr: false,
+			name:  "true",
+			value: true,
+			want:  []byte{0, 0, 0, 0, 0, 0, 0, 1},
 		},
 		{
-			name: "Valid string 'false'",
-			args: struct {
-				value interface{}
-				pv    primitive.ProtocolVersion
-			}{
-				value: "false",
-				pv:    primitive.ProtocolVersion4,
-			},
-			want:    []byte{0, 0, 0, 0, 0, 0, 0, 0},
-			wantErr: false,
+			name:  "false",
+			value: false,
+			want:  []byte{0, 0, 0, 0, 0, 0, 0, 0},
 		},
 		{
-			name: "String parsing error",
-			args: struct {
-				value interface{}
-				pv    primitive.ProtocolVersion
-			}{
-				value: "notabool",
-				pv:    primitive.ProtocolVersion4,
-			},
+			name:  "true pointer",
+			value: &trueValue,
+			want:  []byte{0, 0, 0, 0, 0, 0, 0, 1},
+		},
+		{
+			name:  "false pointer",
+			value: &falseValue,
+			want:  []byte{0, 0, 0, 0, 0, 0, 0, 0},
+		},
+		{
+			name:    "strings not supported",
+			value:   "true",
 			want:    nil,
-			wantErr: true,
+			wantErr: "unsupported type: string",
 		},
 		{
-			name: "Valid bool true",
-			args: struct {
-				value interface{}
-				pv    primitive.ProtocolVersion
-			}{
-				value: true,
-				pv:    primitive.ProtocolVersion4,
-			},
-			want:    []byte{0, 0, 0, 0, 0, 0, 0, 1},
-			wantErr: false,
-		},
-		{
-			name: "Valid bool false",
-			args: struct {
-				value interface{}
-				pv    primitive.ProtocolVersion
-			}{
-				value: false,
-				pv:    primitive.ProtocolVersion4,
-			},
-			want:    []byte{0, 0, 0, 0, 0, 0, 0, 0},
-			wantErr: false,
-		},
-		{
-			name: "Valid []byte input for true",
-			args: struct {
-				value interface{}
-				pv    primitive.ProtocolVersion
-			}{
-				value: []byte{1},
-				pv:    primitive.ProtocolVersion4,
-			},
-			want:    []byte{0, 0, 0, 0, 0, 0, 0, 1},
-			wantErr: false,
-		},
-		{
-			name: "Valid []byte input for false",
-			args: struct {
-				value interface{}
-				pv    primitive.ProtocolVersion
-			}{
-				value: []byte{0},
-				pv:    primitive.ProtocolVersion4,
-			},
-			want:    []byte{0, 0, 0, 0, 0, 0, 0, 0},
-			wantErr: false,
-		},
-		{
-			name: "Unsupported type",
-			args: struct {
-				value interface{}
-				pv    primitive.ProtocolVersion
-			}{
-				value: 123,
-				pv:    primitive.ProtocolVersion4,
-			},
+			name:    "Unsupported type",
+			value:   1,
 			want:    nil,
-			wantErr: true,
+			wantErr: "unsupported type: int",
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := encodeBoolForBigtable(tt.args.value)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("encodeBoolForBigtable() error = %v, wantErr %v", err, tt.wantErr)
+			got, err := encodeBoolForBigtable(tt.value)
+			if tt.wantErr != "" {
+				require.Error(t, err)
+				assert.Contains(t, err.Error(), tt.wantErr)
 				return
 			}
-			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("encodeBoolForBigtable() = %v, wantNewColumns %v", got, tt.want)
-			}
+			require.NoError(t, err)
+			assert.Equal(t, tt.want, got)
 		})
 	}
 }
 
 func TestEncodeInt(t *testing.T) {
 	tests := []struct {
-		name string
-		args struct {
-			value interface{}
-			pv    primitive.ProtocolVersion
-		}
+		name    string
+		value   interface{}
 		want    []byte
-		wantErr bool
+		wantErr string
 	}{
 		{
-			name: "Valid string input",
-			args: struct {
-				value interface{}
-				pv    primitive.ProtocolVersion
-			}{
-				value: "12",
-				pv:    primitive.ProtocolVersion4,
-			},
-			want:    []byte{0, 0, 0, 0, 0, 0, 0, 12}, // Replace with the bytes you expect
-			wantErr: false,
+			name:  "Valid string input",
+			value: int64(12),
+			want:  []byte{0, 0, 0, 0, 0, 0, 0, 12},
 		},
 		{
-			name: "String parsing error",
-			args: struct {
-				value interface{}
-				pv    primitive.ProtocolVersion
-			}{
-				value: "abc",
-				pv:    primitive.ProtocolVersion4,
-			},
+			name:    "String parsing error",
+			value:   "12",
 			want:    nil,
-			wantErr: true,
+			wantErr: "unsupported type for bigint: string",
 		},
 		{
-			name: "Valid int32 input",
-			args: struct {
-				value interface{}
-				pv    primitive.ProtocolVersion
-			}{
-				value: int32(12),
-				pv:    primitive.ProtocolVersion4,
-			},
-			want:    []byte{0, 0, 0, 0, 0, 0, 0, 12}, // Replace with the bytes you expect
-			wantErr: false,
+			name:  "Valid int32 input",
+			value: int32(12),
+			want:  []byte{0, 0, 0, 0, 0, 0, 0, 12},
 		},
 		{
-			name: "Valid []byte input",
-			args: struct {
-				value interface{}
-				pv    primitive.ProtocolVersion
-			}{
-				value: []byte{0, 0, 0, 12}, // Replace with actual bytes representing an int32 value
-				pv:    primitive.ProtocolVersion4,
-			},
-			want:    []byte{0, 0, 0, 0, 0, 0, 0, 12}, // Replace with the bytes you expect
-			wantErr: false,
+			name:    "Valid []byte input",
+			value:   []byte{0, 0, 0, 12},
+			wantErr: "unsupported type for bigint: []uint8",
 		},
 		{
-			name: "Unsupported type",
-			args: struct {
-				value interface{}
-				pv    primitive.ProtocolVersion
-			}{
-				value: 12.34, // Unsupported float64 type.
-				pv:    primitive.ProtocolVersion4,
-			},
+			name:    "Unsupported type",
+			value:   12.34,
 			want:    nil,
-			wantErr: true,
+			wantErr: "unsupported type for bigint: float64",
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := encodeBigIntForBigtable(tt.args.value)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("encodeBigIntForBigtable() error = %v, wantErr %v", err, tt.wantErr)
+			got, err := encodeBigIntForBigtable(tt.value)
+			if tt.wantErr != "" {
+				require.Error(t, err)
+				assert.Contains(t, err.Error(), tt.wantErr)
 				return
 			}
-			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("encodeBigIntForBigtable() = %v, wantNewColumns %v", got, tt.want)
-			}
+			require.NoError(t, err)
+			assert.Equal(t, tt.want, got)
 		})
 	}
 }

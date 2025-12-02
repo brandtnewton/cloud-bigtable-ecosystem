@@ -16,6 +16,10 @@ var kOrderedCodeDelimiter = []byte("\x00\x01")
 // Generates a byte-encoded row key from primary key values with validation.
 // Returns error if key type is invalid or encoding fails.
 func BindRowKey(tableConfig *schemaMapping.TableSchema, rowKeyValues []types.DynamicValue, values *types.QueryParameterValues) (types.RowKey, error) {
+	if len(rowKeyValues) != len(tableConfig.PrimaryKeys) {
+		return "", fmt.Errorf("wrong number of primary keys: want %d got %d", len(tableConfig.PrimaryKeys), len(rowKeyValues))
+	}
+
 	var result []byte
 	var trailingEmptyFields []byte
 	for i, pmk := range tableConfig.PrimaryKeys {
@@ -25,6 +29,10 @@ func BindRowKey(tableConfig *schemaMapping.TableSchema, rowKeyValues []types.Dyn
 		value, err := rowKeyValues[i].GetValue(values)
 		if err != nil {
 			return "", err
+		}
+
+		if value == nil {
+			return "", fmt.Errorf("value cannot be null for primary key '%s'", pmk.Name)
 		}
 
 		var orderEncodedField []byte

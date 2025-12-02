@@ -7,10 +7,10 @@ import (
 	sm "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/metadata"
 	cql "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/third_party/cqlparser"
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/translators/common"
+	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/utilities"
 	"github.com/datastax/go-cassandra-native-protocol/datatype"
 	"github.com/datastax/go-cassandra-native-protocol/message"
 	"github.com/datastax/go-cassandra-native-protocol/primitive"
-	"strconv"
 	"strings"
 )
 
@@ -111,28 +111,11 @@ func parseOrderByFromSelect(input cql.IOrderSpecContext) (types.OrderBy, error) 
 	return response, nil
 }
 
-func parseLimitClause(input cql.ILimitSpecContext, params *types.QueryParameters, values *types.QueryParameterValues) error {
+func parseLimitClause(input cql.ILimitSpecContext, params *types.QueryParameters) (types.DynamicValue, error) {
 	if input == nil {
-		return nil
+		return nil, nil
 	}
-
-	params.AddParameterWithoutColumn(types.LimitPlaceholder, types.TypeInt)
-
-	if input.DecimalLiteral().DECIMAL_LITERAL() != nil {
-		text := input.DecimalLiteral().DECIMAL_LITERAL().GetText()
-		limitValue, err := strconv.Atoi(text)
-		if err != nil {
-			return errors.New("failed to parse limit")
-		} else if limitValue < 0 {
-			return errors.New("limit must be positive")
-		}
-		err = values.SetValue(types.LimitPlaceholder, int32(limitValue))
-		if err != nil {
-			return err
-		}
-	}
-
-	return nil
+	return common.ExtractDecimalLiteral(input.DecimalLiteral(), types.TypeInt, params)
 }
 
 func parseGroupByColumn(input cql.IGroupSpecContext) []string {
@@ -390,11 +373,28 @@ func createBigtableSql(t *SelectTranslator, st *types.PreparedSelectQuery) (stri
 		btQuery = btQuery + " ORDER BY " + strings.Join(orderByClauses, ", ")
 	}
 
-	if st.Params.Has(types.LimitPlaceholder) {
-		btQuery = btQuery + " LIMIT " + string(types.LimitPlaceholder)
+	if st.LimitValue != nil {
+		limitString, err := ToBtql(st.LimitValue)
+		if err != nil {
+			return "", err
+		}
+		btQuery = btQuery + " LIMIT " + limitString
 	}
 	btQuery += ";"
 	return btQuery, nil
+}
+
+func ToBtql(dynamicValue types.DynamicValue) (string, error) {
+	switch v := dynamicValue.(type) {
+	case *types.LiteralValue:
+		return utilities.GoToString(v.Value)
+	case *types.ParameterizedValue:
+		return string(v.Placeholder), nil
+	case *types.TimestampNowValue:
+		return "CURRENT_TIMESTAMP()", nil
+	default:
+		return "", fmt.Errorf("unhandled value type %T", v)
+	}
 }
 
 // createBtqlWhereClause(): takes a slice of Condition structs and returns a string representing the WHERE clause of a bigtable SQL query.
@@ -418,15 +418,40 @@ func createBtqlWhereClause(conditions []types.Condition, tableConfig *sm.TableSc
 
 		var btql string
 		if condition.Operator == types.BETWEEN {
-			btql = fmt.Sprintf("%s BETWEEN %s AND %s", column, condition.Value, condition.Value2)
+			v1, err := ToBtql(condition.Value)
+			if err != nil {
+				return "", err
+			}
+			v2, err := ToBtql(condition.Value2)
+			if err != nil {
+				return "", err
+			}
+
+			btql = fmt.Sprintf("%s BETWEEN %s AND %s", column, v1, v2)
 		} else if condition.Operator == types.IN {
-			btql = fmt.Sprintf("%s IN UNNEST(%s)", column, condition.Value)
+			v, err := ToBtql(condition.Value)
+			if err != nil {
+				return "", err
+			}
+			btql = fmt.Sprintf("%s IN UNNEST(%s)", column, v)
 		} else if condition.Operator == types.MAP_CONTAINS_KEY {
-			btql = fmt.Sprintf("MAP_CONTAINS_KEY(%s, %s)", column, condition.Value)
+			v, err := ToBtql(condition.Value)
+			if err != nil {
+				return "", err
+			}
+			btql = fmt.Sprintf("MAP_CONTAINS_KEY(%s, %s)", column, v)
 		} else if condition.Operator == types.ARRAY_INCLUDES {
-			btql = fmt.Sprintf("ARRAY_INCLUDES(MAP_VALUES(%s), %s)", column, condition.Value)
+			v, err := ToBtql(condition.Value)
+			if err != nil {
+				return "", err
+			}
+			btql = fmt.Sprintf("ARRAY_INCLUDES(MAP_VALUES(%s), %s)", column, v)
 		} else {
-			btql = fmt.Sprintf("%s %s %s", column, condition.Operator, condition.Value)
+			v, err := ToBtql(condition.Value)
+			if err != nil {
+				return "", err
+			}
+			btql = fmt.Sprintf("%s %s %s", column, condition.Operator, v)
 		}
 
 		btqlConditions = append(btqlConditions, btql)

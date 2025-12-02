@@ -66,7 +66,7 @@ func (t *InsertTranslator) Translate(query *types.RawQuery, sessionKeyspace type
 		var val types.DynamicValue
 		for _, value := range values {
 			if value.Column().Name == key.Name {
-				val = value.Value
+				val = value.Value()
 				break
 			}
 		}
@@ -97,7 +97,7 @@ func (t *InsertTranslator) Bind(st types.IPreparedQuery, values *types.QueryPara
 	}
 
 	mutations := types.NewBigtableWriteMutation(ist.Keyspace(), ist.Table(), ist.CqlQuery(), types.IfSpec{IfNotExists: ist.IfNotExists}, types.QueryTypeInsert, rowKey)
-	err = common.BindMutations(ist.Assignments, values, mutations)
+	err = common.BindMutations(ist.Assignments, ist.UsingTimestamp, values, mutations)
 	if err != nil {
 		return nil, err
 	}

@@ -6,12 +6,13 @@ import (
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/global/types"
 	schemaMapping "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/metadata"
 	"github.com/datastax/go-cassandra-native-protocol/primitive"
+	"reflect"
 	"strconv"
 	"strings"
 	"time"
 )
 
-func BindMutations(assignments []types.Assignment, values *types.QueryParameterValues, b *types.BigtableWriteMutation) error {
+func BindMutations(assignments []types.Assignment, usingTimestamp types.DynamicValue, values *types.QueryParameterValues, b *types.BigtableWriteMutation) error {
 	for _, assignment := range assignments {
 		// skip primary keys because those are part of the row key which is handled separately
 		if assignment.Column().IsPrimaryKey {
@@ -19,7 +20,7 @@ func BindMutations(assignments []types.Assignment, values *types.QueryParameterV
 		}
 		switch v := assignment.(type) {
 		case *types.AssignmentCounterIncrement:
-			value, err := values.GetValueInt64(v.Value)
+			value, err := GetValueInt64(v.Value(), values)
 			if err != nil {
 				return err
 			}
@@ -42,7 +43,7 @@ func BindMutations(assignments []types.Assignment, values *types.QueryParameterV
 			if colType == types.LIST {
 				lt := v.Column().CQLType.(*types.ListType)
 				if v.Operator == types.PLUS {
-					value, err := values.GetValueSlice(v.Placeholder)
+					value, err := GetValueSlice(v.Value(), values)
 					if err != nil {
 						return err
 					}
@@ -52,7 +53,7 @@ func BindMutations(assignments []types.Assignment, values *types.QueryParameterV
 					}
 					b.AddMutations(mutations...)
 				} else if v.Operator == types.MINUS {
-					value, err := values.GetValueSlice(v.Placeholder)
+					value, err := GetValueSlice(v.Value(), values)
 					if err != nil {
 						return err
 					}
@@ -70,7 +71,7 @@ func BindMutations(assignments []types.Assignment, values *types.QueryParameterV
 				}
 			} else if colType == types.SET {
 				if v.Operator == types.PLUS {
-					value, err := values.GetValueSlice(v.Placeholder)
+					value, err := GetValueSlice(v.Value(), values)
 					if err != nil {
 						return err
 					}
@@ -80,7 +81,7 @@ func BindMutations(assignments []types.Assignment, values *types.QueryParameterV
 					}
 					b.AddMutations(ops...)
 				} else if v.Operator == types.MINUS {
-					value, err := values.GetValueSlice(v.Placeholder)
+					value, err := GetValueSlice(v.Value(), values)
 					if err != nil {
 						return err
 					}
@@ -94,7 +95,7 @@ func BindMutations(assignments []types.Assignment, values *types.QueryParameterV
 			} else if colType == types.MAP {
 				mt := v.Column().CQLType.(*types.MapType)
 				if v.Operator == types.PLUS {
-					value, err := values.GetValueMap(v.Placeholder)
+					value, err := GetValueMap(v.Value(), values)
 					if err != nil {
 						return err
 					}
@@ -103,7 +104,7 @@ func BindMutations(assignments []types.Assignment, values *types.QueryParameterV
 						return err
 					}
 				} else if v.Operator == types.MINUS {
-					value, err := values.GetValueSlice(v.Placeholder)
+					value, err := GetValueSlice(v.Value(), values)
 					if err != nil {
 						return err
 					}
@@ -118,7 +119,7 @@ func BindMutations(assignments []types.Assignment, values *types.QueryParameterV
 				return fmt.Errorf("unhandled add assignment column type: %s", v.Column().CQLType.String())
 			}
 		case *types.ComplexAssignmentUpdateListIndex:
-			value, err := values.GetValue(v.Value)
+			value, err := v.Value().GetValue(values)
 			if err != nil {
 				return err
 			}
@@ -132,7 +133,7 @@ func BindMutations(assignments []types.Assignment, values *types.QueryParameterV
 			}
 			b.AddMutations(types.NewBigtableSetIndexOp(v.Column().ColumnFamily, v.Index, encoded))
 		case *types.ComplexAssignmentUpdateMapValue:
-			value, err := values.GetValue(v.Value)
+			value, err := v.Value().GetValue(values)
 			if err != nil {
 				return err
 			}
@@ -151,11 +152,86 @@ func BindMutations(assignments []types.Assignment, values *types.QueryParameterV
 	}
 
 	var err error
-	b.UsingTimestamp, err = BindUsingTimestamp(values)
+	b.UsingTimestamp, err = BindUsingTimestamp(usingTimestamp, values)
 	if err != nil {
 		return err
 	}
 	return nil
+}
+
+func GetValueInt32(value types.DynamicValue, values *types.QueryParameterValues) (int32, error) {
+	v, err := value.GetValue(values)
+	if err != nil {
+		return 0, err
+	}
+	intVal, ok := v.(int32)
+	if !ok {
+		return 0, fmt.Errorf("query value is a %T, not an int32", v)
+	}
+	return intVal, nil
+}
+func GetValueInt64(value types.DynamicValue, values *types.QueryParameterValues) (int64, error) {
+	v, err := value.GetValue(values)
+	if err != nil {
+		return 0, err
+	}
+	intVal, ok := v.(int64)
+	if !ok {
+		return 0, fmt.Errorf("query value is a %T, not an int64", v)
+	}
+	return intVal, nil
+}
+
+func GetValueSlice(value types.DynamicValue, values *types.QueryParameterValues) ([]types.GoValue, error) {
+	v, err := value.GetValue(values)
+	if err != nil {
+		return nil, err
+	}
+
+	val := reflect.ValueOf(v)
+
+	if val.Kind() != reflect.Slice {
+		return nil, fmt.Errorf("query value is a %T, not a slice", v)
+	}
+
+	length := val.Len()
+	result := make([]types.GoValue, length)
+
+	for i := 0; i < length; i++ {
+		result[i] = val.Index(i).Interface()
+	}
+
+	return result, nil
+}
+
+func GetValueMap(value types.DynamicValue, values *types.QueryParameterValues) (map[types.GoValue]types.GoValue, error) {
+	v, err := value.GetValue(values)
+	if err != nil {
+		return nil, err
+	}
+	val := reflect.ValueOf(v)
+
+	if val.Kind() != reflect.Map {
+		return nil, fmt.Errorf("value is a %T, not a map", v)
+	}
+
+	result := make(map[types.GoValue]types.GoValue, val.Len())
+
+	// 3. Iterate over the keys of the original map
+	iter := val.MapRange()
+	for iter.Next() {
+		// Get the reflection Placeholder for the key and the value
+		keyVal := iter.Key()
+		valueVal := iter.Value()
+
+		// 4. Use .Interface() to convert the concrete key/value to an any (interface{})
+		keyAny := keyVal.Interface()
+		valueAny := valueVal.Interface()
+
+		// 5. Add to the new map[any]any
+		result[keyAny] = valueAny
+	}
+	return result, nil
 }
 
 func encodeSetValue(assignment *types.ComplexAssignmentSet, values *types.QueryParameterValues) ([]types.IBigtableMutationOp, error) {
@@ -168,7 +244,7 @@ func encodeSetValue(assignment *types.ComplexAssignmentSet, values *types.QueryP
 	}
 	if col.CQLType.Code() == types.MAP {
 		mt := col.CQLType.(*types.MapType)
-		mv, err := values.GetValueMap(assignment.Value)
+		mv, err := GetValueMap(assignment.Value(), values)
 		if err != nil {
 			return nil, err
 		}
@@ -185,14 +261,14 @@ func encodeSetValue(assignment *types.ComplexAssignmentSet, values *types.QueryP
 		}
 	} else if col.CQLType.Code() == types.LIST {
 		lt := col.CQLType.(*types.ListType)
-		lv, err := values.GetValueSlice(assignment.Value)
+		lv, err := GetValueSlice(assignment.Value(), values)
 		mutations, err := addListElements(lv, col.ColumnFamily, lt, false)
 		if err != nil {
 			return nil, err
 		}
 		results = append(results, mutations...)
 	} else if col.CQLType.Code() == types.SET {
-		lv, err := values.GetValueSlice(assignment.Value)
+		lv, err := GetValueSlice(assignment.Value(), values)
 		if err != nil {
 			return nil, err
 		}
@@ -202,7 +278,7 @@ func encodeSetValue(assignment *types.ComplexAssignmentSet, values *types.QueryP
 		}
 		results = append(results, mutations...)
 	} else {
-		value, err := values.GetValue(assignment.Value)
+		value, err := assignment.Value().GetValue(values)
 		if err != nil {
 			return nil, err
 		}
@@ -376,20 +452,14 @@ func removeMapEntries(keys []types.GoValue, column *types.Column, output *types.
 // BindQueryParams handles collection operations in prepared queries.
 // Processes set, list, and map operations.
 // Returns error if collection type is invalid or value encoding fails.
-func BindQueryParams(params *types.QueryParameters, initialValues map[types.Placeholder]types.GoValue, values []*primitive.Value, pv primitive.ProtocolVersion) (*types.QueryParameterValues, error) {
-	providedValueCount := len(initialValues) + len(values)
-	if params.Count() != providedValueCount {
-		return nil, fmt.Errorf("expected %d prepared values but got %d", params.Count(), providedValueCount)
+func BindQueryParams(params *types.QueryParameters, values []*primitive.Value, pv primitive.ProtocolVersion) (*types.QueryParameterValues, error) {
+	if params.Count() != len(values) {
+		return nil, fmt.Errorf("expected %d prepared values but got %d", params.Count(), len(values))
 	}
 
-	result := types.NewQueryParameterValues(params)
-	err := result.SetInitialValues(initialValues)
-	if err != nil {
-		return nil, err
-	}
+	result := types.NewQueryParameterValues(params, time.Now())
 
-	// only iterate through values that we still need
-	for i, param := range params.RemainingKeys(initialValues) {
+	for i, param := range params.AllKeys() {
 		value := values[i]
 		md := params.GetMetadata(param)
 		goVal, err := cassandraValueToGoValue(md.Type, value, pv)
@@ -403,8 +473,8 @@ func BindQueryParams(params *types.QueryParameters, initialValues map[types.Plac
 	}
 
 	// make sure the param counts match to prevent silent failures
-	if result.CountSetValues() != params.Count() {
-		err = ValidateAllParamsSet(params, result.AsMap())
+	if result.AllValuesSet() {
+		err := ValidateAllParamsSet(params, result.AsMap())
 		if err != nil {
 			return nil, err
 		}
@@ -448,22 +518,22 @@ func ValidateAllParamsSet(q *types.QueryParameters, values map[types.Placeholder
 	return nil
 }
 
-func BindUsingTimestamp(values *types.QueryParameterValues) (*types.BoundTimestampInfo, error) {
-	if values.Has(types.UsingTimePlaceholder) {
-		t, err := values.GetValueInt64(types.UsingTimePlaceholder)
-		if err != nil {
-			return nil, err
-		}
+func BindUsingTimestamp(value types.DynamicValue, values *types.QueryParameterValues) (*types.BoundTimestampInfo, error) {
+	if value == nil {
 		return &types.BoundTimestampInfo{
 			// USING TIMESTAMP is in micros
-			Timestamp:         time.UnixMicro(t),
-			HasUsingTimestamp: true,
-		}, nil
-	} else {
-		return &types.BoundTimestampInfo{
-			// USING TIMESTAMP is in micros
-			Timestamp:         time.Now(),
+			Timestamp:         values.Time(),
 			HasUsingTimestamp: false,
 		}, nil
 	}
+
+	t, err := GetValueInt64(value, values)
+	if err != nil {
+		return nil, err
+	}
+	return &types.BoundTimestampInfo{
+		// USING TIMESTAMP is in micros
+		Timestamp:         time.UnixMicro(t),
+		HasUsingTimestamp: true,
+	}, nil
 }

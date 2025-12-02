@@ -259,6 +259,46 @@ func ParseBigInt(value string) (int64, error) {
 	return val, err
 }
 
+func GoToString(value types.GoValue) (string, error) {
+	if value == nil {
+		return "null", nil
+	}
+
+	switch v := value.(type) {
+	case string:
+		escaped := strings.ReplaceAll(v, "'", "''")
+		return "'" + escaped + "'", nil
+	case int32:
+		return strconv.Itoa(int(v)), nil
+	case int64:
+		return strconv.FormatInt(v, 10), nil
+	case float32:
+		return strconv.FormatFloat(float64(v), 'f', -1, 32), nil
+	case float64:
+		return strconv.FormatFloat(v, 'f', -1, 64), nil
+	case bool:
+		if v {
+			return "1", nil
+		} else {
+			return "0", nil
+		}
+	case time.Time:
+		return fmt.Sprintf("TIMESTAMP_FROM_UNIX_MILLIS(%d)", v.UnixMilli()), nil
+	case []interface{}:
+		var values []string
+		for _, vi := range v {
+			s, err := GoToString(vi)
+			if err != nil {
+				return "", err
+			}
+			values = append(values, s)
+		}
+		return fmt.Sprintf("[%s]", strings.Join(values, ", ")), nil
+	default:
+		return "", fmt.Errorf("unhandled go to string conversion for type %T", v)
+	}
+}
+
 func StringToGo(value string, cqlType types.CqlDataType) (types.GoValue, error) {
 	var iv interface{}
 
@@ -342,12 +382,6 @@ var cqlTimestampFormats = []string{
 // parseCqlTimestamp(): Parse a timestamp string in various formats.
 // https://cassandra.apache.org/doc/4.1/cassandra/cql/types.html
 func parseCqlTimestamp(timestampStr string) (time.Time, error) {
-
-	// todo weird place to handle this and this is not at all robust
-	if strings.ToLower(timestampStr) == "totimestamp(now())" {
-		return time.Now().UTC(), nil
-	}
-
 	// Try to parse the timestamp using each layout
 	for _, format := range cqlTimestampFormats {
 		parsedTime, err := time.Parse(format, timestampStr)

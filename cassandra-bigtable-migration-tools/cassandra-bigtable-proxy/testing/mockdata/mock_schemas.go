@@ -77,39 +77,9 @@ func GetSchemaMappingConfig() *schemaMapping.SchemaMetadata {
 		),
 	}
 	return schemaMapping.NewSchemaMetadata(
-		"schema_mapping",
 		"cf1",
 		allTableConfigs,
 	)
-}
-
-func CreateQueryParameterValuesFromMap2(table *schemaMapping.TableSchema, values map[types.ColumnName]types.GoValue) *types.QueryParameterValues {
-	params := types.NewQueryParameters()
-	result := types.NewQueryParameterValues(params)
-	for colName, val := range values {
-		col, err := table.GetColumn(colName)
-		if err != nil {
-			log.Fatalf(err.Error())
-		}
-		p := params.PushParameter(col, col.CQLType, false)
-		err = result.SetValue(p, val)
-		if err != nil {
-			log.Fatalf("failed to set value: %s", err.Error())
-		}
-	}
-	return result
-}
-func CreateQueryParameterValuesFromMap(values map[*types.Column]types.GoValue) *types.QueryParameterValues {
-	params := types.NewQueryParameters()
-	result := types.NewQueryParameterValues(params)
-	for col, val := range values {
-		p := params.PushParameter(col, col.CQLType, false)
-		err := result.SetValue(p, val)
-		if err != nil {
-			log.Fatalf("failed to set value: %s", err.Error())
-		}
-	}
-	return result
 }
 
 func EncodePrimitiveValueOrDie(v any, dt types.CqlDataType, pv primitive.ProtocolVersion) *primitive.Value {

@@ -7,17 +7,13 @@ const (
 	Desc OrderOperation = "desc"
 )
 
-type AssignmentOperation string
-
-const (
-	AssignAdd    AssignmentOperation = "+"
-	AssignRemove AssignmentOperation = "-"
-	AssignIndex  AssignmentOperation = "update_index"
-)
-
 type OrderBy struct {
 	IsOrderBy bool
 	Columns   []OrderByColumn
+}
+type Limit struct {
+	IsLimit bool
+	Count   int32
 }
 
 type OrderByColumn struct {
@@ -86,8 +82,6 @@ const (
 	IN               Operator = "IN"
 	ARRAY_INCLUDES   Operator = "ARRAY_INCLUDES"
 	MAP_CONTAINS_KEY Operator = "MAP_CONTAINS_KEY"
-	CONTAINS_KEY     Operator = "CONTAINS KEY"
-	CONTAINS         Operator = "CONTAINS"
 )
 
 type ArithmeticOperator string
@@ -115,16 +109,22 @@ type Assignment interface {
 type ComplexAssignmentAppend struct {
 	column    *Column
 	Operator  ArithmeticOperator
-	Value     DynamicValue
+	value     DynamicValue
 	IsPrepend bool
 }
 
+func (c ComplexAssignmentAppend) Value() DynamicValue {
+	return c.value
+}
+
 func (c ComplexAssignmentAppend) IsIdempotentAssignment() bool {
-	return false
+	code := c.column.CQLType.Code()
+	// list appends are never idempotent
+	return c.value.IsIdempotent() && (code == MAP || code == SET)
 }
 
 func NewComplexAssignmentAppend(column *Column, op ArithmeticOperator, value DynamicValue, isPrepend bool) Assignment {
-	return &ComplexAssignmentAppend{column: column, Operator: op, Value: value, IsPrepend: isPrepend}
+	return &ComplexAssignmentAppend{column: column, Operator: op, value: value, IsPrepend: isPrepend}
 }
 
 func (c ComplexAssignmentAppend) Column() *Column {
@@ -134,7 +134,11 @@ func (c ComplexAssignmentAppend) Column() *Column {
 type AssignmentCounterIncrement struct {
 	column *Column
 	Op     ArithmeticOperator
-	Value  DynamicValue
+	value  DynamicValue
+}
+
+func (c AssignmentCounterIncrement) Value() DynamicValue {
+	return c.value
 }
 
 func (c AssignmentCounterIncrement) IsIdempotentAssignment() bool {
@@ -142,7 +146,7 @@ func (c AssignmentCounterIncrement) IsIdempotentAssignment() bool {
 }
 
 func NewAssignmentCounterIncrement(column *Column, op ArithmeticOperator, value DynamicValue) Assignment {
-	return &AssignmentCounterIncrement{column: column, Op: op, Value: value}
+	return &AssignmentCounterIncrement{column: column, Op: op, value: value}
 }
 
 func (c AssignmentCounterIncrement) Column() *Column {
@@ -153,15 +157,19 @@ type ComplexAssignmentUpdateListIndex struct {
 	column *Column
 	// cassandra requires a literal, so no need to handle a parameter for the index
 	Index int64
-	Value DynamicValue
+	value DynamicValue
+}
+
+func (c ComplexAssignmentUpdateListIndex) Value() DynamicValue {
+	return c.value
 }
 
 func (c ComplexAssignmentUpdateListIndex) IsIdempotentAssignment() bool {
-	return true
+	return c.value.IsIdempotent()
 }
 
 func NewComplexAssignmentUpdateListIndex(column *Column, index int64, value DynamicValue) Assignment {
-	return &ComplexAssignmentUpdateListIndex{column: column, Index: index, Value: value}
+	return &ComplexAssignmentUpdateListIndex{column: column, Index: index, value: value}
 }
 
 func (c ComplexAssignmentUpdateListIndex) Column() *Column {
@@ -172,15 +180,19 @@ type ComplexAssignmentUpdateMapValue struct {
 	column *Column
 	// cassandra requires a literal, so no need to handle a parameter for the key
 	Key   GoValue
-	Value DynamicValue
+	value DynamicValue
+}
+
+func (c ComplexAssignmentUpdateMapValue) Value() DynamicValue {
+	return c.value
 }
 
 func (c ComplexAssignmentUpdateMapValue) IsIdempotentAssignment() bool {
-	return true
+	return c.value.IsIdempotent()
 }
 
 func NewComplexAssignmentUpdateMapValue(column *Column, index GoValue, value DynamicValue) Assignment {
-	return &ComplexAssignmentUpdateMapValue{column: column, Key: index, Value: value}
+	return &ComplexAssignmentUpdateMapValue{column: column, Key: index, value: value}
 }
 
 func (c ComplexAssignmentUpdateMapValue) Column() *Column {
@@ -197,7 +209,7 @@ func (c ComplexAssignmentSet) Value() DynamicValue {
 }
 
 func (c ComplexAssignmentSet) IsIdempotentAssignment() bool {
-	return true
+	return c.value.IsIdempotent()
 }
 
 func NewComplexAssignmentSet(column *Column, value DynamicValue) Assignment {

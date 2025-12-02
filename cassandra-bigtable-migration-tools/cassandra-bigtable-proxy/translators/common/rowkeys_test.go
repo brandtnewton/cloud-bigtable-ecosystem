@@ -7,47 +7,52 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"testing"
+	"time"
 )
 
 func TestBindRowKey(t *testing.T) {
 	tests := []struct {
 		name   string
 		table  *schemaMapping.TableSchema
-		values *types.QueryParameterValues
+		values []types.GoValue
 		want   types.RowKey
 		err    string
 	}{
 		{
 			name:  "success",
 			table: mockdata.GetTableOrDie("test_keyspace", "test_table"),
-			values: mockdata.CreateQueryParameterValuesFromMap(map[*types.Column]types.GoValue{
-				mockdata.GetColumnOrDie("test_keyspace", "test_table", "pk1"): "abc",
-				mockdata.GetColumnOrDie("test_keyspace", "test_table", "pk2"): "def",
-			}),
+			values: []types.GoValue{
+				"abc",
+				"def",
+			},
 			want: "abc\x00\x01def",
 		},
 		{
 			name:  "mixed types",
 			table: mockdata.GetTableOrDie("test_keyspace", "user_info"),
-			values: mockdata.CreateQueryParameterValuesFromMap(map[*types.Column]types.GoValue{
-				mockdata.GetColumnOrDie("test_keyspace", "user_info", "name"): "bobby",
-				mockdata.GetColumnOrDie("test_keyspace", "user_info", "age"):  int64(14242),
-			}),
+			values: []types.GoValue{
+				"bobby",
+				int64(14242),
+			},
 			want: "bobby\x00\x01\xe07\xa2",
 		},
 		{
 			name:  "missing value",
 			table: mockdata.GetTableOrDie("test_keyspace", "test_table"),
-			values: mockdata.CreateQueryParameterValuesFromMap(map[*types.Column]types.GoValue{
-				mockdata.GetColumnOrDie("test_keyspace", "test_table", "pk2"): "def",
-			}),
+			values: []types.GoValue{
+				"def",
+			},
 			want: "",
 			err:  "missing primary key `pk1`",
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			rowKey, err := BindRowKey(tt.table, tt.values)
+			var values []types.DynamicValue
+			for _, v := range tt.values {
+				values = append(values, types.NewLiteralValue(v))
+			}
+			rowKey, err := BindRowKey(tt.table, values, types.NewQueryParameterValues(types.NewQueryParameters(), time.Now()))
 			if tt.err != "" {
 				require.Error(t, err)
 				assert.Contains(t, err.Error(), tt.err)

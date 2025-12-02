@@ -17,6 +17,7 @@
 package select_translator
 
 import (
+	"errors"
 	"fmt"
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/global/types"
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/translators/common"
@@ -45,9 +46,8 @@ func (t *SelectTranslator) Translate(query *types.RawQuery, sessionKeyspace type
 	}
 
 	params := types.NewQueryParameters()
-	values := types.NewQueryParameterValues(params)
 
-	conditions, err := common.ParseWhereClause(selectObj.WhereSpec(), tableConfig, params, values)
+	conditions, err := common.ParseWhereClause(selectObj.WhereSpec(), tableConfig, params)
 	if err != nil {
 		return nil, err
 	}
@@ -67,14 +67,14 @@ func (t *SelectTranslator) Translate(query *types.RawQuery, sessionKeyspace type
 		orderBy.IsOrderBy = false
 	}
 
-	err = parseLimitClause(selectObj.LimitSpec(), params, values)
+	limitValue, err := parseLimitClause(selectObj.LimitSpec(), params)
 	if err != nil {
 		return nil, err
 	}
 
 	resultColumns := selectedColumnsToMetadata(tableConfig, selectClause)
 
-	st := types.NewPreparedSelectQuery(keyspaceName, tableName, query.RawCql(), "", selectClause, conditions, params, orderBy, groupBy, resultColumns, values)
+	st := types.NewPreparedSelectQuery(keyspaceName, tableName, query.RawCql(), "", selectClause, conditions, params, orderBy, groupBy, limitValue, resultColumns)
 
 	translatedResult, err := createBigtableSql(t, st)
 	if err != nil {
@@ -89,15 +89,21 @@ func (t *SelectTranslator) Bind(st types.IPreparedQuery, values *types.QueryPara
 	if !ok {
 		return nil, fmt.Errorf("cannot bind to %T", st)
 	}
-	if values.Has(types.LimitPlaceholder) {
-		limitValue, err := values.GetValueInt32(types.LimitPlaceholder)
+
+	limit := types.Limit{
+		IsLimit: false,
+		Count:   0,
+	}
+	if sst.LimitValue != nil {
+		v, err := common.GetValueInt32(sst.LimitValue, values)
 		if err != nil {
 			return nil, err
 		}
-		if limitValue <= 0 {
-			return nil, fmt.Errorf("LIMIT must be strictly positive")
+		if v <= 0 {
+			return nil, errors.New("limit must be positive")
 		}
+		limit.Count = v
 	}
-	query := types.NewExecutableSelectQuery(sst, pv, values)
+	query := types.NewExecutableSelectQuery(sst, pv, values, limit)
 	return query, nil
 }

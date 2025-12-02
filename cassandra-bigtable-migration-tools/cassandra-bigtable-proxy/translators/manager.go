@@ -95,7 +95,7 @@ func (t *TranslatorManager) TranslateQuery(q *types.RawQuery, sessionKeyspace ty
 }
 
 func (t *TranslatorManager) BindQuery(st types.IPreparedQuery, cassandraValues []*primitive.Value, pv primitive.ProtocolVersion) (types.IExecutableQuery, error) {
-	values, err := common.BindQueryParams(st.Parameters(), st.InitialValues(), cassandraValues, pv)
+	values, err := common.BindQueryParams(st.Parameters(), cassandraValues, pv)
 	if err != nil {
 		return nil, err
 	}

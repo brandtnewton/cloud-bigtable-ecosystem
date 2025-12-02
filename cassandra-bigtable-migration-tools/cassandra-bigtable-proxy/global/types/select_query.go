@@ -45,8 +45,8 @@ type PreparedSelectQuery struct {
 	TranslatedQuery      string        // btql
 	SelectClause         *SelectClause // Translator generated Metadata about the columns involved
 	Conditions           []Condition
-	initialValues        map[Placeholder]GoValue
-	Params               *QueryParameters            // Parameters for the query
+	Params               *QueryParameters // Parameters for the query
+	LimitValue           DynamicValue
 	CachedBTPrepare      *bigtable.PreparedStatement // prepared statement object for bigtable
 	OrderBy              OrderBy                     // Order by clause details
 	GroupByColumns       []string                    // Group by Columns - could be a column name or a column index
@@ -63,7 +63,7 @@ func (p *PreparedSelectQuery) IsIdempotent() bool {
 	return true
 }
 
-func NewPreparedSelectQuery(keyspace Keyspace, table TableName, cqlQuery string, translatedQuery string, selectClause *SelectClause, conditions []Condition, params *QueryParameters, orderBy OrderBy, groupByColumns []string, resultColumnMetadata []*message.ColumnMetadata, values *QueryParameterValues) *PreparedSelectQuery {
+func NewPreparedSelectQuery(keyspace Keyspace, table TableName, cqlQuery string, translatedQuery string, selectClause *SelectClause, conditions []Condition, params *QueryParameters, orderBy OrderBy, groupByColumns []string, limitValue DynamicValue, resultColumnMetadata []*message.ColumnMetadata) *PreparedSelectQuery {
 	return &PreparedSelectQuery{
 		keyspace:             keyspace,
 		table:                table,
@@ -75,12 +75,8 @@ func NewPreparedSelectQuery(keyspace Keyspace, table TableName, cqlQuery string,
 		OrderBy:              orderBy,
 		GroupByColumns:       groupByColumns,
 		ResultColumnMetadata: resultColumnMetadata,
-		initialValues:        values.values,
+		LimitValue:           limitValue,
 	}
-}
-
-func (p *PreparedSelectQuery) InitialValues() map[Placeholder]GoValue {
-	return p.initialValues
 }
 
 func (p *PreparedSelectQuery) Parameters() *QueryParameters {
@@ -124,13 +120,14 @@ type ExecutableSelectQuery struct {
 	Conditions           []Condition
 	CachedBTPrepare      *bigtable.PreparedStatement
 	OrderBy              OrderBy
+	Limit                Limit
 	GroupByColumns       []string
 	ResultColumnMetadata []*message.ColumnMetadata
 	ProtocolVersion      primitive.ProtocolVersion
 	Values               *QueryParameterValues
 }
 
-func NewExecutableSelectQuery(query *PreparedSelectQuery, protocolVersion primitive.ProtocolVersion, values *QueryParameterValues) *ExecutableSelectQuery {
+func NewExecutableSelectQuery(query *PreparedSelectQuery, protocolVersion primitive.ProtocolVersion, values *QueryParameterValues, limit Limit) *ExecutableSelectQuery {
 	return &ExecutableSelectQuery{
 		keyspace:             query.keyspace,
 		table:                query.table,
@@ -143,6 +140,7 @@ func NewExecutableSelectQuery(query *PreparedSelectQuery, protocolVersion primit
 		GroupByColumns:       query.GroupByColumns,
 		ResultColumnMetadata: query.ResultColumnMetadata,
 		ProtocolVersion:      protocolVersion,
+		Limit:                limit,
 		Values:               values,
 	}
 }

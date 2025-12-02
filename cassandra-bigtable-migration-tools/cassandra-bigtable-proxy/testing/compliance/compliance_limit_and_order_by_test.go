@@ -102,11 +102,11 @@ func TestLimitAndOrderByOperations(t *testing.T) {
 		t.Parallel()
 		err := session.Query(`SELECT name, age FROM user_info WHERE age = ? LIMIT ?`, 10, -3).Exec()
 		require.Error(t, err)
-		assert.Contains(t, err.Error(), "LIMIT must be strictly positive")
+		assert.Contains(t, err.Error(), "limit must be positive")
 
 		err = session.Query(`SELECT name, age FROM user_info WHERE age = ? LIMIT ?`, 10, 0).Exec()
 		require.Error(t, err)
-		assert.Contains(t, err.Error(), "LIMIT must be strictly positive")
+		assert.Contains(t, err.Error(), "limit must be positive")
 	})
 
 	t.Run("Invalid ORDER BY syntax", func(t *testing.T) {

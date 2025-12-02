@@ -102,7 +102,7 @@ func (t *UpdateTranslator) Bind(st types.IPreparedQuery, values *types.QueryPara
 	}
 
 	mutations := types.NewBigtableWriteMutation(ust.Keyspace(), ust.Table(), ust.CqlQuery(), types.IfSpec{IfExists: ust.IfExists}, types.QueryTypeUpdate, rowKey)
-	err = common.BindMutations(ust.Values, values, mutations)
+	err = common.BindMutations(ust.Values, ust.UsingTimestamp, values, mutations)
 	if err != nil {
 		return nil, err
 	}

@@ -25,11 +25,8 @@ func (e *InMemEngine) Execute(query *types.ExecutableSelectQuery) ([]types.GoRow
 	}
 
 	// apply limit
-	if query.Values.Has(types.LimitPlaceholder) {
-		limit, err := query.Values.GetValueInt32(types.LimitPlaceholder)
-		if err != nil {
-			return nil, err
-		}
+	if query.Limit.IsLimit {
+		limit := query.Limit.Count
 		if limit < int32(len(filtered)) {
 			filtered = filtered[:limit]
 		}
@@ -61,7 +58,7 @@ func (e *InMemEngine) Execute(query *types.ExecutableSelectQuery) ([]types.GoRow
 	return projectedRows, nil
 }
 
-func matchesConditions(row types.GoRow, conditions []types.Condition, parameterValues *types.QueryParameterValues) (bool, error) {
+func matchesConditions(row types.GoRow, conditions []types.Condition, values *types.QueryParameterValues) (bool, error) {
 	for _, cond := range conditions {
 		col := string(cond.Column.Name)
 		rowValue, ok := row[col]
@@ -69,7 +66,7 @@ func matchesConditions(row types.GoRow, conditions []types.Condition, parameterV
 			return false, fmt.Errorf("unknown column '%s' on table", col)
 		}
 
-		queryValue, err := parameterValues.GetValue(cond.Value)
+		queryValue, err := cond.Value.GetValue(values)
 		if err != nil {
 			return false, err
 		}

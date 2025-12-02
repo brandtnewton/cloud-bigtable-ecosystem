@@ -7,8 +7,6 @@ import (
 	"time"
 )
 
-const LimitPlaceholder Placeholder = "@limitValue"
-
 type Placeholder string
 
 type PlaceholderMetadata struct {
@@ -152,83 +150,8 @@ func (q *QueryParameterValues) GetValue(p Placeholder) (GoValue, error) {
 	return nil, fmt.Errorf("no query param for %s", p)
 }
 
-func (q *QueryParameterValues) GetValueInt32(p Placeholder) (int32, error) {
-	v, err := q.GetValue(p)
-	if err != nil {
-		return 0, err
-	}
-	intVal, ok := v.(int32)
-	if !ok {
-		return 0, fmt.Errorf("query param %s is a %T, not an int32", p, v)
-	}
-	return intVal, nil
-}
-func (q *QueryParameterValues) GetValueInt64(p Placeholder) (int64, error) {
-	v, err := q.GetValue(p)
-	if err != nil {
-		return 0, err
-	}
-	intVal, ok := v.(int64)
-	if !ok {
-		return 0, fmt.Errorf("query param %s is a %T, not an int64", p, v)
-	}
-	return intVal, nil
-}
-
-func (q *QueryParameterValues) GetValueSlice(p Placeholder) ([]GoValue, error) {
-	v, err := q.GetValue(p)
-	if err != nil {
-		return nil, err
-	}
-
-	val := reflect.ValueOf(v)
-
-	if val.Kind() != reflect.Slice {
-		return nil, fmt.Errorf("query param %s is a %T, not a slice", p, v)
-	}
-
-	length := val.Len()
-	result := make([]GoValue, length)
-
-	for i := 0; i < length; i++ {
-		result[i] = val.Index(i).Interface()
-	}
-
-	return result, nil
-}
-
-func (q *QueryParameterValues) GetValueMap(p Placeholder) (map[GoValue]GoValue, error) {
-	v, err := q.GetValue(p)
-	if err != nil {
-		return nil, err
-	}
-	val := reflect.ValueOf(v)
-
-	if val.Kind() != reflect.Map {
-		return nil, fmt.Errorf("value is a %T, not a map", v)
-	}
-
-	result := make(map[GoValue]GoValue, val.Len())
-
-	// 3. Iterate over the keys of the original map
-	iter := val.MapRange()
-	for iter.Next() {
-		// Get the reflection Placeholder for the key and the value
-		keyVal := iter.Key()
-		valueVal := iter.Value()
-
-		// 4. Use .Interface() to convert the concrete key/value to an any (interface{})
-		keyAny := keyVal.Interface()
-		valueAny := valueVal.Interface()
-
-		// 5. Add to the new map[any]any
-		result[keyAny] = valueAny
-	}
-	return result, nil
-}
-
-func (q *QueryParameterValues) CountSetValues() int {
-	return len(q.values)
+func (q *QueryParameterValues) AllValuesSet() bool {
+	return len(q.values) == q.params.Count()
 }
 func (q *QueryParameterValues) AsMap() map[Placeholder]GoValue {
 	return q.values

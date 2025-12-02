@@ -184,7 +184,7 @@ func TestNegativeInsertCases(t *testing.T) {
 		{"Wrong Table", `INSERT INTO random_table (name, age, code) VALUES (?, ?, ?)`, []interface{}{"Smith", int64(36), 45}, "table 'random_table' does not exist"},
 		{"Wrong Columns", `INSERT INTO user_info (name, age, random_column) VALUES (?, ?, ?)`, []interface{}{"Smith", int64(36), 123}, "unknown column 'random_column' in table bigtabledevinstance.user_info"},
 		{"Missing PK", `INSERT INTO user_info (name, code, code) VALUES (?, ?, ?)`, []interface{}{"Smith", 724, 45}, "missing value for primary key `age`"},
-		{"Null PK", `INSERT INTO user_info (name, age, code) VALUES (?, ?, ?)`, []interface{}{nil, int64(36), 45}, "key encoding failed: unsupported row key type <nil>"},
+		{"Null PK", `INSERT INTO user_info (name, age, code) VALUES (?, ?, ?)`, []interface{}{nil, int64(36), 45}, "value cannot be null for primary key 'name'"},
 	}
 
 	for _, tc := range testCases {

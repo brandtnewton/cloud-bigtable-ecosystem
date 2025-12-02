@@ -125,6 +125,7 @@ func (b *BigtableWriteMutation) Mutations() []IBigtableMutationOp {
 	return b.mutations
 }
 
-func (b *BigtableWriteMutation) AddMutations(m ...IBigtableMutationOp) {
+func (b *BigtableWriteMutation) AddMutations(m ...IBigtableMutationOp) *BigtableWriteMutation {
 	b.mutations = append(b.mutations, m...)
+	return b
 }

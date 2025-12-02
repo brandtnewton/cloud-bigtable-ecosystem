@@ -200,3 +200,29 @@ func TestNegativeInsertCases(t *testing.T) {
 		})
 	}
 }
+
+func TestPreparedTimestampNowAlwaysUsesCurrentTimestamp(t *testing.T) {
+	t.Parallel()
+	var err error
+
+	// execute the same prepared query twice, with a 1 second delay after the first to ensure ToTimestamp(now()) is respected in prepared queries and not just a static time when the query was first prepared
+	insertQuery := session.Query(`INSERT INTO bigtabledevinstance.user_info (name, age, birth_date) VALUES (?, ?, ToTimestamp(now()))`)
+	require.NoError(t, insertQuery.Bind("timestampNowTest", int64(1)).Exec())
+	time.Sleep(time.Second) // Pause for 1 second
+	require.NoError(t, insertQuery.Bind("timestampNowTest", int64(2)).Exec())
+
+	selectQuery := session.Query(`SELECT birth_date FROM bigtabledevinstance.user_info WHERE name = ? AND age = ?`)
+	var t1 time.Time
+	err = selectQuery.Bind("timestampNowTest", int64(1)).Scan(&t1)
+	require.NoError(t, err)
+
+	var t2 time.Time
+	err = selectQuery.Bind("timestampNowTest", int64(2)).Scan(&t2)
+	require.NoError(t, err)
+
+	assert.Less(t, t1.UnixMilli(), t2.UnixMilli(), "t1 must be less than t2")
+	diff := t2.UnixMilli() - t1.UnixMilli()
+	assert.GreaterOrEqual(t, diff, int64(1000), "at least one second should have passed")
+
+	assert.Less(t, time.Now().UnixMilli()-t2.UnixMilli(), int64(2000), "t2 should be recent")
+}

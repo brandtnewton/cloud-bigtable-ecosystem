@@ -71,7 +71,7 @@ func TestCastColumns(t *testing.T) {
 				ColumnFamily: "cf1",
 				CQLType:      types.TypeTimestamp,
 			},
-			want:    "TO_TIME(cf1['created_at'])",
+			want:    "TIMESTAMP_FROM_UNIX_MILLIS(cf1['created_at'])",
 			wantErr: false,
 		},
 		{
@@ -108,7 +108,7 @@ func TestCastColumns(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := CastScalarColumn(tt.colMeta)
+			got, err := castScalarColumn(tt.colMeta)
 			if tt.wantErr {
 				require.Error(t, err)
 				return

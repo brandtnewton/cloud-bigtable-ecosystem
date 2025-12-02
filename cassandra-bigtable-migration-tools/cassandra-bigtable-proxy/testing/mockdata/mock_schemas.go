@@ -50,6 +50,7 @@ func GetSchemaMappingConfig() *schemaMapping.SchemaMetadata {
 			{Name: "age", CQLType: types.TypeBigInt, KeyType: types.KeyTypeClustering, IsPrimaryKey: true, PkPrecedence: 2},
 			{Name: "email", CQLType: types.TypeText},
 			{Name: "username", CQLType: types.TypeText},
+			{Name: "tags", CQLType: types.NewListType(types.TypeText)},
 		}
 	)
 

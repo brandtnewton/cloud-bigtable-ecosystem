@@ -56,7 +56,7 @@ func TestTranslator_TranslateSelectQuerytoBigtable(t *testing.T) {
  AND col_ts <= '2015-05-03 13:30:54.234' AND col_int >= 123
  AND col_bigint > -10000000 LIMIT 20;`,
 			want: &Want{
-				TranslatedQuery: "SELECT pk1, TO_INT64(cf1['col_int']), TO_INT64(cf1['col_bool']) FROM test_table WHERE pk1 = 'test' AND TO_INT64(cf1['col_bool']) = 1 AND TO_TIME(cf1['col_ts']) <= TIMESTAMP_FROM_UNIX_MILLIS(1430659854234) AND TO_INT64(cf1['col_int']) >= 123 AND TO_INT64(cf1['col_bigint']) > -10000000 LIMIT 20;",
+				TranslatedQuery: "SELECT pk1, TO_INT64(cf1['col_int']), TO_INT64(cf1['col_bool']) FROM test_table WHERE pk1 = 'test' AND TO_INT64(cf1['col_bool']) = 1 AND TIMESTAMP_FROM_UNIX_MILLIS(cf1['col_ts']) <= TIMESTAMP_FROM_UNIX_MILLIS(1430659854234) AND TO_INT64(cf1['col_int']) >= 123 AND TO_INT64(cf1['col_bigint']) > -10000000 LIMIT 20;",
 				Table:           "test_table",
 				Keyspace:        "test_keyspace",
 				SelectClause: &types.SelectClause{
@@ -142,7 +142,7 @@ func TestTranslator_TranslateSelectQuerytoBigtable(t *testing.T) {
 				Conditions: []types.Condition{
 					{
 						Column:   mockdata.GetColumnOrDie("test_keyspace", "test_table", "map_text_text"),
-						Operator: "MAP_CONTAINS_KEY",
+						Operator: types.CONTAINS_KEY,
 						Value:    types.NewLiteralValue("test"),
 					},
 				},
@@ -168,7 +168,7 @@ func TestTranslator_TranslateSelectQuerytoBigtable(t *testing.T) {
 				Conditions: []types.Condition{
 					{
 						Column:   mockdata.GetColumnOrDie("test_keyspace", "test_table", "set_text"),
-						Operator: "MAP_CONTAINS_KEY", // We are considering set as map internally
+						Operator: types.CONTAINS,
 						Value:    types.NewLiteralValue("test"),
 					},
 				},
@@ -564,7 +564,7 @@ func TestTranslator_TranslateSelectQuerytoBigtable(t *testing.T) {
 			name:  "test for parameterized query success",
 			query: "select pk1, col_int, col_bool from  test_keyspace.test_table where pk1 = ? AND col_bool=? AND col_ts <= ? AND col_int >= ? AND col_bigint > ? AND col_bigint < ? LIMIT 20000;",
 			want: &Want{
-				TranslatedQuery: "SELECT pk1, TO_INT64(cf1['col_int']), TO_INT64(cf1['col_bool']) FROM test_table WHERE pk1 = @value0 AND TO_INT64(cf1['col_bool']) = @value1 AND TO_TIME(cf1['col_ts']) <= @value2 AND TO_INT64(cf1['col_int']) >= @value3 AND TO_INT64(cf1['col_bigint']) > @value4 AND TO_INT64(cf1['col_bigint']) < @value5 LIMIT 20000;",
+				TranslatedQuery: "SELECT pk1, TO_INT64(cf1['col_int']), TO_INT64(cf1['col_bool']) FROM test_table WHERE pk1 = @value0 AND TO_INT64(cf1['col_bool']) = @value1 AND TIMESTAMP_FROM_UNIX_MILLIS(cf1['col_ts']) <= @value2 AND TO_INT64(cf1['col_int']) >= @value3 AND TO_INT64(cf1['col_bigint']) > @value4 AND TO_INT64(cf1['col_bigint']) < @value5 LIMIT 20000;",
 				Table:           "test_table",
 				Keyspace:        "test_keyspace",
 				SelectClause: &types.SelectClause{
@@ -618,7 +618,7 @@ func TestTranslator_TranslateSelectQuerytoBigtable(t *testing.T) {
 			name:  "test for prepared query success",
 			query: "select pk1, col_int, col_bool from test_keyspace.test_table where pk1 = ? AND col_int=? AND col_bool=? AND col_ts=? AND col_int=? AND col_bigint=?;",
 			want: &Want{
-				TranslatedQuery: "SELECT pk1, TO_INT64(cf1['col_int']), TO_INT64(cf1['col_bool']) FROM test_table WHERE pk1 = @value0 AND TO_INT64(cf1['col_int']) = @value1 AND TO_INT64(cf1['col_bool']) = @value2 AND TO_TIME(cf1['col_ts']) = @value3 AND TO_INT64(cf1['col_int']) = @value4 AND TO_INT64(cf1['col_bigint']) = @value5;",
+				TranslatedQuery: "SELECT pk1, TO_INT64(cf1['col_int']), TO_INT64(cf1['col_bool']) FROM test_table WHERE pk1 = @value0 AND TO_INT64(cf1['col_int']) = @value1 AND TO_INT64(cf1['col_bool']) = @value2 AND TIMESTAMP_FROM_UNIX_MILLIS(cf1['col_ts']) = @value3 AND TO_INT64(cf1['col_int']) = @value4 AND TO_INT64(cf1['col_bigint']) = @value5;",
 				Table:           "test_table",
 				Keyspace:        "test_keyspace",
 				SelectClause: &types.SelectClause{
@@ -800,7 +800,7 @@ func TestTranslator_TranslateSelectQuerytoBigtable(t *testing.T) {
 			name:  "test with BETWEEN operator raw query",
 			query: `select pk1, col_int from test_keyspace.test_table where pk1 between 'te''st' and 'test2';`,
 			want: &Want{
-				TranslatedQuery: "SELECT pk1, TO_INT64(cf1['col_int']) FROM test_table WHERE pk1 BETWEEN 'te''st' AND 'test2';",
+				TranslatedQuery: "SELECT pk1, TO_INT64(cf1['col_int']) FROM test_table WHERE pk1 BETWEEN 'te\\'st' AND 'test2';",
 				Keyspace:        "test_keyspace",
 				Table:           "test_table",
 				SelectClause: &types.SelectClause{
@@ -997,20 +997,56 @@ func TestTranslator_TranslateSelectQuerytoBigtable(t *testing.T) {
 		},
 		{
 			name:  "CqlQuery with multiple aggregate functions",
-			query: `SELECT tags FROM bigtabledevinstance.user_info WHERE tags CONTAINS ?;`,
-			// todo want success
+			query: `SELECT tags FROM test_keyspace.user_info WHERE tags CONTAINS ?;`,
 			want: &Want{
 				Keyspace:        "test_keyspace",
-				Table:           "test_table",
-				TranslatedQuery: "SELECT pk1 FROM test_table LIMIT @value0;",
+				Table:           "user_info",
+				TranslatedQuery: "SELECT MAP_VALUES(`tags`) FROM user_info WHERE ARRAY_INCLUDES(MAP_VALUES(`tags`), @value0);",
 				SelectClause: &types.SelectClause{
 					Columns: []types.SelectedColumn{
-						*types.NewSelectedColumn("pk1", "pk1", "", types.TypeVarchar),
+						*types.NewSelectedColumn("tags", "tags", "", types.NewListType(types.TypeText)),
+					},
+				},
+				Conditions: []types.Condition{
+					{
+						Column:   mockdata.GetColumnOrDie("test_keyspace", "user_info", "tags"),
+						Operator: types.CONTAINS,
+						Value:    types.NewParameterizedValue("@value0"),
 					},
 				},
 				OrderBy:        types.OrderBy{},
 				GroupByColumns: nil,
-				LimitValue:     types.NewParameterizedValue("@value0"),
+				AllParams:      []types.Placeholder{"@value0"},
+			},
+			sessionKeyspace: "test_keyspace",
+		},
+		{
+			name:            "where clause comparison functions not supported yet",
+			query:           `SELECT count(*) FROM test_table WHERE name = ? AND col_ts < ToTimestamp(now());`,
+			wantErr:         "parsing errors",
+			sessionKeyspace: "test_keyspace",
+		},
+		{
+			name:  "where clause comparison functions not supported yet",
+			query: `SELECT count(*) FROM test_table WHERE col_ts < '2025-12-02 10:30:00';`,
+			want: &Want{
+				Keyspace:        "test_keyspace",
+				Table:           "test_table",
+				TranslatedQuery: "SELECT count(*) FROM test_table WHERE TIMESTAMP_FROM_UNIX_MILLIS(TO_INT64(`cf1`['col_ts'])) < TIMESTAMP_FROM_UNIX_MILLIS(1764671400000);",
+				SelectClause: &types.SelectClause{
+					Columns: []types.SelectedColumn{
+						*types.NewSelectedColumn("tags", "tags", "", types.NewListType(types.TypeText)),
+					},
+				},
+				Conditions: []types.Condition{
+					{
+						Column:   mockdata.GetColumnOrDie("test_keyspace", "user_info", "tags"),
+						Operator: types.CONTAINS,
+						Value:    types.NewParameterizedValue("@value0"),
+					},
+				},
+				OrderBy:        types.OrderBy{},
+				GroupByColumns: nil,
 				AllParams:      []types.Placeholder{"@value0"},
 			},
 			sessionKeyspace: "test_keyspace",

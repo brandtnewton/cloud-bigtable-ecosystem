@@ -125,7 +125,7 @@ func parseWhereCompare(compare cql.IRelationCompareContext, tableConfig *schemaM
 		return types.Condition{}, err
 	}
 
-	value, err := ExtractConstantValue(compare.Constant(), column.CQLType, params)
+	value, err := ParseConstantValue(compare.Constant(), column.CQLType, params)
 	if err != nil {
 		return types.Condition{}, err
 	}
@@ -141,7 +141,7 @@ func parseWhereLike(like cql.IRelationLikeContext, tableConfig *schemaMapping.Ta
 	if err != nil {
 		return types.Condition{}, err
 	}
-	value, err := ExtractConstantValue(like.Constant(), column.CQLType, params)
+	value, err := ParseConstantValue(like.Constant(), column.CQLType, params)
 	if err != nil {
 		return types.Condition{}, err
 	}
@@ -160,7 +160,7 @@ func parseWhereContainsKey(containsKey cql.IRelationContainsKeyContext, tableCon
 		return types.Condition{}, errors.New("CONTAINS KEY are only supported for map")
 	}
 	keyType := column.CQLType.(*types.MapType).KeyType()
-	value, err := ExtractConstantValue(containsKey.Constant(), keyType, params)
+	value, err := ParseConstantValue(containsKey.Constant(), keyType, params)
 	if err != nil {
 		return types.Condition{}, err
 	}
@@ -185,7 +185,7 @@ func parseWhereContains(contains cql.IRelationContainsContext, tableConfig *sche
 		return types.Condition{}, fmt.Errorf("CONTAINS are only supported for set and list type columns, not %s", column.CQLType.String())
 	}
 
-	value, err := ExtractConstantValue(contains.Constant(), elementType, params)
+	value, err := ParseConstantValue(contains.Constant(), elementType, params)
 	if err != nil {
 		return types.Condition{}, err
 	}
@@ -206,11 +206,11 @@ func parseWhereBetween(between cql.IRelationBetweenContext, tableConfig *schemaM
 		return types.Condition{}, fmt.Errorf("BETWEEN condition must have exactly 2 values")
 	}
 
-	v1, err := ExtractConstantValue(between.Constant(0), column.CQLType, params)
+	v1, err := ParseConstantValue(between.Constant(0), column.CQLType, params)
 	if err != nil {
 		return types.Condition{}, err
 	}
-	v2, err := ExtractConstantValue(between.Constant(1), column.CQLType, params)
+	v2, err := ParseConstantValue(between.Constant(1), column.CQLType, params)
 	if err != nil {
 		return types.Condition{}, err
 	}
@@ -238,13 +238,9 @@ func parseWhereIn(whereIn cql.IRelationInContext, tableConfig *schemaMapping.Tab
 	}, nil
 }
 
-func ParseTupleValue(tuple cql.ITupleValueContext, dt types.CqlDataType, params *types.QueryParameters) (types.DynamicValue, error) {
-	if dt.Code() != types.LIST {
-		return nil, fmt.Errorf("cannot extract tuple to type '%s': must be a list", dt.String())
-	}
-
+func ParseTupleValue(tuple cql.ITupleValueContext, lt *types.ListType, params *types.QueryParameters) (types.DynamicValue, error) {
 	if tuple.QUESTION_MARK() != nil {
-		p := params.PushParameter(dt)
+		p := params.PushParameter(lt)
 		return types.NewParameterizedValue(p), nil
 	}
 
@@ -255,7 +251,7 @@ func ParseTupleValue(tuple cql.ITupleValueContext, dt types.CqlDataType, params 
 	}
 	var inValues []any
 	for _, v := range all {
-		parsed, err := utilities.StringToGo(TrimQuotes(v.GetText()), dt)
+		parsed, err := utilities.StringToGo(TrimQuotes(v.GetText()), lt.ElementType())
 		if err != nil {
 			return nil, err
 		}
@@ -264,14 +260,14 @@ func ParseTupleValue(tuple cql.ITupleValueContext, dt types.CqlDataType, params 
 	return types.NewLiteralValue(inValues), nil
 }
 
-func ExtractValueAny(v cql.IValueAnyContext, dt types.CqlDataType, params *types.QueryParameters) (types.DynamicValue, error) {
+func ParseValueAny(v cql.IValueAnyContext, dt types.CqlDataType, params *types.QueryParameters) (types.DynamicValue, error) {
 	if v.QUESTION_MARK() != nil {
 		p := params.PushParameter(dt)
 		return types.NewParameterizedValue(p), nil
 	}
 	// todo handle tuple
 	if v.Constant() != nil {
-		return ExtractConstantValue(v.Constant(), dt, params)
+		return ParseConstantValue(v.Constant(), dt, params)
 	}
 	if v.ValueList() != nil {
 		value, err := ParseListValue(v.ValueList(), dt)
@@ -311,7 +307,7 @@ func ExtractValueAny(v cql.IValueAnyContext, dt types.CqlDataType, params *types
 	return nil, fmt.Errorf("unhandled value set `%s`", v.GetText())
 }
 
-func ExtractConstantValue(v cql.IConstantContext, dt types.CqlDataType, params *types.QueryParameters) (types.DynamicValue, error) {
+func ParseConstantValue(v cql.IConstantContext, dt types.CqlDataType, params *types.QueryParameters) (types.DynamicValue, error) {
 	if v.QUESTION_MARK() != nil {
 		p := params.PushParameter(dt)
 		return types.NewParameterizedValue(p), nil

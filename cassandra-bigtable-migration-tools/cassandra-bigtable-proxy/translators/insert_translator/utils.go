@@ -71,7 +71,7 @@ func parseInsertValues(input cql.IInsertValuesSpecContext, columns []*types.Colu
 	var assignments []types.Assignment
 	for i, v := range allValues {
 		column := columns[i]
-		value, err := common.ExtractValueAny(v, column.CQLType, params)
+		value, err := common.ParseValueAny(v, column.CQLType, params)
 		if err != nil {
 			return nil, err
 		}

@@ -404,7 +404,7 @@ func ToBtql(dynamicValue types.DynamicValue) (string, error) {
 func createBtqlWhereClause(conditions []types.Condition, tableConfig *sm.TableSchema) (string, error) {
 	var btqlConditions []string
 	for _, condition := range conditions {
-		column := "`" + string(condition.Column.Name) + "`"
+		column := string(condition.Column.Name)
 		if col, ok := tableConfig.Columns[condition.Column.Name]; ok {
 			// Check if the column is a primitive type and prepend the column family
 			if !col.CQLType.IsCollection() {
@@ -434,18 +434,16 @@ func createBtqlWhereClause(conditions []types.Condition, tableConfig *sm.TableSc
 				return "", err
 			}
 			btql = fmt.Sprintf("%s IN UNNEST(%s)", column, v)
-		} else if condition.Operator == types.MAP_CONTAINS_KEY {
+		} else if condition.Operator == types.CONTAINS || condition.Operator == types.CONTAINS_KEY {
 			v, err := ToBtql(condition.Value)
 			if err != nil {
 				return "", err
 			}
-			btql = fmt.Sprintf("MAP_CONTAINS_KEY(%s, %s)", column, v)
-		} else if condition.Operator == types.ARRAY_INCLUDES {
-			v, err := ToBtql(condition.Value)
-			if err != nil {
-				return "", err
+			if condition.Column.CQLType.Code() == types.SET || condition.Column.CQLType.Code() == types.MAP {
+				btql = fmt.Sprintf("MAP_CONTAINS_KEY(%s, %s)", column, v)
+			} else {
+				btql = fmt.Sprintf("ARRAY_INCLUDES(MAP_VALUES(%s), %s)", column, v)
 			}
-			btql = fmt.Sprintf("ARRAY_INCLUDES(MAP_VALUES(%s), %s)", column, v)
 		} else {
 			v, err := ToBtql(condition.Value)
 			if err != nil {

@@ -10,15 +10,12 @@ import (
 type Placeholder string
 
 type PlaceholderMetadata struct {
-	Key Placeholder
-
+	Key  Placeholder
 	Type CqlDataType
-	// indicates that this is a value for accessing a collection column by index or key
-	IsCollectionKey bool
 }
 
-func newPlaceholderMetadata(key Placeholder, tpe CqlDataType, isCollectionKey bool) PlaceholderMetadata {
-	return PlaceholderMetadata{Key: key, Type: tpe, IsCollectionKey: isCollectionKey}
+func newPlaceholderMetadata(key Placeholder, tpe CqlDataType) PlaceholderMetadata {
+	return PlaceholderMetadata{Key: key, Type: tpe}
 }
 
 type QueryParameters struct {
@@ -64,25 +61,20 @@ func (q *QueryParameters) getNextParameter() Placeholder {
 	return Placeholder(fmt.Sprintf("@value%d", len(q.ordered)))
 }
 
-func (q *QueryParameters) BuildParameter(dataType CqlDataType, isCollectionKey bool) *QueryParameters {
-	_ = q.PushParameter(dataType, isCollectionKey)
+func (q *QueryParameters) BuildParameter(dataType CqlDataType) *QueryParameters {
+	_ = q.PushParameter(dataType)
 	return q
 }
 
-func (q *QueryParameters) PushParameter(dataType CqlDataType, isCollectionKey bool) Placeholder {
+func (q *QueryParameters) PushParameter(dataType CqlDataType) Placeholder {
 	p := q.getNextParameter()
-	q.AddParameter(p, dataType, isCollectionKey)
+	q.AddParameter(p, dataType)
 	return p
 }
 
-func (q *QueryParameters) AddParameter(p Placeholder, dt CqlDataType, isCollectionKey bool) {
+func (q *QueryParameters) AddParameter(p Placeholder, dt CqlDataType) {
 	q.ordered = append(q.ordered, p)
-	q.metadata[p] = newPlaceholderMetadata(p, dt, isCollectionKey)
-}
-
-func (q *QueryParameters) AddParameterWithoutColumn(p Placeholder, dt CqlDataType) {
-	q.ordered = append(q.ordered, p)
-	q.metadata[p] = newPlaceholderMetadata(p, dt, false)
+	q.metadata[p] = newPlaceholderMetadata(p, dt)
 }
 
 func (q *QueryParameters) GetMetadata(p Placeholder) PlaceholderMetadata {
@@ -155,20 +147,4 @@ func (q *QueryParameterValues) AllValuesSet() bool {
 }
 func (q *QueryParameterValues) AsMap() map[Placeholder]GoValue {
 	return q.values
-}
-
-func (q *QueryParameterValues) BigtableParamMap() map[string]any {
-	var result = make(map[string]any)
-	for placeholder, value := range q.values {
-		md := q.params.GetMetadata(placeholder)
-		if md.IsCollectionKey {
-			switch v := value.(type) {
-			case string:
-				value = []byte(v)
-			}
-		}
-		// drop the leading '@' symbol
-		result[string(placeholder)[1:]] = value
-	}
-	return result
 }

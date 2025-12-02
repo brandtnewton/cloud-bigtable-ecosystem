@@ -120,14 +120,14 @@ type ExecutableSelectQuery struct {
 	Conditions           []Condition
 	CachedBTPrepare      *bigtable.PreparedStatement
 	OrderBy              OrderBy
-	Limit                Limit
+	Limit                DynamicValue
 	GroupByColumns       []string
 	ResultColumnMetadata []*message.ColumnMetadata
 	ProtocolVersion      primitive.ProtocolVersion
 	Values               *QueryParameterValues
 }
 
-func NewExecutableSelectQuery(query *PreparedSelectQuery, protocolVersion primitive.ProtocolVersion, values *QueryParameterValues, limit Limit) *ExecutableSelectQuery {
+func NewExecutableSelectQuery(query *PreparedSelectQuery, protocolVersion primitive.ProtocolVersion, values *QueryParameterValues) *ExecutableSelectQuery {
 	return &ExecutableSelectQuery{
 		keyspace:             query.keyspace,
 		table:                query.table,
@@ -140,7 +140,7 @@ func NewExecutableSelectQuery(query *PreparedSelectQuery, protocolVersion primit
 		GroupByColumns:       query.GroupByColumns,
 		ResultColumnMetadata: query.ResultColumnMetadata,
 		ProtocolVersion:      protocolVersion,
-		Limit:                limit,
+		Limit:                query.LimitValue,
 		Values:               values,
 	}
 }

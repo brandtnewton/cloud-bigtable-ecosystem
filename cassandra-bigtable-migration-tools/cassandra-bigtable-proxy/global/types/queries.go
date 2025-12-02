@@ -11,10 +11,6 @@ type OrderBy struct {
 	IsOrderBy bool
 	Columns   []OrderByColumn
 }
-type Limit struct {
-	IsLimit bool
-	Count   int32
-}
 
 type OrderByColumn struct {
 	Column    string
@@ -72,16 +68,16 @@ type Operator string
 // Just to keep the code clean, we have defined the constants here.
 // It will help in reducing the number of magic strings in the code also to avoid the circular dependency.
 const (
-	EQ               Operator = "="
-	GT               Operator = ">"
-	LT               Operator = "<"
-	GTE              Operator = ">="
-	LTE              Operator = "<="
-	BETWEEN          Operator = "BETWEEN"
-	LIKE             Operator = "LIKE"
-	IN               Operator = "IN"
-	ARRAY_INCLUDES   Operator = "ARRAY_INCLUDES"
-	MAP_CONTAINS_KEY Operator = "MAP_CONTAINS_KEY"
+	EQ           Operator = "="
+	GT           Operator = ">"
+	LT           Operator = "<"
+	GTE          Operator = ">="
+	LTE          Operator = "<="
+	BETWEEN      Operator = "BETWEEN"
+	LIKE         Operator = "LIKE"
+	IN           Operator = "IN"
+	CONTAINS     Operator = "CONTAINS"
+	CONTAINS_KEY Operator = "CONTAINS KEY"
 )
 
 type ArithmeticOperator string

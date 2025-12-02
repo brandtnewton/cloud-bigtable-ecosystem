@@ -19,7 +19,6 @@ package bigtableclient
 import (
 	"cloud.google.com/go/bigtable"
 	"encoding/base64"
-	"fmt"
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/global/types"
 	"github.com/datastax/go-cassandra-native-protocol/datatype"
 	"github.com/datastax/go-cassandra-native-protocol/message"
@@ -92,37 +91,99 @@ func decodeBase64(k string) (string, error) {
 	return string(decoded), nil
 }
 
-// toBigtableSQLType attempts to infer the Bigtable SQLType from a Go interface{} value.
-// This is a basic implementation and might need enhancement based on actual data types and schema.
-func toBigtableSQLType(value types.CqlDataType) (bigtable.SQLType, error) {
-	switch value.Code() {
-	case types.VARCHAR, types.TEXT, types.ASCII:
-		return bigtable.StringSQLType{}, nil
-	case types.BLOB:
-		return bigtable.BytesSQLType{}, nil
-	case types.INT, types.BIGINT, types.TIMESTAMP:
-		return bigtable.Int64SQLType{}, nil
-	case types.FLOAT:
-		return bigtable.Float32SQLType{}, nil
-	case types.DOUBLE:
-		return bigtable.Float64SQLType{}, nil
-	case types.BOOLEAN:
-		return bigtable.Int64SQLType{}, nil
-	case types.LIST:
-		lt := value.(*types.ListType)
-		innerSqlType, err := toBigtableSQLType(lt.ElementType())
+func BuildBigtableParams(b *types.ExecutableSelectQuery) (map[string]any, error) {
+	var err error
+	result := make(map[string]any)
+	for _, condition := range b.Conditions {
+		err = addBindValueIfNeeded(condition.Value, b.Values, needsByteConversion(condition), result)
 		if err != nil {
-			return nil, fmt.Errorf("cannot infer type for array element: %w", err)
+			return nil, err
 		}
-		return bigtable.ArraySQLType{ElemType: innerSqlType}, nil
-	case types.SET:
-		st := value.(*types.SetType)
-		innerSqlType, err := toBigtableSQLType(st.ElementType())
+		err = addBindValueIfNeeded(condition.Value2, b.Values, false, result)
 		if err != nil {
-			return nil, fmt.Errorf("cannot infer type for array element: %w", err)
+			return nil, err
 		}
-		return bigtable.ArraySQLType{ElemType: innerSqlType}, nil
-	default:
-		return nil, fmt.Errorf("unsupported type for SQL parameter inference: %s", value.String())
 	}
+
+	err = addBindValueIfNeeded(b.Limit, b.Values, false, result)
+	if err != nil {
+		return nil, err
+	}
+	return result, nil
+}
+
+func addBindValueIfNeeded(dynamicValue types.DynamicValue, values *types.QueryParameterValues, needsByteConversion bool, result map[string]any) error {
+	if dynamicValue == nil {
+		return nil
+	}
+	param, ok := dynamicValue.(*types.ParameterizedValue)
+	if !ok {
+		return nil
+	}
+
+	var value any
+	if needsByteConversion {
+		var err error
+		value, err = param.GetValue(values)
+		if err != nil {
+			return err
+		}
+		// special case where bigtable expects bytes
+		switch v := value.(type) {
+		case string:
+			value = []byte(v)
+		}
+	} else {
+		var err error
+		value, err = param.GetValue(values)
+		if err != nil {
+			return err
+		}
+	}
+	// drop the leading '@' symbol
+	result[string(param.Placeholder)[1:]] = value
+	return nil
+}
+
+func needsByteConversion(condition types.Condition) bool {
+	if condition.Operator == types.CONTAINS {
+		return true
+	}
+
+	// we're checking the column qualifier, so we need to convert to bytes
+	if condition.Operator == types.CONTAINS_KEY {
+		return true
+	}
+	return false
+}
+
+func BuildParamTypes(b *types.PreparedSelectQuery) map[string]bigtable.SQLType {
+	result := make(map[string]bigtable.SQLType)
+	for _, condition := range b.Conditions {
+		addParamIfNeeded(condition.Value, b.Params, needsByteConversion(condition), result)
+		addParamIfNeeded(condition.Value2, b.Params, needsByteConversion(condition), result)
+	}
+
+	addParamIfNeeded(b.LimitValue, b.Params, false, result)
+	return result
+}
+
+func addParamIfNeeded(value types.DynamicValue, params *types.QueryParameters, needsByteConversion bool, result map[string]bigtable.SQLType) {
+	if value == nil {
+		return
+	}
+
+	param, ok := value.(*types.ParameterizedValue)
+	if !ok {
+		return
+	}
+
+	md := params.GetMetadata(param.Placeholder)
+
+	bigtableType := md.Type.BigtableSqlType()
+	if needsByteConversion {
+		bigtableType = bigtable.BytesSQLType{}
+	}
+	// drop the leading '@' symbol
+	result[string(param.Placeholder)[1:]] = bigtableType
 }

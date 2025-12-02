@@ -45,7 +45,12 @@ func (btc *BigtableAdapter) ExecutePreparedStatement(ctx context.Context, query 
 		return nil, fmt.Errorf("cannot execute select query because prepared bigtable query is nil")
 	}
 
-	params := query.Values.BigtableParamMap()
+	params, err := BuildBigtableParams(query)
+	if err != nil {
+		btc.Logger.Error("Failed to bind parameters", zap.Any("params", params), zap.Error(err))
+		return nil, fmt.Errorf("failed to bind parameters: %w", err)
+	}
+
 	boundStmt, err := query.CachedBTPrepare.Bind(params)
 	if err != nil {
 		btc.Logger.Error("Failed to bind parameters", zap.Any("params", params), zap.Error(err))

@@ -18,6 +18,7 @@ package utilities
 
 import (
 	"fmt"
+	"reflect"
 	"sort"
 	"strconv"
 	"strings"
@@ -266,7 +267,7 @@ func GoToString(value types.GoValue) (string, error) {
 
 	switch v := value.(type) {
 	case string:
-		escaped := strings.ReplaceAll(v, "'", "''")
+		escaped := strings.ReplaceAll(v, "'", "\\'")
 		return "'" + escaped + "'", nil
 	case int32:
 		return strconv.Itoa(int(v)), nil
@@ -666,4 +667,80 @@ func validateDataTypeDefinition(dt cql.IDataTypeContext, expectedTypeCount int) 
 		return fmt.Errorf("missing closing type bracket in: '%s'", dt.GetText())
 	}
 	return nil
+}
+
+func GetValueInt32(value types.DynamicValue, values *types.QueryParameterValues) (int32, error) {
+	v, err := value.GetValue(values)
+	if err != nil {
+		return 0, err
+	}
+	intVal, ok := v.(int32)
+	if !ok {
+		return 0, fmt.Errorf("query value is a %T, not an int32", v)
+	}
+	return intVal, nil
+}
+
+func GetValueInt64(value types.DynamicValue, values *types.QueryParameterValues) (int64, error) {
+	v, err := value.GetValue(values)
+	if err != nil {
+		return 0, err
+	}
+	intVal, ok := v.(int64)
+	if !ok {
+		return 0, fmt.Errorf("query value is a %T, not an int64", v)
+	}
+	return intVal, nil
+}
+
+func GetValueSlice(value types.DynamicValue, values *types.QueryParameterValues) ([]types.GoValue, error) {
+	v, err := value.GetValue(values)
+	if err != nil {
+		return nil, err
+	}
+
+	val := reflect.ValueOf(v)
+
+	if val.Kind() != reflect.Slice {
+		return nil, fmt.Errorf("query value is a %T, not a slice", v)
+	}
+
+	length := val.Len()
+	result := make([]types.GoValue, length)
+
+	for i := 0; i < length; i++ {
+		result[i] = val.Index(i).Interface()
+	}
+
+	return result, nil
+}
+
+func GetValueMap(value types.DynamicValue, values *types.QueryParameterValues) (map[types.GoValue]types.GoValue, error) {
+	v, err := value.GetValue(values)
+	if err != nil {
+		return nil, err
+	}
+	val := reflect.ValueOf(v)
+
+	if val.Kind() != reflect.Map {
+		return nil, fmt.Errorf("value is a %T, not a map", v)
+	}
+
+	result := make(map[types.GoValue]types.GoValue, val.Len())
+
+	// 3. Iterate over the keys of the original map
+	iter := val.MapRange()
+	for iter.Next() {
+		// Get the reflection Placeholder for the key and the value
+		keyVal := iter.Key()
+		valueVal := iter.Value()
+
+		// 4. Use .Interface() to convert the concrete key/value to an any (interface{})
+		keyAny := keyVal.Interface()
+		valueAny := valueVal.Interface()
+
+		// 5. Add to the new map[any]any
+		result[keyAny] = valueAny
+	}
+	return result, nil
 }

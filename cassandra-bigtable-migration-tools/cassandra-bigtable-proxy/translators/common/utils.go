@@ -36,7 +36,7 @@ func ExtractDecimalLiteral(d cql.IDecimalLiteralContext, cqlType types.CqlDataTy
 		return nil, fmt.Errorf("decimal literal missing")
 	}
 	if d.QUESTION_MARK() != nil {
-		p := params.PushParameter(cqlType, false)
+		p := params.PushParameter(cqlType)
 		return types.NewParameterizedValue(p), nil
 	}
 	val, err := GetDecimalLiteral(d, cqlType)
@@ -166,7 +166,7 @@ func parseWhereContainsKey(containsKey cql.IRelationContainsKeyContext, tableCon
 	}
 	return types.Condition{
 		Column:   column,
-		Operator: types.MAP_CONTAINS_KEY,
+		Operator: types.CONTAINS_KEY,
 		Value:    value,
 	}, nil
 }
@@ -176,13 +176,10 @@ func parseWhereContains(contains cql.IRelationContainsContext, tableConfig *sche
 	if err != nil {
 		return types.Condition{}, err
 	}
-	var operator types.Operator
 	var elementType types.CqlDataType
 	if column.CQLType.Code() == types.LIST {
-		operator = types.ARRAY_INCLUDES
 		elementType = column.CQLType.(*types.ListType).ElementType()
 	} else if column.CQLType.Code() == types.SET {
-		operator = types.MAP_CONTAINS_KEY
 		elementType = column.CQLType.(*types.SetType).ElementType()
 	} else {
 		return types.Condition{}, fmt.Errorf("CONTAINS are only supported for set and list type columns, not %s", column.CQLType.String())
@@ -194,7 +191,7 @@ func parseWhereContains(contains cql.IRelationContainsContext, tableConfig *sche
 	}
 	return types.Condition{
 		Column:   column,
-		Operator: operator,
+		Operator: types.CONTAINS,
 		Value:    value,
 	}, nil
 }
@@ -230,7 +227,7 @@ func parseWhereIn(whereIn cql.IRelationInContext, tableConfig *schemaMapping.Tab
 	if err != nil {
 		return types.Condition{}, err
 	}
-	value, err := ExtractTupleValue(whereIn.TupleValue(), column, params)
+	value, err := ParseTupleValue(whereIn.TupleValue(), types.NewListType(column.CQLType), params)
 	if err != nil {
 		return types.Condition{}, err
 	}
@@ -241,9 +238,13 @@ func parseWhereIn(whereIn cql.IRelationInContext, tableConfig *schemaMapping.Tab
 	}, nil
 }
 
-func ExtractTupleValue(tuple cql.ITupleValueContext, col *types.Column, params *types.QueryParameters) (types.DynamicValue, error) {
+func ParseTupleValue(tuple cql.ITupleValueContext, dt types.CqlDataType, params *types.QueryParameters) (types.DynamicValue, error) {
+	if dt.Code() != types.LIST {
+		return nil, fmt.Errorf("cannot extract tuple to type '%s': must be a list", dt.String())
+	}
+
 	if tuple.QUESTION_MARK() != nil {
-		p := params.PushParameter(col.CQLType, false)
+		p := params.PushParameter(dt)
 		return types.NewParameterizedValue(p), nil
 	}
 
@@ -254,7 +255,7 @@ func ExtractTupleValue(tuple cql.ITupleValueContext, col *types.Column, params *
 	}
 	var inValues []any
 	for _, v := range all {
-		parsed, err := utilities.StringToGo(TrimQuotes(v.GetText()), col.CQLType)
+		parsed, err := utilities.StringToGo(TrimQuotes(v.GetText()), dt)
 		if err != nil {
 			return nil, err
 		}
@@ -265,7 +266,7 @@ func ExtractTupleValue(tuple cql.ITupleValueContext, col *types.Column, params *
 
 func ExtractValueAny(v cql.IValueAnyContext, dt types.CqlDataType, params *types.QueryParameters) (types.DynamicValue, error) {
 	if v.QUESTION_MARK() != nil {
-		p := params.PushParameter(dt, false)
+		p := params.PushParameter(dt)
 		return types.NewParameterizedValue(p), nil
 	}
 	// todo handle tuple
@@ -312,7 +313,7 @@ func ExtractValueAny(v cql.IValueAnyContext, dt types.CqlDataType, params *types
 
 func ExtractConstantValue(v cql.IConstantContext, dt types.CqlDataType, params *types.QueryParameters) (types.DynamicValue, error) {
 	if v.QUESTION_MARK() != nil {
-		p := params.PushParameter(dt, false)
+		p := params.PushParameter(dt)
 		return types.NewParameterizedValue(p), nil
 	}
 

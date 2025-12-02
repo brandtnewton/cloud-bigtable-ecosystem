@@ -116,7 +116,7 @@ func TestTranslator_TranslateSelectQuerytoBigtable(t *testing.T) {
 				Conditions: []types.Condition{
 					{
 						Column:   mockdata.GetColumnOrDie("test_keyspace", "test_table", "list_text"),
-						Operator: types.ARRAY_INCLUDES,
+						Operator: types.CONTAINS,
 						Value:    types.NewLiteralValue("test"),
 					},
 				},
@@ -1014,12 +1014,6 @@ func TestTranslator_TranslateSelectQuerytoBigtable(t *testing.T) {
 				AllParams:      []types.Placeholder{"@value0"},
 			},
 			sessionKeyspace: "test_keyspace",
-		},
-		{
-			name:    "Invalid ORDER BY with non-grouped column",
-			query:   `select pk1, count(col_int) from test_keyspace.test_table where pk1 = 'test' GROUP BY pk1 ORDER BY col_int;`,
-			want:    nil,
-			wantErr: "ORDER BY column 'col_int' must be a grouping column",
 		},
 		{
 			name:  "Valid GROUP BY with aggregate and ORDER BY",

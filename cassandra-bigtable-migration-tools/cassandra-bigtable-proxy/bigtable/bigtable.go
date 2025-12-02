@@ -477,8 +477,10 @@ func (btc *BigtableAdapter) PrepareStatement(ctx context.Context, query types.IP
 	if query.Keyspace().IsSystemKeyspace() {
 		return nil, nil
 	}
-	// only select queries can be prepared in Bigtable at the moment
-	if query.QueryType() != types.QueryTypeSelect {
+
+	selectQuery, ok := query.(*types.PreparedSelectQuery)
+	if !ok {
+		// only select queries can be prepared in Bigtable at this time
 		return nil, nil
 	}
 	client, err := btc.clients.GetClient(query.Keyspace())
@@ -486,22 +488,7 @@ func (btc *BigtableAdapter) PrepareStatement(ctx context.Context, query types.IP
 		return nil, err
 	}
 
-	paramTypes := make(map[string]bigtable.SQLType)
-	for _, p := range query.Parameters().AllKeys() {
-		md := query.Parameters().GetMetadata(p)
-		// drop the leading "@" symbol
-		paramName := string(p)[1:]
-		if md.IsCollectionKey {
-			paramTypes[paramName] = bigtable.BytesSQLType{}
-		} else {
-			sqlType, err := toBigtableSQLType(md.Type)
-			if err != nil {
-				btc.Logger.Error("Failed to infer SQL type for parameter", zap.String("paramName", paramName), zap.Error(err))
-				return nil, fmt.Errorf("failed to infer SQL type for parameter %s: %w", p, err)
-			}
-			paramTypes[paramName] = sqlType
-		}
-	}
+	paramTypes := BuildParamTypes(selectQuery)
 	preparedStatement, err := client.PrepareStatement(ctx, query.BigtableQuery(), paramTypes)
 	if err != nil {
 		btc.Logger.Error("Failed to prepare statement", zap.String("query", query.BigtableQuery()), zap.Error(err))

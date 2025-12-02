@@ -3,6 +3,7 @@ package mem_table
 import (
 	"fmt"
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/global/types"
+	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/utilities"
 	"strings"
 )
 
@@ -25,8 +26,11 @@ func (e *InMemEngine) Execute(query *types.ExecutableSelectQuery) ([]types.GoRow
 	}
 
 	// apply limit
-	if query.Limit.IsLimit {
-		limit := query.Limit.Count
+	if query.Limit != nil {
+		limit, err := utilities.GetValueInt32(query.Limit, query.Values)
+		if err != nil {
+			return nil, err
+		}
 		if limit < int32(len(filtered)) {
 			filtered = filtered[:limit]
 		}

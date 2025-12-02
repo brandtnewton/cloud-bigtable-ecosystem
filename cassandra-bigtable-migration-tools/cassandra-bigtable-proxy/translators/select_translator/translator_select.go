@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/global/types"
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/translators/common"
+	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/utilities"
 	"github.com/datastax/go-cassandra-native-protocol/primitive"
 )
 
@@ -90,20 +91,15 @@ func (t *SelectTranslator) Bind(st types.IPreparedQuery, values *types.QueryPara
 		return nil, fmt.Errorf("cannot bind to %T", st)
 	}
 
-	limit := types.Limit{
-		IsLimit: false,
-		Count:   0,
-	}
 	if sst.LimitValue != nil {
-		v, err := common.GetValueInt32(sst.LimitValue, values)
+		v, err := utilities.GetValueInt32(sst.LimitValue, values)
 		if err != nil {
 			return nil, err
 		}
 		if v <= 0 {
 			return nil, errors.New("limit must be positive")
 		}
-		limit.Count = v
 	}
-	query := types.NewExecutableSelectQuery(sst, pv, values, limit)
+	query := types.NewExecutableSelectQuery(sst, pv, values)
 	return query, nil
 }

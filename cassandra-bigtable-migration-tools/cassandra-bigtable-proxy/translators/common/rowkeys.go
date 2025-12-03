@@ -49,7 +49,7 @@ func BindRowKey(tableConfig *schemaMapping.TableSchema, rowKeyValues []types.Dyn
 				return "", err
 			}
 		case time.Time:
-			orderEncodedField, err = encodeInt64Key(v.UnixMilli(), tableConfig.IntRowKeyEncoding)
+			orderEncodedField, err = encodeInt64Key(v.UnixMicro(), tableConfig.IntRowKeyEncoding)
 			if err != nil {
 				return "", err
 			}

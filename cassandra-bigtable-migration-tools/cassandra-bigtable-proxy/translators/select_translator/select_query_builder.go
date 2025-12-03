@@ -320,9 +320,9 @@ func castScalarColumn(colMeta *types.Column) (string, error) {
 	}
 	if colMeta.IsPrimaryKey {
 		// timestamps are stored as millis
-		if colMeta.CQLType == types.TypeTimestamp {
-			return fmt.Sprintf("TIMESTAMP_FROM_UNIX_MILLIS(%s)", colMeta.Name), nil
-		}
+		//if colMeta.CQLType == types.TypeTimestamp {
+		//	return fmt.Sprintf("TIMESTAMP_FROM_UNIX_MILLIS(%s)", colMeta.Name), nil
+		//}
 		// primary keys are stored in structured row keys, not column families, and have type information already, so no need to case
 		return string(colMeta.Name), nil
 	}

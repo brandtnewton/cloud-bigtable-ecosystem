@@ -436,7 +436,7 @@ func TestTranslator_TranslateUpdateQuerytoBigtable(t *testing.T) {
 		{
 			name:    "missing primary key in where clause (should error)",
 			query:   "UPDATE test_keyspace.test_table SET col_blob = 'abc' WHERE pk1 = 'testText'", // Missing pk2
-			wantErr: "only primary keys supported in where clause",
+			wantErr: "all primary keys must be included in the where clause. missing `pk2`",
 			want:    nil,
 		},
 		{

@@ -50,7 +50,7 @@ func NewTranslatorManager(logger *zap.Logger, schemaMappingConfig *schemaMapping
 		update_translator.NewUpdateTranslator(schemaMappingConfig),
 		delete_translator.NewDeleteTranslator(schemaMappingConfig),
 		truncate_translator.NewTruncateTranslator(schemaMappingConfig),
-		create_translator.NewCreateTranslator(schemaMappingConfig, config.DefaultIntRowKeyEncoding),
+		create_translator.NewCreateTranslator(schemaMappingConfig, config),
 		alter_translator.NewAlterTranslator(schemaMappingConfig),
 		drop_translator.NewDropTranslator(schemaMappingConfig),
 		use_translator.NewUseTranslator(schemaMappingConfig),

@@ -44,6 +44,10 @@ func (t *CreateTranslator) Translate(query *types.RawQuery, sessionKeyspace type
 		return nil, err
 	}
 
+	if tableName == t.config.SchemaMappingTable {
+		return nil, fmt.Errorf("table name cannot be the same as the configured schema mapping table name '%s'", t.config.SchemaMappingTable)
+	}
+
 	var primaryKeys []types.CreateTablePrimaryKeyConfig
 	var columns []types.CreateColumn
 
@@ -83,7 +87,7 @@ func (t *CreateTranslator) Translate(query *types.RawQuery, sessionKeyspace type
 		return nil, errors.New("no columns found in create table statement")
 	}
 
-	rowKeyEncoding := t.defaultIntRowKeyEncoding
+	rowKeyEncoding := t.config.DefaultIntRowKeyEncoding
 	for optionName, optionValue := range createOptionsMap(createTableObj.WithElement()) {
 		switch optionName {
 		case intRowKeyEncodingOptionName:

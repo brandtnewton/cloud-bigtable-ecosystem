@@ -218,7 +218,7 @@ func (p *Proxy) Connect() error {
 	}
 
 	// Create cassandra session
-	sess, err := proxycore.ConnectSession(p.ctx, p.cluster, proxycore.SessionConfig{
+	sess, err := proxycore.ConnectSession(p.ctx, proxycore.SessionConfig{
 		Version: p.cluster.NegotiatedVersion,
 		Logger:  p.logger,
 	})

@@ -6,14 +6,14 @@ import (
 )
 
 type CreateTranslator struct {
-	schemaMappingConfig      *schemaMapping.SchemaMetadata
-	defaultIntRowKeyEncoding types.IntRowKeyEncodingType
+	schemaMappingConfig *schemaMapping.SchemaMetadata
+	config              *types.BigtableConfig
 }
 
 func (t *CreateTranslator) QueryType() types.QueryType {
 	return types.QueryTypeCreate
 }
 
-func NewCreateTranslator(schemaMappingConfig *schemaMapping.SchemaMetadata, defaultIntRowKeyEncoding types.IntRowKeyEncodingType) types.IQueryTranslator {
-	return &CreateTranslator{schemaMappingConfig: schemaMappingConfig, defaultIntRowKeyEncoding: defaultIntRowKeyEncoding}
+func NewCreateTranslator(schemaMappingConfig *schemaMapping.SchemaMetadata, config *types.BigtableConfig) types.IQueryTranslator {
+	return &CreateTranslator{schemaMappingConfig: schemaMappingConfig, config: config}
 }

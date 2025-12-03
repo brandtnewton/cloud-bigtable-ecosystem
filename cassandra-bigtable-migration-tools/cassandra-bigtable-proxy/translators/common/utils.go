@@ -888,7 +888,7 @@ func ParseAs(a cql.IAsSpecContext) (string, error) {
 }
 
 func ConvertStrictConditionsToRowKeyValues(table *schemaMapping.TableSchema, conditions []types.Condition) ([]types.DynamicValue, error) {
-	if len(conditions) != len(table.PrimaryKeys) {
+	if len(conditions) > len(table.PrimaryKeys) {
 		return nil, fmt.Errorf("only primary keys supported in where clause")
 	}
 	var results []types.DynamicValue

@@ -54,7 +54,7 @@ type Session struct {
 	failed    chan error
 }
 
-func ConnectSession(ctx context.Context, cluster *Cluster, config SessionConfig) (*Session, error) {
+func ConnectSession(ctx context.Context, config SessionConfig) (*Session, error) {
 	session := &Session{
 		ctx:       ctx,
 		config:    config,

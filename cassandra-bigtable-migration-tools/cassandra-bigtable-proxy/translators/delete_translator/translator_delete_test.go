@@ -31,9 +31,8 @@ func TestTranslator_TranslateDeleteQuerytoBigtable(t *testing.T) {
 		Keyspace        types.Keyspace
 		Table           types.TableName
 		IfExists        bool
-		Conditions      []types.Condition
+		RowKey          []types.DynamicValue
 		SelectedColumns []types.SelectedColumn
-		InitialValues   map[types.Placeholder]types.GoValue
 	}
 
 	tests := []struct {
@@ -53,160 +52,107 @@ func TestTranslator_TranslateDeleteQuerytoBigtable(t *testing.T) {
 		{
 			name:            "DELETE query with single WHERE clause missing primary key",
 			query:           "DELETE FROM test_keyspace.user_info WHERE name='test'",
-			wantErr:         "missing primary key in where clause: 'age'",
+			wantErr:         "all primary keys must be included in the where clause. missing `age`",
 			defaultKeyspace: "test_keyspace",
 		},
 		{
 			name:  "DELETE query with multiple WHERE clauses",
-			query: "DELETE FROM test_keyspace.user_info WHERE name='test' AND age=15",
+			query: "DELETE FROM test_keyspace.user_info WHERE name='test' AND age=72",
 			want: &Want{
 				Keyspace: "test_keyspace",
 				Table:    "user_info",
 				IfExists: false,
-				Conditions: []types.Condition{
-					{
-						Column:   mockdata.GetColumnOrDie("test_keyspace", "user_info", "name"),
-						Operator: types.EQ,
-						Value:    "@value0",
-						Value2:   "",
-					},
-					{
-						Column:   mockdata.GetColumnOrDie("test_keyspace", "user_info", "age"),
-						Operator: types.EQ,
-						Value:    "@value1",
-						Value2:   "",
-					},
+				RowKey: []types.DynamicValue{
+					types.NewLiteralValue("test"),
+					types.NewLiteralValue(int64(72)),
 				},
 				SelectedColumns: nil,
-				InitialValues: map[types.Placeholder]types.GoValue{
-					"@value0": "test",
-					"@value1": int64(15),
+			},
+			defaultKeyspace: "test_keyspace",
+		},
+		{
+			name:  "DELETE query with multiple WHERE clauses",
+			query: "DELETE FROM test_keyspace.user_info WHERE name=? AND age=?",
+			want: &Want{
+				Keyspace: "test_keyspace",
+				Table:    "user_info",
+				IfExists: false,
+				RowKey: []types.DynamicValue{
+					types.NewParameterizedValue("@value0"),
+					types.NewParameterizedValue("@value1"),
 				},
+				SelectedColumns: nil,
 			},
 			defaultKeyspace: "test_keyspace",
 		},
 		{
 			name:  "DELETE with different column order",
-			query: "DELETE FROM test_keyspace.user_info WHERE age=15 AND name='test'",
+			query: "DELETE FROM test_keyspace.user_info WHERE age=72 AND name='test'",
 			want: &Want{
 				Keyspace: "test_keyspace",
 				Table:    "user_info",
 				IfExists: false,
-				Conditions: []types.Condition{
-					{
-						Column:   mockdata.GetColumnOrDie("test_keyspace", "user_info", "age"),
-						Operator: types.EQ,
-						Value:    "@value0",
-					},
-					{
-						Column:   mockdata.GetColumnOrDie("test_keyspace", "user_info", "name"),
-						Operator: types.EQ,
-						Value:    "@value1",
-					},
+				RowKey: []types.DynamicValue{
+					types.NewLiteralValue("test"),
+					types.NewLiteralValue(int64(72)),
 				},
 				SelectedColumns: nil,
-				InitialValues: map[types.Placeholder]types.GoValue{
-					"@value0": int64(15),
-					"@value1": "test",
-				},
 			},
 			defaultKeyspace: "test_keyspace",
 		},
 		{
 			name:            "DELETE query with missing keyspace or table",
-			query:           "DELETE FROM .user_info WHERE name='test' AND age=15",
+			query:           "DELETE FROM .user_info WHERE name='test' AND age=72",
 			wantErr:         "parsing error",
 			defaultKeyspace: "",
 		},
 		{
 			name:    "DELETE query with incorrect keyword positions",
-			query:   "DELETE test_keyspace.user_info WHERE name='test' AND age=15",
+			query:   "DELETE test_keyspace.user_info WHERE name='test' AND age=72",
 			wantErr: "parsing error",
 		},
 		{
 			name:  "DELETE query with ifExists condition",
-			query: `DELETE FROM test_keyspace.user_info WHERE name='test' AND age=15 IF EXISTS`,
+			query: `DELETE FROM test_keyspace.user_info WHERE name='test' AND age=72 IF EXISTS`,
 			want: &Want{
 				Keyspace: "test_keyspace",
 				Table:    "user_info",
 				IfExists: true,
-				Conditions: []types.Condition{
-					{
-						Column:   mockdata.GetColumnOrDie("test_keyspace", "user_info", "name"),
-						Operator: types.EQ,
-						Value:    "@value0",
-						Value2:   "",
-					},
-					{
-						Column:   mockdata.GetColumnOrDie("test_keyspace", "user_info", "age"),
-						Operator: types.EQ,
-						Value:    "@value1",
-						Value2:   "",
-					},
+				RowKey: []types.DynamicValue{
+					types.NewLiteralValue("test"),
+					types.NewLiteralValue(int64(72)),
 				},
 				SelectedColumns: nil,
-				InitialValues: map[types.Placeholder]types.GoValue{
-					"@value0": "test",
-					"@value1": int64(15),
-				},
 			},
 			defaultKeyspace: "test_keyspace",
 		},
 		{
 			name:  "DELETE query with escaped single quotes",
-			query: `DELETE FROM test_keyspace.user_info WHERE name='tes''t' AND age=15 IF EXISTS`,
+			query: `DELETE FROM test_keyspace.user_info WHERE name='tes''t' AND age=72 IF EXISTS`,
 			want: &Want{
 				Keyspace: "test_keyspace",
 				Table:    "user_info",
 				IfExists: true,
-				Conditions: []types.Condition{
-					{
-						Column:   mockdata.GetColumnOrDie("test_keyspace", "user_info", "name"),
-						Operator: types.EQ,
-						Value:    "@value0",
-						Value2:   "",
-					},
-					{
-						Column:   mockdata.GetColumnOrDie("test_keyspace", "user_info", "age"),
-						Operator: types.EQ,
-						Value:    "@value1",
-						Value2:   "",
-					},
+				RowKey: []types.DynamicValue{
+					types.NewLiteralValue("tes't"),
+					types.NewLiteralValue(int64(72)),
 				},
 				SelectedColumns: nil,
-				InitialValues: map[types.Placeholder]types.GoValue{
-					"@value0": "tes't",
-					"@value1": int64(15),
-				},
 			},
 			defaultKeyspace: "test_keyspace",
 		},
 		{
 			name:  "DELETE with session keyspace",
-			query: `DELETE FROM user_info WHERE name='test' AND age=15`,
+			query: `DELETE FROM user_info WHERE name='test' AND age=72`,
 			want: &Want{
 				Keyspace: "test_keyspace",
 				Table:    "user_info",
 				IfExists: false,
-				Conditions: []types.Condition{
-					{
-						Column:   mockdata.GetColumnOrDie("test_keyspace", "user_info", "name"),
-						Operator: types.EQ,
-						Value:    "@value0",
-						Value2:   "",
-					},
-					{
-						Column:   mockdata.GetColumnOrDie("test_keyspace", "user_info", "age"),
-						Operator: types.EQ,
-						Value:    "@value1",
-						Value2:   "",
-					},
+				RowKey: []types.DynamicValue{
+					types.NewLiteralValue("test"),
+					types.NewLiteralValue(int64(72)),
 				},
 				SelectedColumns: nil,
-				InitialValues: map[types.Placeholder]types.GoValue{
-					"@value0": "test",
-					"@value1": int64(15),
-				},
 			},
 			defaultKeyspace: "test_keyspace",
 		},
@@ -253,9 +199,8 @@ func TestTranslator_TranslateDeleteQuerytoBigtable(t *testing.T) {
 			assert.Equal(t, tt.want.Keyspace, gotDelete.Keyspace())
 			assert.Equal(t, tt.want.Table, gotDelete.Table())
 			assert.Equal(t, tt.want.IfExists, gotDelete.IfExists)
-			assert.Equal(t, tt.want.Conditions, gotDelete.Conditions)
+			assert.Equal(t, tt.want.RowKey, gotDelete.RowKey)
 			assert.Equal(t, tt.want.SelectedColumns, gotDelete.SelectedColumns)
-			assert.Equal(t, tt.want.InitialValues, gotDelete.InitialValues())
 		})
 	}
 }

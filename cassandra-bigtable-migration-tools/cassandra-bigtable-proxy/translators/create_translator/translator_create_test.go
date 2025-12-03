@@ -439,7 +439,10 @@ func TestTranslateCreateTableToBigtable(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			tr := NewCreateTranslator(mockdata.GetSchemaMappingConfig(), tt.defaultIntRowKeyEncoding)
+			tr := NewCreateTranslator(mockdata.GetSchemaMappingConfig(), &types.BigtableConfig{
+				SchemaMappingTable:       "schema_mapping",
+				DefaultIntRowKeyEncoding: tt.defaultIntRowKeyEncoding,
+			})
 			query := types.NewRawQuery(nil, tt.defaultKeyspace, tt.query, parser.NewParser(tt.query), types.QueryTypeCreate)
 			got, err := tr.Translate(query, tt.defaultKeyspace)
 			if tt.error != "" {

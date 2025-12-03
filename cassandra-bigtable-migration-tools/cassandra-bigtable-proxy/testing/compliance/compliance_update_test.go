@@ -162,9 +162,9 @@ func TestNegativeTestCasesForUpdateOperations(t *testing.T) {
 		},
 		{
 			name:          "Update with missing primary key parts",
-			query:         "UPDATE bigtabledevinstance.user_info SET code=? where name=?",
+			query:         "UPDATE bigtabledevinstance.user_info SET code=? where age=?",
 			params:        []interface{}{724, "Smith"},
-			expectedError: "only primary keys supported in where clause",
+			expectedError: "all primary keys must be included in the where clause. missing `name`",
 		},
 	}
 

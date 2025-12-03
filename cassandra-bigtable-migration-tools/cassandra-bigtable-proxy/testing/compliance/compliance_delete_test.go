@@ -99,8 +99,8 @@ func TestNegativeDeleteCases(t *testing.T) {
 		expectedError string
 	}{
 		{"With Non-PK Condition", `DELETE FROM user_info WHERE name = ? AND age = ? AND balance = ?`, []interface{}{"Oliver", int64(50), float32(100.0)}, "only primary keys supported in where clause"},
-		{"Missing PK Part", `DELETE FROM user_info WHERE name = ? IF EXISTS`, []interface{}{"Michael"}, "only primary keys supported in where clause"},
-		{"Condition on Non-PK Only", `DELETE FROM user_info WHERE credited = ? IF EXISTS`, []interface{}{5000.0}, "only primary keys supported in where clause"},
+		{"Missing PK Part", `DELETE FROM user_info WHERE name = ? IF EXISTS`, []interface{}{"Michael"}, "all primary keys must be included in the where clause. missing `age`"},
+		{"Condition on Non-PK Only", `DELETE FROM user_info WHERE credited = ? IF EXISTS`, []interface{}{5000.0}, "all primary keys must be included in the where clause. missing `age`"},
 		{"Invalid Data Type", `DELETE FROM user_info WHERE name = ? AND age = ?`, []interface{}{"Michael", "invalid_age"}, "can not marshal string to bigint"},
 		{"Invalid Table Columns", `DELETE FROM non_existent_table WHERE name = ? AND age = ?`, []interface{}{"Michael", int64(45)}, "table 'non_existent_table' does not exist"},
 		{"Invalid Keyspace", `DELETE FROM invalid_keyspace.user_info WHERE name = ? AND age = ?`, []interface{}{"Michael", int64(45)}, "keyspace 'invalid_keyspace' does not exist"},

@@ -245,7 +245,7 @@ func IsSupportedPrimaryKeyType(dt types.CqlDataType) bool {
 	}
 
 	switch dt.DataType() {
-	case datatype.Int, datatype.Bigint, datatype.Varchar:
+	case datatype.Int, datatype.Bigint, datatype.Varchar, datatype.Timestamp:
 		return true
 	default:
 		return false

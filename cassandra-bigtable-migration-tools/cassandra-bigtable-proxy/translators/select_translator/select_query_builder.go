@@ -122,17 +122,14 @@ Returns:
 	An updated slice of strings with the new formatted column reference appended.
 */
 func processRegularColumn(selectedColumn types.SelectedColumn, col *types.Column) (string, error) {
-	if !col.CQLType.IsCollection() {
-		return castScalarColumn(col)
+	if col.CQLType.DataType().GetDataTypeCode() == primitive.DataTypeCodeList {
+		return fmt.Sprintf("MAP_VALUES(`%s`)", selectedColumn.Sql), nil
+	} else if selectedColumn.MapKey != "" {
+		return fmt.Sprintf("`%s`['%s']", selectedColumn.ColumnName, selectedColumn.MapKey), nil
+	} else if col.CQLType.IsCollection() {
+		return fmt.Sprintf("`%s`", selectedColumn.Sql), nil
 	} else {
-		if col.CQLType.DataType().GetDataTypeCode() == primitive.DataTypeCodeList {
-			return fmt.Sprintf("MAP_VALUES(`%s`)", selectedColumn.Sql), nil
-		} else {
-			if selectedColumn.MapKey != "" {
-				return fmt.Sprintf("`%s`['%s']", selectedColumn.ColumnName, selectedColumn.MapKey), nil
-			}
-			return fmt.Sprintf("`%s`", selectedColumn.Sql), nil
-		}
+		return castScalarColumn(col)
 	}
 }
 
@@ -322,6 +319,10 @@ func castScalarColumn(colMeta *types.Column) (string, error) {
 		return "", fmt.Errorf("cannot cast collection type column '%s'", colMeta.Name)
 	}
 	if colMeta.IsPrimaryKey {
+		// timestamps are stored as millis
+		if colMeta.CQLType == types.TypeTimestamp {
+			return fmt.Sprintf("TIMESTAMP_FROM_UNIX_MILLIS(%s)", colMeta.Name), nil
+		}
 		// primary keys are stored in structured row keys, not column families, and have type information already, so no need to case
 		return string(colMeta.Name), nil
 	}

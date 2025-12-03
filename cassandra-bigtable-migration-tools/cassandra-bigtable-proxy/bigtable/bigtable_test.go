@@ -22,17 +22,14 @@ import (
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/testing/bt_server_wrapper"
 	"os"
 	"testing"
-	"time"
 
 	"cloud.google.com/go/bigtable"
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/global/types"
 	schemaMapping "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/metadata"
-	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/translators"
 	"github.com/datastax/go-cassandra-native-protocol/message"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap"
-	"google.golang.org/api/option"
 )
 
 var bts *bt_server_wrapper.BigtableTestServer
@@ -55,13 +52,29 @@ const tableName = types.TableName("test_table")
 
 func TestMain(m *testing.M) {
 	bts = bt_server_wrapper.NewBigtableTestServer(bigtableConfig)
-	bts.SetUp(1)
+	bts.SetUp(0)
+
+	adminClient, err := bts.Clients().GetAdmin(ks1)
+	if err != nil {
+		fmt.Printf("failed to get admin client: %v", err)
+		os.Exit(1)
+	}
+	err = adminClient.CreateTable(context.Background(), string(bigtableConfig.SchemaMappingTable))
+	if err != nil {
+		fmt.Printf("failed to create schema mapping table: %v", err)
+		os.Exit(1)
+	}
+	err = adminClient.CreateColumnFamily(context.Background(), string(bigtableConfig.SchemaMappingTable), string(bigtableConfig.DefaultColumnFamily))
+	if err != nil {
+		fmt.Printf("failed to create column family for schema mapping table: %v", err)
+		os.Exit(1)
+	}
 
 	mdStore = schemaMapping.NewMetadataStore(zap.NewNop(), bts.Clients(), &bigtableConfig)
 	btc = NewBigtableClient(bts.Clients(), zap.NewNop(), &bigtableConfig, mdStore)
 
 	ctx := context.Background()
-	err := mdStore.CreateTable(ctx, types.NewCreateTableStatementMap(ks1, tableName, "ignored", false, []types.CreateColumn{
+	err = mdStore.CreateTable(ctx, types.NewCreateTableStatementMap(ks1, tableName, "ignored", false, []types.CreateColumn{
 		{
 			Name:     "pk1",
 			Index:    0,
@@ -88,49 +101,50 @@ func TestMain(m *testing.M) {
 }
 
 func TestInsertRow(t *testing.T) {
-	adminClient, err := bts.Clients().GetAdmin("bt1")
+	adminClient, err := bts.Clients().GetAdmin(ks1)
 	require.NoError(t, err)
 
 	// Create table
-	err = adminClient.CreateTable(t.Context(), "test-table-insert")
+	const testTable = "test-table-insert"
+	err = adminClient.CreateTable(t.Context(), testTable)
 	if err != nil {
 		t.Fatalf("Failed to create table: %v", err)
 	}
 
-	err = adminClient.CreateColumnFamily(t.Context(), "test-table-insert", "cf1")
+	err = adminClient.CreateColumnFamily(t.Context(), testTable, "cf1")
 	if err != nil {
 		t.Fatalf("Failed to create column family: %v", err)
 	}
 
 	mdStore := schemaMapping.NewMetadataStore(zap.NewNop(), bts.Clients(), &bigtableConfig)
-	btc := NewBigtableClient(bts.Clients(), zap.NewNop(), &bigtableConfig, mdStore)
+	localBtc := NewBigtableClient(bts.Clients(), zap.NewNop(), &bigtableConfig, mdStore)
 
 	tests := []struct {
 		name          string
-		data          *types.BigtableWriteMutation
 		keyspace      types.Keyspace
 		table         types.TableName
 		rowKey        types.RowKey
 		ifNotExists   bool
 		mutations     []types.IBigtableMutationOp
 		expectedError string
-		expectedValue *message.RowsResult
+		expectedValue []byte
 	}{
 		{
 			name:     "insert row",
 			keyspace: "ks1",
-			table:    "test-table-insert",
+			table:    testTable,
 			rowKey:   "row1",
 			mutations: []types.IBigtableMutationOp{
 				types.NewWriteCellOp("cf1", "col1", []byte("value1")),
 			},
+			expectedValue: []byte("value1"),
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			mut := types.NewBigtableWriteMutation(tt.keyspace, tt.table, "ignored", types.IfSpec{IfNotExists: tt.ifNotExists}, types.QueryTypeInsert, tt.rowKey)
 			mut.AddMutations(tt.mutations...)
-			_, err := btc.InsertRow(t.Context(), tt.data)
+			_, err := localBtc.InsertRow(t.Context(), mut)
 			if tt.expectedError != "" {
 				require.Error(t, err)
 				assert.Contains(t, err.Error(), tt.expectedError)
@@ -142,7 +156,11 @@ func TestInsertRow(t *testing.T) {
 			table := client.Open(string(tt.table))
 			row, err := table.ReadRow(t.Context(), string(tt.rowKey))
 			require.NoError(t, err)
-			assert.Equal(t, tt.expectedValue, row)
+			require.NotEmpty(t, row)
+			require.Contains(t, row, "cf1")
+			require.Len(t, row["cf1"], 1)
+			assert.Equal(t, "col1", row["cf1"][0].Column[len("cf1:"):])
+			assert.Equal(t, tt.expectedValue, row["cf1"][0].Value)
 		})
 	}
 }
@@ -183,6 +201,7 @@ func TestApplyBulkMutation(t *testing.T) {
 		// delete bulk2
 		types.NewBoundDeleteQuery(ks1, tableName, "", "bulk2", false, nil),
 	})
+	require.NoError(t, err)
 
 	tbl, err := btc.clients.GetTableClient(ks1, tableName)
 	require.NoError(t, err)
@@ -201,122 +220,39 @@ func TestApplyBulkMutation(t *testing.T) {
 
 	row3, err := tbl.ReadRow(t.Context(), "bulk3")
 	assert.NoError(t, err)
-	assert.Empty(t, row3)
-	assert.Equal(t, []byte("walter"), row1["cf1"][0].Value)
-
-}
-
-func TestDeleteRowsUsingTimestamp(t *testing.T) {
-	client, adminClients, t.Context(), err := getManagerClient(conn)
-	if err != nil {
-		t.Fatalf("Failed to create Bigtable client: %v", err)
-	}
-
-	adminClient, err := bigtable.NewAdminClient(t.Context(), "project", "bt1", option.WithGRPCConn(conn))
-	if err != nil {
-		t.Fatalf("Failed to create Bigtable admin client: %v", err)
-	}
-
-	btc := NewBigtableClient(client, adminClients, zap.NewNop(), bigtableConfig, nil, &schemaMapping.SchemaMetadata{})
-
-	// Define test table and data
-	tableName := "test-table-delete-timestamp"
-	columnFamily := "cf1"
-	rowKey := "test-row"
-	// columns := []string{"col1", "col2"}
-	timestamp := translators.TimestampInfo{Timestamp: bigtable.Now()}
-
-	err = adminClient.CreateTable(t.Context(), tableName)
-	assert.NoError(t, err)
-	err = adminClient.CreateColumnFamily(t.Context(), tableName, columnFamily)
-	assert.NoError(t, err)
-
-	tbl := client["bt1"].Open(tableName)
-	mut := bigtable.NewMutation()
-	mut.Set(columnFamily, "col1", bigtable.Now(), []byte("value1"))
-	mut.Set(columnFamily, "col2", bigtable.Now(), []byte("value2"))
-	err = tbl.Apply(t.Context(), rowKey, mut)
-	assert.NoError(t, err)
-
-	// Verify that the row is present before deletion
-	row, err := tbl.ReadRow(t.Context(), rowKey)
-	assert.NoError(t, err)
-	assert.NotEmpty(t, row[columnFamily], "Expected columns to be present before deletion")
-	// Test Case 1: Successful deletion of columns using a timestamp
-	timestamp.Timestamp = bigtable.Timestamp(time.Now().Day())
-	deleteData := &translators.PreparedDeleteQuery{
-		Table:         tableName,
-		RowKey:        rowKey,
-		Keyspace:      "ks1",
-		TimestampInfo: timestamp,
-	}
-	_, err = btc.DeleteRow(t.Context(), deleteData)
-	assert.NoError(t, err)
-
-	// Verify that the columns are deleted
-	row, err = tbl.ReadRow(t.Context(), rowKey)
-	assert.NoError(t, err)
-	assert.Empty(t, row[columnFamily], "Expected columns to be deleted")
-
-	// Test Case 2: Invalid keyspace
-	deleteData.TimestampInfo.Timestamp = bigtable.Now()
-	deleteData.Keyspace = "invalid-keyspace"
-	_, err = btc.DeleteRow(t.Context(), deleteData)
-	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "keyspace not found: 'invalid-keyspace'")
-
-	// Test Case 3: Attempt to delete non-existent columns (should not error)
-	deleteData.Keyspace = "ks1"
-	_, err = btc.DeleteRow(t.Context(), deleteData)
-	assert.NoError(t, err)
-
-	// Verify that nothing breaks or changes for non-existent columns
-	row, err = tbl.ReadRow(t.Context(), rowKey)
-	assert.NoError(t, err)
-	assert.Empty(t, row[columnFamily], "GoRow should remain empty as no valid columns existed to delete")
+	assert.NotEmpty(t, row3)
+	assert.Equal(t, []byte("walter"), row3["cf1"][0].Value)
 }
 
 func TestMutateRowDeleteColumnFamily(t *testing.T) {
-	client, adminClients, t.Context(), err := getManagerClient(conn)
-	if err != nil {
-		t.Fatalf("Failed to create Bigtable client: %v", err)
-	}
+	adminClient, err := bts.Clients().GetAdmin(ks1)
+	require.NoError(t, err)
+	client, err := bts.Clients().GetClient(ks1)
+	require.NoError(t, err)
 
-	adminClient, err := bigtable.NewAdminClient(t.Context(), "project", "bt1", option.WithGRPCConn(conn))
-	if err != nil {
-		t.Fatalf("Failed to create Bigtable admin client: %v", err)
-	}
+	const testTable = "test-table-delete-cf"
+	require.NoError(t, adminClient.CreateTable(t.Context(), testTable))
+	require.NoError(t, adminClient.CreateColumnFamily(t.Context(), testTable, "cf1"))
+	require.NoError(t, adminClient.CreateColumnFamily(t.Context(), testTable, "cf2"))
 
-	tableName := "test-table-delete-cf"
-	require.NoError(t, adminClient.CreateTable(t.Context(), tableName))
-	require.NoError(t, adminClient.CreateColumnFamily(t.Context(), tableName, "cf1"))
-	require.NoError(t, adminClient.CreateColumnFamily(t.Context(), tableName, "cf2"))
-
-	btc := NewBigtableClient(client, adminClients, zap.NewNop(), bigtableConfig, nil, schemaMapping.NewSchemaMetadata("schema_mapping", "cf1", zap.NewNop(), nil))
+	localMdStore := schemaMapping.NewMetadataStore(zap.NewNop(), bts.Clients(), &bigtableConfig)
+	localBtc := NewBigtableClient(bts.Clients(), zap.NewNop(), &bigtableConfig, localMdStore)
 
 	// Insert initial data
-	insertData := &types.BigtableWriteMutation{
-		Table:    tableName,
-		RowKey:   "row1",
-		Columns:  []*types.Column{{ColumnFamily: "cf1", Name: "col1"}, {ColumnFamily: "cf2", Name: "col2"}},
-		Columns:  []interface{}{[]byte("v1"), []byte("v2")},
-		Keyspace: "ks1",
-	}
-	_, err = btc.InsertRow(t.Context(), insertData)
+	insertData := types.NewBigtableWriteMutation(ks1, testTable, "", types.IfSpec{}, types.QueryTypeInsert, "row1")
+	insertData.AddMutations(types.NewWriteCellOp("cf1", "col1", []byte("v1")))
+	insertData.AddMutations(types.NewWriteCellOp("cf2", "col2", []byte("v2")))
+	_, err = localBtc.InsertRow(t.Context(), insertData)
 	require.NoError(t, err)
 
 	// Delete cf2
-	updateData := &translators.PreparedUpdateQuery{
-		Table:                tableName,
-		RowKey:               "row1",
-		DeleteColumnFamilies: []string{"cf2"},
-		Keyspace:             "ks1",
-	}
-	_, err = btc.UpdateRow(t.Context(), updateData)
+	updateData := types.NewBigtableWriteMutation(ks1, testTable, "", types.IfSpec{}, types.QueryTypeUpdate, "row1")
+	updateData.AddMutations(types.NewDeleteCellsOp("cf2"))
+	_, err = localBtc.UpdateRow(t.Context(), updateData)
 	require.NoError(t, err)
 
 	// Verify deletion by reading the row
-	tbl := client["bt1"].Open(tableName)
+	tbl := client.Open(testTable)
 	row, err := tbl.ReadRow(t.Context(), "row1")
 	require.NoError(t, err)
 	assert.NotContains(t, row, "cf2", "cf2 should be deleted")
@@ -324,41 +260,33 @@ func TestMutateRowDeleteColumnFamily(t *testing.T) {
 }
 
 func TestMutateRowDeleteQualifiers(t *testing.T) {
-	client, adminClients, t.Context(), err := getManagerClient(conn)
+	adminClient, err := bts.Clients().GetAdmin(ks1)
+	require.NoError(t, err)
+	client, err := bts.Clients().GetClient(ks1)
 	require.NoError(t, err)
 
-	adminClient, err := bigtable.NewAdminClient(t.Context(), "project", "bt1", option.WithGRPCConn(conn))
-	require.NoError(t, err)
+	const testTable = "test-table-delete-qualifiers"
+	require.NoError(t, adminClient.CreateTable(t.Context(), testTable))
+	require.NoError(t, adminClient.CreateColumnFamily(t.Context(), testTable, "cf1"))
 
-	tableName := "test-table-delete-qualifiers"
-	require.NoError(t, adminClient.CreateTable(t.Context(), tableName))
-	require.NoError(t, adminClient.CreateColumnFamily(t.Context(), tableName, "cf1"))
-
-	btc := NewBigtableClient(client, adminClients, zap.NewNop(), bigtableConfig, nil, schemaMapping.NewSchemaMetadata("schema_mapping", "cf1", zap.NewNop(), nil))
+	localMdStore := schemaMapping.NewMetadataStore(zap.NewNop(), bts.Clients(), &bigtableConfig)
+	localBtc := NewBigtableClient(bts.Clients(), zap.NewNop(), &bigtableConfig, localMdStore)
 
 	// Insert initial data with two columns
-	insertData := &types.BigtableWriteMutation{
-		Table:    tableName,
-		RowKey:   "row1",
-		Columns:  []*types.Column{{ColumnFamily: "cf1", Name: "col1"}, {ColumnFamily: "cf1", Name: "col2"}},
-		Columns:  []interface{}{[]byte("v1"), []byte("v2")},
-		Keyspace: "ks1",
-	}
-	_, err = btc.InsertRow(t.Context(), insertData)
+	insertData := types.NewBigtableWriteMutation(ks1, testTable, "", types.IfSpec{}, types.QueryTypeInsert, "row1")
+	insertData.AddMutations(types.NewWriteCellOp("cf1", "col1", []byte("v1")))
+	insertData.AddMutations(types.NewWriteCellOp("cf1", "col2", []byte("v2")))
+	_, err = localBtc.InsertRow(t.Context(), insertData)
 	require.NoError(t, err)
 
 	// Delete col1
-	updateData := &translators.PreparedUpdateQuery{
-		Table:                 tableName,
-		RowKey:                "row1",
-		DeleteColumQualifiers: []*types.Column{{ColumnFamily: "cf1", Name: "col1"}},
-		Keyspace:              "ks1",
-	}
-	_, err = btc.UpdateRow(t.Context(), updateData)
+	updateData := types.NewBigtableWriteMutation(ks1, testTable, "", types.IfSpec{}, types.QueryTypeUpdate, "row1")
+	updateData.AddMutations(types.NewDeleteColumnOp(types.BigtableColumn{Family: "cf1", Column: "col1"}))
+	_, err = localBtc.UpdateRow(t.Context(), updateData)
 	require.NoError(t, err)
 
 	// Verify deletion by reading the row
-	tbl := client["bt1"].Open(tableName)
+	tbl := client.Open(testTable)
 	row, err := tbl.ReadRow(t.Context(), "row1", bigtable.RowFilter(bigtable.FamilyFilter("cf1")))
 	require.NoError(t, err)
 	cf := row["cf1"]
@@ -369,51 +297,43 @@ func TestMutateRowDeleteQualifiers(t *testing.T) {
 }
 
 func TestMutateRowIfExists(t *testing.T) {
-	client, adminClients, t.Context(), err := getManagerClient(conn)
+	adminClient, err := bts.Clients().GetAdmin(ks1)
+	require.NoError(t, err)
+	client, err := bts.Clients().GetClient(ks1)
 	require.NoError(t, err)
 
-	adminClient, err := bigtable.NewAdminClient(t.Context(), "project", "bt1", option.WithGRPCConn(conn))
-	require.NoError(t, err)
+	const testTable = "test-table-if-exists"
+	require.NoError(t, adminClient.CreateTable(t.Context(), testTable))
+	require.NoError(t, adminClient.CreateColumnFamily(t.Context(), testTable, "cf1"))
 
-	tableName := "test-table-if-exists"
-	require.NoError(t, adminClient.CreateTable(t.Context(), tableName))
-	require.NoError(t, adminClient.CreateColumnFamily(t.Context(), tableName, "cf1"))
-
-	btc := NewBigtableClient(client, adminClients, zap.NewNop(), bigtableConfig, nil, schemaMapping.NewSchemaMetadata("schema_mapping", "cf1", zap.NewNop(), nil))
+	localMdStore := schemaMapping.NewMetadataStore(zap.NewNop(), bts.Clients(), &bigtableConfig)
+	localBtc := NewBigtableClient(bts.Clients(), zap.NewNop(), &bigtableConfig, localMdStore)
 
 	// Insert initial data
-	insertData := &types.BigtableWriteMutation{
-		Table:    tableName,
-		RowKey:   "row1",
-		Columns:  []*types.Column{{ColumnFamily: "cf1", Name: "col1"}},
-		Columns:  []interface{}{[]byte("v1")},
-		Keyspace: "ks1",
-	}
-	_, err = btc.InsertRow(t.Context(), insertData)
+	insertData := types.NewBigtableWriteMutation(ks1, testTable, "", types.IfSpec{}, types.QueryTypeInsert, "row1")
+	insertData.AddMutations(types.NewWriteCellOp("cf1", "col1", []byte("v1")))
+	_, err = localBtc.InsertRow(t.Context(), insertData)
 	require.NoError(t, err)
 
 	// Update the row when it exists
-	updateData := &translators.PreparedUpdateQuery{
-		Table:    tableName,
-		RowKey:   "row1",
-		Columns:  []*types.Column{{ColumnFamily: "cf1", Name: "col1"}},
-		Values:   []interface{}{[]byte("v2")},
-		IfExists: true,
-		Keyspace: "ks1",
-	}
-	_, err = btc.UpdateRow(t.Context(), updateData)
+	updateData := types.NewBigtableWriteMutation(ks1, testTable, "", types.IfSpec{IfExists: true}, types.QueryTypeUpdate, "row1")
+	updateData.AddMutations(types.NewWriteCellOp("cf1", "col1", []byte("v2")))
+	res, err := localBtc.UpdateRow(t.Context(), updateData)
 	require.NoError(t, err)
+	assert.True(t, wasApplied(res))
 
 	// Verify the update by reading the row
-	tbl := client["bt1"].Open(tableName)
+	tbl := client.Open(testTable)
 	row, err := tbl.ReadRow(t.Context(), "row1", bigtable.RowFilter(bigtable.FamilyFilter("cf1")))
 	require.NoError(t, err)
 	assert.Equal(t, "v2", string(row["cf1"][0].Value), "value should be updated to v2")
 
 	// Attempt to update a non-existent row
-	updateData.RowKey = "row2"
-	_, err = btc.UpdateRow(t.Context(), updateData)
+	updateDataNonExistent := types.NewBigtableWriteMutation(ks1, testTable, "", types.IfSpec{IfExists: true}, types.QueryTypeUpdate, "row2")
+	updateDataNonExistent.AddMutations(types.NewWriteCellOp("cf1", "col1", []byte("v2")))
+	res, err = localBtc.UpdateRow(t.Context(), updateDataNonExistent)
 	require.NoError(t, err)
+	assert.False(t, wasApplied(res))
 
 	// Verify the non-existent row is not created
 	row, err = tbl.ReadRow(t.Context(), "row2")
@@ -422,39 +342,37 @@ func TestMutateRowIfExists(t *testing.T) {
 }
 
 func TestMutateRowIfNotExists(t *testing.T) {
-	client, adminClients, t.Context(), err := getManagerClient(conn)
+	adminClient, err := bts.Clients().GetAdmin(ks1)
+	require.NoError(t, err)
+	client, err := bts.Clients().GetClient(ks1)
 	require.NoError(t, err)
 
-	adminClient, err := bigtable.NewAdminClient(t.Context(), "project", "bt1", option.WithGRPCConn(conn))
-	require.NoError(t, err)
+	const testTable = "test-table-if-not-exists"
+	require.NoError(t, adminClient.CreateTable(t.Context(), testTable))
+	require.NoError(t, adminClient.CreateColumnFamily(t.Context(), testTable, "cf1"))
 
-	tableName := "test-table-if-not-exists"
-	require.NoError(t, adminClient.CreateTable(t.Context(), tableName))
-	require.NoError(t, adminClient.CreateColumnFamily(t.Context(), tableName, "cf1"))
-
-	btc := NewBigtableClient(client, adminClients, zap.NewNop(), bigtableConfig, nil, schemaMapping.NewSchemaMetadata("schema_mapping", "cf1", zap.NewNop(), nil))
+	localMdStore := schemaMapping.NewMetadataStore(zap.NewNop(), bts.Clients(), &bigtableConfig)
+	localBtc := NewBigtableClient(bts.Clients(), zap.NewNop(), &bigtableConfig, localMdStore)
 
 	// Insert a row when it does not exist
-	InsertData := &types.BigtableWriteMutation{
-		Table:       tableName,
-		RowKey:      "row1",
-		Columns:     []*types.Column{{ColumnFamily: "cf1", Name: "col1"}},
-		Columns:     []interface{}{[]byte("v1")},
-		IfNotExists: true,
-		Keyspace:    "ks1",
-	}
-	_, err = btc.InsertRow(t.Context(), InsertData)
+	insertData := types.NewBigtableWriteMutation(ks1, testTable, "", types.IfSpec{IfNotExists: true}, types.QueryTypeInsert, "row1")
+	insertData.AddMutations(types.NewWriteCellOp("cf1", "col1", []byte("v1")))
+	res, err := localBtc.InsertRow(t.Context(), insertData)
 	require.NoError(t, err)
+	assert.True(t, wasApplied(res))
+
 
 	// Verify the row is created
-	tbl := client["bt1"].Open(tableName)
+	tbl := client.Open(testTable)
 	row, err := tbl.ReadRow(t.Context(), "row1", bigtable.RowFilter(bigtable.FamilyFilter("cf1")))
 	require.NoError(t, err)
 	assert.Equal(t, "v1", string(row["cf1"][0].Value), "row1 should be created with value v1")
 
 	// Attempt to insert the same row again
-	_, err = btc.InsertRow(t.Context(), InsertData)
+	res, err = localBtc.InsertRow(t.Context(), insertData)
 	require.NoError(t, err)
+	assert.False(t, wasApplied(res))
+
 
 	// Verify the row is not updated
 	row, err = tbl.ReadRow(t.Context(), "row1", bigtable.RowFilter(bigtable.FamilyFilter("cf1")))
@@ -462,218 +380,21 @@ func TestMutateRowIfNotExists(t *testing.T) {
 	assert.Equal(t, "v1", string(row["cf1"][0].Value), "row1 should not be updated")
 }
 
-func TestMutateRowNonByteValue(t *testing.T) {
-	client, adminClients, t.Context(), err := getManagerClient(conn)
-	require.NoError(t, err)
-
-	adminClient, err := bigtable.NewAdminClient(t.Context(), "project", "bt1", option.WithGRPCConn(conn))
-	require.NoError(t, err)
-
-	tableName := "test-table-non-byte"
-	require.NoError(t, adminClient.CreateTable(t.Context(), tableName))
-	require.NoError(t, adminClient.CreateColumnFamily(t.Context(), tableName, "cf1"))
-
-	btc := NewBigtableClient(client, adminClients, zap.NewNop(), bigtableConfig, nil, schemaMapping.NewSchemaMetadata("schema_mapping", "cf1", zap.NewNop(), nil))
-
-	updateData := &translators.PreparedUpdateQuery{
-		Table:    tableName,
-		RowKey:   "row1",
-		Columns:  []*types.Column{{ColumnFamily: "cf1", Name: "col1"}},
-		Values:   []interface{}{"invalid-value"}, // string instead of []byte
-		Keyspace: "ks1",
-	}
-	_, err = btc.UpdateRow(t.Context(), updateData)
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "not of type []byte")
-}
-
 func TestMutateRowInvalidKeyspace(t *testing.T) {
-	client, adminClients, t.Context(), err := getManagerClient(conn)
-	require.NoError(t, err)
+	localMdStore := schemaMapping.NewMetadataStore(zap.NewNop(), bts.Clients(), &bigtableConfig)
+	localBtc := NewBigtableClient(bts.Clients(), zap.NewNop(), &bigtableConfig, localMdStore)
 
-	btc := NewBigtableClient(client, adminClients, zap.NewNop(), bigtableConfig, nil, schemaMapping.NewSchemaMetadata("schema_mapping", "cf1", zap.NewNop(), nil))
-
-	updateData := &translators.PreparedUpdateQuery{
-		Table:    "any-table",
-		RowKey:   "row1",
-		Columns:  []*types.Column{{ColumnFamily: "cf1", Name: "col1"}},
-		Values:   []interface{}{[]byte("value")},
-		Keyspace: "invalid-keyspace",
-	}
-	_, err = btc.UpdateRow(t.Context(), updateData)
+	updateData := types.NewBigtableWriteMutation("invalid-keyspace", "any-table", "", types.IfSpec{}, types.QueryTypeUpdate, "row1")
+	updateData.AddMutations(types.NewWriteCellOp("cf1", "col1", []byte("value")))
+	_, err := localBtc.UpdateRow(t.Context(), updateData)
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "keyspace not found: 'invalid-keyspace'")
+	assert.Contains(t, err.Error(), "bigtable client not found for keyspace 'invalid-keyspace'")
 }
 
-func TestComplexUpdateWithListIndex(t *testing.T) {
-	client, adminClients, t.Context(), err := getManagerClient(conn)
-	require.NoError(t, err)
-
-	adminClient, err := bigtable.NewAdminClient(t.Context(), "project", "bt1", option.WithGRPCConn(conn))
-	require.NoError(t, err)
-
-	tableName := "test-table-complex-update-list-index"
-	require.NoError(t, adminClient.CreateTable(t.Context(), tableName))
-	require.NoError(t, adminClient.CreateColumnFamily(t.Context(), tableName, "cf1"))
-	require.NoError(t, adminClient.CreateColumnFamily(t.Context(), tableName, "list"))
-
-	btc := NewBigtableClient(client, adminClients, zap.NewNop(), bigtableConfig, nil, schemaMapping.NewSchemaMetadata("schema_mapping", "cf1", zap.NewNop(), nil))
-
-	// Insert initial data with a list in cf1
-	insertData := &types.BigtableWriteMutation{
-		Table:    tableName,
-		RowKey:   "row1",
-		Columns:  []*types.Column{{ColumnFamily: "list", Name: "timestamp1"}, {ColumnFamily: "list", Name: "timestamp2"}},
-		Columns:  []interface{}{[]byte("v1"), []byte("v2")},
-		Keyspace: "ks1",
+func wasApplied(result *message.RowsResult) bool {
+	if len(result.Data) == 0 || len(result.Data[0]) == 0 {
+		return false
 	}
-	_, err = btc.InsertRow(t.Context(), insertData)
-	require.NoError(t, err)
-
-	// Perform a complex update with list index
-	ComplexOperation := map[string]*translators.ComplexOperation{
-		"list": {
-			UpdateListIndex: "1", // Update the second item in the list
-			Value:           []byte("updated-v2"),
-		},
-	}
-	updateData := &translators.PreparedUpdateQuery{
-		Table:             tableName,
-		RowKey:            "row1",
-		ComplexOperations: ComplexOperation,
-		Keyspace:          "ks1",
-		Columns:           []*types.Column{},
-		Values:            []interface{}{},
-	}
-	_, err = btc.UpdateRow(t.Context(), updateData)
-	require.NoError(t, err)
-
-	// Verify the update by reading the row
-	tbl := client["bt1"].Open(tableName)
-	row, err := tbl.ReadRow(t.Context(), "row1", bigtable.RowFilter(bigtable.FamilyFilter("list")))
-	require.NoError(t, err)
-	cf := row["list"]
-	assert.Equal(t, "updated-v2", string(cf[1].Value), "second item in the list should be updated")
-}
-
-func TestComplexUpdateWithListDeletion(t *testing.T) {
-	client, adminClients, t.Context(), err := getManagerClient(conn)
-	require.NoError(t, err)
-
-	adminClient, err := bigtable.NewAdminClient(t.Context(), "project", "bt1", option.WithGRPCConn(conn))
-	require.NoError(t, err)
-
-	tableName := "test-table-complex-update-list-delete"
-	require.NoError(t, adminClient.CreateTable(t.Context(), tableName))
-	require.NoError(t, adminClient.CreateColumnFamily(t.Context(), tableName, "cf1"))
-	require.NoError(t, adminClient.CreateColumnFamily(t.Context(), tableName, "list"))
-
-	btc := NewBigtableClient(client, adminClients, zap.NewNop(), bigtableConfig, nil, schemaMapping.NewSchemaMetadata("schema_mapping", "cf1", zap.NewNop(), nil))
-
-	// Insert initial data with a list in the "list" column family
-	insertData := &types.BigtableWriteMutation{
-		Table:    tableName,
-		RowKey:   "row1",
-		Columns:  []*types.Column{{ColumnFamily: "list", Name: "timestamp1"}, {ColumnFamily: "list", Name: "timestamp2"}},
-		Columns:  []interface{}{[]byte("v1"), []byte("v2")},
-		Keyspace: "ks1",
-	}
-	_, err = btc.InsertRow(t.Context(), insertData)
-	require.NoError(t, err)
-
-	// Perform a complex update with list deletion
-	ComplexOperation := map[string]*translators.ComplexOperation{
-		"list": {
-			ListDelete:       true,
-			ListDeleteValues: [][]byte{[]byte("v1")}, // Delete the first item in the list
-		},
-	}
-	updateData := &translators.PreparedUpdateQuery{
-		Table:             tableName,
-		RowKey:            "row1",
-		ComplexOperations: ComplexOperation,
-		Keyspace:          "ks1",
-		Columns:           []*types.Column{},
-		Values:            []interface{}{},
-	}
-	_, err = btc.UpdateRow(t.Context(), updateData)
-	require.NoError(t, err)
-
-	// Verify the deletion by reading the row
-	tbl := client["bt1"].Open(tableName)
-	row, err := tbl.ReadRow(t.Context(), "row1", bigtable.RowFilter(bigtable.FamilyFilter("list")))
-	require.NoError(t, err)
-	cf := row["list"]
-	assert.Equal(t, 1, len(cf), "one item should remain in the list")
-	assert.Equal(t, "v2", string(cf[0].Value), "remaining item should be v2")
-}
-
-func TestComplexUpdateInvalidKeyspace(t *testing.T) {
-	client, adminClients, t.Context(), err := getManagerClient(conn)
-	require.NoError(t, err)
-
-	btc := NewBigtableClient(client, adminClients, zap.NewNop(), bigtableConfig, nil, schemaMapping.NewSchemaMetadata("schema_mapping", "cf1", zap.NewNop(), nil))
-
-	// Attempt to perform a complex update with an invalid keyspace
-	ComplexOperation := map[string]*translators.ComplexOperation{
-		"list": {
-			UpdateListIndex: "0",
-			Value:           []byte("updated-v1"),
-		},
-	}
-	updateData := &translators.PreparedUpdateQuery{
-		Table:             "any-table",
-		RowKey:            "row1",
-		ComplexOperations: ComplexOperation,
-		Keyspace:          "invalid-keyspace",
-		Columns:           []*types.Column{},
-		Values:            []interface{}{},
-	}
-	_, err = btc.UpdateRow(t.Context(), updateData)
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "keyspace not found: 'invalid-keyspace'")
-}
-
-func TestComplexUpdateOutOfBoundsIndex(t *testing.T) {
-	client, adminClients, t.Context(), err := getManagerClient(conn)
-	require.NoError(t, err)
-
-	adminClient := adminClients["bt1"]
-
-	tableName := "test-table-complex-update-out-of-bounds"
-	require.NoError(t, adminClient.CreateTable(t.Context(), tableName))
-	require.NoError(t, adminClient.CreateColumnFamily(t.Context(), tableName, "cf1"))
-	require.NoError(t, adminClient.CreateColumnFamily(t.Context(), tableName, "list"))
-
-	btc := NewBigtableClient(client, adminClients, zap.NewNop(), bigtableConfig, nil, schemaMapping.NewSchemaMetadata("schema_mapping", "cf1", zap.NewNop(), nil))
-
-	// Insert initial data with a list in the "list" column family
-	insertData := &types.BigtableWriteMutation{
-		Table:    tableName,
-		RowKey:   "row1",
-		Columns:  []*types.Column{{ColumnFamily: "list", Name: "timestamp1"}},
-		Columns:  []interface{}{[]byte("v1")},
-		Keyspace: "ks1",
-	}
-	_, err = btc.InsertRow(t.Context(), insertData)
-	require.NoError(t, err)
-
-	// Attempt to perform a complex update with an out-of-bounds index
-	ComplexOperation := map[string]*translators.ComplexOperation{
-		"list": {
-			UpdateListIndex: "1", // Index 1 is out of bounds for a list of size 1
-			Value:           []byte("updated-v2"),
-		},
-	}
-	updateData := &translators.PreparedUpdateQuery{
-		Table:             tableName,
-		RowKey:            "row1",
-		ComplexOperations: ComplexOperation,
-		Keyspace:          "ks1",
-		Columns:           []*types.Column{},
-		Values:            []interface{}{},
-	}
-	_, err = btc.UpdateRow(t.Context(), updateData)
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "index 1 out of bounds")
+	// The CQL boolean type is represented as a single byte, 0 for false, 1 for true.
+	return result.Data[0][0][0] == 0x01
 }

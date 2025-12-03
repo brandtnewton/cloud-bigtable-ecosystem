@@ -10,7 +10,6 @@ import (
 	"github.com/stretchr/testify/require"
 	"log"
 	"testing"
-	"time"
 )
 
 func Test_SelectEngine(t *testing.T) {
@@ -204,7 +203,7 @@ func Test_SelectEngine(t *testing.T) {
 			preparedQuery, err := tr.Translate(types.NewRawQuery(nil, tt.sessionKeyspace, tt.query, parser.NewParser(tt.query), types.QueryTypeSelect), tt.sessionKeyspace)
 			require.NoError(t, err)
 
-			values := types.NewQueryParameterValues(preparedQuery.Parameters(), time.Now())
+			values := types.NewQueryParameterValues(preparedQuery.Parameters())
 
 			executableQuery, err := tr.Bind(preparedQuery, values, primitive.ProtocolVersion4)
 			require.NoError(t, err)

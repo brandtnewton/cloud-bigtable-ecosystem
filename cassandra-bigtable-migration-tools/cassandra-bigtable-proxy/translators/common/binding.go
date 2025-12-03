@@ -382,7 +382,7 @@ func BindQueryParams(params *types.QueryParameters, values []*primitive.Value, p
 		return nil, fmt.Errorf("expected %d prepared values but got %d", params.Count(), len(values))
 	}
 
-	result := types.NewQueryParameterValues(params, time.Now())
+	result := types.NewQueryParameterValues(params)
 
 	for i, param := range params.AllKeys() {
 		value := values[i]

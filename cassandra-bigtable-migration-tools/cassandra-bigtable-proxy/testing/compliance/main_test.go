@@ -123,17 +123,19 @@ func setUpTests() {
 		log.Fatalf("could not create table: %v", err)
 	}
 
-	tableNames := []string{
-		"bigtabledevinstance.user_info",
-		"bigtabledevinstance.orders",
-		"bigtabledevinstance.aggregation_grouping_test",
-		"bigtabledevinstance.multiple_int_keys",
-		"bigtabledevinstance.test_int_key",
-		"bigtabledevinstance.social_posts",
+	tables, err := cqlshScanToMap("select * from system_schema.tables")
+	if err != nil {
+		log.Fatalf("could not read system tables: %v", err)
 	}
-
-	if testTarget == TestTargetProxy {
-		tableNames = append(tableNames, "bigtabledevinstance.orders_big_endian_encoded")
+	var tableNames []string
+	for _, tableRow := range tables {
+		keyspace := tableRow["keyspace_name"]
+		table := tableRow["table_name"]
+		// don't truncate system tables
+		if keyspace == "system_schema" || keyspace == "system_virtual_schema" || keyspace == "system" {
+			continue
+		}
+		tableNames = append(tableNames, table)
 	}
 
 	var truncateStatements []string

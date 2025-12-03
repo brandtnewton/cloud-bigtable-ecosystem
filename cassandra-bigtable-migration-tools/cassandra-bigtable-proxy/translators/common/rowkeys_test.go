@@ -7,7 +7,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"testing"
-	"time"
 )
 
 func TestBindRowKey(t *testing.T) {
@@ -52,7 +51,7 @@ func TestBindRowKey(t *testing.T) {
 			for _, v := range tt.values {
 				values = append(values, types.NewLiteralValue(v))
 			}
-			rowKey, err := BindRowKey(tt.table, values, types.NewQueryParameterValues(types.NewQueryParameters(), time.Now()))
+			rowKey, err := BindRowKey(tt.table, values, types.NewQueryParameterValues(types.NewQueryParameters()))
 			if tt.err != "" {
 				require.Error(t, err)
 				assert.Contains(t, err.Error(), tt.err)

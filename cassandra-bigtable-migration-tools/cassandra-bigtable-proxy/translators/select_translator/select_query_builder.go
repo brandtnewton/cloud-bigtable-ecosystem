@@ -143,7 +143,7 @@ func processRegularColumn(selectedColumn types.SelectedColumn, col *types.Column
 func createBigtableSql(t *SelectTranslator, st *types.PreparedSelectQuery) (string, error) {
 	column := ""
 
-	tableConfig, err := t.schemaMappingConfig.GetTableConfig(st.Keyspace(), st.Table())
+	tableConfig, err := t.schemaMappingConfig.GetTableSchema(st.Keyspace(), st.Table())
 	if err != nil {
 		return "", err
 	}

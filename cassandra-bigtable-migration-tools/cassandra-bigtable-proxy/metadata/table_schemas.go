@@ -129,7 +129,7 @@ func (c *SchemaMetadata) UpdateTables(keyspace types.Keyspace, tableConfigs []*T
 	}
 }
 
-// GetTableConfig finds the primary key columns of a specified table in a given keyspace.
+// GetTableSchema finds the primary key columns of a specified table in a given keyspace.
 //
 // This method looks up the cached primary key metadata and returns the relevant columns.
 //
@@ -140,7 +140,7 @@ func (c *SchemaMetadata) UpdateTables(keyspace types.Keyspace, tableConfigs []*T
 // Returns:
 //   - []types.Column: A slice of types.Column structs representing the primary keys of the table.
 //   - error: Returns an error if the primary key metadata is not found.
-func (c *SchemaMetadata) GetTableConfig(k types.Keyspace, t types.TableName) (*TableSchema, error) {
+func (c *SchemaMetadata) GetTableSchema(k types.Keyspace, t types.TableName) (*TableSchema, error) {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
 	keyspace, ok := c.tables[k]

@@ -33,7 +33,7 @@ func (t *TruncateTranslator) Translate(query *types.RawQuery, sessionKeyspace ty
 	if err != nil {
 		return nil, err
 	}
-	_, err = t.schemaMappingConfig.GetTableConfig(keyspace, table)
+	_, err = t.schemaMappingConfig.GetTableSchema(keyspace, table)
 	if err != nil {
 		return nil, err
 	}

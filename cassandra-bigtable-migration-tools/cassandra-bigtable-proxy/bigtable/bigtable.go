@@ -196,7 +196,7 @@ func (btc *BigtableAdapter) buildMutation(ctx context.Context, table *bigtable.T
 }
 
 func (btc *BigtableAdapter) DropAllRows(ctx context.Context, data *types.TruncateTableStatementMap) error {
-	_, err := btc.schemaManager.Schemas().GetTableConfig(data.Keyspace(), data.Table())
+	_, err := btc.schemaManager.Schemas().GetTableSchema(data.Keyspace(), data.Table())
 	if err != nil {
 		return err
 	}

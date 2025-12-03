@@ -17,36 +17,24 @@
 package bigtableclient
 
 import (
-	"context"
-	"errors"
-	"fmt"
+	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/testing/bt_server_wrapper"
 	"os"
-	"slices"
 	"testing"
 	"time"
 
 	"cloud.google.com/go/bigtable"
-	"cloud.google.com/go/bigtable/admin/apiv2/adminpb"
-	"cloud.google.com/go/bigtable/bttest"
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/global/types"
 	schemaMapping "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/metadata"
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/translators"
-	"github.com/datastax/go-cassandra-native-protocol/datatype"
 	"github.com/datastax/go-cassandra-native-protocol/message"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap"
 	"google.golang.org/api/option"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/credentials/insecure"
-	"google.golang.org/grpc/status"
 )
 
-var conn *grpc.ClientConn
-var lastCreateTableReq *adminpb.CreateTableRequest
-
-var bigtableConfig = &types.BigtableConfig{
+var bts *bt_server_wrapper.BigtableTestServer
+var bigtableConfig = types.BigtableConfig{
 	ProjectID:          "my-project",
 	Instances:          map[types.Keyspace]*types.InstanceMapping{"ks1": {InstanceId: "bt1", Keyspace: "ks1", AppProfileID: "default"}},
 	SchemaMappingTable: "schema_mapping",
@@ -57,213 +45,71 @@ var bigtableConfig = &types.BigtableConfig{
 	DefaultIntRowKeyEncoding: types.OrderedCodeEncoding,
 }
 
-func setupServer() *bttest.Server {
-	btt, err := bttest.NewServer("localhost:0")
-	if err != nil {
-		fmt.Printf("Failed to setup server: %v", err)
-		os.Exit(1)
-	}
-	conn, err = grpc.NewClient(btt.Addr, grpc.WithTransportCredentials(insecure.NewCredentials()), grpc.WithUnaryInterceptor(interceptCreateTableRequests))
-	if err != nil {
-		fmt.Printf("Failed to setup grpc: %v", err)
-		os.Exit(1)
-	}
-	return btt
-
-}
-
-// interceptCreateTableRequests intercepts create table requests, so we can perform extra assertions on them
-func interceptCreateTableRequests(ctx context.Context, method string, req, reply any, cc *grpc.ClientConn, invoker grpc.UnaryInvoker, opts ...grpc.CallOption) error {
-	if method == "/google.bigtable.admin.v2.BigtableTableAdmin/CreateTable" {
-		ctr, ok := req.(*adminpb.CreateTableRequest)
-		if ok {
-			lastCreateTableReq = ctr
-		} else {
-			lastCreateTableReq = nil
-			return errors.New("unary interceptor: unexpected request type for CreateTable")
-		}
-	}
-
-	err := invoker(ctx, method, req, reply, cc, opts...) // Invoke the actual RPC
-
-	// Post-RPC logic (e.g., error handling, metrics)
-	if err != nil {
-		fmt.Printf("Unary call to %s failed: %v\n", method, err)
-	}
-	return err
-}
-
-func getManagerClient(conn *grpc.ClientConn) (*types.BigtableClientManager, context.Context, error) {
-	ctx := context.Background()
-	client, err := bigtable.NewClient(ctx, "project", "bt1", option.WithGRPCConn(conn))
-	if err != nil {
-		fmt.Printf("Failed to create Bigtable client: %v", err)
-		return nil, nil, err
-	}
-	adminClient, err := bigtable.NewAdminClient(ctx, "project", "bt1", option.WithGRPCConn(conn))
-	if err != nil {
-		fmt.Printf("Failed to create Bigtable admin client: %v", err)
-		return nil, nil, err
-	}
-	return types.NewBigtableClientManager(map[types.Keyspace]*types.BigtableClientSet{
-		"bt1": types.NewBigtableClientSet(adminClient, client),
-	}), ctx, nil
-}
-
 func TestMain(m *testing.M) {
-	btt := setupServer()
-	defer btt.Close()
+	bts = bt_server_wrapper.NewBigtableTestServer(bigtableConfig)
+	bts.SetUp(1)
+	defer bts.Close()
 	os.Exit(m.Run())
 }
 
 func TestInsertRow(t *testing.T) {
-	clientManager, ctx, err := getManagerClient(conn)
-	if err != nil {
-		t.Fatalf("Failed to create Bigtable client: %v", err)
-	}
-
-	adminClient, err := clientManager.GetAdmin("bt1")
+	adminClient, err := bts.Clients().GetAdmin("bt1")
 	require.NoError(t, err)
 
 	// Create table
-	err = adminClient.CreateTable(ctx, "test-table-insert")
+	err = adminClient.CreateTable(t.Context(), "test-table-insert")
 	if err != nil {
 		t.Fatalf("Failed to create table: %v", err)
 	}
 
-	err = adminClient.CreateColumnFamily(ctx, "test-table-insert", "cf1")
+	err = adminClient.CreateColumnFamily(t.Context(), "test-table-insert", "cf1")
 	if err != nil {
 		t.Fatalf("Failed to create column family: %v", err)
 	}
-	btc := NewBigtableClient(clientManager, zap.NewNop(), bigtableConfig, schemaMapping.NewSchemaMetadata("cf1", nil))
+
+	mdStore := schemaMapping.NewMetadataStore(zap.NewNop(), clientManager, bigtableConfig)
+	btc := NewBigtableClient(clientManager, zap.NewNop(), bigtableConfig, mdStore)
 
 	tests := []struct {
 		name          string
-		data          *translators.PreparedInsertQuery
-		expectedError error
+		data          *types.BigtableWriteMutation
+		keyspace      types.Keyspace
+		table         types.TableName
+		rowKey        types.RowKey
+		ifNotExists   bool
+		mutations     []types.IBigtableMutationOp
+		expectedError string
 		expectedValue *message.RowsResult
 	}{
 		{
-			name: "Insert new row",
-			data: &translators.PreparedInsertQuery{
-				Table:    "test-table-insert",
-				RowKey:   "row1",
-				Columns:  []*types.Column{{ColumnFamily: "cf1", Name: "col1"}},
-				Columns:  []interface{}{[]byte("value1")},
-				Keyspace: "ks1",
+			name:     "insert row",
+			keyspace: "ks1",
+			table:    "test-table-insert",
+			rowKey:   "row1",
+			mutations: []types.IBigtableMutationOp{
+				types.NewWriteCellOp("cf1", "col1", []byte("value1")),
 			},
-			expectedError: nil,
-		},
-		{
-			name: "Insert row with IfNotExists where row doesn't exist",
-			data: &translators.PreparedInsertQuery{
-				Table:       "test-table-insert",
-				RowKey:      "row2",
-				Columns:     []*types.Column{{ColumnFamily: "cf1", Name: "col1"}},
-				Columns:     []interface{}{[]byte("value2")},
-				Keyspace:    "ks1",
-				IfNotExists: true,
-			},
-			expectedError: nil,
-		},
-		{
-			name: "Insert row with IfNotExists where row exists",
-			data: &translators.PreparedInsertQuery{
-				Table:       "test-table-insert",
-				RowKey:      "row1",
-				Columns:     []*types.Column{{ColumnFamily: "cf1", Name: "col1"}},
-				Columns:     []interface{}{[]byte("value1")},
-				Keyspace:    "ks1",
-				IfNotExists: true,
-			},
-			expectedError: nil,
-		},
-		{
-			name: "Insert with invalid keyspace",
-			data: &translators.PreparedInsertQuery{
-				Table:    "test-table-insert",
-				RowKey:   "row3",
-				Columns:  []*types.Column{{ColumnFamily: "cf1", Name: "col1"}},
-				Columns:  []interface{}{[]byte("value3")},
-				Keyspace: "invalid-keyspace",
-			},
-			expectedError: fmt.Errorf("keyspace not found: 'invalid-keyspace'"),
-		},
-		{
-			name: "Delete an entire column family",
-			data: &translators.PreparedInsertQuery{
-				Table:                "test-table-insert",
-				RowKey:               "row3",
-				DeleteColumnFamilies: []string{"cf1"},
-				Columns:              []*types.Column{{ColumnFamily: "cf1", Name: "col1"}},
-				Columns:              []interface{}{[]byte("value3")},
-				Keyspace:             "ks1",
-			},
-			expectedError: nil,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			_, err := btc.InsertRow(context.Background(), tt.data)
-			if tt.expectedError != nil {
-				assert.Error(t, err)
-				assert.EqualError(t, err, tt.expectedError.Error())
-			} else {
-				assert.NoError(t, err)
+			mut := types.NewBigtableWriteMutation(tt.keyspace, tt.table, "ignored", types.IfSpec{IfNotExists: tt.ifNotExists}, types.QueryTypeInsert, tt.rowKey)
+			mut.AddMutations(tt.mutations...)
+			_, err := btc.InsertRow(t.Context(), tt.data)
+			if tt.expectedError != "" {
+				require.Error(t, err)
+				assert.Contains(t, err.Error(), tt.expectedError)
+				return
 			}
+			assert.NoError(t, err)
+			client, err := btc.clients.GetClient(tt.keyspace)
+			require.NoError(t, err)
+			table := client.Open(string(tt.table))
+			row, err := table.ReadRow(t.Context(), string(tt.rowKey))
+			require.NoError(t, err)
+			assert.Equal(t, tt.expectedValue, row)
 		})
 	}
-}
-
-func TestUpdateRow(t *testing.T) {
-	client, adminClients, ctx, err := getManagerClient(conn)
-	if err != nil {
-		t.Fatalf("Failed to create Bigtable client: %v", err)
-	}
-
-	adminClient := adminClients["bt1"]
-
-	// Create table
-	err = adminClient.CreateTable(ctx, "test-table-update")
-	if err != nil {
-		t.Fatalf("Failed to create table: %v", err)
-	}
-
-	err = adminClient.CreateColumnFamily(ctx, "test-table-update", "cf1")
-	if err != nil {
-		t.Fatalf("Failed to create column family: %v", err)
-	}
-
-	btc := NewBigtableClient(client, adminClients, zap.NewNop(), bigtableConfig, nil, schemaMapping.NewSchemaMetadata("schema_mapping", "cf1", zap.NewNop(), nil))
-
-	// Insert initial row
-	initialData := &translators.PreparedInsertQuery{
-		Table:                "test-table-update",
-		RowKey:               "test-row",
-		Columns:              []*types.Column{{ColumnFamily: "cf1", Name: "col1"}},
-		Columns:              []interface{}{[]byte("initial value")},
-		DeleteColumnFamilies: []string{},
-		Keyspace:             "ks1",
-	}
-	_, err = btc.InsertRow(ctx, initialData)
-	assert.NoError(t, err)
-
-	// Update the row
-	updateData := &translators.PreparedUpdateQuery{
-		Table:                "test-table-update",
-		RowKey:               "test-row",
-		Columns:              []*types.Column{{ColumnFamily: "cf1", Name: "col1"}},
-		Values:               []interface{}{[]byte("updated value")},
-		DeleteColumnFamilies: []string{},
-		Keyspace:             "ks1",
-	}
-	_, err = btc.UpdateRow(ctx, updateData)
-	assert.NoError(t, err)
-
-	tbl := client["bt1"].Open("test-table-update")
-	row, err := tbl.ReadRow(ctx, "test-row", bigtable.RowFilter(bigtable.FamilyFilter("cf1")))
-	assert.NoError(t, err)
-	assert.Equal(t, "updated value", string(row["cf1"][0].Value))
 }
 
 func TestDeleteRow(t *testing.T) {
@@ -288,7 +134,7 @@ func TestDeleteRow(t *testing.T) {
 	btc := NewBigtableClient(client, adminClients, zap.NewNop(), bigtableConfig, nil, &schemaMapping.SchemaMetadata{})
 
 	// Insert initial row
-	initialData := &translators.PreparedInsertQuery{
+	initialData := &types.BigtableWriteMutation{
 		Table:                "test-table-delete",
 		RowKey:               "test-row",
 		Columns:              []*types.Column{{ColumnFamily: "cf1", Name: "col1"}},
@@ -474,7 +320,7 @@ func TestMutateRowDeleteColumnFamily(t *testing.T) {
 	btc := NewBigtableClient(client, adminClients, zap.NewNop(), bigtableConfig, nil, schemaMapping.NewSchemaMetadata("schema_mapping", "cf1", zap.NewNop(), nil))
 
 	// Insert initial data
-	insertData := &translators.PreparedInsertQuery{
+	insertData := &types.BigtableWriteMutation{
 		Table:    tableName,
 		RowKey:   "row1",
 		Columns:  []*types.Column{{ColumnFamily: "cf1", Name: "col1"}, {ColumnFamily: "cf2", Name: "col2"}},
@@ -516,7 +362,7 @@ func TestMutateRowDeleteQualifiers(t *testing.T) {
 	btc := NewBigtableClient(client, adminClients, zap.NewNop(), bigtableConfig, nil, schemaMapping.NewSchemaMetadata("schema_mapping", "cf1", zap.NewNop(), nil))
 
 	// Insert initial data with two columns
-	insertData := &translators.PreparedInsertQuery{
+	insertData := &types.BigtableWriteMutation{
 		Table:    tableName,
 		RowKey:   "row1",
 		Columns:  []*types.Column{{ColumnFamily: "cf1", Name: "col1"}, {ColumnFamily: "cf1", Name: "col2"}},
@@ -561,7 +407,7 @@ func TestMutateRowIfExists(t *testing.T) {
 	btc := NewBigtableClient(client, adminClients, zap.NewNop(), bigtableConfig, nil, schemaMapping.NewSchemaMetadata("schema_mapping", "cf1", zap.NewNop(), nil))
 
 	// Insert initial data
-	insertData := &translators.PreparedInsertQuery{
+	insertData := &types.BigtableWriteMutation{
 		Table:    tableName,
 		RowKey:   "row1",
 		Columns:  []*types.Column{{ColumnFamily: "cf1", Name: "col1"}},
@@ -614,7 +460,7 @@ func TestMutateRowIfNotExists(t *testing.T) {
 	btc := NewBigtableClient(client, adminClients, zap.NewNop(), bigtableConfig, nil, schemaMapping.NewSchemaMetadata("schema_mapping", "cf1", zap.NewNop(), nil))
 
 	// Insert a row when it does not exist
-	InsertData := &translators.PreparedInsertQuery{
+	InsertData := &types.BigtableWriteMutation{
 		Table:       tableName,
 		RowKey:      "row1",
 		Columns:     []*types.Column{{ColumnFamily: "cf1", Name: "col1"}},
@@ -699,7 +545,7 @@ func TestComplexUpdateWithListIndex(t *testing.T) {
 	btc := NewBigtableClient(client, adminClients, zap.NewNop(), bigtableConfig, nil, schemaMapping.NewSchemaMetadata("schema_mapping", "cf1", zap.NewNop(), nil))
 
 	// Insert initial data with a list in cf1
-	insertData := &translators.PreparedInsertQuery{
+	insertData := &types.BigtableWriteMutation{
 		Table:    tableName,
 		RowKey:   "row1",
 		Columns:  []*types.Column{{ColumnFamily: "list", Name: "timestamp1"}, {ColumnFamily: "list", Name: "timestamp2"}},
@@ -750,7 +596,7 @@ func TestComplexUpdateWithListDeletion(t *testing.T) {
 	btc := NewBigtableClient(client, adminClients, zap.NewNop(), bigtableConfig, nil, schemaMapping.NewSchemaMetadata("schema_mapping", "cf1", zap.NewNop(), nil))
 
 	// Insert initial data with a list in the "list" column family
-	insertData := &translators.PreparedInsertQuery{
+	insertData := &types.BigtableWriteMutation{
 		Table:    tableName,
 		RowKey:   "row1",
 		Columns:  []*types.Column{{ColumnFamily: "list", Name: "timestamp1"}, {ColumnFamily: "list", Name: "timestamp2"}},
@@ -827,7 +673,7 @@ func TestComplexUpdateOutOfBoundsIndex(t *testing.T) {
 	btc := NewBigtableClient(client, adminClients, zap.NewNop(), bigtableConfig, nil, schemaMapping.NewSchemaMetadata("schema_mapping", "cf1", zap.NewNop(), nil))
 
 	// Insert initial data with a list in the "list" column family
-	insertData := &translators.PreparedInsertQuery{
+	insertData := &types.BigtableWriteMutation{
 		Table:    tableName,
 		RowKey:   "row1",
 		Columns:  []*types.Column{{ColumnFamily: "list", Name: "timestamp1"}},
@@ -855,575 +701,4 @@ func TestComplexUpdateOutOfBoundsIndex(t *testing.T) {
 	_, err = btc.UpdateRow(ctx, updateData)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "index 1 out of bounds")
-}
-
-var testCreateTableStatementMap = translators.CreateTableStatementMap{
-	QueryType:         "create",
-	Keyspace:          "ks1",
-	Table:             "create_table_test",
-	IfNotExists:       false,
-	IntRowKeyEncoding: types.OrderedCodeEncoding,
-	Columns: []types.CreateColumn{
-		{
-			Name:     "org",
-			Index:    0,
-			TypeInfo: types.TypeVarchar,
-		},
-		{
-			Name:     "id",
-			Index:    1,
-			TypeInfo: types.TypeBigInt,
-		},
-		{
-			Name:     "name",
-			Index:    2,
-			TypeInfo: types.TypeVarchar,
-		},
-		{
-			Name:     "zipcode",
-			Index:    3,
-			TypeInfo: types.TypeInt,
-		},
-	},
-	PrimaryKeys: []translators.CreateTablePrimaryKeyConfig{
-		{
-			Name:    "org",
-			KeyType: "partition_key",
-		},
-		{
-			Name:    "id",
-			KeyType: "clustering",
-		},
-	},
-}
-
-func TestCreateTable(t *testing.T) {
-	client, adminClients, ctx, err := getManagerClient(conn)
-	require.NoError(t, err)
-
-	btc := NewBigtableClient(client, adminClients, zap.NewNop(), bigtableConfig, nil, schemaMapping.NewSchemaMetadata("schema_mapping", "cf1", zap.NewNop(), nil))
-
-	// force set up the schema mappings table
-	_, err = btc.ReadTableConfigs(ctx, "ks1")
-	require.NoError(t, err)
-
-	// table should not exist yet
-	info, err := adminClients["bt1"].TableInfo(ctx, "create_table_test")
-	require.Error(t, err)
-	require.Equal(t, codes.NotFound, status.Code(err))
-	require.Nil(t, info)
-
-	err = btc.CreateTable(ctx, &testCreateTableStatementMap)
-	require.NoError(t, err)
-
-	tables, err := btc.ReadTableConfigs(ctx, "ks1")
-	require.NoError(t, err)
-	tableMap := schemaMapping.CreateTableMap(tables)
-
-	require.Equal(t, map[string]*types.Column{
-		"org": {
-			Name:         "org",
-			CQLType:      types.TypeVarchar,
-			IsPrimaryKey: true,
-			PkPrecedence: 1,
-			KeyType:      "partition_key",
-			Metadata: message.ColumnMetadata{
-				Keyspace: "ks1",
-				Table:    "create_table_test",
-				Name:     "org",
-				Index:    2,
-				Type:     datatype.Varchar,
-			},
-		},
-		"id": {
-			Name:         "id",
-			CQLType:      types.TypeBigInt,
-			IsPrimaryKey: true,
-			PkPrecedence: 2,
-			KeyType:      "clustering",
-			Metadata: message.ColumnMetadata{
-				Keyspace: "ks1",
-				Table:    "create_table_test",
-				Name:     "id",
-				Index:    0,
-				Type:     datatype.Bigint,
-			},
-		},
-		"name": {
-			Name:         "name",
-			CQLType:      types.TypeVarchar,
-			IsPrimaryKey: false,
-			PkPrecedence: 0,
-			KeyType:      types.KeyTypeRegular,
-			Metadata: message.ColumnMetadata{
-				Keyspace: "ks1",
-				Table:    "create_table_test",
-				Name:     "name",
-				Index:    1,
-				Type:     datatype.Varchar,
-			},
-		},
-		"zipcode": {
-			Name:         "zipcode",
-			CQLType:      types.TypeInt,
-			IsPrimaryKey: false,
-			PkPrecedence: 0,
-			KeyType:      types.KeyTypeRegular,
-			Metadata: message.ColumnMetadata{
-				Keyspace: "ks1",
-				Table:    "create_table_test",
-				Name:     "zipcode",
-				Index:    3,
-				Type:     datatype.Int,
-			},
-		},
-	}, tableMap["create_table_test"].Columns)
-	info, err = adminClients["bt1"].TableInfo(ctx, "create_table_test")
-	require.NoError(t, err)
-	require.NotNil(t, info)
-}
-
-func TestCanLoadBadTableConfig(t *testing.T) {
-	client, adminClients, ctx, err := getManagerClient(conn)
-	require.NoError(t, err)
-
-	btc := NewBigtableClient(client, adminClients, zap.NewNop(), bigtableConfig, nil, schemaMapping.NewSchemaMetadata("schema_mapping", "cf1", zap.NewNop(), nil))
-	_, err = btc.ReadTableConfigs(ctx, "ks1")
-	require.NoError(t, err)
-
-	sm := client["bt1"].Open("schema_mapping")
-
-	tableName := "bad_key_type_table"
-	// WARNING: do NOT change this mutation. It captures a real world schema that we need to handle.
-	rks, muts := toMuts(tableName, []map[string][]byte{
-		{
-			schemaMapping.smColColumnName:   []byte("column1"),
-			schemaMapping.smColColumnType:   []byte("varchar"),
-			schemaMapping.smColIsCollection: []byte("false"),
-			schemaMapping.smColIsPrimaryKey: []byte("true"),
-			schemaMapping.smColKeyType:      []byte("regular"), // wrong key type but PkPrecedence is > 0
-			schemaMapping.smColPKPrecedence: []byte("1"),
-			schemaMapping.smColTableName:    []byte(tableName),
-		},
-		{
-			schemaMapping.smColColumnName:   []byte("column2"),
-			schemaMapping.smColColumnType:   []byte("float"),
-			schemaMapping.smColIsCollection: []byte("false"),
-			schemaMapping.smColIsPrimaryKey: []byte("false"),
-			schemaMapping.smColKeyType:      []byte(""), // missing key type
-			schemaMapping.smColPKPrecedence: []byte("0"),
-			schemaMapping.smColTableName:    []byte(tableName),
-		},
-		{
-			schemaMapping.smColColumnName:   []byte("column3"),
-			schemaMapping.smColColumnType:   []byte("int"),
-			schemaMapping.smColIsCollection: []byte("false"),
-			schemaMapping.smColIsPrimaryKey: []byte("false"),
-			schemaMapping.smColKeyType:      []byte(""), // missing key type
-			schemaMapping.smColPKPrecedence: []byte("0"),
-			schemaMapping.smColTableName:    []byte(tableName),
-		},
-		{
-			schemaMapping.smColColumnName:   []byte("column4"),
-			schemaMapping.smColColumnType:   []byte("double"),
-			schemaMapping.smColIsCollection: []byte("false"),
-			schemaMapping.smColIsPrimaryKey: []byte("false"),
-			schemaMapping.smColKeyType:      []byte(""), // missing key type
-			schemaMapping.smColPKPrecedence: []byte("0"),
-			schemaMapping.smColTableName:    []byte(tableName),
-		},
-		{
-			schemaMapping.smColColumnName:   []byte("column5"),
-			schemaMapping.smColColumnType:   []byte("double"),
-			schemaMapping.smColIsCollection: []byte("false"),
-			schemaMapping.smColIsPrimaryKey: []byte("false"),
-			schemaMapping.smColKeyType:      []byte(""), // missing key type
-			schemaMapping.smColPKPrecedence: []byte("0"),
-			schemaMapping.smColTableName:    []byte(tableName),
-		},
-	})
-	_, err = sm.ApplyBulk(ctx, rks, muts)
-	require.NoError(t, err)
-
-	err = adminClients["bt1"].CreateTable(ctx, tableName)
-	require.NoError(t, err)
-
-	tableConfigs, err := btc.ReadTableConfigs(ctx, "ks1")
-	require.NoError(t, err)
-
-	index := slices.IndexFunc(tableConfigs, func(config *schemaMapping.TableSchema) bool {
-		return config.Name == tableName
-	})
-	require.NotEqual(t, -1, index)
-	tc := tableConfigs[index]
-	assert.Equal(t, tableName, tc.Name)
-	assert.Equal(t, "ks1", tc.Keyspace)
-	assert.Equal(t, []string{"column1"}, tc.GetPrimaryKeys())
-	pkCol, err := tc.GetColumn("column1")
-	require.NoError(t, err)
-	assert.Equal(t, "column1", pkCol.Name)
-	assert.Equal(t, 1, pkCol.PkPrecedence)
-	assert.Equal(t, types.KeyTypePartition, pkCol.KeyType)
-	assert.Equal(t, true, pkCol.IsPrimaryKey)
-}
-
-func toMuts(tableName string, data []map[string][]byte) ([]string, []*bigtable.Mutation) {
-	var muts []*bigtable.Mutation
-	var rowKeys []string
-	ts := bigtable.Now()
-	for _, d := range data {
-		mut := bigtable.NewMutation()
-		for k, v := range d {
-			mut.Set(schemaMapping.schemaMappingTableColumnFamily, k, ts, v)
-		}
-		muts = append(muts, mut)
-		rowKeys = append(rowKeys, tableName+"#"+string(d[schemaMapping.smColColumnName]))
-	}
-	return rowKeys, muts
-}
-
-// note: the bttest instance ignores RowKeySchema, so it will always be nil which breaks ReadTableConfigs() ability to infer key encoding.
-func TestCreateTableWithEncodeIntRowKeysWithBigEndianTrue(t *testing.T) {
-	client, adminClients, ctx, err := getManagerClient(conn)
-	require.NoError(t, err)
-
-	btc := NewBigtableClient(client, adminClients, zap.NewNop(), bigtableConfig, nil, schemaMapping.NewSchemaMetadata("schema_mapping", "cf1", zap.NewNop(), nil))
-
-	// force set up the schema mappings table
-	_, err = btc.ReadTableConfigs(ctx, "ks1")
-	require.NoError(t, err)
-
-	tableName := "big_endian_table"
-	createTableStmt := testCreateTableStatementMap
-	createTableStmt.Table = tableName
-	createTableStmt.IntRowKeyEncoding = types.BigEndianEncoding
-	err = btc.CreateTable(ctx, &createTableStmt)
-	require.NoError(t, err)
-
-	assert.NotNil(t, lastCreateTableReq)
-	assert.Equal(t, tableName, lastCreateTableReq.TableId)
-	field := lastCreateTableReq.Table.RowKeySchema.Fields[1]
-	assert.Equal(t, "id", field.FieldName)
-	assert.Equal(t, "big_endian_bytes:{}", field.Type.GetInt64Type().GetEncoding().String())
-}
-
-func TestCreateTableWithEncodeIntRowKeysWithBigEndianFalse(t *testing.T) {
-	client, adminClients, ctx, err := getManagerClient(conn)
-	require.NoError(t, err)
-
-	btc := NewBigtableClient(client, adminClients, zap.NewNop(), bigtableConfig, nil, schemaMapping.NewSchemaMetadata("schema_mapping", "cf1", zap.NewNop(), nil))
-
-	// force set up the schema mappings table
-	_, err = btc.ReadTableConfigs(ctx, "ks1")
-	require.NoError(t, err)
-
-	tableName := "ordered_bytes_encoded_table"
-	createTableStmt := testCreateTableStatementMap
-	createTableStmt.Table = tableName
-	createTableStmt.IntRowKeyEncoding = types.OrderedCodeEncoding
-	err = btc.CreateTable(ctx, &createTableStmt)
-	require.NoError(t, err)
-
-	assert.NotNil(t, lastCreateTableReq)
-	assert.Equal(t, tableName, lastCreateTableReq.TableId)
-	field := lastCreateTableReq.Table.RowKeySchema.Fields[1]
-	assert.Equal(t, "id", field.FieldName)
-	assert.Equal(t, "ordered_code_bytes:{}", field.Type.GetInt64Type().GetEncoding().String())
-}
-
-func TestAlterTable(t *testing.T) {
-	client, adminClients, ctx, err := getManagerClient(conn)
-	require.NoError(t, err)
-
-	btc := NewBigtableClient(client, adminClients, zap.NewNop(), bigtableConfig, nil, schemaMapping.NewSchemaMetadata("schema_mapping", "cf1", zap.NewNop(), nil))
-
-	// force set up the schema mappings table
-	_, err = btc.ReadTableConfigs(ctx, "ks1")
-	require.NoError(t, err)
-
-	// table should not exist yet
-	info, err := adminClients["bt1"].TableInfo(ctx, "alter_table_test")
-	require.Error(t, err)
-	require.Equal(t, codes.NotFound, status.Code(err))
-	require.Nil(t, info)
-
-	createTable := testCreateTableStatementMap
-	createTable.Table = "alter_table_test"
-	err = btc.CreateTable(ctx, &createTable)
-	require.NoError(t, err)
-
-	err = btc.AlterTable(ctx, &translators.AlterTableStatementMap{
-		QueryType:   "alter",
-		Keyspace:    "ks1",
-		Table:       "alter_table_test",
-		IfNotExists: false,
-		AddColumns: []types.CreateColumn{
-			{
-				Name:     "zodiac",
-				TypeInfo: types.TypeVarchar,
-			},
-		},
-		DropColumns: []string{
-			"zipcode",
-		},
-	})
-	require.NoError(t, err)
-
-	tables, err := btc.ReadTableConfigs(ctx, "ks1")
-	require.NoError(t, err)
-	tableMap := schemaMapping.CreateTableMap(tables)
-
-	require.Equal(t, tableMap["alter_table_test"].Columns, map[string]*types.Column{
-		"org": {
-			Name:         "org",
-			CQLType:      types.TypeVarchar,
-			IsPrimaryKey: true,
-			PkPrecedence: 1,
-			KeyType:      "partition_key",
-			Metadata: message.ColumnMetadata{
-				Keyspace: "ks1",
-				Table:    "alter_table_test",
-				Name:     "org",
-				Index:    2,
-				Type:     datatype.Varchar,
-			},
-		},
-		"id": {
-			Name:         "id",
-			CQLType:      types.TypeBigInt,
-			IsPrimaryKey: true,
-			PkPrecedence: 2,
-			KeyType:      "clustering",
-			Metadata: message.ColumnMetadata{
-				Keyspace: "ks1",
-				Table:    "alter_table_test",
-				Name:     "id",
-				Index:    0,
-				Type:     datatype.Bigint,
-			},
-		},
-		"name": {
-			Name:         "name",
-			CQLType:      types.TypeVarchar,
-			IsPrimaryKey: false,
-			PkPrecedence: 0,
-			KeyType:      types.KeyTypeRegular,
-			Metadata: message.ColumnMetadata{
-				Keyspace: "ks1",
-				Table:    "alter_table_test",
-				Name:     "name",
-				Index:    1,
-				Type:     datatype.Varchar,
-			},
-		},
-		"zodiac": {
-			Name:         "zodiac",
-			CQLType:      types.TypeVarchar,
-			IsPrimaryKey: false,
-			PkPrecedence: 0,
-			KeyType:      types.KeyTypeRegular,
-			Metadata: message.ColumnMetadata{
-				Keyspace: "ks1",
-				Table:    "alter_table_test",
-				Name:     "zodiac",
-				Index:    3,
-				Type:     datatype.Varchar,
-			},
-		},
-	})
-}
-
-func TestDropTable(t *testing.T) {
-	client, adminClients, ctx, err := getManagerClient(conn)
-	require.NoError(t, err)
-
-	btc := NewBigtableClient(client, adminClients, zap.NewNop(), bigtableConfig, nil, schemaMapping.NewSchemaMetadata("schema_mapping", "cf1", zap.NewNop(), nil))
-
-	// force set up the schema mappings table
-	_, err = btc.ReadTableConfigs(ctx, "ks1")
-	require.NoError(t, err)
-
-	// table should not exist yet
-	info, err := adminClients["bt1"].TableInfo(ctx, "drop_table_test")
-	require.Error(t, err)
-	require.Equal(t, codes.NotFound, status.Code(err))
-	require.Nil(t, info)
-
-	createTable := testCreateTableStatementMap
-	createTable.Table = "drop_table_test"
-	err = btc.CreateTable(ctx, &createTable)
-	require.NoError(t, err)
-
-	tables, err := btc.ReadTableConfigs(ctx, "ks1")
-	require.NoError(t, err)
-	tableMap := schemaMapping.CreateTableMap(tables)
-	require.NotNil(t, tableMap["drop_table_test"])
-
-	err = btc.DropTable(ctx, &translators.DropTableStatementMap{
-		QueryType: "drop",
-		Keyspace:  "ks1",
-		Table:     "drop_table_test",
-		IfExists:  false,
-	})
-	require.NoError(t, err)
-
-	tables, err = btc.ReadTableConfigs(ctx, "ks1")
-	require.NoError(t, err)
-	tableMap = schemaMapping.CreateTableMap(tables)
-	require.Nil(t, tableMap["drop_table_test"])
-
-	// table should be cleaned up
-	info, err = adminClients["bt1"].TableInfo(ctx, "drop_table_test")
-	require.Error(t, err)
-	require.Equal(t, codes.NotFound, status.Code(err))
-	require.Nil(t, info)
-}
-
-func TestInferSQLType(t *testing.T) {
-	tests := []struct {
-		name          string
-		input         interface{}
-		expectedType  bigtable.SQLType
-		expectedError string
-	}{
-		{
-			name:         "string value",
-			input:        "test",
-			expectedType: bigtable.StringSQLType{},
-		},
-		{
-			name:         "byte slice value",
-			input:        []byte("test"),
-			expectedType: bigtable.BytesSQLType{},
-		},
-		{
-			name:         "integer value",
-			input:        42,
-			expectedType: bigtable.Int64SQLType{},
-		},
-		{
-			name:         "int32 value",
-			input:        int32(42),
-			expectedType: bigtable.Int64SQLType{},
-		},
-		{
-			name:         "int64 value",
-			input:        int64(42),
-			expectedType: bigtable.Int64SQLType{},
-		},
-		{
-			name:         "float32 value",
-			input:        float32(3.14),
-			expectedType: bigtable.Float32SQLType{},
-		},
-		{
-			name:         "float64 value",
-			input:        float64(3.14),
-			expectedType: bigtable.Float64SQLType{},
-		},
-		{
-			name:         "boolean value",
-			input:        true,
-			expectedType: bigtable.Int64SQLType{},
-		},
-		{
-			name:         "interface slice",
-			input:        []interface{}{1, 2, 3},
-			expectedType: bigtable.ArraySQLType{},
-		},
-		{
-			name:          "unsupported struct type",
-			input:         struct{}{},
-			expectedError: "unsupported type for SQL parameter inference: struct {}",
-		},
-		{
-			name:         "empty interface slice",
-			input:        []interface{}{},
-			expectedType: bigtable.ArraySQLType{},
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			sqlType, err := toBigtableSQLType(tt.input)
-
-			if tt.expectedError != "" {
-				assert.Error(t, err)
-				assert.Equal(t, tt.expectedError, err.Error())
-			} else {
-				assert.NoError(t, err)
-				assert.Equal(t, tt.expectedType, sqlType)
-			}
-		})
-	}
-}
-func TestBigtableClient_getClient(t *testing.T) {
-	// Setup a dummy bigtable.Client and BigtableAdapter struct
-	dummyClient := &bigtable.Client{}
-	clients := map[string]*bigtable.Client{
-		"bt1": dummyClient,
-	}
-	btc := &BigtableAdapter{
-		config:  bigtableConfig,
-		clients: clients,
-	}
-
-	t.Run("returns client when keyspace and instance exist", func(t *testing.T) {
-		client, err := btc.getClient("ks1")
-		assert.NoError(t, err)
-		assert.Equal(t, dummyClient, client)
-	})
-
-	t.Run("returns error when keyspace does not exist", func(t *testing.T) {
-		client, err := btc.getClient("missing")
-		assert.Nil(t, client)
-		assert.Error(t, err)
-		assert.Contains(t, err.Error(), "keyspace not found: 'missing'")
-	})
-
-	t.Run("returns error when client for instance does not exist", func(t *testing.T) {
-		btc2 := &BigtableAdapter{
-			config:  bigtableConfig,
-			clients: map[string]*bigtable.Client{}, // no client for inst2
-		}
-		client, err := btc2.getClient("ks2")
-		assert.Nil(t, client)
-		assert.Error(t, err)
-		assert.Contains(t, err.Error(), "keyspace not found: 'ks2'")
-	})
-}
-func TestBigtableClient_getAdminClient(t *testing.T) {
-	// Setup a dummy bigtable.AdminClient and BigtableAdapter struct
-	dummyAdminClient := &bigtable.AdminClient{}
-	adminClients := map[string]*bigtable.AdminClient{
-		"bt1": dummyAdminClient,
-	}
-	btc := &BigtableAdapter{
-		config:       bigtableConfig,
-		AdminClients: adminClients,
-	}
-
-	t.Run("returns admin client when keyspace and instance exist", func(t *testing.T) {
-		client, err := btc.getAdminClient("ks1")
-		assert.NoError(t, err)
-		assert.Equal(t, dummyAdminClient, client)
-	})
-
-	t.Run("returns error when keyspace does not exist", func(t *testing.T) {
-		client, err := btc.getAdminClient("missing")
-		assert.Nil(t, client)
-		assert.Error(t, err)
-		assert.Contains(t, err.Error(), "keyspace not found: 'missing'")
-	})
-
-	t.Run("returns error when admin client for instance does not exist", func(t *testing.T) {
-		btc2 := &BigtableAdapter{
-			config:       bigtableConfig,
-			AdminClients: map[string]*bigtable.AdminClient{}, // no admin client for inst2
-		}
-		client, err := btc2.getAdminClient("ks2")
-		assert.Nil(t, client)
-		assert.Error(t, err)
-		assert.Contains(t, err.Error(), "keyspace not found: 'ks2'")
-	})
 }

@@ -124,7 +124,7 @@ func Test_GetColumn(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			tc, err := tt.fields.GetTableConfig("keyspace", types.TableName(tt.args.tableName))
+			tc, err := tt.fields.GetTableSchema("keyspace", types.TableName(tt.args.tableName))
 			if err != nil {
 				t.Errorf("table config error: %v", err)
 				return
@@ -146,38 +146,56 @@ func Test_GetColumn(t *testing.T) {
 func Test_ListKeyspaces(t *testing.T) {
 	tests := []struct {
 		name     string
-		tables   map[types.Keyspace]map[types.TableName]*TableSchema
-		expected []string
+		tables   []*TableSchema
+		expected []types.Keyspace
 	}{
 		{
 			name: "Multiple keyspaces, unsorted input",
-			tables: map[types.Keyspace]map[types.TableName]*TableSchema{
-				"zeta":  {},
-				"alpha": {},
-				"beta":  {},
+			tables: []*TableSchema{
+				createTestTable("zeta", "t"),
+				createTestTable("alpha", "t"),
+				createTestTable("beta", "t"),
 			},
-			expected: []string{"alpha", "beta", "zeta"},
+			expected: []types.Keyspace{"alpha", "beta", "system", "system_schema", "system_virtual_schema", "zeta"},
 		},
 		{
 			name: "Single keyspace",
-			tables: map[types.Keyspace]map[types.TableName]*TableSchema{
-				"only": {},
+			tables: []*TableSchema{
+				createTestTable("only", "t"),
 			},
-			expected: []string{"only"},
+			expected: []types.Keyspace{"only", "system", "system_schema", "system_virtual_schema"},
 		},
 		{
 			name:     "No keyspaces",
-			tables:   map[types.Keyspace]map[types.TableName]*TableSchema{},
-			expected: []string{},
+			tables:   []*TableSchema{},
+			expected: []types.Keyspace{"system", "system_schema", "system_virtual_schema"},
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			cfg := &SchemaMetadata{tables: tt.tables}
-			got := cfg.ListKeyspaces()
-			assert.Equal(t, tt.expected, got)
+			cfg := NewSchemaMetadata("cf1", tt.tables)
+			assert.Equal(t, tt.expected, cfg.ListKeyspaces())
 		})
 	}
+}
+
+func createTestTable(keyspace types.Keyspace, name types.TableName) *TableSchema {
+	return NewTableConfig(keyspace, name, "cf1", types.OrderedCodeEncoding, []*types.Column{
+		{
+			Name:         "pk1",
+			CQLType:      types.TypeText,
+			IsPrimaryKey: true,
+			PkPrecedence: 1,
+			KeyType:      types.KeyTypePartition,
+		},
+		{
+			Name:         "name",
+			CQLType:      types.TypeText,
+			IsPrimaryKey: false,
+			PkPrecedence: 0,
+			KeyType:      types.KeyTypeRegular,
+		},
+	})
 }
 
 func Test_sortPrimaryKeysData(t *testing.T) {

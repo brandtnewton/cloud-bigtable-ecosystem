@@ -34,7 +34,7 @@ func (t *InsertTranslator) Translate(query *types.RawQuery, sessionKeyspace type
 		return nil, err
 	}
 
-	table, err := t.schemaMappingConfig.GetTableConfig(keyspaceName, tableName)
+	table, err := t.schemaMappingConfig.GetTableSchema(keyspaceName, tableName)
 	if err != nil {
 		return nil, err
 	}
@@ -86,7 +86,7 @@ func (t *InsertTranslator) Bind(st types.IPreparedQuery, values *types.QueryPara
 	if !ok {
 		return nil, fmt.Errorf("cannot bind to %T", st)
 	}
-	tableConfig, err := t.schemaMappingConfig.GetTableConfig(ist.Keyspace(), ist.Table())
+	tableConfig, err := t.schemaMappingConfig.GetTableSchema(ist.Keyspace(), ist.Table())
 	if err != nil {
 		return nil, err
 	}

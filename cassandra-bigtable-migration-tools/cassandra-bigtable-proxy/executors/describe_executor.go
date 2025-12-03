@@ -126,7 +126,7 @@ func (d *describeExecutor) handleDescribeTables(desc *types.DescribeTablesQuery)
 
 // handleDescribeTable handles the DESCRIBE TABLE command for a specific table
 func (d *describeExecutor) handleDescribeTable(desc *types.DescribeTableQuery) (message.Message, error) {
-	tableConfig, err := d.schemaMappings.GetTableConfig(desc.Keyspace(), desc.Table())
+	tableConfig, err := d.schemaMappings.GetTableSchema(desc.Keyspace(), desc.Table())
 	if err != nil {
 		return nil, fmt.Errorf("error getting describe column metadata: %w", err)
 	}

@@ -34,7 +34,7 @@ func (t *DeleteTranslator) Translate(query *types.RawQuery, sessionKeyspace type
 		return nil, err
 	}
 
-	table, err := t.schemaMappingConfig.GetTableConfig(keyspaceName, tableName)
+	table, err := t.schemaMappingConfig.GetTableSchema(keyspaceName, tableName)
 	if err != nil {
 		return nil, err
 	}
@@ -72,7 +72,7 @@ func (t *DeleteTranslator) Bind(st types.IPreparedQuery, values *types.QueryPara
 	if !ok {
 		return nil, fmt.Errorf("cannot bind to %T", st)
 	}
-	tableConfig, err := t.schemaMappingConfig.GetTableConfig(dst.Keyspace(), dst.Table())
+	tableConfig, err := t.schemaMappingConfig.GetTableSchema(dst.Keyspace(), dst.Table())
 	if err != nil {
 		return nil, err
 	}

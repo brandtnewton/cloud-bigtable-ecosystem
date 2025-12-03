@@ -142,9 +142,9 @@ func (b *MetadataStore) readKeyspace(ctx context.Context, keyspace types.Keyspac
 
 	adminClient, err := b.clients.GetAdmin(keyspace)
 	if err != nil {
-		errorMessage := fmt.Sprintf("failed to get admin client for keyspace '%b'", keyspace)
+		errorMessage := fmt.Sprintf("failed to get admin client for keyspace '%s'", keyspace)
 		b.logger.Error(errorMessage, zap.Error(err))
-		return nil, fmt.Errorf("%b: %w", errorMessage, err)
+		return nil, fmt.Errorf("%s: %w", errorMessage, err)
 	}
 
 	// Create a channel to collect results and errors from the goroutines.
@@ -155,7 +155,7 @@ func (b *MetadataStore) readKeyspace(ctx context.Context, keyspace types.Keyspac
 		tn := tableName
 		tc := tableColumns
 		// if we already know what encoding the table has, just use that, so we don't have to do the extra network request
-		if existingTable, err := b.schemas.GetTableConfig(keyspace, tableName); err == nil {
+		if existingTable, err := b.schemas.GetTableSchema(keyspace, tableName); err == nil {
 			tableConfig := NewTableConfig(keyspace, tn, b.config.DefaultColumnFamily, existingTable.IntRowKeyEncoding, tc)
 			resultCh <- TableResult{Config: tableConfig, Error: nil}
 			continue
@@ -164,11 +164,11 @@ func (b *MetadataStore) readKeyspace(ctx context.Context, keyspace types.Keyspac
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			b.logger.Info(fmt.Sprintf("loading table info for table %b.%b", keyspace, tn))
+			b.logger.Info(fmt.Sprintf("loading table info for table %s.%s", keyspace, tn))
 			tableInfo, err := adminClient.TableInfo(ctx, string(tn))
 			if err != nil {
 				// Send the error back through the channel
-				resultCh <- TableResult{Error: fmt.Errorf("TableInfo failed for %b: %w", tn, err)}
+				resultCh <- TableResult{Error: fmt.Errorf("TableInfo failed for %s: %w", tn, err)}
 				return
 			}
 			intRowKeyEncoding := detectTableEncoding(tableInfo, types.OrderedCodeEncoding)
@@ -221,7 +221,7 @@ func (b *MetadataStore) parseKeyType(keyspace types.Keyspace, table types.TableN
 			// default to clustering key because clustering keys usually follow (this will be wrong in the case of a composite partition key), and it doesn't really matter for the purposes of the proxy.
 			defaultKeyType = types.KeyTypeClustering
 		}
-		b.logger.Warn(fmt.Sprintf("unknown key state KeyType='%b' and pkPrecedence of %d for %b.%b column %b. defaulting key type to '%b'", keyType, pkPrecedence,
+		b.logger.Warn(fmt.Sprintf("unknown key state KeyType='%s' and pkPrecedence of %d for %s.%s column %s. defaulting key type to '%s'", keyType, pkPrecedence,
 			keyspace, table, column, defaultKeyType))
 
 		return defaultKeyType
@@ -269,7 +269,7 @@ func (b *MetadataStore) updateTableSchema(ctx context.Context, keyspace types.Ke
 		mut := bigtable.NewMutation()
 		mut.DeleteRow()
 		muts = append(muts, mut)
-		rowKeys = append(rowKeys, fmt.Sprintf("%b#%b", tableName, col))
+		rowKeys = append(rowKeys, fmt.Sprintf("%s#%s", tableName, col))
 	}
 
 	b.logger.Info("updating schema mapping table")
@@ -323,7 +323,7 @@ func (b *MetadataStore) AlterTable(ctx context.Context, data *types.AlterTableSt
 }
 
 func (b *MetadataStore) DropTable(ctx context.Context, data *types.DropTableQuery) error {
-	_, err := b.schemas.GetTableConfig(data.Keyspace(), data.Table())
+	_, err := b.schemas.GetTableSchema(data.Keyspace(), data.Table())
 	if err != nil && !data.IfExists {
 		return err
 	}
@@ -360,7 +360,7 @@ func (b *MetadataStore) DropTable(ctx context.Context, data *types.DropTableQuer
 	}
 
 	// do a read to check if the table exists to save on admin API write quota
-	exists, err := b.tableResourceExists(ctx, adminClient, data.Table())
+	exists, err := b.tableResourceExists(ctx, data.Keyspace(), data.Table())
 	if err != nil {
 		return err
 	}
@@ -374,7 +374,7 @@ func (b *MetadataStore) DropTable(ctx context.Context, data *types.DropTableQuer
 
 	// this error behavior is done independently of the table resource existing or not because the schema mapping table is the SoT, not the table resource
 	if len(rowKeysToDelete) == 0 && !data.IfExists {
-		return fmt.Errorf("cannot delete table %b because it does not exist", data.Table())
+		return fmt.Errorf("cannot delete table %s because it does not exist", data.Table())
 	}
 
 	// only reload schema mapping table if this operation changed it
@@ -396,7 +396,7 @@ func (b *MetadataStore) createSchemaMappingTableMaybe(ctx context.Context, keysp
 	}
 
 	// do a read to check if the table exists to save on admin API write quota
-	exists, err := b.tableResourceExists(ctx, adminClient, b.config.SchemaMappingTable)
+	exists, err := b.tableResourceExists(ctx, keyspace, b.config.SchemaMappingTable)
 	if err != nil {
 		return err
 	}
@@ -469,7 +469,7 @@ func (b *MetadataStore) CreateTable(ctx context.Context, data *types.CreateTable
 	}
 
 	if exists && !data.IfNotExists {
-		return fmt.Errorf("cannot create table %b because it already exists", data.Table())
+		return fmt.Errorf("cannot create table %s because it already exists", data.Table())
 	}
 
 	if !exists {
@@ -515,13 +515,16 @@ func (b *MetadataStore) addColumnFamilies(columns []types.CreateColumn) (map[str
 	return columnFamilies, nil
 }
 
-func (b *MetadataStore) tableResourceExists(ctx context.Context, adminClient *bigtable.AdminClient, table types.TableName) (bool, error) {
-	_, err := adminClient.TableInfo(ctx, string(table))
+func (b *MetadataStore) tableResourceExists(ctx context.Context, keyspace types.Keyspace, table types.TableName) (bool, error) {
+	adminClient, err := b.clients.GetAdmin(keyspace)
+	if err != nil {
+		return false, err
+	}
+	_, err = adminClient.TableInfo(ctx, string(table))
 	// todo figure out which error message is for table doesn't exist yet or find better check
 	if status.Code(err) == codes.NotFound || status.Code(err) == codes.InvalidArgument {
 		return false, nil
 	}
-	// something went wrong
 	if err != nil {
 		return false, err
 	}
@@ -547,7 +550,7 @@ func (b *MetadataStore) ReloadKeyspaceSchemas(ctx context.Context, keyspace type
 	}
 	err = b.schemas.ReplaceTables(keyspace, tableConfigs)
 	if err != nil {
-		return fmt.Errorf("error updating schema cache for keyspace %b: %w", keyspace, err)
+		return fmt.Errorf("error updating schema cache for keyspace %s: %w", keyspace, err)
 	}
 	return nil
 }

@@ -81,7 +81,7 @@ func (btc *BigtableAdapter) ExecutePreparedStatement(ctx context.Context, query 
 }
 
 func (btc *BigtableAdapter) convertResultRow(resultRow bigtable.ResultRow, query *types.ExecutableSelectQuery) (types.GoRow, error) {
-	table, err := btc.schemaManager.Schemas().GetTableConfig(query.Keyspace(), query.Table())
+	table, err := btc.schemaManager.Schemas().GetTableSchema(query.Keyspace(), query.Table())
 	if err != nil {
 		return nil, err
 	}

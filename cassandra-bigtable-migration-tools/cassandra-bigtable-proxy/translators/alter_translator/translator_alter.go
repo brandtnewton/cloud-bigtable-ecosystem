@@ -37,7 +37,7 @@ func (t *AlterTranslator) Translate(query *types.RawQuery, sessionKeyspace types
 		return nil, err
 	}
 
-	tableConfig, err := t.schemaMappingConfig.GetTableConfig(keyspaceName, tableName)
+	tableConfig, err := t.schemaMappingConfig.GetTableSchema(keyspaceName, tableName)
 	if err != nil {
 		return nil, err
 	}

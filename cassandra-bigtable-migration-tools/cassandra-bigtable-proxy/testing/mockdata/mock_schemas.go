@@ -109,7 +109,7 @@ func EncodePrimitiveValueOrDie(v any, dt types.CqlDataType, pv primitive.Protoco
 }
 
 func GetTableOrDie(k types.Keyspace, t types.TableName) *schemaMapping.TableSchema {
-	config, err := GetSchemaMappingConfig().GetTableConfig(k, t)
+	config, err := GetSchemaMappingConfig().GetTableSchema(k, t)
 	if err != nil {
 		log.Fatalf("no such table or keyspace: %s", err.Error())
 	}
@@ -117,7 +117,7 @@ func GetTableOrDie(k types.Keyspace, t types.TableName) *schemaMapping.TableSche
 }
 
 func GetColumnOrDie(k types.Keyspace, t types.TableName, c types.ColumnName) *types.Column {
-	config, err := GetSchemaMappingConfig().GetTableConfig(k, t)
+	config, err := GetSchemaMappingConfig().GetTableSchema(k, t)
 	if err != nil {
 		log.Fatalf("no such table or keyspace: %s", err.Error())
 	}

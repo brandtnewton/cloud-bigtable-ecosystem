@@ -86,6 +86,10 @@ func NewTableConfig(
 	}
 }
 
+func (t *TableSchema) AllColumns() []*types.Column {
+	return maps.Values(t.Columns)
+}
+
 func (t *TableSchema) GetPkByTableNameWithFilter(filterPrimaryKeys []types.ColumnName) []*types.Column {
 	var result []*types.Column
 	for _, pmk := range t.PrimaryKeys {

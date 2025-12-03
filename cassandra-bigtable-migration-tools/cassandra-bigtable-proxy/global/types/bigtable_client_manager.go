@@ -61,6 +61,13 @@ func createBigtableClientSet(ctx context.Context, config *ProxyInstanceConfig, i
 	return NewBigtableClientSet(adminClient, client), nil
 }
 
+func (b *BigtableClientManager) GetTableClient(keyspace Keyspace, table TableName) (*bigtable.Table, error) {
+	c, err := b.GetClient(keyspace)
+	if err != nil {
+		return nil, err
+	}
+	return c.Open(string(table)), nil
+}
 func (b *BigtableClientManager) getClientSet(keyspace Keyspace) (*BigtableClientSet, error) {
 	client, ok := b.clients[keyspace]
 	if !ok {

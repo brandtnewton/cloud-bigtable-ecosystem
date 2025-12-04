@@ -19,13 +19,11 @@ package metadata
 import (
 	"fmt"
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/global/types"
+	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/utilities"
+	"golang.org/x/exp/maps"
 	"slices"
 	"strings"
 	"sync"
-)
-
-const (
-	LimitValue = "limitValue"
 )
 
 // SchemaMetadata contains the schema information for all tables, across
@@ -34,24 +32,42 @@ type SchemaMetadata struct {
 	mu                 sync.RWMutex
 	tables             map[types.Keyspace]map[types.TableName]*TableSchema
 	SystemColumnFamily types.ColumnFamily
+	events             *utilities.EventPublisher[MetadataEvent]
+}
+
+type MetadataEventType string
+
+const (
+	MetadataRemovedEventType = MetadataEventType("removed")
+	MetadataAddedEventType   = MetadataEventType("added")
+	MetadataChangedEventType = MetadataEventType("changed")
+)
+
+type MetadataEvent struct {
+	EventType MetadataEventType
+	Keyspace  types.Keyspace
+	Table     types.TableName
+}
+
+func NewMetadataEvent(eventType MetadataEventType, keyspace types.Keyspace, table types.TableName) MetadataEvent {
+	return MetadataEvent{
+		EventType: eventType,
+		Keyspace:  keyspace,
+		Table:     table,
+	}
+}
+
+func (c *SchemaMetadata) Subscribe(s utilities.Subscriber[MetadataEvent]) {
+	c.events.Register(s)
 }
 
 // NewSchemaMetadata is a constructor for SchemaMetadata. Please use this instead of direct initialization.
 func NewSchemaMetadata(systemColumnFamily types.ColumnFamily, tableConfigs []*TableSchema) *SchemaMetadata {
-	tablesMap := make(map[types.Keyspace]map[types.TableName]*TableSchema)
-
-	tableConfigs = append(tableConfigs, getSystemTableConfigs()...)
-
-	for _, tableConfig := range tableConfigs {
-		if keyspace, exists := tablesMap[tableConfig.Keyspace]; !exists {
-			keyspace = make(map[types.TableName]*TableSchema)
-			tablesMap[tableConfig.Keyspace] = keyspace
-		}
-		tablesMap[tableConfig.Keyspace][tableConfig.Name] = tableConfig
-	}
+	tablesMap := GroupTables(tableConfigs)
 	return &SchemaMetadata{
 		SystemColumnFamily: systemColumnFamily,
 		tables:             tablesMap,
+		events:             utilities.NewPublisher[MetadataEvent](),
 	}
 }
 
@@ -101,31 +117,56 @@ func (c *SchemaMetadata) GetKeyspace(keyspace types.Keyspace) ([]*TableSchema, e
 	return results, nil
 }
 
-func (c *SchemaMetadata) ReplaceTables(keyspace types.Keyspace, tableConfigs []*TableSchema) error {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-
-	// clear the keyspace
-	c.tables[keyspace] = make(map[types.TableName]*TableSchema)
-	for _, tableConfig := range tableConfigs {
-		if tableConfig.Keyspace != keyspace {
-			return fmt.Errorf("cannot replace table with keyspace '%s' because we're only updating keyspace '%s'", tableConfig.Keyspace, keyspace)
-		}
-		c.tables[keyspace][tableConfig.Name] = tableConfig
+func (c *SchemaMetadata) AddTables(tables []*TableSchema) {
+	grouped := GroupTables(tables)
+	for keyspace, keyspaceTables := range grouped {
+		c.SyncKeyspace(keyspace, maps.Values(keyspaceTables))
 	}
-	return nil
 }
 
-func (c *SchemaMetadata) UpdateTables(keyspace types.Keyspace, tableConfigs []*TableSchema) {
+func (c *SchemaMetadata) SyncKeyspace(keyspace types.Keyspace, updates []*TableSchema) {
 	c.mu.Lock()
-	defer c.mu.Unlock()
 
+	// ensure keyspace exists
 	if _, exists := c.tables[keyspace]; !exists {
 		c.tables[keyspace] = make(map[types.TableName]*TableSchema)
 	}
 
-	for _, tableConfig := range tableConfigs {
-		c.tables[tableConfig.Keyspace][tableConfig.Name] = tableConfig
+	var events []MetadataEvent
+	for _, table := range updates {
+		existingTable, tableAlreadyExisted := c.tables[table.Keyspace][table.Name]
+		// skip table if no changed detected
+		if tableAlreadyExisted && existingTable.SameSchema(table) {
+			continue
+		}
+		c.tables[table.Keyspace][table.Name] = table
+		if tableAlreadyExisted {
+			events = append(events, NewMetadataEvent(MetadataChangedEventType, table.Keyspace, table.Name))
+		} else {
+			events = append(events, NewMetadataEvent(MetadataAddedEventType, table.Keyspace, table.Name))
+		}
+	}
+
+	// remove dropped tables
+	keyspaceTables := c.tables[keyspace]
+	for _, table := range keyspaceTables {
+		var found *TableSchema
+		for _, t := range updates {
+			if t.SameTable(table) {
+				found = t
+				break
+			}
+		}
+		if found == nil {
+			delete(c.tables[keyspace], table.Name)
+			events = append(events, NewMetadataEvent(MetadataRemovedEventType, table.Keyspace, table.Name))
+		}
+	}
+
+	// unlock before sending events so down stream subscribers can read schemas
+	c.mu.Unlock()
+	for _, e := range events {
+		c.events.SendEvent(e)
 	}
 }
 
@@ -176,4 +217,15 @@ func (c *SchemaMetadata) ListKeyspaces() []types.Keyspace {
 		return strings.Compare(string(a), string(b))
 	})
 	return keyspaces
+}
+
+func GroupTables(tables []*TableSchema) map[types.Keyspace]map[types.TableName]*TableSchema {
+	tablesMap := make(map[types.Keyspace]map[types.TableName]*TableSchema)
+	for _, tableConfig := range tables {
+		if _, exists := tablesMap[tableConfig.Keyspace]; !exists {
+			tablesMap[tableConfig.Keyspace] = make(map[types.TableName]*TableSchema)
+		}
+		tablesMap[tableConfig.Keyspace][tableConfig.Name] = tableConfig
+	}
+	return tablesMap
 }

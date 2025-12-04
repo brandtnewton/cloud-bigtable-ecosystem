@@ -16,13 +16,10 @@
 package metadata
 
 import (
+	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/global/types"
+	"github.com/stretchr/testify/assert"
 	"reflect"
 	"testing"
-
-	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/global/types"
-	"github.com/datastax/go-cassandra-native-protocol/datatype"
-	"github.com/datastax/go-cassandra-native-protocol/message"
-	"github.com/stretchr/testify/assert"
 )
 
 func getSchemaMappingConfig() *SchemaMetadata {
@@ -31,7 +28,7 @@ func getSchemaMappingConfig() *SchemaMetadata {
 		[]*TableSchema{
 			NewTableConfig(
 				"keyspace",
-				"table1",
+				"table",
 				"cf1",
 				types.OrderedCodeEncoding,
 				[]*types.Column{
@@ -51,7 +48,7 @@ func getSchemaMappingConfig() *SchemaMetadata {
 			),
 			NewTableConfig(
 				"keyspace",
-				"table2",
+				"other",
 				"cf1",
 				types.OrderedCodeEncoding,
 				[]*types.Column{
@@ -73,16 +70,12 @@ func getSchemaMappingConfig() *SchemaMetadata {
 	)
 }
 
-var expectedResponse = []*message.ColumnMetadata{
-	{Keyspace: "keyspace", Name: "column1", Table: "table1", Type: datatype.Varchar, Index: 0},
-}
-
 func Test_GetColumn(t *testing.T) {
 	columnExistsInDifferentTableArgs := struct {
 		tableName  string
 		columnName string
 	}{
-		tableName:  "table1",
+		tableName:  "table",
 		columnName: "column3",
 	}
 
@@ -103,7 +96,7 @@ func Test_GetColumn(t *testing.T) {
 				tableName  string
 				columnName string
 			}{
-				tableName:  "table1",
+				tableName:  "table",
 				columnName: "column1",
 			},
 			want: &types.Column{
@@ -156,19 +149,19 @@ func Test_ListKeyspaces(t *testing.T) {
 				createTestTable("alpha", "t"),
 				createTestTable("beta", "t"),
 			},
-			expected: []types.Keyspace{"alpha", "beta", "system", "system_schema", "system_virtual_schema", "zeta"},
+			expected: []types.Keyspace{"alpha", "beta", "zeta"},
 		},
 		{
 			name: "Single keyspace",
 			tables: []*TableSchema{
 				createTestTable("only", "t"),
 			},
-			expected: []types.Keyspace{"only", "system", "system_schema", "system_virtual_schema"},
+			expected: []types.Keyspace{"only"},
 		},
 		{
 			name:     "No keyspaces",
 			tables:   []*TableSchema{},
-			expected: []types.Keyspace{"system", "system_schema", "system_virtual_schema"},
+			expected: []types.Keyspace{},
 		},
 	}
 	for _, tt := range tests {
@@ -234,7 +227,7 @@ func Test_sortPrimaryKeysData(t *testing.T) {
 			},
 		},
 		{
-			name: "Same Precedence Columns (Unchanged Order)",
+			name: "SameSchema Precedence Columns (Unchanged Order)",
 			args: args{
 				pkMetadata: []*types.Column{
 					{Name: "product_id", PkPrecedence: 1},
@@ -311,4 +304,199 @@ func Test_sortPrimaryKeysData(t *testing.T) {
 			}
 		})
 	}
+}
+
+type MetadataListener struct {
+	values []MetadataEvent
+}
+
+func NewMetadataListener() *MetadataListener {
+	return &MetadataListener{}
+}
+
+func (m *MetadataListener) OnEvent(e MetadataEvent) {
+	println("got event: " + e.EventType)
+	m.values = append(m.values, e)
+}
+
+func Test_SyncTablesChanged(t *testing.T) {
+	schemas := getSchemaMappingConfig()
+	listener := NewMetadataListener()
+	schemas.Subscribe(listener)
+
+	schemas.SyncKeyspace("keyspace", []*TableSchema{
+		NewTableConfig(
+			"keyspace",
+			"table",
+			"cf1",
+			types.OrderedCodeEncoding,
+			[]*types.Column{
+				{
+					Name:         "column1",
+					CQLType:      types.TypeVarchar,
+					KeyType:      types.KeyTypeRegular,
+					ColumnFamily: "cf1",
+				},
+				{
+					Name:         "column2",
+					CQLType:      types.TypeInt,
+					KeyType:      types.KeyTypeRegular,
+					ColumnFamily: "cf1",
+				},
+				{
+					Name:         "column3", // new column
+					CQLType:      types.TypeInt,
+					KeyType:      types.KeyTypeRegular,
+					ColumnFamily: "cf1",
+				},
+			},
+		),
+		NewTableConfig(
+			"keyspace",
+			"other",
+			"cf1",
+			types.OrderedCodeEncoding,
+			[]*types.Column{
+				{
+					Name:         "id",
+					CQLType:      types.TypeInt,
+					KeyType:      "partition",
+					IsPrimaryKey: true,
+				},
+				{
+					Name:         "name",
+					CQLType:      types.TypeVarchar,
+					KeyType:      "clustering",
+					IsPrimaryKey: true,
+				},
+			},
+		),
+	})
+
+	assert.Equal(t, []MetadataEvent{
+		{
+			EventType: MetadataChangedEventType,
+			Keyspace:  "keyspace",
+			Table:     "table",
+		},
+	}, listener.values)
+}
+
+func Test_SyncTablesMixed(t *testing.T) {
+	schemas := getSchemaMappingConfig()
+	listener := NewMetadataListener()
+	schemas.Subscribe(listener)
+
+	schemas.SyncKeyspace("keyspace", []*TableSchema{
+		NewTableConfig(
+			"keyspace",
+			"table",
+			"cf1",
+			types.OrderedCodeEncoding,
+			[]*types.Column{
+				{
+					Name:         "column1",
+					CQLType:      types.TypeVarchar,
+					KeyType:      types.KeyTypeRegular,
+					ColumnFamily: "cf1",
+				},
+				{
+					Name:         "column2",
+					CQLType:      types.TypeInt,
+					KeyType:      types.KeyTypeRegular,
+					ColumnFamily: "cf1",
+				},
+			},
+		),
+		NewTableConfig(
+			"keyspace",
+			"other",
+			"cf1",
+			types.OrderedCodeEncoding,
+			[]*types.Column{
+				{
+					Name:         "id",
+					CQLType:      types.TypeInt,
+					KeyType:      "partition",
+					IsPrimaryKey: true,
+				},
+				{
+					Name:         "name2",
+					CQLType:      types.TypeVarchar,
+					KeyType:      "clustering",
+					IsPrimaryKey: true,
+				},
+			},
+		),
+		NewTableConfig(
+			"keyspace",
+			"other2",
+			"cf1",
+			types.OrderedCodeEncoding,
+			[]*types.Column{
+				{
+					Name:         "id",
+					CQLType:      types.TypeInt,
+					KeyType:      "partition",
+					IsPrimaryKey: true,
+				},
+				{
+					Name:         "name",
+					CQLType:      types.TypeVarchar,
+					KeyType:      "clustering",
+					IsPrimaryKey: true,
+				},
+			},
+		),
+	})
+
+	assert.ElementsMatch(t, []MetadataEvent{
+		{
+			EventType: MetadataChangedEventType,
+			Keyspace:  "keyspace",
+			Table:     "other",
+		},
+		{
+			EventType: MetadataAddedEventType,
+			Keyspace:  "keyspace",
+			Table:     "other2",
+		},
+	}, listener.values)
+}
+
+func Test_SyncTablesDrop(t *testing.T) {
+	schemas := getSchemaMappingConfig()
+	listener := NewMetadataListener()
+	schemas.Subscribe(listener)
+
+	schemas.SyncKeyspace("keyspace", []*TableSchema{
+		NewTableConfig(
+			"keyspace",
+			"table",
+			"cf1",
+			types.OrderedCodeEncoding,
+			[]*types.Column{
+				{
+					Name:         "column1",
+					CQLType:      types.TypeVarchar,
+					KeyType:      types.KeyTypeRegular,
+					ColumnFamily: "cf1",
+				},
+				{
+					Name:         "column2",
+					CQLType:      types.TypeInt,
+					KeyType:      types.KeyTypeRegular,
+					ColumnFamily: "cf1",
+				},
+			},
+		),
+	})
+
+	assert.ElementsMatch(t, []MetadataEvent{
+		{
+			EventType: MetadataRemovedEventType,
+			Keyspace:  "keyspace",
+			Table:     "other",
+		},
+	}, listener.values)
 }

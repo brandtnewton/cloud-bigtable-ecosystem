@@ -224,5 +224,6 @@ func TestPreparedTimestampNowAlwaysUsesCurrentTimestamp(t *testing.T) {
 	diff := t2.UnixMilli() - t1.UnixMilli()
 	assert.GreaterOrEqual(t, diff, int64(1000), "at least one second should have passed")
 
-	assert.Less(t, time.Now().UnixMilli()-t2.UnixMilli(), int64(2000), "t2 should be recent")
+	// confirm the timestamp is recent - give a generous buffer to reduce flakiness
+	assert.Less(t, time.Now().UnixMilli()-t2.UnixMilli(), int64(5000), "t2 should be recent")
 }

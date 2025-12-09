@@ -189,6 +189,14 @@ func (q QueryType) String() string {
 		return "unknown"
 	}
 }
+func (q QueryType) IsDDLType() bool {
+	switch q {
+	case QueryTypeTruncate, QueryTypeDrop, QueryTypeAlter, QueryTypeCreate:
+		return true
+	default:
+		return false
+	}
+}
 
 type IExecutableQuery interface {
 	Keyspace() Keyspace

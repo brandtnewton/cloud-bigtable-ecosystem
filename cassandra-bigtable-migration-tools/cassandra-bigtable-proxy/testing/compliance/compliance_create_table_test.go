@@ -17,6 +17,25 @@ func TestCreateIfNotExist(t *testing.T) {
 	defer cleanupTable(t, table)
 	err := session.Query(fmt.Sprintf("CREATE TABLE %s (id TEXT PRIMARY KEY, name TEXT)", table)).Exec()
 	assert.NoError(t, err)
+
+	// confirm system tables are updated
+	systemTablesResult := make(map[string]any)
+	err = session.Query("SELECT * FROM system_schema.tables WHERE table_name=?", table).MapScan(systemTablesResult)
+	require.NoError(t, err)
+	assert.Equal(t, systemTablesResult["keyspace_name"], "bigtabledevinstance")
+	assert.Equal(t, systemTablesResult["table_name"], table)
+
+	// confirm system columns are updated
+	systemColumnsResult := make(map[string]any)
+	err = session.Query("SELECT * FROM system_schema.columns WHERE table_name=? AND column_name=?", table, "id").MapScan(systemColumnsResult)
+	require.NoError(t, err)
+	assert.Equal(t, "bigtabledevinstance", systemColumnsResult["keyspace_name"])
+	assert.Equal(t, table, systemColumnsResult["table_name"])
+	assert.Equal(t, "id", systemColumnsResult["column_name"])
+	assert.Equal(t, int(0), systemColumnsResult["position"])
+	assert.Equal(t, "partition_key", systemColumnsResult["kind"])
+	assert.Equal(t, "text", systemColumnsResult["type"])
+
 	err = session.Query(fmt.Sprintf("INSERT INTO %s (id, name) VALUES (?, ?)", table), "user1", "larry").Exec()
 	assert.NoError(t, err)
 	err = session.Query(fmt.Sprintf("CREATE TABLE %s (id TEXT PRIMARY KEY, name TEXT)", table)).Exec()

@@ -21,9 +21,9 @@ import (
 	"errors"
 	"fmt"
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/executors"
-	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/mem_table"
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/parser"
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/responsehandler"
+	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/system_tables"
 	cql "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/third_party/cqlparser"
 	"io"
 	"net"
@@ -37,7 +37,6 @@ import (
 	otelgo "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/otel"
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/third_party/datastax/proxycore"
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/translators"
-	"github.com/datastax/go-cassandra-native-protocol/datatype"
 	"github.com/datastax/go-cassandra-native-protocol/frame"
 	"github.com/datastax/go-cassandra-native-protocol/message"
 	"github.com/datastax/go-cassandra-native-protocol/primitive"
@@ -46,21 +45,13 @@ import (
 	"go.uber.org/zap"
 )
 
-var (
-	encodedOneValue, _ = proxycore.EncodeType(datatype.Int, primitive.ProtocolVersion4, 1)
-)
-
 var ErrProxyClosed = errors.New("proxy closed")
 var ErrProxyAlreadyConnected = errors.New("proxy already connected")
 var ErrProxyNotConnected = errors.New("proxy not connected")
 
 const preparedIdSize = 16
 const Query = "CqlQuery"
-const BtqlQuery = "BtqlQuery"
-const ResultCount = "result count"
-
 const translatorErrorMessage = "Error occurred at translators"
-const metadataFetchError = "Error while fetching table Metadata - "
 const errorAtBigtable = "Error occurred at bigtable - "
 const errorWhileDecoding = "Error while decoding bytes - "
 const unhandledScenario = "Unhandled execution Scenario for prepared CqlQuery"
@@ -98,11 +89,11 @@ type Proxy struct {
 	localNode          *node
 	nodes              []*node
 	clientManager      *types.BigtableClientManager
-	schemaManager      *schemaMapping.MetadataStore
+	systemTableManager *system_tables.SystemTableManager
+	metadataStore      *schemaMapping.MetadataStore
 	bigtableClient     *bigtableModule.BigtableAdapter
 	translator         *translators.TranslatorManager
 	executor           *executors.QueryExecutorManager
-	systemTables       *mem_table.InMemEngine
 	otelInst           *otelgo.OpenTelemetry
 	otelShutdown       func(context.Context) error
 }
@@ -126,15 +117,15 @@ func NewProxy(ctx context.Context, logger *zap.Logger, config *types.ProxyInstan
 		return nil, err
 	}
 
-	schemaManager := schemaMapping.NewMetadataStore(logger, clientManager, config.BigtableConfig)
-	err = schemaManager.Initialize(ctx)
+	metadataStore := schemaMapping.NewMetadataStore(logger, clientManager, config.BigtableConfig)
+	err = metadataStore.Initialize(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	bigtableClient := bigtableModule.NewBigtableClient(clientManager, logger, config.BigtableConfig, schemaManager)
+	bigtableClient := bigtableModule.NewBigtableClient(clientManager, logger, config.BigtableConfig, metadataStore)
 
-	translator := translators.NewTranslatorManager(logger, schemaManager.Schemas(), config.BigtableConfig)
+	translator := translators.NewTranslatorManager(logger, metadataStore.Schemas(), config.BigtableConfig)
 
 	// Enable OpenTelemetry traces by setting environment variable GOOGLE_API_GO_EXPERIMENTAL_TELEMETRY_PLATFORM_TRACING to the case-insensitive value "opentelemetry" before loading the client library.
 	otelConfig := &otelgo.OTelConfig{}
@@ -161,23 +152,30 @@ func NewProxy(ctx context.Context, logger *zap.Logger, config *types.ProxyInstan
 		logger.Error("Failed to enable the OTEL: " + err.Error())
 		return nil, err
 	}
-	systemTables := mem_table.NewInMemEngine()
+
+	systemTables := system_tables.NewSystemTableManager(metadataStore, logger)
 
 	proxy := &Proxy{
-		ctx:            ctx,
-		config:         config,
-		logger:         logger,
-		clients:        make(map[*client]struct{}),
-		listeners:      make(map[*net.Listener]struct{}),
-		closed:         make(chan struct{}),
-		clientManager:  clientManager,
-		schemaManager:  schemaManager,
-		bigtableClient: bigtableClient,
-		translator:     translator,
-		executor:       executors.NewQueryExecutorManager(logger, schemaManager.Schemas(), bigtableClient, systemTables),
-		systemTables:   systemTables,
-		otelInst:       otelInst,
-		otelShutdown:   shutdownOTel,
+		ctx:                ctx,
+		config:             config,
+		logger:             logger,
+		clients:            make(map[*client]struct{}),
+		listeners:          make(map[*net.Listener]struct{}),
+		closed:             make(chan struct{}),
+		clientManager:      clientManager,
+		systemTableManager: systemTables,
+		metadataStore:      metadataStore,
+		bigtableClient:     bigtableClient,
+		translator:         translator,
+		executor:           executors.NewQueryExecutorManager(logger, metadataStore.Schemas(), bigtableClient, systemTables.Db()),
+		otelInst:           otelInst,
+		otelShutdown:       shutdownOTel,
+	}
+
+	err = systemTables.Initialize(proxy)
+	if err != nil {
+		logger.Error("Failed to initialize system table manager: " + err.Error())
+		return nil, err
 	}
 
 	return proxy, nil
@@ -229,9 +227,9 @@ func (p *Proxy) Connect() error {
 
 	p.sessions[p.cluster.NegotiatedVersion].Store("", sess)
 
-	err = InitializeSystemTables(p.schemaManager.Schemas(), p.systemTables, p)
+	err = p.systemTableManager.ReloadSystemTables()
 	if err != nil {
-		return fmt.Errorf("failed to initialize system tables: %w", err)
+		p.logger.Error("failed to update system tables", zap.Error(err))
 	}
 
 	p.isConnected = true
@@ -261,6 +259,35 @@ func (p *Proxy) Serve(l net.Listener) (err error) {
 		}
 		p.handle(conn)
 	}
+}
+
+func (p *Proxy) GetSystemTableConfig() system_tables.SystemTableConfig {
+	var peers []system_tables.PeerConfig
+	for _, n := range p.nodes {
+		peers = append(peers, system_tables.PeerConfig{
+			Addr:   n.addr.String(),
+			Dc:     n.dc,
+			Tokens: n.tokens,
+		})
+	}
+
+	var dseVersion string
+	// nil during proxy initialization
+	if p.cluster != nil {
+		dseVersion = p.cluster.Info.DSEVersion
+	}
+
+	systemTableConfig := system_tables.SystemTableConfig{
+		RpcAddress:            p.config.RPCAddr,
+		Datacenter:            p.config.DC,
+		ReleaseVersion:        p.config.Options.ReleaseVersion,
+		Partitioner:           p.config.Options.Partitioner,
+		CqlVersion:            p.config.Options.CQLVersion,
+		NativeProtocolVersion: p.config.Options.ProtocolVersion.String(),
+		DseVersion:            dseVersion,
+		Peers:                 peers,
+	}
+	return systemTableConfig
 }
 
 func (p *Proxy) addListener(l *net.Listener) error {
@@ -335,7 +362,7 @@ func (p *Proxy) handle(conn net.Conn) {
 	if unixConn, ok := conn.(*net.UnixConn); ok {
 		UCred, err := getUdsPeerCredentials(unixConn)
 		if err != nil || p.config.Options.ClientPid != UCred.Pid || p.config.Options.ClientUid != UCred.Uid {
-			conn.Close()
+			_ = conn.Close()
 			p.logger.Error("failed to authenticate connection")
 		}
 	}
@@ -350,12 +377,7 @@ func (p *Proxy) handle(conn net.Conn) {
 	cl.conn.Start()
 }
 
-var (
-	schemaVersion, _ = primitive.ParseUuid("4f2b29e6-59b5-4e2d-8fd6-01e32e67f0d7")
-)
-
 func (p *Proxy) buildNodes() (err error) {
-
 	localDC := p.config.DC
 	if len(localDC) == 0 {
 		localDC = p.cluster.Info.LocalDC
@@ -585,6 +607,9 @@ func (c *client) handleExecute(raw *frame.RawFrame, msg *partialExecute) {
 		c.sender.Send(raw.Header, &message.ConfigError{ErrorMessage: err.Error()})
 		return
 	}
+	if preparedStmt.QueryType().IsDDLType() {
+		c.handlePostDDLEvent(preparedStmt.QueryType(), preparedStmt.Keyspace(), preparedStmt.Table())
+	}
 	c.sender.Send(raw.Header, results)
 }
 
@@ -703,6 +728,10 @@ func (c *client) handleQuery(raw *frame.RawFrame, msg *partialQuery) {
 		return
 	}
 
+	if rawQuery.QueryType().IsDDLType() {
+		c.handlePostDDLEvent(query.QueryType(), query.Keyspace(), query.Table())
+	}
+
 	c.sender.Send(raw.Header, selectResult)
 }
 
@@ -774,24 +803,27 @@ func (c *client) handleEvent(event proxycore.Event) {
 }
 
 // handlePostDDLEvent handles common operations after DDL statements (CREATE, ALTER, DROP)
-func (c *client) handlePostDDLEvent(hdr *frame.Header, changeType primitive.SchemaChangeType, keyspace, table string) {
-	// refresh system metadata
-	err := ReloadSystemTables(c.proxy.schemaManager.Schemas(), c.proxy.systemTables, c.proxy)
-	if err != nil {
-		c.proxy.logger.Error("Failed to refresh system metadata cache", zap.Error(err))
-		_, span := c.proxy.otelInst.StartSpan(c.proxy.ctx, "handlePostDDLEvent", nil)
-		c.proxy.otelInst.RecordError(span, err)
-		c.proxy.otelInst.EndSpan(span)
-		c.sender.Send(hdr, &message.Invalid{ErrorMessage: err.Error()})
+func (c *client) handlePostDDLEvent(queryType types.QueryType, keyspace types.Keyspace, table types.TableName) {
+	var changeType primitive.SchemaChangeType
+	switch queryType {
+	case types.QueryTypeCreate:
+		changeType = primitive.SchemaChangeTypeCreated
+	case types.QueryTypeAlter:
+		changeType = primitive.SchemaChangeTypeUpdated
+	case types.QueryTypeDrop:
+		changeType = primitive.SchemaChangeTypeDropped
+	default:
+		c.proxy.logger.Warn("unhandled ddl event type", zap.String("queryType", queryType.String()))
+		return
 	}
 
-	// Notify all clients of schema change
+	// SendEvent all clients of schema change
 	event := &proxycore.SchemaChangeEvent{
 		Message: &message.SchemaChangeEvent{
 			ChangeType: changeType,
 			Target:     primitive.SchemaChangeTargetTable,
-			Keyspace:   keyspace,
-			Object:     table,
+			Keyspace:   string(keyspace),
+			Object:     string(table),
 		},
 	}
 	c.proxy.eventClients.Range(func(key, _ interface{}) bool {

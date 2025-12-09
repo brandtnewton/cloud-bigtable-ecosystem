@@ -1,11 +1,12 @@
-package metadata
+package system_tables
 
 import (
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/global/types"
+	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/metadata"
 )
 
 var (
-	SystemSchemaTableTables = NewTableConfig("system_schema", "tables", "na", types.OrderedCodeEncoding, []*types.Column{
+	SystemSchemaTableTables = metadata.NewTableConfig("system_schema", "tables", "na", types.OrderedCodeEncoding, []*types.Column{
 		{Name: "keyspace_name", CQLType: types.TypeVarchar, KeyType: types.KeyTypePartition},
 		{Name: "table_name", CQLType: types.TypeVarchar, KeyType: types.KeyTypeClustering},
 		{Name: "additional_write_policy", CQLType: types.TypeVarchar},
@@ -13,13 +14,13 @@ var (
 		{Name: "caching", CQLType: types.NewMapType(types.TypeVarchar, types.TypeVarchar)},
 		{Name: "flags", CQLType: types.NewListType(types.TypeVarchar)},
 	})
-	SystemSchemaTableKeyspace = NewTableConfig("system_schema", "keyspaces", "na", types.OrderedCodeEncoding, []*types.Column{
+	SystemSchemaTableKeyspace = metadata.NewTableConfig("system_schema", "keyspaces", "na", types.OrderedCodeEncoding, []*types.Column{
 		{Name: "keyspace_name", CQLType: types.TypeVarchar, KeyType: types.KeyTypePartition},
 		{Name: "durable_writes", CQLType: types.TypeBoolean},
 		{Name: "replication", CQLType: types.NewMapType(types.TypeVarchar, types.TypeVarchar)},
 	},
 	)
-	SystemSchemaTableColumns = NewTableConfig("system_schema", "columns", "na", types.OrderedCodeEncoding, []*types.Column{
+	SystemSchemaTableColumns = metadata.NewTableConfig("system_schema", "columns", "na", types.OrderedCodeEncoding, []*types.Column{
 		{Name: "keyspace_name", CQLType: types.TypeVarchar, KeyType: types.KeyTypePartition},
 		{Name: "table_name", CQLType: types.TypeVarchar, KeyType: types.KeyTypeClustering},
 		{Name: "column_name", CQLType: types.TypeVarchar, KeyType: types.KeyTypeClustering},
@@ -28,7 +29,7 @@ var (
 		{Name: "position", CQLType: types.TypeInt},
 		{Name: "type", CQLType: types.TypeVarchar},
 	})
-	SystemSchemaTableFunctions = NewTableConfig("system_schema", "functions", "na", types.OrderedCodeEncoding, []*types.Column{
+	SystemSchemaTableFunctions = metadata.NewTableConfig("system_schema", "functions", "na", types.OrderedCodeEncoding, []*types.Column{
 		{Name: "keyspace_name", CQLType: types.TypeVarchar, KeyType: types.KeyTypePartition},
 		{Name: "function_name", CQLType: types.TypeVarchar, KeyType: types.KeyTypeClustering},
 		{Name: "argument_types", CQLType: types.NewListType(types.TypeVarchar)},
@@ -41,7 +42,7 @@ var (
 		{Name: "monotonic_on", CQLType: types.NewListType(types.TypeVarchar)},
 		{Name: "return_type", CQLType: types.TypeVarchar},
 	})
-	SystemSchemaTableAggregates = NewTableConfig("system_schema", "aggregates", "na", types.OrderedCodeEncoding, []*types.Column{
+	SystemSchemaTableAggregates = metadata.NewTableConfig("system_schema", "aggregates", "na", types.OrderedCodeEncoding, []*types.Column{
 		{Name: "keyspace_name", CQLType: types.TypeVarchar, KeyType: types.KeyTypePartition},
 		{Name: "aggregate_name", CQLType: types.TypeVarchar, KeyType: types.KeyTypeClustering},
 		{Name: "argument_types", CQLType: types.NewListType(types.TypeVarchar)},
@@ -52,20 +53,20 @@ var (
 		{Name: "state_func", CQLType: types.TypeVarchar},
 		{Name: "state_type", CQLType: types.TypeVarchar},
 	})
-	SystemSchemaTableTriggers = NewTableConfig("system_schema", "triggers", "na", types.OrderedCodeEncoding, []*types.Column{
+	SystemSchemaTableTriggers = metadata.NewTableConfig("system_schema", "triggers", "na", types.OrderedCodeEncoding, []*types.Column{
 		{Name: "keyspace_name", CQLType: types.TypeVarchar, KeyType: types.KeyTypePartition},
 		{Name: "table_name", CQLType: types.TypeVarchar, KeyType: types.KeyTypeClustering},
 		{Name: "trigger_name", CQLType: types.TypeVarchar, KeyType: types.KeyTypeClustering},
 		{Name: "options", CQLType: types.NewMapType(types.TypeVarchar, types.TypeVarchar)},
 	})
-	SystemSchemaTableIndexes = NewTableConfig("system_schema", "indexes", "na", types.OrderedCodeEncoding, []*types.Column{
+	SystemSchemaTableIndexes = metadata.NewTableConfig("system_schema", "indexes", "na", types.OrderedCodeEncoding, []*types.Column{
 		{Name: "keyspace_name", CQLType: types.TypeVarchar, KeyType: types.KeyTypePartition},
 		{Name: "table_name", CQLType: types.TypeVarchar, KeyType: types.KeyTypeClustering},
 		{Name: "index_name", CQLType: types.TypeVarchar, KeyType: types.KeyTypeClustering},
 		{Name: "kind", CQLType: types.TypeVarchar},
 		{Name: "options", CQLType: types.NewMapType(types.TypeVarchar, types.TypeVarchar)},
 	})
-	SystemSchemaTableViews = NewTableConfig("system_schema", "views", "na", types.OrderedCodeEncoding, []*types.Column{
+	SystemSchemaTableViews = metadata.NewTableConfig("system_schema", "views", "na", types.OrderedCodeEncoding, []*types.Column{
 		{Name: "keyspace_name", CQLType: types.TypeVarchar, KeyType: types.KeyTypePartition},
 		{Name: "view_name", CQLType: types.TypeVarchar, KeyType: types.KeyTypeClustering},
 		{Name: "additional_write_policy", CQLType: types.TypeVarchar},
@@ -94,21 +95,29 @@ var (
 		{Name: "version", CQLType: types.TypeInt},
 		{Name: "where_clause", CQLType: types.TypeVarchar},
 	})
-	SystemSchemaTableTypes = NewTableConfig("system_schema", "types", "na", types.OrderedCodeEncoding, []*types.Column{
+	SystemSchemaTableTypes = metadata.NewTableConfig("system_schema", "types", "na", types.OrderedCodeEncoding, []*types.Column{
 		{Name: "keyspace_name", CQLType: types.TypeVarchar, KeyType: types.KeyTypePartition},
 		{Name: "type_name", CQLType: types.TypeVarchar, KeyType: types.KeyTypeClustering},
 		{Name: "field_names", CQLType: types.NewListType(types.TypeVarchar)},
 		{Name: "field_types", CQLType: types.NewListType(types.TypeVarchar)},
 	})
-	SystemVirtualSchemaTableKeyspaces = NewTableConfig("system_virtual_schema", "keyspaces", "na", types.OrderedCodeEncoding, []*types.Column{
+	SystemVirtualSchemaTableKeyspaces = metadata.NewTableConfig("system_virtual_schema", "keyspaces", "na", types.OrderedCodeEncoding, []*types.Column{
 		{Name: "keyspace_name", CQLType: types.TypeVarchar, KeyType: types.KeyTypePartition},
 	})
-	SystemVirtualSchemaTableTypes = NewTableConfig("system_virtual_schema", "types", "na", types.OrderedCodeEncoding, []*types.Column{
+	SystemVirtualSchemaTableTables = metadata.NewTableConfig("system_virtual_schema", "tables", "na", types.OrderedCodeEncoding, []*types.Column{
+		{Name: "keyspace_name", CQLType: types.TypeVarchar, KeyType: types.KeyTypePartition},
+		{Name: "table_name", CQLType: types.TypeVarchar, KeyType: types.KeyTypeClustering},
+		{Name: "additional_write_policy", CQLType: types.TypeVarchar},
+		{Name: "bloom_filter_fp_chance", CQLType: types.TypeDouble},
+		{Name: "caching", CQLType: types.NewMapType(types.TypeVarchar, types.TypeVarchar)},
+		{Name: "flags", CQLType: types.NewListType(types.TypeVarchar)},
+	})
+	SystemVirtualSchemaTableTypes = metadata.NewTableConfig("system_virtual_schema", "types", "na", types.OrderedCodeEncoding, []*types.Column{
 		{Name: "keyspace_name", CQLType: types.TypeVarchar, KeyType: types.KeyTypePartition},
 		{Name: "type_name", CQLType: types.TypeVarchar, KeyType: types.KeyTypeClustering},
 		{Name: "comment", CQLType: types.TypeVarchar},
 	})
-	SystemVirtualSchemaTableColumns = NewTableConfig("system_virtual_schema", "columns", "na", types.OrderedCodeEncoding, []*types.Column{
+	SystemVirtualSchemaTableColumns = metadata.NewTableConfig("system_virtual_schema", "columns", "na", types.OrderedCodeEncoding, []*types.Column{
 		{Name: "keyspace_name", CQLType: types.TypeVarchar, KeyType: types.KeyTypePartition},
 		{Name: "table_name", CQLType: types.TypeVarchar, KeyType: types.KeyTypeClustering},
 		{Name: "column_name", CQLType: types.TypeVarchar, KeyType: types.KeyTypeClustering},
@@ -118,7 +127,7 @@ var (
 		{Name: "position", CQLType: types.TypeInt},
 		{Name: "type", CQLType: types.TypeVarchar},
 	})
-	SystemTableLocal = NewTableConfig("system", "local", "na", types.OrderedCodeEncoding, []*types.Column{
+	SystemTableLocal = metadata.NewTableConfig("system", "local", "na", types.OrderedCodeEncoding, []*types.Column{
 		{Name: "key", CQLType: types.TypeVarchar, KeyType: types.KeyTypePartition},
 		{Name: "rpc_address", CQLType: types.TypeInet},
 		{Name: "data_center", CQLType: types.TypeVarchar},
@@ -133,7 +142,7 @@ var (
 		{Name: "native_protocol_version", CQLType: types.TypeVarchar},
 		{Name: "host_id", CQLType: types.TypeUuid},
 	})
-	SystemTablePeers = NewTableConfig("system", "peers", "na", types.OrderedCodeEncoding, []*types.Column{
+	SystemTablePeers = metadata.NewTableConfig("system", "peers", "na", types.OrderedCodeEncoding, []*types.Column{
 		{Name: "peer", CQLType: types.TypeInet, KeyType: types.KeyTypePartition},
 		{Name: "rpc_address", CQLType: types.TypeInet},
 		{Name: "data_center", CQLType: types.TypeVarchar},
@@ -144,7 +153,7 @@ var (
 		{Name: "schema_version", CQLType: types.TypeUuid},
 		{Name: "host_id", CQLType: types.TypeUuid},
 	})
-	SystemTablePeersV2 = NewTableConfig("system", "peers_v2", "na", types.OrderedCodeEncoding, []*types.Column{
+	SystemTablePeersV2 = metadata.NewTableConfig("system", "peers_v2", "na", types.OrderedCodeEncoding, []*types.Column{
 		{Name: "peer", CQLType: types.TypeInet, KeyType: types.KeyTypePartition},
 		{Name: "rpc_address", CQLType: types.TypeInet},
 		{Name: "data_center", CQLType: types.TypeVarchar},
@@ -155,13 +164,13 @@ var (
 		{Name: "schema_version", CQLType: types.TypeUuid},
 		{Name: "host_id", CQLType: types.TypeUuid},
 	})
-	SystemTableSchemaKeyspaces = NewTableConfig("system", "schema_keyspaces", "na", types.OrderedCodeEncoding, []*types.Column{
+	SystemTableSchemaKeyspaces = metadata.NewTableConfig("system", "schema_keyspaces", "na", types.OrderedCodeEncoding, []*types.Column{
 		{Name: "keyspace_name", CQLType: types.TypeVarchar, KeyType: types.KeyTypePartition},
 		{Name: "durable_writes", CQLType: types.TypeBoolean},
 		{Name: "strategy_class", CQLType: types.TypeVarchar},
 		{Name: "strategy_options", CQLType: types.TypeVarchar},
 	})
-	SystemTableSchemaColumnFamilies = NewTableConfig("system", "schema_columnfamilies", "na", types.OrderedCodeEncoding, []*types.Column{
+	SystemTableSchemaColumnFamilies = metadata.NewTableConfig("system", "schema_columnfamilies", "na", types.OrderedCodeEncoding, []*types.Column{
 		{Name: "keyspace_name", CQLType: types.TypeVarchar, KeyType: types.KeyTypePartition},
 		{Name: "columnfamily_name", CQLType: types.TypeVarchar, KeyType: types.KeyTypeClustering},
 		{Name: "bloom_filter_fp_chance", CQLType: types.TypeDouble},
@@ -189,7 +198,7 @@ var (
 		{Name: "subcomparator", CQLType: types.TypeVarchar},
 		{Name: "type", CQLType: types.TypeVarchar},
 	})
-	SystemTableSchemaColumns = NewTableConfig("system", "schema_columns", "na", types.OrderedCodeEncoding, []*types.Column{
+	SystemTableSchemaColumns = metadata.NewTableConfig("system", "schema_columns", "na", types.OrderedCodeEncoding, []*types.Column{
 		{Name: "keyspace_name", CQLType: types.TypeVarchar, KeyType: types.KeyTypePartition},
 		{Name: "columnfamily_name", CQLType: types.TypeVarchar, KeyType: types.KeyTypeClustering},
 		{Name: "column_name", CQLType: types.TypeVarchar, KeyType: types.KeyTypeClustering},
@@ -200,7 +209,7 @@ var (
 		{Name: "type", CQLType: types.TypeVarchar},
 		{Name: "validator", CQLType: types.TypeVarchar},
 	})
-	SystemTableSchemaUserTypes = NewTableConfig("system", "schema_usertypes", "na", types.OrderedCodeEncoding, []*types.Column{
+	SystemTableSchemaUserTypes = metadata.NewTableConfig("system", "schema_usertypes", "na", types.OrderedCodeEncoding, []*types.Column{
 		{Name: "keyspace_name", CQLType: types.TypeVarchar, KeyType: types.KeyTypePartition},
 		{Name: "type_name", CQLType: types.TypeVarchar, KeyType: types.KeyTypeClustering},
 		{Name: "field_names", CQLType: types.NewListType(types.TypeVarchar)},
@@ -208,8 +217,8 @@ var (
 	})
 )
 
-func getSystemTableConfigs() []*TableSchema {
-	return []*TableSchema{
+func getSystemTableConfigs() []*metadata.TableSchema {
+	return []*metadata.TableSchema{
 		SystemSchemaTableTables,
 		SystemSchemaTableKeyspace,
 		SystemSchemaTableColumns,
@@ -220,6 +229,7 @@ func getSystemTableConfigs() []*TableSchema {
 		SystemSchemaTableViews,
 		SystemSchemaTableTypes,
 		SystemVirtualSchemaTableKeyspaces,
+		SystemVirtualSchemaTableTables,
 		SystemVirtualSchemaTableTypes,
 		SystemVirtualSchemaTableColumns,
 		SystemTableLocal,

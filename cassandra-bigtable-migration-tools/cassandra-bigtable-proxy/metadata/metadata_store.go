@@ -318,7 +318,6 @@ func (b *MetadataStore) AlterTable(ctx context.Context, data *types.AlterTableSt
 	if err != nil {
 		return err
 	}
-
 	return nil
 }
 
@@ -548,9 +547,6 @@ func (b *MetadataStore) ReloadKeyspaceSchemas(ctx context.Context, keyspace type
 	if err != nil {
 		return fmt.Errorf("error when reloading schema mappings for %s.%s: %w", keyspace, b.config.SchemaMappingTable, err)
 	}
-	err = b.schemas.ReplaceTables(keyspace, tableConfigs)
-	if err != nil {
-		return fmt.Errorf("error updating schema cache for keyspace %s: %w", keyspace, err)
-	}
+	b.schemas.SyncKeyspace(keyspace, tableConfigs)
 	return nil
 }

@@ -86,6 +86,40 @@ func NewTableConfig(
 	}
 }
 
+func (t *TableSchema) SameTable(other *TableSchema) bool {
+	if other == nil {
+		return false
+	}
+	return t.Keyspace == other.Keyspace && t.Name == other.Name
+}
+
+func (t *TableSchema) SameSchema(other *TableSchema) bool {
+	if other == nil {
+		return false
+	}
+
+	if len(t.PrimaryKeys) != len(other.PrimaryKeys) || len(t.Columns) != len(other.Columns) {
+		return false
+	}
+
+	for i, key := range t.PrimaryKeys {
+		otherKey := other.PrimaryKeys[i]
+		if key.Name != otherKey.Name || key.CQLType != otherKey.CQLType {
+			return false
+		}
+	}
+	for _, col := range t.Columns {
+		otherCol, ok := other.Columns[col.Name]
+		if !ok {
+			return false
+		}
+		if col.Name != otherCol.Name || col.CQLType != otherCol.CQLType {
+			return false
+		}
+	}
+	return true
+}
+
 func (t *TableSchema) AllColumns() []*types.Column {
 	return maps.Values(t.Columns)
 }

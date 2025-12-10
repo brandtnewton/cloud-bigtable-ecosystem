@@ -1030,6 +1030,14 @@ func (s *BaseCqlParserListener) EnterRelationFunctionCompareFunction(ctx *Relati
 func (s *BaseCqlParserListener) ExitRelationFunctionCompareFunction(ctx *RelationFunctionCompareFunctionContext) {
 }
 
+// EnterRelationColumnCompareFunction is called when production relationColumnCompareFunction is entered.
+func (s *BaseCqlParserListener) EnterRelationColumnCompareFunction(ctx *RelationColumnCompareFunctionContext) {
+}
+
+// ExitRelationColumnCompareFunction is called when production relationColumnCompareFunction is exited.
+func (s *BaseCqlParserListener) ExitRelationColumnCompareFunction(ctx *RelationColumnCompareFunctionContext) {
+}
+
 // EnterRelationBetween is called when production relationBetween is entered.
 func (s *BaseCqlParserListener) EnterRelationBetween(ctx *RelationBetweenContext) {}
 
@@ -1083,6 +1091,12 @@ func (s *BaseCqlParserListener) EnterFunctionArgs(ctx *FunctionArgsContext) {}
 
 // ExitFunctionArgs is called when production functionArgs is exited.
 func (s *BaseCqlParserListener) ExitFunctionArgs(ctx *FunctionArgsContext) {}
+
+// EnterFunctionArg is called when production functionArg is entered.
+func (s *BaseCqlParserListener) EnterFunctionArg(ctx *FunctionArgContext) {}
+
+// ExitFunctionArg is called when production functionArg is exited.
+func (s *BaseCqlParserListener) ExitFunctionArg(ctx *FunctionArgContext) {}
 
 // EnterValueAny is called when production valueAny is entered.
 func (s *BaseCqlParserListener) EnterValueAny(ctx *ValueAnyContext) {}

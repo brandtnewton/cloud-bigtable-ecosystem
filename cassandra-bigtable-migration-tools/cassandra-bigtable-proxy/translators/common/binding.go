@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/global/types"
 	schemaMapping "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/metadata"
-	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/utilities"
 	"github.com/datastax/go-cassandra-native-protocol/primitive"
 	"strconv"
 	"strings"
@@ -20,7 +19,7 @@ func BindMutations(assignments []types.Assignment, usingTimestamp types.DynamicV
 		}
 		switch v := assignment.(type) {
 		case *types.AssignmentCounterIncrement:
-			value, err := utilities.GetValueInt64(v.Value(), values)
+			value, err := values.GetValueInt64(v.Value())
 			if err != nil {
 				return err
 			}
@@ -43,7 +42,7 @@ func BindMutations(assignments []types.Assignment, usingTimestamp types.DynamicV
 			if colType == types.LIST {
 				lt := v.Column().CQLType.(*types.ListType)
 				if v.Operator == types.PLUS {
-					value, err := utilities.GetValueSlice(v.Value(), values)
+					value, err := values.GetValueSlice(v.Value())
 					if err != nil {
 						return err
 					}
@@ -53,7 +52,7 @@ func BindMutations(assignments []types.Assignment, usingTimestamp types.DynamicV
 					}
 					b.AddMutations(mutations...)
 				} else if v.Operator == types.MINUS {
-					value, err := utilities.GetValueSlice(v.Value(), values)
+					value, err := values.GetValueSlice(v.Value())
 					if err != nil {
 						return err
 					}
@@ -71,7 +70,7 @@ func BindMutations(assignments []types.Assignment, usingTimestamp types.DynamicV
 				}
 			} else if colType == types.SET {
 				if v.Operator == types.PLUS {
-					value, err := utilities.GetValueSlice(v.Value(), values)
+					value, err := values.GetValueSlice(v.Value())
 					if err != nil {
 						return err
 					}
@@ -81,7 +80,7 @@ func BindMutations(assignments []types.Assignment, usingTimestamp types.DynamicV
 					}
 					b.AddMutations(ops...)
 				} else if v.Operator == types.MINUS {
-					value, err := utilities.GetValueSlice(v.Value(), values)
+					value, err := values.GetValueSlice(v.Value())
 					if err != nil {
 						return err
 					}
@@ -95,7 +94,7 @@ func BindMutations(assignments []types.Assignment, usingTimestamp types.DynamicV
 			} else if colType == types.MAP {
 				mt := v.Column().CQLType.(*types.MapType)
 				if v.Operator == types.PLUS {
-					value, err := utilities.GetValueMap(v.Value(), values)
+					value, err := values.GetValueMap(v.Value())
 					if err != nil {
 						return err
 					}
@@ -104,7 +103,7 @@ func BindMutations(assignments []types.Assignment, usingTimestamp types.DynamicV
 						return err
 					}
 				} else if v.Operator == types.MINUS {
-					value, err := utilities.GetValueSlice(v.Value(), values)
+					value, err := values.GetValueSlice(v.Value())
 					if err != nil {
 						return err
 					}
@@ -169,7 +168,7 @@ func encodeSetValue(assignment *types.ComplexAssignmentSet, values *types.QueryP
 	}
 	if col.CQLType.Code() == types.MAP {
 		mt := col.CQLType.(*types.MapType)
-		mv, err := utilities.GetValueMap(assignment.Value(), values)
+		mv, err := values.GetValueMap(assignment.Value())
 		if err != nil {
 			return nil, err
 		}
@@ -186,14 +185,14 @@ func encodeSetValue(assignment *types.ComplexAssignmentSet, values *types.QueryP
 		}
 	} else if col.CQLType.Code() == types.LIST {
 		lt := col.CQLType.(*types.ListType)
-		lv, err := utilities.GetValueSlice(assignment.Value(), values)
+		lv, err := values.GetValueSlice(assignment.Value())
 		mutations, err := addListElements(lv, col.ColumnFamily, lt, false)
 		if err != nil {
 			return nil, err
 		}
 		results = append(results, mutations...)
 	} else if col.CQLType.Code() == types.SET {
-		lv, err := utilities.GetValueSlice(assignment.Value(), values)
+		lv, err := values.GetValueSlice(assignment.Value())
 		if err != nil {
 			return nil, err
 		}
@@ -452,7 +451,7 @@ func BindUsingTimestamp(value types.DynamicValue, values *types.QueryParameterVa
 		}, nil
 	}
 
-	t, err := utilities.GetValueInt64(value, values)
+	t, err := values.GetValueInt64(value)
 	if err != nil {
 		return nil, err
 	}

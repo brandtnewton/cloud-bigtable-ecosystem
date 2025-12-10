@@ -505,6 +505,9 @@ type CqlParserListener interface {
 	// EnterRelationFunctionCompareFunction is called when entering the relationFunctionCompareFunction production.
 	EnterRelationFunctionCompareFunction(c *RelationFunctionCompareFunctionContext)
 
+	// EnterRelationColumnCompareFunction is called when entering the relationColumnCompareFunction production.
+	EnterRelationColumnCompareFunction(c *RelationColumnCompareFunctionContext)
+
 	// EnterRelationBetween is called when entering the relationBetween production.
 	EnterRelationBetween(c *RelationBetweenContext)
 
@@ -531,6 +534,9 @@ type CqlParserListener interface {
 
 	// EnterFunctionArgs is called when entering the functionArgs production.
 	EnterFunctionArgs(c *FunctionArgsContext)
+
+	// EnterFunctionArg is called when entering the functionArg production.
+	EnterFunctionArg(c *FunctionArgContext)
 
 	// EnterValueAny is called when entering the valueAny production.
 	EnterValueAny(c *ValueAnyContext)
@@ -1441,6 +1447,9 @@ type CqlParserListener interface {
 	// ExitRelationFunctionCompareFunction is called when exiting the relationFunctionCompareFunction production.
 	ExitRelationFunctionCompareFunction(c *RelationFunctionCompareFunctionContext)
 
+	// ExitRelationColumnCompareFunction is called when exiting the relationColumnCompareFunction production.
+	ExitRelationColumnCompareFunction(c *RelationColumnCompareFunctionContext)
+
 	// ExitRelationBetween is called when exiting the relationBetween production.
 	ExitRelationBetween(c *RelationBetweenContext)
 
@@ -1467,6 +1476,9 @@ type CqlParserListener interface {
 
 	// ExitFunctionArgs is called when exiting the functionArgs production.
 	ExitFunctionArgs(c *FunctionArgsContext)
+
+	// ExitFunctionArg is called when exiting the functionArg production.
+	ExitFunctionArg(c *FunctionArgContext)
 
 	// ExitValueAny is called when exiting the valueAny production.
 	ExitValueAny(c *ValueAnyContext)

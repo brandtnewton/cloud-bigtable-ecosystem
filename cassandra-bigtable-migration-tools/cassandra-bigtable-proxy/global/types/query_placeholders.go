@@ -18,6 +18,7 @@ func newPlaceholderMetadata(key Placeholder, tpe CqlDataType) PlaceholderMetadat
 	return PlaceholderMetadata{Key: key, Type: tpe}
 }
 
+// todo maybe a system placeholder slice for execution time function values?
 type QueryParameters struct {
 	ordered []Placeholder
 
@@ -147,4 +148,92 @@ func (q *QueryParameterValues) AllValuesSet() bool {
 }
 func (q *QueryParameterValues) AsMap() map[Placeholder]GoValue {
 	return q.values
+}
+
+func (q *QueryParameterValues) GetValueInt32(dv DynamicValue) (int32, error) {
+	value, err := dv.GetValue(q)
+	if err != nil {
+		return 0, err
+	}
+	intVal, ok := value.(int32)
+	if !ok {
+		return 0, fmt.Errorf("query value is a %T, not an int32", value)
+	}
+	return intVal, nil
+}
+
+func (q *QueryParameterValues) GetValueInt64(dv DynamicValue) (int64, error) {
+	v, err := dv.GetValue(q)
+	if err != nil {
+		return 0, err
+	}
+	intVal, ok := v.(int64)
+	if !ok {
+		return 0, fmt.Errorf("query value is a %T, not an int64", v)
+	}
+	return intVal, nil
+}
+
+func (q *QueryParameterValues) GetValueTime(dv DynamicValue) (time.Time, error) {
+	v, err := dv.GetValue(q)
+	if err != nil {
+		return time.Time{}, err
+	}
+	t, ok := v.(time.Time)
+	if !ok {
+		return time.Time{}, fmt.Errorf("query value is a %T, not a time", v)
+	}
+	return t, nil
+}
+
+func (q *QueryParameterValues) GetValueSlice(dv DynamicValue) ([]GoValue, error) {
+	v, err := dv.GetValue(q)
+	if err != nil {
+		return nil, err
+	}
+
+	val := reflect.ValueOf(v)
+
+	if val.Kind() != reflect.Slice {
+		return nil, fmt.Errorf("query value is a %T, not a slice", v)
+	}
+
+	length := val.Len()
+	result := make([]GoValue, length)
+
+	for i := 0; i < length; i++ {
+		result[i] = val.Index(i).Interface()
+	}
+
+	return result, nil
+}
+
+func (q *QueryParameterValues) GetValueMap(dv DynamicValue) (map[GoValue]GoValue, error) {
+	v, err := dv.GetValue(q)
+	if err != nil {
+		return nil, err
+	}
+	val := reflect.ValueOf(v)
+
+	if val.Kind() != reflect.Map {
+		return nil, fmt.Errorf("value is a %T, not a map", v)
+	}
+
+	result := make(map[GoValue]GoValue, val.Len())
+
+	// 3. Iterate over the keys of the original map
+	iter := val.MapRange()
+	for iter.Next() {
+		// Get the reflection Placeholder for the key and the value
+		keyVal := iter.Key()
+		valueVal := iter.Value()
+
+		// 4. Use .Interface() to convert the concrete key/value to an any (interface{})
+		keyAny := keyVal.Interface()
+		valueAny := valueVal.Interface()
+
+		// 5. Add to the new map[any]any
+		result[keyAny] = valueAny
+	}
+	return result, nil
 }

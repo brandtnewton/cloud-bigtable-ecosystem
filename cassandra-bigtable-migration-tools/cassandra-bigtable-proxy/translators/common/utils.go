@@ -97,6 +97,8 @@ func ParseWhereClause(input cql.IWhereSpecContext, tableConfig *schemaMapping.Ta
 			condition, err = parseWhereLike(val.RelationLike(), tableConfig, params)
 		} else if val.RelationContainsKey() != nil {
 			condition, err = parseWhereContainsKey(val.RelationContainsKey(), tableConfig, params)
+		} else if val.RelationColumnCompareFunction() != nil {
+			condition, err = parseWhereColumnCompareFunction(val.RelationColumnCompareFunction(), tableConfig, params)
 		} else if val.RelationContains() != nil {
 			condition, err = parseWhereContains(val.RelationContains(), tableConfig, params)
 		} else if val.RelationBetween() != nil {
@@ -149,6 +151,25 @@ func parseWhereLike(like cql.IRelationLikeContext, tableConfig *schemaMapping.Ta
 		Column:   column,
 		Operator: types.LIKE,
 		Value:    value,
+	}, nil
+}
+func parseWhereColumnCompareFunction(compareFunc cql.IRelationColumnCompareFunctionContext, tableConfig *schemaMapping.TableSchema, params *types.QueryParameters) (types.Condition, error) {
+	column, err := ParseColumnContext(tableConfig, compareFunc.Column())
+	if err != nil {
+		return types.Condition{}, err
+	}
+	fn, err := ParseFunctionCall(compareFunc.FunctionCall(), params)
+	if err != nil {
+		return types.Condition{}, err
+	}
+	operator, err := ParseOperator(compareFunc.CompareOperator())
+	if err != nil {
+		return types.Condition{}, err
+	}
+	return types.Condition{
+		Column:   column,
+		Operator: operator,
+		Value:    fn,
 	}, nil
 }
 func parseWhereContainsKey(containsKey cql.IRelationContainsKeyContext, tableConfig *schemaMapping.TableSchema, params *types.QueryParameters) (types.Condition, error) {
@@ -245,7 +266,7 @@ func ParseTupleValue(tuple cql.ITupleValueContext, lt *types.ListType, params *t
 	}
 
 	valueFn := tuple.FunctionArgs()
-	all := valueFn.AllConstant()
+	all := valueFn.AllFunctionArg()
 	if all == nil || len(all) == 0 {
 		return nil, errors.New("failed to parse values for IN operator")
 	}
@@ -290,21 +311,37 @@ func ParseValueAny(v cql.IValueAnyContext, dt types.CqlDataType, params *types.Q
 		}
 		return types.NewLiteralValue(value), nil
 	}
-	// todo more robust function handling
 	if v.FunctionCall() != nil {
-		functionName := strings.ToLower(v.FunctionCall().OBJECT_NAME().GetText())
-		if functionName == "totimestamp" {
-			fnArgs := v.FunctionCall().FunctionArgs().AllFunctionCall()
-			if len(fnArgs) == 1 {
-				innerFn := strings.ToLower(fnArgs[0].OBJECT_NAME().GetText())
-				if innerFn == "now" {
-					return types.NewTimestampNowValue(), nil
-				}
-			}
-		}
-		return nil, fmt.Errorf("unsupported function call: `%s`", v.GetText())
+		return ParseFunctionCall(v.FunctionCall(), params)
 	}
 	return nil, fmt.Errorf("unhandled value set `%s`", v.GetText())
+}
+
+func ParseFunctionCall(functionCall cql.IFunctionCallContext, params *types.QueryParameters) (types.DynamicValue, error) {
+	functionName := strings.ToLower(functionCall.OBJECT_NAME().GetText())
+	functionCode, err := types.FromString(functionName)
+	if err != nil {
+		return nil, err
+	}
+	cqlFunc, err := types.GetCqlFunc(functionCode)
+	if err != nil {
+		return nil, err
+	}
+	var args []types.DynamicValue
+	if functionCall.FunctionArgs() != nil {
+		for i, arg := range functionCall.FunctionArgs().AllFunctionArg() {
+			argSpec := cqlFunc.ParameterTypes[i]
+			if arg.ValueAny() == nil {
+				return nil, fmt.Errorf("unsupported function argument: `%s`", arg.GetText())
+			}
+			value, err := ParseValueAny(arg.ValueAny(), argSpec.ValidTypes[0], params)
+			if err != nil {
+				return nil, err
+			}
+			args = append(args, value)
+		}
+	}
+	return types.NewFunctionValue(functionCode, args), nil
 }
 
 func ParseConstantValue(v cql.IConstantContext, dt types.CqlDataType, params *types.QueryParameters) (types.DynamicValue, error) {
@@ -374,23 +411,6 @@ func GetTimestampInfo(timestampContext cql.ITimestampContext, params *types.Quer
 	return value, nil
 }
 
-func ValidateRequiredPrimaryKeysOnly(tableConfig *schemaMapping.TableSchema, conditions []types.Condition) error {
-	seen := make(map[types.ColumnName]bool)
-	for _, c := range conditions {
-		if !c.Column.IsPrimaryKey {
-			return fmt.Errorf("non-primary key found in where clause: '%s'", c.Column.Name)
-		}
-		seen[c.Column.Name] = true
-	}
-
-	for _, pmk := range tableConfig.PrimaryKeys {
-		if _, ok := seen[pmk.Name]; !ok {
-			return fmt.Errorf("missing primary key in where clause: '%s'", pmk.Name)
-		}
-	}
-
-	return nil
-}
 func ValidateRequiredPrimaryKeys(tableConfig *schemaMapping.TableSchema, assignments []types.Assignment) error {
 	// primary key counts are very small for legitimate use cases so greedy iterations are fine
 	for _, wantKey := range tableConfig.PrimaryKeys {
@@ -849,14 +869,15 @@ func isNumericType(t types.CqlDataType) bool {
 }
 
 func parseSingleColumnFunctionArg(fn cql.IFunctionCallContext, table *schemaMapping.TableSchema) (*types.Column, error) {
-	if fn.FunctionArgs() == nil || len(fn.FunctionArgs().AllOBJECT_NAME()) != 1 {
+	if fn.FunctionArgs() == nil || len(fn.FunctionArgs().AllFunctionArg()) != 1 {
 		return nil, fmt.Errorf("expected 1 column argument for `%s`", fn.GetText())
 	}
-	if len(fn.FunctionArgs().AllFunctionCall()) != 0 {
-		return nil, fmt.Errorf("expected 1 column argument for `%s`", fn.GetText())
+	arg := fn.FunctionArgs().FunctionArg(0)
+	if arg.OBJECT_NAME() == nil {
+		return nil, fmt.Errorf("expected column name for function arg")
 	}
-	arg := fn.FunctionArgs().OBJECT_NAME(0).GetText()
-	col, err := table.GetColumn(types.ColumnName(arg))
+	text := arg.OBJECT_NAME().GetText()
+	col, err := table.GetColumn(types.ColumnName(text))
 	if err != nil {
 		return nil, fmt.Errorf("expected valid column in function arguments `%s`", fn.GetText())
 	}

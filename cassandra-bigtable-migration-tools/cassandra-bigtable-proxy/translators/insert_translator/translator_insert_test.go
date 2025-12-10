@@ -152,6 +152,18 @@ func TestSelectTranslator_Translate(t *testing.T) {
 			},
 		},
 		{
+			name:  "escaped single quotes",
+			query: "INSERT INTO test_keyspace.timeuuid_table (id, username) VALUES (now(), 'test')",
+			want: &Want{
+				Table:    "timeuuid_table",
+				Keyspace: "test_keyspace",
+				Assignments: []types.Assignment{
+					types.NewComplexAssignmentSet(mockdata.GetColumnOrDie("test_keyspace", "timeuuid_table", "id"), types.NewFunctionValue(types.FuncCodeNow, nil)),
+					types.NewComplexAssignmentSet(mockdata.GetColumnOrDie("test_keyspace", "timeuuid_table", "username"), types.NewLiteralValue("test")),
+				},
+			},
+		},
+		{
 			name:    "no keyspace",
 			query:   "INSERT INTO test_table (pk1, pk2, col_int) VALUES ('abc', 'pkva''l', 3)",
 			want:    nil,

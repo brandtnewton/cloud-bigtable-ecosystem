@@ -76,6 +76,17 @@ func GetSchemaMappingConfig() *schemaMapping.SchemaMetadata {
 			types.BigEndianEncoding,
 			userInfoColumns,
 		),
+		schemaMapping.NewTableConfig(
+			"test_keyspace",
+			"timeuuid_table",
+			"cf1",
+			types.BigEndianEncoding,
+			[]*types.Column{
+				{Name: "id", CQLType: types.TypeTimeuuid, KeyType: types.KeyTypePartition, IsPrimaryKey: true, PkPrecedence: 1},
+				{Name: "username", CQLType: types.TypeText},
+				{Name: "parent_id", CQLType: types.TypeTimeuuid},
+			},
+		),
 	}
 	return schemaMapping.NewSchemaMetadata(
 		"cf1",

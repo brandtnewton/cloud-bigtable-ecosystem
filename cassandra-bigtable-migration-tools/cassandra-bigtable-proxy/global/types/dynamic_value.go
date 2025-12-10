@@ -21,21 +21,6 @@ func NewParameterizedValue(placeholder Placeholder) DynamicValue {
 	return &ParameterizedValue{Placeholder: placeholder}
 }
 
-type TimestampNowValue struct {
-}
-
-func (f *TimestampNowValue) IsIdempotent() bool {
-	return false
-}
-
-func (f *TimestampNowValue) GetValue(values *QueryParameterValues) (GoValue, error) {
-	return values.Time(), nil
-}
-
-func NewTimestampNowValue() DynamicValue {
-	return &TimestampNowValue{}
-}
-
 type LiteralValue struct {
 	Value GoValue
 }
@@ -50,4 +35,30 @@ func (l *LiteralValue) GetValue(values *QueryParameterValues) (GoValue, error) {
 
 func NewLiteralValue(value GoValue) DynamicValue {
 	return &LiteralValue{Value: value}
+}
+
+type FunctionValue struct {
+	Placeholder Placeholder
+	Code CqlFuncCode
+	Args []DynamicValue
+}
+
+func (f FunctionValue) GetValue(values *QueryParameterValues) (GoValue, error) {
+	cqlFunc, err := GetCqlFunc(f.Code)
+	if err != nil {
+		return nil, err
+	}
+	apply, err := cqlFunc.Apply(f.Args, values)
+	if err != nil {
+		return nil, err
+	}
+	return apply, nil
+}
+
+func (f FunctionValue) IsIdempotent() bool {
+	return false
+}
+
+func NewFunctionValue(code CqlFuncCode, args []DynamicValue) DynamicValue {
+	return &FunctionValue{Code: code, Args: args}
 }

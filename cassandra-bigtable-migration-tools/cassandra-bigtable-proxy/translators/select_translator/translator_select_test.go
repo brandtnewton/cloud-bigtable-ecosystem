@@ -473,6 +473,28 @@ func TestTranslator_TranslateSelectQuerytoBigtable(t *testing.T) {
 			sessionKeyspace: "test_keyspace",
 		},
 		{
+			name:  "timeuuid column",
+			query: "SELECT id, username FROM test_keyspace.timeuuid_table WHERE id > maxTimeuuid('2018-12-09 10:01:00+0000')",
+			want: &Want{
+				TranslatedQuery: "SELECT id, TO_BLOB(`cf1`['username']) FROM timeuuid_table WHERE id > maxTimeuuid('2018-12-09 10:01:00+0000')",
+				Table:           "test_table",
+				Keyspace:        "test_keyspace",
+				SelectClause: &types.SelectClause{
+					Columns: []types.SelectedColumn{
+						*types.NewSelectedColumn("pk1", "pk1", "", types.TypeVarchar),
+					},
+				},
+				AllParams: []types.Placeholder{"@value0"},
+				Conditions: []types.Condition{
+					{
+						Column:   mockdata.GetColumnOrDie("test_keyspace", "test_table", "col_blob"),
+						Operator: "IN",
+						Value:    types.NewParameterizedValue("@value0"),
+					},
+				},
+			},
+		},
+		{
 			name:            "IN operator with unsupported CQL type",
 			query:           `select pk1 from test_keyspace.test_table where col_udt IN ?;`,
 			wantErr:         "unknown column 'col_udt' in table test_keyspace.test_table",

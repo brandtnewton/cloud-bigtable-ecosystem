@@ -789,6 +789,7 @@ relationElement
    | relationBetween
    | relationFunctionCompareConstant
    | relationFunctionCompareFunction
+   | relationColumnCompareFunction
    | relationContainsKey
    | relationContains
    | relationIn
@@ -808,6 +809,9 @@ relationFunctionCompareConstant
 
 relationFunctionCompareFunction
    : functionCall compareOperator functionCall
+   ;
+relationColumnCompareFunction
+   : column compareOperator functionCall
    ;
 
 relationBetween
@@ -846,7 +850,12 @@ functionCall
    ;
 
 functionArgs
-   : (constant | OBJECT_NAME | functionCall) (syntaxComma (constant | OBJECT_NAME | functionCall))*
+   : (functionArg) (syntaxComma functionArg)*
+   ;
+
+functionArg
+   : valueAny
+   | OBJECT_NAME
    ;
 
 valueAny

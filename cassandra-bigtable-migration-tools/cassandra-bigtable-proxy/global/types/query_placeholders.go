@@ -10,12 +10,19 @@ import (
 type Placeholder string
 
 type PlaceholderMetadata struct {
-	Key  Placeholder
-	Type CqlDataType
+	Key               Placeholder
+	Type              CqlDataType
+	IsUserParameter   bool
+	IsBtqlPlaceholder bool
 }
 
-func newPlaceholderMetadata(key Placeholder, tpe CqlDataType) PlaceholderMetadata {
-	return PlaceholderMetadata{Key: key, Type: tpe}
+func newPlaceholderMetadata(key Placeholder, tpe CqlDataType, isUserParameter bool, isBtqlPlaceholder bool) PlaceholderMetadata {
+	return PlaceholderMetadata{
+		Key:               key,
+		Type:              tpe,
+		IsUserParameter:   isUserParameter,
+		IsBtqlPlaceholder: isBtqlPlaceholder,
+	}
 }
 
 // todo maybe a system placeholder slice for execution time function values?
@@ -62,20 +69,20 @@ func (q *QueryParameters) getNextParameter() Placeholder {
 	return Placeholder(fmt.Sprintf("@value%d", len(q.ordered)))
 }
 
-func (q *QueryParameters) BuildParameter(dataType CqlDataType) *QueryParameters {
-	_ = q.PushParameter(dataType)
+func (q *QueryParameters) BuildParameter(dataType CqlDataType, isUserParameter bool, isBtqlPlaceholder bool) *QueryParameters {
+	_ = q.PushParameter(dataType, isUserParameter, isBtqlPlaceholder)
 	return q
 }
 
-func (q *QueryParameters) PushParameter(dataType CqlDataType) Placeholder {
+func (q *QueryParameters) PushParameter(dataType CqlDataType, isUserParameter bool, isBtqlPlaceholder bool) Placeholder {
 	p := q.getNextParameter()
-	q.AddParameter(p, dataType)
+	q.AddParameter(p, dataType, isUserParameter, isBtqlPlaceholder)
 	return p
 }
 
-func (q *QueryParameters) AddParameter(p Placeholder, dt CqlDataType) {
+func (q *QueryParameters) AddParameter(p Placeholder, dt CqlDataType, isUserParameter bool, isBtqlPlaceholder bool) {
 	q.ordered = append(q.ordered, p)
-	q.metadata[p] = newPlaceholderMetadata(p, dt)
+	q.metadata[p] = newPlaceholderMetadata(p, dt, isUserParameter, isBtqlPlaceholder)
 }
 
 func (q *QueryParameters) GetMetadata(p Placeholder) PlaceholderMetadata {
@@ -100,10 +107,6 @@ func (q *QueryParameterValues) Time() time.Time {
 
 func NewQueryParameterValues(params *QueryParameters) *QueryParameterValues {
 	return &QueryParameterValues{params: params, values: make(map[Placeholder]GoValue), time: time.Now().UTC()}
-}
-
-func (q *QueryParameterValues) Has(p Placeholder) bool {
-	return q.params.Has(p)
 }
 
 func (q *QueryParameterValues) SetValue(p Placeholder, value any) error {

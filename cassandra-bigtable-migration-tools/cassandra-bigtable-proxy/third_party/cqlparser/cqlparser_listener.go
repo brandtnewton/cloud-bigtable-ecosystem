@@ -508,6 +508,9 @@ type CqlParserListener interface {
 	// EnterRelationColumnCompareFunction is called when entering the relationColumnCompareFunction production.
 	EnterRelationColumnCompareFunction(c *RelationColumnCompareFunctionContext)
 
+	// EnterRelationFunctionCompareColumn is called when entering the relationFunctionCompareColumn production.
+	EnterRelationFunctionCompareColumn(c *RelationFunctionCompareColumnContext)
+
 	// EnterRelationBetween is called when entering the relationBetween production.
 	EnterRelationBetween(c *RelationBetweenContext)
 
@@ -1449,6 +1452,9 @@ type CqlParserListener interface {
 
 	// ExitRelationColumnCompareFunction is called when exiting the relationColumnCompareFunction production.
 	ExitRelationColumnCompareFunction(c *RelationColumnCompareFunctionContext)
+
+	// ExitRelationFunctionCompareColumn is called when exiting the relationFunctionCompareColumn production.
+	ExitRelationFunctionCompareColumn(c *RelationFunctionCompareColumnContext)
 
 	// ExitRelationBetween is called when exiting the relationBetween production.
 	ExitRelationBetween(c *RelationBetweenContext)

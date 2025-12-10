@@ -1038,6 +1038,14 @@ func (s *BaseCqlParserListener) EnterRelationColumnCompareFunction(ctx *Relation
 func (s *BaseCqlParserListener) ExitRelationColumnCompareFunction(ctx *RelationColumnCompareFunctionContext) {
 }
 
+// EnterRelationFunctionCompareColumn is called when production relationFunctionCompareColumn is entered.
+func (s *BaseCqlParserListener) EnterRelationFunctionCompareColumn(ctx *RelationFunctionCompareColumnContext) {
+}
+
+// ExitRelationFunctionCompareColumn is called when production relationFunctionCompareColumn is exited.
+func (s *BaseCqlParserListener) ExitRelationFunctionCompareColumn(ctx *RelationFunctionCompareColumnContext) {
+}
+
 // EnterRelationBetween is called when production relationBetween is entered.
 func (s *BaseCqlParserListener) EnterRelationBetween(ctx *RelationBetweenContext) {}
 

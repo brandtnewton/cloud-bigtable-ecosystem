@@ -31,12 +31,12 @@ func ParseArithmeticOperator(a cql.IArithmeticOperatorContext) (types.Arithmetic
 	return "", fmt.Errorf("unsupported arithmetic operator: `%s`", a.GetText())
 }
 
-func ExtractDecimalLiteral(d cql.IDecimalLiteralContext, cqlType types.CqlDataType, params *types.QueryParameters) (types.DynamicValue, error) {
+func ExtractDecimalLiteral(d cql.IDecimalLiteralContext, cqlType types.CqlDataType, params *types.QueryParameters, isBtqlPlaceholder bool) (types.DynamicValue, error) {
 	if d == nil {
 		return nil, fmt.Errorf("decimal literal missing")
 	}
 	if d.QUESTION_MARK() != nil {
-		p := params.PushParameter(cqlType)
+		p := params.PushParameter(cqlType, true, isBtqlPlaceholder)
 		return types.NewParameterizedValue(p), nil
 	}
 	val, err := GetDecimalLiteral(d, cqlType)
@@ -97,8 +97,12 @@ func ParseWhereClause(input cql.IWhereSpecContext, tableConfig *schemaMapping.Ta
 			condition, err = parseWhereLike(val.RelationLike(), tableConfig, params)
 		} else if val.RelationContainsKey() != nil {
 			condition, err = parseWhereContainsKey(val.RelationContainsKey(), tableConfig, params)
+		} else if val.RelationFunctionCompareColumn() != nil {
+			compareFn := val.RelationFunctionCompareColumn()
+			condition, err = parseColumnCompareFunction(compareFn.Column(), compareFn.CompareOperator(), compareFn.FunctionCall(), true, tableConfig, params)
 		} else if val.RelationColumnCompareFunction() != nil {
-			condition, err = parseWhereColumnCompareFunction(val.RelationColumnCompareFunction(), tableConfig, params)
+			compareFn := val.RelationColumnCompareFunction()
+			condition, err = parseColumnCompareFunction(compareFn.Column(), compareFn.CompareOperator(), compareFn.FunctionCall(), false, tableConfig, params)
 		} else if val.RelationContains() != nil {
 			condition, err = parseWhereContains(val.RelationContains(), tableConfig, params)
 		} else if val.RelationBetween() != nil {
@@ -127,7 +131,7 @@ func parseWhereCompare(compare cql.IRelationCompareContext, tableConfig *schemaM
 		return types.Condition{}, err
 	}
 
-	value, err := ParseConstantValue(compare.Constant(), column.CQLType, params)
+	value, err := ParseConstantValue(compare.Constant(), column.CQLType, params, true)
 	if err != nil {
 		return types.Condition{}, err
 	}
@@ -143,7 +147,7 @@ func parseWhereLike(like cql.IRelationLikeContext, tableConfig *schemaMapping.Ta
 	if err != nil {
 		return types.Condition{}, err
 	}
-	value, err := ParseConstantValue(like.Constant(), column.CQLType, params)
+	value, err := ParseConstantValue(like.Constant(), column.CQLType, params, true)
 	if err != nil {
 		return types.Condition{}, err
 	}
@@ -153,16 +157,20 @@ func parseWhereLike(like cql.IRelationLikeContext, tableConfig *schemaMapping.Ta
 		Value:    value,
 	}, nil
 }
-func parseWhereColumnCompareFunction(compareFunc cql.IRelationColumnCompareFunctionContext, tableConfig *schemaMapping.TableSchema, params *types.QueryParameters) (types.Condition, error) {
-	column, err := ParseColumnContext(tableConfig, compareFunc.Column())
+
+func parseColumnCompareFunction(col cql.IColumnContext, op cql.ICompareOperatorContext, f cql.IFunctionCallContext, flip bool, tableConfig *schemaMapping.TableSchema, params *types.QueryParameters) (types.Condition, error) {
+	column, err := ParseColumnContext(tableConfig, col)
 	if err != nil {
 		return types.Condition{}, err
 	}
-	fn, err := ParseFunctionCall(compareFunc.FunctionCall(), params)
+	operator, err := ParseOperator(op)
 	if err != nil {
 		return types.Condition{}, err
 	}
-	operator, err := ParseOperator(compareFunc.CompareOperator())
+	if flip {
+		operator = types.FlipOperator(operator)
+	}
+	fn, err := ParseFunctionCall(f, params, true)
 	if err != nil {
 		return types.Condition{}, err
 	}
@@ -172,6 +180,7 @@ func parseWhereColumnCompareFunction(compareFunc cql.IRelationColumnCompareFunct
 		Value:    fn,
 	}, nil
 }
+
 func parseWhereContainsKey(containsKey cql.IRelationContainsKeyContext, tableConfig *schemaMapping.TableSchema, params *types.QueryParameters) (types.Condition, error) {
 	column, err := ParseColumnContext(tableConfig, containsKey.Column())
 	if err != nil {
@@ -181,7 +190,7 @@ func parseWhereContainsKey(containsKey cql.IRelationContainsKeyContext, tableCon
 		return types.Condition{}, errors.New("CONTAINS KEY are only supported for map")
 	}
 	keyType := column.CQLType.(*types.MapType).KeyType()
-	value, err := ParseConstantValue(containsKey.Constant(), keyType, params)
+	value, err := ParseConstantValue(containsKey.Constant(), keyType, params, true)
 	if err != nil {
 		return types.Condition{}, err
 	}
@@ -206,7 +215,7 @@ func parseWhereContains(contains cql.IRelationContainsContext, tableConfig *sche
 		return types.Condition{}, fmt.Errorf("CONTAINS are only supported for set and list type columns, not %s", column.CQLType.String())
 	}
 
-	value, err := ParseConstantValue(contains.Constant(), elementType, params)
+	value, err := ParseConstantValue(contains.Constant(), elementType, params, true)
 	if err != nil {
 		return types.Condition{}, err
 	}
@@ -227,11 +236,11 @@ func parseWhereBetween(between cql.IRelationBetweenContext, tableConfig *schemaM
 		return types.Condition{}, fmt.Errorf("BETWEEN condition must have exactly 2 values")
 	}
 
-	v1, err := ParseConstantValue(between.Constant(0), column.CQLType, params)
+	v1, err := ParseConstantValue(between.Constant(0), column.CQLType, params, true)
 	if err != nil {
 		return types.Condition{}, err
 	}
-	v2, err := ParseConstantValue(between.Constant(1), column.CQLType, params)
+	v2, err := ParseConstantValue(between.Constant(1), column.CQLType, params, true)
 	if err != nil {
 		return types.Condition{}, err
 	}
@@ -261,7 +270,7 @@ func parseWhereIn(whereIn cql.IRelationInContext, tableConfig *schemaMapping.Tab
 
 func ParseTupleValue(tuple cql.ITupleValueContext, lt *types.ListType, params *types.QueryParameters) (types.DynamicValue, error) {
 	if tuple.QUESTION_MARK() != nil {
-		p := params.PushParameter(lt)
+		p := params.PushParameter(lt, true, true)
 		return types.NewParameterizedValue(p), nil
 	}
 
@@ -281,14 +290,14 @@ func ParseTupleValue(tuple cql.ITupleValueContext, lt *types.ListType, params *t
 	return types.NewLiteralValue(inValues), nil
 }
 
-func ParseValueAny(v cql.IValueAnyContext, dt types.CqlDataType, params *types.QueryParameters) (types.DynamicValue, error) {
+func ParseValueAny(v cql.IValueAnyContext, dt types.CqlDataType, params *types.QueryParameters, isBtqlPlaceholder bool) (types.DynamicValue, error) {
 	if v.QUESTION_MARK() != nil {
-		p := params.PushParameter(dt)
+		p := params.PushParameter(dt, true, isBtqlPlaceholder)
 		return types.NewParameterizedValue(p), nil
 	}
 	// todo handle tuple
 	if v.Constant() != nil {
-		return ParseConstantValue(v.Constant(), dt, params)
+		return ParseConstantValue(v.Constant(), dt, params, isBtqlPlaceholder)
 	}
 	if v.ValueList() != nil {
 		value, err := ParseListValue(v.ValueList(), dt)
@@ -312,12 +321,12 @@ func ParseValueAny(v cql.IValueAnyContext, dt types.CqlDataType, params *types.Q
 		return types.NewLiteralValue(value), nil
 	}
 	if v.FunctionCall() != nil {
-		return ParseFunctionCall(v.FunctionCall(), params)
+		return ParseFunctionCall(v.FunctionCall(), params, isBtqlPlaceholder)
 	}
 	return nil, fmt.Errorf("unhandled value set `%s`", v.GetText())
 }
 
-func ParseFunctionCall(functionCall cql.IFunctionCallContext, params *types.QueryParameters) (types.DynamicValue, error) {
+func ParseFunctionCall(functionCall cql.IFunctionCallContext, params *types.QueryParameters, isBtqlPlaceholder bool) (types.DynamicValue, error) {
 	functionName := strings.ToLower(functionCall.OBJECT_NAME().GetText())
 	functionCode, err := types.FromString(functionName)
 	if err != nil {
@@ -334,19 +343,20 @@ func ParseFunctionCall(functionCall cql.IFunctionCallContext, params *types.Quer
 			if arg.ValueAny() == nil {
 				return nil, fmt.Errorf("unsupported function argument: `%s`", arg.GetText())
 			}
-			value, err := ParseValueAny(arg.ValueAny(), argSpec.ValidTypes[0], params)
+			value, err := ParseValueAny(arg.ValueAny(), argSpec.Type, params, false)
 			if err != nil {
 				return nil, err
 			}
 			args = append(args, value)
 		}
 	}
-	return types.NewFunctionValue(functionCode, args), nil
+	p := params.PushParameter(cqlFunc.ReturnType, false, isBtqlPlaceholder)
+	return types.NewFunctionValue(p, functionCode, args), nil
 }
 
-func ParseConstantValue(v cql.IConstantContext, dt types.CqlDataType, params *types.QueryParameters) (types.DynamicValue, error) {
+func ParseConstantValue(v cql.IConstantContext, dt types.CqlDataType, params *types.QueryParameters, isBtqlPlaceholder bool) (types.DynamicValue, error) {
 	if v.QUESTION_MARK() != nil {
-		p := params.PushParameter(dt)
+		p := params.PushParameter(dt, true, isBtqlPlaceholder)
 		return types.NewParameterizedValue(p), nil
 	}
 
@@ -404,7 +414,7 @@ func GetTimestampInfo(timestampContext cql.ITimestampContext, params *types.Quer
 	if literal == nil {
 		return nil, nil
 	}
-	value, err := ExtractDecimalLiteral(literal, types.TypeBigInt, params)
+	value, err := ExtractDecimalLiteral(literal, types.TypeBigInt, params, true)
 	if err != nil {
 		return nil, err
 	}

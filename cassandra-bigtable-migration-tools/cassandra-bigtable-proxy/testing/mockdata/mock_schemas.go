@@ -99,7 +99,7 @@ func CreateQueryParams(values []*types.TypedGoValue) (*types.QueryParameterValue
 	result := types.NewQueryParameterValues(params)
 
 	for _, v := range values {
-		p := params.PushParameter(v.Type)
+		p := params.PushParameter(v.Type, true, true)
 		err := result.SetValue(p, v.Value)
 		if err != nil {
 			return nil, err
@@ -107,7 +107,6 @@ func CreateQueryParams(values []*types.TypedGoValue) (*types.QueryParameterValue
 	}
 
 	return result, nil
-
 }
 
 func EncodePrimitiveValueOrDie(v any, dt types.CqlDataType, pv primitive.ProtocolVersion) *primitive.Value {

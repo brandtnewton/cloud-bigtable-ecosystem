@@ -39,8 +39,8 @@ func NewLiteralValue(value GoValue) DynamicValue {
 
 type FunctionValue struct {
 	Placeholder Placeholder
-	Code CqlFuncCode
-	Args []DynamicValue
+	Code        CqlFuncCode
+	Args        []DynamicValue
 }
 
 func (f FunctionValue) GetValue(values *QueryParameterValues) (GoValue, error) {
@@ -59,6 +59,10 @@ func (f FunctionValue) IsIdempotent() bool {
 	return false
 }
 
-func NewFunctionValue(code CqlFuncCode, args []DynamicValue) DynamicValue {
-	return &FunctionValue{Code: code, Args: args}
+func NewFunctionValue(placeholder Placeholder, code CqlFuncCode, args []DynamicValue) DynamicValue {
+	return &FunctionValue{
+		Placeholder: placeholder,
+		Code:        code,
+		Args:        args,
+	}
 }

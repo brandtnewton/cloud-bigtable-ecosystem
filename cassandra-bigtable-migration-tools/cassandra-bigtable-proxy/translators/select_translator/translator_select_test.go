@@ -16,7 +16,6 @@
 package select_translator
 
 import (
-	"cloud.google.com/go/bigtable"
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/parser"
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/testing/mockdata"
 	"github.com/stretchr/testify/require"
@@ -33,7 +32,6 @@ type Want struct {
 	TranslatedQuery string
 	SelectClause    *types.SelectClause
 	Conditions      []types.Condition
-	CachedBTPrepare *bigtable.PreparedStatement
 	OrderBy         types.OrderBy
 	GroupByColumns  []string
 	LimitValue      types.DynamicValue
@@ -476,20 +474,21 @@ func TestTranslator_TranslateSelectQuerytoBigtable(t *testing.T) {
 			name:  "timeuuid column",
 			query: "SELECT id, username FROM test_keyspace.timeuuid_table WHERE id > maxTimeuuid('2018-12-09 10:01:00+0000')",
 			want: &Want{
-				TranslatedQuery: "SELECT id, TO_BLOB(`cf1`['username']) FROM timeuuid_table WHERE id > maxTimeuuid('2018-12-09 10:01:00+0000')",
-				Table:           "test_table",
+				TranslatedQuery: "SELECT id, `cf1`['username'] FROM timeuuid_table WHERE id > @value0;",
+				Table:           "timeuuid_table",
 				Keyspace:        "test_keyspace",
 				SelectClause: &types.SelectClause{
 					Columns: []types.SelectedColumn{
-						*types.NewSelectedColumn("pk1", "pk1", "", types.TypeVarchar),
+						*types.NewSelectedColumn("id", "id", "", types.TypeTimeuuid),
+						*types.NewSelectedColumn("username", "username", "", types.TypeText),
 					},
 				},
 				AllParams: []types.Placeholder{"@value0"},
 				Conditions: []types.Condition{
 					{
-						Column:   mockdata.GetColumnOrDie("test_keyspace", "test_table", "col_blob"),
-						Operator: "IN",
-						Value:    types.NewParameterizedValue("@value0"),
+						Column:   mockdata.GetColumnOrDie("test_keyspace", "timeuuid_table", "id"),
+						Operator: ">",
+						Value:    types.NewFunctionValue("@value0", types.FuncCodeMaxTimeuuid, []types.DynamicValue{types.NewLiteralValue(time.Date(2018, 12, 9, 10, 1, 0, 0, time.UTC))}),
 					},
 				},
 			},
@@ -1043,9 +1042,37 @@ func TestTranslator_TranslateSelectQuerytoBigtable(t *testing.T) {
 			sessionKeyspace: "test_keyspace",
 		},
 		{
-			name:            "where clause comparison functions not supported yet",
-			query:           `SELECT count(*) FROM test_table WHERE name = ? AND col_ts < ToTimestamp(now());`,
-			wantErr:         "parsing error",
+			name:  "where clause comparison functions not supported yet",
+			query: `SELECT count(*) FROM test_table WHERE pk1 = ? AND ToTimestamp(now()) > col_ts;`,
+			want: &Want{
+				Keyspace:        "test_keyspace",
+				Table:           "test_table",
+				TranslatedQuery: "SELECT count(*) FROM test_table WHERE pk1 = @value0 AND TIMESTAMP_FROM_UNIX_MILLIS(TO_INT64(`cf1`['col_ts'])) < @value2;",
+				SelectClause: &types.SelectClause{
+					Columns: []types.SelectedColumn{
+						*types.NewSelectedColumnFunction("system.count(*)", "*", "", types.TypeBigInt, types.FuncCodeCount),
+					},
+				},
+				Conditions: []types.Condition{
+					{
+						Column:   mockdata.GetColumnOrDie("test_keyspace", "test_table", "pk1"),
+						Operator: "=",
+						Value:    types.NewParameterizedValue("@value0"),
+					},
+					{
+						Column:   mockdata.GetColumnOrDie("test_keyspace", "test_table", "col_ts"),
+						Operator: "<",
+						Value:    types.NewFunctionValue("@value2", types.FuncCodeToTimestamp, []types.DynamicValue{types.NewFunctionValue("@value1", types.FuncCodeNow, nil)}),
+					},
+				},
+				OrderBy:        types.OrderBy{},
+				GroupByColumns: nil,
+				AllParams: []types.Placeholder{
+					"@value0",
+					"@value1",
+					"@value2",
+				},
+			},
 			sessionKeyspace: "test_keyspace",
 		},
 		{
@@ -1069,7 +1096,11 @@ func TestTranslator_TranslateSelectQuerytoBigtable(t *testing.T) {
 				},
 				OrderBy:        types.OrderBy{},
 				GroupByColumns: nil,
-				AllParams:      nil,
+				AllParams: []types.Placeholder{
+					"@value0",
+					"@value1",
+					"@value2",
+				},
 			},
 			sessionKeyspace: "test_keyspace",
 		},
@@ -1145,16 +1176,15 @@ func TestTranslator_TranslateSelectQuerytoBigtable(t *testing.T) {
 			}
 			require.NoError(t, err)
 			gotSelect := got.(*types.PreparedSelectQuery)
-			assert.Equal(t, tt.want.Keyspace, gotSelect.Keyspace())
-			assert.Equal(t, tt.want.Table, gotSelect.Table())
-			assert.Equal(t, tt.want.TranslatedQuery, gotSelect.TranslatedQuery)
-			assert.Equal(t, tt.want.SelectClause, gotSelect.SelectClause)
-			assert.Equal(t, tt.want.Conditions, gotSelect.Conditions)
-			assert.Equal(t, tt.want.CachedBTPrepare, gotSelect.CachedBTPrepare)
-			assert.Equal(t, tt.want.LimitValue, gotSelect.LimitValue)
-			assert.Equal(t, tt.want.OrderBy, gotSelect.OrderBy)
-			assert.Equal(t, tt.want.GroupByColumns, gotSelect.GroupByColumns)
-			assert.Equal(t, tt.want.AllParams, gotSelect.Params.AllKeys())
+			assert.Equal(t, tt.want.Keyspace, gotSelect.Keyspace(), "keyspace")
+			assert.Equal(t, tt.want.Table, gotSelect.Table(), "table name")
+			assert.Equal(t, tt.want.TranslatedQuery, gotSelect.TranslatedQuery, "translated query")
+			assert.Equal(t, tt.want.SelectClause, gotSelect.SelectClause, "select")
+			assert.Equal(t, tt.want.Conditions, gotSelect.Conditions, "conditions")
+			assert.Equal(t, tt.want.LimitValue, gotSelect.LimitValue, "limit")
+			assert.Equal(t, tt.want.OrderBy, gotSelect.OrderBy, "order by")
+			assert.Equal(t, tt.want.GroupByColumns, gotSelect.GroupByColumns, "group by")
+			assert.Equal(t, tt.want.AllParams, gotSelect.Params.AllKeys(), "params")
 		})
 	}
 }

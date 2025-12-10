@@ -790,6 +790,7 @@ relationElement
    | relationFunctionCompareConstant
    | relationFunctionCompareFunction
    | relationColumnCompareFunction
+   | relationFunctionCompareColumn
    | relationContainsKey
    | relationContains
    | relationIn
@@ -810,8 +811,13 @@ relationFunctionCompareConstant
 relationFunctionCompareFunction
    : functionCall compareOperator functionCall
    ;
+
 relationColumnCompareFunction
    : column compareOperator functionCall
+   ;
+
+relationFunctionCompareColumn
+   : functionCall compareOperator column
    ;
 
 relationBetween

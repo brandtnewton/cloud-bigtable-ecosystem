@@ -78,12 +78,12 @@ type CqlFuncSpec struct {
 }
 
 type CqlFuncParameter struct {
-	Name       string
-	ValidTypes []CqlDataType
+	Name string
+	Type CqlDataType
 }
 
-func NewCqlFuncParameter(name string, validTypes []CqlDataType) *CqlFuncParameter {
-	return &CqlFuncParameter{Name: name, ValidTypes: validTypes}
+func NewCqlFuncParameter(name string, t CqlDataType) *CqlFuncParameter {
+	return &CqlFuncParameter{Name: name, Type: t}
 }
 
 func NewCqlFuncSpec(code CqlFuncCode, parameterTypes []CqlFuncParameter, returnType CqlDataType, apply func(args []DynamicValue, value *QueryParameterValues) (GoValue, error)) *CqlFuncSpec {
@@ -92,9 +92,9 @@ func NewCqlFuncSpec(code CqlFuncCode, parameterTypes []CqlFuncParameter, returnT
 
 var (
 	FuncNow         = NewCqlFuncSpec(FuncCodeNow, nil, TypeTimeuuid, now)
-	FuncToTimestamp = NewCqlFuncSpec(FuncCodeToTimestamp, []CqlFuncParameter{*NewCqlFuncParameter("time", []CqlDataType{TypeTimeuuid})}, TypeTimestamp, toTimestamp)
-	FuncMinTimeUuid = NewCqlFuncSpec(FuncCodeMinTimeuuid, []CqlFuncParameter{*NewCqlFuncParameter("time", []CqlDataType{TypeText})}, TypeTimeuuid, toTimestamp)
-	FuncMaxTimeUuid = NewCqlFuncSpec(FuncCodeMaxTimeuuid, []CqlFuncParameter{*NewCqlFuncParameter("time", []CqlDataType{TypeText})}, TypeTimeuuid, toTimestamp)
+	FuncToTimestamp = NewCqlFuncSpec(FuncCodeToTimestamp, []CqlFuncParameter{*NewCqlFuncParameter("time", TypeTimeuuid)}, TypeTimestamp, toTimestamp)
+	FuncMinTimeUuid = NewCqlFuncSpec(FuncCodeMinTimeuuid, []CqlFuncParameter{*NewCqlFuncParameter("time", TypeTimestamp)}, TypeTimeuuid, toTimestamp)
+	FuncMaxTimeUuid = NewCqlFuncSpec(FuncCodeMaxTimeuuid, []CqlFuncParameter{*NewCqlFuncParameter("time", TypeTimestamp)}, TypeTimeuuid, toTimestamp)
 )
 
 func GetCqlFunc(code CqlFuncCode) (*CqlFuncSpec, error) {

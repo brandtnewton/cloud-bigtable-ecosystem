@@ -168,6 +168,15 @@ CREATE TABLE IF NOT EXISTS bigtabledevinstance.timestamp_key (
 	PRIMARY KEY (region, event_time)
 );
 		`,
+		`
+CREATE TABLE IF NOT EXISTS bigtabledevinstance.timeuuid_table (
+	region text,
+	event_time timeuuid,
+	measurement int,
+	parent_event timeuuid,
+	PRIMARY KEY (region, event_time)
+);
+		`,
 	}
 
 	if testTarget == TestTargetProxy {

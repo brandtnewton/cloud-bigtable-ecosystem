@@ -377,20 +377,19 @@ func removeMapEntries(keys []types.GoValue, column *types.Column, output *types.
 // Processes set, list, and map operations.
 // Returns error if collection type is invalid or value encoding fails.
 func BindQueryParams(params *types.QueryParameters, values []*primitive.Value, pv primitive.ProtocolVersion) (*types.QueryParameterValues, error) {
-	if params.Count() != len(values) {
-		return nil, fmt.Errorf("expected %d prepared values but got %d", params.Count(), len(values))
+	if params.CountUserParameters() != len(values) {
+		return nil, fmt.Errorf("expected %d prepared values but got %d", params.CountUserParameters(), len(values))
 	}
 
 	result := types.NewQueryParameterValues(params)
 
-	for i, param := range params.AllKeys() {
+	for i, md := range params.AllUserKeys() {
 		value := values[i]
-		md := params.GetMetadata(param)
 		goVal, err := cassandraValueToGoValue(md.Type, value, pv)
 		if err != nil {
 			return nil, err
 		}
-		err = result.SetValue(param, goVal)
+		err = result.SetValue(md.Key, goVal)
 		if err != nil {
 			return nil, err
 		}
@@ -429,11 +428,11 @@ func BindSelectColumns(table *schemaMapping.TableSchema, selectedColumns []types
 
 func ValidateAllParamsSet(q *types.QueryParameters, values map[types.Placeholder]types.GoValue) error {
 	var missingParams []string
-	keys := q.AllKeys()
+	keys := q.AllUserKeys()
 	for _, p := range keys {
-		_, ok := values[p]
+		_, ok := values[p.Key]
 		if !ok {
-			missingParams = append(missingParams, string(p))
+			missingParams = append(missingParams, string(p.Key))
 		}
 	}
 	if len(missingParams) > 0 {

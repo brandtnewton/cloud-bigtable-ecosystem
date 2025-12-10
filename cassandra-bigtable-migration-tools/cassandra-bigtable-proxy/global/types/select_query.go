@@ -124,7 +124,8 @@ type ExecutableSelectQuery struct {
 	GroupByColumns       []string
 	ResultColumnMetadata []*message.ColumnMetadata
 	ProtocolVersion      primitive.ProtocolVersion
-	Values               *QueryParameterValues
+
+	Values *QueryParameterValues
 }
 
 func NewExecutableSelectQuery(query *PreparedSelectQuery, protocolVersion primitive.ProtocolVersion, values *QueryParameterValues) *ExecutableSelectQuery {

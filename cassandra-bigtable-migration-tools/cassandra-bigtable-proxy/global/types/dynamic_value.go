@@ -29,7 +29,7 @@ func (l *LiteralValue) IsIdempotent() bool {
 	return true
 }
 
-func (l *LiteralValue) GetValue(values *QueryParameterValues) (GoValue, error) {
+func (l *LiteralValue) GetValue(_ *QueryParameterValues) (GoValue, error) {
 	return l.Value, nil
 }
 

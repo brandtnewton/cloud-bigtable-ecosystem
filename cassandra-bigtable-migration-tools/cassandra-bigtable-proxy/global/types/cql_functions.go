@@ -131,7 +131,7 @@ func now(_ []DynamicValue, _ *QueryParameterValues) (GoValue, error) {
 	if err != nil {
 		return nil, err
 	}
-	return id[:], nil
+	return id, nil
 }
 
 func minTimestamp(args []DynamicValue, values *QueryParameterValues) (GoValue, error) {
@@ -193,7 +193,7 @@ func getUuidArg(index int, args []DynamicValue, values *QueryParameterValues) (u
 
 	u, ok := value.(uuid.UUID)
 	if !ok {
-		return [16]byte{}, fmt.Errorf("invalid argment: %T expected uuid", args[0])
+		return [16]byte{}, fmt.Errorf("invalid argment: %T expected uuid", value)
 	}
 	return u, nil
 }

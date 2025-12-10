@@ -40,12 +40,25 @@ func NewQueryParameters() *QueryParameters {
 	}
 }
 
-func (q *QueryParameters) AllKeys() []Placeholder {
-	return q.ordered
+func (q *QueryParameters) AllUserKeys() []PlaceholderMetadata {
+	var result []PlaceholderMetadata
+	for _, p := range q.ordered {
+		md := q.metadata[p]
+		if md.IsUserParameter {
+			result = append(result, md)
+		}
+	}
+	return result
 }
 
-func (q *QueryParameters) Count() int {
-	return len(q.ordered)
+func (q *QueryParameters) CountUserParameters() int {
+	count := 0
+	for _, metadata := range q.metadata {
+		if metadata.IsUserParameter {
+			count += 1
+		}
+	}
+	return count
 }
 
 func (q *QueryParameters) Index(p Placeholder) int {
@@ -110,11 +123,6 @@ func NewQueryParameterValues(params *QueryParameters) *QueryParameterValues {
 }
 
 func (q *QueryParameterValues) SetValue(p Placeholder, value any) error {
-	//md, ok := q.params.metadata[p]
-	//if !ok {
-	//	return fmt.Errorf("no param metadata for %s", p)
-	//}
-
 	// ensure the correct type is being set - more for checking internal implementation rather than the user
 	//err := validateGoType(md.Type, value)
 	//if err != nil {
@@ -147,7 +155,16 @@ func (q *QueryParameterValues) GetValue(p Placeholder) (GoValue, error) {
 }
 
 func (q *QueryParameterValues) AllValuesSet() bool {
-	return len(q.values) == q.params.Count()
+	for _, md := range q.params.metadata {
+		if !md.IsUserParameter {
+			continue
+		}
+		_, ok := q.values[md.Key]
+		if !ok {
+			return false
+		}
+	}
+	return true
 }
 func (q *QueryParameterValues) AsMap() map[Placeholder]GoValue {
 	return q.values

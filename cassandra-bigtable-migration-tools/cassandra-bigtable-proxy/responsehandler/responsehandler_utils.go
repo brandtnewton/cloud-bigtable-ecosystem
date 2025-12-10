@@ -56,8 +56,7 @@ func BuildRowsResultResponse(st *types.ExecutableSelectQuery, rows []types.GoRow
 func BuildPreparedResultResponse(id [16]byte, query types.IPreparedQuery) (*message.PreparedResult, error) {
 	var variableMetadata []*message.ColumnMetadata
 	params := query.Parameters()
-	for i, p := range params.AllKeys() {
-		md := params.GetMetadata(p)
+	for i, md := range params.AllUserKeys() {
 		var col = message.ColumnMetadata{
 			Index: int32(i),
 			Type:  md.Type.DataType(),

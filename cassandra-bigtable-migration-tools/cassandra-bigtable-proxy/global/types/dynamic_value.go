@@ -3,10 +3,15 @@ package types
 type DynamicValue interface {
 	GetValue(values *QueryParameterValues) (GoValue, error)
 	IsIdempotent() bool
+	GetPlaceholder() Placeholder
 }
 
 type ParameterizedValue struct {
 	Placeholder Placeholder
+}
+
+func (p *ParameterizedValue) GetPlaceholder() Placeholder {
+	return p.Placeholder
 }
 
 func (p *ParameterizedValue) IsIdempotent() bool {
@@ -25,6 +30,10 @@ type LiteralValue struct {
 	Value GoValue
 }
 
+func (l *LiteralValue) GetPlaceholder() Placeholder {
+	return ""
+}
+
 func (l *LiteralValue) IsIdempotent() bool {
 	return true
 }
@@ -41,6 +50,10 @@ type FunctionValue struct {
 	Placeholder Placeholder
 	Code        CqlFuncCode
 	Args        []DynamicValue
+}
+
+func (f FunctionValue) GetPlaceholder() Placeholder {
+	return f.Placeholder
 }
 
 func (f FunctionValue) GetValue(values *QueryParameterValues) (GoValue, error) {

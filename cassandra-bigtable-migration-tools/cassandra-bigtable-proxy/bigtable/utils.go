@@ -117,15 +117,15 @@ func addBindValueIfNeeded(dynamicValue types.DynamicValue, values *types.QueryPa
 	if dynamicValue == nil {
 		return nil
 	}
-	param, ok := dynamicValue.(*types.ParameterizedValue)
-	if !ok {
+	p := dynamicValue.GetPlaceholder()
+	if p == "" {
 		return nil
 	}
 
 	var value any
 	if needsByteConversion {
 		var err error
-		value, err = param.GetValue(values)
+		value, err = dynamicValue.GetValue(values)
 		if err != nil {
 			return err
 		}
@@ -136,7 +136,7 @@ func addBindValueIfNeeded(dynamicValue types.DynamicValue, values *types.QueryPa
 		}
 	} else {
 		var err error
-		value, err = param.GetValue(values)
+		value, err = dynamicValue.GetValue(values)
 		if err != nil {
 			return err
 		}
@@ -151,7 +151,7 @@ func addBindValueIfNeeded(dynamicValue types.DynamicValue, values *types.QueryPa
 	}
 
 	// drop the leading '@' symbol
-	result[string(param.Placeholder)[1:]] = value
+	result[string(p)[1:]] = value
 	return nil
 }
 
@@ -182,18 +182,15 @@ func addParamIfNeeded(value types.DynamicValue, params *types.QueryParameters, n
 	if value == nil {
 		return
 	}
-
-	param, ok := value.(*types.ParameterizedValue)
-	if !ok {
+	p := value.GetPlaceholder()
+	if p == "" {
 		return
 	}
-
-	md := params.GetMetadata(param.Placeholder)
-
+	md := params.GetMetadata(p)
 	bigtableType := md.Type.BigtableSqlType()
 	if needsByteConversion {
 		bigtableType = bigtable.BytesSQLType{}
 	}
 	// drop the leading '@' symbol
-	result[string(param.Placeholder)[1:]] = bigtableType
+	result[string(p)[1:]] = bigtableType
 }

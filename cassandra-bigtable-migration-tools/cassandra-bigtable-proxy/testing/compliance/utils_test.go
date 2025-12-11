@@ -21,7 +21,6 @@ import (
 	"encoding/csv"
 	"errors"
 	"fmt"
-	"log"
 	"os/exec"
 	"regexp"
 	"strings"
@@ -231,8 +230,6 @@ func runCqlshAsync(batch []string) error {
 		go func(i int, stmt string) {
 			// Decrement the counter when the goroutine finishes
 			defer wg.Done()
-
-			log.Println(fmt.Sprintf("Running sql statement: %d...", i))
 
 			// Execute the database query
 			err := session.Query(stmt).Exec()

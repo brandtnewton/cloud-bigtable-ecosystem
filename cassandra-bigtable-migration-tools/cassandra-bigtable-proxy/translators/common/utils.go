@@ -8,8 +8,10 @@ import (
 	cql "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/third_party/cqlparser"
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/third_party/datastax/proxycore"
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/utilities"
+	"github.com/antlr4-go/antlr/v4"
 	"github.com/datastax/go-cassandra-native-protocol/datatype"
 	"github.com/datastax/go-cassandra-native-protocol/primitive"
+	"github.com/google/uuid"
 	"regexp"
 	"strings"
 	"time"
@@ -520,7 +522,18 @@ func ParseCqlConstant(c cql.IConstantContext, dt types.CqlDataType) (types.GoVal
 	if c.KwNull() != nil {
 		return nil, nil
 	}
+	if c.UUID() != nil {
+		return ParseUuid(c.UUID())
+	}
 	return nil, fmt.Errorf("unhandled constant: %s", c.GetText())
+}
+
+func ParseUuid(n antlr.TerminalNode) (uuid.UUID, error) {
+	parse, err := uuid.Parse(n.GetText())
+	if err != nil {
+		return [16]byte{}, err
+	}
+	return parse, nil
 }
 
 const (
@@ -538,7 +551,7 @@ func EncodeScalarForBigtable(value types.GoValue, cqlType types.CqlDataType) (ty
 	}
 
 	var iv interface{}
-	var dt datatype.DataType
+	dt := cqlType.DataType()
 	switch cqlType.DataType() {
 	case datatype.Int, datatype.Bigint:
 		return encodeBigIntForBigtable(value)
@@ -552,17 +565,17 @@ func EncodeScalarForBigtable(value types.GoValue, cqlType types.CqlDataType) (ty
 		return encodeTimestampForBigtable(value)
 	case datatype.Blob:
 		iv = value
-		dt = datatype.Blob
 	case datatype.Varchar:
 		iv = value
-		dt = datatype.Varchar
+	case datatype.Timeuuid:
+		return encodeTimeuuidForBigtable(value)
 	default:
 		return nil, fmt.Errorf("unsupported CQL type: %s", cqlType.String())
 	}
 
 	bd, err := proxycore.EncodeType(dt, bigtableEncodingVersion, iv)
 	if err != nil {
-		return nil, fmt.Errorf("error encoding value: %w", err)
+		return nil, fmt.Errorf("error encoding value to bigtable: %w", err)
 	}
 
 	return bd, nil
@@ -572,6 +585,18 @@ func cassandraValueToGoValue(dt types.CqlDataType, value *primitive.Value, pv pr
 	goValue, err := proxycore.DecodeType(dt.DataType(), pv, value.Contents)
 	if err != nil {
 		return nil, err
+	}
+
+	if dt.Code() == types.TIMEUUID {
+		b, ok := goValue.(primitive.UUID)
+		if !ok {
+			return nil, fmt.Errorf("unexpected decoded uuid type: %T", goValue)
+		}
+		u, err := uuid.FromBytes(b.Bytes())
+		if err != nil {
+			return nil, err
+		}
+		goValue = u
 	}
 
 	// the proxy codec returns []*string/whatever type which isn't quite what we're expecting downstream
@@ -716,6 +741,25 @@ func encodeBoolForBigtable(value interface{}) (types.BigtableValue, error) {
 		return nil, err
 	}
 	return bd, nil
+}
+
+func encodeTimeuuidForBigtable(value interface{}) (types.BigtableValue, error) {
+	switch v := value.(type) {
+	case uuid.UUID:
+		b, err := v.MarshalBinary()
+		if err != nil {
+			return nil, err
+		}
+		return proxycore.EncodeType(datatype.Timeuuid, bigtableEncodingVersion, b)
+	case *uuid.UUID:
+		b, err := v.MarshalBinary()
+		if err != nil {
+			return nil, err
+		}
+		return proxycore.EncodeType(datatype.Timeuuid, bigtableEncodingVersion, b)
+	default:
+		return nil, fmt.Errorf("unsupported timestamp type: %T", value)
+	}
 }
 
 func encodeTimestampForBigtable(value interface{}) (types.BigtableValue, error) {

@@ -343,7 +343,9 @@ func castScalarColumn(colMeta *types.Column) (string, error) {
 	case datatype.Counter:
 		return fmt.Sprintf("`%s`['']", colMeta.Name), nil
 	case datatype.Blob:
-		return fmt.Sprintf("TO_BLOB(`%s`['%s'])", colMeta.ColumnFamily, colMeta.Name), nil
+		return fmt.Sprintf("`%s`['%s']", colMeta.ColumnFamily, colMeta.Name), nil
+	case datatype.Timeuuid:
+		return fmt.Sprintf("`%s`['%s']", colMeta.ColumnFamily, colMeta.Name), nil
 	case datatype.Varchar:
 		return fmt.Sprintf("`%s`['%s']", colMeta.ColumnFamily, colMeta.Name), nil
 	default:

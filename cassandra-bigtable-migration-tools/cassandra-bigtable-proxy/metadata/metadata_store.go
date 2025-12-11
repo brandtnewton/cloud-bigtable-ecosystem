@@ -166,6 +166,7 @@ func (b *MetadataStore) readKeyspace(ctx context.Context, keyspace types.Keyspac
 			defer wg.Done()
 			b.logger.Info(fmt.Sprintf("loading table info for table %s.%s", keyspace, tn))
 			tableInfo, err := adminClient.TableInfo(ctx, string(tn))
+
 			if err != nil {
 				// Send the error back through the channel
 				resultCh <- TableResult{Error: fmt.Errorf("TableInfo failed for %s: %w", tn, err)}

@@ -81,7 +81,7 @@ func (t *TranslatorManager) TranslateQuery(q *types.RawQuery, sessionKeyspace ty
 	preparedQuery, err := queryTranslator.Translate(q, sessionKeyspace)
 
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error translating query: %w", err)
 	}
 
 	t.Logger.Debug("translated query", zap.String("cql", q.RawCql()), zap.String("btql", preparedQuery.BigtableQuery()))
@@ -97,7 +97,7 @@ func (t *TranslatorManager) TranslateQuery(q *types.RawQuery, sessionKeyspace ty
 func (t *TranslatorManager) BindQuery(st types.IPreparedQuery, cassandraValues []*primitive.Value, pv primitive.ProtocolVersion) (types.IExecutableQuery, error) {
 	values, err := common.BindQueryParams(st.Parameters(), cassandraValues, pv)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error binding query: %w", err)
 	}
 	return t.BindQueryParameters(st, values, pv)
 }
@@ -105,7 +105,11 @@ func (t *TranslatorManager) BindQuery(st types.IPreparedQuery, cassandraValues [
 func (t *TranslatorManager) BindQueryParameters(st types.IPreparedQuery, values *types.QueryParameterValues, pv primitive.ProtocolVersion) (types.IExecutableQuery, error) {
 	queryTranslator, err := t.getTranslator(st.QueryType())
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error binding query: %w", err)
 	}
-	return queryTranslator.Bind(st, values, pv)
+	ex, err := queryTranslator.Bind(st, values, pv)
+	if err != nil {
+		return nil, fmt.Errorf("error binding query: %w", err)
+	}
+	return ex, nil
 }

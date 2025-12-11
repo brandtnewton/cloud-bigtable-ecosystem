@@ -26,6 +26,7 @@ import (
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/third_party/datastax/proxycore"
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/utilities"
 	"github.com/datastax/go-cassandra-native-protocol/message"
+	"github.com/google/uuid"
 	"go.uber.org/zap"
 	"time"
 )
@@ -134,10 +135,6 @@ func (btc *BigtableAdapter) convertResultRow(resultRow bigtable.ResultRow, query
 			return nil, fmt.Errorf("result already set for column `%s`", key)
 		}
 
-		if key == "list_text" {
-			btc.Logger.Log(zap.InfoLevel, "list_text", zap.Any("value", val))
-		}
-
 		goValue, err := rowValueToGoValue(val, expectedType)
 		if err != nil {
 			return nil, fmt.Errorf("failed to convert result for '%s': %w", key, err)
@@ -151,13 +148,15 @@ func (btc *BigtableAdapter) convertResultRow(resultRow bigtable.ResultRow, query
 func rowValueToGoValue(val any, expectedType types.CqlDataType) (types.GoValue, error) {
 	switch v := val.(type) {
 	case string:
-		// do we need to decode base64?
 		goVal, err := utilities.StringToGo(v, expectedType)
 		if err != nil {
 			return nil, err
 		}
 		return goVal, nil
 	case []byte:
+		if expectedType.Code() == types.TIMEUUID {
+			return uuid.FromBytes(v)
+		}
 		return v, nil
 	case map[string]*int64:
 		// counters are always a column family with a single column with an empty qualifier

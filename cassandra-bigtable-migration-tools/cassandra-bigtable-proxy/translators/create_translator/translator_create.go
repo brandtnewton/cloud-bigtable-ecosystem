@@ -61,8 +61,8 @@ func (t *CreateTranslator) Translate(query *types.RawQuery, sessionKeyspace type
 			return nil, err
 		}
 
-		if !utilities.IsSupportedColumnType(dt) {
-			return nil, fmt.Errorf("column type '%s' is not supported", dt.String())
+		if err := utilities.ValidateIsSupportedColumnType(dt); err != nil {
+			return nil, err
 		}
 
 		columns = append(columns, types.CreateColumn{

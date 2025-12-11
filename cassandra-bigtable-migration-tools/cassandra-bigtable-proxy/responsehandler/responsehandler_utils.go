@@ -20,8 +20,10 @@ import (
 	"fmt"
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/global/types"
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/third_party/datastax/proxycore"
+	"github.com/datastax/go-cassandra-native-protocol/datatype"
 	"github.com/datastax/go-cassandra-native-protocol/message"
 	"github.com/datastax/go-cassandra-native-protocol/primitive"
+	"github.com/google/uuid"
 )
 
 func BuildRowsResultResponse(st *types.ExecutableSelectQuery, rows []types.GoRow, pv primitive.ProtocolVersion) (*message.RowsResult, error) {
@@ -33,9 +35,9 @@ func BuildRowsResultResponse(st *types.ExecutableSelectQuery, rows []types.GoRow
 			if !ok {
 				val = nil
 			}
-			encoded, err := proxycore.EncodeType(c.Type, pv, val)
+			encoded, err := encodeGoValueToCassandraResponse(val, c, pv)
 			if err != nil {
-				return nil, fmt.Errorf("error encoding column '%s' to %s: %w", c.Name, c.Type.String(), err)
+				return nil, fmt.Errorf("error encoding column '%s' to %s in response: %w", c.Name, c.Type.String(), err)
 			}
 			outputRow = append(outputRow, encoded)
 		}
@@ -51,6 +53,25 @@ func BuildRowsResultResponse(st *types.ExecutableSelectQuery, rows []types.GoRow
 		},
 		Data: outputRows,
 	}, nil
+}
+
+func encodeGoValueToCassandraResponse(value any, md *message.ColumnMetadata, pv primitive.ProtocolVersion) ([]byte, error) {
+	if md.Type == datatype.Timeuuid {
+		switch v := value.(type) {
+		case uuid.UUID:
+			b, err := v.MarshalBinary()
+			if err != nil {
+				return nil, err
+			}
+			return proxycore.EncodeType(datatype.Timeuuid, pv, b)
+		}
+	}
+
+	encoded, err := proxycore.EncodeType(md.Type, pv, value)
+	if err != nil {
+		return nil, fmt.Errorf("error encoding column '%s' to %s from %T in response: %w", md.Name, md.Type.String(), value, err)
+	}
+	return encoded, nil
 }
 
 func BuildPreparedResultResponse(id [16]byte, query types.IPreparedQuery) (*message.PreparedResult, error) {

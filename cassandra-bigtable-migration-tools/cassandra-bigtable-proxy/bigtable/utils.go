@@ -22,6 +22,7 @@ import (
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/global/types"
 	"github.com/datastax/go-cassandra-native-protocol/datatype"
 	"github.com/datastax/go-cassandra-native-protocol/message"
+	"github.com/google/uuid"
 )
 
 const (
@@ -140,6 +141,15 @@ func addBindValueIfNeeded(dynamicValue types.DynamicValue, values *types.QueryPa
 			return err
 		}
 	}
+
+	if u, ok := value.(uuid.UUID); ok {
+		b, err := u.MarshalBinary()
+		if err != nil {
+			return err
+		}
+		value = b
+	}
+
 	// drop the leading '@' symbol
 	result[string(param.Placeholder)[1:]] = value
 	return nil

@@ -262,3 +262,8 @@ func runCqlshAsync(batch []string) error {
 
 	return resultError
 }
+
+func getTimeFromUUID(id uuid.UUID) (time.Time, error) {
+	sec, nsec := id.Time().UnixTime()
+	return time.Unix(sec, nsec), nil
+}

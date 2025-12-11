@@ -35,10 +35,22 @@ func NewQueryExecutorManager(logger *zap.Logger, s *schemaMapping.SchemaMetadata
 }
 
 func (m *QueryExecutorManager) Execute(ctx context.Context, client types.ICassandraClient, q types.IExecutableQuery) (message.Message, error) {
+	e, err := m.getExecutor(q)
+	if err != nil {
+		return nil, fmt.Errorf("error executing query: %w", err)
+	}
+	m.logger.Debug("executing query", zap.String("cql", q.CqlQuery()), zap.String("btql", q.BigtableQuery()))
+	result, err := e.Execute(ctx, client, q)
+	if err != nil {
+		return nil, fmt.Errorf("error executing query: %w", err)
+	}
+	return result, nil
+}
+
+func (m *QueryExecutorManager) getExecutor(q types.IExecutableQuery) (IQueryExecutor, error) {
 	for _, e := range m.executors {
 		if e.CanRun(q) {
-			m.logger.Debug("executing query", zap.String("cql", q.CqlQuery()), zap.String("btql", q.BigtableQuery()))
-			return e.Execute(ctx, client, q)
+			return e, nil
 		}
 	}
 	return nil, fmt.Errorf("no executor found for query %s on keyspace %s", strings.ToUpper(q.QueryType().String()), q.Keyspace())

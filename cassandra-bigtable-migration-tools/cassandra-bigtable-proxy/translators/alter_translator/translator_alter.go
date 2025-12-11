@@ -88,8 +88,8 @@ func (t *AlterTranslator) Translate(query *types.RawQuery, sessionKeyspace types
 		}
 	}
 	for _, addColumn := range addColumns {
-		if !utilities.IsSupportedColumnType(addColumn.TypeInfo) {
-			return nil, fmt.Errorf("column type '%s' is not supported", addColumn.TypeInfo.String())
+		if err := utilities.ValidateIsSupportedColumnType(addColumn.TypeInfo); err != nil {
+			return nil, err
 		}
 		if utilities.IsReservedCqlKeyword(string(addColumn.Name)) {
 			return nil, fmt.Errorf("cannot alter a table with reserved keyword as column name: '%s'", addColumn.Name)

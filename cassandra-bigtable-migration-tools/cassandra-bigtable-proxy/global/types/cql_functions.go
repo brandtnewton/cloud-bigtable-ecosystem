@@ -1,7 +1,6 @@
 package types
 
 import (
-	"encoding/binary"
 	"fmt"
 	"github.com/google/uuid"
 	"strings"
@@ -93,8 +92,8 @@ func NewCqlFuncSpec(code CqlFuncCode, parameterTypes []CqlFuncParameter, returnT
 var (
 	FuncNow         = NewCqlFuncSpec(FuncCodeNow, nil, TypeTimeuuid, now)
 	FuncToTimestamp = NewCqlFuncSpec(FuncCodeToTimestamp, []CqlFuncParameter{*NewCqlFuncParameter("time", TypeTimeuuid)}, TypeTimestamp, toTimestamp)
-	FuncMinTimeUuid = NewCqlFuncSpec(FuncCodeMinTimeuuid, []CqlFuncParameter{*NewCqlFuncParameter("time", TypeTimestamp)}, TypeTimeuuid, toTimestamp)
-	FuncMaxTimeUuid = NewCqlFuncSpec(FuncCodeMaxTimeuuid, []CqlFuncParameter{*NewCqlFuncParameter("time", TypeTimestamp)}, TypeTimeuuid, toTimestamp)
+	FuncMinTimeUuid = NewCqlFuncSpec(FuncCodeMinTimeuuid, []CqlFuncParameter{*NewCqlFuncParameter("time", TypeTimestamp)}, TypeTimeuuid, maxTimeUuid)
+	FuncMaxTimeUuid = NewCqlFuncSpec(FuncCodeMaxTimeuuid, []CqlFuncParameter{*NewCqlFuncParameter("time", TypeTimestamp)}, TypeTimeuuid, minTimeUuid)
 )
 
 func GetCqlFunc(code CqlFuncCode) (*CqlFuncSpec, error) {
@@ -127,49 +126,14 @@ func GetCqlFunc(code CqlFuncCode) (*CqlFuncSpec, error) {
 }
 
 func now(_ []DynamicValue, _ *QueryParameterValues) (GoValue, error) {
-	id, err := uuid.NewV7()
+	id, err := uuid.NewUUID()
+	if id.Version() != 1 {
+		return nil, fmt.Errorf("timeuuid must be v1")
+	}
 	if err != nil {
 		return nil, err
 	}
 	return id, nil
-}
-
-func minTimestamp(args []DynamicValue, values *QueryParameterValues) (GoValue, error) {
-	err := validateArgCount(1, args)
-	if err != nil {
-		return nil, err
-	}
-
-	t, err := values.GetValueTime(args[0])
-	if err != nil {
-		return nil, err
-	}
-
-	b, err := uuidToTimeBytes(t)
-	if err != nil {
-		return nil, err
-	}
-
-	return b + "\x00", nil
-}
-
-func maxTimestamp(args []DynamicValue, values *QueryParameterValues) (GoValue, error) {
-	err := validateArgCount(1, args)
-	if err != nil {
-		return nil, err
-	}
-
-	t, err := values.GetValueTime(args[0])
-	if err != nil {
-		return nil, err
-	}
-
-	b, err := uuidToTimeBytes(t)
-	if err != nil {
-		return nil, err
-	}
-
-	return b + "\xff", nil
 }
 
 func toTimestamp(args []DynamicValue, values *QueryParameterValues) (GoValue, error) {
@@ -182,7 +146,33 @@ func toTimestamp(args []DynamicValue, values *QueryParameterValues) (GoValue, er
 	if err != nil {
 		return nil, err
 	}
-	return getTimeFromUUIDv7(u)
+	return getTimeFromUUIDv6(u)
+}
+
+func maxTimeUuid(args []DynamicValue, values *QueryParameterValues) (GoValue, error) {
+	err := validateArgCount(1, args)
+	if err != nil {
+		return nil, err
+	}
+
+	u, err := getTimeArg(0, args, values)
+	if err != nil {
+		return nil, err
+	}
+	return MaxUUIDv1ForTime(u)
+}
+
+func minTimeUuid(args []DynamicValue, values *QueryParameterValues) (GoValue, error) {
+	err := validateArgCount(1, args)
+	if err != nil {
+		return nil, err
+	}
+
+	u, err := getTimeArg(0, args, values)
+	if err != nil {
+		return nil, err
+	}
+	return MinUUIDv1ForTime(u)
 }
 
 func getUuidArg(index int, args []DynamicValue, values *QueryParameterValues) (uuid.UUID, error) {
@@ -198,36 +188,118 @@ func getUuidArg(index int, args []DynamicValue, values *QueryParameterValues) (u
 	return u, nil
 }
 
-func uuidToTimeBytes(t time.Time) (string, error) {
-
-	// 1. Get the time in milliseconds since the Unix epoch.
-	// We use UTC to ensure the timestamp is globally consistent.
-	// Go's UnixMilli() handles this conversion.
-	unixMillis := t.In(time.UTC).UnixMilli()
-
-	// UUIDv7 is defined to use a 48-bit timestamp.
-	// A standard 64-bit int64 (which UnixMilli returns) can hold more than
-	// 48 bits, but the first 48 bits are what we care about.
-	// 48 bits can store a value up to 2^48 - 1, which is over 8,500 years
-	// from the Unix epoch, so it's safe for a time.Time value.
-
-	// Check for negative time (pre-1970), which is invalid for UUIDv7 epoch.
-	if unixMillis < 0 {
-		return "", fmt.Errorf("time %v is before the Unix epoch (Jan 1, 1970) and cannot be used in UUIDv7", t)
+func getTimeArg(index int, args []DynamicValue, values *QueryParameterValues) (time.Time, error) {
+	value, err := args[index].GetValue(values)
+	if err != nil {
+		return time.Time{}, err
 	}
 
-	// 2. Convert the int64 timestamp into a 64-bit big-endian byte slice.
-	// We start with 8 bytes, then discard the first two (most significant)
-	// which will be zero if the time is within the next 8000+ years.
-	// Big-endian order is required by the UUID standard.
-	buf := make([]byte, 8)
-	binary.BigEndian.PutUint64(buf, uint64(unixMillis))
+	u, ok := value.(time.Time)
+	if !ok {
+		return time.Time{}, fmt.Errorf("invalid argment: %T expected time.Time", value)
+	}
+	return u, nil
+}
 
-	// 3. The UUIDv7 timestamp is only 48 bits (6 bytes),
-	// corresponding to the last 6 bytes of the 64-bit millisecond value.
-	// Since BigEndian puts the *most significant* bytes first,
-	// we slice off the first two bytes (buf[0:2]), which should be 0x00, 0x00.
-	return string(buf[2:]), nil
+// TimeFromGregorianEpoch is the starting point for UUIDv1 timestamps:
+// 00:00:00.00, 15 October 1582 UTC.
+var timeFromGregorianEpochNanos = time.Date(1582, time.October, 15, 0, 0, 0, 0, time.UTC).UnixNano()
+
+// MaxUUIDv1ForTime creates the maximum possible UUIDv1 for a given time.Time.
+// This is achieved by setting the timestamp fields based on the input time,
+// and setting the Clock Sequence and Node ID fields to their maximum values.
+func MaxUUIDv1ForTime(t time.Time) (uuid.UUID, error) {
+	var u [16]byte
+
+	err := setUuidV1Time(t, u)
+	if err != nil {
+		return uuid.Nil, err
+	}
+
+	// --- Clock Sequence & Node ID Fields (Maxed Values) ---
+
+	// clock_seq_hi_and_variant (byte 8, 8 bits)
+	// The variant bits must be 10 (0x80 to 0xBF). We set the clock sequence to max.
+	// 0xBF is 0b10111111 (variant 10 and max 6 bits for the clock sequence high part)
+	u[8] = 0xBF
+
+	// clock_seq_low (byte 9, 8 bits)
+	u[9] = 0xFF
+
+	// Node ID (bytes 10-15, 48 bits) - set to all F's (max)
+	u[10] = 0xFF
+	u[11] = 0xFF
+	u[12] = 0xFF
+	u[13] = 0xFF
+	u[14] = 0xFF
+	u[15] = 0xFF
+
+	// Create the UUID from the byte array
+	return u, nil
+}
+
+func setUuidV1Time(t time.Time, u uuid.UUID) error {
+	// 1. Calculate the 60-bit timestamp value
+	nanosSinceGregorianEpoch := t.In(time.UTC).UnixNano() - timeFromGregorianEpochNanos
+	timestamp100ns := uint64(nanosSinceGregorianEpoch) / 100
+
+	if timestamp100ns > 0xFFFFFFFFFFFFFFF {
+		return fmt.Errorf("time is out of UUIDv1 valid range (too far in the future)")
+	}
+
+	// --- Timestamp Fields (Big-Endian Order) ---
+	// The timestamp parts are the same as the Max UUID function, as they
+	// depend only on the input time.
+
+	// time_low (bytes 0-3, 32 bits)
+	u[0] = byte(timestamp100ns >> 24)
+	u[1] = byte(timestamp100ns >> 16)
+	u[2] = byte(timestamp100ns >> 8)
+	u[3] = byte(timestamp100ns)
+
+	// time_mid (bytes 4-5, 16 bits)
+	u[4] = byte(timestamp100ns >> 40)
+	u[5] = byte(timestamp100ns >> 32)
+
+	// time_hi_and_version (bytes 6-7, 16 bits)
+	// The 4 bits for version 1 must be set.
+	// Version = 0x1XXX (0b0001XXXX)
+	timeHi := timestamp100ns >> 48
+	timeHi |= (1 << 12) // Set version to 1 (0x1000)
+
+	u[6] = byte(timeHi >> 8)
+	u[7] = byte(timeHi)
+	return nil
+}
+
+func MinUUIDv1ForTime(t time.Time) (uuid.UUID, error) {
+	var u [16]byte
+
+	err := setUuidV1Time(t, u)
+	if err != nil {
+		return uuid.Nil, err
+	}
+
+	// --- Clock Sequence & Node ID Fields (Minned Values) ---
+
+	// clock_seq_hi_and_variant (byte 8, 8 bits)
+	// The variant bits must be 10 (0x80 to 0xBF). We set the clock sequence to min (0).
+	// 0x80 is 0b10000000 (variant 10 and min 6 bits for the clock sequence high part)
+	u[8] = 0x80
+
+	// clock_seq_low (byte 9, 8 bits)
+	u[9] = 0x00 // Min 8 bits
+
+	// Node ID (bytes 10-15, 48 bits) - set to all 0's (min)
+	u[10] = 0x00
+	u[11] = 0x00
+	u[12] = 0x00
+	u[13] = 0x00
+	u[14] = 0x00
+	u[15] = 0x00
+
+	// Create the UUID from the byte array
+	return u, nil
 }
 
 func validateArgCount(count int, args []DynamicValue) error {
@@ -237,27 +309,7 @@ func validateArgCount(count int, args []DynamicValue) error {
 	return nil
 }
 
-func getTimeFromUUIDv7(id uuid.UUID) (time.Time, error) {
-	// 1. Check the UUID version. UUIDv7 has the '7' in the 4 most significant bits
-	//    of the 7th byte (index 6). This is a good sanity check.
-	if id.Version() != 7 {
-		return time.Time{}, fmt.Errorf("uuid version is %d, expected 7", id.Version())
-	}
-
-	// UUIDv7 structure:
-	// Bits 0-47: 48-bit Unix Epoch time in milliseconds (6 bytes)
-	// Bits 48-51: 4-bit version (7)
-	// ... rest is reserved/random
-	timestamp64 := binary.BigEndian.Uint64(id[:8])
-
-	// 3. Shift right by 16 bits to discard the version/reserved bits and move
-	//    the 48-bit millisecond timestamp to the least significant position.
-	milliseconds := int64(timestamp64 >> 16)
-
-	// 4. Convert milliseconds to time.
-	// time.Unix takes seconds and nanoseconds, so we need to divide the milliseconds.
-	seconds := milliseconds / 1000
-	nanos := (milliseconds % 1000) * int64(time.Millisecond) // Remaining millis * 1,000,000 nanosec/millis
-
-	return time.Unix(seconds, nanos), nil
+func getTimeFromUUIDv6(id uuid.UUID) (time.Time, error) {
+	sec, nsec := id.Time().UnixTime()
+	return time.Unix(sec, nsec), nil
 }

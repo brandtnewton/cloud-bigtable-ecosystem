@@ -92,8 +92,8 @@ func NewCqlFuncSpec(code CqlFuncCode, parameterTypes []CqlFuncParameter, returnT
 var (
 	FuncNow         = NewCqlFuncSpec(FuncCodeNow, nil, TypeTimeuuid, now)
 	FuncToTimestamp = NewCqlFuncSpec(FuncCodeToTimestamp, []CqlFuncParameter{*NewCqlFuncParameter("time", TypeTimeuuid)}, TypeTimestamp, toTimestamp)
-	FuncMinTimeUuid = NewCqlFuncSpec(FuncCodeMinTimeuuid, []CqlFuncParameter{*NewCqlFuncParameter("time", TypeTimestamp)}, TypeTimeuuid, maxTimeUuid)
-	FuncMaxTimeUuid = NewCqlFuncSpec(FuncCodeMaxTimeuuid, []CqlFuncParameter{*NewCqlFuncParameter("time", TypeTimestamp)}, TypeTimeuuid, minTimeUuid)
+	FuncMinTimeUuid = NewCqlFuncSpec(FuncCodeMinTimeuuid, []CqlFuncParameter{*NewCqlFuncParameter("time", TypeTimestamp)}, TypeTimeuuid, minTimeUuid)
+	FuncMaxTimeUuid = NewCqlFuncSpec(FuncCodeMaxTimeuuid, []CqlFuncParameter{*NewCqlFuncParameter("time", TypeTimestamp)}, TypeTimeuuid, maxTimeUuid)
 )
 
 func GetCqlFunc(code CqlFuncCode) (*CqlFuncSpec, error) {
@@ -146,7 +146,7 @@ func toTimestamp(args []DynamicValue, values *QueryParameterValues) (GoValue, er
 	if err != nil {
 		return nil, err
 	}
-	return getTimeFromUUIDv6(u)
+	return getTimeFromUUID(u)
 }
 
 func maxTimeUuid(args []DynamicValue, values *QueryParameterValues) (GoValue, error) {
@@ -159,7 +159,7 @@ func maxTimeUuid(args []DynamicValue, values *QueryParameterValues) (GoValue, er
 	if err != nil {
 		return nil, err
 	}
-	return MaxUUIDv1ForTime(u)
+	return maxUUIDv1ForTime(u)
 }
 
 func minTimeUuid(args []DynamicValue, values *QueryParameterValues) (GoValue, error) {
@@ -172,7 +172,7 @@ func minTimeUuid(args []DynamicValue, values *QueryParameterValues) (GoValue, er
 	if err != nil {
 		return nil, err
 	}
-	return MinUUIDv1ForTime(u)
+	return minUUIDv1ForTime(u)
 }
 
 func getUuidArg(index int, args []DynamicValue, values *QueryParameterValues) (uuid.UUID, error) {
@@ -205,13 +205,13 @@ func getTimeArg(index int, args []DynamicValue, values *QueryParameterValues) (t
 // 00:00:00.00, 15 October 1582 UTC.
 var timeFromGregorianEpochNanos = time.Date(1582, time.October, 15, 0, 0, 0, 0, time.UTC).UnixNano()
 
-// MaxUUIDv1ForTime creates the maximum possible UUIDv1 for a given time.Time.
+// maxUUIDv1ForTime creates the maximum possible UUIDv1 for a given time.Time.
 // This is achieved by setting the timestamp fields based on the input time,
 // and setting the Clock Sequence and Node ID fields to their maximum values.
-func MaxUUIDv1ForTime(t time.Time) (uuid.UUID, error) {
+func maxUUIDv1ForTime(t time.Time) (uuid.UUID, error) {
 	var u [16]byte
 
-	err := setUuidV1Time(t, u)
+	err := setUuidV1Time(t, &u)
 	if err != nil {
 		return uuid.Nil, err
 	}
@@ -238,7 +238,7 @@ func MaxUUIDv1ForTime(t time.Time) (uuid.UUID, error) {
 	return u, nil
 }
 
-func setUuidV1Time(t time.Time, u uuid.UUID) error {
+func setUuidV1Time(t time.Time, u *[16]byte) error {
 	// 1. Calculate the 60-bit timestamp value
 	nanosSinceGregorianEpoch := t.In(time.UTC).UnixNano() - timeFromGregorianEpochNanos
 	timestamp100ns := uint64(nanosSinceGregorianEpoch) / 100
@@ -272,10 +272,10 @@ func setUuidV1Time(t time.Time, u uuid.UUID) error {
 	return nil
 }
 
-func MinUUIDv1ForTime(t time.Time) (uuid.UUID, error) {
+func minUUIDv1ForTime(t time.Time) (uuid.UUID, error) {
 	var u [16]byte
 
-	err := setUuidV1Time(t, u)
+	err := setUuidV1Time(t, &u)
 	if err != nil {
 		return uuid.Nil, err
 	}
@@ -309,7 +309,7 @@ func validateArgCount(count int, args []DynamicValue) error {
 	return nil
 }
 
-func getTimeFromUUIDv6(id uuid.UUID) (time.Time, error) {
+func getTimeFromUUID(id uuid.UUID) (time.Time, error) {
 	sec, nsec := id.Time().UnixTime()
-	return time.Unix(sec, nsec), nil
+	return time.Unix(sec, nsec).UTC(), nil
 }

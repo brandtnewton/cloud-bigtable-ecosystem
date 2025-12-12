@@ -112,7 +112,7 @@ func parseLimitClause(input cql.ILimitSpecContext, params *types.QueryParameters
 	if input == nil {
 		return nil, nil
 	}
-	return common.ExtractDecimalLiteral(input.DecimalLiteral(), types.TypeInt, params, true)
+	return common.ExtractDecimalLiteral(input.DecimalLiteral(), types.TypeInt, params)
 }
 
 func parseGroupByColumn(input cql.IGroupSpecContext) []string {

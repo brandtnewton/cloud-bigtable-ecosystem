@@ -250,8 +250,7 @@ func FuzzColumns(f *testing.F) {
 			assert.NoError(t, err)
 		}
 
-		err = scanner.Err()
-		assert.NoError(t, err)
+		require.NoError(t, scanner.Err())
 		assert.Equal(t, 1, scanCount)
 		assert.Equal(t, id, gotId)
 		assert.Equal(t, s, gotName)

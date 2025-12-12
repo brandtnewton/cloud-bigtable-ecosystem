@@ -10,18 +10,16 @@ import (
 type Placeholder string
 
 type PlaceholderMetadata struct {
-	Key               Placeholder
-	Type              CqlDataType
-	IsUserParameter   bool
-	IsBtqlPlaceholder bool
+	Key             Placeholder
+	Type            CqlDataType
+	IsUserParameter bool
 }
 
-func newPlaceholderMetadata(key Placeholder, tpe CqlDataType, isUserParameter bool, isBtqlPlaceholder bool) PlaceholderMetadata {
+func newPlaceholderMetadata(key Placeholder, tpe CqlDataType, isUserParameter bool) PlaceholderMetadata {
 	return PlaceholderMetadata{
-		Key:               key,
-		Type:              tpe,
-		IsUserParameter:   isUserParameter,
-		IsBtqlPlaceholder: isBtqlPlaceholder,
+		Key:             key,
+		Type:            tpe,
+		IsUserParameter: isUserParameter,
 	}
 }
 
@@ -47,6 +45,14 @@ func (q *QueryParameters) AllUserKeys() []PlaceholderMetadata {
 		if md.IsUserParameter {
 			result = append(result, md)
 		}
+	}
+	return result
+}
+
+func (q *QueryParameters) AllMetadata() []PlaceholderMetadata {
+	var result []PlaceholderMetadata
+	for _, p := range q.ordered {
+		result = append(result, q.metadata[p])
 	}
 	return result
 }
@@ -82,20 +88,20 @@ func (q *QueryParameters) getNextParameter() Placeholder {
 	return Placeholder(fmt.Sprintf("@value%d", len(q.ordered)))
 }
 
-func (q *QueryParameters) BuildParameter(dataType CqlDataType, isUserParameter bool, isBtqlPlaceholder bool) *QueryParameters {
-	_ = q.PushParameter(dataType, isUserParameter, isBtqlPlaceholder)
+func (q *QueryParameters) BuildParameter(dataType CqlDataType, isUserParameter bool) *QueryParameters {
+	_ = q.PushParameter(dataType, isUserParameter)
 	return q
 }
 
-func (q *QueryParameters) PushParameter(dataType CqlDataType, isUserParameter bool, isBtqlPlaceholder bool) Placeholder {
+func (q *QueryParameters) PushParameter(dataType CqlDataType, isUserParameter bool) Placeholder {
 	p := q.getNextParameter()
-	q.AddParameter(p, dataType, isUserParameter, isBtqlPlaceholder)
+	q.AddParameter(p, dataType, isUserParameter)
 	return p
 }
 
-func (q *QueryParameters) AddParameter(p Placeholder, dt CqlDataType, isUserParameter bool, isBtqlPlaceholder bool) {
+func (q *QueryParameters) AddParameter(p Placeholder, dt CqlDataType, isUserParameter bool) {
 	q.ordered = append(q.ordered, p)
-	q.metadata[p] = newPlaceholderMetadata(p, dt, isUserParameter, isBtqlPlaceholder)
+	q.metadata[p] = newPlaceholderMetadata(p, dt, isUserParameter)
 }
 
 func (q *QueryParameters) GetMetadata(p Placeholder) PlaceholderMetadata {

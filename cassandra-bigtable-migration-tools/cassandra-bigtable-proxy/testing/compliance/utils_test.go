@@ -95,6 +95,7 @@ func testLexOrder(t *testing.T, input []map[string]interface{}, table string) {
 		require.NoError(t, err)
 		results = append(results, rowIndex)
 	}
+	require.NoError(t, scanner.Err())
 
 	require.Equal(t, len(input), len(results), "missing or extra result row?")
 	for i, result := range results {

@@ -35,7 +35,7 @@ type Want struct {
 	OrderBy         types.OrderBy
 	GroupByColumns  []string
 	LimitValue      types.DynamicValue
-	AllParams       []types.Placeholder
+	AllParams       []types.PlaceholderMetadata
 }
 
 func TestTranslator_TranslateSelectQuerytoBigtable(t *testing.T) {
@@ -338,7 +338,11 @@ func TestTranslator_TranslateSelectQuerytoBigtable(t *testing.T) {
 						*types.NewSelectedColumn("pk1", "pk1", "", types.TypeVarchar),
 					},
 				},
-				AllParams: []types.Placeholder{"@value0"},
+				AllParams: []types.PlaceholderMetadata{{
+					Key:             "@value0",
+					Type:            types.NewListType(types.TypeInt),
+					IsUserParameter: true,
+				}},
 				Conditions: []types.Condition{
 					{
 						Column:   mockdata.GetColumnOrDie("test_keyspace", "test_table", "col_int"),
@@ -367,7 +371,13 @@ func TestTranslator_TranslateSelectQuerytoBigtable(t *testing.T) {
 						*types.NewSelectedColumn("pk1", "pk1", "", types.TypeVarchar),
 					},
 				},
-				AllParams: []types.Placeholder{"@value0"},
+				AllParams: []types.PlaceholderMetadata{
+					{
+						Key:             "@value0",
+						Type:            types.NewListType(types.TypeBigInt),
+						IsUserParameter: true,
+					},
+				},
 				Conditions: []types.Condition{
 					{
 						Column:   mockdata.GetColumnOrDie("test_keyspace", "test_table", "col_bigint"),
@@ -390,7 +400,13 @@ func TestTranslator_TranslateSelectQuerytoBigtable(t *testing.T) {
 						*types.NewSelectedColumn("pk1", "pk1", "", types.TypeVarchar),
 					},
 				},
-				AllParams: []types.Placeholder{"@value0"},
+				AllParams: []types.PlaceholderMetadata{
+					{
+						Key:             "@value0",
+						Type:            types.NewListType(types.TypeFloat),
+						IsUserParameter: true,
+					},
+				},
 				Conditions: []types.Condition{
 					{
 						Column:   mockdata.GetColumnOrDie("test_keyspace", "test_table", "col_float"),
@@ -413,7 +429,13 @@ func TestTranslator_TranslateSelectQuerytoBigtable(t *testing.T) {
 						*types.NewSelectedColumn("pk1", "pk1", "", types.TypeVarchar),
 					},
 				},
-				AllParams: []types.Placeholder{"@value0"},
+				AllParams: []types.PlaceholderMetadata{
+					{
+						Key:             "@value0",
+						Type:            types.NewListType(types.TypeDouble),
+						IsUserParameter: true,
+					},
+				},
 				Conditions: []types.Condition{
 					{
 						Column:   mockdata.GetColumnOrDie("test_keyspace", "test_table", "col_double"),
@@ -436,7 +458,11 @@ func TestTranslator_TranslateSelectQuerytoBigtable(t *testing.T) {
 						*types.NewSelectedColumn("pk1", "pk1", "", types.TypeVarchar),
 					},
 				},
-				AllParams: []types.Placeholder{"@value0"},
+				AllParams: []types.PlaceholderMetadata{{
+					Key:             "@value0",
+					Type:            types.NewListType(types.TypeBoolean),
+					IsUserParameter: true,
+				}},
 				Conditions: []types.Condition{
 					{
 						Column:   mockdata.GetColumnOrDie("test_keyspace", "test_table", "col_bool"),
@@ -451,7 +477,7 @@ func TestTranslator_TranslateSelectQuerytoBigtable(t *testing.T) {
 			name:  "IN operator with prepared statement placeholder for Blob",
 			query: `select pk1 from test_keyspace.test_table where col_blob IN ?;`,
 			want: &Want{
-				TranslatedQuery: "SELECT pk1 FROM test_table WHERE TO_BLOB(`cf1`['col_blob']) IN UNNEST(@value0);",
+				TranslatedQuery: "SELECT pk1 FROM test_table WHERE `cf1`['col_blob'] IN UNNEST(@value0);",
 				Table:           "test_table",
 				Keyspace:        "test_keyspace",
 				SelectClause: &types.SelectClause{
@@ -459,7 +485,13 @@ func TestTranslator_TranslateSelectQuerytoBigtable(t *testing.T) {
 						*types.NewSelectedColumn("pk1", "pk1", "", types.TypeVarchar),
 					},
 				},
-				AllParams: []types.Placeholder{"@value0"},
+				AllParams: []types.PlaceholderMetadata{
+					{
+						Key:             "@value0",
+						Type:            types.NewListType(types.TypeBlob),
+						IsUserParameter: true,
+					},
+				},
 				Conditions: []types.Condition{
 					{
 						Column:   mockdata.GetColumnOrDie("test_keyspace", "test_table", "col_blob"),
@@ -483,12 +515,50 @@ func TestTranslator_TranslateSelectQuerytoBigtable(t *testing.T) {
 						*types.NewSelectedColumn("username", "username", "", types.TypeText),
 					},
 				},
-				AllParams: []types.Placeholder{"@value0"},
+				AllParams: []types.PlaceholderMetadata{{
+					Key:             "@value0",
+					Type:            types.TypeTimeuuid,
+					IsUserParameter: false,
+				}},
 				Conditions: []types.Condition{
 					{
 						Column:   mockdata.GetColumnOrDie("test_keyspace", "timeuuid_table", "id"),
 						Operator: ">",
 						Value:    types.NewFunctionValue("@value0", types.FuncCodeMaxTimeuuid, []types.DynamicValue{types.NewLiteralValue(time.Date(2018, 12, 9, 10, 1, 0, 0, time.UTC))}),
+					},
+				},
+			},
+		},
+		{
+			name:  "prepared function arg",
+			query: "SELECT id, username FROM test_keyspace.timeuuid_table WHERE id > maxTimeuuid(?)",
+			want: &Want{
+				TranslatedQuery: "SELECT id, `cf1`['username'] FROM timeuuid_table WHERE id > @value1;",
+				Table:           "timeuuid_table",
+				Keyspace:        "test_keyspace",
+				SelectClause: &types.SelectClause{
+					Columns: []types.SelectedColumn{
+						*types.NewSelectedColumn("id", "id", "", types.TypeTimeuuid),
+						*types.NewSelectedColumn("username", "username", "", types.TypeText),
+					},
+				},
+				AllParams: []types.PlaceholderMetadata{
+					{
+						Key:             "@value0",
+						Type:            types.TypeTimestamp,
+						IsUserParameter: true,
+					},
+					{
+						Key:             "@value1",
+						Type:            types.TypeTimeuuid,
+						IsUserParameter: false,
+					},
+				},
+				Conditions: []types.Condition{
+					{
+						Column:   mockdata.GetColumnOrDie("test_keyspace", "timeuuid_table", "id"),
+						Operator: ">",
+						Value:    types.NewFunctionValue("@value1", types.FuncCodeMaxTimeuuid, []types.DynamicValue{types.NewParameterizedValue("@value0")}),
 					},
 				},
 			},
@@ -631,7 +701,38 @@ func TestTranslator_TranslateSelectQuerytoBigtable(t *testing.T) {
 					IsOrderBy: false,
 				},
 				LimitValue: types.NewLiteralValue(int32(20000)),
-				AllParams:  []types.Placeholder{"@value0", "@value1", "@value2", "@value3", "@value4", "@value5"},
+				AllParams: []types.PlaceholderMetadata{
+					{
+						Key:             "@value0",
+						Type:            types.TypeVarchar,
+						IsUserParameter: true,
+					},
+					{
+						Key:             "@value1",
+						Type:            types.TypeBoolean,
+						IsUserParameter: true,
+					},
+					{
+						Key:             "@value2",
+						Type:            types.TypeTimestamp,
+						IsUserParameter: true,
+					},
+					{
+						Key:             "@value3",
+						Type:            types.TypeInt,
+						IsUserParameter: true,
+					},
+					{
+						Key:             "@value4",
+						Type:            types.TypeBigInt,
+						IsUserParameter: true,
+					},
+					{
+						Key:             "@value5",
+						Type:            types.TypeBigInt,
+						IsUserParameter: true,
+					},
+				},
 			},
 			sessionKeyspace: "test_keyspace",
 		},
@@ -684,7 +785,38 @@ func TestTranslator_TranslateSelectQuerytoBigtable(t *testing.T) {
 				OrderBy: types.OrderBy{
 					IsOrderBy: false,
 				},
-				AllParams: []types.Placeholder{"@value0", "@value1", "@value2", "@value3", "@value4", "@value5"},
+				AllParams: []types.PlaceholderMetadata{
+					{
+						Key:             "@value0",
+						Type:            types.TypeVarchar,
+						IsUserParameter: true,
+					},
+					{
+						Key:             "@value1",
+						Type:            types.TypeInt,
+						IsUserParameter: true,
+					},
+					{
+						Key:             "@value2",
+						Type:            types.TypeBoolean,
+						IsUserParameter: true,
+					},
+					{
+						Key:             "@value3",
+						Type:            types.TypeTimestamp,
+						IsUserParameter: true,
+					},
+					{
+						Key:             "@value4",
+						Type:            types.TypeInt,
+						IsUserParameter: true,
+					},
+					{
+						Key:             "@value5",
+						Type:            types.TypeBigInt,
+						IsUserParameter: true,
+					},
+				},
 			},
 			sessionKeyspace: "test_keyspace",
 		},
@@ -779,7 +911,18 @@ func TestTranslator_TranslateSelectQuerytoBigtable(t *testing.T) {
 						*types.NewSelectedColumn("col_int", "col_int", "", types.TypeInt),
 					},
 				},
-				AllParams: []types.Placeholder{"@value0", "@value1"},
+				AllParams: []types.PlaceholderMetadata{
+					{
+						Key:             "@value0",
+						Type:            types.TypeVarchar,
+						IsUserParameter: true,
+					},
+					{
+						Key:             "@value1",
+						Type:            types.NewListType(types.TypeVarchar),
+						IsUserParameter: true,
+					},
+				},
 				Conditions: []types.Condition{
 					{
 						Column:   mockdata.GetColumnOrDie("test_keyspace", "test_table", "pk1"),
@@ -860,7 +1003,11 @@ func TestTranslator_TranslateSelectQuerytoBigtable(t *testing.T) {
 						*types.NewSelectedColumn("col_int", "col_int", "", types.TypeInt),
 					},
 				},
-				AllParams: []types.Placeholder{"@value0"},
+				AllParams: []types.PlaceholderMetadata{{
+					Key:             "@value0",
+					Type:            types.TypeVarchar,
+					IsUserParameter: true,
+				}},
 				Conditions: []types.Condition{
 					{
 						Column:   mockdata.GetColumnOrDie("test_keyspace", "test_table", "pk1"),
@@ -883,7 +1030,17 @@ func TestTranslator_TranslateSelectQuerytoBigtable(t *testing.T) {
 						*types.NewSelectedColumn("col_int", "col_int", "", types.TypeInt),
 					},
 				},
-				AllParams: []types.Placeholder{"@value0", "@value1"},
+				AllParams: []types.PlaceholderMetadata{
+					{
+						Key:             "@value0",
+						Type:            types.TypeVarchar,
+						IsUserParameter: true,
+					},
+					{
+						Key:             "@value1",
+						Type:            types.TypeVarchar,
+						IsUserParameter: true,
+					}},
 				Conditions: []types.Condition{
 					{
 						Column:   mockdata.GetColumnOrDie("test_keyspace", "test_table", "pk1"),
@@ -1012,7 +1169,11 @@ func TestTranslator_TranslateSelectQuerytoBigtable(t *testing.T) {
 				OrderBy:        types.OrderBy{},
 				GroupByColumns: nil,
 				LimitValue:     types.NewParameterizedValue("@value0"),
-				AllParams:      []types.Placeholder{"@value0"},
+				AllParams: []types.PlaceholderMetadata{{
+					Key:             "@value0",
+					Type:            types.TypeInt,
+					IsUserParameter: true,
+				}},
 			},
 			sessionKeyspace: "test_keyspace",
 		},
@@ -1037,7 +1198,13 @@ func TestTranslator_TranslateSelectQuerytoBigtable(t *testing.T) {
 				},
 				OrderBy:        types.OrderBy{},
 				GroupByColumns: nil,
-				AllParams:      []types.Placeholder{"@value0"},
+				AllParams: []types.PlaceholderMetadata{
+					{
+						Key:             "@value0",
+						Type:            types.TypeText,
+						IsUserParameter: true,
+					},
+				},
 			},
 			sessionKeyspace: "test_keyspace",
 		},
@@ -1067,10 +1234,22 @@ func TestTranslator_TranslateSelectQuerytoBigtable(t *testing.T) {
 				},
 				OrderBy:        types.OrderBy{},
 				GroupByColumns: nil,
-				AllParams: []types.Placeholder{
-					"@value0",
-					"@value1",
-					"@value2",
+				AllParams: []types.PlaceholderMetadata{
+					{
+						Key:             "@value0",
+						Type:            types.TypeVarchar,
+						IsUserParameter: true,
+					},
+					{
+						Key:             "@value1",
+						Type:            types.TypeTimeuuid,
+						IsUserParameter: false,
+					},
+					{
+						Key:             "@value2",
+						Type:            types.TypeTimestamp,
+						IsUserParameter: false,
+					},
 				},
 			},
 			sessionKeyspace: "test_keyspace",
@@ -1096,11 +1275,7 @@ func TestTranslator_TranslateSelectQuerytoBigtable(t *testing.T) {
 				},
 				OrderBy:        types.OrderBy{},
 				GroupByColumns: nil,
-				AllParams: []types.Placeholder{
-					"@value0",
-					"@value1",
-					"@value2",
-				},
+				AllParams:      nil,
 			},
 			sessionKeyspace: "test_keyspace",
 		},
@@ -1184,7 +1359,7 @@ func TestTranslator_TranslateSelectQuerytoBigtable(t *testing.T) {
 			assert.Equal(t, tt.want.LimitValue, gotSelect.LimitValue, "limit")
 			assert.Equal(t, tt.want.OrderBy, gotSelect.OrderBy, "order by")
 			assert.Equal(t, tt.want.GroupByColumns, gotSelect.GroupByColumns, "group by")
-			assert.Equal(t, tt.want.AllParams, gotSelect.Params.AllKeys(), "params")
+			assert.ElementsMatch(t, tt.want.AllParams, gotSelect.Params.AllMetadata(), "params")
 		})
 	}
 }

@@ -236,7 +236,7 @@ func createBigtableSql(t *SelectTranslator, st *types.PreparedSelectQuery) (stri
 func ToBtql(dynamicValue types.DynamicValue) (string, error) {
 	switch v := dynamicValue.(type) {
 	case *types.LiteralValue:
-		return utilities.GoToString(v.Value)
+		return utilities.GoToQueryString(v.Value)
 	case *types.ParameterizedValue:
 		return string(v.Placeholder), nil
 	case *types.FunctionValue:

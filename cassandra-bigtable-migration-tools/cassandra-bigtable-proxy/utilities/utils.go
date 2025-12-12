@@ -260,7 +260,7 @@ func ParseBigInt(value string) (int64, error) {
 	return val, err
 }
 
-func GoToString(value types.GoValue) (string, error) {
+func GoToQueryString(value types.GoValue) (string, error) {
 	if value == nil {
 		return "null", nil
 	}
@@ -285,10 +285,18 @@ func GoToString(value types.GoValue) (string, error) {
 		}
 	case time.Time:
 		return fmt.Sprintf("TIMESTAMP_FROM_UNIX_MILLIS(%d)", v.UnixMilli()), nil
+	case uuid.UUID:
+		b, err := v.MarshalBinary()
+		if err != nil {
+			return "", err
+		}
+		return bytesToQueryString(b), nil
+	case []byte:
+		return bytesToQueryString(v), nil
 	case []interface{}:
 		var values []string
 		for _, vi := range v {
-			s, err := GoToString(vi)
+			s, err := GoToQueryString(vi)
 			if err != nil {
 				return "", err
 			}
@@ -298,6 +306,10 @@ func GoToString(value types.GoValue) (string, error) {
 	default:
 		return "", fmt.Errorf("unhandled go to string conversion for type %T", v)
 	}
+}
+
+func bytesToQueryString(b []byte) string {
+	return fmt.Sprintf(`FROM_HEX('%x')`, b)
 }
 
 func StringToGo(value string, cqlType types.CqlDataType) (types.GoValue, error) {

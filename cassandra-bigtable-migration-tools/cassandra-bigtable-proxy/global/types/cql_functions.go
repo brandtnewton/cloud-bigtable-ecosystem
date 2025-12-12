@@ -221,7 +221,7 @@ func maxUUIDv1ForTime(t time.Time) (uuid.UUID, error) {
 	// clock_seq_hi_and_variant (byte 8, 8 bits)
 	// The variant bits must be 10 (0x80 to 0xBF). We set the clock sequence to max.
 	// 0xBF is 0b10111111 (variant 10 and max 6 bits for the clock sequence high part)
-	u[8] = 0xBF
+	u[8] = 0xFF
 
 	// clock_seq_low (byte 9, 8 bits)
 	u[9] = 0xFF

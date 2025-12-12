@@ -18,7 +18,9 @@ package select_translator
 import (
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/parser"
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/testing/mockdata"
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
+	"log"
 	"testing"
 	"time"
 
@@ -530,6 +532,43 @@ func TestTranslator_TranslateSelectQuerytoBigtable(t *testing.T) {
 			},
 		},
 		{
+			name:  "function first, then column in comparison",
+			query: "SELECT id, username FROM test_keyspace.timeuuid_table WHERE maxTimeuuid('2018-12-09 10:01:00+0000') < id",
+			want: &Want{
+				TranslatedQuery: "SELECT id, `cf1`['username'] FROM timeuuid_table WHERE id > @value0;",
+				Table:           "timeuuid_table",
+				Keyspace:        "test_keyspace",
+				SelectClause: &types.SelectClause{
+					Columns: []types.SelectedColumn{
+						*types.NewSelectedColumn("id", "id", "", types.TypeTimeuuid),
+						*types.NewSelectedColumn("username", "username", "", types.TypeText),
+					},
+				},
+				AllParams: []types.PlaceholderMetadata{{
+					Key:             "@value0",
+					Type:            types.TypeTimeuuid,
+					IsUserParameter: false,
+				}},
+				Conditions: []types.Condition{
+					{
+						Column:   mockdata.GetColumnOrDie("test_keyspace", "timeuuid_table", "id"),
+						Operator: ">",
+						Value:    types.NewFunctionValue("@value0", types.FuncCodeMaxTimeuuid, []types.DynamicValue{types.NewLiteralValue(time.Date(2018, 12, 9, 10, 1, 0, 0, time.UTC))}),
+					},
+				},
+			},
+		},
+		{
+			name:    "unknown function",
+			query:   "SELECT id, username FROM test_keyspace.timeuuid_table WHERE id < whatThe(?)",
+			wantErr: "unrecognized function `whatthe`",
+		},
+		{
+			name:    "function on column",
+			query:   "SELECT id, username FROM test_keyspace.timeuuid_table WHERE maxTimeuuid(id) < now()",
+			wantErr: "unsupported condition type",
+		},
+		{
 			name:  "prepared function arg",
 			query: "SELECT id, username FROM test_keyspace.timeuuid_table WHERE id > maxTimeuuid(?)",
 			want: &Want{
@@ -559,6 +598,63 @@ func TestTranslator_TranslateSelectQuerytoBigtable(t *testing.T) {
 						Column:   mockdata.GetColumnOrDie("test_keyspace", "timeuuid_table", "id"),
 						Operator: ">",
 						Value:    types.NewFunctionValue("@value1", types.FuncCodeMaxTimeuuid, []types.DynamicValue{types.NewParameterizedValue("@value0")}),
+					},
+				},
+			},
+		},
+		{
+			name:  "prepared function arg",
+			query: "SELECT id, username FROM test_keyspace.timeuuid_table WHERE id = 6c9b87f6-d764-11f0-8f97-8e0ad7a51247",
+			want: &Want{
+				TranslatedQuery: "SELECT id, `cf1`['username'] FROM timeuuid_table WHERE id = FROM_HEX('6c9b87f6d76411f08f978e0ad7a51247');",
+				Table:           "timeuuid_table",
+				Keyspace:        "test_keyspace",
+				SelectClause: &types.SelectClause{
+					Columns: []types.SelectedColumn{
+						*types.NewSelectedColumn("id", "id", "", types.TypeTimeuuid),
+						*types.NewSelectedColumn("username", "username", "", types.TypeText),
+					},
+				},
+				AllParams: nil,
+				Conditions: []types.Condition{
+					{
+						Column:   mockdata.GetColumnOrDie("test_keyspace", "timeuuid_table", "id"),
+						Operator: "=",
+						Value:    types.NewLiteralValue(parseUuidOrDie("6c9b87f6-d764-11f0-8f97-8e0ad7a51247")),
+					},
+				},
+			},
+		},
+		{
+			name:  "prepared function arg minTimuuid",
+			query: "SELECT id, username FROM test_keyspace.timeuuid_table WHERE id > minTimeuuid(?)",
+			want: &Want{
+				TranslatedQuery: "SELECT id, `cf1`['username'] FROM timeuuid_table WHERE id > @value1;",
+				Table:           "timeuuid_table",
+				Keyspace:        "test_keyspace",
+				SelectClause: &types.SelectClause{
+					Columns: []types.SelectedColumn{
+						*types.NewSelectedColumn("id", "id", "", types.TypeTimeuuid),
+						*types.NewSelectedColumn("username", "username", "", types.TypeText),
+					},
+				},
+				AllParams: []types.PlaceholderMetadata{
+					{
+						Key:             "@value0",
+						Type:            types.TypeTimestamp,
+						IsUserParameter: true,
+					},
+					{
+						Key:             "@value1",
+						Type:            types.TypeTimeuuid,
+						IsUserParameter: false,
+					},
+				},
+				Conditions: []types.Condition{
+					{
+						Column:   mockdata.GetColumnOrDie("test_keyspace", "timeuuid_table", "id"),
+						Operator: ">",
+						Value:    types.NewFunctionValue("@value1", types.FuncCodeMinTimeuuid, []types.DynamicValue{types.NewParameterizedValue("@value0")}),
 					},
 				},
 			},
@@ -1362,4 +1458,12 @@ func TestTranslator_TranslateSelectQuerytoBigtable(t *testing.T) {
 			assert.ElementsMatch(t, tt.want.AllParams, gotSelect.Params.AllMetadata(), "params")
 		})
 	}
+}
+
+func parseUuidOrDie(s string) uuid.UUID {
+	u, err := uuid.Parse(s)
+	if err != nil {
+		log.Fatalf("failed to parse uuid `%s`: %s", s, err.Error())
+	}
+	return u
 }

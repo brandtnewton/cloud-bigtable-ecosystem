@@ -1135,8 +1135,8 @@ func cqlparserParserInit() {
 		3, 374, 187, 0, 2054, 2055, 3, 326, 163, 0, 2055, 2056, 3, 350, 175, 0,
 		2056, 333, 1, 0, 0, 0, 2057, 2058, 3, 350, 175, 0, 2058, 2059, 3, 326,
 		163, 0, 2059, 2060, 3, 374, 187, 0, 2060, 335, 1, 0, 0, 0, 2061, 2062,
-		3, 374, 187, 0, 2062, 2063, 3, 434, 217, 0, 2063, 2064, 3, 358, 179, 0,
-		2064, 2065, 3, 422, 211, 0, 2065, 2066, 3, 358, 179, 0, 2066, 337, 1, 0,
+		3, 374, 187, 0, 2062, 2063, 3, 434, 217, 0, 2063, 2064, 3, 356, 178, 0,
+		2064, 2065, 3, 422, 211, 0, 2065, 2066, 3, 356, 178, 0, 2066, 337, 1, 0,
 		0, 0, 2067, 2068, 3, 374, 187, 0, 2068, 2069, 3, 326, 163, 0, 2069, 2070,
 		3, 358, 179, 0, 2070, 339, 1, 0, 0, 0, 2071, 2072, 3, 374, 187, 0, 2072,
 		2073, 3, 296, 148, 0, 2073, 2074, 3, 358, 179, 0, 2074, 341, 1, 0, 0, 0,
@@ -35475,8 +35475,8 @@ type IRelationBetweenContext interface {
 	// Getter signatures
 	Column() IColumnContext
 	KwBetween() IKwBetweenContext
-	AllConstant() []IConstantContext
-	Constant(i int) IConstantContext
+	AllValueAny() []IValueAnyContext
+	ValueAny(i int) IValueAnyContext
 	KwAnd() IKwAndContext
 
 	// IsRelationBetweenContext differentiates from other interfaces.
@@ -35547,20 +35547,20 @@ func (s *RelationBetweenContext) KwBetween() IKwBetweenContext {
 	return t.(IKwBetweenContext)
 }
 
-func (s *RelationBetweenContext) AllConstant() []IConstantContext {
+func (s *RelationBetweenContext) AllValueAny() []IValueAnyContext {
 	children := s.GetChildren()
 	len := 0
 	for _, ctx := range children {
-		if _, ok := ctx.(IConstantContext); ok {
+		if _, ok := ctx.(IValueAnyContext); ok {
 			len++
 		}
 	}
 
-	tst := make([]IConstantContext, len)
+	tst := make([]IValueAnyContext, len)
 	i := 0
 	for _, ctx := range children {
-		if t, ok := ctx.(IConstantContext); ok {
-			tst[i] = t.(IConstantContext)
+		if t, ok := ctx.(IValueAnyContext); ok {
+			tst[i] = t.(IValueAnyContext)
 			i++
 		}
 	}
@@ -35568,11 +35568,11 @@ func (s *RelationBetweenContext) AllConstant() []IConstantContext {
 	return tst
 }
 
-func (s *RelationBetweenContext) Constant(i int) IConstantContext {
+func (s *RelationBetweenContext) ValueAny(i int) IValueAnyContext {
 	var t antlr.RuleContext
 	j := 0
 	for _, ctx := range s.GetChildren() {
-		if _, ok := ctx.(IConstantContext); ok {
+		if _, ok := ctx.(IValueAnyContext); ok {
 			if j == i {
 				t = ctx.(antlr.RuleContext)
 				break
@@ -35585,7 +35585,7 @@ func (s *RelationBetweenContext) Constant(i int) IConstantContext {
 		return nil
 	}
 
-	return t.(IConstantContext)
+	return t.(IValueAnyContext)
 }
 
 func (s *RelationBetweenContext) KwAnd() IKwAndContext {
@@ -35638,7 +35638,7 @@ func (p *CqlParser) RelationBetween() (localctx IRelationBetweenContext) {
 	}
 	{
 		p.SetState(2063)
-		p.Constant()
+		p.ValueAny()
 	}
 	{
 		p.SetState(2064)
@@ -35646,7 +35646,7 @@ func (p *CqlParser) RelationBetween() (localctx IRelationBetweenContext) {
 	}
 	{
 		p.SetState(2065)
-		p.Constant()
+		p.ValueAny()
 	}
 
 errorExit:

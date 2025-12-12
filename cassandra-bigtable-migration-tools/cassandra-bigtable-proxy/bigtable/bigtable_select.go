@@ -52,6 +52,10 @@ func (btc *BigtableAdapter) ExecutePreparedStatement(ctx context.Context, query 
 		return nil, fmt.Errorf("failed to bind parameters: %w", err)
 	}
 
+	if btc.Logger.Level().Enabled(zap.DebugLevel) {
+		btc.Logger.Debug("binding select query", zap.String("cql", query.CqlQuery()), zap.String("btql", query.BigtableQuery()), zap.Any("values", params))
+	}
+
 	boundStmt, err := query.CachedBTPrepare.Bind(params)
 	if err != nil {
 		btc.Logger.Error("Failed to bind parameters", zap.Any("params", params), zap.Error(err))

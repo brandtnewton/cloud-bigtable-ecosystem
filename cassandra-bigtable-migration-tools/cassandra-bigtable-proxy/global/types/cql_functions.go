@@ -265,7 +265,7 @@ func setUuidV1Time(t time.Time, u *[16]byte) error {
 	// The 4 bits for version 1 must be set.
 	// Version = 0x1XXX (0b0001XXXX)
 	timeHi := timestamp100ns >> 48
-	timeHi |= (1 << 12) // Set version to 1 (0x1000)
+	timeHi |= 1 << 12 // Set version to 1 (0x1000)
 
 	u[6] = byte(timeHi >> 8)
 	u[7] = byte(timeHi)

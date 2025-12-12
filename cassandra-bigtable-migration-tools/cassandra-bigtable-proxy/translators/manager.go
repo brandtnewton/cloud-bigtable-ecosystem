@@ -84,7 +84,13 @@ func (t *TranslatorManager) TranslateQuery(q *types.RawQuery, sessionKeyspace ty
 		return nil, fmt.Errorf("error translating query: %w", err)
 	}
 
-	t.Logger.Debug("translated query", zap.String("cql", q.RawCql()), zap.String("btql", preparedQuery.BigtableQuery()))
+	if t.Logger.Level().Enabled(zap.DebugLevel) {
+		var params []types.PlaceholderMetadata
+		if preparedQuery.Parameters() != nil {
+			params = preparedQuery.Parameters().AllUserKeys()
+		}
+		t.Logger.Debug("translated query", zap.String("cql", q.RawCql()), zap.String("btql", preparedQuery.BigtableQuery()), zap.Any("params", params))
+	}
 
 	// ensure user doesn't try to drop or corrupt the schema mapping table
 	if !preparedQuery.Keyspace().IsSystemKeyspace() && preparedQuery.Table() == t.config.SchemaMappingTable {

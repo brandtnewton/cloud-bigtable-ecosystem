@@ -603,6 +603,51 @@ func TestTranslator_TranslateSelectQuerytoBigtable(t *testing.T) {
 			},
 		},
 		{
+			name:  "between functions",
+			query: "SELECT id, username FROM test_keyspace.timeuuid_table WHERE id BETWEEN minTimeuuid(?) AND maxTimeuuid(?)",
+			want: &Want{
+				TranslatedQuery: "SELECT id, `cf1`['username'] FROM timeuuid_table WHERE id BETWEEN @value1 AND @value3;",
+				Table:           "timeuuid_table",
+				Keyspace:        "test_keyspace",
+				SelectClause: &types.SelectClause{
+					Columns: []types.SelectedColumn{
+						*types.NewSelectedColumn("id", "id", "", types.TypeTimeuuid),
+						*types.NewSelectedColumn("username", "username", "", types.TypeText),
+					},
+				},
+				AllParams: []types.PlaceholderMetadata{
+					{
+						Key:             "@value0",
+						Type:            types.TypeTimestamp,
+						IsUserParameter: true,
+					},
+					{
+						Key:             "@value1",
+						Type:            types.TypeTimeuuid,
+						IsUserParameter: false,
+					},
+					{
+						Key:             "@value2",
+						Type:            types.TypeTimestamp,
+						IsUserParameter: true,
+					},
+					{
+						Key:             "@value3",
+						Type:            types.TypeTimeuuid,
+						IsUserParameter: false,
+					},
+				},
+				Conditions: []types.Condition{
+					{
+						Column:   mockdata.GetColumnOrDie("test_keyspace", "timeuuid_table", "id"),
+						Operator: "BETWEEN",
+						Value:    types.NewFunctionValue("@value1", types.FuncCodeMinTimeuuid, []types.DynamicValue{types.NewParameterizedValue("@value0")}),
+						Value2:   types.NewFunctionValue("@value3", types.FuncCodeMaxTimeuuid, []types.DynamicValue{types.NewParameterizedValue("@value2")}),
+					},
+				},
+			},
+		},
+		{
 			name:  "prepared function arg",
 			query: "SELECT id, username FROM test_keyspace.timeuuid_table WHERE id = 6c9b87f6-d764-11f0-8f97-8e0ad7a51247",
 			want: &Want{

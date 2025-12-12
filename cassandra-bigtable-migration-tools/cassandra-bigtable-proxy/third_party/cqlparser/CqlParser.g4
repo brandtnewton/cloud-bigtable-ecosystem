@@ -821,7 +821,7 @@ relationFunctionCompareColumn
    ;
 
 relationBetween
-   : column kwBetween constant kwAnd constant
+   : column kwBetween valueAny kwAnd valueAny
    ;
 
 relationCompare

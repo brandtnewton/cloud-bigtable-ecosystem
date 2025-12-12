@@ -234,15 +234,15 @@ func parseWhereBetween(between cql.IRelationBetweenContext, tableConfig *schemaM
 		return types.Condition{}, err
 	}
 
-	if len(between.AllConstant()) != 2 {
+	if len(between.AllValueAny()) != 2 {
 		return types.Condition{}, fmt.Errorf("BETWEEN condition must have exactly 2 values")
 	}
 
-	v1, err := ParseConstantValue(between.Constant(0), column.CQLType, params)
+	v1, err := ParseValueAny(between.ValueAny(0), column.CQLType, params)
 	if err != nil {
 		return types.Condition{}, err
 	}
-	v2, err := ParseConstantValue(between.Constant(1), column.CQLType, params)
+	v2, err := ParseValueAny(between.ValueAny(1), column.CQLType, params)
 	if err != nil {
 		return types.Condition{}, err
 	}

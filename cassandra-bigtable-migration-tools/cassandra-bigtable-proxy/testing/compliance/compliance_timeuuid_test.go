@@ -5,7 +5,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"testing"
-	"time"
 )
 
 // todo write literal uuid
@@ -38,20 +37,18 @@ func TestInsertTimeUuidLiteral(t *testing.T) {
 
 func TestMaxAndMinTimestamp(t *testing.T) {
 	t.Parallel()
-	t1 := gocql.TimeUUID()
+
+	t1, _ := gocql.ParseUUID("7b287b9e-d769-11f0-b949-8e0ad7a51247")
+	t2, _ := gocql.ParseUUID("7e2fcec8-d769-11f0-b94a-8e0ad7a51247")
+	// 2025-12-12 14:47:38.769 +0000
+	t3, _ := gocql.ParseUUID("8133fa68-d769-11f0-b94b-8e0ad7a51247")
+	t4, _ := gocql.ParseUUID("843a7228-d769-11f0-b94c-8e0ad7a51247")
+	t5, _ := gocql.ParseUUID("87575e30-d769-11f0-b94d-8e0ad7a51247")
+
 	require.NoError(t, session.Query(`INSERT INTO timeuuid_table (region, event_time, measurement, parent_event) VALUES ('timeuuid-minmax', ?, 3, now())`, t1).Exec())
-	// sleep because we want the time to be different - not just the clock sequence
-	time.Sleep(1 * time.Millisecond)
-	t2 := gocql.TimeUUID()
 	require.NoError(t, session.Query(`INSERT INTO timeuuid_table (region, event_time, measurement, parent_event) VALUES ('timeuuid-minmax', ?, 3, now())`, t2).Exec())
-	time.Sleep(1 * time.Millisecond)
-	t3 := gocql.TimeUUID()
 	require.NoError(t, session.Query(`INSERT INTO timeuuid_table (region, event_time, measurement, parent_event) VALUES ('timeuuid-minmax', ?, 3, now())`, t3).Exec())
-	time.Sleep(1 * time.Millisecond)
-	t4 := gocql.TimeUUID()
 	require.NoError(t, session.Query(`INSERT INTO timeuuid_table (region, event_time, measurement, parent_event) VALUES ('timeuuid-minmax', ?, 3, now())`, t4).Exec())
-	time.Sleep(1 * time.Millisecond)
-	t5 := gocql.TimeUUID()
 	require.NoError(t, session.Query(`INSERT INTO timeuuid_table (region, event_time, measurement, parent_event) VALUES ('timeuuid-minmax', ?, 3, now())`, t5).Exec())
 
 	t.Run("< timeuuid", func(t *testing.T) {
@@ -109,7 +106,25 @@ func TestMaxAndMinTimestamp(t *testing.T) {
 		t.Parallel()
 		got, err := scanAllTimeuuids(session.Query(`SELECT event_time FROM timeuuid_table WHERE region='timeuuid-minmax' AND event_time < maxTimeuuid(?)`, t3.Time()).Iter().Scanner())
 		require.NoError(t, err)
+		assert.Contains(t, got, t1)
+		assert.Contains(t, got, t2)
+		assert.Contains(t, got, t3)
 		assert.Equal(t, []gocql.UUID{t1, t2, t3}, got)
+	})
+
+	t.Run("between t1 t3", func(t *testing.T) {
+		t.Parallel()
+		got, err := scanAllTimeuuids(session.Query(`SELECT event_time FROM timeuuid_table WHERE region='timeuuid-minmax' AND event_time BETWEEN ? AND ?`, t1, t3).Iter().Scanner())
+		require.NoError(t, err)
+		// between is inclusive
+		assert.Equal(t, []gocql.UUID{t1, t2, t3}, got)
+	})
+
+	t.Run("between min max", func(t *testing.T) {
+		t.Parallel()
+		got, err := scanAllTimeuuids(session.Query(`SELECT event_time FROM timeuuid_table WHERE region='timeuuid-minmax' AND event_time BETWEEN  minTimeuuid(?) AND maxTimeuuid(?)`, t3.Time(), t3.Time()).Iter().Scanner())
+		require.NoError(t, err)
+		assert.Equal(t, []gocql.UUID{t3}, got)
 	})
 }
 

@@ -66,3 +66,32 @@ func TestMinMaxUUIDForUUID(t *testing.T) {
 	assert.Less(t, u.String(), maxUuid.String())
 	assert.Less(t, minUuid.String(), u.String())
 }
+
+func TestSetUuidV1Time(t *testing.T) {
+	u, err := uuid.Parse("8133fa68-d769-11f0-b94b-8e0ad7a51247")
+	require.NoError(t, err)
+	uuidTime := time.Date(2025, 12, 12, 14, 47, 38, 769060000, time.UTC)
+
+	b, err := u.MarshalBinary()
+	require.NoError(t, err)
+	b16 := [16]byte(b)
+	err = setUuidV1Time(uuidTime, &b16)
+	require.NoError(t, err)
+
+	got, err := getTimeFromUUID(u)
+	require.NoError(t, err)
+
+	assert.Equal(t, uuidTime, got)
+
+	gotMax, err := maxUUIDv1ForTime(uuidTime)
+	require.NoError(t, err)
+	gotMaxTime, err := getTimeFromUUID(gotMax)
+	require.NoError(t, err)
+	assert.Equal(t, uuidTime, gotMaxTime)
+
+	gotMin, err := maxUUIDv1ForTime(uuidTime)
+	require.NoError(t, err)
+	gotMinTime, err := getTimeFromUUID(gotMin)
+	require.NoError(t, err)
+	assert.Equal(t, uuidTime, gotMinTime)
+}

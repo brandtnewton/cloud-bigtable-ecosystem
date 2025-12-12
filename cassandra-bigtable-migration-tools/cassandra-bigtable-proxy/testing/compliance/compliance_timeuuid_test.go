@@ -41,7 +41,10 @@ func TestMaxAndMinTimestamp(t *testing.T) {
 	t1, _ := gocql.ParseUUID("7b287b9e-d769-11f0-b949-8e0ad7a51247")
 	t2, _ := gocql.ParseUUID("7e2fcec8-d769-11f0-b94a-8e0ad7a51247")
 	// 2025-12-12 14:47:38.769 +0000
+	// server: 2025-12-12 14:47:38.769 +0000 OK
+	// max: 8133f810-d769-11f0-ffff-ffffffffffff WHAT
 	t3, _ := gocql.ParseUUID("8133fa68-d769-11f0-b94b-8e0ad7a51247")
+
 	t4, _ := gocql.ParseUUID("843a7228-d769-11f0-b94c-8e0ad7a51247")
 	t5, _ := gocql.ParseUUID("87575e30-d769-11f0-b94d-8e0ad7a51247")
 

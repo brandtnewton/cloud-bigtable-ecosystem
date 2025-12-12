@@ -210,7 +210,10 @@ var timeFromGregorianEpochNanos = time.Date(1582, time.October, 15, 0, 0, 0, 0, 
 // This is achieved by setting the timestamp fields based on the input time,
 // and setting the Clock Sequence and Node ID fields to their maximum values.
 func maxUUIDv1ForTime(t time.Time) (uuid.UUID, error) {
-	u := setUuidV1Time(t, [16]byte{})
+	// For maxTimeuuid, Cassandra adds 9999 to the 100-nanosecond intervals timestamp.
+	// 9999 * 100 nanoseconds.
+	maxT := t.Add(9999 * 100 * time.Nanosecond)
+	u := setUuidV1Time(maxT, [16]byte{})
 
 	// --- Clock Sequence & Node ID Fields (Maxed Values) ---
 

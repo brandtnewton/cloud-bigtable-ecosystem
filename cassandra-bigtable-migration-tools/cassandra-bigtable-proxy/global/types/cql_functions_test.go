@@ -15,7 +15,7 @@ func TestMaxUUIDv1ForTime(t *testing.T) {
 	assert.Equal(t, uuid.Version(0x1), got.Version())
 	gotT, err := getTimeFromUUID(got)
 	require.NoError(t, err)
-	assert.Equal(t, date, gotT)
+	assert.Equal(t, date.Truncate(time.Millisecond), gotT.Truncate(time.Millisecond))
 }
 
 func TestMinUUIDv1ForTime(t *testing.T) {
@@ -77,14 +77,14 @@ func TestMaxTimeUUID(t *testing.T) {
 	assert.Equal(t, "5c09c580-d75d-11f0-8080-808080808080", minUuid.String())
 	minUuidTime, err := getTimeFromUUID(minUuid)
 	require.NoError(t, err)
-	assert.Equal(t, inputTime, minUuidTime)
+	assert.Equal(t, inputTime, minUuidTime.Truncate(time.Millisecond))
 
 	maxUuid, err := maxUUIDv1ForTime(inputTime)
 	require.NoError(t, err)
 	assert.Equal(t, "5c09ec8f-d75d-11f0-7f7f-7f7f7f7f7f7f", maxUuid.String())
 	maxUuidTime, err := getTimeFromUUID(maxUuid)
 	require.NoError(t, err)
-	assert.Equal(t, inputTime, maxUuidTime)
+	assert.Equal(t, inputTime, maxUuidTime.Truncate(time.Millisecond))
 }
 
 func TestSetUuidV1Time(t *testing.T) {

@@ -37,9 +37,7 @@ func TestInsertTimeUuidLiteral(t *testing.T) {
 }
 
 func TestValidateMaxAndMin(t *testing.T) {
-	inputTimeString := "2025-12-12 13:20:42.456"
-	inputTime, err := time.Parse(inputTimeString, "2006-01-02T15:04:05.000")
-	require.NoError(t, err)
+	inputTime := time.Date(2025, 12, 12, 13, 20, 42, 456000000, time.UTC)
 
 	minUuid, err := gocql.ParseUUID("5c09c580-d75d-11f0-8080-808080808080")
 	require.NoError(t, err)

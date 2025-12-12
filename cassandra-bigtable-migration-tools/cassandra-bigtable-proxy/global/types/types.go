@@ -60,7 +60,6 @@ func NewTypedGoValue(value GoValue, Type CqlDataType) *TypedGoValue {
 
 // GoValue - a plain Golang value
 type GoValue any
-
 type TableName string
 type Keyspace string
 

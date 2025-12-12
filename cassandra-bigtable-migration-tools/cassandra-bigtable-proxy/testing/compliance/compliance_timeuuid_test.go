@@ -5,6 +5,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"testing"
+	"time"
 )
 
 // todo write literal uuid
@@ -35,6 +36,26 @@ func TestInsertTimeUuidLiteral(t *testing.T) {
 	assert.Equal(t, "6c9b87f6-d764-11f0-8f98-8e0ad7a51247", got.parentEvent.String())
 }
 
+func TestValidateMaxAndMin(t *testing.T) {
+	inputTimeString := "2025-12-12 13:20:42.456"
+	inputTime, err := time.Parse(inputTimeString, "2006-01-02T15:04:05.000")
+	require.NoError(t, err)
+
+	minUuid, err := gocql.ParseUUID("5c09c580-d75d-11f0-8080-808080808080")
+	require.NoError(t, err)
+	maxUuid, err := gocql.ParseUUID("5c09ec8f-d75d-11f0-7f7f-7f7f7f7f7f7f")
+	require.NoError(t, err)
+
+	require.NoError(t, session.Query(`INSERT INTO timeuuid_table (region, event_time, measurement, parent_event) VALUES ('timeuuid-validate', ?, 3, now())`, minUuid).Exec())
+	require.NoError(t, session.Query(`INSERT INTO timeuuid_table (region, event_time, measurement, parent_event) VALUES ('timeuuid-validate', ?, 3, now())`, maxUuid).Exec())
+
+	var gotMin gocql.UUID
+	require.NoError(t, session.Query(`SELECT event_time FROM timeuuid_table WHERE region='timeuuid-validate' AND event_time = minTimeuuid(?)`, inputTime).Scan(&gotMin))
+	assert.Equal(t, minUuid, gotMin)
+	var gotMax gocql.UUID
+	require.NoError(t, session.Query(`SELECT event_time FROM timeuuid_table WHERE region='timeuuid-validate' AND event_time = maxTimeuuid(?)`, inputTime).Scan(&gotMax))
+	assert.Equal(t, maxUuid, gotMax)
+}
 func TestMaxAndMinTimestamp(t *testing.T) {
 	t.Parallel()
 

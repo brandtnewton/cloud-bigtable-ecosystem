@@ -1,6 +1,7 @@
 package types
 
 import (
+	"encoding/binary"
 	"fmt"
 	"github.com/google/uuid"
 	"strings"
@@ -209,76 +210,65 @@ var timeFromGregorianEpochNanos = time.Date(1582, time.October, 15, 0, 0, 0, 0, 
 // This is achieved by setting the timestamp fields based on the input time,
 // and setting the Clock Sequence and Node ID fields to their maximum values.
 func maxUUIDv1ForTime(t time.Time) (uuid.UUID, error) {
-	var u [16]byte
-
-	err := setUuidV1Time(t, &u)
-	if err != nil {
-		return uuid.Nil, err
-	}
+	u := setUuidV1Time(t, [16]byte{})
 
 	// --- Clock Sequence & Node ID Fields (Maxed Values) ---
 
 	// clock_seq_hi_and_variant (byte 8, 8 bits)
 	// The variant bits must be 10 (0x80 to 0xBF). We set the clock sequence to max.
 	// 0xBF is 0b10111111 (variant 10 and max 6 bits for the clock sequence high part)
-	u[8] = 0xFF
+	u[8] = 0x7f
 
 	// clock_seq_low (byte 9, 8 bits)
-	u[9] = 0xFF
+	u[9] = 0x7f
 
 	// Node ID (bytes 10-15, 48 bits) - set to all F's (max)
-	u[10] = 0xFF
-	u[11] = 0xFF
-	u[12] = 0xFF
-	u[13] = 0xFF
-	u[14] = 0xFF
-	u[15] = 0xFF
+	u[10] = 0x7f
+	u[11] = 0x7f
+	u[12] = 0x7f
+	u[13] = 0x7f
+	u[14] = 0x7f
+	u[15] = 0x7f
 
 	// Create the UUID from the byte array
 	return u, nil
 }
 
-func setUuidV1Time(t time.Time, u *[16]byte) error {
-	// 1. Calculate the 60-bit timestamp value
-	nanosSinceGregorianEpoch := t.In(time.UTC).UnixNano() - timeFromGregorianEpochNanos
-	timestamp100ns := uint64(nanosSinceGregorianEpoch) / 100
+func setUuidV1Time(t time.Time, id uuid.UUID) uuid.UUID {
+	const epochOffset = 122192928000000000
 
-	if timestamp100ns > 0xFFFFFFFFFFFFFFF {
-		return fmt.Errorf("time is out of UUIDv1 valid range (too far in the future)")
-	}
+	// Convert Unix time to 100-ns intervals
+	unixIntervals := t.Unix()*10000000 + int64(t.Nanosecond()/100)
 
-	// --- Timestamp Fields (Big-Endian Order) ---
-	// The timestamp parts are the same as the Max UUID function, as they
-	// depend only on the input time.
+	// Add the offset
+	uuidTime := uint64(unixIntervals + epochOffset)
 
-	// time_low (bytes 0-3, 32 bits)
-	u[0] = byte(timestamp100ns >> 24)
-	u[1] = byte(timestamp100ns >> 16)
-	u[2] = byte(timestamp100ns >> 8)
-	u[3] = byte(timestamp100ns)
+	// 2. Breakdown the 60-bit timestamp into fields
+	// UUID v1 Layout:
+	//   Time Low (32 bits)
+	//   Time Mid (16 bits)
+	//   Time High & Version (16 bits)
 
-	// time_mid (bytes 4-5, 16 bits)
-	u[4] = byte(timestamp100ns >> 40)
-	u[5] = byte(timestamp100ns >> 32)
+	timeLow := uint32(uuidTime & 0xFFFFFFFF)
+	timeMid := uint16((uuidTime >> 32) & 0xFFFF)
+	timeHi := uint16((uuidTime >> 48) & 0x0FFF)
 
-	// time_hi_and_version (bytes 6-7, 16 bits)
-	// The 4 bits for version 1 must be set.
-	// Version = 0x1XXX (0b0001XXXX)
-	timeHi := timestamp100ns >> 48
-	timeHi |= 1 << 12 // Set version to 1 (0x1000)
+	// 3. Write bytes into the UUID structure (Big Endian)
 
-	u[6] = byte(timeHi >> 8)
-	u[7] = byte(timeHi)
-	return nil
+	// Bytes 0-3: Time Low
+	binary.BigEndian.PutUint32(id[0:4], timeLow)
+
+	// Bytes 4-5: Time Mid
+	binary.BigEndian.PutUint16(id[4:6], timeMid)
+
+	// Bytes 6-7: Time High + Version
+	// We combine the high time bits with the Version 1 identifier (0x1000)
+	binary.BigEndian.PutUint16(id[6:8], timeHi|0x1000)
+	return id
 }
 
 func minUUIDv1ForTime(t time.Time) (uuid.UUID, error) {
-	var u [16]byte
-
-	err := setUuidV1Time(t, &u)
-	if err != nil {
-		return uuid.Nil, err
-	}
+	u := setUuidV1Time(t, [16]byte{})
 
 	// --- Clock Sequence & Node ID Fields (Minned Values) ---
 
@@ -288,15 +278,15 @@ func minUUIDv1ForTime(t time.Time) (uuid.UUID, error) {
 	u[8] = 0x80
 
 	// clock_seq_low (byte 9, 8 bits)
-	u[9] = 0x00 // Min 8 bits
+	u[9] = 0x80 // Min 8 bits
 
 	// Node ID (bytes 10-15, 48 bits) - set to all 0's (min)
-	u[10] = 0x00
-	u[11] = 0x00
-	u[12] = 0x00
-	u[13] = 0x00
-	u[14] = 0x00
-	u[15] = 0x00
+	u[10] = 0x80
+	u[11] = 0x80
+	u[12] = 0x80
+	u[13] = 0x80
+	u[14] = 0x80
+	u[15] = 0x80
 
 	// Create the UUID from the byte array
 	return u, nil

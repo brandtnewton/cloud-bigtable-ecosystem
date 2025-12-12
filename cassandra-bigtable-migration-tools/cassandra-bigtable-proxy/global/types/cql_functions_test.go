@@ -67,6 +67,26 @@ func TestMinMaxUUIDForUUID(t *testing.T) {
 	assert.Less(t, minUuid.String(), u.String())
 }
 
+// these values are taken directly from cassandra for the given date
+func TestMaxTimeUUID(t *testing.T) {
+	inputTime := time.Date(2025, 12, 12, 13, 20, 42, 456000000, time.UTC)
+	//inputTimeString := "2025-12-12 13:20:42.456"
+
+	minUuid, err := minUUIDv1ForTime(inputTime)
+	require.NoError(t, err)
+	assert.Equal(t, "5c09c580-d75d-11f0-8080-808080808080", minUuid.String())
+	minUuidTime, err := getTimeFromUUID(minUuid)
+	require.NoError(t, err)
+	assert.Equal(t, inputTime, minUuidTime)
+
+	maxUuid, err := maxUUIDv1ForTime(inputTime)
+	require.NoError(t, err)
+	assert.Equal(t, "5c09ec8f-d75d-11f0-7f7f-7f7f7f7f7f7f", maxUuid.String())
+	maxUuidTime, err := getTimeFromUUID(maxUuid)
+	require.NoError(t, err)
+	assert.Equal(t, inputTime, maxUuidTime)
+}
+
 func TestSetUuidV1Time(t *testing.T) {
 	u, err := uuid.Parse("8133fa68-d769-11f0-b94b-8e0ad7a51247")
 	require.NoError(t, err)
@@ -74,9 +94,7 @@ func TestSetUuidV1Time(t *testing.T) {
 
 	b, err := u.MarshalBinary()
 	require.NoError(t, err)
-	b16 := [16]byte(b)
-	err = setUuidV1Time(uuidTime, &b16)
-	require.NoError(t, err)
+	u = setUuidV1Time(uuidTime, [16]byte(b))
 
 	got, err := getTimeFromUUID(u)
 	require.NoError(t, err)

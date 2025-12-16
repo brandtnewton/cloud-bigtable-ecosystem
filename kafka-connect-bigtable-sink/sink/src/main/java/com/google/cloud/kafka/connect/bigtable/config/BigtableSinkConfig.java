@@ -206,11 +206,12 @@ public class BigtableSinkConfig extends AbstractConfig {
         // We only call it after validating that all other parameters are fine since creating
         // a Cloud Bigtable client uses many of these parameters, and we don't want to warn
         // the user unnecessarily.
-        if (!config.isBigtableConfigurationValid()) {
-          String errorMessage = "Cloud Bigtable configuration is invalid.";
-          for (String bigtableProp : BIGTABLE_CONFIGURATION_PROPERTIES) {
-            addErrorMessage(validationResult, bigtableProp, props.get(bigtableProp), errorMessage);
-          }
+        Throwable validationError = config.isBigtableConfigurationValid();
+        if (validationError != null) {
+            String errorMessage = String.format("Cloud Bigtable configuration is invalid: %s", validationError.getMessage());
+            for (String bigtableProp : BIGTABLE_CONFIGURATION_PROPERTIES) {
+                addErrorMessage(validationResult, bigtableProp, props.get(bigtableProp), errorMessage);
+            }
         }
       }
     }
@@ -594,24 +595,24 @@ public class BigtableSinkConfig extends AbstractConfig {
    * Checks whether Cloud Bigtable configuration is valid by connecting to Cloud Bigtable and
    * attempting to execute a simple read-only operation.
    *
-   * @return true if Cloud Bigtable configuration is valid, false otherwise.
+   * @return null if Cloud Bigtable configuration is valid, a Throwable otherwise.
    */
   @VisibleForTesting
-  boolean isBigtableConfigurationValid() {
-    BigtableTableAdminClientInterface bigtable = null;
-    try {
-      RetrySettings retrySettings =
-          getRetrySettings(BIGTABLE_CREDENTIALS_CHECK_TIMEOUT, Duration.ZERO);
-      bigtable = getBigtableAdminClient(retrySettings, retrySettings);
-      bigtable.listTables();
-      return true;
-    } catch (Throwable t) {
-      return false;
-    } finally {
-      if (bigtable != null) {
-        bigtable.close();
+  Throwable isBigtableConfigurationValid() {
+      BigtableTableAdminClientInterface bigtable = null;
+      try {
+          RetrySettings retrySettings =
+                  getRetrySettings(BIGTABLE_CREDENTIALS_CHECK_TIMEOUT, Duration.ZERO);
+          bigtable = getBigtableAdminClient(retrySettings, retrySettings);
+          bigtable.listTables();
+          return null;
+      } catch (Throwable t) {
+          return t;
+      } finally {
+          if (bigtable != null) {
+              bigtable.close();
+          }
       }
-    }
   }
 
   /**

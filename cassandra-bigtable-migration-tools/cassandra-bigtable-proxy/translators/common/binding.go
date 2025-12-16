@@ -4,7 +4,6 @@ import (
 	"encoding/binary"
 	"fmt"
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/global/types"
-	schemaMapping "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/metadata"
 	"github.com/datastax/go-cassandra-native-protocol/primitive"
 	"strconv"
 	"strings"
@@ -406,18 +405,14 @@ func BindQueryParams(params *types.QueryParameters, values []*primitive.Value, p
 	return result, nil
 }
 
-func BindSelectColumns(table *schemaMapping.TableSchema, selectedColumns []types.SelectedColumn) ([]types.BoundSelectColumn, error) {
+func BindSelectColumns(selectedColumns []types.SelectedColumn) ([]types.BoundSelectColumn, error) {
 	var boundColumns []types.BoundSelectColumn
 	for _, selectedColumn := range selectedColumns {
 		var bc types.BoundSelectColumn
-		col, err := table.GetColumn(selectedColumn.ColumnName)
-		if err != nil {
-			return nil, err
-		}
-		if selectedColumn.ListIndex != -1 {
-			bc = types.NewBoundIndexColumn(col, int(selectedColumn.ListIndex))
-		} else if selectedColumn.MapKey != "" {
-			bc = types.NewBoundKeyColumn(col, selectedColumn.MapKey)
+		if li, ok := selectedColumn.Value.(types.ListElementValue); ok {
+			bc = types.NewBoundIndexColumn(li.Column, int(li.ListIndex))
+		} else if mk, ok := selectedColumn.Value.(types.MapAccessValue); ok {
+			bc = types.NewBoundKeyColumn(mk.Column, mk.MapKey)
 		} else {
 			return nil, fmt.Errorf("unhandled select column type found binding")
 		}

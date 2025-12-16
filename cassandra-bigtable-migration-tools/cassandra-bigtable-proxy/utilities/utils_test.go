@@ -607,7 +607,7 @@ func TestFromDataCode(t *testing.T) {
 		expectedErr string
 	}{
 		{
-			name:        "Unhandled Primitive Type",
+			name:        "Unhandled Primitive Types",
 			input:       datatype.NewCustomType("foobar"), // An invalid/unhandled code
 			expectedErr: "unhandled type: custom(foobar)",
 		},

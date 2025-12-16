@@ -38,6 +38,14 @@ func (c CqlFuncCode) String() string {
 		return "min"
 	case FuncCodeMax:
 		return "max"
+	case FuncCodeNow:
+		return "now"
+	case FuncCodeToTimestamp:
+		return "toTimestamp"
+	case FuncCodeMinTimeuuid:
+		return "minTimeuuid"
+	case FuncCodeMaxTimeuuid:
+		return "maxTimeuuid"
 	default:
 		return "unknown"
 	}
@@ -74,45 +82,159 @@ type CqlFuncSpec struct {
 	Code           CqlFuncCode
 	ParameterTypes []CqlFuncParameter
 	ReturnType     CqlDataType
+	ValidClauses   []QueryClause
 	Apply          func(args []DynamicValue, value *QueryParameterValues) (GoValue, error)
 }
 
 type CqlFuncParameter struct {
-	Name string
-	Type CqlDataType
+	Types       []CqlDataType
+	AllowColumn bool
+	AllowStar   bool
 }
 
-func NewCqlFuncParameter(name string, t CqlDataType) *CqlFuncParameter {
-	return &CqlFuncParameter{Name: name, Type: t}
+func NewCqlFuncParameter(Types []CqlDataType, allowColumn bool, allowStar bool) *CqlFuncParameter {
+	return &CqlFuncParameter{Types: Types, AllowColumn: allowColumn, AllowStar: allowStar}
 }
 
-func NewCqlFuncSpec(code CqlFuncCode, parameterTypes []CqlFuncParameter, returnType CqlDataType, apply func(args []DynamicValue, value *QueryParameterValues) (GoValue, error)) *CqlFuncSpec {
-	return &CqlFuncSpec{Code: code, ParameterTypes: parameterTypes, ReturnType: returnType, Apply: apply}
+func NewCqlFuncSpec(code CqlFuncCode, parameterTypes []CqlFuncParameter, returnType CqlDataType, validClauses []QueryClause, apply func(args []DynamicValue, value *QueryParameterValues) (GoValue, error)) *CqlFuncSpec {
+	return &CqlFuncSpec{Code: code, ParameterTypes: parameterTypes, ReturnType: returnType, ValidClauses: validClauses, Apply: apply}
 }
 
 var (
-	FuncNow         = NewCqlFuncSpec(FuncCodeNow, nil, TypeTimeuuid, now)
-	FuncToTimestamp = NewCqlFuncSpec(FuncCodeToTimestamp, []CqlFuncParameter{*NewCqlFuncParameter("time", TypeTimeuuid)}, TypeTimestamp, toTimestamp)
-	FuncMinTimeUuid = NewCqlFuncSpec(FuncCodeMinTimeuuid, []CqlFuncParameter{*NewCqlFuncParameter("time", TypeTimestamp)}, TypeTimeuuid, minTimeUuid)
-	FuncMaxTimeUuid = NewCqlFuncSpec(FuncCodeMaxTimeuuid, []CqlFuncParameter{*NewCqlFuncParameter("time", TypeTimestamp)}, TypeTimeuuid, maxTimeUuid)
+	FuncWriteTime = NewCqlFuncSpec(
+		FuncCodeWriteTime,
+		[]CqlFuncParameter{
+			*NewCqlFuncParameter(
+				AllScalarTypes,
+				true,
+				false,
+			),
+		},
+		TypeBigInt,
+		[]QueryClause{QueryClauseSelect},
+		nil)
+	FuncCount = NewCqlFuncSpec(
+		FuncCodeCount,
+		[]CqlFuncParameter{
+			*NewCqlFuncParameter(
+				AllScalarTypes,
+				true,
+				true,
+			),
+		},
+		TypeBigInt,
+		[]QueryClause{QueryClauseSelect},
+		nil)
+	FuncAvg = NewCqlFuncSpec(
+		FuncCodeAvg,
+		[]CqlFuncParameter{
+			*NewCqlFuncParameter(
+				AllNumericTypes,
+				true,
+				false,
+			),
+		},
+		TypeDouble,
+		[]QueryClause{QueryClauseSelect},
+		nil,
+	)
+	FuncSum = NewCqlFuncSpec(
+		FuncCodeSum,
+		[]CqlFuncParameter{
+			*NewCqlFuncParameter(
+				AllNumericTypes,
+				true,
+				false,
+			),
+		},
+		TypeDouble,
+		[]QueryClause{QueryClauseSelect},
+		nil)
+	FuncMin = NewCqlFuncSpec(
+		FuncCodeMin,
+		[]CqlFuncParameter{
+			*NewCqlFuncParameter(
+				AllNumericTypes,
+				true,
+				false,
+			),
+		},
+		TypeDouble,
+		[]QueryClause{QueryClauseSelect},
+		nil)
+	FuncMax = NewCqlFuncSpec(
+		FuncCodeMax,
+		[]CqlFuncParameter{
+			*NewCqlFuncParameter(
+				AllNumericTypes,
+				true,
+				false,
+			),
+		},
+		TypeDouble,
+		[]QueryClause{QueryClauseSelect},
+		nil)
+	FuncNow = NewCqlFuncSpec(
+		FuncCodeNow,
+		nil,
+		TypeTimeuuid,
+		[]QueryClause{QueryClauseWhere},
+		now)
+	FuncToTimestamp = NewCqlFuncSpec(
+		FuncCodeToTimestamp,
+		[]CqlFuncParameter{
+			*NewCqlFuncParameter(
+				[]CqlDataType{
+					TypeTimeuuid,
+				},
+				false,
+				false,
+			),
+		},
+		TypeTimestamp,
+		[]QueryClause{QueryClauseWhere},
+		toTimestamp,
+	)
+	FuncMinTimeUuid = NewCqlFuncSpec(FuncCodeMinTimeuuid,
+		[]CqlFuncParameter{
+			*NewCqlFuncParameter(
+				[]CqlDataType{
+					TypeTimestamp,
+				},
+				false,
+				false),
+		},
+		TypeTimeuuid,
+		[]QueryClause{QueryClauseWhere},
+		minTimeUuid)
+	FuncMaxTimeUuid = NewCqlFuncSpec(FuncCodeMaxTimeuuid,
+		[]CqlFuncParameter{
+			*NewCqlFuncParameter(
+				[]CqlDataType{
+					TypeTimestamp,
+				},
+				false,
+				false),
+		},
+		TypeTimeuuid,
+		[]QueryClause{QueryClauseWhere},
+		maxTimeUuid)
 )
 
 func GetCqlFunc(code CqlFuncCode) (*CqlFuncSpec, error) {
 	switch code {
-	//case FuncCodeUnknown:
-	//	return FuncUnknown, nil
-	//case FuncCodeWriteTime:
-	//	return FuncWriteTime, nil
-	//case FuncCodeCount:
-	//	return FuncCount, nil
-	//case FuncCodeAvg:
-	//	return FuncAvg, nil
-	//case FuncCodeSum:
-	//	return FuncSum, nil
-	//case FuncCodeMin:
-	//	return FuncMin, nil
-	//case FuncCodeMax:
-	//	return FuncMax, nil
+	case FuncCodeWriteTime:
+		return FuncWriteTime, nil
+	case FuncCodeCount:
+		return FuncCount, nil
+	case FuncCodeAvg:
+		return FuncAvg, nil
+	case FuncCodeSum:
+		return FuncSum, nil
+	case FuncCodeMin:
+		return FuncMin, nil
+	case FuncCodeMax:
+		return FuncMax, nil
 	case FuncCodeNow:
 		return FuncNow, nil
 	case FuncCodeToTimestamp:
@@ -138,11 +260,6 @@ func now(_ []DynamicValue, _ *QueryParameterValues) (GoValue, error) {
 }
 
 func toTimestamp(args []DynamicValue, values *QueryParameterValues) (GoValue, error) {
-	err := validateArgCount(1, args)
-	if err != nil {
-		return nil, err
-	}
-
 	u, err := getUuidArg(0, args, values)
 	if err != nil {
 		return nil, err
@@ -151,11 +268,6 @@ func toTimestamp(args []DynamicValue, values *QueryParameterValues) (GoValue, er
 }
 
 func maxTimeUuid(args []DynamicValue, values *QueryParameterValues) (GoValue, error) {
-	err := validateArgCount(1, args)
-	if err != nil {
-		return nil, err
-	}
-
 	u, err := getTimeArg(0, args, values)
 	if err != nil {
 		return nil, err
@@ -164,11 +276,6 @@ func maxTimeUuid(args []DynamicValue, values *QueryParameterValues) (GoValue, er
 }
 
 func minTimeUuid(args []DynamicValue, values *QueryParameterValues) (GoValue, error) {
-	err := validateArgCount(1, args)
-	if err != nil {
-		return nil, err
-	}
-
 	u, err := getTimeArg(0, args, values)
 	if err != nil {
 		return nil, err
@@ -200,6 +307,62 @@ func getTimeArg(index int, args []DynamicValue, values *QueryParameterValues) (t
 		return time.Time{}, fmt.Errorf("invalid argment: %T expected time.Time", value)
 	}
 	return u, nil
+}
+
+func ValidateFunctionArgs(f *FunctionValue) error {
+	if len(f.Func.ParameterTypes) != len(f.Args) {
+		return fmt.Errorf("function '%s' expects %d args but got %d", f.Func.Code.String(), len(f.Func.ParameterTypes), len(f.Args))
+	}
+
+	for i, arg := range f.Args {
+		param := f.Func.ParameterTypes[i]
+		star := IsSelectStar(arg)
+		if !param.AllowStar && star {
+			return fmt.Errorf("function '%s' doesn't allow '*' args for parameter %d", f.Func.Code.String(), i)
+		}
+		if !param.AllowColumn && IsColumn(arg) {
+			return fmt.Errorf("function '%s' doesn't allow column args for parameter %d", f.Func.Code.String(), i)
+		}
+
+		// star is allowed so it's ok
+		if star {
+			continue
+		}
+
+		isValidType := false
+		for _, dataType := range param.Types {
+			if dataType == arg.GetType() {
+				isValidType = true
+				break
+			}
+		}
+		if !isValidType {
+			return fmt.Errorf("function '%s' parameter %d doesn't accept type %s", f.Func.Code.String(), i, arg.GetType().String())
+		}
+	}
+	return nil
+}
+
+func getColumnArgOrStar(index int, args []DynamicValue) (DynamicValue, error) {
+	value := args[index]
+	star, ok := value.(SelectStarValue)
+	if ok {
+		return star, nil
+	}
+	col, ok := value.(ColumnValue)
+	if ok {
+		return col, nil
+	}
+	return nil, fmt.Errorf("invalid argument: %T expected column or *", value)
+}
+
+func getColumnArg(index int, args []DynamicValue) (*Column, error) {
+	value := args[index]
+	col, ok := value.(ColumnValue)
+	if !ok {
+		return nil, fmt.Errorf("invalid argument: %T expected a column", value)
+	}
+	return col.Column, nil
 }
 
 // TimeFromGregorianEpoch is the starting point for UUIDv1 timestamps:
@@ -293,13 +456,6 @@ func minUUIDv1ForTime(t time.Time) (uuid.UUID, error) {
 
 	// Create the UUID from the byte array
 	return u, nil
-}
-
-func validateArgCount(count int, args []DynamicValue) error {
-	if len(args) != count {
-		return fmt.Errorf("expected %d arguments got %d", count, len(args))
-	}
-	return nil
 }
 
 func getTimeFromUUID(id uuid.UUID) (time.Time, error) {

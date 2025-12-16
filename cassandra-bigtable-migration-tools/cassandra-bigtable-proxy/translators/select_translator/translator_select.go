@@ -40,12 +40,12 @@ func (t *SelectTranslator) Translate(query *types.RawQuery, sessionKeyspace type
 		return nil, err
 	}
 
-	selectClause, err := parseSelectClause(selectObj.SelectElements(), tableConfig)
+	params := types.NewQueryParameters()
+
+	selectClause, err := parseSelectClause(selectObj.SelectElements(), tableConfig, params)
 	if err != nil {
 		return nil, err
 	}
-
-	params := types.NewQueryParameters()
 
 	conditions, err := common.ParseWhereClause(selectObj.WhereSpec(), tableConfig, params)
 	if err != nil {

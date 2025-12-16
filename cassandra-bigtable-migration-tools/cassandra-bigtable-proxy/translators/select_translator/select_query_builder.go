@@ -7,99 +7,116 @@ import (
 	sm "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/metadata"
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/utilities"
 	"github.com/datastax/go-cassandra-native-protocol/datatype"
-	"github.com/datastax/go-cassandra-native-protocol/primitive"
 	"strings"
 )
 
-func createBtqlSelectClause(tableConfig *sm.TableSchema, s *types.SelectClause, isGroupBy bool) (string, error) {
+func createBtqlSelectClause(s *types.SelectClause, isGroupBy bool) (string, error) {
 	if s.IsStar {
 		return "*", nil
 	}
 	var columns []string
 	for _, col := range s.Columns {
-		if col.Func != types.FuncCodeUnknown {
-			c, err := createBtqlFunc(col, tableConfig)
-			if err != nil {
-				return "", err
-			}
-			columns = append(columns, c)
-		} else {
-			c, err := createBtqlSelectCol(tableConfig, col, isGroupBy)
-			if err != nil {
-				return "", err
-			}
-			columns = append(columns, c)
+		c, err := toBtql(col.Value)
+		if err != nil {
+			return "", err
 		}
+		if col.Alias != "" {
+			c = fmt.Sprintf("%s AS %s", c, col.Alias)
+		}
+		columns = append(columns, c)
 	}
 
 	return strings.Join(columns, ", "), nil
 }
 
-func createBtqlFunc(col types.SelectedColumn, tableConfig *sm.TableSchema) (string, error) {
-	if col.Func == types.FuncCodeCount && col.ColumnName == "*" {
-		if col.Alias != "" {
-			return "count(*) as " + col.Alias, nil
-		}
-		return "count(*)", nil
+func toBtql(value types.DynamicValue) (string, error) {
+	switch v := value.(type) {
+	case *types.SelectStarValue:
+		return "*", nil
+	case *types.ColumnValue:
+		return processRegularColumn(v)
+	case *types.MapAccessValue:
+		return fmt.Sprintf("`%s`['%s']", v.Column.Name, v.MapKey), nil
+	case *types.FunctionValue:
+		return createBtqlFunc(v)
+	case *types.LiteralValue:
+		return utilities.GoToQueryString(v.Value)
+	case *types.ParameterizedValue:
+		return string(v.Placeholder), nil
+	default:
+		return "", fmt.Errorf("unhandled dynamic value type: %T", v)
 	}
-
-	colMeta, found := tableConfig.Columns[col.ColumnName]
-	if !found {
-		// Check if the column is an alias
-		if aliasMeta, aliasFound := tableConfig.Columns[types.ColumnName(col.Alias)]; aliasFound {
-			colMeta = aliasMeta
-		} else {
-			return "", fmt.Errorf("column metadata not found for column '%s' in table '%s' and keyspace '%s'", col.ColumnName, tableConfig.Name, tableConfig.Keyspace)
-		}
-	}
-
-	if col.Func == types.FuncCodeWriteTime {
-		// todo what about collections?
-		if col.Alias != "" {
-			return fmt.Sprintf("UNIX_MICROS(WRITE_TIMESTAMP(%s, '%s')) AS %s", colMeta.ColumnFamily, colMeta.Name, col.Alias), nil
-		}
-		return fmt.Sprintf("UNIX_MICROS(WRITE_TIMESTAMP(%s, '%s'))", colMeta.ColumnFamily, colMeta.Name), nil
-	}
-
-	castValue, castErr := castScalarColumn(colMeta)
-	if castErr != nil {
-		return "", castErr
-	}
-	column := fmt.Sprintf("%s(%s)", col.Func.String(), castValue)
-
-	if col.Alias != "" {
-		column = column + " as " + col.Alias
-	}
-
-	return column, nil
 }
 
-func createBtqlSelectCol(tableConfig *sm.TableSchema, selectedColumn types.SelectedColumn, isGroupBy bool) (string, error) {
-	colName := selectedColumn.Sql
-	if selectedColumn.MapKey != "" {
-		colName = string(selectedColumn.ColumnName)
+func createBtqlFunc(f *types.FunctionValue) (string, error) {
+	if f.Placeholder != "" {
+		return string(f.Placeholder), nil
 	}
-	col, err := tableConfig.GetColumn(types.ColumnName(colName))
+	switch f.Func.Code {
+	case types.FuncCodeCount:
+		arg0, err := toBtql(f.Args[0])
+		if err != nil {
+			return "", err
+		}
+		return fmt.Sprintf("COUNT(%s)", arg0), nil
+	case types.FuncCodeWriteTime:
+		col, err := getColumnArg(0, f.Args)
+		if err != nil {
+			return "", err
+		}
+		return fmt.Sprintf("UNIX_MICROS(WRITE_TIMESTAMP(%s, '%s'))", col.ColumnFamily, col.Name), nil
+	case types.FuncCodeAvg:
+		return createSimpleBtqlFunc(f)
+	case types.FuncCodeSum:
+		return createSimpleBtqlFunc(f)
+	case types.FuncCodeMin:
+		return createSimpleBtqlFunc(f)
+	case types.FuncCodeMax:
+		return createSimpleBtqlFunc(f)
+	default:
+		return "", fmt.Errorf("unhandled function translation: %s", f.Func.Code.String())
+	}
+}
+
+func createSimpleBtqlFunc(f *types.FunctionValue) (string, error) {
+	col, err := getColumnArg(0, f.Args)
 	if err != nil {
 		return "", err
 	}
-	var sql string
-	if isGroupBy {
-		sql, err = castScalarColumn(col)
-		if err != nil {
-			return "", err
-		}
-	} else {
-		sql, err = processRegularColumn(selectedColumn, col)
-		if err != nil {
-			return "", err
-		}
+	castValue, castErr := castScalarColumn(col)
+	if castErr != nil {
+		return "", castErr
 	}
+	return fmt.Sprintf("%s(%s)", f.Func.Code.String(), castValue), nil
+}
 
-	if selectedColumn.Alias != "" {
-		sql = fmt.Sprintf("%s as %s", sql, selectedColumn.Alias)
+func validateArgCount(count int, args []types.DynamicValue) error {
+	if len(args) != count {
+		return fmt.Errorf("expected %d arguments got %d", count, len(args))
 	}
-	return sql, nil
+	return nil
+}
+
+func getColumnArgOrStar(index int, args []types.DynamicValue) (types.DynamicValue, error) {
+	value := args[index]
+	star, ok := value.(types.SelectStarValue)
+	if ok {
+		return star, nil
+	}
+	col, ok := value.(types.ColumnValue)
+	if ok {
+		return col, nil
+	}
+	return nil, fmt.Errorf("invalid argument: %T expected column or *", value)
+}
+
+func getColumnArg(index int, args []types.DynamicValue) (*types.Column, error) {
+	value := args[index]
+	col, ok := value.(*types.ColumnValue)
+	if !ok {
+		return nil, fmt.Errorf("invalid argument: %T expected a column", value)
+	}
+	return col.Column, nil
 }
 
 /*
@@ -121,15 +138,13 @@ Returns:
 
 	An updated slice of strings with the new formatted column reference appended.
 */
-func processRegularColumn(selectedColumn types.SelectedColumn, col *types.Column) (string, error) {
-	if col.CQLType.DataType().GetDataTypeCode() == primitive.DataTypeCodeList {
-		return fmt.Sprintf("MAP_VALUES(`%s`)", selectedColumn.Sql), nil
-	} else if selectedColumn.MapKey != "" {
-		return fmt.Sprintf("`%s`['%s']", selectedColumn.ColumnName, selectedColumn.MapKey), nil
-	} else if col.CQLType.IsCollection() {
-		return fmt.Sprintf("`%s`", selectedColumn.Sql), nil
+func processRegularColumn(col *types.ColumnValue) (string, error) {
+	if col.Column.CQLType.Code() == types.LIST {
+		return fmt.Sprintf("MAP_VALUES(`%s`)", col.Column.Name), nil
+	} else if col.Column.CQLType.IsCollection() {
+		return fmt.Sprintf("`%s`", col.Column.Name), nil
 	} else {
-		return castScalarColumn(col)
+		return castScalarColumn(col.Column)
 	}
 }
 
@@ -149,7 +164,7 @@ func createBigtableSql(t *SelectTranslator, st *types.PreparedSelectQuery) (stri
 	if len(st.GroupByColumns) > 0 {
 		isGroupBy = true
 	}
-	column, err = createBtqlSelectClause(tableConfig, st.SelectClause, isGroupBy)
+	column, err = createBtqlSelectClause(st.SelectClause, isGroupBy)
 	if err != nil {
 		return "", err
 	}
@@ -164,10 +179,10 @@ func createBigtableSql(t *SelectTranslator, st *types.PreparedSelectQuery) (stri
 	}
 
 	// Build alias-to-column map
-	aliasToColumn := make(map[string]string)
+	aliasToColumn := make(map[string]bool)
 	for _, col := range st.SelectClause.Columns {
 		if col.Alias != "" {
-			aliasToColumn[col.Alias] = string(col.ColumnName)
+			aliasToColumn[col.Alias] = true
 		}
 	}
 
@@ -223,7 +238,7 @@ func createBigtableSql(t *SelectTranslator, st *types.PreparedSelectQuery) (stri
 	}
 
 	if st.LimitValue != nil {
-		limitString, err := ToBtql(st.LimitValue)
+		limitString, err := toBtql(st.LimitValue)
 		if err != nil {
 			return "", err
 		}
@@ -231,19 +246,6 @@ func createBigtableSql(t *SelectTranslator, st *types.PreparedSelectQuery) (stri
 	}
 	btQuery += ";"
 	return btQuery, nil
-}
-
-func ToBtql(dynamicValue types.DynamicValue) (string, error) {
-	switch v := dynamicValue.(type) {
-	case *types.LiteralValue:
-		return utilities.GoToQueryString(v.Value)
-	case *types.ParameterizedValue:
-		return string(v.Placeholder), nil
-	case *types.FunctionValue:
-		return string(v.Placeholder), nil
-	default:
-		return "", fmt.Errorf("unhandled value type %T", v)
-	}
 }
 
 // createBtqlWhereClause(): takes a slice of Condition structs and returns a string representing the WHERE clause of a bigtable SQL query.
@@ -267,24 +269,24 @@ func createBtqlWhereClause(conditions []types.Condition, tableConfig *sm.TableSc
 
 		var btql string
 		if condition.Operator == types.BETWEEN {
-			v1, err := ToBtql(condition.Value)
+			v1, err := toBtql(condition.Value)
 			if err != nil {
 				return "", err
 			}
-			v2, err := ToBtql(condition.Value2)
+			v2, err := toBtql(condition.Value2)
 			if err != nil {
 				return "", err
 			}
 
 			btql = fmt.Sprintf("%s BETWEEN %s AND %s", column, v1, v2)
 		} else if condition.Operator == types.IN {
-			v, err := ToBtql(condition.Value)
+			v, err := toBtql(condition.Value)
 			if err != nil {
 				return "", err
 			}
 			btql = fmt.Sprintf("%s IN UNNEST(%s)", column, v)
 		} else if condition.Operator == types.CONTAINS || condition.Operator == types.CONTAINS_KEY {
-			v, err := ToBtql(condition.Value)
+			v, err := toBtql(condition.Value)
 			if err != nil {
 				return "", err
 			}
@@ -294,7 +296,7 @@ func createBtqlWhereClause(conditions []types.Condition, tableConfig *sm.TableSc
 				btql = fmt.Sprintf("ARRAY_INCLUDES(MAP_VALUES(%s), %s)", column, v)
 			}
 		} else {
-			v, err := ToBtql(condition.Value)
+			v, err := toBtql(condition.Value)
 			if err != nil {
 				return "", err
 			}

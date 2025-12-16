@@ -82,7 +82,7 @@ func (t *DeleteTranslator) Bind(st types.IPreparedQuery, values *types.QueryPara
 		return nil, fmt.Errorf("key encoding failed: %w", err)
 	}
 
-	cols, err := common.BindSelectColumns(tableConfig, dst.SelectedColumns)
+	cols, err := common.BindSelectColumns(dst.SelectedColumns)
 	if err != nil {
 		return nil, err
 	}

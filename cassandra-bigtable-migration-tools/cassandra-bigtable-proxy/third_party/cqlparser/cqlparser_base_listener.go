@@ -1094,6 +1094,12 @@ func (s *BaseCqlParserListener) EnterFunctionCall(ctx *FunctionCallContext) {}
 // ExitFunctionCall is called when production functionCall is exited.
 func (s *BaseCqlParserListener) ExitFunctionCall(ctx *FunctionCallContext) {}
 
+// EnterFunctionName is called when production functionName is entered.
+func (s *BaseCqlParserListener) EnterFunctionName(ctx *FunctionNameContext) {}
+
+// ExitFunctionName is called when production functionName is exited.
+func (s *BaseCqlParserListener) ExitFunctionName(ctx *FunctionNameContext) {}
+
 // EnterFunctionArgs is called when production functionArgs is entered.
 func (s *BaseCqlParserListener) EnterFunctionArgs(ctx *FunctionArgsContext) {}
 

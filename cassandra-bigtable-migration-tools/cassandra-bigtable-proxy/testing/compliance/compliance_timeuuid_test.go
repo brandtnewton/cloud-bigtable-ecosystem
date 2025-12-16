@@ -8,9 +8,6 @@ import (
 	"time"
 )
 
-// todo write literal uuid
-// todo where maxTimeuuid
-// todo where minTimeuuid
 // todo select time from timeuuid
 func TestInsertTimeUuidNow(t *testing.T) {
 	t.Parallel()
@@ -54,6 +51,7 @@ func TestValidateMaxAndMin(t *testing.T) {
 	require.NoError(t, session.Query(`SELECT event_time FROM timeuuid_table WHERE region='timeuuid-validate' AND event_time = maxTimeuuid(?)`, inputTime).Scan(&gotMax))
 	assert.Equal(t, maxUuid, gotMax)
 }
+
 func TestMaxAndMinTimestamp(t *testing.T) {
 	t.Parallel()
 

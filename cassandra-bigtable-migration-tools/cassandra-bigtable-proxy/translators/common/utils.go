@@ -13,6 +13,7 @@ import (
 	"github.com/datastax/go-cassandra-native-protocol/primitive"
 	"github.com/google/uuid"
 	"regexp"
+	"slices"
 	"strings"
 	"time"
 )
@@ -39,13 +40,13 @@ func ExtractDecimalLiteral(d cql.IDecimalLiteralContext, cqlType types.CqlDataTy
 	}
 	if d.QUESTION_MARK() != nil {
 		p := params.PushParameter(cqlType, true)
-		return types.NewParameterizedValue(p), nil
+		return types.NewParameterizedValue(p, cqlType), nil
 	}
 	val, err := GetDecimalLiteral(d, cqlType)
 	if err != nil {
 		return nil, err
 	}
-	return types.NewLiteralValue(val), err
+	return types.NewLiteralValue(val, cqlType), err
 }
 
 func GetDecimalLiteral(d cql.IDecimalLiteralContext, cqlType types.CqlDataType) (types.GoValue, error) {
@@ -172,7 +173,7 @@ func parseColumnCompareFunction(col cql.IColumnContext, op cql.ICompareOperatorC
 	if flip {
 		operator = types.FlipOperator(operator)
 	}
-	fn, err := ParseFunctionCall(f, params)
+	fn, err := ParseFunctionCall(f, tableConfig, types.QueryClauseWhere, params)
 	if err != nil {
 		return types.Condition{}, err
 	}
@@ -238,11 +239,11 @@ func parseWhereBetween(between cql.IRelationBetweenContext, tableConfig *schemaM
 		return types.Condition{}, fmt.Errorf("BETWEEN condition must have exactly 2 values")
 	}
 
-	v1, err := ParseValueAny(between.ValueAny(0), column.CQLType, params)
+	v1, err := ParseValueAny(between.ValueAny(0), tableConfig, column.CQLType, types.QueryClauseWhere, params)
 	if err != nil {
 		return types.Condition{}, err
 	}
-	v2, err := ParseValueAny(between.ValueAny(1), column.CQLType, params)
+	v2, err := ParseValueAny(between.ValueAny(1), tableConfig, column.CQLType, types.QueryClauseWhere, params)
 	if err != nil {
 		return types.Condition{}, err
 	}
@@ -273,7 +274,7 @@ func parseWhereIn(whereIn cql.IRelationInContext, tableConfig *schemaMapping.Tab
 func ParseTupleValue(tuple cql.ITupleValueContext, lt *types.ListType, params *types.QueryParameters) (types.DynamicValue, error) {
 	if tuple.QUESTION_MARK() != nil {
 		p := params.PushParameter(lt, true)
-		return types.NewParameterizedValue(p), nil
+		return types.NewParameterizedValue(p, lt), nil
 	}
 
 	valueFn := tuple.FunctionArgs()
@@ -289,13 +290,13 @@ func ParseTupleValue(tuple cql.ITupleValueContext, lt *types.ListType, params *t
 		}
 		inValues = append(inValues, parsed)
 	}
-	return types.NewLiteralValue(inValues), nil
+	return types.NewLiteralValue(inValues, lt), nil
 }
 
-func ParseValueAny(v cql.IValueAnyContext, dt types.CqlDataType, params *types.QueryParameters) (types.DynamicValue, error) {
+func ParseValueAny(v cql.IValueAnyContext, table *schemaMapping.TableSchema, dt types.CqlDataType, clause types.QueryClause, params *types.QueryParameters) (types.DynamicValue, error) {
 	if v.QUESTION_MARK() != nil {
 		p := params.PushParameter(dt, true)
-		return types.NewParameterizedValue(p), nil
+		return types.NewParameterizedValue(p, dt), nil
 	}
 	// todo handle tuple
 	if v.Constant() != nil {
@@ -306,30 +307,73 @@ func ParseValueAny(v cql.IValueAnyContext, dt types.CqlDataType, params *types.Q
 		if err != nil {
 			return nil, err
 		}
-		return types.NewLiteralValue(value), nil
+		return types.NewLiteralValue(value, dt), nil
 	}
 	if v.ValueMap() != nil {
 		value, err := ParseCqlMapAssignment(v.ValueMap(), dt)
 		if err != nil {
 			return nil, err
 		}
-		return types.NewLiteralValue(value), nil
+		return types.NewLiteralValue(value, dt), nil
 	}
 	if v.ValueSet() != nil {
 		value, err := ParseCqlSetAssignment(v.ValueSet(), dt)
 		if err != nil {
 			return nil, err
 		}
-		return types.NewLiteralValue(value), nil
+		return types.NewLiteralValue(value, dt), nil
 	}
 	if v.FunctionCall() != nil {
-		return ParseFunctionCall(v.FunctionCall(), params)
+		return ParseFunctionCall(v.FunctionCall(), table, clause, params)
 	}
 	return nil, fmt.Errorf("unhandled value set `%s`", v.GetText())
 }
 
-func ParseFunctionCall(functionCall cql.IFunctionCallContext, params *types.QueryParameters) (types.DynamicValue, error) {
-	functionName := strings.ToLower(functionCall.OBJECT_NAME().GetText())
+func ParseFunctionCall(functionCall cql.IFunctionCallContext, table *schemaMapping.TableSchema, clause types.QueryClause, params *types.QueryParameters) (*types.FunctionValue, error) {
+	funcSpec, err := ParseFunctionName(functionCall.FunctionName())
+	if err != nil {
+		return nil, err
+	}
+	if !slices.Contains(funcSpec.ValidClauses, clause) {
+		return nil, fmt.Errorf("function '%s' cannot be called in %s clause", funcSpec.Code.String(), clause.String())
+	}
+
+	var allFunctionArgs []cql.IFunctionArgContext
+	if functionCall.FunctionArgs() == nil {
+		allFunctionArgs = nil
+	} else {
+		allFunctionArgs = functionCall.FunctionArgs().AllFunctionArg()
+	}
+
+	if len(allFunctionArgs) != len(funcSpec.ParameterTypes) {
+		return nil, fmt.Errorf("expected %d args for function %s but got %d", len(funcSpec.ParameterTypes), funcSpec.Code.String(), len(allFunctionArgs))
+	}
+	var args []types.DynamicValue
+	for i, arg := range allFunctionArgs {
+		argSpec := funcSpec.ParameterTypes[i]
+		value, err := parseFunctionArg(table, arg, argSpec, clause, params)
+		if err != nil {
+			return nil, err
+		}
+		args = append(args, value)
+	}
+	var p types.Placeholder
+	if clause == types.QueryClauseSelect {
+		// we can't use functions here so don't assign a parameter
+		p = ""
+	} else {
+		p = params.PushParameter(funcSpec.ReturnType, false)
+	}
+	fv := types.NewFunctionValue(p, funcSpec, args...)
+	err = types.ValidateFunctionArgs(fv)
+	if err != nil {
+		return nil, err
+	}
+	return fv, nil
+}
+
+func ParseFunctionName(f cql.IFunctionNameContext) (*types.CqlFuncSpec, error) {
+	functionName := strings.ToLower(f.GetText())
 	functionCode, err := types.FromString(functionName)
 	if err != nil {
 		return nil, err
@@ -338,28 +382,39 @@ func ParseFunctionCall(functionCall cql.IFunctionCallContext, params *types.Quer
 	if err != nil {
 		return nil, err
 	}
-	var args []types.DynamicValue
-	if functionCall.FunctionArgs() != nil {
-		for i, arg := range functionCall.FunctionArgs().AllFunctionArg() {
-			argSpec := cqlFunc.ParameterTypes[i]
-			if arg.ValueAny() == nil {
-				return nil, fmt.Errorf("unsupported function argument: `%s`", arg.GetText())
-			}
-			value, err := ParseValueAny(arg.ValueAny(), argSpec.Type, params)
-			if err != nil {
-				return nil, err
-			}
-			args = append(args, value)
+	return cqlFunc, nil
+}
+
+func parseFunctionArg(table *schemaMapping.TableSchema, arg cql.IFunctionArgContext, argSpec types.CqlFuncParameter, clause types.QueryClause, params *types.QueryParameters) (types.DynamicValue, error) {
+	if arg.ValueAny() != nil {
+		value, err := ParseValueAny(arg.ValueAny(), table, argSpec.Types[0], clause, params)
+		if err != nil {
+			return nil, err
 		}
+		return value, nil
+	} else if arg.Column() != nil {
+		if clause != types.QueryClauseSelect {
+			return nil, fmt.Errorf("function calls on columns are not supported outside of the SELECT clause")
+		}
+		col, err := ParseColumnContext(table, arg.Column())
+		if err != nil {
+			return nil, err
+		}
+		return types.NewColumnValue(col), nil
+	} else if arg.STAR() != nil {
+		if clause != types.QueryClauseSelect {
+			return nil, fmt.Errorf("function calls on '*' are not supported outside of the SELECT clause")
+		}
+		return types.NewSelectStarValue(), nil
+	} else {
+		return nil, fmt.Errorf("unsupported function argument: `%s`", arg.GetText())
 	}
-	p := params.PushParameter(cqlFunc.ReturnType, false)
-	return types.NewFunctionValue(p, functionCode, args), nil
 }
 
 func ParseConstantValue(v cql.IConstantContext, dt types.CqlDataType, params *types.QueryParameters) (types.DynamicValue, error) {
 	if v.QUESTION_MARK() != nil {
 		p := params.PushParameter(dt, true)
-		return types.NewParameterizedValue(p), nil
+		return types.NewParameterizedValue(p, dt), nil
 	}
 
 	goValue, err := ParseCqlConstant(v, dt)
@@ -367,7 +422,7 @@ func ParseConstantValue(v cql.IConstantContext, dt types.CqlDataType, params *ty
 		return nil, err
 	}
 
-	return types.NewLiteralValue(goValue), nil
+	return types.NewLiteralValue(goValue, dt), nil
 }
 
 func ParseColumnContext(table *schemaMapping.TableSchema, r cql.IColumnContext) (*types.Column, error) {
@@ -854,14 +909,14 @@ func ParseSelectIndex(si cql.ISelectIndexContext, alias string, table *schemaMap
 		if err != nil {
 			return types.SelectedColumn{}, err
 		}
-		return *types.NewSelectedColumnMapElement(si.GetText(), col.Name, alias, mt.ValueType(), colQualifier), nil
+		return types.NewSelectedColumn(si.GetText(), types.NewMapAccessValue(col, mt, colQualifier), alias), nil
 	} else if col.CQLType.Code() == types.LIST {
 		index, err := ParseBigInt(si.Constant().DecimalLiteral())
 		if err != nil {
 			return types.SelectedColumn{}, err
 		}
 		lt := col.CQLType.(*types.ListType)
-		return *types.NewSelectedColumnListElement(si.GetText(), col.Name, alias, lt.ElementType(), index), nil
+		return types.NewSelectedColumn(si.GetText(), types.NewListElementValue(col, lt, index), alias), nil
 	} else {
 		return types.SelectedColumn{}, fmt.Errorf("cannot access index/key of column type %s", col.CQLType.String())
 	}
@@ -872,81 +927,19 @@ func ParseSelectColumn(si cql.ISelectColumnContext, alias string, table *schemaM
 	if err != nil {
 		return types.SelectedColumn{}, err
 	}
-	return *types.NewSelectedColumn(string(col.Name), col.Name, alias, col.CQLType), nil
+	return types.NewSelectedColumn(string(col.Name), types.NewColumnValue(col), alias), nil
 }
 
-func ParseSelectFunction(sf cql.ISelectFunctionContext, alias string, table *schemaMapping.TableSchema) (types.SelectedColumn, error) {
-	f, err := ParseCqlFunc(sf.FunctionCall())
+func ParseSelectFunction(sf cql.ISelectFunctionContext, alias string, table *schemaMapping.TableSchema, params *types.QueryParameters) (types.SelectedColumn, error) {
+	f, err := ParseFunctionCall(sf.FunctionCall(), table, types.QueryClauseSelect, params)
 	if err != nil {
 		return types.SelectedColumn{}, err
 	}
-	switch f {
-	case types.FuncCodeWriteTime:
-		col, err := parseSingleColumnFunctionArg(sf.FunctionCall(), table)
-		if err != nil {
-			return types.SelectedColumn{}, err
-		}
-		return *types.NewSelectedColumnFunction(sf.FunctionCall().GetText(), col.Name, alias, types.TypeBigInt, f), nil
-	case types.FuncCodeCount:
-		value, err := parseStarOrColumnFunctionArg(sf.FunctionCall(), table)
-		if err != nil {
-			return types.SelectedColumn{}, err
-		}
-		sql := fmt.Sprintf("system.count(%s)", value)
-		return *types.NewSelectedColumnFunction(sql, types.ColumnName(value), alias, types.TypeBigInt, f), nil
-	case types.FuncCodeAvg, types.FuncCodeSum, types.FuncCodeMin, types.FuncCodeMax:
-		col, err := parseSingleColumnFunctionArg(sf.FunctionCall(), table)
-		if err != nil {
-			return types.SelectedColumn{}, err
-		}
-
-		if !isNumericType(col.CQLType) {
-			return types.SelectedColumn{}, fmt.Errorf("invalid aggregate type: %s", col.CQLType.String())
-		}
-
-		resultType := col.CQLType
-		// integer type columns need to have result a result type that captures decimal values
-		if f == types.FuncCodeAvg && (col.CQLType.Code() == types.BIGINT || col.CQLType.Code() == types.INT || col.CQLType.Code() == types.COUNTER) {
-			resultType = types.TypeDouble
-		}
-
-		// example: system.avg(price)
-		sql := fmt.Sprintf("system.%s(%s)", strings.ToLower(f.String()), col.Name)
-		return *types.NewSelectedColumnFunction(sql, col.Name, alias, resultType, f), nil
-	default:
-		return types.SelectedColumn{}, fmt.Errorf("unhandled function type `%s`", sf.FunctionCall().GetText())
+	cqlText := sf.GetText()
+	if f.Func.Code == types.FuncCodeCount || f.Func.Code == types.FuncCodeAvg || f.Func.Code == types.FuncCodeMin || f.Func.Code == types.FuncCodeMax || f.Func.Code == types.FuncCodeSum {
+		cqlText = "system." + cqlText
 	}
-}
-
-func isNumericType(t types.CqlDataType) bool {
-	return t.Code() == types.BIGINT || t.Code() == types.INT || t.Code() == types.FLOAT || t.Code() == types.DOUBLE || t.Code() == types.COUNTER
-}
-
-func parseSingleColumnFunctionArg(fn cql.IFunctionCallContext, table *schemaMapping.TableSchema) (*types.Column, error) {
-	if fn.FunctionArgs() == nil || len(fn.FunctionArgs().AllFunctionArg()) != 1 {
-		return nil, fmt.Errorf("expected 1 column argument for `%s`", fn.GetText())
-	}
-	arg := fn.FunctionArgs().FunctionArg(0)
-	if arg.OBJECT_NAME() == nil {
-		return nil, fmt.Errorf("expected column name for function arg")
-	}
-	text := arg.OBJECT_NAME().GetText()
-	col, err := table.GetColumn(types.ColumnName(text))
-	if err != nil {
-		return nil, fmt.Errorf("expected valid column in function arguments `%s`", fn.GetText())
-	}
-	return col, nil
-}
-
-func parseStarOrColumnFunctionArg(fn cql.IFunctionCallContext, table *schemaMapping.TableSchema) (string, error) {
-	if fn.STAR() != nil {
-		return "*", nil
-	}
-	col, err := parseSingleColumnFunctionArg(fn, table)
-	if err != nil {
-		return "", err
-	}
-	return string(col.Name), nil
+	return types.NewSelectedColumn(cqlText, f, alias), nil
 }
 
 func ParseAs(a cql.IAsSpecContext) (string, error) {

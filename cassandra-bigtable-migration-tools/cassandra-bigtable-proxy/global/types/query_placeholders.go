@@ -130,7 +130,7 @@ func NewQueryParameterValues(params *QueryParameters) *QueryParameterValues {
 
 func (q *QueryParameterValues) SetValue(p Placeholder, value any) error {
 	// ensure the correct type is being set - more for checking internal implementation rather than the user
-	//err := validateGoType(md.Type, value)
+	//err := validateGoType(md.Types, value)
 	//if err != nil {
 	//	return err
 	//}

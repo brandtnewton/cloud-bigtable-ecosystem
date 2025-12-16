@@ -42,6 +42,12 @@ type Want struct {
 
 func TestTranslator_TranslateSelectQuerytoBigtable(t *testing.T) {
 
+	pk1 := types.NewColumnValue(mockdata.GetColumnOrDie("test_keyspace", "test_table", "pk1"))
+	colInt := types.NewColumnValue(mockdata.GetColumnOrDie("test_keyspace", "test_table", "col_int"))
+	colBool := types.NewColumnValue(mockdata.GetColumnOrDie("test_keyspace", "test_table", "col_bool"))
+	colTags := types.NewColumnValue(mockdata.GetColumnOrDie("test_keyspace", "user_info", "tags"))
+	id := types.NewColumnValue(mockdata.GetColumnOrDie("test_keyspace", "timeuuid_table", "id"))
+	username := types.NewColumnValue(mockdata.GetColumnOrDie("test_keyspace", "timeuuid_table", "username"))
 	tests := []struct {
 		name            string
 		query           string
@@ -61,42 +67,42 @@ func TestTranslator_TranslateSelectQuerytoBigtable(t *testing.T) {
 				Keyspace:        "test_keyspace",
 				SelectClause: &types.SelectClause{
 					Columns: []types.SelectedColumn{
-						*types.NewSelectedColumn("pk1", "pk1", "", types.TypeVarchar),
-						*types.NewSelectedColumn("col_int", "col_int", "", types.TypeInt),
-						*types.NewSelectedColumn("col_bool", "col_bool", "", types.TypeBoolean),
+						types.NewSelectedColumn("pk1", pk1, ""),
+						types.NewSelectedColumn("col_int", colInt, ""),
+						types.NewSelectedColumn("col_bool", colBool, ""),
 					},
 				},
 				Conditions: []types.Condition{
 					{
 						Column:   mockdata.GetColumnOrDie("test_keyspace", "test_table", "pk1"),
 						Operator: types.EQ,
-						Value:    types.NewLiteralValue("test"),
+						Value:    types.NewLiteralValue("test", types.TypeVarchar),
 					},
 					{
 						Column:   mockdata.GetColumnOrDie("test_keyspace", "test_table", "col_bool"),
 						Operator: types.EQ,
-						Value:    types.NewLiteralValue(true),
+						Value:    types.NewLiteralValue(true, types.TypeBoolean),
 					},
 					{
 						Column:   mockdata.GetColumnOrDie("test_keyspace", "test_table", "col_ts"),
 						Operator: types.LTE,
-						Value:    types.NewLiteralValue(time.UnixMilli(1430659854234).Truncate(time.Nanosecond).UTC()),
+						Value:    types.NewLiteralValue(time.UnixMilli(1430659854234).Truncate(time.Nanosecond).UTC(), types.TypeTimestamp),
 					},
 					{
 						Column:   mockdata.GetColumnOrDie("test_keyspace", "test_table", "col_int"),
 						Operator: types.GTE,
-						Value:    types.NewLiteralValue(int32(123)),
+						Value:    types.NewLiteralValue(int32(123), types.TypeInt),
 					},
 					{
 						Column:   mockdata.GetColumnOrDie("test_keyspace", "test_table", "col_bigint"),
 						Operator: types.GT,
-						Value:    types.NewLiteralValue(int64(-10000000)),
+						Value:    types.NewLiteralValue(int64(-10000000), types.TypeBigInt),
 					},
 				},
 				OrderBy: types.OrderBy{
 					IsOrderBy: false,
 				},
-				LimitValue: types.NewLiteralValue(int32(20)),
+				LimitValue: types.NewLiteralValue(int32(20), types.TypeInt),
 				AllParams:  nil,
 			},
 			sessionKeyspace: "test_keyspace",
@@ -105,19 +111,19 @@ func TestTranslator_TranslateSelectQuerytoBigtable(t *testing.T) {
 			name:  "Select query with list contains clause",
 			query: `select col_int as name from test_keyspace.test_table where list_text CONTAINS 'test';`,
 			want: &Want{
-				TranslatedQuery: "SELECT TO_INT64(`cf1`['col_int']) as name FROM test_table WHERE ARRAY_INCLUDES(MAP_VALUES(`list_text`), 'test');",
+				TranslatedQuery: "SELECT TO_INT64(`cf1`['col_int']) AS name FROM test_table WHERE ARRAY_INCLUDES(MAP_VALUES(`list_text`), 'test');",
 				Table:           "test_table",
 				Keyspace:        "test_keyspace",
 				SelectClause: &types.SelectClause{
 					Columns: []types.SelectedColumn{
-						*types.NewSelectedColumn("col_int", "col_int", "name", types.TypeInt),
+						types.NewSelectedColumn("col_int", colInt, "name"),
 					},
 				},
 				Conditions: []types.Condition{
 					{
 						Column:   mockdata.GetColumnOrDie("test_keyspace", "test_table", "list_text"),
 						Operator: types.CONTAINS,
-						Value:    types.NewLiteralValue("test"),
+						Value:    types.NewLiteralValue("test", types.TypeText),
 					},
 				},
 				OrderBy: types.OrderBy{
@@ -131,19 +137,19 @@ func TestTranslator_TranslateSelectQuerytoBigtable(t *testing.T) {
 			name:  "Select query with map contains key clause",
 			query: `select col_int as name from test_keyspace.test_table where map_text_text CONTAINS KEY 'test';`,
 			want: &Want{
-				TranslatedQuery: "SELECT TO_INT64(`cf1`['col_int']) as name FROM test_table WHERE MAP_CONTAINS_KEY(`map_text_text`, 'test');",
+				TranslatedQuery: "SELECT TO_INT64(`cf1`['col_int']) AS name FROM test_table WHERE MAP_CONTAINS_KEY(`map_text_text`, 'test');",
 				Table:           "test_table",
 				Keyspace:        "test_keyspace",
 				SelectClause: &types.SelectClause{
 					Columns: []types.SelectedColumn{
-						*types.NewSelectedColumn("col_int", "col_int", "name", types.TypeInt),
+						types.NewSelectedColumn("col_int", colInt, "name"),
 					},
 				},
 				Conditions: []types.Condition{
 					{
 						Column:   mockdata.GetColumnOrDie("test_keyspace", "test_table", "map_text_text"),
 						Operator: types.CONTAINS_KEY,
-						Value:    types.NewLiteralValue("test"),
+						Value:    types.NewLiteralValue("test", types.TypeText),
 					},
 				},
 				OrderBy: types.OrderBy{
@@ -157,19 +163,19 @@ func TestTranslator_TranslateSelectQuerytoBigtable(t *testing.T) {
 			name:  "Select query with set contains clause",
 			query: `select col_int as name from test_keyspace.test_table where set_text CONTAINS 'test';`,
 			want: &Want{
-				TranslatedQuery: "SELECT TO_INT64(`cf1`['col_int']) as name FROM test_table WHERE MAP_CONTAINS_KEY(`set_text`, 'test');",
+				TranslatedQuery: "SELECT TO_INT64(`cf1`['col_int']) AS name FROM test_table WHERE MAP_CONTAINS_KEY(`set_text`, 'test');",
 				Table:           "test_table",
 				Keyspace:        "test_keyspace",
 				SelectClause: &types.SelectClause{
 					Columns: []types.SelectedColumn{
-						*types.NewSelectedColumn("col_int", "col_int", "name", types.TypeInt),
+						types.NewSelectedColumn("col_int", colInt, "name"),
 					},
 				},
 				Conditions: []types.Condition{
 					{
 						Column:   mockdata.GetColumnOrDie("test_keyspace", "test_table", "set_text"),
 						Operator: types.CONTAINS,
-						Value:    types.NewLiteralValue("test"),
+						Value:    types.NewLiteralValue("test", types.TypeText),
 					},
 				},
 				OrderBy: types.OrderBy{
@@ -188,15 +194,15 @@ func TestTranslator_TranslateSelectQuerytoBigtable(t *testing.T) {
 				Keyspace:        "test_keyspace",
 				SelectClause: &types.SelectClause{
 					Columns: []types.SelectedColumn{
-						*types.NewSelectedColumn("pk1", "pk1", "", types.TypeVarchar),
-						*types.NewSelectedColumnFunction("WRITETIME(col_int)", "col_int", "", types.TypeBigInt, types.FuncCodeWriteTime),
+						types.NewSelectedColumn("pk1", pk1, ""),
+						types.NewSelectedColumn("WRITETIME(col_int)", types.NewFunctionValue("", types.FuncWriteTime, colInt), ""),
 					},
 				},
 				Conditions: []types.Condition{
 					{
 						Column:   mockdata.GetColumnOrDie("test_keyspace", "test_table", "pk1"),
 						Operator: "=",
-						Value:    types.NewLiteralValue("test"),
+						Value:    types.NewLiteralValue("test", types.TypeVarchar),
 					},
 				},
 				OrderBy: types.OrderBy{
@@ -215,14 +221,14 @@ func TestTranslator_TranslateSelectQuerytoBigtable(t *testing.T) {
 				Keyspace:        "test_keyspace",
 				SelectClause: &types.SelectClause{
 					Columns: []types.SelectedColumn{
-						*types.NewSelectedColumn("pk1", "pk1", "", types.TypeVarchar),
+						types.NewSelectedColumn("pk1", pk1, ""),
 					},
 				},
 				Conditions: []types.Condition{
 					{
 						Column:   mockdata.GetColumnOrDie("test_keyspace", "test_table", "col_int"),
 						Operator: "IN",
-						Value:    types.NewLiteralValue([]any{int32(1), int32(2), int32(3)}),
+						Value:    types.NewLiteralValue([]any{int32(1), int32(2), int32(3)}, types.NewListType(types.TypeInt)),
 					},
 				},
 				AllParams: nil,
@@ -238,14 +244,14 @@ func TestTranslator_TranslateSelectQuerytoBigtable(t *testing.T) {
 				Keyspace:        "test_keyspace",
 				SelectClause: &types.SelectClause{
 					Columns: []types.SelectedColumn{
-						*types.NewSelectedColumn("pk1", "pk1", "", types.TypeVarchar),
+						types.NewSelectedColumn("pk1", pk1, ""),
 					},
 				},
 				Conditions: []types.Condition{
 					{
 						Column:   mockdata.GetColumnOrDie("test_keyspace", "test_table", "col_bigint"),
 						Operator: "IN",
-						Value:    types.NewLiteralValue([]any{int64(1234567890), int64(9876543210)}),
+						Value:    types.NewLiteralValue([]any{int64(1234567890), int64(9876543210)}, types.NewListType(types.TypeBigInt)),
 					},
 				},
 				AllParams: nil,
@@ -261,14 +267,14 @@ func TestTranslator_TranslateSelectQuerytoBigtable(t *testing.T) {
 				Keyspace:        "test_keyspace",
 				SelectClause: &types.SelectClause{
 					Columns: []types.SelectedColumn{
-						*types.NewSelectedColumn("pk1", "pk1", "", types.TypeVarchar),
+						types.NewSelectedColumn("pk1", pk1, ""),
 					},
 				},
 				Conditions: []types.Condition{
 					{
 						Column:   mockdata.GetColumnOrDie("test_keyspace", "test_table", "col_float"),
 						Operator: "IN",
-						Value:    types.NewLiteralValue([]any{float32(1.5), float32(2.5), float32(3.5)}),
+						Value:    types.NewLiteralValue([]any{float32(1.5), float32(2.5), float32(3.5)}, types.NewListType(types.TypeFloat)),
 					},
 				},
 				AllParams: nil,
@@ -284,14 +290,14 @@ func TestTranslator_TranslateSelectQuerytoBigtable(t *testing.T) {
 				Keyspace:        "test_keyspace",
 				SelectClause: &types.SelectClause{
 					Columns: []types.SelectedColumn{
-						*types.NewSelectedColumn("pk1", "pk1", "", types.TypeVarchar),
+						types.NewSelectedColumn("pk1", pk1, ""),
 					},
 				},
 				Conditions: []types.Condition{
 					{
 						Column:   mockdata.GetColumnOrDie("test_keyspace", "test_table", "col_double"),
 						Operator: "IN",
-						Value:    types.NewLiteralValue([]any{3.1415926535, 2.7182818284}),
+						Value:    types.NewLiteralValue([]any{3.1415926535, 2.7182818284}, types.NewListType(types.TypeDouble)),
 					},
 				},
 				AllParams: nil,
@@ -307,14 +313,14 @@ func TestTranslator_TranslateSelectQuerytoBigtable(t *testing.T) {
 				Keyspace:        "test_keyspace",
 				SelectClause: &types.SelectClause{
 					Columns: []types.SelectedColumn{
-						*types.NewSelectedColumn("pk1", "pk1", "", types.TypeVarchar),
+						types.NewSelectedColumn("pk1", pk1, ""),
 					},
 				},
 				Conditions: []types.Condition{
 					{
 						Column:   mockdata.GetColumnOrDie("test_keyspace", "test_table", "col_bool"),
 						Operator: "IN",
-						Value:    types.NewLiteralValue([]any{true, false}),
+						Value:    types.NewLiteralValue([]any{true, false}, types.NewListType(types.TypeBoolean)),
 					},
 				},
 				AllParams: nil,
@@ -337,7 +343,7 @@ func TestTranslator_TranslateSelectQuerytoBigtable(t *testing.T) {
 				Keyspace:        "test_keyspace",
 				SelectClause: &types.SelectClause{
 					Columns: []types.SelectedColumn{
-						*types.NewSelectedColumn("pk1", "pk1", "", types.TypeVarchar),
+						types.NewSelectedColumn("pk1", pk1, ""),
 					},
 				},
 				AllParams: []types.PlaceholderMetadata{{
@@ -349,7 +355,7 @@ func TestTranslator_TranslateSelectQuerytoBigtable(t *testing.T) {
 					{
 						Column:   mockdata.GetColumnOrDie("test_keyspace", "test_table", "col_int"),
 						Operator: "IN",
-						Value:    types.NewParameterizedValue("@value0"),
+						Value:    types.NewParameterizedValue("@value0", types.NewListType(types.TypeInt)),
 					},
 				},
 			},
@@ -370,7 +376,7 @@ func TestTranslator_TranslateSelectQuerytoBigtable(t *testing.T) {
 				Keyspace:        "test_keyspace",
 				SelectClause: &types.SelectClause{
 					Columns: []types.SelectedColumn{
-						*types.NewSelectedColumn("pk1", "pk1", "", types.TypeVarchar),
+						types.NewSelectedColumn("pk1", pk1, ""),
 					},
 				},
 				AllParams: []types.PlaceholderMetadata{
@@ -384,7 +390,7 @@ func TestTranslator_TranslateSelectQuerytoBigtable(t *testing.T) {
 					{
 						Column:   mockdata.GetColumnOrDie("test_keyspace", "test_table", "col_bigint"),
 						Operator: "IN",
-						Value:    types.NewParameterizedValue("@value0"),
+						Value:    types.NewParameterizedValue("@value0", types.NewListType(types.TypeBigInt)),
 					},
 				},
 			},
@@ -399,7 +405,7 @@ func TestTranslator_TranslateSelectQuerytoBigtable(t *testing.T) {
 				Keyspace:        "test_keyspace",
 				SelectClause: &types.SelectClause{
 					Columns: []types.SelectedColumn{
-						*types.NewSelectedColumn("pk1", "pk1", "", types.TypeVarchar),
+						types.NewSelectedColumn("pk1", pk1, ""),
 					},
 				},
 				AllParams: []types.PlaceholderMetadata{
@@ -413,7 +419,7 @@ func TestTranslator_TranslateSelectQuerytoBigtable(t *testing.T) {
 					{
 						Column:   mockdata.GetColumnOrDie("test_keyspace", "test_table", "col_float"),
 						Operator: "IN",
-						Value:    types.NewParameterizedValue("@value0"),
+						Value:    types.NewParameterizedValue("@value0", types.NewListType(types.TypeFloat)),
 					},
 				},
 			},
@@ -428,7 +434,7 @@ func TestTranslator_TranslateSelectQuerytoBigtable(t *testing.T) {
 				Keyspace:        "test_keyspace",
 				SelectClause: &types.SelectClause{
 					Columns: []types.SelectedColumn{
-						*types.NewSelectedColumn("pk1", "pk1", "", types.TypeVarchar),
+						types.NewSelectedColumn("pk1", pk1, ""),
 					},
 				},
 				AllParams: []types.PlaceholderMetadata{
@@ -442,7 +448,7 @@ func TestTranslator_TranslateSelectQuerytoBigtable(t *testing.T) {
 					{
 						Column:   mockdata.GetColumnOrDie("test_keyspace", "test_table", "col_double"),
 						Operator: "IN",
-						Value:    types.NewParameterizedValue("@value0"),
+						Value:    types.NewParameterizedValue("@value0", types.NewListType(types.TypeDouble)),
 					},
 				},
 			},
@@ -457,7 +463,7 @@ func TestTranslator_TranslateSelectQuerytoBigtable(t *testing.T) {
 				Keyspace:        "test_keyspace",
 				SelectClause: &types.SelectClause{
 					Columns: []types.SelectedColumn{
-						*types.NewSelectedColumn("pk1", "pk1", "", types.TypeVarchar),
+						types.NewSelectedColumn("pk1", pk1, ""),
 					},
 				},
 				AllParams: []types.PlaceholderMetadata{{
@@ -469,7 +475,7 @@ func TestTranslator_TranslateSelectQuerytoBigtable(t *testing.T) {
 					{
 						Column:   mockdata.GetColumnOrDie("test_keyspace", "test_table", "col_bool"),
 						Operator: "IN",
-						Value:    types.NewParameterizedValue("@value0"),
+						Value:    types.NewParameterizedValue("@value0", types.NewListType(types.TypeBoolean)),
 					},
 				},
 			},
@@ -484,7 +490,7 @@ func TestTranslator_TranslateSelectQuerytoBigtable(t *testing.T) {
 				Keyspace:        "test_keyspace",
 				SelectClause: &types.SelectClause{
 					Columns: []types.SelectedColumn{
-						*types.NewSelectedColumn("pk1", "pk1", "", types.TypeVarchar),
+						types.NewSelectedColumn("pk1", pk1, ""),
 					},
 				},
 				AllParams: []types.PlaceholderMetadata{
@@ -498,7 +504,7 @@ func TestTranslator_TranslateSelectQuerytoBigtable(t *testing.T) {
 					{
 						Column:   mockdata.GetColumnOrDie("test_keyspace", "test_table", "col_blob"),
 						Operator: "IN",
-						Value:    types.NewParameterizedValue("@value0"),
+						Value:    types.NewParameterizedValue("@value0", types.NewListType(types.TypeBlob)),
 					},
 				},
 			},
@@ -513,8 +519,8 @@ func TestTranslator_TranslateSelectQuerytoBigtable(t *testing.T) {
 				Keyspace:        "test_keyspace",
 				SelectClause: &types.SelectClause{
 					Columns: []types.SelectedColumn{
-						*types.NewSelectedColumn("id", "id", "", types.TypeTimeuuid),
-						*types.NewSelectedColumn("username", "username", "", types.TypeText),
+						types.NewSelectedColumn("id", id, ""),
+						types.NewSelectedColumn("username", username, ""),
 					},
 				},
 				AllParams: []types.PlaceholderMetadata{{
@@ -526,7 +532,7 @@ func TestTranslator_TranslateSelectQuerytoBigtable(t *testing.T) {
 					{
 						Column:   mockdata.GetColumnOrDie("test_keyspace", "timeuuid_table", "id"),
 						Operator: ">",
-						Value:    types.NewFunctionValue("@value0", types.FuncCodeMaxTimeuuid, []types.DynamicValue{types.NewLiteralValue(time.Date(2018, 12, 9, 10, 1, 0, 0, time.UTC))}),
+						Value:    types.NewFunctionValue("@value0", types.FuncMaxTimeUuid, types.NewLiteralValue(time.Date(2018, 12, 9, 10, 1, 0, 0, time.UTC), types.TypeTimestamp)),
 					},
 				},
 			},
@@ -540,8 +546,8 @@ func TestTranslator_TranslateSelectQuerytoBigtable(t *testing.T) {
 				Keyspace:        "test_keyspace",
 				SelectClause: &types.SelectClause{
 					Columns: []types.SelectedColumn{
-						*types.NewSelectedColumn("id", "id", "", types.TypeTimeuuid),
-						*types.NewSelectedColumn("username", "username", "", types.TypeText),
+						types.NewSelectedColumn("id", id, ""),
+						types.NewSelectedColumn("username", username, ""),
 					},
 				},
 				AllParams: []types.PlaceholderMetadata{{
@@ -553,7 +559,7 @@ func TestTranslator_TranslateSelectQuerytoBigtable(t *testing.T) {
 					{
 						Column:   mockdata.GetColumnOrDie("test_keyspace", "timeuuid_table", "id"),
 						Operator: ">",
-						Value:    types.NewFunctionValue("@value0", types.FuncCodeMaxTimeuuid, []types.DynamicValue{types.NewLiteralValue(time.Date(2018, 12, 9, 10, 1, 0, 0, time.UTC))}),
+						Value:    types.NewFunctionValue("@value0", types.FuncMaxTimeUuid, types.NewLiteralValue(time.Date(2018, 12, 9, 10, 1, 0, 0, time.UTC), types.TypeTimestamp)),
 					},
 				},
 			},
@@ -577,8 +583,8 @@ func TestTranslator_TranslateSelectQuerytoBigtable(t *testing.T) {
 				Keyspace:        "test_keyspace",
 				SelectClause: &types.SelectClause{
 					Columns: []types.SelectedColumn{
-						*types.NewSelectedColumn("id", "id", "", types.TypeTimeuuid),
-						*types.NewSelectedColumn("username", "username", "", types.TypeText),
+						types.NewSelectedColumn("id", id, ""),
+						types.NewSelectedColumn("username", username, ""),
 					},
 				},
 				AllParams: []types.PlaceholderMetadata{
@@ -597,7 +603,7 @@ func TestTranslator_TranslateSelectQuerytoBigtable(t *testing.T) {
 					{
 						Column:   mockdata.GetColumnOrDie("test_keyspace", "timeuuid_table", "id"),
 						Operator: ">",
-						Value:    types.NewFunctionValue("@value1", types.FuncCodeMaxTimeuuid, []types.DynamicValue{types.NewParameterizedValue("@value0")}),
+						Value:    types.NewFunctionValue("@value1", types.FuncMaxTimeUuid, types.NewParameterizedValue("@value0", types.TypeTimestamp)),
 					},
 				},
 			},
@@ -611,8 +617,8 @@ func TestTranslator_TranslateSelectQuerytoBigtable(t *testing.T) {
 				Keyspace:        "test_keyspace",
 				SelectClause: &types.SelectClause{
 					Columns: []types.SelectedColumn{
-						*types.NewSelectedColumn("id", "id", "", types.TypeTimeuuid),
-						*types.NewSelectedColumn("username", "username", "", types.TypeText),
+						types.NewSelectedColumn("id", id, ""),
+						types.NewSelectedColumn("username", username, ""),
 					},
 				},
 				AllParams: []types.PlaceholderMetadata{
@@ -641,8 +647,8 @@ func TestTranslator_TranslateSelectQuerytoBigtable(t *testing.T) {
 					{
 						Column:   mockdata.GetColumnOrDie("test_keyspace", "timeuuid_table", "id"),
 						Operator: "BETWEEN",
-						Value:    types.NewFunctionValue("@value1", types.FuncCodeMinTimeuuid, []types.DynamicValue{types.NewParameterizedValue("@value0")}),
-						Value2:   types.NewFunctionValue("@value3", types.FuncCodeMaxTimeuuid, []types.DynamicValue{types.NewParameterizedValue("@value2")}),
+						Value:    types.NewFunctionValue("@value1", types.FuncMinTimeUuid, types.NewParameterizedValue("@value0", types.TypeTimestamp)),
+						Value2:   types.NewFunctionValue("@value3", types.FuncMaxTimeUuid, types.NewParameterizedValue("@value2", types.TypeTimestamp)),
 					},
 				},
 			},
@@ -656,8 +662,8 @@ func TestTranslator_TranslateSelectQuerytoBigtable(t *testing.T) {
 				Keyspace:        "test_keyspace",
 				SelectClause: &types.SelectClause{
 					Columns: []types.SelectedColumn{
-						*types.NewSelectedColumn("id", "id", "", types.TypeTimeuuid),
-						*types.NewSelectedColumn("username", "username", "", types.TypeText),
+						types.NewSelectedColumn("id", id, ""),
+						types.NewSelectedColumn("username", username, ""),
 					},
 				},
 				AllParams: nil,
@@ -665,7 +671,7 @@ func TestTranslator_TranslateSelectQuerytoBigtable(t *testing.T) {
 					{
 						Column:   mockdata.GetColumnOrDie("test_keyspace", "timeuuid_table", "id"),
 						Operator: "=",
-						Value:    types.NewLiteralValue(parseUuidOrDie("6c9b87f6-d764-11f0-8f97-8e0ad7a51247")),
+						Value:    types.NewLiteralValue(parseUuidOrDie("6c9b87f6-d764-11f0-8f97-8e0ad7a51247"), types.TypeTimeuuid),
 					},
 				},
 			},
@@ -679,8 +685,8 @@ func TestTranslator_TranslateSelectQuerytoBigtable(t *testing.T) {
 				Keyspace:        "test_keyspace",
 				SelectClause: &types.SelectClause{
 					Columns: []types.SelectedColumn{
-						*types.NewSelectedColumn("id", "id", "", types.TypeTimeuuid),
-						*types.NewSelectedColumn("username", "username", "", types.TypeText),
+						types.NewSelectedColumn("id", id, ""),
+						types.NewSelectedColumn("username", username, ""),
 					},
 				},
 				AllParams: []types.PlaceholderMetadata{
@@ -699,7 +705,7 @@ func TestTranslator_TranslateSelectQuerytoBigtable(t *testing.T) {
 					{
 						Column:   mockdata.GetColumnOrDie("test_keyspace", "timeuuid_table", "id"),
 						Operator: ">",
-						Value:    types.NewFunctionValue("@value1", types.FuncCodeMinTimeuuid, []types.DynamicValue{types.NewParameterizedValue("@value0")}),
+						Value:    types.NewFunctionValue("@value1", types.FuncMinTimeUuid, types.NewParameterizedValue("@value0", types.TypeTimestamp)),
 					},
 				},
 			},
@@ -720,15 +726,15 @@ func TestTranslator_TranslateSelectQuerytoBigtable(t *testing.T) {
 				Keyspace:        "test_keyspace",
 				SelectClause: &types.SelectClause{
 					Columns: []types.SelectedColumn{
-						*types.NewSelectedColumn("pk1", "pk1", "", types.TypeVarchar),
-						*types.NewSelectedColumnFunction("WRITETIME(col_int)", "col_int", "name", types.TypeBigInt, types.FuncCodeWriteTime),
+						types.NewSelectedColumn("pk1", pk1, ""),
+						types.NewSelectedColumn("WRITETIME(col_int)", types.NewFunctionValue("", types.FuncWriteTime, colInt), "name"),
 					},
 				},
 				Conditions: []types.Condition{
 					{
 						Column:   mockdata.GetColumnOrDie("test_keyspace", "test_table", "pk1"),
 						Operator: "=",
-						Value:    types.NewLiteralValue("test"),
+						Value:    types.NewLiteralValue("test", types.TypeVarchar),
 					},
 				},
 				OrderBy: types.OrderBy{
@@ -742,19 +748,19 @@ func TestTranslator_TranslateSelectQuerytoBigtable(t *testing.T) {
 			name:  "As CqlQuery",
 			query: `select col_int as name from test_keyspace.test_table where pk1 = 'test';`,
 			want: &Want{
-				TranslatedQuery: "SELECT TO_INT64(`cf1`['col_int']) as name FROM test_table WHERE pk1 = 'test';",
+				TranslatedQuery: "SELECT TO_INT64(`cf1`['col_int']) AS name FROM test_table WHERE pk1 = 'test';",
 				Table:           "test_table",
 				Keyspace:        "test_keyspace",
 				SelectClause: &types.SelectClause{
 					Columns: []types.SelectedColumn{
-						*types.NewSelectedColumn("col_int", "col_int", "name", types.TypeInt),
+						types.NewSelectedColumn("col_int", colInt, "name"),
 					},
 				},
 				Conditions: []types.Condition{
 					{
 						Column:   mockdata.GetColumnOrDie("test_keyspace", "test_table", "pk1"),
 						Operator: "=",
-						Value:    types.NewLiteralValue("test"),
+						Value:    types.NewLiteralValue("test", types.TypeVarchar),
 					},
 				},
 				OrderBy: types.OrderBy{
@@ -801,47 +807,47 @@ func TestTranslator_TranslateSelectQuerytoBigtable(t *testing.T) {
 				Keyspace:        "test_keyspace",
 				SelectClause: &types.SelectClause{
 					Columns: []types.SelectedColumn{
-						*types.NewSelectedColumn("pk1", "pk1", "", types.TypeVarchar),
-						*types.NewSelectedColumn("col_int", "col_int", "", types.TypeInt),
-						*types.NewSelectedColumn("col_bool", "col_bool", "", types.TypeBoolean),
+						types.NewSelectedColumn("pk1", pk1, ""),
+						types.NewSelectedColumn("col_int", colInt, ""),
+						types.NewSelectedColumn("col_bool", colBool, ""),
 					},
 				},
 				Conditions: []types.Condition{
 					{
 						Column:   mockdata.GetColumnOrDie("test_keyspace", "test_table", "pk1"),
 						Operator: "=",
-						Value:    types.NewParameterizedValue("@value0"),
+						Value:    types.NewParameterizedValue("@value0", types.TypeVarchar),
 					},
 					{
 						Column:   mockdata.GetColumnOrDie("test_keyspace", "test_table", "col_bool"),
 						Operator: "=",
-						Value:    types.NewParameterizedValue("@value1"),
+						Value:    types.NewParameterizedValue("@value1", types.TypeBoolean),
 					},
 					{
 						Column:   mockdata.GetColumnOrDie("test_keyspace", "test_table", "col_ts"),
 						Operator: "<=",
-						Value:    types.NewParameterizedValue("@value2"),
+						Value:    types.NewParameterizedValue("@value2", types.TypeTimestamp),
 					},
 					{
 						Column:   mockdata.GetColumnOrDie("test_keyspace", "test_table", "col_int"),
 						Operator: ">=",
-						Value:    types.NewParameterizedValue("@value3"),
+						Value:    types.NewParameterizedValue("@value3", types.TypeInt),
 					},
 					{
 						Column:   mockdata.GetColumnOrDie("test_keyspace", "test_table", "col_bigint"),
 						Operator: ">",
-						Value:    types.NewParameterizedValue("@value4"),
+						Value:    types.NewParameterizedValue("@value4", types.TypeBigInt),
 					},
 					{
 						Column:   mockdata.GetColumnOrDie("test_keyspace", "test_table", "col_bigint"),
 						Operator: "<",
-						Value:    types.NewParameterizedValue("@value5"),
+						Value:    types.NewParameterizedValue("@value5", types.TypeBigInt),
 					},
 				},
 				OrderBy: types.OrderBy{
 					IsOrderBy: false,
 				},
-				LimitValue: types.NewLiteralValue(int32(20000)),
+				LimitValue: types.NewLiteralValue(int32(20000), types.TypeInt),
 				AllParams: []types.PlaceholderMetadata{
 					{
 						Key:             "@value0",
@@ -886,41 +892,41 @@ func TestTranslator_TranslateSelectQuerytoBigtable(t *testing.T) {
 				Keyspace:        "test_keyspace",
 				SelectClause: &types.SelectClause{
 					Columns: []types.SelectedColumn{
-						*types.NewSelectedColumn("pk1", "pk1", "", types.TypeVarchar),
-						*types.NewSelectedColumn("col_int", "col_int", "", types.TypeInt),
-						*types.NewSelectedColumn("col_bool", "col_bool", "", types.TypeBoolean),
+						types.NewSelectedColumn("pk1", pk1, ""),
+						types.NewSelectedColumn("col_int", colInt, ""),
+						types.NewSelectedColumn("col_bool", colBool, ""),
 					},
 				},
 				Conditions: []types.Condition{
 					{
 						Column:   mockdata.GetColumnOrDie("test_keyspace", "test_table", "pk1"),
 						Operator: "=",
-						Value:    types.NewParameterizedValue("@value0"),
+						Value:    types.NewParameterizedValue("@value0", types.TypeVarchar),
 					},
 					{
 						Column:   mockdata.GetColumnOrDie("test_keyspace", "test_table", "col_int"),
 						Operator: "=",
-						Value:    types.NewParameterizedValue("@value1"),
+						Value:    types.NewParameterizedValue("@value1", types.TypeInt),
 					},
 					{
 						Column:   mockdata.GetColumnOrDie("test_keyspace", "test_table", "col_bool"),
 						Operator: "=",
-						Value:    types.NewParameterizedValue("@value2"),
+						Value:    types.NewParameterizedValue("@value2", types.TypeBoolean),
 					},
 					{
 						Column:   mockdata.GetColumnOrDie("test_keyspace", "test_table", "col_ts"),
 						Operator: "=",
-						Value:    types.NewParameterizedValue("@value3"),
+						Value:    types.NewParameterizedValue("@value3", types.TypeTimestamp),
 					},
 					{
 						Column:   mockdata.GetColumnOrDie("test_keyspace", "test_table", "col_int"),
 						Operator: "=",
-						Value:    types.NewParameterizedValue("@value4"),
+						Value:    types.NewParameterizedValue("@value4", types.TypeInt),
 					},
 					{
 						Column:   mockdata.GetColumnOrDie("test_keyspace", "test_table", "col_bigint"),
 						Operator: "=",
-						Value:    types.NewParameterizedValue("@value5"),
+						Value:    types.NewParameterizedValue("@value5", types.TypeBigInt),
 					},
 				},
 				OrderBy: types.OrderBy{
@@ -970,12 +976,12 @@ func TestTranslator_TranslateSelectQuerytoBigtable(t *testing.T) {
 				Keyspace:        "test_keyspace",
 				SelectClause: &types.SelectClause{
 					Columns: []types.SelectedColumn{
-						*types.NewSelectedColumn("pk1", "pk1", "", types.TypeVarchar),
-						*types.NewSelectedColumn("col_int", "col_int", "", types.TypeInt),
-						*types.NewSelectedColumn("col_bool", "col_bool", "", types.TypeBoolean),
+						types.NewSelectedColumn("pk1", pk1, ""),
+						types.NewSelectedColumn("col_int", colInt, ""),
+						types.NewSelectedColumn("col_bool", colBool, ""),
 					},
 				},
-				LimitValue: types.NewLiteralValue(int32(20000)),
+				LimitValue: types.NewLiteralValue(int32(20000), types.TypeInt),
 				AllParams:  nil,
 				OrderBy: types.OrderBy{
 					IsOrderBy: true,
@@ -1019,8 +1025,8 @@ func TestTranslator_TranslateSelectQuerytoBigtable(t *testing.T) {
 				Table:           "test_table",
 				SelectClause: &types.SelectClause{
 					Columns: []types.SelectedColumn{
-						*types.NewSelectedColumn("pk1", "pk1", "", types.TypeVarchar),
-						*types.NewSelectedColumn("col_int", "col_int", "", types.TypeInt),
+						types.NewSelectedColumn("pk1", pk1, ""),
+						types.NewSelectedColumn("col_int", colInt, ""),
 					},
 				},
 				AllParams: nil,
@@ -1028,12 +1034,12 @@ func TestTranslator_TranslateSelectQuerytoBigtable(t *testing.T) {
 					{
 						Column:   mockdata.GetColumnOrDie("test_keyspace", "test_table", "pk1"),
 						Operator: "=",
-						Value:    types.NewLiteralValue("test"),
+						Value:    types.NewLiteralValue("test", types.TypeVarchar),
 					},
 					{
 						Column:   mockdata.GetColumnOrDie("test_keyspace", "test_table", "pk1"),
 						Operator: "IN",
-						Value:    types.NewLiteralValue([]any{"abc", "xyz"}),
+						Value:    types.NewLiteralValue([]any{"abc", "xyz"}, types.NewListType(types.TypeVarchar)),
 					},
 				},
 			},
@@ -1048,8 +1054,8 @@ func TestTranslator_TranslateSelectQuerytoBigtable(t *testing.T) {
 				Table:           "test_table",
 				SelectClause: &types.SelectClause{
 					Columns: []types.SelectedColumn{
-						*types.NewSelectedColumn("pk1", "pk1", "", types.TypeVarchar),
-						*types.NewSelectedColumn("col_int", "col_int", "", types.TypeInt),
+						types.NewSelectedColumn("pk1", pk1, ""),
+						types.NewSelectedColumn("col_int", colInt, ""),
 					},
 				},
 				AllParams: []types.PlaceholderMetadata{
@@ -1068,12 +1074,12 @@ func TestTranslator_TranslateSelectQuerytoBigtable(t *testing.T) {
 					{
 						Column:   mockdata.GetColumnOrDie("test_keyspace", "test_table", "pk1"),
 						Operator: "=",
-						Value:    types.NewParameterizedValue("@value0"),
+						Value:    types.NewParameterizedValue("@value0", types.TypeVarchar),
 					},
 					{
 						Column:   mockdata.GetColumnOrDie("test_keyspace", "test_table", "pk1"),
 						Operator: "IN",
-						Value:    types.NewParameterizedValue("@value1"),
+						Value:    types.NewParameterizedValue("@value1", types.NewListType(types.TypeVarchar)),
 					},
 				},
 			},
@@ -1088,8 +1094,8 @@ func TestTranslator_TranslateSelectQuerytoBigtable(t *testing.T) {
 				Table:           "test_table",
 				SelectClause: &types.SelectClause{
 					Columns: []types.SelectedColumn{
-						*types.NewSelectedColumn("pk1", "pk1", "", types.TypeVarchar),
-						*types.NewSelectedColumn("col_int", "col_int", "", types.TypeInt),
+						types.NewSelectedColumn("pk1", pk1, ""),
+						types.NewSelectedColumn("col_int", colInt, ""),
 					},
 				},
 				AllParams: nil,
@@ -1097,7 +1103,7 @@ func TestTranslator_TranslateSelectQuerytoBigtable(t *testing.T) {
 					{
 						Column:   mockdata.GetColumnOrDie("test_keyspace", "test_table", "pk1"),
 						Operator: "LIKE",
-						Value:    types.NewLiteralValue("test%"),
+						Value:    types.NewLiteralValue("test%", types.TypeVarchar),
 					},
 				},
 			},
@@ -1110,8 +1116,8 @@ func TestTranslator_TranslateSelectQuerytoBigtable(t *testing.T) {
 				Table:           "test_table",
 				SelectClause: &types.SelectClause{
 					Columns: []types.SelectedColumn{
-						*types.NewSelectedColumn("pk1", "pk1", "", types.TypeVarchar),
-						*types.NewSelectedColumn("col_int", "col_int", "", types.TypeInt),
+						types.NewSelectedColumn("pk1", pk1, ""),
+						types.NewSelectedColumn("col_int", colInt, ""),
 					},
 				},
 				AllParams: nil,
@@ -1119,8 +1125,8 @@ func TestTranslator_TranslateSelectQuerytoBigtable(t *testing.T) {
 					{
 						Column:   mockdata.GetColumnOrDie("test_keyspace", "test_table", "pk1"),
 						Operator: "BETWEEN",
-						Value:    types.NewLiteralValue("te'st"),
-						Value2:   types.NewLiteralValue("test2"),
+						Value:    types.NewLiteralValue("te'st", types.TypeVarchar),
+						Value2:   types.NewLiteralValue("test2", types.TypeVarchar),
 					},
 				},
 			},
@@ -1140,8 +1146,8 @@ func TestTranslator_TranslateSelectQuerytoBigtable(t *testing.T) {
 				Table:           "test_table",
 				SelectClause: &types.SelectClause{
 					Columns: []types.SelectedColumn{
-						*types.NewSelectedColumn("pk1", "pk1", "", types.TypeVarchar),
-						*types.NewSelectedColumn("col_int", "col_int", "", types.TypeInt),
+						types.NewSelectedColumn("pk1", pk1, ""),
+						types.NewSelectedColumn("col_int", colInt, ""),
 					},
 				},
 				AllParams: []types.PlaceholderMetadata{{
@@ -1153,7 +1159,7 @@ func TestTranslator_TranslateSelectQuerytoBigtable(t *testing.T) {
 					{
 						Column:   mockdata.GetColumnOrDie("test_keyspace", "test_table", "pk1"),
 						Operator: "LIKE",
-						Value:    types.NewParameterizedValue("@value0"),
+						Value:    types.NewParameterizedValue("@value0", types.TypeVarchar),
 					},
 				},
 			},
@@ -1167,8 +1173,8 @@ func TestTranslator_TranslateSelectQuerytoBigtable(t *testing.T) {
 				Table:           "test_table",
 				SelectClause: &types.SelectClause{
 					Columns: []types.SelectedColumn{
-						*types.NewSelectedColumn("pk1", "pk1", "", types.TypeVarchar),
-						*types.NewSelectedColumn("col_int", "col_int", "", types.TypeInt),
+						types.NewSelectedColumn("pk1", pk1, ""),
+						types.NewSelectedColumn("col_int", colInt, ""),
 					},
 				},
 				AllParams: []types.PlaceholderMetadata{
@@ -1186,8 +1192,8 @@ func TestTranslator_TranslateSelectQuerytoBigtable(t *testing.T) {
 					{
 						Column:   mockdata.GetColumnOrDie("test_keyspace", "test_table", "pk1"),
 						Operator: "BETWEEN",
-						Value:    types.NewParameterizedValue("@value0"),
-						Value2:   types.NewParameterizedValue("@value1"),
+						Value:    types.NewParameterizedValue("@value0", types.TypeVarchar),
+						Value2:   types.NewParameterizedValue("@value1", types.TypeVarchar),
 					},
 				},
 			},
@@ -1236,11 +1242,11 @@ func TestTranslator_TranslateSelectQuerytoBigtable(t *testing.T) {
 				TranslatedQuery: "SELECT pk1 FROM test_table WHERE pk1 = 'abc';",
 				SelectClause: &types.SelectClause{
 					Columns: []types.SelectedColumn{
-						*types.NewSelectedColumn("pk1", "pk1", "", types.TypeVarchar),
+						types.NewSelectedColumn("pk1", pk1, ""),
 					},
 				},
 				AllParams:  nil,
-				Conditions: []types.Condition{{Column: mockdata.GetColumnOrDie("test_keyspace", "test_table", "pk1"), Operator: "=", Value: types.NewLiteralValue("abc")}},
+				Conditions: []types.Condition{{Column: mockdata.GetColumnOrDie("test_keyspace", "test_table", "pk1"), Operator: "=", Value: types.NewLiteralValue("abc", types.TypeVarchar)}},
 			},
 			sessionKeyspace: "other_keyspace",
 		},
@@ -1253,11 +1259,11 @@ func TestTranslator_TranslateSelectQuerytoBigtable(t *testing.T) {
 				TranslatedQuery: "SELECT pk1 FROM test_table WHERE pk1 = 'abc';",
 				SelectClause: &types.SelectClause{
 					Columns: []types.SelectedColumn{
-						*types.NewSelectedColumn("pk1", "pk1", "", types.TypeVarchar),
+						types.NewSelectedColumn("pk1", pk1, ""),
 					},
 				},
 				AllParams:  nil,
-				Conditions: []types.Condition{{Column: mockdata.GetColumnOrDie("test_keyspace", "test_table", "pk1"), Operator: "=", Value: types.NewLiteralValue("abc")}},
+				Conditions: []types.Condition{{Column: mockdata.GetColumnOrDie("test_keyspace", "test_table", "pk1"), Operator: "=", Value: types.NewLiteralValue("abc", types.TypeVarchar)}},
 			},
 			sessionKeyspace: "test_keyspace",
 		},
@@ -1291,7 +1297,7 @@ func TestTranslator_TranslateSelectQuerytoBigtable(t *testing.T) {
 		{
 			name:            "CqlQuery with multiple aggregate functions",
 			query:           `select pk1, avg(col_int) as avg_col2, max(col_bool) as max_col3, min(col_int) as min_col4 from test_keyspace.test_table GROUP BY pk1;`,
-			wantErr:         "invalid aggregate type: boolean",
+			wantErr:         "function 'max' parameter 0 doesn't accept type boolean",
 			sessionKeyspace: "test_keyspace",
 		},
 		{
@@ -1304,12 +1310,12 @@ func TestTranslator_TranslateSelectQuerytoBigtable(t *testing.T) {
 				TranslatedQuery: "SELECT pk1 FROM test_table LIMIT @value0;",
 				SelectClause: &types.SelectClause{
 					Columns: []types.SelectedColumn{
-						*types.NewSelectedColumn("pk1", "pk1", "", types.TypeVarchar),
+						types.NewSelectedColumn("pk1", pk1, ""),
 					},
 				},
 				OrderBy:        types.OrderBy{},
 				GroupByColumns: nil,
-				LimitValue:     types.NewParameterizedValue("@value0"),
+				LimitValue:     types.NewParameterizedValue("@value0", types.TypeInt),
 				AllParams: []types.PlaceholderMetadata{{
 					Key:             "@value0",
 					Type:            types.TypeInt,
@@ -1327,14 +1333,14 @@ func TestTranslator_TranslateSelectQuerytoBigtable(t *testing.T) {
 				TranslatedQuery: "SELECT MAP_VALUES(`tags`) FROM user_info WHERE ARRAY_INCLUDES(MAP_VALUES(`tags`), @value0);",
 				SelectClause: &types.SelectClause{
 					Columns: []types.SelectedColumn{
-						*types.NewSelectedColumn("tags", "tags", "", types.NewListType(types.TypeText)),
+						types.NewSelectedColumn("tags", colTags, ""),
 					},
 				},
 				Conditions: []types.Condition{
 					{
 						Column:   mockdata.GetColumnOrDie("test_keyspace", "user_info", "tags"),
 						Operator: types.CONTAINS,
-						Value:    types.NewParameterizedValue("@value0"),
+						Value:    types.NewParameterizedValue("@value0", types.TypeText),
 					},
 				},
 				OrderBy:        types.OrderBy{},
@@ -1355,22 +1361,22 @@ func TestTranslator_TranslateSelectQuerytoBigtable(t *testing.T) {
 			want: &Want{
 				Keyspace:        "test_keyspace",
 				Table:           "test_table",
-				TranslatedQuery: "SELECT count(*) FROM test_table WHERE pk1 = @value0 AND TIMESTAMP_FROM_UNIX_MILLIS(TO_INT64(`cf1`['col_ts'])) < @value2;",
+				TranslatedQuery: "SELECT COUNT(*) FROM test_table WHERE pk1 = @value0 AND TIMESTAMP_FROM_UNIX_MILLIS(TO_INT64(`cf1`['col_ts'])) < @value2;",
 				SelectClause: &types.SelectClause{
 					Columns: []types.SelectedColumn{
-						*types.NewSelectedColumnFunction("system.count(*)", "*", "", types.TypeBigInt, types.FuncCodeCount),
+						types.NewSelectedColumn("system.count(*)", types.NewFunctionValue("", types.FuncCount, types.NewSelectStarValue()), ""),
 					},
 				},
 				Conditions: []types.Condition{
 					{
 						Column:   mockdata.GetColumnOrDie("test_keyspace", "test_table", "pk1"),
 						Operator: "=",
-						Value:    types.NewParameterizedValue("@value0"),
+						Value:    types.NewParameterizedValue("@value0", types.TypeVarchar),
 					},
 					{
 						Column:   mockdata.GetColumnOrDie("test_keyspace", "test_table", "col_ts"),
 						Operator: "<",
-						Value:    types.NewFunctionValue("@value2", types.FuncCodeToTimestamp, []types.DynamicValue{types.NewFunctionValue("@value1", types.FuncCodeNow, nil)}),
+						Value:    types.NewFunctionValue("@value2", types.FuncToTimestamp, types.NewFunctionValue("@value1", types.FuncNow)),
 					},
 				},
 				OrderBy:        types.OrderBy{},
@@ -1401,17 +1407,17 @@ func TestTranslator_TranslateSelectQuerytoBigtable(t *testing.T) {
 			want: &Want{
 				Keyspace:        "test_keyspace",
 				Table:           "test_table",
-				TranslatedQuery: "SELECT count(*) FROM test_table WHERE TIMESTAMP_FROM_UNIX_MILLIS(TO_INT64(`cf1`['col_ts'])) < TIMESTAMP_FROM_UNIX_MILLIS(1764671400000);",
+				TranslatedQuery: "SELECT COUNT(*) FROM test_table WHERE TIMESTAMP_FROM_UNIX_MILLIS(TO_INT64(`cf1`['col_ts'])) < TIMESTAMP_FROM_UNIX_MILLIS(1764671400000);",
 				SelectClause: &types.SelectClause{
 					Columns: []types.SelectedColumn{
-						*types.NewSelectedColumnFunction("system.count(*)", "*", "", types.TypeBigInt, types.FuncCodeCount),
+						types.NewSelectedColumn("system.count(*)", types.NewFunctionValue("", types.FuncCount, types.NewSelectStarValue()), ""),
 					},
 				},
 				Conditions: []types.Condition{
 					{
 						Column:   mockdata.GetColumnOrDie("test_keyspace", "test_table", "col_ts"),
 						Operator: types.LT,
-						Value:    types.NewLiteralValue(time.Date(2025, 12, 2, 10, 30, 0, 0, time.UTC)),
+						Value:    types.NewLiteralValue(time.Date(2025, 12, 2, 10, 30, 0, 0, time.UTC), types.TypeTimestamp),
 					},
 				},
 				OrderBy:        types.OrderBy{},
@@ -1422,21 +1428,21 @@ func TestTranslator_TranslateSelectQuerytoBigtable(t *testing.T) {
 		},
 		{
 			name:  "literal timestamp int",
-			query: `SELECT count(*) FROM test_table WHERE col_ts < 1764671400000;`,
+			query: `SELECT count(*) as myCount FROM test_table WHERE col_ts < 1764671400000;`,
 			want: &Want{
 				Keyspace:        "test_keyspace",
 				Table:           "test_table",
-				TranslatedQuery: "SELECT count(*) FROM test_table WHERE TIMESTAMP_FROM_UNIX_MILLIS(TO_INT64(`cf1`['col_ts'])) < TIMESTAMP_FROM_UNIX_MILLIS(1764671400000);",
+				TranslatedQuery: "SELECT COUNT(*) AS myCount FROM test_table WHERE TIMESTAMP_FROM_UNIX_MILLIS(TO_INT64(`cf1`['col_ts'])) < TIMESTAMP_FROM_UNIX_MILLIS(1764671400000);",
 				SelectClause: &types.SelectClause{
 					Columns: []types.SelectedColumn{
-						*types.NewSelectedColumnFunction("system.count(*)", "*", "", types.TypeBigInt, types.FuncCodeCount),
+						types.NewSelectedColumn("system.count(*)", types.NewFunctionValue("", types.FuncCount, types.NewSelectStarValue()), "myCount"),
 					},
 				},
 				Conditions: []types.Condition{
 					{
 						Column:   mockdata.GetColumnOrDie("test_keyspace", "test_table", "col_ts"),
 						Operator: types.LT,
-						Value:    types.NewLiteralValue(time.Date(2025, 12, 2, 10, 30, 0, 0, time.UTC)),
+						Value:    types.NewLiteralValue(time.Date(2025, 12, 2, 10, 30, 0, 0, time.UTC), types.TypeTimestamp),
 					},
 				},
 				OrderBy:        types.OrderBy{},
@@ -1449,20 +1455,20 @@ func TestTranslator_TranslateSelectQuerytoBigtable(t *testing.T) {
 			name:  "Valid GROUP BY with aggregate and ORDER BY",
 			query: `select pk1, count(col_int) from test_keyspace.test_table where pk1 = 'test' GROUP BY pk1 ORDER BY pk1;`,
 			want: &Want{
-				TranslatedQuery: "SELECT pk1, count(TO_INT64(`cf1`['col_int'])) FROM test_table WHERE pk1 = 'test' GROUP BY pk1 ORDER BY pk1 asc;",
+				TranslatedQuery: "SELECT pk1, COUNT(TO_INT64(`cf1`['col_int'])) FROM test_table WHERE pk1 = 'test' GROUP BY pk1 ORDER BY pk1 asc;",
 				Table:           "test_table",
 				Keyspace:        "test_keyspace",
 				SelectClause: &types.SelectClause{
 					Columns: []types.SelectedColumn{
-						*types.NewSelectedColumn("pk1", "pk1", "", types.TypeVarchar),
-						*types.NewSelectedColumnFunction("system.count(col_int)", "col_int", "", types.TypeBigInt, types.FuncCodeCount),
+						types.NewSelectedColumn("pk1", pk1, ""),
+						types.NewSelectedColumn("system.count(col_int)", types.NewFunctionValue("", types.FuncCount, colInt), ""),
 					},
 				},
 				Conditions: []types.Condition{
 					{
 						Column:   mockdata.GetColumnOrDie("test_keyspace", "test_table", "pk1"),
 						Operator: "=",
-						Value:    types.NewLiteralValue("test"),
+						Value:    types.NewLiteralValue("test", types.TypeVarchar),
 					},
 				},
 				AllParams: nil,

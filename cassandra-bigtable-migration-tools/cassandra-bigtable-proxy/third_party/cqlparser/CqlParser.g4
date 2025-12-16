@@ -849,11 +849,14 @@ relationContainsKey
    ;
 
 functionCall
-   : OBJECT_NAME '(' STAR ')'
-   | OBJECT_NAME '(' functionArgs? ')'
-   | K_UUID '(' ')'
-   | K_WRITETIME '(' functionArgs? ')'
+   : functionName '(' functionArgs? ')'
    ;
+
+functionName
+    : OBJECT_NAME
+    | K_UUID
+    | K_WRITETIME
+    ;
 
 functionArgs
    : (functionArg) (syntaxComma functionArg)*
@@ -861,7 +864,8 @@ functionArgs
 
 functionArg
    : valueAny
-   | OBJECT_NAME
+   | column
+   | STAR
    ;
 
 valueAny

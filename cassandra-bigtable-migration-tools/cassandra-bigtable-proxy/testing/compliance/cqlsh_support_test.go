@@ -88,7 +88,7 @@ func TestCqlshError(t *testing.T) {
 
 	_, err := cqlshScanToMap(`INSERT INTO bigtabledevinstance.no_such_table (name, age, code) VALUES ('foo', 1, 2)`)
 	require.Error(t, err)
-	require.Contains(t, err.Error(), "table no_such_table does not exist")
+	require.Contains(t, err.Error(), "table 'no_such_table' does not exist")
 }
 
 func TestCqlshCreateTable(t *testing.T) {
@@ -101,6 +101,7 @@ func TestCqlshCreateTable(t *testing.T) {
 	require.NoError(t, err)
 
 	results, err := cqlshScanToMap(`SELECT id AS i, username AS u, is_admin FROM bigtabledevinstance.cqlsh_create_table_test WHERE id='u1'`)
+	require.NoError(t, err)
 	assert.Equal(t, []map[string]string{{"i": "u1", "u": "admin", "is_admin": "False"}}, results)
 }
 
@@ -111,7 +112,7 @@ func TestCqlshUseKeyspace(t *testing.T) {
 	_, err := cqlshExec(`SELECT * FROM user_info LIMIT 1`)
 	require.Error(t, err)
 	if testTarget == TestTargetProxy {
-		assert.Contains(t, err.Error(), "invalid input parameters found for keyspace")
+		assert.Contains(t, err.Error(), "no keyspace specified")
 	}
 
 	// setting the keyspace should allow subsequent queries to omit keyspace because it's now set on the client session

@@ -25,10 +25,10 @@ func TestBasicInsertUpdateDeleteValidation(t *testing.T) {
 	assert.Equal(t, int64(30), age)
 	assert.Equal(t, 123, code)
 
-	err = session.Query(`UPDATE bigtabledevinstance.user_info SET code = ? WHERE name = ? AND age = ?`, 456, rowName, int64(30)).Exec()
+	err = session.Query(`UPDATE bigtabledevinstance.user_info SET code = ? WHERE "name" = ? AND age = ?`, 456, rowName, int64(30)).Exec()
 	require.NoError(t, err, "Failed to update record")
 
-	err = session.Query(`SELECT code FROM bigtabledevinstance.user_info WHERE name = ? AND age = ?`, rowName, int64(30)).Scan(&code)
+	err = session.Query(`SELECT code FROM bigtabledevinstance.user_info WHERE "name" = ? AND age = ?`, rowName, int64(30)).Scan(&code)
 	require.NoError(t, err, "Failed to select updated record")
 	assert.Equal(t, 456, code)
 
@@ -43,16 +43,18 @@ func TestBasicInsertUpdateDeleteValidation(t *testing.T) {
 func TestUpsertOperation(t *testing.T) {
 	t.Parallel()
 	pkName, pkAge := uuid.New().String(), int64(33)
-	err := session.Query(`INSERT INTO bigtabledevinstance.user_info (name, age, code) VALUES (?, ?, ?)`, pkName, pkAge, 123).Exec()
-	require.NoError(t, err, "Failed initial insert")
+	err := session.Query(`INSERT INTO bigtabledevinstance.user_info (name, age, code, text_col) VALUES (?, ?, ?, ?)`, pkName, pkAge, 123, "abc").Exec()
+	require.NoError(t, err)
 
-	err = session.Query(`INSERT INTO bigtabledevinstance.user_info (name, age, code) VALUES (?, ?, ?)`, pkName, pkAge, 456).Exec()
-	require.NoError(t, err, "Failed second insert (upsert)")
+	err = session.Query(`INSERT INTO bigtabledevinstance.user_info (name, age, code, text_col) VALUES (?, ?, ?, ?)`, pkName, pkAge, 456, "abc").Exec()
+	require.NoError(t, err)
 
 	var code int
-	err = session.Query(`SELECT code FROM bigtabledevinstance.user_info WHERE name = ? AND age = ?`, pkName, pkAge).Scan(&code)
-	require.NoError(t, err, "Failed to select upserted record")
-	assert.Equal(t, 456, code, "The code should be updated to the value from the second insert")
+	var textCol string
+	err = session.Query(`SELECT code, text_col FROM bigtabledevinstance.user_info WHERE name = ? AND age = ?`, pkName, pkAge).Scan(&code, &textCol)
+	require.NoError(t, err)
+	assert.Equal(t, 456, code)
+	assert.Equal(t, "abc", textCol)
 }
 
 func TestInsertAndValidateCollectionData(t *testing.T) {
@@ -179,10 +181,10 @@ func TestNegativeInsertCases(t *testing.T) {
 		expectedError string
 	}{
 		{"Wrong Keyspace", `INSERT INTO randomkeyspace.user_info (name, age, code) VALUES (?, ?, ?)`, []interface{}{"Smith", int64(36), 45}, "keyspace 'randomkeyspace' does not exist"},
-		{"Wrong Table", `INSERT INTO random_table (name, age, code) VALUES (?, ?, ?)`, []interface{}{"Smith", int64(36), 45}, "table random_table does not exist"},
-		{"Wrong Column", `INSERT INTO user_info (name, age, random_column) VALUES (?, ?, ?)`, []interface{}{"Smith", int64(36), 123}, "undefined column name random_column in table bigtabledevinstance.user_info"},
-		{"Missing PK", `INSERT INTO user_info (name, code, code) VALUES (?, ?, ?)`, []interface{}{"Smith", 724, 45}, "some primary key parts are missing: age"},
-		{"Null PK", `INSERT INTO user_info (name, age, code) VALUES (?, ?, ?)`, []interface{}{nil, int64(36), 45}, "error building insert prepare query:failed to convert <nil> to BigInt for key name"},
+		{"Wrong Table", `INSERT INTO random_table (name, age, code) VALUES (?, ?, ?)`, []interface{}{"Smith", int64(36), 45}, "table 'random_table' does not exist"},
+		{"Wrong Columns", `INSERT INTO user_info (name, age, random_column) VALUES (?, ?, ?)`, []interface{}{"Smith", int64(36), 123}, "unknown column 'random_column' in table bigtabledevinstance.user_info"},
+		{"Missing PK", `INSERT INTO user_info (name, code, code) VALUES (?, ?, ?)`, []interface{}{"Smith", 724, 45}, "missing value for primary key `age`"},
+		{"Null PK", `INSERT INTO user_info (name, age, code) VALUES (?, ?, ?)`, []interface{}{nil, int64(36), 45}, "value cannot be null for primary key 'name'"},
 	}
 
 	for _, tc := range testCases {
@@ -197,4 +199,31 @@ func TestNegativeInsertCases(t *testing.T) {
 			assert.Contains(t, err.Error(), tc.expectedError)
 		})
 	}
+}
+
+func TestPreparedTimestampNowAlwaysUsesCurrentTimestamp(t *testing.T) {
+	t.Parallel()
+	var err error
+
+	// execute the same prepared query twice, with a 1 second delay after the first to ensure ToTimestamp(now()) is respected in prepared queries and not just a static time when the query was first prepared
+	insertQuery := session.Query(`INSERT INTO bigtabledevinstance.user_info (name, age, birth_date) VALUES (?, ?, ToTimestamp(now()))`)
+	require.NoError(t, insertQuery.Bind("timestampNowTest", int64(1)).Exec())
+	time.Sleep(time.Second) // Pause for 1 second
+	require.NoError(t, insertQuery.Bind("timestampNowTest", int64(2)).Exec())
+
+	selectQuery := session.Query(`SELECT birth_date FROM bigtabledevinstance.user_info WHERE name = ? AND age = ?`)
+	var t1 time.Time
+	err = selectQuery.Bind("timestampNowTest", int64(1)).Scan(&t1)
+	require.NoError(t, err)
+
+	var t2 time.Time
+	err = selectQuery.Bind("timestampNowTest", int64(2)).Scan(&t2)
+	require.NoError(t, err)
+
+	assert.Less(t, t1.UnixMilli(), t2.UnixMilli(), "t1 must be less than t2")
+	diff := t2.UnixMilli() - t1.UnixMilli()
+	assert.GreaterOrEqual(t, diff, int64(1000), "at least one second should have passed")
+
+	// confirm the timestamp is recent - give a generous buffer to reduce flakiness
+	assert.Less(t, time.Now().UnixMilli()-t2.UnixMilli(), int64(5000), "t2 should be recent")
 }

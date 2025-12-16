@@ -31,7 +31,7 @@ func TestUnsupportedFunctionInSelectQuery(t *testing.T) {
 
 	require.Error(t, err, "Expected an error for an unsupported function, but got none")
 	if testTarget != TestTargetCassandra {
-		assert.Contains(t, err.Error(), "unknown function 'xxxx'", "Error message did not match expected output")
+		assert.Contains(t, err.Error(), "unknown function: 'xxxx'", "Error message did not match expected output")
 	}
 }
 
@@ -121,12 +121,15 @@ func TestSelectStarWithAllDatatypes(t *testing.T) {
 	birthDate := time.UnixMicro(1672531200000)
 	ts1 := time.UnixMicro(1672531200000).UTC()
 
+	// use a long list to better expose any issues in results order
+	textList := []string{"item1", "item2", "item3", "item0", "item9", "item1.0", "item01", "item00", "item"}
+
 	// 2. Insert the comprehensive record
 	err := session.Query(`
 		INSERT INTO bigtabledevinstance.user_info (name, age, code, credited, balance, is_active, birth_date, zip_code, extra_info, tags, set_int, list_text, map_text_int, ts_text_map) 
 		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		"TestUserStar", int64(25), 101, 1000.50, float32(500.25), true, birthDate, int64(54321),
-		map[string]string{"key1": "value1"}, []string{"tag1", "tag2"}, []int{1, 2}, []string{"item1", "item2"},
+		map[string]string{"key1": "value1"}, []string{"tag1", "tag2"}, []int{1, 2}, textList,
 		map[string]int{"key1": 1}, map[time.Time]string{ts1: "value1"},
 	).Exec()
 	require.NoError(t, err, "Failed to insert the comprehensive record")
@@ -153,7 +156,7 @@ func TestSelectStarWithAllDatatypes(t *testing.T) {
 	assert.Equal(t, map[string]string{"key1": "value1"}, resultMap["extra_info"])
 	assert.ElementsMatch(t, []string{"tag1", "tag2"}, resultMap["tags"])
 	assert.ElementsMatch(t, []int{1, 2}, resultMap["set_int"])
-	assert.Equal(t, []string{"item1", "item2"}, resultMap["list_text"])
+	assert.Equal(t, textList, resultMap["list_text"])
 	assert.Equal(t, map[string]int{"key1": 1}, resultMap["map_text_int"])
 	assert.Equal(t, map[time.Time]string{ts1: "value1"}, resultMap["ts_text_map"])
 }
@@ -168,25 +171,25 @@ func TestSelectWithDifferentWhereOperators(t *testing.T) {
 	require.NoError(t, session.Query(`INSERT INTO bigtabledevinstance.user_info (name, age, code) VALUES (?, ?, ?)`, "Nivi", int64(99980), 987).Exec())
 
 	// 2. Test >= operator
-	iterGtEq := session.Query(`SELECT name FROM bigtabledevinstance.user_info WHERE age >= ? ALLOW FILTERING`, 99980).Iter()
+	iterGtEq := session.Query(`SELECT name FROM bigtabledevinstance.user_info WHERE age >= ? AND code=? ALLOW FILTERING`, 99980, 987).Iter()
 	namesGtEq, err := iterGtEq.SliceMap()
 	require.NoError(t, err)
 	assert.ElementsMatch(t, []map[string]interface{}{{"name": "Simon"}, {"name": "Nivi"}}, namesGtEq)
 
 	// 3. Test > operator
-	iterGt := session.Query(`SELECT name FROM bigtabledevinstance.user_info WHERE age > ? ALLOW FILTERING`, 99980).Iter()
+	iterGt := session.Query(`SELECT name FROM bigtabledevinstance.user_info WHERE age > ? AND code=? ALLOW FILTERING`, 99980, 987).Iter()
 	namesGt, err := iterGt.SliceMap()
 	require.NoError(t, err)
 	assert.ElementsMatch(t, []map[string]interface{}{{"name": "Simon"}}, namesGt)
 
 	// 4. Test <= operator
-	iterLtEq := session.Query(`SELECT name FROM bigtabledevinstance.user_info WHERE age <= ? ALLOW FILTERING`, 2).Iter()
+	iterLtEq := session.Query(`SELECT name FROM bigtabledevinstance.user_info WHERE age <= ? AND code=? ALLOW FILTERING`, 2, 987).Iter()
 	namesLtEq, err := iterLtEq.SliceMap()
 	require.NoError(t, err)
 	assert.ElementsMatch(t, []map[string]interface{}{{"name": "Della"}, {"name": "Andre"}}, namesLtEq)
 
 	// 5. Test < operator
-	iterLt := session.Query(`SELECT name FROM bigtabledevinstance.user_info WHERE age < ? ALLOW FILTERING`, 2).Iter()
+	iterLt := session.Query(`SELECT name FROM bigtabledevinstance.user_info WHERE age < ? AND code=? ALLOW FILTERING`, 2, 987).Iter()
 	namesLt, err := iterLt.SliceMap()
 	require.NoError(t, err)
 	assert.ElementsMatch(t, []map[string]interface{}{{"name": "Della"}}, namesLt)
@@ -194,8 +197,8 @@ func TestSelectWithDifferentWhereOperators(t *testing.T) {
 
 func TestSelectWithBetweenOperator(t *testing.T) {
 	t.Parallel()
-	require.NoError(t, session.Query(`INSERT INTO bigtabledevinstance.user_info (name, age, code) VALUES (?, ?, ?)`, "Bob", int64(41220), 987).Exec())
-	require.NoError(t, session.Query(`INSERT INTO bigtabledevinstance.user_info (name, age, code) VALUES (?, ?, ?)`, "Jack", int64(41230), 987).Exec())
+	require.NoError(t, session.Query(`INSERT INTO bigtabledevinstance.user_info (name, age, code) VALUES (?, ?, ?)`, "Bob", int64(41220), 980).Exec())
+	require.NoError(t, session.Query(`INSERT INTO bigtabledevinstance.user_info (name, age, code) VALUES (?, ?, ?)`, "Jack", int64(41230), 980).Exec())
 	iter := session.Query(`SELECT name FROM bigtabledevinstance.user_info WHERE age BETWEEN ? AND ?`, int64(41225), int64(41235)).Iter()
 	namesGtEq, err := iter.SliceMap()
 
@@ -209,7 +212,7 @@ func TestSelectWithBetweenOperator(t *testing.T) {
 func TestSelectWithLikeOperator(t *testing.T) {
 	t.Parallel()
 	// 1. Insert test data
-	require.NoError(t, session.Query(`INSERT INTO bigtabledevinstance.user_info (name, age, code) VALUES (?, ?, ?)`, "Silver Hunter", int64(1300), 987).Exec())
+	require.NoError(t, session.Query(`INSERT INTO bigtabledevinstance.user_info (name, age, code) VALUES (?, ?, ?)`, "Silver Hunter", int64(1300), 988).Exec())
 
 	// 2. Test that LIKE fails without a proper index
 	iter := session.Query(`SELECT name, age FROM bigtabledevinstance.user_info WHERE name LIKE ?`, "Silver H%").Iter()
@@ -221,4 +224,39 @@ func TestSelectWithLikeOperator(t *testing.T) {
 	} else {
 		assert.ElementsMatch(t, []map[string]interface{}{{"name": "Silver Hunter", "age": int64(1300)}}, results)
 	}
+}
+
+func TestSelectToTimestampNow(t *testing.T) {
+	t.Parallel()
+
+	t1 := time.Date(2025, 12, 2, 9, 32, 12, 0, time.UTC)
+	t2 := t1.Add(time.Second)
+	require.NoError(t, session.Query(`INSERT INTO bigtabledevinstance.user_info (name, age, birth_date) VALUES (?, ?, ?)`, "select_now", int64(1), t1).Exec())
+	require.NoError(t, session.Query(`INSERT INTO bigtabledevinstance.user_info (name, age, birth_date) VALUES (?, ?, ?)`, "select_now", int64(2), t2).Exec())
+
+	var gotTime time.Time
+	require.NoError(t, session.Query(`SELECT birth_date FROM bigtabledevinstance.user_info WHERE name = 'select_now' AND birth_date='2025-12-02 09:32:12'`).Scan(&gotTime))
+	assert.Equal(t, t1, gotTime)
+
+	require.NoError(t, session.Query(`SELECT birth_date FROM bigtabledevinstance.user_info WHERE name = 'select_now' AND birth_date > '2025-12-02 09:32:12'`).Scan(&gotTime))
+	assert.Equal(t, t2, gotTime)
+
+	require.NoError(t, session.Query(`SELECT birth_date FROM bigtabledevinstance.user_info WHERE name = 'select_now' AND birth_date < ?`, t2).Scan(&gotTime))
+	assert.Equal(t, t1, gotTime)
+
+	require.NoError(t, session.Query(`SELECT birth_date FROM bigtabledevinstance.user_info WHERE name = 'select_now' AND birth_date = ?`, t2).Scan(&gotTime))
+	assert.Equal(t, t2, gotTime)
+
+	var count int64
+	require.NoError(t, session.Query(`SELECT count(*) FROM bigtabledevinstance.user_info WHERE name = 'select_now' AND birth_date < ?`, t1).Scan(&count))
+	assert.Equal(t, int64(0), count)
+
+	require.NoError(t, session.Query(`SELECT count(*) FROM bigtabledevinstance.user_info WHERE name = 'select_now' AND birth_date > ?`, t2).Scan(&count))
+	assert.Equal(t, int64(0), count)
+
+	require.NoError(t, session.Query(`SELECT birth_date FROM bigtabledevinstance.user_info WHERE name = 'select_now' AND birth_date >= ?`, t2).Scan(&gotTime))
+	assert.Equal(t, t2, gotTime)
+
+	require.NoError(t, session.Query(`SELECT birth_date FROM bigtabledevinstance.user_info WHERE name = 'select_now' AND birth_date <= ?`, t1).Scan(&gotTime))
+	assert.Equal(t, t1, gotTime)
 }

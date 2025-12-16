@@ -21,9 +21,11 @@ import (
 	"encoding/csv"
 	"errors"
 	"fmt"
+	"log"
 	"os/exec"
 	"regexp"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -106,7 +108,16 @@ var plusMinusRegex = regexp.MustCompile(`^[-+]*$`)
 var rowsRegex = regexp.MustCompile(`^\(\d+ rows\)$`)
 
 func cqlshExec(query string) (string, error) {
-	cmd := exec.Command("cqlsh", "--request-timeout=60", "-e", query)
+	return cqlshExecWithKeyspace("", query)
+}
+func cqlshExecWithKeyspace(keyspace string, query string) (string, error) {
+
+	var cmd *exec.Cmd
+	if keyspace != "" {
+		cmd = exec.Command("cqlsh", "-k", keyspace, "--request-timeout=60", "-e", query)
+	} else {
+		cmd = exec.Command("cqlsh", "--request-timeout=60", "-e", query)
+	}
 
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout = &stdout
@@ -203,4 +214,51 @@ func cqlshScanToMap(query string) ([]map[string]string, error) {
 	}
 
 	return results, nil
+}
+
+func runCqlshAsync(batch []string) error {
+	// Use WaitGroup to track the completion of all goroutines
+	var wg sync.WaitGroup
+
+	// Use a channel to handle errors from concurrent operations
+	errCh := make(chan error, len(batch))
+
+	for i, stmt := range batch {
+		// Increment the WaitGroup counter for each statement we launch
+		wg.Add(1)
+
+		// Launch a goroutine for each statement
+		go func(i int, stmt string) {
+			// Decrement the counter when the goroutine finishes
+			defer wg.Done()
+
+			log.Println(fmt.Sprintf("Running sql statement: %d...", i))
+
+			// Execute the database query
+			err := session.Query(stmt).Exec()
+
+			if err != nil {
+				// If an error occurs, send it to the error channel
+				errCh <- err
+			}
+		}(i, stmt) // Pass copies of i and stmt to the goroutine
+	}
+
+	// Close the error channel once all goroutines have finished
+	// This must be done in a separate goroutine to avoid a deadlock
+	go func() {
+		wg.Wait()
+		close(errCh)
+	}()
+
+	var resultError error
+	// Check the error channel for any failures
+	for err := range errCh {
+		resultError = err
+	}
+
+	// Wait for all tables to be created (this line executes after all errors are checked)
+	wg.Wait()
+
+	return resultError
 }

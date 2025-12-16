@@ -3,7 +3,6 @@ package compliance
 import (
 	"context"
 	"fmt"
-	"strings"
 	"testing"
 
 	"cloud.google.com/go/bigtable"
@@ -17,6 +16,27 @@ func TestCreateIfNotExist(t *testing.T) {
 	table := uniqueTableName("create_table_")
 	defer cleanupTable(t, table)
 	err := session.Query(fmt.Sprintf("CREATE TABLE %s (id TEXT PRIMARY KEY, name TEXT)", table)).Exec()
+	assert.NoError(t, err)
+
+	// confirm system tables are updated
+	systemTablesResult := make(map[string]any)
+	err = session.Query("SELECT * FROM system_schema.tables WHERE table_name=?", table).MapScan(systemTablesResult)
+	require.NoError(t, err)
+	assert.Equal(t, systemTablesResult["keyspace_name"], "bigtabledevinstance")
+	assert.Equal(t, systemTablesResult["table_name"], table)
+
+	// confirm system columns are updated
+	systemColumnsResult := make(map[string]any)
+	err = session.Query("SELECT * FROM system_schema.columns WHERE table_name=? AND column_name=?", table, "id").MapScan(systemColumnsResult)
+	require.NoError(t, err)
+	assert.Equal(t, "bigtabledevinstance", systemColumnsResult["keyspace_name"])
+	assert.Equal(t, table, systemColumnsResult["table_name"])
+	assert.Equal(t, "id", systemColumnsResult["column_name"])
+	assert.Equal(t, int(0), systemColumnsResult["position"])
+	assert.Equal(t, "partition_key", systemColumnsResult["kind"])
+	assert.Equal(t, "text", systemColumnsResult["type"])
+
+	err = session.Query(fmt.Sprintf("INSERT INTO %s (id, name) VALUES (?, ?)", table), "user1", "larry").Exec()
 	assert.NoError(t, err)
 	err = session.Query(fmt.Sprintf("CREATE TABLE %s (id TEXT PRIMARY KEY, name TEXT)", table)).Exec()
 	assert.Error(t, err)
@@ -83,7 +103,7 @@ func TestNegativeTestCasesForCreateTable(t *testing.T) {
 		{
 			name:          "Create table with same name as schema mapping table",
 			query:         "CREATE TABLE schema_mapping (num INT PRIMARY KEY, big_num BIGINT)",
-			expectedError: "cannot create a table with the configured schema mapping table name 'schema_mapping'",
+			expectedError: "table name cannot be the same as the configured schema mapping table name 'schema_mapping'",
 			skipCassandra: true,
 		},
 		{
@@ -94,7 +114,7 @@ func TestNegativeTestCasesForCreateTable(t *testing.T) {
 		{
 			name:          "Create table with empty keys",
 			query:         "CREATE TABLE fail_empty_primary_key (num INT, big_num BIGINT, PRIMARY KEY ())",
-			expectedError: "no primary key found in create table statement",
+			expectedError: "parsing error",
 		},
 		{
 			name:          "Create table no column definition for pmk",
@@ -143,7 +163,7 @@ func TestNegativeTestCasesForCreateTable(t *testing.T) {
 				return
 			}
 			require.Error(t, err, "Expected an error but got none")
-			assert.True(t, strings.Contains(err.Error(), tc.expectedError), "Error message mismatch.\nExpected to contain: %s\nGot: %s", tc.expectedError, err.Error())
+			assert.Contains(t, err.Error(), tc.expectedError)
 		})
 	}
 }

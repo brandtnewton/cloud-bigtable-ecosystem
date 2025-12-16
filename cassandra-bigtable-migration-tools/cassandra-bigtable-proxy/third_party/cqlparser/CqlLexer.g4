@@ -198,8 +198,8 @@ REAL_LITERAL
    ;
 
 OBJECT_NAME
-   : [A-Z] [A-Z0-9_$]*
-	| '"' ~'"'+ '"'
+   : [A-Z]+ [A-Z0-9_$]*
+   | '"' ~'"'+ '"'
    ;
 
 UUID: HEX_4DIGIT HEX_4DIGIT '-' HEX_4DIGIT '-' HEX_4DIGIT '-' HEX_4DIGIT '-' HEX_4DIGIT HEX_4DIGIT HEX_4DIGIT;

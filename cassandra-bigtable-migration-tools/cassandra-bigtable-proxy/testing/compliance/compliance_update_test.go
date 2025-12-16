@@ -81,7 +81,7 @@ func TestInsertAndUpdateWithFutureTimestampValidation(t *testing.T) {
 func TestInsertAndUpdateWithPastTimestampValidation(t *testing.T) {
 	t.Parallel()
 	// Cassandra uses microsecond timestamps
-	nowMicros := time.Now().UnixNano() / 1000
+	nowMicros := time.Now().UnixMicro()
 	pastMicros := nowMicros - 1000000 // 1 second in the past
 
 	// 1. Insert a record with the current timestamp
@@ -152,7 +152,7 @@ func TestNegativeTestCasesForUpdateOperations(t *testing.T) {
 			name:          "Update with nonexistent table",
 			query:         "UPDATE bigtabledevinstance.random_table SET code=? where name=? and age=?",
 			params:        []interface{}{724, "Smith", int64(36)},
-			expectedError: "table random_table does not exist",
+			expectedError: "table 'random_table' does not exist",
 		},
 		{
 			name:          "Update with incorrect column name",
@@ -162,9 +162,9 @@ func TestNegativeTestCasesForUpdateOperations(t *testing.T) {
 		},
 		{
 			name:          "Update with missing primary key parts",
-			query:         "UPDATE bigtabledevinstance.user_info SET code=? where name=?",
+			query:         "UPDATE bigtabledevinstance.user_info SET code=? where age=?",
 			params:        []interface{}{724, "Smith"},
-			expectedError: "some primary key parts are missing: age",
+			expectedError: "all primary keys must be included in the where clause. missing `name`",
 		},
 	}
 

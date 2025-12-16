@@ -262,6 +262,7 @@ func TestMapOperationWithContainsKeyClause(t *testing.T) {
 			require.Error(t, err)
 			assert.Contains(t, err.Error(), "ALLOW FILTERING")
 		} else {
+			require.NoError(t, err)
 			assert.Equal(t, map[string]string{
 				"info_key_contains_one":   "data_one",
 				"info_key_contains_two":   "data_two",
@@ -283,6 +284,17 @@ func TestMapOperationWithContainsKeyClause(t *testing.T) {
 				"test-key-two": 200,
 			}, map_test_int)
 		}
+	})
+
+	t.Run("CONTAINS KEY adhoc", func(t *testing.T) {
+		t.Parallel()
+		var map_test_int map[string]int32
+		err := session.Query(`SELECT map_text_int FROM bigtabledevinstance.user_info WHERE map_text_int CONTAINS KEY 'test-key-one' ALLOW FILTERING`).Scan(&map_test_int)
+		require.NoError(t, err)
+		assert.Equal(t, map[string]int32{
+			"test-key-one": 100,
+			"test-key-two": 200,
+		}, map_test_int)
 	})
 
 	// 3. Test that CONTAINS KEY succeeds with ALLOW FILTERING

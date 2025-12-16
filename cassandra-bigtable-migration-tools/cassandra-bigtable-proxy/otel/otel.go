@@ -19,6 +19,7 @@ package otelgo
 import (
 	"context"
 	"errors"
+	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/global/types"
 	"net/http"
 	"net/url"
 	"strings"
@@ -356,7 +357,7 @@ func (o *OpenTelemetry) EndSpan(span trace.Span) {
 //   - startTime: The start time of the request for latency calculation.
 //   - queryType: The type of query being executed (e.g., "select", "insert").
 //   - err: The error encountered, if any. Used to determine success/failure status.
-func (o *OpenTelemetry) RecordMetrics(ctx context.Context, method string, startTime time.Time, queryType string, keyspace string, err error) {
+func (o *OpenTelemetry) RecordMetrics(ctx context.Context, method string, startTime time.Time, queryType string, keyspace types.Keyspace, err error) {
 	status := "OK"
 	if err != nil {
 		status = "failure"
@@ -365,12 +366,12 @@ func (o *OpenTelemetry) RecordMetrics(ctx context.Context, method string, startT
 		Method:    method,
 		Status:    status,
 		QueryType: queryType,
-		Keyspace:  keyspace,
+		Keyspace:  string(keyspace),
 	})
 	o.RecordLatencyMetric(ctx, startTime, Attributes{
 		Method:    method,
 		QueryType: queryType,
-		Keyspace:  keyspace,
+		Keyspace:  string(keyspace),
 	})
 }
 

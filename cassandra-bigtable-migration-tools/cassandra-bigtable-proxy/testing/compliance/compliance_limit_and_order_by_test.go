@@ -102,11 +102,11 @@ func TestLimitAndOrderByOperations(t *testing.T) {
 		t.Parallel()
 		err := session.Query(`SELECT name, age FROM user_info WHERE age = ? LIMIT ?`, 10, -3).Exec()
 		require.Error(t, err)
-		assert.Contains(t, err.Error(), "LIMIT must be strictly positive")
+		assert.Contains(t, err.Error(), "limit must be positive")
 
 		err = session.Query(`SELECT name, age FROM user_info WHERE age = ? LIMIT ?`, 10, 0).Exec()
 		require.Error(t, err)
-		assert.Contains(t, err.Error(), "LIMIT must be strictly positive")
+		assert.Contains(t, err.Error(), "limit must be positive")
 	})
 
 	t.Run("Invalid ORDER BY syntax", func(t *testing.T) {
@@ -117,13 +117,13 @@ func TestLimitAndOrderByOperations(t *testing.T) {
 		if testTarget == TestTargetCassandra {
 			assert.Contains(t, err.Error(), "no viable alternative at input '1'")
 		} else {
-			assert.Contains(t, err.Error(), "Order_by section not have proper values")
+			assert.Contains(t, err.Error(), "parsing error")
 		}
 
 		// ORDER BY a non-existent column
 		err = session.Query(`SELECT name, age FROM user_info WHERE age = ? ORDER BY xyz`, 10).Exec()
 		require.Error(t, err)
-		assert.Contains(t, err.Error(), "Undefined column name xyz")
+		assert.Contains(t, err.Error(), "unknown column name 'xyz'")
 	})
 }
 

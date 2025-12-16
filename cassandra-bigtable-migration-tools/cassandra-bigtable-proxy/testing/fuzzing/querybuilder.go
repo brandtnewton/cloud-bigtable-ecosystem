@@ -22,7 +22,7 @@ import (
 )
 
 /**
- * Minimalist Query Builder to make fuzz testing very large tables easier. Not intended for production use or to handle complex queries.
+ * Minimalist CqlQuery Builder to make fuzz testing very large tables easier. Not intended for production use or to handle complex queries.
  */
 
 type InsertValue struct {

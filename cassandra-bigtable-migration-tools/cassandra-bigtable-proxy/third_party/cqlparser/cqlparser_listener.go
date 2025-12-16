@@ -28,6 +28,18 @@ type CqlParserListener interface {
 	// EnterDescribeTarget is called when entering the describeTarget production.
 	EnterDescribeTarget(c *DescribeTargetContext)
 
+	// EnterDescribeTargetKeyspaces is called when entering the describeTargetKeyspaces production.
+	EnterDescribeTargetKeyspaces(c *DescribeTargetKeyspacesContext)
+
+	// EnterDescribeTargetTables is called when entering the describeTargetTables production.
+	EnterDescribeTargetTables(c *DescribeTargetTablesContext)
+
+	// EnterDescribeTargetTable is called when entering the describeTargetTable production.
+	EnterDescribeTargetTable(c *DescribeTargetTableContext)
+
+	// EnterDescribeTargetKeyspace is called when entering the describeTargetKeyspace production.
+	EnterDescribeTargetKeyspace(c *DescribeTargetKeyspaceContext)
+
 	// EnterRevoke is called when entering the revoke production.
 	EnterRevoke(c *RevokeContext)
 
@@ -177,6 +189,9 @@ type CqlParserListener interface {
 
 	// EnterAlterTableColumnDefinition is called when entering the alterTableColumnDefinition production.
 	EnterAlterTableColumnDefinition(c *AlterTableColumnDefinitionContext)
+
+	// EnterAlterTableAddColumn is called when entering the alterTableAddColumn production.
+	EnterAlterTableAddColumn(c *AlterTableAddColumnContext)
 
 	// EnterAlterRole is called when entering the alterRole production.
 	EnterAlterRole(c *AlterRoleContext)
@@ -361,14 +376,32 @@ type CqlParserListener interface {
 	// EnterAssignmentElement is called when entering the assignmentElement production.
 	EnterAssignmentElement(c *AssignmentElementContext)
 
-	// EnterAssignmentSet is called when entering the assignmentSet production.
-	EnterAssignmentSet(c *AssignmentSetContext)
+	// EnterAssignmentEquals is called when entering the assignmentEquals production.
+	EnterAssignmentEquals(c *AssignmentEqualsContext)
 
-	// EnterAssignmentMap is called when entering the assignmentMap production.
-	EnterAssignmentMap(c *AssignmentMapContext)
+	// EnterAssignmentPrepend is called when entering the assignmentPrepend production.
+	EnterAssignmentPrepend(c *AssignmentPrependContext)
 
-	// EnterAssignmentList is called when entering the assignmentList production.
-	EnterAssignmentList(c *AssignmentListContext)
+	// EnterAssignmentAppend is called when entering the assignmentAppend production.
+	EnterAssignmentAppend(c *AssignmentAppendContext)
+
+	// EnterIndexOrKeyAccess is called when entering the indexOrKeyAccess production.
+	EnterIndexOrKeyAccess(c *IndexOrKeyAccessContext)
+
+	// EnterAssignmentIndex is called when entering the assignmentIndex production.
+	EnterAssignmentIndex(c *AssignmentIndexContext)
+
+	// EnterValueSet is called when entering the valueSet production.
+	EnterValueSet(c *ValueSetContext)
+
+	// EnterValueMap is called when entering the valueMap production.
+	EnterValueMap(c *ValueMapContext)
+
+	// EnterValueList is called when entering the valueList production.
+	EnterValueList(c *ValueListContext)
+
+	// EnterArithmeticOperator is called when entering the arithmeticOperator production.
+	EnterArithmeticOperator(c *ArithmeticOperatorContext)
 
 	// EnterAssignmentTuple is called when entering the assignmentTuple production.
 	EnterAssignmentTuple(c *AssignmentTupleContext)
@@ -403,8 +436,8 @@ type CqlParserListener interface {
 	// EnterColumnList is called when entering the columnList production.
 	EnterColumnList(c *ColumnListContext)
 
-	// EnterExpressionList is called when entering the expressionList production.
-	EnterExpressionList(c *ExpressionListContext)
+	// EnterValueListSpec is called when entering the valueListSpec production.
+	EnterValueListSpec(c *ValueListSpecContext)
 
 	// EnterExpression is called when entering the expression production.
 	EnterExpression(c *ExpressionContext)
@@ -421,11 +454,11 @@ type CqlParserListener interface {
 	// EnterKwLike is called when entering the kwLike production.
 	EnterKwLike(c *KwLikeContext)
 
+	// EnterTableSpec is called when entering the tableSpec production.
+	EnterTableSpec(c *TableSpecContext)
+
 	// EnterFromSpec is called when entering the fromSpec production.
 	EnterFromSpec(c *FromSpecContext)
-
-	// EnterFromSpecElement is called when entering the fromSpecElement production.
-	EnterFromSpecElement(c *FromSpecElementContext)
 
 	// EnterOrderSpec is called when entering the orderSpec production.
 	EnterOrderSpec(c *OrderSpecContext)
@@ -445,8 +478,17 @@ type CqlParserListener interface {
 	// EnterSelectElement is called when entering the selectElement production.
 	EnterSelectElement(c *SelectElementContext)
 
-	// EnterMapAccess is called when entering the mapAccess production.
-	EnterMapAccess(c *MapAccessContext)
+	// EnterSelectColumn is called when entering the selectColumn production.
+	EnterSelectColumn(c *SelectColumnContext)
+
+	// EnterSelectFunction is called when entering the selectFunction production.
+	EnterSelectFunction(c *SelectFunctionContext)
+
+	// EnterSelectIndex is called when entering the selectIndex production.
+	EnterSelectIndex(c *SelectIndexContext)
+
+	// EnterAsSpec is called when entering the asSpec production.
+	EnterAsSpec(c *AsSpecContext)
 
 	// EnterRelationElements is called when entering the relationElements production.
 	EnterRelationElements(c *RelationElementsContext)
@@ -454,17 +496,44 @@ type CqlParserListener interface {
 	// EnterRelationElement is called when entering the relationElement production.
 	EnterRelationElement(c *RelationElementContext)
 
-	// EnterRelalationContains is called when entering the relalationContains production.
-	EnterRelalationContains(c *RelalationContainsContext)
+	// EnterCompareOperator is called when entering the compareOperator production.
+	EnterCompareOperator(c *CompareOperatorContext)
 
-	// EnterRelalationContainsKey is called when entering the relalationContainsKey production.
-	EnterRelalationContainsKey(c *RelalationContainsKeyContext)
+	// EnterRelationFunctionCompareConstant is called when entering the relationFunctionCompareConstant production.
+	EnterRelationFunctionCompareConstant(c *RelationFunctionCompareConstantContext)
+
+	// EnterRelationFunctionCompareFunction is called when entering the relationFunctionCompareFunction production.
+	EnterRelationFunctionCompareFunction(c *RelationFunctionCompareFunctionContext)
+
+	// EnterRelationBetween is called when entering the relationBetween production.
+	EnterRelationBetween(c *RelationBetweenContext)
+
+	// EnterRelationCompare is called when entering the relationCompare production.
+	EnterRelationCompare(c *RelationCompareContext)
+
+	// EnterRelationLike is called when entering the relationLike production.
+	EnterRelationLike(c *RelationLikeContext)
+
+	// EnterTupleValue is called when entering the tupleValue production.
+	EnterTupleValue(c *TupleValueContext)
+
+	// EnterRelationIn is called when entering the relationIn production.
+	EnterRelationIn(c *RelationInContext)
+
+	// EnterRelationContains is called when entering the relationContains production.
+	EnterRelationContains(c *RelationContainsContext)
+
+	// EnterRelationContainsKey is called when entering the relationContainsKey production.
+	EnterRelationContainsKey(c *RelationContainsKeyContext)
 
 	// EnterFunctionCall is called when entering the functionCall production.
 	EnterFunctionCall(c *FunctionCallContext)
 
 	// EnterFunctionArgs is called when entering the functionArgs production.
 	EnterFunctionArgs(c *FunctionArgsContext)
+
+	// EnterValueAny is called when entering the valueAny production.
+	EnterValueAny(c *ValueAnyContext)
 
 	// EnterConstant is called when entering the constant production.
 	EnterConstant(c *ConstantContext)
@@ -895,6 +964,18 @@ type CqlParserListener interface {
 	// ExitDescribeTarget is called when exiting the describeTarget production.
 	ExitDescribeTarget(c *DescribeTargetContext)
 
+	// ExitDescribeTargetKeyspaces is called when exiting the describeTargetKeyspaces production.
+	ExitDescribeTargetKeyspaces(c *DescribeTargetKeyspacesContext)
+
+	// ExitDescribeTargetTables is called when exiting the describeTargetTables production.
+	ExitDescribeTargetTables(c *DescribeTargetTablesContext)
+
+	// ExitDescribeTargetTable is called when exiting the describeTargetTable production.
+	ExitDescribeTargetTable(c *DescribeTargetTableContext)
+
+	// ExitDescribeTargetKeyspace is called when exiting the describeTargetKeyspace production.
+	ExitDescribeTargetKeyspace(c *DescribeTargetKeyspaceContext)
+
 	// ExitRevoke is called when exiting the revoke production.
 	ExitRevoke(c *RevokeContext)
 
@@ -1044,6 +1125,9 @@ type CqlParserListener interface {
 
 	// ExitAlterTableColumnDefinition is called when exiting the alterTableColumnDefinition production.
 	ExitAlterTableColumnDefinition(c *AlterTableColumnDefinitionContext)
+
+	// ExitAlterTableAddColumn is called when exiting the alterTableAddColumn production.
+	ExitAlterTableAddColumn(c *AlterTableAddColumnContext)
 
 	// ExitAlterRole is called when exiting the alterRole production.
 	ExitAlterRole(c *AlterRoleContext)
@@ -1228,14 +1312,32 @@ type CqlParserListener interface {
 	// ExitAssignmentElement is called when exiting the assignmentElement production.
 	ExitAssignmentElement(c *AssignmentElementContext)
 
-	// ExitAssignmentSet is called when exiting the assignmentSet production.
-	ExitAssignmentSet(c *AssignmentSetContext)
+	// ExitAssignmentEquals is called when exiting the assignmentEquals production.
+	ExitAssignmentEquals(c *AssignmentEqualsContext)
 
-	// ExitAssignmentMap is called when exiting the assignmentMap production.
-	ExitAssignmentMap(c *AssignmentMapContext)
+	// ExitAssignmentPrepend is called when exiting the assignmentPrepend production.
+	ExitAssignmentPrepend(c *AssignmentPrependContext)
 
-	// ExitAssignmentList is called when exiting the assignmentList production.
-	ExitAssignmentList(c *AssignmentListContext)
+	// ExitAssignmentAppend is called when exiting the assignmentAppend production.
+	ExitAssignmentAppend(c *AssignmentAppendContext)
+
+	// ExitIndexOrKeyAccess is called when exiting the indexOrKeyAccess production.
+	ExitIndexOrKeyAccess(c *IndexOrKeyAccessContext)
+
+	// ExitAssignmentIndex is called when exiting the assignmentIndex production.
+	ExitAssignmentIndex(c *AssignmentIndexContext)
+
+	// ExitValueSet is called when exiting the valueSet production.
+	ExitValueSet(c *ValueSetContext)
+
+	// ExitValueMap is called when exiting the valueMap production.
+	ExitValueMap(c *ValueMapContext)
+
+	// ExitValueList is called when exiting the valueList production.
+	ExitValueList(c *ValueListContext)
+
+	// ExitArithmeticOperator is called when exiting the arithmeticOperator production.
+	ExitArithmeticOperator(c *ArithmeticOperatorContext)
 
 	// ExitAssignmentTuple is called when exiting the assignmentTuple production.
 	ExitAssignmentTuple(c *AssignmentTupleContext)
@@ -1270,8 +1372,8 @@ type CqlParserListener interface {
 	// ExitColumnList is called when exiting the columnList production.
 	ExitColumnList(c *ColumnListContext)
 
-	// ExitExpressionList is called when exiting the expressionList production.
-	ExitExpressionList(c *ExpressionListContext)
+	// ExitValueListSpec is called when exiting the valueListSpec production.
+	ExitValueListSpec(c *ValueListSpecContext)
 
 	// ExitExpression is called when exiting the expression production.
 	ExitExpression(c *ExpressionContext)
@@ -1288,11 +1390,11 @@ type CqlParserListener interface {
 	// ExitKwLike is called when exiting the kwLike production.
 	ExitKwLike(c *KwLikeContext)
 
+	// ExitTableSpec is called when exiting the tableSpec production.
+	ExitTableSpec(c *TableSpecContext)
+
 	// ExitFromSpec is called when exiting the fromSpec production.
 	ExitFromSpec(c *FromSpecContext)
-
-	// ExitFromSpecElement is called when exiting the fromSpecElement production.
-	ExitFromSpecElement(c *FromSpecElementContext)
 
 	// ExitOrderSpec is called when exiting the orderSpec production.
 	ExitOrderSpec(c *OrderSpecContext)
@@ -1312,8 +1414,17 @@ type CqlParserListener interface {
 	// ExitSelectElement is called when exiting the selectElement production.
 	ExitSelectElement(c *SelectElementContext)
 
-	// ExitMapAccess is called when exiting the mapAccess production.
-	ExitMapAccess(c *MapAccessContext)
+	// ExitSelectColumn is called when exiting the selectColumn production.
+	ExitSelectColumn(c *SelectColumnContext)
+
+	// ExitSelectFunction is called when exiting the selectFunction production.
+	ExitSelectFunction(c *SelectFunctionContext)
+
+	// ExitSelectIndex is called when exiting the selectIndex production.
+	ExitSelectIndex(c *SelectIndexContext)
+
+	// ExitAsSpec is called when exiting the asSpec production.
+	ExitAsSpec(c *AsSpecContext)
 
 	// ExitRelationElements is called when exiting the relationElements production.
 	ExitRelationElements(c *RelationElementsContext)
@@ -1321,17 +1432,44 @@ type CqlParserListener interface {
 	// ExitRelationElement is called when exiting the relationElement production.
 	ExitRelationElement(c *RelationElementContext)
 
-	// ExitRelalationContains is called when exiting the relalationContains production.
-	ExitRelalationContains(c *RelalationContainsContext)
+	// ExitCompareOperator is called when exiting the compareOperator production.
+	ExitCompareOperator(c *CompareOperatorContext)
 
-	// ExitRelalationContainsKey is called when exiting the relalationContainsKey production.
-	ExitRelalationContainsKey(c *RelalationContainsKeyContext)
+	// ExitRelationFunctionCompareConstant is called when exiting the relationFunctionCompareConstant production.
+	ExitRelationFunctionCompareConstant(c *RelationFunctionCompareConstantContext)
+
+	// ExitRelationFunctionCompareFunction is called when exiting the relationFunctionCompareFunction production.
+	ExitRelationFunctionCompareFunction(c *RelationFunctionCompareFunctionContext)
+
+	// ExitRelationBetween is called when exiting the relationBetween production.
+	ExitRelationBetween(c *RelationBetweenContext)
+
+	// ExitRelationCompare is called when exiting the relationCompare production.
+	ExitRelationCompare(c *RelationCompareContext)
+
+	// ExitRelationLike is called when exiting the relationLike production.
+	ExitRelationLike(c *RelationLikeContext)
+
+	// ExitTupleValue is called when exiting the tupleValue production.
+	ExitTupleValue(c *TupleValueContext)
+
+	// ExitRelationIn is called when exiting the relationIn production.
+	ExitRelationIn(c *RelationInContext)
+
+	// ExitRelationContains is called when exiting the relationContains production.
+	ExitRelationContains(c *RelationContainsContext)
+
+	// ExitRelationContainsKey is called when exiting the relationContainsKey production.
+	ExitRelationContainsKey(c *RelationContainsKeyContext)
 
 	// ExitFunctionCall is called when exiting the functionCall production.
 	ExitFunctionCall(c *FunctionCallContext)
 
 	// ExitFunctionArgs is called when exiting the functionArgs production.
 	ExitFunctionArgs(c *FunctionArgsContext)
+
+	// ExitValueAny is called when exiting the valueAny production.
+	ExitValueAny(c *ValueAnyContext)
 
 	// ExitConstant is called when exiting the constant production.
 	ExitConstant(c *ConstantContext)

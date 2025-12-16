@@ -56,13 +56,18 @@ func TestInsertElementsIntoSetText(t *testing.T) {
 		"User_Set1", int64(25), []string{"tag0"}).Exec()
 	require.NoError(t, err, "Failed to insert initial record")
 
+	var tags []string
+	err = session.Query(`SELECT tags FROM bigtabledevinstance.user_info WHERE name = ? AND age = ?`,
+		"User_Set1", int64(25)).Scan(&tags)
+	require.NoError(t, err, "Failed to select the initial record")
+	assert.ElementsMatch(t, []string{"tag0"}, tags, "The set did not contain all expected tags")
+
 	// 2. Add more elements
 	err = session.Query(`UPDATE bigtabledevinstance.user_info SET tags = tags + ? WHERE name = ? AND age = ?`,
 		[]string{"tag1", "tag2"}, "User_Set1", int64(25)).Exec()
 	require.NoError(t, err, "Failed to add elements to the set")
 
 	// 3. Verify the result
-	var tags []string
 	err = session.Query(`SELECT tags FROM bigtabledevinstance.user_info WHERE name = ? AND age = ?`,
 		"User_Set1", int64(25)).Scan(&tags)
 	require.NoError(t, err, "Failed to select the updated record")

@@ -206,10 +206,15 @@ public class BigtableSinkConfig extends AbstractConfig {
         // We only call it after validating that all other parameters are fine since creating
         // a Cloud Bigtable client uses many of these parameters, and we don't want to warn
         // the user unnecessarily.
-        Throwable validationError = config.isBigtableConfigurationValid();
+        Throwable validationError = config.validateBigtableConfig();
         if (validationError != null) {
             String errorMessage = String.format("Cloud Bigtable configuration is invalid: %s", validationError.getMessage());
             for (String bigtableProp : BIGTABLE_CONFIGURATION_PROPERTIES) {
+                String configValue = config.getString(bigtableProp);
+                // only associate errors with configs that are actually set.
+                if (Utils.isBlank(configValue)){
+                    continue;
+                }
                 addErrorMessage(validationResult, bigtableProp, props.get(bigtableProp), errorMessage);
             }
         }
@@ -598,7 +603,7 @@ public class BigtableSinkConfig extends AbstractConfig {
    * @return null if Cloud Bigtable configuration is valid, a Throwable otherwise.
    */
   @VisibleForTesting
-  Throwable isBigtableConfigurationValid() {
+  Throwable validateBigtableConfig() {
       BigtableTableAdminClientInterface bigtable = null;
       try {
           RetrySettings retrySettings =

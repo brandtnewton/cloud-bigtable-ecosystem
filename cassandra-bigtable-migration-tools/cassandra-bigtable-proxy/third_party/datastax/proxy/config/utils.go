@@ -95,24 +95,26 @@ func loadListenerConfig(args *types.CliArgs, l *yamlListener, config *yamlProxyC
 	if instanceIdsDefined && instancesDefined {
 		return nil, fmt.Errorf("only one of 'instances' or 'instance_ids' should be set for listener %s on port %d", l.Name, l.Port)
 	}
-	var instances = make(map[string]*types.InstancesMapping)
+	var instances = make(map[types.Keyspace]*types.InstanceMapping)
 	if len(l.Bigtable.Instances) != 0 {
 		for _, i := range l.Bigtable.Instances {
 			appProfileId := assignWithFallbacks(i.AppProfileID, defaultAppProfileId)
-			instances[i.Keyspace] = &types.InstancesMapping{
-				BigtableInstance: i.BigtableInstance,
-				Keyspace:         i.Keyspace,
-				AppProfileID:     appProfileId,
+			keyspace := types.Keyspace(i.Keyspace)
+			instances[keyspace] = &types.InstanceMapping{
+				InstanceId:   types.BigtableInstance(i.BigtableInstance),
+				Keyspace:     keyspace,
+				AppProfileID: appProfileId,
 			}
 		}
 	} else {
 		instanceIds := strings.Split(l.Bigtable.InstanceIDs, ",")
 		for _, id := range instanceIds {
-			id := strings.TrimSpace(id)
-			instances[id] = &types.InstancesMapping{
-				BigtableInstance: id,
-				Keyspace:         id,
-				AppProfileID:     defaultAppProfileId,
+			id = strings.TrimSpace(id)
+			keyspace := types.Keyspace(id)
+			instances[keyspace] = &types.InstanceMapping{
+				InstanceId:   types.BigtableInstance(id),
+				Keyspace:     keyspace,
+				AppProfileID: defaultAppProfileId,
 			}
 		}
 	}
@@ -125,11 +127,11 @@ func loadListenerConfig(args *types.CliArgs, l *yamlListener, config *yamlProxyC
 	bigtableConfig := &types.BigtableConfig{
 		ProjectID:          projectId,
 		Instances:          instances,
-		SchemaMappingTable: schemaMappingTable,
+		SchemaMappingTable: types.TableName(schemaMappingTable),
 		Session: &types.Session{
 			GrpcChannels: l.Bigtable.Session.GrpcChannels,
 		},
-		DefaultColumnFamily:      l.Bigtable.DefaultColumnFamily,
+		DefaultColumnFamily:      types.ColumnFamily(l.Bigtable.DefaultColumnFamily),
 		DefaultIntRowKeyEncoding: intRowKeyEncoding,
 	}
 

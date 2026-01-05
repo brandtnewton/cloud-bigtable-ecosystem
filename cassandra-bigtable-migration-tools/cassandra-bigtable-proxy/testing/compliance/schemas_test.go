@@ -63,6 +63,48 @@ CREATE TABLE IF NOT EXISTS bigtabledevinstance.user_info (
 `,
 
 		`
+CREATE TABLE IF NOT EXISTS bigtabledevinstance.all_columns (
+	name text,
+	int_col int,
+	double_col double,
+	text_col text,
+	float_col float,
+	bool_col boolean,
+	time_col timestamp,
+	bigint_col bigint,
+	map_text_text map<text,text>,
+	map_text_int map<text,int>,
+	map_text_bigint map<text,bigint>,
+	map_text_boolean map<text,boolean>,
+	map_text_ts map<text,timestamp>,
+	map_text_float map<text,float>,
+	map_text_double map<text,double>,
+	ts_text_map map<timestamp,text>,
+	ts_boolean_map map<timestamp,boolean>,
+	ts_float_map map<timestamp,float>,
+	ts_double_map map<timestamp,double>,
+	ts_bigint_map map<timestamp,bigint>,
+	ts_ts_map map<timestamp,timestamp>,
+	ts_int_map map<timestamp,int>,
+	set_text set<text>,
+	set_boolean set<boolean>,
+	set_int set<int>,
+	set_bigint set<bigint>,
+	set_float set<float>,
+	set_double set<double>,
+	set_timestamp set<timestamp>,
+	list_text list<text>,
+	list_int list<int>,
+	list_bigint list<bigint>,
+	list_float list<float>,
+	list_double list<double>,
+	list_boolean list<boolean>,
+	list_timestamp list<timestamp>,
+	PRIMARY KEY (name)
+);
+`,
+
+		`
 CREATE TABLE IF NOT EXISTS bigtabledevinstance.orders (
 	user_id text,
 	order_num int,

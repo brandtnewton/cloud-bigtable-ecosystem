@@ -116,7 +116,6 @@ type Cluster struct {
 	ctx               context.Context
 	config            ClusterConfig
 	logger            *zap.Logger
-	controlConn       *ClientConn
 	hosts             []*Host
 	currentHostIndex  int
 	listeners         []ClusterListener
@@ -132,7 +131,6 @@ func ConnectCluster(ctx context.Context, config ClusterConfig) (*Cluster, error)
 		ctx:              ctx,
 		config:           config,
 		logger:           GetOrCreateNopLogger(config.Logger),
-		controlConn:      nil,
 		hosts:            nil,
 		currentHostIndex: 0,
 		events:           make(chan *frame.Frame),

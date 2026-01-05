@@ -29,20 +29,16 @@ type PreparedEntry struct {
 	PreparedFrame *frame.RawFrame
 }
 
-// PreparedCache a thread-safe cache for storing prepared queries.
-type PreparedCache interface {
+type PreparedCache[T any] interface {
 	// Store add an entry to the cache.
-	Store(id string, entry *PreparedEntry)
-	// Load retrieves an entry from the cache. `ok` is true if the entry is present; otherwise it's false.
-	Load(id string) (entry *PreparedEntry, ok bool)
+	Store(id [16]byte, entry T)
+	Load(id [16]byte) (entry T, ok bool)
 }
 
 type SessionConfig struct {
-	Keyspace string
-	Version  primitive.ProtocolVersion
-	Auth     Authenticator
+	Version primitive.ProtocolVersion
+	Auth    Authenticator
 	// PreparedCache a global cache share across sessions for storing previously prepared queries
-	PreparedCache     PreparedCache
 	ConnectTimeout    time.Duration
 	HeartBeatInterval time.Duration
 	IdleTimeout       time.Duration
@@ -58,7 +54,7 @@ type Session struct {
 	failed    chan error
 }
 
-func ConnectSession(ctx context.Context, cluster *Cluster, config SessionConfig) (*Session, error) {
+func ConnectSession(ctx context.Context, config SessionConfig) (*Session, error) {
 	session := &Session{
 		ctx:       ctx,
 		config:    config,

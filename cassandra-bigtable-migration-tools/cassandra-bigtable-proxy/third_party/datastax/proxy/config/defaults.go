@@ -100,7 +100,7 @@ func validateInstanceConfig(c *types.ProxyInstanceConfig) error {
 		return fmt.Errorf("missing instances for listener with port %d", c.Port)
 	}
 	for key, mapping := range c.BigtableConfig.Instances {
-		if mapping.BigtableInstance == "" {
+		if mapping.InstanceId == "" {
 			return fmt.Errorf("missing an instance id for listener with port %d", c.Port)
 		}
 		if key == "" || mapping.Keyspace == "" {

@@ -51,18 +51,20 @@ type OtelConfig struct {
 	}
 }
 
-type InstancesMapping struct {
-	BigtableInstance string
-	Keyspace         string
-	AppProfileID     string
+type BigtableInstance string
+
+type InstanceMapping struct {
+	InstanceId   BigtableInstance
+	Keyspace     Keyspace
+	AppProfileID string
 }
 
 type BigtableConfig struct {
 	ProjectID                string
-	Instances                map[string]*InstancesMapping
-	SchemaMappingTable       string
+	Instances                map[Keyspace]*InstanceMapping
+	SchemaMappingTable       TableName
 	Session                  *Session
-	DefaultColumnFamily      string
+	DefaultColumnFamily      ColumnFamily
 	DefaultIntRowKeyEncoding IntRowKeyEncodingType
 }
 

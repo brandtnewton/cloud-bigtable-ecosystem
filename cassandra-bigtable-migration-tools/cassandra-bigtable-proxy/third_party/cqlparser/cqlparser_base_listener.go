@@ -62,6 +62,30 @@ func (s *BaseCqlParserListener) EnterDescribeTarget(ctx *DescribeTargetContext) 
 // ExitDescribeTarget is called when production describeTarget is exited.
 func (s *BaseCqlParserListener) ExitDescribeTarget(ctx *DescribeTargetContext) {}
 
+// EnterDescribeTargetKeyspaces is called when production describeTargetKeyspaces is entered.
+func (s *BaseCqlParserListener) EnterDescribeTargetKeyspaces(ctx *DescribeTargetKeyspacesContext) {}
+
+// ExitDescribeTargetKeyspaces is called when production describeTargetKeyspaces is exited.
+func (s *BaseCqlParserListener) ExitDescribeTargetKeyspaces(ctx *DescribeTargetKeyspacesContext) {}
+
+// EnterDescribeTargetTables is called when production describeTargetTables is entered.
+func (s *BaseCqlParserListener) EnterDescribeTargetTables(ctx *DescribeTargetTablesContext) {}
+
+// ExitDescribeTargetTables is called when production describeTargetTables is exited.
+func (s *BaseCqlParserListener) ExitDescribeTargetTables(ctx *DescribeTargetTablesContext) {}
+
+// EnterDescribeTargetTable is called when production describeTargetTable is entered.
+func (s *BaseCqlParserListener) EnterDescribeTargetTable(ctx *DescribeTargetTableContext) {}
+
+// ExitDescribeTargetTable is called when production describeTargetTable is exited.
+func (s *BaseCqlParserListener) ExitDescribeTargetTable(ctx *DescribeTargetTableContext) {}
+
+// EnterDescribeTargetKeyspace is called when production describeTargetKeyspace is entered.
+func (s *BaseCqlParserListener) EnterDescribeTargetKeyspace(ctx *DescribeTargetKeyspaceContext) {}
+
+// ExitDescribeTargetKeyspace is called when production describeTargetKeyspace is exited.
+func (s *BaseCqlParserListener) ExitDescribeTargetKeyspace(ctx *DescribeTargetKeyspaceContext) {}
+
 // EnterRevoke is called when production revoke is entered.
 func (s *BaseCqlParserListener) EnterRevoke(ctx *RevokeContext) {}
 
@@ -371,6 +395,12 @@ func (s *BaseCqlParserListener) EnterAlterTableColumnDefinition(ctx *AlterTableC
 // ExitAlterTableColumnDefinition is called when production alterTableColumnDefinition is exited.
 func (s *BaseCqlParserListener) ExitAlterTableColumnDefinition(ctx *AlterTableColumnDefinitionContext) {
 }
+
+// EnterAlterTableAddColumn is called when production alterTableAddColumn is entered.
+func (s *BaseCqlParserListener) EnterAlterTableAddColumn(ctx *AlterTableAddColumnContext) {}
+
+// ExitAlterTableAddColumn is called when production alterTableAddColumn is exited.
+func (s *BaseCqlParserListener) ExitAlterTableAddColumn(ctx *AlterTableAddColumnContext) {}
 
 // EnterAlterRole is called when production alterRole is entered.
 func (s *BaseCqlParserListener) EnterAlterRole(ctx *AlterRoleContext) {}
@@ -738,23 +768,59 @@ func (s *BaseCqlParserListener) EnterAssignmentElement(ctx *AssignmentElementCon
 // ExitAssignmentElement is called when production assignmentElement is exited.
 func (s *BaseCqlParserListener) ExitAssignmentElement(ctx *AssignmentElementContext) {}
 
-// EnterAssignmentSet is called when production assignmentSet is entered.
-func (s *BaseCqlParserListener) EnterAssignmentSet(ctx *AssignmentSetContext) {}
+// EnterAssignmentEquals is called when production assignmentEquals is entered.
+func (s *BaseCqlParserListener) EnterAssignmentEquals(ctx *AssignmentEqualsContext) {}
 
-// ExitAssignmentSet is called when production assignmentSet is exited.
-func (s *BaseCqlParserListener) ExitAssignmentSet(ctx *AssignmentSetContext) {}
+// ExitAssignmentEquals is called when production assignmentEquals is exited.
+func (s *BaseCqlParserListener) ExitAssignmentEquals(ctx *AssignmentEqualsContext) {}
 
-// EnterAssignmentMap is called when production assignmentMap is entered.
-func (s *BaseCqlParserListener) EnterAssignmentMap(ctx *AssignmentMapContext) {}
+// EnterAssignmentPrepend is called when production assignmentPrepend is entered.
+func (s *BaseCqlParserListener) EnterAssignmentPrepend(ctx *AssignmentPrependContext) {}
 
-// ExitAssignmentMap is called when production assignmentMap is exited.
-func (s *BaseCqlParserListener) ExitAssignmentMap(ctx *AssignmentMapContext) {}
+// ExitAssignmentPrepend is called when production assignmentPrepend is exited.
+func (s *BaseCqlParserListener) ExitAssignmentPrepend(ctx *AssignmentPrependContext) {}
 
-// EnterAssignmentList is called when production assignmentList is entered.
-func (s *BaseCqlParserListener) EnterAssignmentList(ctx *AssignmentListContext) {}
+// EnterAssignmentAppend is called when production assignmentAppend is entered.
+func (s *BaseCqlParserListener) EnterAssignmentAppend(ctx *AssignmentAppendContext) {}
 
-// ExitAssignmentList is called when production assignmentList is exited.
-func (s *BaseCqlParserListener) ExitAssignmentList(ctx *AssignmentListContext) {}
+// ExitAssignmentAppend is called when production assignmentAppend is exited.
+func (s *BaseCqlParserListener) ExitAssignmentAppend(ctx *AssignmentAppendContext) {}
+
+// EnterIndexOrKeyAccess is called when production indexOrKeyAccess is entered.
+func (s *BaseCqlParserListener) EnterIndexOrKeyAccess(ctx *IndexOrKeyAccessContext) {}
+
+// ExitIndexOrKeyAccess is called when production indexOrKeyAccess is exited.
+func (s *BaseCqlParserListener) ExitIndexOrKeyAccess(ctx *IndexOrKeyAccessContext) {}
+
+// EnterAssignmentIndex is called when production assignmentIndex is entered.
+func (s *BaseCqlParserListener) EnterAssignmentIndex(ctx *AssignmentIndexContext) {}
+
+// ExitAssignmentIndex is called when production assignmentIndex is exited.
+func (s *BaseCqlParserListener) ExitAssignmentIndex(ctx *AssignmentIndexContext) {}
+
+// EnterValueSet is called when production valueSet is entered.
+func (s *BaseCqlParserListener) EnterValueSet(ctx *ValueSetContext) {}
+
+// ExitValueSet is called when production valueSet is exited.
+func (s *BaseCqlParserListener) ExitValueSet(ctx *ValueSetContext) {}
+
+// EnterValueMap is called when production valueMap is entered.
+func (s *BaseCqlParserListener) EnterValueMap(ctx *ValueMapContext) {}
+
+// ExitValueMap is called when production valueMap is exited.
+func (s *BaseCqlParserListener) ExitValueMap(ctx *ValueMapContext) {}
+
+// EnterValueList is called when production valueList is entered.
+func (s *BaseCqlParserListener) EnterValueList(ctx *ValueListContext) {}
+
+// ExitValueList is called when production valueList is exited.
+func (s *BaseCqlParserListener) ExitValueList(ctx *ValueListContext) {}
+
+// EnterArithmeticOperator is called when production arithmeticOperator is entered.
+func (s *BaseCqlParserListener) EnterArithmeticOperator(ctx *ArithmeticOperatorContext) {}
+
+// ExitArithmeticOperator is called when production arithmeticOperator is exited.
+func (s *BaseCqlParserListener) ExitArithmeticOperator(ctx *ArithmeticOperatorContext) {}
 
 // EnterAssignmentTuple is called when production assignmentTuple is entered.
 func (s *BaseCqlParserListener) EnterAssignmentTuple(ctx *AssignmentTupleContext) {}
@@ -822,11 +888,11 @@ func (s *BaseCqlParserListener) EnterColumnList(ctx *ColumnListContext) {}
 // ExitColumnList is called when production columnList is exited.
 func (s *BaseCqlParserListener) ExitColumnList(ctx *ColumnListContext) {}
 
-// EnterExpressionList is called when production expressionList is entered.
-func (s *BaseCqlParserListener) EnterExpressionList(ctx *ExpressionListContext) {}
+// EnterValueListSpec is called when production valueListSpec is entered.
+func (s *BaseCqlParserListener) EnterValueListSpec(ctx *ValueListSpecContext) {}
 
-// ExitExpressionList is called when production expressionList is exited.
-func (s *BaseCqlParserListener) ExitExpressionList(ctx *ExpressionListContext) {}
+// ExitValueListSpec is called when production valueListSpec is exited.
+func (s *BaseCqlParserListener) ExitValueListSpec(ctx *ValueListSpecContext) {}
 
 // EnterExpression is called when production expression is entered.
 func (s *BaseCqlParserListener) EnterExpression(ctx *ExpressionContext) {}
@@ -858,17 +924,17 @@ func (s *BaseCqlParserListener) EnterKwLike(ctx *KwLikeContext) {}
 // ExitKwLike is called when production kwLike is exited.
 func (s *BaseCqlParserListener) ExitKwLike(ctx *KwLikeContext) {}
 
+// EnterTableSpec is called when production tableSpec is entered.
+func (s *BaseCqlParserListener) EnterTableSpec(ctx *TableSpecContext) {}
+
+// ExitTableSpec is called when production tableSpec is exited.
+func (s *BaseCqlParserListener) ExitTableSpec(ctx *TableSpecContext) {}
+
 // EnterFromSpec is called when production fromSpec is entered.
 func (s *BaseCqlParserListener) EnterFromSpec(ctx *FromSpecContext) {}
 
 // ExitFromSpec is called when production fromSpec is exited.
 func (s *BaseCqlParserListener) ExitFromSpec(ctx *FromSpecContext) {}
-
-// EnterFromSpecElement is called when production fromSpecElement is entered.
-func (s *BaseCqlParserListener) EnterFromSpecElement(ctx *FromSpecElementContext) {}
-
-// ExitFromSpecElement is called when production fromSpecElement is exited.
-func (s *BaseCqlParserListener) ExitFromSpecElement(ctx *FromSpecElementContext) {}
 
 // EnterOrderSpec is called when production orderSpec is entered.
 func (s *BaseCqlParserListener) EnterOrderSpec(ctx *OrderSpecContext) {}
@@ -906,11 +972,29 @@ func (s *BaseCqlParserListener) EnterSelectElement(ctx *SelectElementContext) {}
 // ExitSelectElement is called when production selectElement is exited.
 func (s *BaseCqlParserListener) ExitSelectElement(ctx *SelectElementContext) {}
 
-// EnterMapAccess is called when production mapAccess is entered.
-func (s *BaseCqlParserListener) EnterMapAccess(ctx *MapAccessContext) {}
+// EnterSelectColumn is called when production selectColumn is entered.
+func (s *BaseCqlParserListener) EnterSelectColumn(ctx *SelectColumnContext) {}
 
-// ExitMapAccess is called when production mapAccess is exited.
-func (s *BaseCqlParserListener) ExitMapAccess(ctx *MapAccessContext) {}
+// ExitSelectColumn is called when production selectColumn is exited.
+func (s *BaseCqlParserListener) ExitSelectColumn(ctx *SelectColumnContext) {}
+
+// EnterSelectFunction is called when production selectFunction is entered.
+func (s *BaseCqlParserListener) EnterSelectFunction(ctx *SelectFunctionContext) {}
+
+// ExitSelectFunction is called when production selectFunction is exited.
+func (s *BaseCqlParserListener) ExitSelectFunction(ctx *SelectFunctionContext) {}
+
+// EnterSelectIndex is called when production selectIndex is entered.
+func (s *BaseCqlParserListener) EnterSelectIndex(ctx *SelectIndexContext) {}
+
+// ExitSelectIndex is called when production selectIndex is exited.
+func (s *BaseCqlParserListener) ExitSelectIndex(ctx *SelectIndexContext) {}
+
+// EnterAsSpec is called when production asSpec is entered.
+func (s *BaseCqlParserListener) EnterAsSpec(ctx *AsSpecContext) {}
+
+// ExitAsSpec is called when production asSpec is exited.
+func (s *BaseCqlParserListener) ExitAsSpec(ctx *AsSpecContext) {}
 
 // EnterRelationElements is called when production relationElements is entered.
 func (s *BaseCqlParserListener) EnterRelationElements(ctx *RelationElementsContext) {}
@@ -924,17 +1008,69 @@ func (s *BaseCqlParserListener) EnterRelationElement(ctx *RelationElementContext
 // ExitRelationElement is called when production relationElement is exited.
 func (s *BaseCqlParserListener) ExitRelationElement(ctx *RelationElementContext) {}
 
-// EnterRelalationContains is called when production relalationContains is entered.
-func (s *BaseCqlParserListener) EnterRelalationContains(ctx *RelalationContainsContext) {}
+// EnterCompareOperator is called when production compareOperator is entered.
+func (s *BaseCqlParserListener) EnterCompareOperator(ctx *CompareOperatorContext) {}
 
-// ExitRelalationContains is called when production relalationContains is exited.
-func (s *BaseCqlParserListener) ExitRelalationContains(ctx *RelalationContainsContext) {}
+// ExitCompareOperator is called when production compareOperator is exited.
+func (s *BaseCqlParserListener) ExitCompareOperator(ctx *CompareOperatorContext) {}
 
-// EnterRelalationContainsKey is called when production relalationContainsKey is entered.
-func (s *BaseCqlParserListener) EnterRelalationContainsKey(ctx *RelalationContainsKeyContext) {}
+// EnterRelationFunctionCompareConstant is called when production relationFunctionCompareConstant is entered.
+func (s *BaseCqlParserListener) EnterRelationFunctionCompareConstant(ctx *RelationFunctionCompareConstantContext) {
+}
 
-// ExitRelalationContainsKey is called when production relalationContainsKey is exited.
-func (s *BaseCqlParserListener) ExitRelalationContainsKey(ctx *RelalationContainsKeyContext) {}
+// ExitRelationFunctionCompareConstant is called when production relationFunctionCompareConstant is exited.
+func (s *BaseCqlParserListener) ExitRelationFunctionCompareConstant(ctx *RelationFunctionCompareConstantContext) {
+}
+
+// EnterRelationFunctionCompareFunction is called when production relationFunctionCompareFunction is entered.
+func (s *BaseCqlParserListener) EnterRelationFunctionCompareFunction(ctx *RelationFunctionCompareFunctionContext) {
+}
+
+// ExitRelationFunctionCompareFunction is called when production relationFunctionCompareFunction is exited.
+func (s *BaseCqlParserListener) ExitRelationFunctionCompareFunction(ctx *RelationFunctionCompareFunctionContext) {
+}
+
+// EnterRelationBetween is called when production relationBetween is entered.
+func (s *BaseCqlParserListener) EnterRelationBetween(ctx *RelationBetweenContext) {}
+
+// ExitRelationBetween is called when production relationBetween is exited.
+func (s *BaseCqlParserListener) ExitRelationBetween(ctx *RelationBetweenContext) {}
+
+// EnterRelationCompare is called when production relationCompare is entered.
+func (s *BaseCqlParserListener) EnterRelationCompare(ctx *RelationCompareContext) {}
+
+// ExitRelationCompare is called when production relationCompare is exited.
+func (s *BaseCqlParserListener) ExitRelationCompare(ctx *RelationCompareContext) {}
+
+// EnterRelationLike is called when production relationLike is entered.
+func (s *BaseCqlParserListener) EnterRelationLike(ctx *RelationLikeContext) {}
+
+// ExitRelationLike is called when production relationLike is exited.
+func (s *BaseCqlParserListener) ExitRelationLike(ctx *RelationLikeContext) {}
+
+// EnterTupleValue is called when production tupleValue is entered.
+func (s *BaseCqlParserListener) EnterTupleValue(ctx *TupleValueContext) {}
+
+// ExitTupleValue is called when production tupleValue is exited.
+func (s *BaseCqlParserListener) ExitTupleValue(ctx *TupleValueContext) {}
+
+// EnterRelationIn is called when production relationIn is entered.
+func (s *BaseCqlParserListener) EnterRelationIn(ctx *RelationInContext) {}
+
+// ExitRelationIn is called when production relationIn is exited.
+func (s *BaseCqlParserListener) ExitRelationIn(ctx *RelationInContext) {}
+
+// EnterRelationContains is called when production relationContains is entered.
+func (s *BaseCqlParserListener) EnterRelationContains(ctx *RelationContainsContext) {}
+
+// ExitRelationContains is called when production relationContains is exited.
+func (s *BaseCqlParserListener) ExitRelationContains(ctx *RelationContainsContext) {}
+
+// EnterRelationContainsKey is called when production relationContainsKey is entered.
+func (s *BaseCqlParserListener) EnterRelationContainsKey(ctx *RelationContainsKeyContext) {}
+
+// ExitRelationContainsKey is called when production relationContainsKey is exited.
+func (s *BaseCqlParserListener) ExitRelationContainsKey(ctx *RelationContainsKeyContext) {}
 
 // EnterFunctionCall is called when production functionCall is entered.
 func (s *BaseCqlParserListener) EnterFunctionCall(ctx *FunctionCallContext) {}
@@ -947,6 +1083,12 @@ func (s *BaseCqlParserListener) EnterFunctionArgs(ctx *FunctionArgsContext) {}
 
 // ExitFunctionArgs is called when production functionArgs is exited.
 func (s *BaseCqlParserListener) ExitFunctionArgs(ctx *FunctionArgsContext) {}
+
+// EnterValueAny is called when production valueAny is entered.
+func (s *BaseCqlParserListener) EnterValueAny(ctx *ValueAnyContext) {}
+
+// ExitValueAny is called when production valueAny is exited.
+func (s *BaseCqlParserListener) ExitValueAny(ctx *ValueAnyContext) {}
 
 // EnterConstant is called when production constant is entered.
 func (s *BaseCqlParserListener) EnterConstant(ctx *ConstantContext) {}

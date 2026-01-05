@@ -17,6 +17,8 @@
 package compliance
 
 import (
+	"cloud.google.com/go/bigtable"
+	"context"
 	"fmt"
 	"log"
 	"os"
@@ -68,20 +70,23 @@ func TestMain(m *testing.M) {
 	fmt.Printf("running against test target '%s'\n", testTarget.String())
 
 	// --- Run Tests ---
-	exitCode := m.Run()
+	m.Run()
 
 	cleanUpTests()
-
-	os.Exit(exitCode)
 }
 
 // note: we don't destroy any tables here because recreating every table, for every test would cause Bigtable to rate limit us.
 func cleanUpTests() {
 	session.Close()
+	err := client.Close()
+	if err != nil {
+		fmt.Printf("failed to close bigtable connection: %s", err.Error())
+	}
 }
 
 var gcpProjectId = ""
 var instanceId = ""
+var client *bigtable.Client
 
 func setUpTests() {
 	gcpProjectId = os.Getenv("PROJECT_ID")
@@ -94,7 +99,7 @@ func setUpTests() {
 	}
 
 	var err error
-	session, err = createSession(instanceId)
+	session, err = createSession("bigtabledevinstance")
 	if err != nil {
 		log.Fatalf("could not connect to the session: %v", err)
 	}
@@ -113,12 +118,9 @@ func setUpTests() {
 	log.Println(fmt.Sprintf("determined test target to be %s from the cluster name '%s'", testTarget.String(), clusterName))
 
 	log.Println("Creating test tables...")
-	for i, stmt := range getSchemas() {
-		log.Println(fmt.Sprintf("Running create table statement: '%d'...", i))
-		err = session.Query(stmt).Exec()
-		if err != nil {
-			log.Fatalf("could not create table: %v", err)
-		}
+	err = runCqlshAsync(getSchemas())
+	if err != nil {
+		log.Fatalf("could not create table: %v", err)
 	}
 
 	tableNames := []string{
@@ -134,16 +136,22 @@ func setUpTests() {
 		tableNames = append(tableNames, "bigtabledevinstance.orders_big_endian_encoded")
 	}
 
-	// truncate all tables
+	var truncateStatements []string
 	for _, table := range tableNames {
-		log.Println(fmt.Sprintf("truncating table: '%s'...", table))
-		err = session.Query(fmt.Sprintf("TRUNCATE TABLE %s", table)).Exec()
-		if err != nil {
-			log.Fatalf("could not create table: %v", err)
-		}
+		truncateStatements = append(truncateStatements, fmt.Sprintf("TRUNCATE TABLE %s", table))
+	}
+
+	err = runCqlshAsync(truncateStatements)
+	if err != nil {
+		log.Fatalf("could not create table: %v", err)
 	}
 
 	log.Println("All test tables successfully created!")
+
+	client, err = bigtable.NewClient(context.Background(), gcpProjectId, instanceId)
+	if err != nil {
+		log.Fatalf("could not open bigtable connection: %v", err)
+	}
 }
 
 func cleanupTable(t *testing.T, table string) {

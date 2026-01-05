@@ -18,24 +18,17 @@ package utilities
 
 import (
 	"fmt"
-	"regexp"
+	"reflect"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
 
-	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/collectiondecoder"
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/global/types"
 	cql "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/third_party/cqlparser"
-	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/third_party/datastax/proxycore"
 	"github.com/antlr4-go/antlr/v4"
 	"github.com/datastax/go-cassandra-native-protocol/datatype"
 	"github.com/datastax/go-cassandra-native-protocol/primitive"
-)
-
-const (
-	KEY_TYPE_PARTITION  = "partition_key"
-	KEY_TYPE_CLUSTERING = "clustering"
-	KEY_TYPE_REGULAR    = "regular"
 )
 
 // from https://cassandra.apache.org/doc/4.0/cassandra/cql/appendices.html#appendix-A
@@ -159,123 +152,6 @@ var reservedKeywords = map[string]bool{
 	"MACADDR":      false,
 }
 
-var (
-	MapOfStrToStr     = types.NewMapType(types.TypeVarchar, types.TypeVarchar)
-	MapOfStrToInt     = types.NewMapType(types.TypeVarchar, types.TypeInt)
-	MapOfStrToBigInt  = types.NewMapType(types.TypeVarchar, types.TypeBigint)
-	MapOfStrToBool    = types.NewMapType(types.TypeVarchar, types.TypeBoolean)
-	MapOfStrToFloat   = types.NewMapType(types.TypeVarchar, types.TypeFloat)
-	MapOfStrToDouble  = types.NewMapType(types.TypeVarchar, types.TypeDouble)
-	MapOfStrToTime    = types.NewMapType(types.TypeVarchar, types.TypeTimestamp)
-	MapOfTimeToTime   = types.NewMapType(types.TypeTimestamp, types.TypeTimestamp)
-	MapOfTimeToStr    = types.NewMapType(types.TypeTimestamp, types.TypeVarchar)
-	MapOfTimeToInt    = types.NewMapType(types.TypeTimestamp, types.TypeInt)
-	MapOfTimeToBigInt = types.NewMapType(types.TypeTimestamp, types.TypeBigint)
-	MapOfTimeToFloat  = types.NewMapType(types.TypeTimestamp, types.TypeFloat)
-	MapOfTimeToDouble = types.NewMapType(types.TypeTimestamp, types.TypeDouble)
-	MapOfTimeToBool   = types.NewMapType(types.TypeTimestamp, types.TypeBoolean)
-	SetOfStr          = types.NewSetType(types.TypeVarchar)
-	SetOfInt          = types.NewSetType(types.TypeInt)
-	SetOfBigInt       = types.NewSetType(types.TypeBigint)
-	SetOfBool         = types.NewSetType(types.TypeBoolean)
-	SetOfFloat        = types.NewSetType(types.TypeFloat)
-	SetOfDouble       = types.NewSetType(types.TypeDouble)
-	SetOfTimeStamp    = types.NewSetType(types.TypeTimestamp)
-	ListOfStr         = types.NewListType(types.TypeVarchar)
-	ListOfBool        = types.NewListType(types.TypeBoolean)
-	ListOfInt         = types.NewListType(types.TypeInt)
-	ListOfBigInt      = types.NewListType(types.TypeBigint)
-	ListOfFloat       = types.NewListType(types.TypeFloat)
-	ListOfDouble      = types.NewListType(types.TypeDouble)
-	ListOfTimeStamp   = types.NewListType(types.TypeTimestamp)
-)
-
-var (
-	EncodedTrue, _  = proxycore.EncodeType(datatype.Boolean, primitive.ProtocolVersion4, true)
-	EncodedFalse, _ = proxycore.EncodeType(datatype.Boolean, primitive.ProtocolVersion4, false)
-)
-
-// TODO: Move these variables to global level
-const (
-	// Primitive types
-	CassandraTypeText      = "text"
-	CassandraTypeString    = "string"
-	CassandraTypeBlob      = "blob"
-	CassandraTypeTimestamp = "timestamp"
-	CassandraTypeInt       = "int"
-	CassandraTypeBigint    = "bigint"
-	CassandraTypeBoolean   = "boolean"
-	CassandraTypeUuid      = "uuid"
-	CassandraTypeFloat     = "float"
-	CassandraTypeDouble    = "double"
-	CassandraTypeCounter   = "counter"
-)
-const (
-	Info  = "info"
-	Debug = "debug"
-	Error = "error"
-	Warn  = "warn"
-)
-
-// IsCollection() checks if the provided data type is a collection type (list, set, or map).
-func IsCollection(dt datatype.DataType) bool {
-	switch dt.GetDataTypeCode() {
-	case primitive.DataTypeCodeList, primitive.DataTypeCodeSet, primitive.DataTypeCodeMap:
-		return true
-	default:
-		return false
-	}
-}
-
-// DecodeBytesToCassandraColumnType(): Function to decode incoming bytes parameter
-// for handleExecute scenario into corresponding go datatype
-//
-// Parameters:
-//   - b: []byte
-//   - choice:  datatype.DataType
-//   - protocolVersion: primitive.ProtocolVersion
-//
-// Returns: (interface{}, error)
-func DecodeBytesToCassandraColumnType(b []byte, choice datatype.PrimitiveType, protocolVersion primitive.ProtocolVersion) (any, error) {
-	switch choice.GetDataTypeCode() {
-	case primitive.DataTypeCodeVarchar:
-		return proxycore.DecodeType(datatype.Varchar, protocolVersion, b)
-	case primitive.DataTypeCodeDouble:
-		return proxycore.DecodeType(datatype.Double, protocolVersion, b)
-	case primitive.DataTypeCodeFloat:
-		return proxycore.DecodeType(datatype.Float, protocolVersion, b)
-	case primitive.DataTypeCodeBigint, primitive.DataTypeCodeCounter:
-		return proxycore.DecodeType(datatype.Bigint, protocolVersion, b)
-	case primitive.DataTypeCodeTimestamp:
-		return proxycore.DecodeType(datatype.Timestamp, protocolVersion, b)
-	case primitive.DataTypeCodeInt:
-		var decodedInt int64
-		if len(b) == 8 {
-			decoded, err := proxycore.DecodeType(datatype.Bigint, protocolVersion, b)
-			if err != nil {
-				return nil, err
-			}
-			decodedInt = decoded.(int64)
-		} else {
-			decoded, err := proxycore.DecodeType(datatype.Int, protocolVersion, b)
-			if err != nil {
-				return nil, err
-			}
-			decodedInt = int64(decoded.(int32))
-		}
-		return decodedInt, nil
-	case primitive.DataTypeCodeBoolean:
-		return proxycore.DecodeType(datatype.Boolean, protocolVersion, b)
-	case primitive.DataTypeCodeDate:
-		return proxycore.DecodeType(datatype.Date, protocolVersion, b)
-	case primitive.DataTypeCodeBlob:
-		return proxycore.DecodeType(datatype.Blob, protocolVersion, b)
-	default:
-		res, err := decodeNonPrimitive(choice, b)
-		return res, err
-	}
-}
-
 func IsReservedCqlKeyword(s string) bool {
 	// we're opting to treat reserved and "non-reserved" keywords the same, for simplicity
 	_, found := reservedKeywords[strings.ToUpper(s)]
@@ -287,7 +163,7 @@ func FromDataCode(dt datatype.DataType) (types.CqlDataType, error) {
 	case primitive.DataTypeCodeAscii:
 		return types.TypeAscii, nil
 	case primitive.DataTypeCodeBigint:
-		return types.TypeBigint, nil
+		return types.TypeBigInt, nil
 	case primitive.DataTypeCodeBlob:
 		return types.TypeBlob, nil
 	case primitive.DataTypeCodeBoolean:
@@ -363,265 +239,6 @@ func FromDataCode(dt datatype.DataType) (types.CqlDataType, error) {
 	}
 }
 
-// decodeNonPrimitive() Decodes non-primitive types like list, list, and list from byte data based on the provided datatype choice. Returns the decoded collection or an error if unsupported.
-func decodeNonPrimitive(choice datatype.PrimitiveType, b []byte) (any, error) {
-	var err error
-	// Check if it's a list type
-	if choice.GetDataTypeCode() == primitive.DataTypeCodeList {
-		// Get the element type
-		listType := choice.(datatype.ListType)
-		elementType := listType.GetElementType()
-
-		// Now check the element type's code
-		switch elementType.GetDataTypeCode() {
-		case primitive.DataTypeCodeVarchar:
-			decodedList, err := collectiondecoder.DecodeCollection(ListOfStr.DataType(), primitive.ProtocolVersion4, b)
-			if err != nil {
-				return nil, err
-			}
-			return decodedList, err
-		case primitive.DataTypeCodeInt:
-			decodedList, err := collectiondecoder.DecodeCollection(ListOfInt.DataType(), primitive.ProtocolVersion4, b)
-			if err != nil {
-				return nil, err
-			}
-			return decodedList, err
-		case primitive.DataTypeCodeBigint:
-			decodedList, err := collectiondecoder.DecodeCollection(ListOfBigInt.DataType(), primitive.ProtocolVersion4, b)
-			if err != nil {
-				return nil, err
-			}
-			return decodedList, err
-		case primitive.DataTypeCodeDouble:
-			decodedList, err := collectiondecoder.DecodeCollection(ListOfDouble.DataType(), primitive.ProtocolVersion4, b)
-			if err != nil {
-				return nil, err
-			}
-			return decodedList, err
-		default:
-			err = fmt.Errorf("unsupported list element type to decode - %v", elementType.GetDataTypeCode())
-			return nil, err
-		}
-	}
-
-	err = fmt.Errorf("unsupported Datatype to decode - %v", choice.GetDataTypeCode())
-	return nil, err
-}
-
-// defaultIfEmpty() returns a default string value if the provided value is empty.
-// Useful for setting default configuration values.
-func defaultIfEmpty(value, defaultValue string) string {
-	if value == "" {
-		return defaultValue
-	}
-	return value
-}
-
-// defaultIfZero() returns a default integer value if the provided value is zero.
-// Useful for setting default configuration values.
-func defaultIfZero(value, defaultValue int) int {
-	if value == 0 {
-		return defaultValue
-	}
-	return value
-}
-
-// TypeConversion() converts a Go data type to a Cassandra protocol-compliant byte array.
-//
-// Parameters:
-//   - s: The data to be converted.
-//   - protocalV: Cassandra protocol version.
-//
-// Returns: Byte array in Cassandra protocol format or an error if conversion fails.
-func TypeConversion(s any, protocalV primitive.ProtocolVersion) ([]byte, error) {
-	var bytes []byte
-	var err error
-	switch v := s.(type) {
-	case string:
-		bytes, err = proxycore.EncodeType(datatype.Varchar, protocalV, v)
-	case time.Time:
-		bytes, err = proxycore.EncodeType(datatype.Timestamp, protocalV, v)
-	case []byte:
-		bytes, err = proxycore.EncodeType(datatype.Blob, protocalV, v)
-	case int64:
-		bytes, err = proxycore.EncodeType(datatype.Bigint, protocalV, v)
-	case int:
-		bytes, err = proxycore.EncodeType(datatype.Int, protocalV, v)
-	case bool:
-		bytes, err = proxycore.EncodeType(datatype.Boolean, protocalV, v)
-	case map[string]string:
-		bytes, err = proxycore.EncodeType(MapOfStrToStr.DataType(), protocalV, v)
-	case float64:
-		bytes, err = proxycore.EncodeType(datatype.Double, protocalV, v)
-	case float32:
-		bytes, err = proxycore.EncodeType(datatype.Float, protocalV, v)
-	case []string:
-		bytes, err = proxycore.EncodeType(SetOfStr.DataType(), protocalV, v)
-	case datatype.DataType:
-		cqlTypeInString := fmt.Sprintf("%v", v)
-		bytes, err = proxycore.EncodeType(datatype.Varchar, protocalV, cqlTypeInString)
-	default:
-		err = fmt.Errorf("%v - %v", "Unknown Datatype Identified", s)
-	}
-
-	return bytes, err
-}
-
-/*
-DataConversionInInsertionIfRequired() converts a value to a byte array based on the provided Cassandra type and response type.
-Parameters:
-  - value: any
-  - pv: primitive.ProtocolVersion
-  - cqlType: string
-*/
-func DataConversionInInsertionIfRequired(value any, pv primitive.ProtocolVersion, cqlType string, responseType string) (any, error) {
-	switch cqlType {
-	case CassandraTypeBoolean:
-		switch responseType {
-		case CassandraTypeString:
-			val, err := strconv.ParseBool(value.(string))
-			if err != nil {
-				return nil, err
-			}
-			if val {
-				return "1", nil
-			} else {
-				return "0", nil
-			}
-		default:
-			return EncodeBool(value, pv)
-		}
-	case CassandraTypeInt:
-		switch responseType {
-		case CassandraTypeString:
-			val, err := strconv.ParseInt(value.(string), 10, 64)
-			if err != nil {
-				return nil, err
-			}
-			stringVal := strconv.FormatInt(val, 10)
-			return stringVal, nil
-		default:
-			return EncodeInt(value, pv)
-		}
-	default:
-		return value, nil
-	}
-}
-
-/*
-EncodeBool() encodes a boolean value to a byte array
-Parameters:
-  - value: any
-  - pv: primitive.ProtocolVersion
-
-Returns: []byte, error
-*/
-func EncodeBool(value any, pv primitive.ProtocolVersion) ([]byte, error) {
-	switch v := value.(type) {
-	case string:
-		val, err := strconv.ParseBool(v)
-		if err != nil {
-			return nil, err
-		}
-		strVal := "0"
-		if val {
-			strVal = "1"
-		}
-		intVal, _ := strconv.ParseInt(strVal, 10, 64)
-		bd, err := proxycore.EncodeType(datatype.Bigint, pv, intVal)
-		return bd, err
-	case bool:
-		var valInBigint int64
-		if v {
-			valInBigint = 1
-		} else {
-			valInBigint = 0
-		}
-		bd, err := proxycore.EncodeType(datatype.Bigint, pv, valInBigint)
-		return bd, err
-	case []byte:
-		vaInInterface, err := proxycore.DecodeType(datatype.Boolean, pv, v)
-		if err != nil {
-			return nil, err
-		}
-		if vaInInterface.(bool) {
-			return proxycore.EncodeType(datatype.Bigint, pv, 1)
-		} else {
-			return proxycore.EncodeType(datatype.Bigint, pv, 0)
-		}
-	default:
-		return nil, fmt.Errorf("unsupported type: %v", value)
-	}
-}
-
-/*
-EncodeInt() encodes an integer value to a byte array
-Parameters:
-  - value: any
-  - pv: primitive.ProtocolVersion
-
-Returns: []byte, error
-*/
-func EncodeInt(value any, pv primitive.ProtocolVersion) ([]byte, error) {
-	switch v := value.(type) {
-	case string:
-		val, err := strconv.ParseInt(v, 10, 64)
-		if err != nil {
-			return nil, err
-		}
-		bd, err := proxycore.EncodeType(datatype.Bigint, pv, val)
-		return bd, err
-	case int32:
-		bd, err := proxycore.EncodeType(datatype.Bigint, pv, int32(v))
-		if err != nil {
-			return nil, err
-		}
-		return bd, err
-	case []byte:
-		intVal, err := proxycore.DecodeType(datatype.Int, pv, v)
-		if err != nil {
-			return nil, err
-		}
-		return proxycore.EncodeType(datatype.Bigint, pv, intVal.(int32))
-	default:
-		return nil, fmt.Errorf("unsupported type: %v", value)
-	}
-}
-
-/*
-GetClauseByValue() returns the clause that matches the value
-Parameters:
-  - clause: []types.Clause
-  - value: string
-
-Returns: types.Clause, error
-*/
-func GetClauseByValue(clause []types.Clause, value string) (types.Clause, error) {
-	for _, c := range clause {
-		if c.Value == "@"+value {
-			return c, nil
-		}
-	}
-	return types.Clause{}, fmt.Errorf("clause not found")
-}
-
-/*
-GetClauseByColumn() returns the clause that matches the column
-Parameters:
-  - clause: []types.Clause
-  - column: string
-
-Returns: types.Clause, error
-*/
-func GetClauseByColumn(clause []types.Clause, column string) (types.Clause, error) {
-	for _, c := range clause {
-		if c.Column == column {
-			return c, nil
-		}
-	}
-	return types.Clause{}, fmt.Errorf("clause not found")
-}
-
 func IsSupportedPrimaryKeyType(dt types.CqlDataType) bool {
 	if dt.IsAnyFrozen() {
 		return false
@@ -633,6 +250,155 @@ func IsSupportedPrimaryKeyType(dt types.CqlDataType) bool {
 	default:
 		return false
 	}
+}
+
+func ParseBigInt(value string) (int64, error) {
+	val, err := strconv.ParseInt(value, 10, 64)
+	if err != nil {
+		return 0, fmt.Errorf("error converting string to int64: %w", err)
+	}
+	return val, err
+}
+
+func GoToString(value types.GoValue) (string, error) {
+	if value == nil {
+		return "null", nil
+	}
+
+	switch v := value.(type) {
+	case string:
+		escaped := strings.ReplaceAll(v, "'", "\\'")
+		return "'" + escaped + "'", nil
+	case int32:
+		return strconv.Itoa(int(v)), nil
+	case int64:
+		return strconv.FormatInt(v, 10), nil
+	case float32:
+		return strconv.FormatFloat(float64(v), 'f', -1, 32), nil
+	case float64:
+		return strconv.FormatFloat(v, 'f', -1, 64), nil
+	case bool:
+		if v {
+			return "1", nil
+		} else {
+			return "0", nil
+		}
+	case time.Time:
+		return fmt.Sprintf("TIMESTAMP_FROM_UNIX_MILLIS(%d)", v.UnixMilli()), nil
+	case []interface{}:
+		var values []string
+		for _, vi := range v {
+			s, err := GoToString(vi)
+			if err != nil {
+				return "", err
+			}
+			values = append(values, s)
+		}
+		return fmt.Sprintf("[%s]", strings.Join(values, ", ")), nil
+	default:
+		return "", fmt.Errorf("unhandled go to string conversion for type %T", v)
+	}
+}
+
+func StringToGo(value string, cqlType types.CqlDataType) (types.GoValue, error) {
+	var iv interface{}
+
+	switch cqlType.DataType() {
+	case datatype.Int:
+		val, err := strconv.ParseInt(value, 10, 32)
+		if err != nil {
+			return nil, fmt.Errorf("error converting string to int32: %w", err)
+		}
+		iv = int32(val)
+	case datatype.Bigint, datatype.Counter:
+		val, err := ParseBigInt(value)
+		if err != nil {
+			return nil, err
+		}
+		iv = val
+	case datatype.Float:
+		val, err := strconv.ParseFloat(value, 32)
+		if err != nil {
+			return nil, fmt.Errorf("error converting string to float32: %w", err)
+		}
+		iv = float32(val)
+	case datatype.Double:
+		val, err := strconv.ParseFloat(value, 64)
+		if err != nil {
+			return nil, fmt.Errorf("error converting string to float64: %w", err)
+		}
+		iv = val
+	case datatype.Boolean:
+		val, err := strconv.ParseBool(value)
+		if err != nil {
+			return nil, fmt.Errorf("error converting string to bool: %w", err)
+		}
+		return val, nil
+	case datatype.Timestamp:
+		val, err := parseCqlTimestamp(value)
+		if err != nil {
+			return nil, fmt.Errorf("error converting string to timestamp: %w", err)
+		}
+		iv = val
+	case datatype.Blob:
+		iv = value
+	case datatype.Varchar:
+		iv = value
+	default:
+		return nil, fmt.Errorf("unsupported CQL type: %s", cqlType.String())
+
+	}
+	return iv, nil
+}
+
+func CreateKeyOrderedValueSlice[T any](data map[string]T) []T {
+	keys := make([]string, 0, len(data))
+	for k := range data {
+		keys = append(keys, k)
+	}
+
+	sort.Strings(keys)
+
+	result := make([]T, 0, len(keys))
+	for _, k := range keys {
+		result = append(result, data[k])
+	}
+
+	return result
+}
+
+var cqlTimestampFormats = []string{
+	time.RFC3339,
+	"2006-01-02 15:04:05",
+	"2006-01-02 15:04-0700",
+	"2006-01-02 15:04:05-0700",
+	"2006-01-02 15:04:05.000-0700",
+	"2006-01-02T15:04-0700",
+	"2006-01-02T15:04:05-0700",
+	"2006-01-02T15:04:05.000-0700",
+	// it's possible to specify just the date - this will set the time to 00:00:00
+	"2006-01-02",
+}
+
+// parseCqlTimestamp(): Parse a timestamp string in various formats.
+// https://cassandra.apache.org/doc/4.1/cassandra/cql/types.html
+func parseCqlTimestamp(timestampStr string) (time.Time, error) {
+	// Try to parse the timestamp using each layout
+	for _, format := range cqlTimestampFormats {
+		parsedTime, err := time.Parse(format, timestampStr)
+		if err == nil {
+			return parsedTime.UTC(), nil
+		}
+	}
+
+	if unixTime, err := strconv.ParseInt(timestampStr, 10, 64); err == nil {
+		return time.UnixMilli(unixTime).UTC(), nil
+	} else if floatTime, err := strconv.ParseFloat(timestampStr, 64); err == nil {
+		unixTime := int64(floatTime)
+		return time.UnixMilli(unixTime).UTC(), nil
+	}
+
+	return time.Time{}, fmt.Errorf("unable to parse timestamp for value '%s'", timestampStr)
 }
 
 func isSupportedCollectionElementType(dt datatype.DataType) bool {
@@ -665,8 +431,6 @@ func IsSupportedColumnType(dt types.CqlDataType) bool {
 		return false
 	}
 }
-
-var cqlGenericTypeRegex = regexp.MustCompile(`^(\w+)<(.+)>$`)
 
 func ParseCqlTypeOrDie(typeStr string) types.CqlDataType {
 	t, err := ParseCqlTypeString(typeStr)
@@ -801,7 +565,7 @@ func ParseCqlType(dtc cql.IDataTypeContext) (types.CqlDataType, error) {
 		if err != nil {
 			return nil, err
 		}
-		return types.TypeBigint, nil
+		return types.TypeBigInt, nil
 	case "boolean":
 		err := validateNoDataTypeDefinition(dtc)
 		if err != nil {
@@ -903,4 +667,80 @@ func validateDataTypeDefinition(dt cql.IDataTypeContext, expectedTypeCount int) 
 		return fmt.Errorf("missing closing type bracket in: '%s'", dt.GetText())
 	}
 	return nil
+}
+
+func GetValueInt32(value types.DynamicValue, values *types.QueryParameterValues) (int32, error) {
+	v, err := value.GetValue(values)
+	if err != nil {
+		return 0, err
+	}
+	intVal, ok := v.(int32)
+	if !ok {
+		return 0, fmt.Errorf("query value is a %T, not an int32", v)
+	}
+	return intVal, nil
+}
+
+func GetValueInt64(value types.DynamicValue, values *types.QueryParameterValues) (int64, error) {
+	v, err := value.GetValue(values)
+	if err != nil {
+		return 0, err
+	}
+	intVal, ok := v.(int64)
+	if !ok {
+		return 0, fmt.Errorf("query value is a %T, not an int64", v)
+	}
+	return intVal, nil
+}
+
+func GetValueSlice(value types.DynamicValue, values *types.QueryParameterValues) ([]types.GoValue, error) {
+	v, err := value.GetValue(values)
+	if err != nil {
+		return nil, err
+	}
+
+	val := reflect.ValueOf(v)
+
+	if val.Kind() != reflect.Slice {
+		return nil, fmt.Errorf("query value is a %T, not a slice", v)
+	}
+
+	length := val.Len()
+	result := make([]types.GoValue, length)
+
+	for i := 0; i < length; i++ {
+		result[i] = val.Index(i).Interface()
+	}
+
+	return result, nil
+}
+
+func GetValueMap(value types.DynamicValue, values *types.QueryParameterValues) (map[types.GoValue]types.GoValue, error) {
+	v, err := value.GetValue(values)
+	if err != nil {
+		return nil, err
+	}
+	val := reflect.ValueOf(v)
+
+	if val.Kind() != reflect.Map {
+		return nil, fmt.Errorf("value is a %T, not a map", v)
+	}
+
+	result := make(map[types.GoValue]types.GoValue, val.Len())
+
+	// 3. Iterate over the keys of the original map
+	iter := val.MapRange()
+	for iter.Next() {
+		// Get the reflection Placeholder for the key and the value
+		keyVal := iter.Key()
+		valueVal := iter.Value()
+
+		// 4. Use .Interface() to convert the concrete key/value to an any (interface{})
+		keyAny := keyVal.Interface()
+		valueAny := valueVal.Interface()
+
+		// 5. Add to the new map[any]any
+		result[keyAny] = valueAny
+	}
+	return result, nil
 }

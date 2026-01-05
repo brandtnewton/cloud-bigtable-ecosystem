@@ -205,11 +205,11 @@ func TestParseProxyConfig(t *testing.T) {
 					Tokens:   nil,
 					BigtableConfig: &types.BigtableConfig{
 						ProjectID: "cassandra-prod-789",
-						Instances: map[string]*types.InstancesMapping{
+						Instances: map[types.Keyspace]*types.InstanceMapping{
 							"prodinstance001": {
-								BigtableInstance: "prod-instance-001",
-								Keyspace:         "prodinstance001",
-								AppProfileID:     "prod-profile-123",
+								InstanceId:   "prod-instance-001",
+								Keyspace:     "prodinstance001",
+								AppProfileID: "prod-profile-123",
 							},
 						},
 						SchemaMappingTable: "prod_table_config",
@@ -250,11 +250,11 @@ func TestParseProxyConfig(t *testing.T) {
 					NumConns: 20,
 					BigtableConfig: &types.BigtableConfig{
 						ProjectID: "my-project",
-						Instances: map[string]*types.InstancesMapping{
+						Instances: map[types.Keyspace]*types.InstanceMapping{
 							"my-instance": {
-								BigtableInstance: "my-instance",
-								Keyspace:         "my-instance",
-								AppProfileID:     "default",
+								InstanceId:   "my-instance",
+								Keyspace:     "my-instance",
+								AppProfileID: "default",
 							},
 						},
 						SchemaMappingTable: "schema_mapping",
@@ -283,11 +283,11 @@ func TestParseProxyConfig(t *testing.T) {
 					NumConns: 20,
 					BigtableConfig: &types.BigtableConfig{
 						ProjectID: "my-project",
-						Instances: map[string]*types.InstancesMapping{
+						Instances: map[types.Keyspace]*types.InstanceMapping{
 							"my-instance": {
-								BigtableInstance: "my-instance",
-								Keyspace:         "my-instance",
-								AppProfileID:     "cql-proxy",
+								InstanceId:   "my-instance",
+								Keyspace:     "my-instance",
+								AppProfileID: "cql-proxy",
 							},
 						},
 						SchemaMappingTable: "sm",
@@ -316,11 +316,11 @@ func TestParseProxyConfig(t *testing.T) {
 					NumConns: 20,
 					BigtableConfig: &types.BigtableConfig{
 						ProjectID: "my-project",
-						Instances: map[string]*types.InstancesMapping{
+						Instances: map[types.Keyspace]*types.InstanceMapping{
 							"my-keyspace": {
-								BigtableInstance: "my-instance",
-								Keyspace:         "my-keyspace",
-								AppProfileID:     "cql-proxy",
+								InstanceId:   "my-instance",
+								Keyspace:     "my-keyspace",
+								AppProfileID: "cql-proxy",
 							},
 						},
 						SchemaMappingTable: "sm",
@@ -417,11 +417,11 @@ func TestValidateInstanceConfigs(t *testing.T) {
 					Port: 1,
 					BigtableConfig: &types.BigtableConfig{
 						ProjectID: "my-project",
-						Instances: map[string]*types.InstancesMapping{
+						Instances: map[types.Keyspace]*types.InstanceMapping{
 							"foo": {
-								BigtableInstance: "",
-								Keyspace:         "",
-								AppProfileID:     "",
+								InstanceId:   "",
+								Keyspace:     "",
+								AppProfileID: "",
 							},
 						},
 						SchemaMappingTable:       "",
@@ -463,11 +463,11 @@ func TestValidateInstanceConfig(t *testing.T) {
 				Tokens: nil,
 				BigtableConfig: &types.BigtableConfig{
 					ProjectID: "project-123",
-					Instances: map[string]*types.InstancesMapping{
+					Instances: map[types.Keyspace]*types.InstanceMapping{
 						"k": {
-							BigtableInstance: "i",
-							Keyspace:         "k",
-							AppProfileID:     "a",
+							InstanceId:   "i",
+							Keyspace:     "k",
+							AppProfileID: "a",
 						},
 					},
 					SchemaMappingTable: "table",
@@ -526,11 +526,11 @@ func TestValidateInstanceConfig(t *testing.T) {
 				Tokens: nil,
 				BigtableConfig: &types.BigtableConfig{
 					ProjectID: "my-project",
-					Instances: map[string]*types.InstancesMapping{
+					Instances: map[types.Keyspace]*types.InstanceMapping{
 						"": {
-							BigtableInstance: "my-instance",
-							Keyspace:         "",
-							AppProfileID:     "default",
+							InstanceId:   "my-instance",
+							Keyspace:     "",
+							AppProfileID: "default",
 						},
 					},
 					SchemaMappingTable: "table",

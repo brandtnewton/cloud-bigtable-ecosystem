@@ -574,7 +574,7 @@ func Test_buildOtelResource(t *testing.T) {
 			},
 		},
 		{
-			name: "Missing Service Name",
+			name: "Missing Service Columns",
 			config: &OTelConfig{
 				ServiceName:    "",
 				ServiceVersion: "1.0.0",

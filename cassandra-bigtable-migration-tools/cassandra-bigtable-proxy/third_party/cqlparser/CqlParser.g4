@@ -28,7 +28,7 @@ options {
 }
 
 root
-   : cqls? MINUSMINUS? EOF
+   : cqls+ MINUSMINUS? EOF
    ;
 
 cqls
@@ -89,11 +89,26 @@ describeStatement
    ;
 
 describeTarget
+   : describeTargetKeyspaces
+   | describeTargetTables
+   | describeTargetTable
+   | describeTargetKeyspace
+   ;
+
+describeTargetKeyspaces
    : kwKeyspaces
-   | kwTables
-   | kwTable (keyspace DOT)? table
-   | kwKeyspace keyspace
-   | keyspace
+   ;
+
+describeTargetTables
+   : kwTables
+   ;
+
+describeTargetTable
+   : kwTable? tableSpec
+   ;
+
+describeTargetKeyspace
+   : kwKeyspace? keyspace
    ;
 
 revoke
@@ -130,7 +145,7 @@ resource
    | kwFunction (keyspace DOT)? function_
    | kwAll kwKeyspaces
    | kwKeyspace keyspace
-   | (kwTable)? (keyspace DOT)? table
+   | (kwTable)? tableSpec
    | kwAll kwRoles
    | kwRole role
    ;
@@ -156,7 +171,7 @@ createTrigger
    ;
 
 createMaterializedView
-   : kwCreate kwMaterialized kwView ifNotExist? (keyspace DOT)? materializedView kwAs kwSelect columnList kwFrom (keyspace DOT)? table materializedViewWhere kwPrimary kwKey syntaxBracketLr columnList syntaxBracketRr (kwWith materializedViewOptions)?
+   : kwCreate kwMaterialized kwView ifNotExist? (keyspace DOT)? materializedView kwAs kwSelect columnList kwFrom tableSpec materializedViewWhere kwPrimary kwKey syntaxBracketLr columnList syntaxBracketRr (kwWith materializedViewOptions)?
    ;
 
 materializedViewWhere
@@ -283,7 +298,7 @@ alterTypeAlterType
    ;
 
 alterTable
-   : kwAlter kwTable (keyspace DOT)? table alterTableOperation
+   : kwAlter kwTable tableSpec alterTableOperation
    ;
 
 alterTableOperation
@@ -332,7 +347,11 @@ alterTableAdd
    ;
 
 alterTableColumnDefinition
-   : column dataType (syntaxComma column dataType)*
+   : alterTableAddColumn (syntaxComma alterTableAddColumn)*
+   ;
+
+alterTableAddColumn
+   : column dataType
    ;
 
 alterRole
@@ -375,7 +394,7 @@ dropFunction
    ;
 
 dropTrigger
-   : kwDrop kwTrigger ifExist? trigger kwOn (keyspace DOT)? table
+   : kwDrop kwTrigger ifExist? trigger kwOn tableSpec
    ;
 
 dropRole
@@ -383,7 +402,7 @@ dropRole
    ;
 
 dropTable
-   : kwDrop kwTable ifExist? (keyspace DOT)? table
+   : kwDrop kwTable ifExist? tableSpec
    ;
 
 dropKeyspace
@@ -395,7 +414,7 @@ dropIndex
    ;
 
 createTable
-   : kwCreate kwTable ifNotExist? (keyspace DOT)? table syntaxBracketLr columnDefinitionList syntaxBracketRr withElement?
+   : kwCreate kwTable ifNotExist? tableSpec syntaxBracketLr columnDefinitionList syntaxBracketRr withElement?
    ;
 
 withElement
@@ -445,12 +464,10 @@ columnDefinitionList
    : (columnDefinition) (syntaxComma columnDefinition)* (syntaxComma primaryKeyElement)?
    ;
 
-//
 columnDefinition
    : column dataType primaryKeyColumn?
    ;
 
-//
 primaryKeyColumn
    : kwPrimary kwKey
    ;
@@ -528,11 +545,11 @@ use_
    ;
 
 truncate
-   : kwTruncate (kwTable)? (keyspace DOT)? table
+   : kwTruncate (kwTable)? tableSpec
    ;
 
 createIndex
-   : kwCreate kwIndex ifNotExist? indexName? kwOn (keyspace DOT)? table syntaxBracketLr indexColumnSpec syntaxBracketRr
+   : kwCreate kwIndex ifNotExist? indexName? kwOn tableSpec syntaxBracketLr indexColumnSpec syntaxBracketRr
    ;
 
 indexName
@@ -568,12 +585,12 @@ deleteColumnList
    ;
 
 deleteColumnItem
-   : OBJECT_NAME
-   | OBJECT_NAME LS_BRACKET (stringLiteral | decimalLiteral) RS_BRACKET
+   : selectColumn asSpec?
+   | selectIndex asSpec?
    ;
 
 update
-   : beginBatch? kwUpdate (keyspace DOT)? table usingTtlTimestamp? kwSet assignments whereSpec (ifExist | ifSpec)? statementSeparator?
+   : beginBatch? kwUpdate tableSpec usingTtlTimestamp? kwSet assignments whereSpec (ifExist | ifSpec)? statementSeparator?
    ;
 
 ifSpec
@@ -593,30 +610,47 @@ assignments
    ;
 
 assignmentElement
-   : OBJECT_NAME OPERATOR_EQ QUESTION_MARK (PLUS | MINUS) OBJECT_NAME  // For prepared statement prepend/append
-   | OBJECT_NAME OPERATOR_EQ OBJECT_NAME (PLUS | MINUS) QUESTION_MARK  // For prepared statement append/prepend
-   | OBJECT_NAME OPERATOR_EQ (constant | assignmentMap | assignmentSet | assignmentList)
-   | OBJECT_NAME OPERATOR_EQ QUESTION_MARK
-   | OBJECT_NAME OPERATOR_EQ OBJECT_NAME (PLUS | MINUS) decimalLiteral
-   | OBJECT_NAME OPERATOR_EQ OBJECT_NAME (PLUS | MINUS) assignmentSet
-   | OBJECT_NAME OPERATOR_EQ assignmentSet (PLUS | MINUS) OBJECT_NAME
-   | OBJECT_NAME OPERATOR_EQ OBJECT_NAME (PLUS | MINUS) assignmentMap
-   | OBJECT_NAME OPERATOR_EQ assignmentMap (PLUS | MINUS) OBJECT_NAME
-   | OBJECT_NAME OPERATOR_EQ OBJECT_NAME (PLUS | MINUS) assignmentList
-   | OBJECT_NAME OPERATOR_EQ assignmentList (PLUS | MINUS) OBJECT_NAME
-   | OBJECT_NAME syntaxBracketLs decimalLiteral syntaxBracketRs OPERATOR_EQ constant
+   : assignmentAppend
+   | assignmentPrepend
+   | assignmentEquals
+   | assignmentIndex
    ;
 
-assignmentSet
+assignmentEquals
+   : column OPERATOR_EQ valueAny
+   ;
+
+assignmentPrepend
+   : column OPERATOR_EQ valueAny arithmeticOperator OBJECT_NAME
+   ;
+
+assignmentAppend
+   : column OPERATOR_EQ OBJECT_NAME arithmeticOperator valueAny
+   ;
+
+indexOrKeyAccess
+   : syntaxBracketLs constant syntaxBracketRs
+   ;
+
+assignmentIndex
+   : column indexOrKeyAccess OPERATOR_EQ constant
+   ;
+
+valueSet
    : syntaxBracketLc (constant (syntaxComma constant)*)?  syntaxBracketRc
    ;
 
-assignmentMap
+valueMap
    : syntaxBracketLc (constant syntaxColon constant) (syntaxComma constant syntaxColon constant)* syntaxBracketRc
    ;
 
-assignmentList
+valueList
    : syntaxBracketLs (constant (syntaxComma constant)*)? syntaxBracketRs
+   ;
+
+arithmeticOperator
+   : PLUS
+   | MINUS
    ;
 
 assignmentTuple
@@ -624,7 +658,7 @@ assignmentTuple
    ;
 
 insert
-   : beginBatch? kwInsert kwInto (keyspace DOT)? table insertColumnSpec? insertValuesSpec ifNotExist? usingTtlTimestamp? statementSeparator?
+   : beginBatch? kwInsert kwInto tableSpec insertColumnSpec? insertValuesSpec ifNotExist? usingTtlTimestamp? statementSeparator?
    ;
 
 usingTtlTimestamp
@@ -655,7 +689,7 @@ ifExist
    ;
 
 insertValuesSpec
-   : kwValues '(' expressionList ')'
+   : kwValues '(' valueListSpec ')'
    | kwJson constant
    ;
 
@@ -667,16 +701,16 @@ columnList
    : column (syntaxComma column)*
    ;
 
-expressionList
-   : expression (syntaxComma expression)*
+valueListSpec
+   : valueAny (syntaxComma valueAny)*
    ;
 
 expression
    : constant
    | functionCall
-   | assignmentMap
-   | assignmentSet
-   | assignmentList
+   | valueMap
+   | valueSet
+   | valueList
    | assignmentTuple
    ;
 
@@ -695,13 +729,12 @@ kwLike
    : K_LIKE
    ;
 
-fromSpec
-   : kwFrom fromSpecElement
+tableSpec
+   : (keyspace DOT)? table
    ;
 
-fromSpecElement
-   : OBJECT_NAME
-   | OBJECT_NAME '.' OBJECT_NAME
+fromSpec
+   : kwFrom tableSpec
    ;
 
 orderSpec
@@ -725,65 +758,117 @@ selectElements
    ;
 
 selectElement
-   : OBJECT_NAME '.' '*'                              // Table wildcard
-   | OBJECT_NAME (kwAs OBJECT_NAME)?                  // Column with optional alias
-   | functionCall (kwAs OBJECT_NAME)?                 // Function call with optional alias
-   | mapAccess                                        // Map access (alias handled in mapAccess rule)
+   : selectColumn asSpec?
+   | selectFunction asSpec?
+   | selectIndex asSpec?
    ;
 
-mapAccess
-   : OBJECT_NAME '[' constant ']' (kwAs OBJECT_NAME)?  // Rule to handle map accessor with optional alias
+selectColumn
+   : column
    ;
 
+selectFunction
+   : functionCall
+   ;
+
+selectIndex
+   : column syntaxBracketLs constant syntaxBracketRs
+   ;
+
+asSpec
+   : kwAs OBJECT_NAME
+   ;
 
 relationElements
    : (relationElement) (kwAnd relationElement)*
    ;
 
 relationElement
-   : OBJECT_NAME (OPERATOR_EQ | OPERATOR_LT | OPERATOR_GT | OPERATOR_LTE | OPERATOR_GTE) constant
-   | OBJECT_NAME kwLike constant
-   | OBJECT_NAME kwBetween constant kwAnd constant
-   | OBJECT_NAME '.' OBJECT_NAME (OPERATOR_EQ | OPERATOR_LT | OPERATOR_GT | OPERATOR_LTE | OPERATOR_GTE) constant
-   | functionCall (OPERATOR_EQ | OPERATOR_LT | OPERATOR_GT | OPERATOR_LTE | OPERATOR_GTE) constant
-   | functionCall (OPERATOR_EQ | OPERATOR_LT | OPERATOR_GT | OPERATOR_LTE | OPERATOR_GTE) functionCall
+   : relationCompare
+   | relationLike
+   | relationBetween
+   | relationFunctionCompareConstant
+   | relationFunctionCompareFunction
+   | relationContainsKey
+   | relationContains
+   | relationIn
    | OBJECT_NAME '.' OBJECT_NAME kwLike constant
    | OBJECT_NAME '.' OBJECT_NAME kwBetween constant kwAnd constant
-   | OBJECT_NAME kwIn ('(' functionArgs ')' | QUESTION_MARK)
    | '(' OBJECT_NAME (syntaxComma OBJECT_NAME)* ')' kwIn '(' assignmentTuple (syntaxComma assignmentTuple)* ')'
-   | '(' OBJECT_NAME (syntaxComma OBJECT_NAME)* ')' (OPERATOR_EQ | OPERATOR_LT | OPERATOR_GT | OPERATOR_LTE | OPERATOR_GTE) ( assignmentTuple (syntaxComma assignmentTuple)* )
-   | relalationContainsKey
-   | relalationContains
+   | '(' OBJECT_NAME (syntaxComma OBJECT_NAME)* ')' compareOperator ( assignmentTuple (syntaxComma assignmentTuple)* )
    ;
 
-relalationContains
-   : OBJECT_NAME kwContains constant
+compareOperator
+   : (OPERATOR_EQ | OPERATOR_LT | OPERATOR_GT | OPERATOR_LTE | OPERATOR_GTE)
    ;
 
-relalationContainsKey
-   : OBJECT_NAME (kwContains kwKey) constant
+relationFunctionCompareConstant
+   : functionCall compareOperator constant
+   ;
+
+relationFunctionCompareFunction
+   : functionCall compareOperator functionCall
+   ;
+
+relationBetween
+   : column kwBetween constant kwAnd constant
+   ;
+
+relationCompare
+   : column compareOperator constant
+   ;
+
+relationLike
+   : column kwLike constant
+   ;
+
+tupleValue
+  : QUESTION_MARK | '(' functionArgs ')'
+  ;
+
+relationIn
+  : column kwIn tupleValue
+  ;
+
+relationContains
+   : column kwContains constant
+   ;
+
+relationContainsKey
+   : column (kwContains kwKey) constant
    ;
 
 functionCall
    : OBJECT_NAME '(' STAR ')'
    | OBJECT_NAME '(' functionArgs? ')'
    | K_UUID '(' ')'
+   | K_WRITETIME '(' functionArgs? ')'
    ;
 
 functionArgs
    : (constant | OBJECT_NAME | functionCall) (syntaxComma (constant | OBJECT_NAME | functionCall))*
    ;
 
+valueAny
+   : QUESTION_MARK
+   | constant
+   | functionCall
+   | valueMap
+   | valueSet
+   | valueList
+   | assignmentTuple
+   ;
+
 constant
-   : UUID
+   : QUESTION_MARK
+   | kwNull
+   | UUID
    | stringLiteral
    | decimalLiteral
    | floatLiteral
    | hexadecimalLiteral
    | booleanLiteral
    | codeBlock
-   | kwNull
-   | QUESTION_MARK
    ;
 
 decimalLiteral
@@ -816,11 +901,15 @@ keyspace
 
 table
    : OBJECT_NAME
+   | K_KEYSPACES
+   | K_TABLES
+   | K_FUNCTIONS
    | DQUOTE OBJECT_NAME DQUOTE
    ;
 
 column
    : OBJECT_NAME
+   | K_KEY // hack to handle some queries to system.local with unquoted key column reference from cqlsh
    | DQUOTE OBJECT_NAME DQUOTE
    ;
 

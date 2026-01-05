@@ -13,23 +13,32 @@
  * License for the specific language governing permissions and limitations under
  * the License.
  */
+
 package bigtableclient
 
 import (
-	"encoding/base64"
-	"fmt"
-	"reflect"
-	"slices"
-
 	"cloud.google.com/go/bigtable"
+	"encoding/base64"
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/global/types"
-	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/translator"
 	"github.com/datastax/go-cassandra-native-protocol/datatype"
 	"github.com/datastax/go-cassandra-native-protocol/message"
 )
 
 const (
 	DefaultProfileId = "default"
+)
+
+// Events
+const (
+	applyingBigtableMutation = "Applying Insert/Update Mutation"
+	bigtableMutationApplied  = "Insert/Update Mutation Applied"
+	applyingDeleteMutation   = "Applying Delete Mutation"
+	deleteMutationApplied    = "Delete Mutation Applied"
+	applyingBulkMutation     = "Applying Bulk Mutation"
+	bulkMutationApplied      = "Bulk Mutation Applied"
+	// Cassandra doesn't have a time dimension to their counters, so we need to
+	// use the same time for all counters
+	counterTimestamp = 0
 )
 
 // GetProfileId returns the provided profile ID if it is not empty.
@@ -53,7 +62,7 @@ func GetProfileId(profileId string) string {
 // Returns: A pointer to a RowsResult object that contains metadata for a single boolean column denoting
 //
 //	the application status ([applied]) and the corresponding row data indicating true or false.
-func GenerateAppliedRowsResult(keyspace string, tableName string, applied bool) *message.RowsResult {
+func GenerateAppliedRowsResult(keyspace types.Keyspace, table types.TableName, applied bool) *message.RowsResult {
 	row := message.Column{0x00}
 	if applied {
 		row = message.Column{0x01}
@@ -63,8 +72,8 @@ func GenerateAppliedRowsResult(keyspace string, tableName string, applied bool) 
 			ColumnCount: 1,
 			Columns: []*message.ColumnMetadata{
 				{
-					Keyspace: keyspace,
-					Table:    tableName,
+					Keyspace: string(keyspace),
+					Table:    string(table),
 					Name:     "[applied]",
 					Type:     datatype.Boolean,
 				},
@@ -82,98 +91,99 @@ func decodeBase64(k string) (string, error) {
 	return string(decoded), nil
 }
 
-func detectTableEncoding(tableInfo *bigtable.TableInfo, defaultEncoding types.IntRowKeyEncodingType) types.IntRowKeyEncodingType {
-	// row key schema is nil if no row key schema is set. This can also happen in
-	// unit tests because they bigtable test instance doesn't use row key schemas
-	if tableInfo.RowKeySchema == nil {
-		return defaultEncoding
-	}
-	for _, field := range tableInfo.RowKeySchema.Fields {
-		// assumes all int fields are encoded the same - which should be true if the tables are managed by this application
-		switch v := field.FieldType.(type) {
-		case bigtable.Int64Type:
-			switch v.Encoding.(type) {
-			case bigtable.BigEndianBytesEncoding:
-				return types.BigEndianEncoding
-			case bigtable.Int64OrderedCodeBytesEncoding:
-				return types.OrderedCodeEncoding
-			}
-		}
-	}
-	return defaultEncoding
-}
-
-func createBigtableRowKeySchema(pmks []translator.CreateTablePrimaryKeyConfig, cols []types.CreateColumn, intRowKeyEncoding types.IntRowKeyEncodingType) (*bigtable.StructType, error) {
-	var rowKeySchemaFields []bigtable.StructField
-	for _, key := range pmks {
-		pmkIndex := slices.IndexFunc(cols, func(c types.CreateColumn) bool {
-			return c.Name == key.Name
-		})
-		if pmkIndex == -1 {
-			return nil, fmt.Errorf("missing primary key `%s` from columns definition", key)
-		}
-		part, err := createBigtableRowKeyField(cols[pmkIndex], intRowKeyEncoding)
+func BuildBigtableParams(b *types.ExecutableSelectQuery) (map[string]any, error) {
+	var err error
+	result := make(map[string]any)
+	for _, condition := range b.Conditions {
+		err = addBindValueIfNeeded(condition.Value, b.Values, needsByteConversion(condition), result)
 		if err != nil {
 			return nil, err
 		}
-		rowKeySchemaFields = append(rowKeySchemaFields, part)
-	}
-	return &bigtable.StructType{
-		Fields:   rowKeySchemaFields,
-		Encoding: bigtable.StructOrderedCodeBytesEncoding{},
-	}, nil
-}
-
-func createBigtableRowKeyField(col types.CreateColumn, intRowKeyEncoding types.IntRowKeyEncodingType) (bigtable.StructField, error) {
-	switch col.TypeInfo.DataType() {
-	case datatype.Varchar:
-		return bigtable.StructField{FieldName: col.Name, FieldType: bigtable.StringType{Encoding: bigtable.StringUtf8BytesEncoding{}}}, nil
-	case datatype.Int, datatype.Bigint, datatype.Timestamp:
-		switch intRowKeyEncoding {
-		case types.OrderedCodeEncoding:
-			return bigtable.StructField{FieldName: col.Name, FieldType: bigtable.Int64Type{Encoding: bigtable.Int64OrderedCodeBytesEncoding{}}}, nil
-		case types.BigEndianEncoding:
-			return bigtable.StructField{FieldName: col.Name, FieldType: bigtable.Int64Type{Encoding: bigtable.BigEndianBytesEncoding{}}}, nil
-		}
-		return bigtable.StructField{}, fmt.Errorf("unhandled int row key encoding %v", intRowKeyEncoding)
-	default:
-		return bigtable.StructField{}, fmt.Errorf("unhandled row key type %s", col.TypeInfo.String())
-	}
-}
-
-// inferSQLType attempts to infer the Bigtable SQLType from a Go interface{} value.
-// This is a basic implementation and might need enhancement based on actual data types and schema.
-func inferSQLType(value interface{}) (bigtable.SQLType, error) {
-	switch value.(type) {
-	case string:
-		return bigtable.StringSQLType{}, nil
-	case []byte:
-		return bigtable.BytesSQLType{}, nil
-	case int, int8, int16, int32, int64:
-		return bigtable.Int64SQLType{}, nil
-	case float32:
-		return bigtable.Float32SQLType{}, nil
-	case float64:
-		return bigtable.Float64SQLType{}, nil
-	case bool:
-		return bigtable.Int64SQLType{}, nil
-	case []interface{}:
-		return bigtable.ArraySQLType{}, nil
-	default:
-		v := reflect.ValueOf(value)
-		if v.Kind() != reflect.Slice && v.Kind() != reflect.Array {
-			return nil, fmt.Errorf("unsupported type for SQL parameter inference: %T", value)
-		}
-		elemType := v.Type().Elem()
-		if elemType.Kind() == reflect.Interface {
-			return nil, fmt.Errorf("cannot infer element type for empty interface slice")
-		}
-		zeroValue := reflect.Zero(elemType).Interface()
-		elemSQLType, err := inferSQLType(zeroValue)
+		err = addBindValueIfNeeded(condition.Value2, b.Values, false, result)
 		if err != nil {
-			return nil, fmt.Errorf("cannot infer type for array element: %w", err)
+			return nil, err
 		}
-		return bigtable.ArraySQLType{ElemType: elemSQLType}, nil
-
 	}
+
+	err = addBindValueIfNeeded(b.Limit, b.Values, false, result)
+	if err != nil {
+		return nil, err
+	}
+	return result, nil
+}
+
+func addBindValueIfNeeded(dynamicValue types.DynamicValue, values *types.QueryParameterValues, needsByteConversion bool, result map[string]any) error {
+	if dynamicValue == nil {
+		return nil
+	}
+	param, ok := dynamicValue.(*types.ParameterizedValue)
+	if !ok {
+		return nil
+	}
+
+	var value any
+	if needsByteConversion {
+		var err error
+		value, err = param.GetValue(values)
+		if err != nil {
+			return err
+		}
+		// special case where bigtable expects bytes
+		switch v := value.(type) {
+		case string:
+			value = []byte(v)
+		}
+	} else {
+		var err error
+		value, err = param.GetValue(values)
+		if err != nil {
+			return err
+		}
+	}
+	// drop the leading '@' symbol
+	result[string(param.Placeholder)[1:]] = value
+	return nil
+}
+
+func needsByteConversion(condition types.Condition) bool {
+	if condition.Operator == types.CONTAINS {
+		return true
+	}
+
+	// we're checking the column qualifier, so we need to convert to bytes
+	if condition.Operator == types.CONTAINS_KEY {
+		return true
+	}
+	return false
+}
+
+func BuildParamTypes(b *types.PreparedSelectQuery) map[string]bigtable.SQLType {
+	result := make(map[string]bigtable.SQLType)
+	for _, condition := range b.Conditions {
+		addParamIfNeeded(condition.Value, b.Params, needsByteConversion(condition), result)
+		addParamIfNeeded(condition.Value2, b.Params, needsByteConversion(condition), result)
+	}
+
+	addParamIfNeeded(b.LimitValue, b.Params, false, result)
+	return result
+}
+
+func addParamIfNeeded(value types.DynamicValue, params *types.QueryParameters, needsByteConversion bool, result map[string]bigtable.SQLType) {
+	if value == nil {
+		return
+	}
+
+	param, ok := value.(*types.ParameterizedValue)
+	if !ok {
+		return
+	}
+
+	md := params.GetMetadata(param.Placeholder)
+
+	bigtableType := md.Type.BigtableSqlType()
+	if needsByteConversion {
+		bigtableType = bigtable.BytesSQLType{}
+	}
+	// drop the leading '@' symbol
+	result[string(param.Placeholder)[1:]] = bigtableType
 }

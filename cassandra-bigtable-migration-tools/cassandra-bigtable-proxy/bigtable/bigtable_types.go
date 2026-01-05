@@ -17,38 +17,28 @@
 package bigtableclient
 
 import (
-	"cloud.google.com/go/bigtable"
-	btpb "cloud.google.com/go/bigtable/apiv2/bigtablepb"
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/global/types"
-	rh "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/responsehandler"
-	schemaMapping "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/schema-mapping"
-	"go.uber.org/zap"
 )
-
-type ColumnData struct {
-	ColumnFamily string
-	Name         string
-	Contents     []byte
-}
-
-type MutationData struct {
-	MutationType string
-	RowKey       string
-	Columns      []ColumnData
-	ColumnFamily string
-	Timestamp    bigtable.Timestamp
-}
 
 type BulkOperationResponse struct {
 	FailedRows string
 }
 
-type BigtableClient struct {
-	Clients             map[string]*bigtable.Client
-	AdminClients        map[string]*bigtable.AdminClient
-	Logger              *zap.Logger
-	SqlClient           btpb.BigtableClient
-	BigtableConfig      *types.BigtableConfig
-	ResponseHandler     rh.ResponseHandlerIface
-	SchemaMappingConfig *schemaMapping.SchemaMappingConfig
+type BigtableBulkMutation struct {
+	mutations map[types.TableName][]types.IBigtableMutation
+}
+
+func NewBigtableBulkMutation() *BigtableBulkMutation {
+	return &BigtableBulkMutation{mutations: make(map[types.TableName][]types.IBigtableMutation)}
+}
+
+func (b *BigtableBulkMutation) Mutations() map[types.TableName][]types.IBigtableMutation {
+	return b.mutations
+}
+
+func (b *BigtableBulkMutation) AddMutation(mut types.IBigtableMutation) {
+	if b.mutations[mut.Table()] == nil {
+		b.mutations[mut.Table()] = []types.IBigtableMutation{}
+	}
+	b.mutations[mut.Table()] = append(b.mutations[mut.Table()], mut)
 }

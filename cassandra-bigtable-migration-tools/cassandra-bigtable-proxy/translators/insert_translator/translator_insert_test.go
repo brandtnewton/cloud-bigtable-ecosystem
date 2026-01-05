@@ -1,0 +1,241 @@
+/*
+ * Copyright (C) 2025 Google LLC
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not
+ * use this file except in compliance with the License. You may obtain a copy of
+ * the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations under
+ * the License.
+ */
+
+package insert_translator
+
+import (
+	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/global/types"
+	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/parser"
+	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/testing/mockdata"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+	"testing"
+)
+
+type Want struct {
+	Keyspace       types.Keyspace
+	Table          types.TableName
+	IfNotExists    bool
+	Assignments    []types.Assignment
+	UsingTimestamp types.DynamicValue
+	AllParams      []types.Placeholder
+}
+
+func TestSelectTranslator_Translate(t *testing.T) {
+	tests := []struct {
+		name            string
+		query           string
+		sessionKeyspace types.Keyspace
+		want            *Want
+		wantErr         string
+	}{
+		{
+			name:  "success with prepared query",
+			query: "INSERT INTO test_keyspace.test_table (pk1, pk2) VALUES (?, ?)",
+			want: &Want{
+				Keyspace:    "test_keyspace",
+				Table:       "test_table",
+				IfNotExists: false,
+				Assignments: []types.Assignment{
+					types.NewComplexAssignmentSet(mockdata.GetColumnOrDie("test_keyspace", "test_table", "pk1"), types.NewParameterizedValue("@value0")),
+					types.NewComplexAssignmentSet(mockdata.GetColumnOrDie("test_keyspace", "test_table", "pk2"), types.NewParameterizedValue("@value1")),
+				},
+				AllParams: []types.Placeholder{
+					"@value0",
+					"@value1",
+				},
+			},
+		},
+		{
+			name:  "success with prepared query and USING TIMESTAMP",
+			query: "INSERT INTO test_keyspace.test_table (pk2, col_blob, col_bool, list_text, col_int, col_bigint, pk1) VALUES (?, ?, ?, ?, ?, ?, ?) USING TIMESTAMP ?",
+			want: &Want{
+				Keyspace:    "test_keyspace",
+				Table:       "test_table",
+				IfNotExists: false,
+				Assignments: []types.Assignment{
+					types.NewComplexAssignmentSet(mockdata.GetColumnOrDie("test_keyspace", "test_table", "pk2"), types.NewParameterizedValue("@value0")),
+					types.NewComplexAssignmentSet(mockdata.GetColumnOrDie("test_keyspace", "test_table", "col_blob"), types.NewParameterizedValue("@value1")),
+					types.NewComplexAssignmentSet(mockdata.GetColumnOrDie("test_keyspace", "test_table", "col_bool"), types.NewParameterizedValue("@value2")),
+					types.NewComplexAssignmentSet(mockdata.GetColumnOrDie("test_keyspace", "test_table", "list_text"), types.NewParameterizedValue("@value3")),
+					types.NewComplexAssignmentSet(mockdata.GetColumnOrDie("test_keyspace", "test_table", "col_int"), types.NewParameterizedValue("@value4")),
+					types.NewComplexAssignmentSet(mockdata.GetColumnOrDie("test_keyspace", "test_table", "col_bigint"), types.NewParameterizedValue("@value5")),
+					types.NewComplexAssignmentSet(mockdata.GetColumnOrDie("test_keyspace", "test_table", "pk1"), types.NewParameterizedValue("@value6")),
+				},
+				UsingTimestamp: types.NewParameterizedValue("@value7"),
+				AllParams: []types.Placeholder{
+					"@value0",
+					"@value1",
+					"@value2",
+					"@value3",
+					"@value4",
+					"@value5",
+					"@value6",
+					"@value7",
+				},
+			},
+		},
+		{
+			name:  "success with adhoc query and USING TIMESTAMP",
+			query: "INSERT INTO test_keyspace.test_table (pk2, col_blob, col_bool, list_text, col_int, col_bigint, pk1) VALUES ('u123', '0x0000003', true, ['item1', 'item2', 'item1'], 3, 8242842848, 'org1') USING TIMESTAMP 234242424",
+			want: &Want{
+				Keyspace:    "test_keyspace",
+				Table:       "test_table",
+				IfNotExists: false,
+				Assignments: []types.Assignment{
+					types.NewComplexAssignmentSet(mockdata.GetColumnOrDie("test_keyspace", "test_table", "pk2"), types.NewLiteralValue("u123")),
+					types.NewComplexAssignmentSet(mockdata.GetColumnOrDie("test_keyspace", "test_table", "col_blob"), types.NewLiteralValue("0x0000003")),
+					types.NewComplexAssignmentSet(mockdata.GetColumnOrDie("test_keyspace", "test_table", "col_bool"), types.NewLiteralValue(true)),
+					types.NewComplexAssignmentSet(mockdata.GetColumnOrDie("test_keyspace", "test_table", "list_text"), types.NewLiteralValue([]types.GoValue{"item1", "item2", "item1"})),
+					types.NewComplexAssignmentSet(mockdata.GetColumnOrDie("test_keyspace", "test_table", "col_int"), types.NewLiteralValue(int32(3))),
+					types.NewComplexAssignmentSet(mockdata.GetColumnOrDie("test_keyspace", "test_table", "col_bigint"), types.NewLiteralValue(int64(8242842848))),
+					types.NewComplexAssignmentSet(mockdata.GetColumnOrDie("test_keyspace", "test_table", "pk1"), types.NewLiteralValue("org1")),
+				},
+				UsingTimestamp: types.NewLiteralValue(int64(234242424)),
+			},
+		},
+		{
+			name:  "session keyspace",
+			query: "INSERT INTO test_table (pk1, pk2) VALUES (?, ?)",
+			want: &Want{
+				Keyspace:    "test_keyspace",
+				Table:       "test_table",
+				IfNotExists: false,
+				Assignments: []types.Assignment{
+					types.NewComplexAssignmentSet(mockdata.GetColumnOrDie("test_keyspace", "test_table", "pk1"), types.NewParameterizedValue("@value0")),
+					types.NewComplexAssignmentSet(mockdata.GetColumnOrDie("test_keyspace", "test_table", "pk2"), types.NewParameterizedValue("@value1")),
+				},
+				AllParams: []types.Placeholder{
+					"@value0",
+					"@value1",
+				},
+			},
+			sessionKeyspace: "test_keyspace",
+		},
+		{
+			name:  "insert a map with special characters and key words",
+			query: "INSERT INTO test_keyspace.test_table (pk1, pk2, map_text_text) VALUES ('abc', 'pkval', {'foo': 'bar', 'key:': ':value', 'k}': '{v:k}'})",
+			want: &Want{
+				Table:    "test_table",
+				Keyspace: "test_keyspace",
+				Assignments: []types.Assignment{
+					types.NewComplexAssignmentSet(mockdata.GetColumnOrDie("test_keyspace", "test_table", "pk1"), types.NewLiteralValue("abc")),
+					types.NewComplexAssignmentSet(mockdata.GetColumnOrDie("test_keyspace", "test_table", "pk2"), types.NewLiteralValue("pkval")),
+					types.NewComplexAssignmentSet(mockdata.GetColumnOrDie("test_keyspace", "test_table", "map_text_text"), types.NewLiteralValue(map[types.GoValue]types.GoValue{"foo": "bar", "key:": ":value", "k}": "{v:k}"})),
+				},
+			},
+		},
+		{
+			name:  "escaped single quotes",
+			query: "INSERT INTO test_keyspace.test_table (pk1, pk2, col_int) VALUES ('abc', 'pkva''l', 3)",
+			want: &Want{
+				Table:    "test_table",
+				Keyspace: "test_keyspace",
+				Assignments: []types.Assignment{
+					types.NewComplexAssignmentSet(mockdata.GetColumnOrDie("test_keyspace", "test_table", "pk1"), types.NewLiteralValue("abc")),
+					types.NewComplexAssignmentSet(mockdata.GetColumnOrDie("test_keyspace", "test_table", "pk2"), types.NewLiteralValue("pkva'l")),
+					types.NewComplexAssignmentSet(mockdata.GetColumnOrDie("test_keyspace", "test_table", "col_int"), types.NewLiteralValue(int32(3))),
+				},
+			},
+		},
+		{
+			name:    "no keyspace",
+			query:   "INSERT INTO test_table (pk1, pk2, col_int) VALUES ('abc', 'pkva''l', 3)",
+			want:    nil,
+			wantErr: "no keyspace specified",
+		},
+		{
+			name:    "no such table",
+			query:   "INSERT INTO test_keyspace.no_such_table (pk1, pk2, col_int) VALUES ('abc', 'pkva''l', 3)",
+			want:    nil,
+			wantErr: "table 'no_such_table' does not exist",
+		},
+		{
+			name:            "no such keyspace",
+			query:           "INSERT INTO no_such_keyspace.test_table (pk1, pk2, col_int) VALUES ('abc', 'pkva''l', 3)",
+			want:            nil,
+			wantErr:         "keyspace 'no_such_keyspace' does not exist",
+			sessionKeyspace: "test_keyspace",
+		},
+		{
+			name:            "not enough values",
+			query:           "INSERT INTO test_keyspace.test_table (pk1, pk2, col_int) VALUES ('abc', 'foo')",
+			want:            nil,
+			wantErr:         "found mismatch between column count (3) value count (2)",
+			sessionKeyspace: "test_keyspace",
+		},
+		{
+			name:            "not enough columns",
+			query:           "INSERT INTO test_keyspace.test_table (pk1, pk2) VALUES ('abc', 'foo', 3)",
+			want:            nil,
+			wantErr:         "found mismatch between column count (2) value count (3)",
+			sessionKeyspace: "test_keyspace",
+		},
+		{
+			name:    "invalid query syntax (should error)",
+			query:   "INSERT INTO test_keyspace.test_table",
+			want:    nil,
+			wantErr: "parsing error",
+		},
+		{
+			name:    "invalid query syntax (should error)",
+			query:   "INSERT INTO test_keyspace.",
+			want:    nil,
+			wantErr: "parsing error",
+		},
+
+		{
+			name:    "invalid query syntax (should error)",
+			query:   "INSERT INTO .test_table",
+			want:    nil,
+			wantErr: "parsing error",
+		},
+
+		{
+			name:    "invalid query syntax (should error)",
+			query:   "INSERT INTO test_keyspace.test_table () VALUES ()",
+			want:    nil,
+			wantErr: "parsing error",
+		},
+		{
+			name:    "invalid query syntax (should error)",
+			query:   "INSERT INTO test_keyspace.test_table (col_ts, col_int, pk1) VALUES (?, ?, ?)",
+			want:    nil,
+			wantErr: "missing value for primary key `pk2`",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tr := NewInsertTranslator(mockdata.GetSchemaMappingConfig())
+			got, err := tr.Translate(types.NewRawQuery(nil, tt.sessionKeyspace, tt.query, parser.NewParser(tt.query), types.QueryTypeDelete), tt.sessionKeyspace)
+
+			if tt.wantErr != "" {
+				require.Error(t, err)
+				assert.Contains(t, err.Error(), tt.wantErr)
+				return
+			}
+
+			require.NoError(t, err)
+			gotInsert := got.(*types.PreparedInsertQuery)
+			assert.Equal(t, tt.want.Keyspace, gotInsert.Keyspace())
+			assert.Equal(t, tt.want.Table, gotInsert.Table())
+			assert.Equal(t, tt.want.IfNotExists, gotInsert.IfNotExists)
+			assert.Equal(t, tt.want.Assignments, gotInsert.Assignments)
+			assert.Equal(t, tt.want.AllParams, gotInsert.Parameters().AllKeys())
+		})
+	}
+}

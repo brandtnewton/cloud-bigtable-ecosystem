@@ -48,7 +48,7 @@ func TestLookupEndpoint_Invalid(t *testing.T) {
 		err  string
 	}{
 		{"localhost", "missing port in address"},
-		{"dne:1234", ""}, // Errors for DNS can vary per system
+		{"dne:1234", ""}, // errs for DNS can vary per system
 	}
 
 	for _, tt := range tests {

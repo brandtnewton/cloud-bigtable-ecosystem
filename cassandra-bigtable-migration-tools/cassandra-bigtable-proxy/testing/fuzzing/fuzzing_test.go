@@ -78,7 +78,7 @@ func FuzzColumns(f *testing.F) {
 			return
 		}
 
-		// Create a UTC time.Time from milliseconds.
+		// Create a UTC time.timestamp from milliseconds.
 		// The seconds part is l/1000, and the nanoseconds part is (l%1000)*1_000_000.
 		ts := time.Unix(l/1000, (l%1000)*1000_000).UTC()
 

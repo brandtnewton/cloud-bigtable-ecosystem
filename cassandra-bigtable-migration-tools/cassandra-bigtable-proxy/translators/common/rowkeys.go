@@ -49,6 +49,7 @@ func BindRowKey(tableConfig *schemaMapping.TableSchema, rowKeyValues []types.Dyn
 				return "", err
 			}
 		case time.Time:
+			// always use Ordered Code encoding because we don't have to worry about backwards compatability, like with Int64/32 row key types.
 			orderEncodedField, err = encodeInt64Key(v.UnixMicro(), types.OrderedCodeEncoding)
 			if err != nil {
 				return "", err

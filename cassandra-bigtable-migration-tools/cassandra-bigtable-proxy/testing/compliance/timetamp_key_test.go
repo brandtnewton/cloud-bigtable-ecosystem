@@ -12,46 +12,6 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-type timestampRow struct {
-	region      string
-	eventTime   time.Time
-	measurement int
-	endTime     time.Time
-}
-
-const TIME_FMT = "2006-01-02 15:04:05.000-0700"
-const OUTPUT_FMT = "2006-01-02 15:04:05.000000-0700"
-
-func readTimestampRow(q string) ([]*timestampRow, error) {
-	got, err := cqlshScanToMap(q)
-	if err != nil {
-		return nil, err
-	}
-	var results []*timestampRow = nil
-	for _, row := range got {
-		m, err := strconv.Atoi(row["measurement"])
-		if err != nil {
-			return nil, err
-		}
-		eventTime, err := time.Parse(OUTPUT_FMT, row["event_time"])
-		if err != nil {
-			return nil, err
-		}
-		endTime, err := time.Parse(OUTPUT_FMT, row["end_time"])
-		if err != nil {
-			return nil, err
-		}
-
-		results = append(results, &timestampRow{
-			region:      row["region"],
-			eventTime:   eventTime.UTC(),
-			measurement: m,
-			endTime:     endTime.UTC(),
-		})
-	}
-	return results, nil
-}
-
 func TestInsert(t *testing.T) {
 	t.Parallel()
 
@@ -269,4 +229,44 @@ func anyToTime(value interface{}) time.Time {
 	default:
 		panic(fmt.Sprintf("unknown value type: %T", value))
 	}
+}
+
+type timestampRow struct {
+	region      string
+	eventTime   time.Time
+	measurement int
+	endTime     time.Time
+}
+
+const TIME_FMT = "2006-01-02 15:04:05.000-0700"
+const OUTPUT_FMT = "2006-01-02 15:04:05.000000-0700"
+
+func readTimestampRow(q string) ([]*timestampRow, error) {
+	got, err := cqlshScanToMap(q)
+	if err != nil {
+		return nil, err
+	}
+	var results []*timestampRow = nil
+	for _, row := range got {
+		m, err := strconv.Atoi(row["measurement"])
+		if err != nil {
+			return nil, err
+		}
+		eventTime, err := time.Parse(OUTPUT_FMT, row["event_time"])
+		if err != nil {
+			return nil, err
+		}
+		endTime, err := time.Parse(OUTPUT_FMT, row["end_time"])
+		if err != nil {
+			return nil, err
+		}
+
+		results = append(results, &timestampRow{
+			region:      row["region"],
+			eventTime:   eventTime.UTC(),
+			measurement: m,
+			endTime:     endTime.UTC(),
+		})
+	}
+	return results, nil
 }

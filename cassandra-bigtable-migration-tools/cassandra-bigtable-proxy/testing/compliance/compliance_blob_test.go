@@ -52,6 +52,8 @@ func TestBlobLiteral(t *testing.T) {
 	assert.Equal(t, "literal", gotName)
 }
 
+// todo test with lt and gt operators
+
 func TestWriteALargeBlob(t *testing.T) {
 	t.Parallel()
 

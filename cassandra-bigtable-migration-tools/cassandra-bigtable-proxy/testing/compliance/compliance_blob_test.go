@@ -83,7 +83,7 @@ func TestBlobKeyOrder(t *testing.T) {
 	}
 	require.NoError(t, session.ExecuteBatch(batch))
 
-	scanner := session.Query(`SELECT pk, val, name FROM blob_table WHERE name=?`, name).Iter().Scanner()
+	scanner := session.Query(`SELECT pk, val, name FROM blob_table WHERE name=? ALLOW FILTERING`, name).Iter().Scanner()
 	var got [][]byte = nil
 	for scanner.Next() {
 		var b []byte

@@ -145,7 +145,7 @@ func setUpTests() {
 
 	err = runCqlshAsync(truncateStatements)
 	if err != nil {
-		log.Fatalf("could not create table: %v", err)
+		log.Fatalf("could not truncate table: %v", err)
 	}
 
 	log.Println("All test tables successfully created!")

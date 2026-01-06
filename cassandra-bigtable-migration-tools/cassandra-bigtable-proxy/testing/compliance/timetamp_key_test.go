@@ -2,6 +2,7 @@ package compliance
 
 import (
 	"fmt"
+	"github.com/gocql/gocql"
 	"math/rand"
 	"strconv"
 	"testing"
@@ -61,6 +62,12 @@ func TestInsert(t *testing.T) {
 		selectEventTime interface{}
 		wantTime        time.Time
 	}{
+		{
+			name:            "-100 (pre-epoch)",
+			insertEventTime: time.UnixMilli(-100).UTC(),
+			selectEventTime: time.UnixMilli(-100).UTC(),
+			wantTime:        time.Date(1969, 12, 31, 23, 59, 59, 900000000, time.UTC),
+		},
 		{
 			name:            "0",
 			insertEventTime: time.UnixMilli(0).UTC(),
@@ -199,6 +206,42 @@ func TestInsert(t *testing.T) {
 		assert.Less(t, abs(result.eventTime.UnixMilli()), int64(1000), "timestamp should be within 1s of local time")
 		assert.Less(t, abs(result.endTime.UnixMilli()), int64(1000), "timestamp should be within 1s of local time")
 	})
+}
+
+// insert multiple rows and ensure that they're returned in order
+func TestTimestampKeyOrder(t *testing.T) {
+	t.Parallel()
+
+	region := "timestamp-eventTime-order"
+
+	eventTimes := []time.Time{
+		// pre-epoch
+		time.Date(1901, 11, 1, 14, 1, 42, 0, time.UTC),
+		// pre-epoch
+		time.Date(1969, 12, 31, 23, 59, 59, 900000000, time.UTC),
+		time.Date(2008, 01, 31, 23, 59, 59, 900000000, time.UTC),
+		time.Date(2010, 01, 31, 23, 59, 59, 900000000, time.UTC),
+		time.Date(2010, 01, 31, 23, 59, 59, 910000000, time.UTC),
+		time.Date(2025, 2, 3, 23, 01, 59, 910000000, time.UTC),
+		time.Date(2025, 2, 3, 23, 02, 59, 910000000, time.UTC),
+	}
+
+	batch := session.NewBatch(gocql.LoggedBatch)
+	for _, eventTime := range eventTimes {
+		batch.Query(
+			"INSERT INTO timestamp_key (region, event_time, measurement, end_time) VALUES (?, ?, 1, toTimestamp(now()))", region, eventTime)
+	}
+	err := session.ExecuteBatch(batch)
+	require.NoError(t, err)
+
+	got, err := readTimestampRow(fmt.Sprintf("SELECT region, event_time, measurement, end_time FROM bigtabledevinstance.timestamp_key WHERE region = '%s'", region))
+	require.NoError(t, err)
+
+	var gotEventTimes []time.Time
+	for _, row := range got {
+		gotEventTimes = append(gotEventTimes, row.eventTime)
+	}
+	assert.Equal(t, eventTimes, gotEventTimes)
 }
 
 func abs(t int64) int64 {

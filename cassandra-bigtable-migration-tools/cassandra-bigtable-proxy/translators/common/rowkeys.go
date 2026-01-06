@@ -50,7 +50,8 @@ func BindRowKey(tableConfig *schemaMapping.TableSchema, rowKeyValues []types.Dyn
 			}
 		case time.Time:
 			// always use Ordered Code encoding because we don't have to worry about backwards compatability, like with Int64/32 row key types.
-			orderEncodedField, err = encodeInt64Key(v.UnixMicro(), types.OrderedCodeEncoding)
+			// truncate to Milliseconds because Bigtable uses microseconds for keys but Cassandra uses milliseconds
+			orderEncodedField, err = encodeInt64Key(v.Truncate(time.Millisecond).UnixMicro(), types.OrderedCodeEncoding)
 			if err != nil {
 				return "", err
 			}

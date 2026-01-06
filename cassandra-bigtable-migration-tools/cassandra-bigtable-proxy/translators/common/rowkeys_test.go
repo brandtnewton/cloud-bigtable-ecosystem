@@ -7,7 +7,23 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"testing"
+	"time"
 )
+
+func TestBindRowKeyTimestampPrecision(t *testing.T) {
+	micro := time.UnixMicro(1767727307246309)
+	millis := time.UnixMilli(1767727307246)
+	table := mockdata.GetTableOrDie("test_keyspace", "timestamp_key")
+
+	rowKeyMicro, err := BindRowKey(table, []types.DynamicValue{types.NewLiteralValue(micro)}, types.NewQueryParameterValues(types.NewQueryParameters(), time.Now()))
+	require.NoError(t, err)
+
+	rowKeyMillis, err := BindRowKey(table, []types.DynamicValue{types.NewLiteralValue(millis)}, types.NewQueryParameterValues(types.NewQueryParameters(), time.Now()))
+	require.NoError(t, err)
+
+	// ensure microseconds are truncated because Bigtable uses microseconds for keys but Cassandra uses milliseconds
+	assert.Equal(t, rowKeyMillis, rowKeyMicro)
+}
 
 func TestBindRowKey(t *testing.T) {
 	tests := []struct {
@@ -44,6 +60,14 @@ func TestBindRowKey(t *testing.T) {
 			want: "",
 			err:  "wrong number of primary keys: want 2 got 1",
 		},
+		{
+			name:  "timestamp key",
+			table: mockdata.GetTableOrDie("test_keyspace", "timestamp_key"),
+			values: []types.GoValue{
+				time.UnixMicro(1767727307246309),
+			},
+			want: "\xff\x06G\xbd\x165I\xb0",
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -51,7 +75,7 @@ func TestBindRowKey(t *testing.T) {
 			for _, v := range tt.values {
 				values = append(values, types.NewLiteralValue(v))
 			}
-			rowKey, err := BindRowKey(tt.table, values, types.NewQueryParameterValues(types.NewQueryParameters()))
+			rowKey, err := BindRowKey(tt.table, values, types.NewQueryParameterValues(types.NewQueryParameters(), time.Now()))
 			if tt.err != "" {
 				require.Error(t, err)
 				assert.Contains(t, err.Error(), tt.err)

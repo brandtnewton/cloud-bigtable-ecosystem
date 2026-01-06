@@ -18,7 +18,7 @@ func TestInsert(t *testing.T) {
 	tests := []struct {
 		name            string
 		insertEventTime interface{}
-		// provide an alternative type to read with so we can test writing with one type and reading with another
+		// provide an alternative type to read with, so we can test writing with one type and reading with another
 		selectEventTime interface{}
 		wantTime        time.Time
 	}{

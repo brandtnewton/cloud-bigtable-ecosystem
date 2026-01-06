@@ -22,6 +22,7 @@ import (
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/third_party/datastax/proxycore"
 	"github.com/datastax/go-cassandra-native-protocol/primitive"
 	"log"
+	"time"
 )
 
 func GetSchemaMappingConfig() *schemaMapping.SchemaMetadata {
@@ -52,6 +53,10 @@ func GetSchemaMappingConfig() *schemaMapping.SchemaMetadata {
 			{Name: "username", CQLType: types.TypeText},
 			{Name: "tags", CQLType: types.NewListType(types.TypeText)},
 		}
+		timestampKeyColumns = []*types.Column{
+			{Name: "event_time", CQLType: types.TypeTime, KeyType: types.KeyTypePartition, IsPrimaryKey: true, PkPrecedence: 1},
+			{Name: "email", CQLType: types.TypeText},
+		}
 	)
 
 	var allTableConfigs = []*schemaMapping.TableSchema{
@@ -76,6 +81,13 @@ func GetSchemaMappingConfig() *schemaMapping.SchemaMetadata {
 			types.BigEndianEncoding,
 			userInfoColumns,
 		),
+		schemaMapping.NewTableConfig(
+			"test_keyspace",
+			"timestamp_key",
+			"cf1",
+			types.BigEndianEncoding,
+			timestampKeyColumns,
+		),
 	}
 	return schemaMapping.NewSchemaMetadata(
 		"cf1",
@@ -85,7 +97,7 @@ func GetSchemaMappingConfig() *schemaMapping.SchemaMetadata {
 
 func CreateQueryParams(values []*types.TypedGoValue) (*types.QueryParameterValues, error) {
 	params := types.NewQueryParameters()
-	result := types.NewQueryParameterValues(params)
+	result := types.NewQueryParameterValues(params, time.Now())
 
 	for _, v := range values {
 		p := params.PushParameter(v.Type)

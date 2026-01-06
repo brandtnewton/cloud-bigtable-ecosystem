@@ -55,6 +55,13 @@ func BindRowKey(tableConfig *schemaMapping.TableSchema, rowKeyValues []types.Dyn
 			if err != nil {
 				return "", err
 			}
+		case []uint8: // blobs
+			orderEncodedField, err = Append(nil, string(v))
+			if err != nil {
+				return "", err
+			}
+			// the ordered code library always appends a delimiter to strings, but we have custom delimiter logic so remove it
+			orderEncodedField = orderEncodedField[:len(orderEncodedField)-2]
 		case string:
 			orderEncodedField, err = Append(nil, v)
 			if err != nil {

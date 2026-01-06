@@ -20,6 +20,7 @@ simply because certain features haven't been fully implemented yet in the proxy.
 | timestamp             | yes       | yes         | RAW BYTES                                                                          |
 | int                   | yes       | yes         | RAW BYTES                                                                          |
 | bigint                | yes       | yes         | RAW BYTES                                                                          |
+| blob                  | yes       | yes         | RAW BYTES                                                                          |
 | float                 | yes       | no          | RAW BYTES                                                                          |
 | double                | yes       | no          | RAW BYTES                                                                          |
 | boolean               | yes       | no          | RAW BYTES                                                                          |

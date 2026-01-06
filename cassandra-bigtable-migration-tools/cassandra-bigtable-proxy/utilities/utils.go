@@ -17,6 +17,7 @@
 package utilities
 
 import (
+	"encoding/base64"
 	"fmt"
 	"reflect"
 	"sort"
@@ -285,6 +286,9 @@ func GoToString(value types.GoValue) (string, error) {
 		}
 	case time.Time:
 		return fmt.Sprintf("TIMESTAMP_FROM_UNIX_MILLIS(%d)", v.UnixMilli()), nil
+	case []uint8:
+		encoded := base64.StdEncoding.EncodeToString(v)
+		return fmt.Sprintf("FROM_BASE64('%s')", encoded), nil
 	case []interface{}:
 		var values []string
 		for _, vi := range v {
@@ -341,7 +345,7 @@ func StringToGo(value string, cqlType types.CqlDataType) (types.GoValue, error) 
 		}
 		iv = val
 	case datatype.Blob:
-		iv = value
+		iv = []byte(value)
 	case datatype.Varchar:
 		iv = value
 	default:

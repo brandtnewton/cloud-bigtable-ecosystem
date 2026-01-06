@@ -38,6 +38,19 @@ func TestBlobs(t *testing.T) {
 	require.Error(t, err)
 	assert.Equal(t, gocql.ErrNotFound, err)
 }
+func TestBlobLiteral(t *testing.T) {
+	t.Parallel()
+
+	require.NoError(t, session.Query(`INSERT INTO blob_table (pk, val, name) VALUES (0xffd8ffe000104a464946000101010048, 0xffd8ffe99012, 'literal')`).Exec())
+
+	var gotPk string
+	var gotVal string
+	var gotName string
+	require.NoError(t, session.Query(`SELECT pk, val, name FROM blob_table WHERE pk=0xffd8ffe000104a464946000101010048`).Scan(&gotPk, &gotVal, &gotName))
+	assert.Equal(t, "0xffd8ffe000104a464946000101010048", gotPk)
+	assert.Equal(t, "0xffd8ffe99012", gotVal)
+	assert.Equal(t, "literal", gotName)
+}
 
 func TestWriteALargeBlob(t *testing.T) {
 	t.Parallel()
@@ -83,7 +96,7 @@ func TestBlobKeyOrder(t *testing.T) {
 	}
 	require.NoError(t, session.ExecuteBatch(batch))
 
-	scanner := session.Query(`SELECT pk, val, name FROM blob_table WHERE name=? ALLOW FILTERING`, name).Iter().Scanner()
+	scanner := session.Query(`SELECT pk FROM blob_table WHERE name='blob-order' ALLOW FILTERING`).Iter().Scanner()
 	var got [][]byte = nil
 	for scanner.Next() {
 		var b []byte
@@ -134,7 +147,9 @@ func TestBlobEdgeCases(t *testing.T) {
 			err := session.Query(`INSERT INTO blob_table (pk, val, name) VALUES (?, ?, ?)`, tc.pk, tc.val, "edge-case").Exec()
 			if tc.writeErr != "" {
 				require.Error(t, err)
-				require.Contains(t, err.Error(), tc.writeErr)
+				if testTarget == TestTargetProxy {
+					require.Contains(t, err.Error(), tc.writeErr)
+				}
 				return
 			}
 

@@ -487,6 +487,9 @@ func ParseCqlConstant(c cql.IConstantContext, dt types.CqlDataType) (types.GoVal
 	if c.BooleanLiteral() != nil {
 		return utilities.StringToGo(c.BooleanLiteral().GetText(), dt)
 	}
+	if c.HexadecimalLiteral() != nil {
+		return utilities.StringToGo(c.HexadecimalLiteral().GetText(), dt)
+	}
 	if c.KwNull() != nil {
 		return nil, nil
 	}

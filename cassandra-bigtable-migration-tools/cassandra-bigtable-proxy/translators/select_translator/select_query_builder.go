@@ -122,17 +122,14 @@ Returns:
 	An updated slice of strings with the new formatted column reference appended.
 */
 func processRegularColumn(selectedColumn types.SelectedColumn, col *types.Column) (string, error) {
-	if !col.CQLType.IsCollection() {
-		return castScalarColumn(col)
+	if col.CQLType.DataType().GetDataTypeCode() == primitive.DataTypeCodeList {
+		return fmt.Sprintf("MAP_VALUES(`%s`)", selectedColumn.Sql), nil
+	} else if selectedColumn.MapKey != "" {
+		return fmt.Sprintf("`%s`['%s']", selectedColumn.ColumnName, selectedColumn.MapKey), nil
+	} else if col.CQLType.IsCollection() {
+		return fmt.Sprintf("`%s`", selectedColumn.Sql), nil
 	} else {
-		if col.CQLType.DataType().GetDataTypeCode() == primitive.DataTypeCodeList {
-			return fmt.Sprintf("MAP_VALUES(`%s`)", selectedColumn.Sql), nil
-		} else {
-			if selectedColumn.MapKey != "" {
-				return fmt.Sprintf("`%s`['%s']", selectedColumn.ColumnName, selectedColumn.MapKey), nil
-			}
-			return fmt.Sprintf("`%s`", selectedColumn.Sql), nil
-		}
+		return castScalarColumn(col)
 	}
 }
 

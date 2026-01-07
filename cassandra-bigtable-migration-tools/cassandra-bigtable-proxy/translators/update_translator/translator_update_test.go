@@ -46,7 +46,7 @@ func TestTranslator_TranslateUpdateQuerytoBigtable(t *testing.T) {
 	}{
 		{
 			name:  "update blob column",
-			query: "UPDATE test_keyspace.test_table SET col_blob = '0x0000000000000003' WHERE pk1 = 'testText' AND pk2 = 'pk2';",
+			query: "UPDATE test_keyspace.test_table SET col_blob = '0x000000000000003' WHERE pk1 = 'testText' AND pk2 = 'pk2';",
 			want: &Want{
 				Keyspace: "test_keyspace",
 				Table:    "test_table",
@@ -62,7 +62,7 @@ func TestTranslator_TranslateUpdateQuerytoBigtable(t *testing.T) {
 		},
 		{
 			name:  "if exists",
-			query: "UPDATE test_keyspace.test_table SET col_blob = '0x0000000000000003' WHERE pk1 = 'testText' AND pk2 = 'pk2' IF EXISTS;",
+			query: "UPDATE test_keyspace.test_table SET col_blob = '0x000000000000003' WHERE pk1 = 'testText' AND pk2 = 'pk2' IF EXISTS;",
 			want: &Want{
 				Keyspace: "test_keyspace",
 				Table:    "test_table",
@@ -203,7 +203,7 @@ func TestTranslator_TranslateUpdateQuerytoBigtable(t *testing.T) {
 		},
 		{
 			name:  "with keyspace in query, without default keyspace",
-			query: "UPDATE test_keyspace.test_table SET col_blob = 'abc' WHERE pk2 = 'pkval' AND pk1 = 'abc';",
+			query: "UPDATE test_keyspace.test_table SET col_blob = 0x01 WHERE pk2 = 'pkval' AND pk1 = 'abc';",
 			want: &Want{
 				Keyspace: "test_keyspace",
 				Table:    "test_table",
@@ -298,7 +298,7 @@ func TestTranslator_TranslateUpdateQuerytoBigtable(t *testing.T) {
 		},
 		{
 			name:  "with keyspace in query, with default keyspace",
-			query: "UPDATE test_keyspace.test_table SET col_blob = 'abc' WHERE pk2 = 'pkval' AND pk1 = 'abc';",
+			query: "UPDATE test_keyspace.test_table SET col_blob = '0x01' WHERE pk2 = 'pkval' AND pk1 = 'abc';",
 			want: &Want{
 				Keyspace: "test_keyspace",
 				Table:    "test_table",

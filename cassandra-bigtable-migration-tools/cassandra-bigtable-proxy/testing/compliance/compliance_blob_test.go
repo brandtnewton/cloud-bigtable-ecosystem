@@ -40,6 +40,8 @@ func TestBlobs(t *testing.T) {
 }
 func TestBlobLiteral(t *testing.T) {
 	t.Parallel()
+	pkBytes := []byte{0x39, 0x38, 0x32, 0x33, 0x66, 0x6a, 0x61, 0x73, 0x2c, 0x76, 0x6d, 0x32, 0x66}
+	valBytes := []byte{0x70, 0x6b, 0x6a, 0x78, 0x7a}
 
 	require.NoError(t, session.Query(`INSERT INTO blob_table (pk, name, val) VALUES (0x39383233666A61732C766D3266, 'literal', 0x706B6A787A)`).Exec())
 
@@ -47,12 +49,10 @@ func TestBlobLiteral(t *testing.T) {
 	var gotName string
 	var gotVal []byte
 	require.NoError(t, session.Query(`SELECT pk, name, val FROM blob_table WHERE pk=0x39383233666A61732C766D3266 AND val=0x706B6A787A ALLOW FILTERING`).Scan(&gotPk, &gotName, &gotVal))
-	assert.Equal(t, []byte{0x39, 0x38, 0x32, 0x33, 0x66, 0x6a, 0x61, 0x73, 0x2c, 0x76, 0x6d, 0x32, 0x66}, gotPk)
+	assert.Equal(t, pkBytes, gotPk)
 	assert.Equal(t, "literal", gotName)
-	assert.Equal(t, []byte{0x70, 0x6b, 0x6a, 0x78, 0x7a}, gotVal)
+	assert.Equal(t, valBytes, gotVal)
 }
-
-// todo test with lt and gt operators
 
 func TestWriteALargeBlob(t *testing.T) {
 	t.Parallel()

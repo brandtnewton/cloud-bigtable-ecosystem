@@ -18,6 +18,7 @@ package utilities
 
 import (
 	"encoding/base64"
+	"encoding/hex"
 	"fmt"
 	"reflect"
 	"sort"
@@ -345,7 +346,15 @@ func StringToGo(value string, cqlType types.CqlDataType) (types.GoValue, error) 
 		}
 		iv = val
 	case datatype.Blob:
-		iv = []byte(value)
+		// remove the '0x' prefix that CQL requires for blob literals
+		if strings.HasPrefix(value, "0x") {
+			value = value[2:]
+		}
+		hexBytes, err := hex.DecodeString(value)
+		if err != nil {
+			return nil, err
+		}
+		iv = hexBytes
 	case datatype.Varchar:
 		iv = value
 	default:

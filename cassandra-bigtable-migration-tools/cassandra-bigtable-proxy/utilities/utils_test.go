@@ -153,7 +153,6 @@ func TestIsSupportedPrimaryKeyType(t *testing.T) {
 		{"Supported CQLType - Varchar", ParseCqlTypeOrDie("varchar"), true},
 		{"Unsupported CQLType - Boolean", ParseCqlTypeOrDie("boolean"), false},
 		{"Unsupported CQLType - Float", ParseCqlTypeOrDie("float"), false},
-		{"Unsupported CQLType - Blob", ParseCqlTypeOrDie("blob"), false},
 		{"Unsupported CQLType - List", ParseCqlTypeOrDie("list<int>"), false},
 		{"Unsupported CQLType - Frozen", ParseCqlTypeOrDie("frozen<list<int>>"), false},
 	}

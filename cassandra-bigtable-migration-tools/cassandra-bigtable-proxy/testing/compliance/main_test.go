@@ -53,7 +53,11 @@ var session *gocql.Session
 var testTarget TestTarget
 
 func createSession(keyspace string) (*gocql.Session, error) {
-	cluster := gocql.NewCluster("127.0.0.1") // Assumes Cassandra is running locally
+	hostAddress := os.Getenv("CASSANDRA_HOST")
+	if hostAddress == "" {
+		hostAddress = "127.0.0.1"
+	}
+	cluster := gocql.NewCluster(hostAddress) // Assumes Cassandra is running locally
 	cluster.Timeout = 20 * time.Second
 	if keyspace != "" {
 		cluster.Keyspace = keyspace

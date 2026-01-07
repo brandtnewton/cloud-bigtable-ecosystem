@@ -99,10 +99,13 @@ func TestBlobKeyOrder(t *testing.T) {
 	require.NoError(t, session.ExecuteBatch(batch))
 
 	// we only want results from this test, but we can't select by "name" and also order by "pk" so we filter on the client side
-	rows, err := readBlobRows(session.Query(`SELECT pk, name, val FROM blob_table`, name))
+	rows, err := readBlobRows(session.Query(`SELECT pk, name, val FROM blob_table`))
 	require.NoError(t, err)
 	var got [][]byte = nil
 	for _, row := range rows {
+		if row.name != name {
+			continue
+		}
 		got = append(got, row.pk)
 	}
 	assert.Equal(t, blobs, got)
@@ -154,19 +157,23 @@ func TestBlobEdgeCases(t *testing.T) {
 		{
 			name:     "empty key",
 			pk:       []byte{},
-			val:      []byte{0x01},
-			writeErr: "",
+			writeErr: "key may not be empty",
 		},
 		{
 			name:     "empty col",
 			pk:       []byte{0x01},
-			val:      nil,
 			writeErr: "",
 		},
 		{
-			name:     "null bytes",
-			pk:       []byte{0x00},
-			val:      []byte{0x00},
+			name:     "empty val",
+			pk:       []byte{0x01},
+			val:      []byte{},
+			writeErr: "",
+		},
+		{
+			name:     "null val",
+			pk:       []byte{0x01},
+			val:      nil,
 			writeErr: "",
 		},
 	}

@@ -56,6 +56,9 @@ func BindRowKey(tableConfig *schemaMapping.TableSchema, rowKeyValues []types.Dyn
 				return "", err
 			}
 		case []uint8: // blobs
+			if len(v) == 0 {
+				return "", errors.New("key may not be empty")
+			}
 			orderEncodedField, err = Append(nil, string(v))
 			if err != nil {
 				return "", err

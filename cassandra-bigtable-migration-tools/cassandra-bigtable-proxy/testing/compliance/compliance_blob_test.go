@@ -118,30 +118,64 @@ func TestBlobEdgeCases(t *testing.T) {
 
 	testCases := []struct {
 		name     string
-		pk       []byte
-		val      []byte
+		input    blobRow
+		want     blobRow
 		writeErr string
 	}{
 		{
-			name:     "empty key",
-			pk:       []byte{},
+			name: "empty key",
+			input: blobRow{
+				pk:   []byte{},
+				val:  nil,
+				name: "empty key",
+			},
+			want: blobRow{
+				pk:   []byte{},
+				val:  nil,
+				name: "empty key",
+			},
 			writeErr: "key may not be empty",
 		},
 		{
-			name:     "empty col",
-			pk:       []byte{0x01},
+			name: "empty col",
+			input: blobRow{
+				pk:   []byte{0x01},
+				val:  nil,
+				name: "empty col",
+			},
+			want: blobRow{
+				pk:   []byte{0x01},
+				val:  nil,
+				name: "empty col",
+			},
 			writeErr: "",
 		},
 		{
-			name:     "empty val",
-			pk:       []byte{0x01},
-			val:      []byte{},
+			name: "empty val",
+			input: blobRow{
+				pk:   []byte{0x01},
+				val:  []byte{},
+				name: "empty val",
+			},
+			want: blobRow{
+				pk:   []byte{0x01},
+				val:  nil,
+				name: "empty val",
+			},
 			writeErr: "",
 		},
 		{
-			name:     "null val",
-			pk:       []byte{0x01},
-			val:      nil,
+			name: "null val",
+			input: blobRow{
+				pk:   []byte{0x01},
+				val:  nil,
+				name: "null val",
+			},
+			want: blobRow{
+				pk:   []byte{0x01},
+				val:  nil,
+				name: "null val",
+			},
 			writeErr: "",
 		},
 	}
@@ -150,7 +184,7 @@ func TestBlobEdgeCases(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
-			err := session.Query(`INSERT INTO blob_table (pk, name, val) VALUES (?, ?, ?)`, tc.pk, tc.name, tc.val).Exec()
+			err := session.Query(`INSERT INTO blob_table (pk, name, val) VALUES (?, ?, ?)`, tc.input.pk, tc.input.name, tc.input.val).Exec()
 			if tc.writeErr != "" {
 				require.Error(t, err)
 				if testTarget == TestTargetProxy {
@@ -158,14 +192,15 @@ func TestBlobEdgeCases(t *testing.T) {
 				}
 				return
 			}
-
 			require.NoError(t, err)
 
 			var gotPk []byte
 			var gotVal []byte
-			require.NoError(t, session.Query(`SELECT pk, val FROM blob_table WHERE pk=? AND name=?`, tc.pk, tc.name).Scan(&gotPk, &gotVal))
-			assert.Equal(t, tc.pk, gotPk)
-			assert.Equal(t, tc.val, gotVal)
+			var gotName string
+			require.NoError(t, session.Query(`SELECT pk, name, val FROM blob_table WHERE pk=? AND name=?`, tc.input.pk, tc.input.name).Scan(&gotPk, &gotName, &gotVal))
+			assert.Equal(t, tc.want.pk, gotPk)
+			assert.Equal(t, tc.want.name, gotName)
+			assert.Equal(t, tc.want.val, gotVal)
 		})
 	}
 }

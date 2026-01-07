@@ -340,7 +340,7 @@ func castScalarColumn(colMeta *types.Column) (string, error) {
 		return fmt.Sprintf("`%s`['']", colMeta.Name), nil
 	case datatype.Blob:
 		return fmt.Sprintf("`%s`['%s']", colMeta.ColumnFamily, colMeta.Name), nil
-	case datatype.Varchar:
+	case datatype.Varchar, datatype.Ascii:
 		return fmt.Sprintf("`%s`['%s']", colMeta.ColumnFamily, colMeta.Name), nil
 	default:
 		return "", fmt.Errorf("unsupported CQL type: %s", colMeta.CQLType.DataType().String())

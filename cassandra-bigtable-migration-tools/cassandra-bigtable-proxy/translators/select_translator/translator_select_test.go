@@ -1109,6 +1109,47 @@ func TestTranslator_TranslateSelectQuerytoBigtable(t *testing.T) {
 			sessionKeyspace: "test_keyspace",
 		},
 		{
+			name:  "literal ascii",
+			query: `SELECT col_ascii FROM test_table WHERE pk1='foo' AND pk2='bar' AND col_ascii='fizz' ALLOW FILTERING`,
+			want: &Want{
+				Keyspace:        "test_keyspace",
+				Table:           "test_table",
+				TranslatedQuery: "SELECT `cf1`['col_ascii'] FROM test_table WHERE pk1 = 'foo' AND pk2 = 'bar' AND `cf1`['col_ascii'] = 'fizz';",
+				SelectClause: &types.SelectClause{
+					Columns: []types.SelectedColumn{
+						*types.NewSelectedColumn("col_ascii", "col_ascii", "", types.TypeAscii),
+					},
+				},
+				Conditions: []types.Condition{
+					{
+						Column:   mockdata.GetColumnOrDie("test_keyspace", "test_table", "pk1"),
+						Operator: types.EQ,
+						Value:    types.NewLiteralValue("foo"),
+					},
+					{
+						Column:   mockdata.GetColumnOrDie("test_keyspace", "test_table", "pk2"),
+						Operator: types.EQ,
+						Value:    types.NewLiteralValue("bar"),
+					},
+					{
+						Column:   mockdata.GetColumnOrDie("test_keyspace", "test_table", "col_ascii"),
+						Operator: types.EQ,
+						Value:    types.NewLiteralValue("fizz"),
+					},
+				},
+				OrderBy:        types.OrderBy{},
+				GroupByColumns: nil,
+				AllParams:      nil,
+			},
+			sessionKeyspace: "test_keyspace",
+		},
+		{
+			name:            "invalid ascii",
+			query:           `SELECT col_ascii FROM test_table WHERE pk1='foo' AND pk2='bar' AND col_ascii='éàöñ' ALLOW FILTERING`,
+			wantErr:         "string is not valid ascii",
+			sessionKeyspace: "test_keyspace",
+		},
+		{
 			name:  "literal blob lte",
 			query: `SELECT pk, name, val FROM blob_table where pk <= 0x02 AND name='blob-comparison-operators' ALLOW FILTERING`,
 			want: &Want{

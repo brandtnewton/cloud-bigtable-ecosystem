@@ -488,7 +488,7 @@ func ParseCqlConstant(c cql.IConstantContext, dt types.CqlDataType) (types.GoVal
 		if c.DecimalLiteral() != nil {
 			return utilities.StringToGo(c.DecimalLiteral().GetText(), dt)
 		}
-	case types.VARCHAR, types.TEXT:
+	case types.VARCHAR, types.TEXT, types.ASCII:
 		if c.StringLiteral() != nil {
 			return parseStringLiteral(c.StringLiteral(), dt)
 		}
@@ -530,8 +530,6 @@ func EncodeScalarForBigtable(value types.GoValue, cqlType types.CqlDataType) (ty
 		return nil, nil
 	}
 
-	var iv interface{}
-	var dt datatype.DataType
 	switch cqlType.DataType() {
 	case datatype.Int, datatype.Bigint:
 		return encodeBigIntForBigtable(value)
@@ -544,20 +542,27 @@ func EncodeScalarForBigtable(value types.GoValue, cqlType types.CqlDataType) (ty
 	case datatype.Timestamp:
 		return encodeTimestampForBigtable(value)
 	case datatype.Blob:
-		iv = value
-		dt = datatype.Blob
-	case datatype.Varchar:
-		iv = value
-		dt = datatype.Varchar
+		return encodeBlobForBigtable(value)
+	case datatype.Varchar, datatype.Ascii:
+		return encodeStringForBigtable(value)
 	default:
 		return nil, fmt.Errorf("unsupported CQL type: %s", cqlType.String())
 	}
+}
 
-	bd, err := proxycore.EncodeType(dt, bigtableEncodingVersion, iv)
+func encodeBlobForBigtable(value types.GoValue) (types.BigtableValue, error) {
+	bd, err := proxycore.EncodeType(datatype.Blob, bigtableEncodingVersion, value)
 	if err != nil {
-		return nil, fmt.Errorf("error encoding value: %w", err)
+		return nil, fmt.Errorf("error encoding blob: %w", err)
 	}
+	return bd, nil
+}
 
+func encodeStringForBigtable(value types.GoValue) (types.BigtableValue, error) {
+	bd, err := proxycore.EncodeType(datatype.Varchar, bigtableEncodingVersion, value)
+	if err != nil {
+		return nil, fmt.Errorf("error encoding string: %w", err)
+	}
 	return bd, nil
 }
 

@@ -70,6 +70,8 @@ CREATE TABLE IF NOT EXISTS bigtabledevinstance.all_columns (
 	text_col text,
 	float_col float,
 	bool_col boolean,
+	ascii_col ascii,
+	blob_col blob,
 	time_col timestamp,
 	bigint_col bigint,
 	map_text_text map<text,text>,

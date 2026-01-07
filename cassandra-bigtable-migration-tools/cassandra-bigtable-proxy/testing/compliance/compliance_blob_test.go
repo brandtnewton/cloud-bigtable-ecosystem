@@ -14,39 +14,39 @@ func TestBlobs(t *testing.T) {
 	pk := []byte{0xff, 0xd8, 0xff, 0xe0, 0x00, 0x10, 0x4a, 0x46, 0x49, 0x46, 0x00, 0x01, 0x01, 0x01, 0x00, 0x48}
 	val := []byte{0x01, 0x01, 0x01, 0x01, 0x00, 0x48, 0x46, 0x49, 0x46, 0x00}
 	name := "basic"
-	require.NoError(t, session.Query(`INSERT INTO blob_table (pk, val, name) VALUES (?, ?, ?)`, pk, val, name).Exec())
+	require.NoError(t, session.Query(`INSERT INTO blob_table (pk, name, val) VALUES (?, ?, ?)`, pk, name, val).Exec())
 
 	var gotPk []byte
 	var gotVal []byte
 	var gotName string
-	require.NoError(t, session.Query(`SELECT pk, val, name FROM blob_table WHERE pk=?`, pk).Scan(&gotPk, &gotVal, &gotName))
+	require.NoError(t, session.Query(`SELECT pk, name, val FROM blob_table WHERE pk=? AND name=?`, pk, name).Scan(&gotPk, &gotName, &gotVal))
 	assert.Equal(t, pk, gotPk)
 	assert.Equal(t, val, gotVal)
 	assert.Equal(t, name, gotName)
 
 	val2 := []byte{0x01, 0xab, 0x01, 0x01, 0x00, 0x32, 0x46, 0x49, 0x46, 0x11}
-	require.NoError(t, session.Query(`UPDATE blob_table SET val=? WHERE pk=?`, val2, pk).Exec())
+	require.NoError(t, session.Query(`UPDATE blob_table SET val=? WHERE pk=? AND name=?`, val2, pk, name).Exec())
 
-	require.NoError(t, session.Query(`SELECT pk, val, name FROM blob_table WHERE pk=?`, pk).Scan(&gotPk, &gotVal, &gotName))
+	require.NoError(t, session.Query(`SELECT pk, name, val FROM blob_table WHERE pk=? AND name=?`, pk, name).Scan(&gotPk, &gotName, &gotVal))
 	assert.Equal(t, pk, gotPk)
 	assert.Equal(t, val2, gotVal)
 	assert.Equal(t, name, gotName)
 
-	require.NoError(t, session.Query(`DELETE FROM blob_table WHERE pk=?`, pk).Exec())
+	require.NoError(t, session.Query(`DELETE FROM blob_table WHERE pk=? AND name=?`, pk, name).Exec())
 
-	err := session.Query(`SELECT pk, val, name FROM blob_table WHERE pk=?`, pk).Scan(&gotPk, &gotVal, &gotName)
+	err := session.Query(`SELECT pk, name, val FROM blob_table WHERE pk=? AND name=?`, pk, name).Scan(&gotPk, &gotName, &gotVal)
 	require.Error(t, err)
 	assert.Equal(t, gocql.ErrNotFound, err)
 }
 func TestBlobLiteral(t *testing.T) {
 	t.Parallel()
 
-	require.NoError(t, session.Query(`INSERT INTO blob_table (pk, val, name) VALUES (0xffd8ffe000104a464946000101010048, 0xffd8ffe99012, 'literal')`).Exec())
+	require.NoError(t, session.Query(`INSERT INTO blob_table (pk, name, val) VALUES (0xffd8ffe000104a464946000101010048, 'literal', 0xffd8ffe99012)`).Exec())
 
 	var gotPk string
 	var gotVal string
 	var gotName string
-	require.NoError(t, session.Query(`SELECT pk, val, name FROM blob_table WHERE pk=0xffd8ffe000104a464946000101010048`).Scan(&gotPk, &gotVal, &gotName))
+	require.NoError(t, session.Query(`SELECT pk, name, val FROM blob_table WHERE pk=0xffd8ffe000104a464946000101010048 AND val=0xffd8ffe99012 ALLOW FILTERING`).Scan(&gotPk, &gotName, &gotVal))
 	assert.Equal(t, "0xffd8ffe000104a464946000101010048", gotPk)
 	assert.Equal(t, "0xffd8ffe99012", gotVal)
 	assert.Equal(t, "literal", gotName)
@@ -68,12 +68,12 @@ func TestWriteALargeBlob(t *testing.T) {
 		panic(err)
 	}
 	name := "big-blob"
-	require.NoError(t, session.Query(`INSERT INTO blob_table (pk, val, name) VALUES (?, ?, ?)`, pk, val, name).Exec())
+	require.NoError(t, session.Query(`INSERT INTO blob_table (pk, name, val) VALUES (?, ?, ?)`, pk, name, val).Exec())
 
 	var gotPk []byte
 	var gotVal []byte
 	var gotName string
-	require.NoError(t, session.Query(`SELECT pk, val, name FROM blob_table WHERE pk=?`, pk).Scan(&gotPk, &gotVal, &gotName))
+	require.NoError(t, session.Query(`SELECT pk, name, val FROM blob_table WHERE pk=?`, pk).Scan(&gotPk, &gotName, &gotVal))
 	assert.Equal(t, pk, gotPk)
 	assert.Equal(t, val, gotVal)
 	assert.Equal(t, name, gotName)
@@ -94,22 +94,51 @@ func TestBlobKeyOrder(t *testing.T) {
 	batch := session.NewBatch(gocql.LoggedBatch)
 	for _, pk := range blobs {
 		batch.Query(
-			"INSERT INTO blob_table (pk, val, name) VALUES (?, ?, ?)", pk, []byte{0x01}, name)
+			"INSERT INTO blob_table (pk, name, val) VALUES (?, ?, ?)", pk, name, []byte{0x01})
 	}
 	require.NoError(t, session.ExecuteBatch(batch))
 
-	scanner := session.Query(`SELECT pk FROM blob_table WHERE name='blob-order' ALLOW FILTERING`).Iter().Scanner()
+	// we only want results from this test, but we can't select by "name" and also order by "pk" so we filter on the client side
+	rows, err := readBlobRows(session.Query(`SELECT pk, name, val FROM blob_table WHERE name=? ORDER BY pk`, name))
+	require.NoError(t, err)
 	var got [][]byte = nil
-	for scanner.Next() {
-		var b []byte
-		err := scanner.Scan(
-			&b,
-		)
-		require.NoError(t, err)
-		got = append(got, b)
+	for _, row := range rows {
+		got = append(got, row.pk)
 	}
-	require.NoError(t, scanner.Err())
+	assert.Equal(t, blobs, got)
+}
 
+func TestBlobComparisonOperators(t *testing.T) {
+	t.Parallel()
+
+	blobs := [][]byte{
+		{0x00},
+		{0x01},
+		{0x01, 0x00},
+		{0x02},
+		{0x02, 0x00},
+	}
+	name := "blob-comparison-operators"
+
+	batch := session.NewBatch(gocql.LoggedBatch)
+	for _, pk := range blobs {
+		batch.Query(
+			"INSERT INTO blob_table (pk, name, val) VALUES (?, ?, ?)", pk, name, []byte{0x01})
+	}
+	require.NoError(t, session.ExecuteBatch(batch))
+
+	// we only want results from this test, but we can't select by "name" and also order by "pk" so we filter on the client side
+	rows, err := readBlobRows(session.Query(`SELECT pk, name, val FROM blob_table ORDER BY pk`))
+	require.NoError(t, err)
+
+	var got [][]byte = nil
+	for _, row := range rows {
+		// filter out rows that aren't for this specific test
+		if row.name != name {
+			continue
+		}
+		got = append(got, row.pk)
+	}
 	assert.Equal(t, blobs, got)
 }
 
@@ -126,7 +155,7 @@ func TestBlobEdgeCases(t *testing.T) {
 			name:     "empty key",
 			pk:       []byte{},
 			val:      []byte{0x01},
-			writeErr: "Row keys must be non-empty",
+			writeErr: "",
 		},
 		{
 			name:     "empty col",
@@ -146,7 +175,7 @@ func TestBlobEdgeCases(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
-			err := session.Query(`INSERT INTO blob_table (pk, val, name) VALUES (?, ?, ?)`, tc.pk, tc.val, "edge-case").Exec()
+			err := session.Query(`INSERT INTO blob_table (pk, name, val) VALUES (?, ?, ?)`, tc.pk, tc.name, tc.val).Exec()
 			if tc.writeErr != "" {
 				require.Error(t, err)
 				if testTarget == TestTargetProxy {
@@ -164,4 +193,32 @@ func TestBlobEdgeCases(t *testing.T) {
 			assert.Equal(t, tc.val, gotVal)
 		})
 	}
+}
+
+type blobRow struct {
+	pk   []byte
+	val  []byte
+	name string
+}
+
+func readBlobRows(q *gocql.Query) ([]blobRow, error) {
+	scanner := q.Iter().Scanner()
+	var results []blobRow = nil
+	for scanner.Next() {
+		blob := blobRow{}
+		err := scanner.Scan(
+			&blob.pk,
+			&blob.name,
+			&blob.val,
+		)
+		if err != nil {
+			return nil, err
+		}
+		results = append(results, blob)
+	}
+	err := scanner.Err()
+	if err != nil {
+		return nil, err
+	}
+	return results, nil
 }

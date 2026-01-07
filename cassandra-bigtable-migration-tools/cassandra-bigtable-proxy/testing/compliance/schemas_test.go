@@ -161,9 +161,10 @@ CREATE TABLE IF NOT EXISTS bigtabledevinstance.compound_key_table (
 `,
 		`
 CREATE TABLE IF NOT EXISTS bigtabledevinstance.blob_table (
-	pk blob PRIMARY KEY,
+	pk blob,
+	name varchar,
 	val blob,
-	name varchar
+	PRIMARY KEY (pk, name)
 );
 `,
 		`

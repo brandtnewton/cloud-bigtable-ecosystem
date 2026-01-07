@@ -216,7 +216,19 @@ func cqlshScanToMap(query string) ([]map[string]string, error) {
 	return results, nil
 }
 
-func runCqlshAsync(batch []string) error {
+func runCqlshAsync(batch []string, async bool) error {
+	// cassandra throws weird errors when DDL is executed in parallel, so unfortunately we have to do things synchronously for cassandra
+	if !async {
+		for i, stmt := range batch {
+			log.Println(fmt.Sprintf("Running sql statement: %d...", i))
+			err := session.Query(stmt).Exec()
+			if err != nil {
+				return err
+			}
+		}
+		return nil
+	}
+
 	// Use WaitGroup to track the completion of all goroutines
 	var wg sync.WaitGroup
 

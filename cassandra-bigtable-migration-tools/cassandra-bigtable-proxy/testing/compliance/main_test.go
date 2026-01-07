@@ -118,7 +118,7 @@ func setUpTests() {
 	log.Println(fmt.Sprintf("determined test target to be %s from the cluster name '%s'", testTarget.String(), clusterName))
 
 	log.Println("Creating test tables...")
-	err = runCqlshAsync(getSchemas())
+	err = runCqlshAsync(getSchemas(), testTarget != TestTargetCassandra)
 	if err != nil {
 		log.Fatalf("could not create table: %v", err)
 	}
@@ -143,7 +143,7 @@ func setUpTests() {
 		truncateStatements = append(truncateStatements, fmt.Sprintf("TRUNCATE TABLE %s", table))
 	}
 
-	err = runCqlshAsync(truncateStatements)
+	err = runCqlshAsync(truncateStatements, testTarget != TestTargetCassandra)
 	if err != nil {
 		log.Fatalf("could not truncate table: %v", err)
 	}

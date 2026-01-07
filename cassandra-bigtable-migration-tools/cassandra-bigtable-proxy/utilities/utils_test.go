@@ -125,7 +125,7 @@ func TestStringToPrimitives(t *testing.T) {
 		{"true", types.TypeBoolean, true, false},
 		{"false", types.TypeBoolean, false, false},
 		{"not_a_boolean", types.TypeBoolean, nil, true},
-		{"blob_data", types.TypeBlob, "blob_data", false},
+		{"0x013A", types.TypeBlob, []byte{0x1, 0x3a}, false},
 		{"hello", types.TypeVarchar, "hello", false},
 	}
 

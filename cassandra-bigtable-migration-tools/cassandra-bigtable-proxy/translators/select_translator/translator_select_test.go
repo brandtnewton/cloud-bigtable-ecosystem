@@ -52,7 +52,7 @@ func TestTranslator_TranslateSelectQuerytoBigtable(t *testing.T) {
 		{
 			name: "Select query with list contains key clause",
 			query: `select pk1, col_int, col_bool from  test_keyspace.test_table
- where pk1 = 'test' AND col_bool='true'
+ where pk1 = 'test' AND col_bool=true
  AND col_ts <= '2015-05-03 13:30:54.234' AND col_int >= 123
  AND col_bigint > -10000000 LIMIT 20;`,
 			want: &Want{

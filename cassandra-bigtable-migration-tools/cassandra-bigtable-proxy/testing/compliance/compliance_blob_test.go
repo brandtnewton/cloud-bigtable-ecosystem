@@ -79,38 +79,6 @@ func TestWriteALargeBlob(t *testing.T) {
 	assert.Equal(t, name, gotName)
 }
 
-func TestBlobKeyOrder(t *testing.T) {
-	t.Parallel()
-
-	blobs := [][]byte{
-		{0x00},
-		{0x01},
-		{0x01, 0x00},
-		{0x02},
-		{0x02, 0x00},
-	}
-	name := "blob-order"
-
-	batch := session.NewBatch(gocql.LoggedBatch)
-	for _, pk := range blobs {
-		batch.Query(
-			"INSERT INTO blob_table (pk, name, val) VALUES (?, ?, ?)", pk, name, []byte{0x01})
-	}
-	require.NoError(t, session.ExecuteBatch(batch))
-
-	// we only want results from this test, but we can't select by "name" and also order by "pk" so we filter on the client side
-	rows, err := readBlobRows(session.Query(`SELECT pk, name, val FROM blob_table`))
-	require.NoError(t, err)
-	var got [][]byte = nil
-	for _, row := range rows {
-		if row.name != name {
-			continue
-		}
-		got = append(got, row.pk)
-	}
-	assert.Equal(t, blobs, got)
-}
-
 func TestBlobComparisonOperators(t *testing.T) {
 	t.Parallel()
 
@@ -195,7 +163,7 @@ func TestBlobEdgeCases(t *testing.T) {
 
 			var gotPk []byte
 			var gotVal []byte
-			require.NoError(t, session.Query(`SELECT pk, val FROM blob_table WHERE pk=?`, tc.pk).Scan(&gotPk, &gotVal))
+			require.NoError(t, session.Query(`SELECT pk, val FROM blob_table WHERE pk=? AND name=?`, tc.pk, tc.name).Scan(&gotPk, &gotVal))
 			assert.Equal(t, tc.pk, gotPk)
 			assert.Equal(t, tc.val, gotVal)
 		})

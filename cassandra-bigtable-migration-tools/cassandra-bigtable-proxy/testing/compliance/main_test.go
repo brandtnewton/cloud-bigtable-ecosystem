@@ -57,6 +57,7 @@ func createSession(keyspace string) (*gocql.Session, error) {
 	if hostAddress == "" {
 		hostAddress = "127.0.0.1"
 	}
+	log.Printf("connecting to cluster at %s...\n", hostAddress)
 	cluster := gocql.NewCluster(hostAddress) // Assumes Cassandra is running locally
 	cluster.Timeout = 20 * time.Second
 	if keyspace != "" {

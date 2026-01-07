@@ -46,7 +46,7 @@ func TestBlobLiteral(t *testing.T) {
 	var gotPk []byte
 	var gotName string
 	var gotVal []byte
-	require.NoError(t, session.Query(`SELECT pk, name, val FROM blob_table WHERE pk=0x39383233666A61732C766D3266 AND val=0x706B6A787A`).Scan(&gotPk, &gotName, &gotVal))
+	require.NoError(t, session.Query(`SELECT pk, name, val FROM blob_table WHERE pk=0x39383233666A61732C766D3266 AND val=0x706B6A787A ALLOW FILTERING`).Scan(&gotPk, &gotName, &gotVal))
 	assert.Equal(t, []byte{0xff}, gotPk)
 	assert.Equal(t, "literal", gotName)
 	assert.Equal(t, []byte{0xff}, gotVal)

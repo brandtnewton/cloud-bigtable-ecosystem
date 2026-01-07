@@ -248,7 +248,7 @@ func IsSupportedPrimaryKeyType(dt types.CqlDataType) bool {
 	}
 
 	switch dt.DataType() {
-	case datatype.Int, datatype.Bigint, datatype.Varchar, datatype.Timestamp, datatype.Blob:
+	case datatype.Int, datatype.Bigint, datatype.Varchar, datatype.Timestamp, datatype.Blob, datatype.Ascii:
 		return true
 	default:
 		return false
@@ -355,8 +355,8 @@ func StringToGo(value string, cqlType types.CqlDataType) (types.GoValue, error) 
 		}
 		return hexBytes, nil
 	case datatype.Ascii:
-		if !isASCII(value) {
-			return nil, fmt.Errorf("string is not valid ascii")
+		if err := ValidateData(value, cqlType); err != nil {
+			return nil, err
 		}
 		return value, nil
 	case datatype.Varchar:
@@ -374,21 +374,21 @@ func ValidateData(value types.GoValue, dt types.CqlDataType) error {
 		if !ok {
 			return fmt.Errorf("invalid data type for ascii: %T", value)
 		}
-		if !isASCII(s) {
-			return fmt.Errorf("string is not valid ascii")
+		if err := validateASCII(s); err != nil {
+			return err
 		}
 		return nil
 	}
 	return nil
 }
 
-func isASCII(s string) bool {
+func validateASCII(s string) error {
 	for i := 0; i < len(s); i++ {
 		if s[i] >= utf8.RuneSelf {
-			return false
+			return fmt.Errorf("string is not valid ascii")
 		}
 	}
-	return true
+	return nil
 }
 
 func CreateKeyOrderedValueSlice[T any](data map[string]T) []T {

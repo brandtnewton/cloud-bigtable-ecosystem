@@ -577,6 +577,10 @@ func cassandraValueToGoValue(dt types.CqlDataType, value *primitive.Value, pv pr
 		goValue = dereferenceSlice(goValue)
 	}
 
+	if err := utilities.ValidateData(goValue, dt); err != nil {
+		return nil, err
+	}
+
 	return goValue, nil
 }
 

@@ -178,6 +178,12 @@ CREATE TABLE IF NOT EXISTS bigtabledevinstance.timestamp_key (
 	PRIMARY KEY (region, event_time)
 );
 		`,
+		`
+CREATE TABLE IF NOT EXISTS bigtabledevinstance.ascii_key (
+	id ascii PRIMARY KEY,
+	measurement int
+);
+		`,
 	}
 
 	if testTarget == TestTargetProxy {

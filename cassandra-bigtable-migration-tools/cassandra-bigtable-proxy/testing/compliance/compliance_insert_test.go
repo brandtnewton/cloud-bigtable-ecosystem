@@ -180,10 +180,60 @@ func TestAscii(t *testing.T) {
 		assert.Equal(t, "valid-ascii-value-2", got)
 	})
 
-	t.Run("invalid ascii", func(t *testing.T) {
+	t.Run("primary key placeholder", func(t *testing.T) {
+		t.Parallel()
+		require.NoError(t, session.Query("INSERT INTO ascii_key (id, measurement) VALUES ( ?, ?)", "ascii-key-placeholder", 1).Exec())
+
+		var got int32
+		require.NoError(t, session.Query(`SELECT measurement FROM ascii_key WHERE id = ?`, "ascii-key-placeholder").Scan(&got))
+		assert.Equal(t, int32(1), got)
+
+		require.NoError(t, session.Query("UPDATE ascii_key SET measurement=? WHERE id= ?", 2, "ascii-key-placeholder").Exec())
+
+		require.NoError(t, session.Query(`SELECT measurement FROM ascii_key WHERE id = ?`, "ascii-key-placeholder").Scan(&got))
+		assert.Equal(t, int32(2), got)
+	})
+
+	t.Run("primary key literal", func(t *testing.T) {
+		t.Parallel()
+		require.NoError(t, session.Query("INSERT INTO ascii_key (id, measurement) VALUES ('ascii-key-literal', 1)").Exec())
+
+		var got int32
+		require.NoError(t, session.Query(`SELECT measurement FROM ascii_key WHERE id = 'ascii-key-literal'`).Scan(&got))
+		assert.Equal(t, int32(1), got)
+
+		require.NoError(t, session.Query("UPDATE ascii_key SET measurement=2 WHERE id= 'ascii-key-literal'").Exec())
+
+		require.NoError(t, session.Query(`SELECT measurement FROM ascii_key WHERE id = 'ascii-key-literal'`).Scan(&got))
+		assert.Equal(t, int32(2), got)
+	})
+
+	t.Run("primary key invalid literal", func(t *testing.T) {
+		t.Parallel()
+		err := session.Query("INSERT INTO ascii_key (id, measurement) VALUES ('éàöñ', 1)").Exec()
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "string is not valid ascii")
+	})
+
+	t.Run("primary key invalid placeholder", func(t *testing.T) {
+		t.Parallel()
+		err := session.Query("INSERT INTO ascii_key (id, measurement) VALUES (?, ?)", "éàöñ", 1).Exec()
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "string is not valid ascii")
+	})
+
+	t.Run("invalid value ascii literal", func(t *testing.T) {
 		t.Parallel()
 
 		err := session.Query("INSERT INTO all_columns (name, ascii_col) VALUES ('ascii-invalid', 'éàöñ')").Exec()
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "string is not valid ascii")
+	})
+
+	t.Run("invalid value ascii placeholder", func(t *testing.T) {
+		t.Parallel()
+
+		err := session.Query("INSERT INTO all_columns (name, ascii_col) VALUES ('ascii-invalid', ?)", "éàöñ").Exec()
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "string is not valid ascii")
 	})

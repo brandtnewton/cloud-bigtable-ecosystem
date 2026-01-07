@@ -51,9 +51,10 @@ func (target TestTarget) String() string {
 var session *gocql.Session
 
 var testTarget TestTarget
+var hostAddress string
 
 func createSession(keyspace string) (*gocql.Session, error) {
-	hostAddress := os.Getenv("CASSANDRA_HOST")
+	hostAddress = os.Getenv("CASSANDRA_HOST")
 	if hostAddress == "" {
 		hostAddress = "127.0.0.1"
 	}

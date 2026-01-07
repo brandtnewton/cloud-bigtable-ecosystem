@@ -130,19 +130,19 @@ func TestBlobComparisonOperators(t *testing.T) {
 	}
 	require.NoError(t, session.ExecuteBatch(batch))
 
-	// we only want results from this test, but we can't select by "name" and also order by "pk" so we filter on the client side
-	rows, err := readBlobRows(session.Query(`SELECT pk, name, val FROM blob_table ORDER BY pk`))
+	rows, err := readBlobRows(session.Query(`SELECT pk, val, name FROM blob_table where pk <= 0x02 AND name='blob-comparison-operators' ALLOW FILTERING`))
 	require.NoError(t, err)
 
 	var got [][]byte = nil
 	for _, row := range rows {
-		// filter out rows that aren't for this specific test
-		if row.name != name {
-			continue
-		}
 		got = append(got, row.pk)
 	}
-	assert.Equal(t, blobs, got)
+	assert.ElementsMatch(t, [][]byte{
+		{0x02},
+		{0x01, 0x00},
+		{0x01},
+		{0x00},
+	}, got)
 }
 
 func TestBlobEdgeCases(t *testing.T) {

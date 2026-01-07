@@ -57,6 +57,7 @@ func BindRowKey(tableConfig *schemaMapping.TableSchema, rowKeyValues []types.Dyn
 			}
 		case []uint8: // blobs
 			if len(v) == 0 {
+				// Cassandra does not allow empty blobs
 				return "", errors.New("key may not be empty")
 			}
 			orderEncodedField, err = Append(nil, string(v))

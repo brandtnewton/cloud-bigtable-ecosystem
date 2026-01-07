@@ -116,7 +116,7 @@ func cqlshExecWithKeyspace(keyspace string, query string) (string, error) {
 	if keyspace != "" {
 		cmd = exec.Command("cqlsh", hostAddress, "-k", keyspace, "--request-timeout=60", "-e", query)
 	} else {
-		cmd = exec.Command("cqlsh", "--request-timeout=60", "-e", query)
+		cmd = exec.Command("cqlsh", hostAddress, "--request-timeout=60", "-e", query)
 	}
 
 	var stdout, stderr bytes.Buffer

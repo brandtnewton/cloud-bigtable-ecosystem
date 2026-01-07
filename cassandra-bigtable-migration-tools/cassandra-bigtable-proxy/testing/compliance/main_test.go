@@ -138,7 +138,7 @@ func setUpTests() {
 		keyspace := tableRow["keyspace_name"]
 		table := tableRow["table_name"]
 		// don't truncate system tables
-		if keyspace == "system_schema" || keyspace == "system_virtual_schema" || keyspace == "system" {
+		if keyspace != "bigtabledevinstance" {
 			continue
 		}
 		tableNames = append(tableNames, table)

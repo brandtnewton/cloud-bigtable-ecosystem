@@ -41,15 +41,15 @@ func TestBlobs(t *testing.T) {
 func TestBlobLiteral(t *testing.T) {
 	t.Parallel()
 
-	require.NoError(t, session.Query(`INSERT INTO blob_table (pk, name, val) VALUES (0xffd8ffe000104a464946000101010048, 'literal', 0xffd8ffe99012)`).Exec())
+	require.NoError(t, session.Query(`INSERT INTO blob_table (pk, name, val) VALUES (0x39383233666A61732C766D3266, 'literal', 0x706B6A787A)`).Exec())
 
-	var gotPk string
-	var gotVal string
+	var gotPk []byte
 	var gotName string
-	require.NoError(t, session.Query(`SELECT pk, name, val FROM blob_table WHERE pk=0xffd8ffe000104a464946000101010048 AND val=0xffd8ffe99012 ALLOW FILTERING`).Scan(&gotPk, &gotName, &gotVal))
-	assert.Equal(t, "0xffd8ffe000104a464946000101010048", gotPk)
-	assert.Equal(t, "0xffd8ffe99012", gotVal)
+	var gotVal []byte
+	require.NoError(t, session.Query(`SELECT pk, name, val FROM blob_table WHERE pk=0x39383233666A61732C766D3266 AND val=0x706B6A787A`).Scan(&gotPk, &gotName, &gotVal))
+	assert.Equal(t, []byte{0xff}, gotPk)
 	assert.Equal(t, "literal", gotName)
+	assert.Equal(t, []byte{0xff}, gotVal)
 }
 
 // todo test with lt and gt operators

@@ -47,9 +47,9 @@ func TestBlobLiteral(t *testing.T) {
 	var gotName string
 	var gotVal []byte
 	require.NoError(t, session.Query(`SELECT pk, name, val FROM blob_table WHERE pk=0x39383233666A61732C766D3266 AND val=0x706B6A787A ALLOW FILTERING`).Scan(&gotPk, &gotName, &gotVal))
-	assert.Equal(t, []byte{0xff}, gotPk)
+	assert.Equal(t, []byte{0x39, 0x38, 0x32, 0x33, 0x66, 0x6a, 0x61, 0x73, 0x2c, 0x76, 0x6d, 0x32, 0x66}, gotPk)
 	assert.Equal(t, "literal", gotName)
-	assert.Equal(t, []byte{0xff}, gotVal)
+	assert.Equal(t, []byte{0x70, 0x6b, 0x6a, 0x78, 0x7a}, gotVal)
 }
 
 // todo test with lt and gt operators
@@ -99,7 +99,7 @@ func TestBlobKeyOrder(t *testing.T) {
 	require.NoError(t, session.ExecuteBatch(batch))
 
 	// we only want results from this test, but we can't select by "name" and also order by "pk" so we filter on the client side
-	rows, err := readBlobRows(session.Query(`SELECT pk, name, val FROM blob_table WHERE name=? ORDER BY pk`, name))
+	rows, err := readBlobRows(session.Query(`SELECT pk, name, val FROM blob_table`, name))
 	require.NoError(t, err)
 	var got [][]byte = nil
 	for _, row := range rows {

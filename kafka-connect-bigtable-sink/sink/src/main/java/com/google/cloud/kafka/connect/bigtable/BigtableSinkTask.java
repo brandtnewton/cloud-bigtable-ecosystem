@@ -32,10 +32,7 @@ import com.google.cloud.kafka.connect.bigtable.config.ConfigInterpolation;
 import com.google.cloud.kafka.connect.bigtable.exception.BatchException;
 import com.google.cloud.kafka.connect.bigtable.exception.BigtableSinkLogicError;
 import com.google.cloud.kafka.connect.bigtable.exception.InvalidBigtableSchemaModificationException;
-import com.google.cloud.kafka.connect.bigtable.mapping.KeyMapper;
-import com.google.cloud.kafka.connect.bigtable.mapping.MutationData;
-import com.google.cloud.kafka.connect.bigtable.mapping.MutationDataBuilder;
-import com.google.cloud.kafka.connect.bigtable.mapping.ValueMapper;
+import com.google.cloud.kafka.connect.bigtable.mapping.*;
 import com.google.cloud.kafka.connect.bigtable.version.PackageMetadata;
 import com.google.cloud.kafka.connect.bigtable.wrappers.BigtableTableAdminClientInterface;
 import com.google.common.annotations.VisibleForTesting;
@@ -72,6 +69,7 @@ public class BigtableSinkTask extends SinkTask {
   private BigtableSinkTaskConfig config;
   private BigtableDataClient bigtableData;
   private BigtableTableAdminClientInterface bigtableAdmin;
+  private RecordDataExtractor keyDataExtractor;
   private KeyMapper keyMapper;
   private ValueMapper valueMapper;
   private BigtableSchemaManager schemaManager;
@@ -86,7 +84,7 @@ public class BigtableSinkTask extends SinkTask {
    * BigtableSinkTask#put(Collection)} can be called. Kafka Connect handles it well.
    */
   public BigtableSinkTask() {
-    this(null, null, null, null, null, null, null);
+    this(null, null, null, null, null, null, null, null);
   }
 
   // A constructor only used by the tests.
@@ -95,6 +93,7 @@ public class BigtableSinkTask extends SinkTask {
       BigtableSinkTaskConfig config,
       BigtableDataClient bigtableData,
       BigtableTableAdminClientInterface bigtableAdmin,
+      RecordDataExtractor keyDataExtractor,
       KeyMapper keyMapper,
       ValueMapper valueMapper,
       BigtableSchemaManager schemaManager,
@@ -102,6 +101,7 @@ public class BigtableSinkTask extends SinkTask {
     this.config = config;
     this.bigtableData = bigtableData;
     this.bigtableAdmin = bigtableAdmin;
+    this.keyDataExtractor = keyDataExtractor;
     this.keyMapper = keyMapper;
     this.valueMapper = valueMapper;
     this.schemaManager = schemaManager;
@@ -118,10 +118,10 @@ public class BigtableSinkTask extends SinkTask {
                 + config.getInt(BigtableSinkTaskConfig.TASK_ID_CONFIG));
     bigtableData = config.getBigtableDataClient();
     bigtableAdmin = config.getBigtableAdminClient();
+    keyDataExtractor = new RecordDataExtractor(config.getKeySource());
     keyMapper =
         new KeyMapper(
             config.getString(BigtableSinkTaskConfig.ROW_KEY_DELIMITER_CONFIG),
-            config.getKeySource(),
             config.getList(BigtableSinkTaskConfig.ROW_KEY_DEFINITION_CONFIG)
         );
     valueMapper =
@@ -231,7 +231,8 @@ public class BigtableSinkTask extends SinkTask {
   @VisibleForTesting
   Optional<MutationData> createRecordMutationData(SinkRecord record) {
     String recordTableId = getTableName(record);
-    ByteString rowKey = ByteString.copyFrom(keyMapper.getKey(record));
+    SchemaAndValue keyValue = keyDataExtractor.getValue(record);
+    ByteString rowKey = ByteString.copyFrom(keyMapper.getKey(keyValue));
     if (rowKey.isEmpty()) {
       throw new DataException(
           "The record's key converts into an illegal empty Cloud Bigtable row key.");

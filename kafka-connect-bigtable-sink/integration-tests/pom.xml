@@ -30,7 +30,8 @@
         -->
         <protobuf3.version>3.25.6</protobuf3.version>
         <maven.clean.version>3.4.1</maven.clean.version>
-
+        <maven.compiler.source>17</maven.compiler.source>
+        <maven.compiler.target>17</maven.compiler.target>
         <integration.test.plugin.path>${project.basedir}/integration_test_plugins</integration.test.plugin.path>
         <google.sink.package.path>${project.basedir}/../sink/target/sink-${project.version}-package</google.sink.package.path>
         <google.sink.package.plugin.dir>${integration.test.plugin.path}/google-sink</google.sink.package.plugin.dir>

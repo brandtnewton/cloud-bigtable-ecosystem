@@ -26,9 +26,11 @@ import com.google.cloud.bigtable.data.v2.BigtableDataClient;
 import com.google.cloud.kafka.connect.bigtable.config.BigtableSinkConfig;
 import com.google.cloud.kafka.connect.bigtable.util.TestId;
 import com.google.cloud.kafka.connect.bigtable.wrappers.BigtableTableAdminClientInterface;
+
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
+
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.connect.runtime.ConnectorConfig;
 import org.apache.kafka.connect.storage.StringConverter;

@@ -27,6 +27,7 @@ import com.google.cloud.kafka.connect.bigtable.config.NullValueMode;
 import com.google.cloud.kafka.connect.bigtable.exception.InvalidBigtableSchemaModificationException;
 import com.google.protobuf.ByteString;
 import com.google.cloud.kafka.connect.bigtable.util.JsonConverterFactory;
+
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.Arrays;
@@ -184,7 +185,7 @@ public class ResourceAutoCreationIT extends BaseKafkaConnectBigtableIT {
   public void testCreationOfInvalidTable() throws InterruptedException {
     String dlqTopic = createDlq();
     Map<String, String> props = baseConnectorProps();
-    String invalidTableName = "T".repeat(MAX_BIGTABLE_TABLE_NAME_LENGTH + 1);
+    String invalidTableName = "T" .repeat(MAX_BIGTABLE_TABLE_NAME_LENGTH + 1);
     props.put(BigtableSinkConfig.TABLE_NAME_FORMAT_CONFIG, invalidTableName);
     props.put(BigtableSinkConfig.AUTO_CREATE_TABLES_CONFIG, String.valueOf(true));
     props.put(BigtableSinkConfig.AUTO_CREATE_COLUMN_FAMILIES_CONFIG, String.valueOf(true));

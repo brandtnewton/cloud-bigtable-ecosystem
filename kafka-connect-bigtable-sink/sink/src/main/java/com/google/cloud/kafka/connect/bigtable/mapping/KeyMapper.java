@@ -16,6 +16,7 @@
 package com.google.cloud.kafka.connect.bigtable.mapping;
 
 import com.google.cloud.kafka.connect.bigtable.config.BigtableSinkConfig;
+
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.math.BigDecimal;
@@ -33,6 +34,8 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
+
+import com.google.cloud.kafka.connect.bigtable.config.KafkaMessageComponent;
 import org.apache.kafka.connect.data.Field;
 import org.apache.kafka.connect.data.Schema;
 import org.apache.kafka.connect.data.SchemaAndValue;
@@ -40,6 +43,7 @@ import org.apache.kafka.connect.data.Struct;
 import org.apache.kafka.connect.data.Time;
 import org.apache.kafka.connect.data.Timestamp;
 import org.apache.kafka.connect.errors.DataException;
+import org.apache.kafka.connect.sink.SinkRecord;
 
 /**
  * A class responsible for converting Kafka {@link org.apache.kafka.connect.sink.SinkRecord
@@ -47,18 +51,20 @@ import org.apache.kafka.connect.errors.DataException;
  */
 public class KeyMapper {
   final List<List<String>> definition;
+  final KafkaMessageComponent keySource;
   final byte[] delimiter;
 
   /**
    * The main constructor.
    *
-   * @param delimiter Delimiter in the mapping as per {@link
-   *     com.google.cloud.kafka.connect.bigtable.config.BigtableSinkConfig#ROW_KEY_DELIMITER_CONFIG}
+   * @param delimiter  Delimiter in the mapping as per {@link
+   *                   com.google.cloud.kafka.connect.bigtable.config.BigtableSinkConfig#ROW_KEY_DELIMITER_CONFIG}
    * @param definition Definition of the mapping as per {@link
-   *     com.google.cloud.kafka.connect.bigtable.config.BigtableSinkConfig#ROW_KEY_DEFINITION_CONFIG}.
+   *                   com.google.cloud.kafka.connect.bigtable.config.BigtableSinkConfig#ROW_KEY_DEFINITION_CONFIG}.
    */
-  public KeyMapper(String delimiter, List<String> definition) {
+  public KeyMapper(String delimiter, KafkaMessageComponent keySource, List<String> definition) {
     this.delimiter = delimiter.getBytes(StandardCharsets.UTF_8);
+    this.keySource = keySource;
     this.definition =
         definition.stream()
             .map(s -> s.split("\\."))
@@ -71,20 +77,38 @@ public class KeyMapper {
    * BigtableSinkConfig#getDefinition()}.
    *
    * @param kafkaKeyAndSchema Value and optional {@link Schema} of a Kafka message's key to be
-   *     converted into a Cloud Bigtable row key.
+   *                          converted into a Cloud Bigtable row key.
    * @return {@link Optional#empty()} if the input doesn't convert into a valid Cloud Bigtable row
-   *     key, {@link Optional} containing row Cloud Bigtable row key bytes the input converts into
-   *     otherwise.
+   * key, {@link Optional} containing row Cloud Bigtable row key bytes the input converts into
+   * otherwise.
    */
-  public byte[] getKey(SchemaAndValue kafkaKeyAndSchema) {
-    Object kafkaKey = kafkaKeyAndSchema.value();
-    Optional<Schema> kafkaKeySchema = Optional.ofNullable(kafkaKeyAndSchema.schema());
-    ensureKeyElementIsNotNull(kafkaKey);
-    SchemaAndValue keySchemaAndValue = new SchemaAndValue(kafkaKeySchema.orElse(null), kafkaKey);
+  public byte[] getKey(SinkRecord record) {
+    SchemaAndValue keySchemaAndValue = GetValue(record);
     Stream<byte[]> keyParts =
-        this.getDefinition(kafkaKey).stream()
+        this.getDefinition(keySchemaAndValue.value()).stream()
             .map((d) -> serializeTopLevelKeyElement(extractField(keySchemaAndValue, d.iterator())));
     return concatenateByteArrays(new byte[0], keyParts, delimiter, new byte[0]);
+  }
+
+  private SchemaAndValue GetValue(SinkRecord record) {
+    Schema schema;
+    Object data;
+    switch (this.keySource) {
+      case Key:
+        schema = record.keySchema();
+        data = record.key();
+        break;
+      case Value:
+        schema = record.valueSchema();
+        data = record.value();
+        break;
+      default:
+        throw new UnsupportedOperationException(String.format("unhandled key schema source: %s", this.keySource.name()));
+    }
+    Optional<Schema> kafkaKeySchema = Optional.ofNullable(schema);
+    ensureKeyElementIsNotNull(kafkaKeySchema);
+
+    return new SchemaAndValue(kafkaKeySchema.orElse(null), data);
   }
 
   /**
@@ -93,9 +117,9 @@ public class KeyMapper {
    *
    * @param kafkaKey {@link org.apache.kafka.connect.sink.SinkRecord SinkRecord's} key.
    * @return {@link List} containing {@link List Lists} of key fields that need to be retrieved and
-   *     concatenated to construct the Cloud Bigtable row key.
-   *     <p>See {@link KeyMapper#extractField(SchemaAndValue, Iterator)} for details on semantics of
-   *     the inner list.
+   * concatenated to construct the Cloud Bigtable row key.
+   * <p>See {@link KeyMapper#extractField(SchemaAndValue, Iterator)} for details on semantics of
+   * the inner list.
    */
   private List<List<String>> getDefinition(Object kafkaKey) {
     if (this.definition.isEmpty()) {
@@ -117,7 +141,7 @@ public class KeyMapper {
    *
    * @param kafkaKey {@link org.apache.kafka.connect.sink.SinkRecord SinkRecord's} key.
    * @return {@link Optional#empty()} if the input value has no children, {@link Optional}
-   *     containing names of its child fields otherwise.
+   * containing names of its child fields otherwise.
    */
   private static Optional<List<String>> getFieldsOfRootValue(Object kafkaKey) {
     if (kafkaKey instanceof Struct) {
@@ -133,8 +157,8 @@ public class KeyMapper {
    * Extract possibly nested fields from the input value.
    *
    * @param keySchemaAndValue {@link org.apache.kafka.connect.sink.SinkRecord SinkRecord's} key or
-   *     some its child with corresponding {@link Schema}.
-   * @param fields Fields that need to be accessed before the target value is reached.
+   *                          some its child with corresponding {@link Schema}.
+   * @param fields            Fields that need to be accessed before the target value is reached.
    * @return Extracted nested field.
    */
   private SchemaAndValue extractField(SchemaAndValue keySchemaAndValue, Iterator<String> fields) {
@@ -172,8 +196,8 @@ public class KeyMapper {
    *
    * <p>We implement custom serialization since {@link Object#toString()} mangles arrays.
    *
-   * @param keyElement {@link org.apache.kafka.connect.sink.SinkRecord SinkRecord's} key to be
-   *     serialized.
+   * @param keyElement       {@link org.apache.kafka.connect.sink.SinkRecord SinkRecord's} key to be
+   *                         serialized.
    * @param keyElementSchema An optional schema of {@code keyElement}.
    * @return Serialization of the input value.
    */
@@ -220,7 +244,7 @@ public class KeyMapper {
                           Stream.of(
                               serializeKeyElement(e.getKey(), keySchema),
                               serializeKeyElement(e.getValue(), valueSchema)),
-                          "=".getBytes(StandardCharsets.UTF_8),
+                          "=" .getBytes(StandardCharsets.UTF_8),
                           new byte[0])),
           // Note that Map and Struct have different delimiters for compatibility's sake.
           ", ",
@@ -247,7 +271,7 @@ public class KeyMapper {
                                   e.getValue(),
                                   SchemaUtils.maybeExtractFieldSchema(
                                       keyElementSchema, e.getKey()))),
-                          "=".getBytes(StandardCharsets.UTF_8),
+                          "=" .getBytes(StandardCharsets.UTF_8),
                           new byte[0])),
           // Note that Map and Struct have different delimiters for compatibility's sake.
           ",",

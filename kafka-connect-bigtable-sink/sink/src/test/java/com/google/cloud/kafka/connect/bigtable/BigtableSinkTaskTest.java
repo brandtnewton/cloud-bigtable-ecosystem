@@ -173,7 +173,7 @@ public class BigtableSinkTaskTest {
 
   @Test
   public void testCreateRecordMutationDataEmptyKey() {
-    task = new TestBigtableSinkTask(config, null, null, new RecordDataExtractor(KafkaMessageComponent.Key), keyMapper, null, null, null);
+    task = new TestBigtableSinkTask(config, null, null, new RecordDataExtractor(KafkaMessageComponent.KEY), keyMapper, null, null, null);
     doReturn(new byte[0]).when(keyMapper).getKey(any());
     SinkRecord record = new SinkRecord("topic", 1, null, new Object(), null, null, 1);
     assertThrows(ConnectException.class, () -> task.createRecordMutationData(record));
@@ -185,7 +185,7 @@ public class BigtableSinkTaskTest {
     SinkRecord okRecord = new SinkRecord("topic", 1, null, "key", null, "value", 2);
     keyMapper = new KeyMapper("#", List.of());
     valueMapper = new ValueMapper("default", "KAFKA_VALUE", NullValueMode.IGNORE);
-    task = new TestBigtableSinkTask(config, null, null, new RecordDataExtractor(KafkaMessageComponent.Key), keyMapper, valueMapper, null, null);
+    task = new TestBigtableSinkTask(config, null, null, new RecordDataExtractor(KafkaMessageComponent.KEY), keyMapper, valueMapper, null, null);
 
     assertTrue(task.createRecordMutationData(emptyRecord).isEmpty());
     assertTrue(task.createRecordMutationData(okRecord).isPresent());
@@ -602,7 +602,7 @@ public class BigtableSinkTaskTest {
       task =
           spy(
               new TestBigtableSinkTask(
-                  config, bigtableData, null, new RecordDataExtractor(KafkaMessageComponent.Key), keyMapper, valueMapper, schemaManager, null));
+                  config, bigtableData, null, new RecordDataExtractor(KafkaMessageComponent.KEY), keyMapper, valueMapper, schemaManager, null));
 
       task.put(List.of(record1, record2));
 

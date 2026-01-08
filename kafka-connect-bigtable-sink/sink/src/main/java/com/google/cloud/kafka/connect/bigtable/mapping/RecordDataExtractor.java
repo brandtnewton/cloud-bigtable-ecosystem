@@ -12,7 +12,7 @@ public class RecordDataExtractor {
   }
 
   public SchemaAndValue getValue(SinkRecord record) {
-    if (this.messageComponent == KafkaMessageComponent.Value) {
+    if (this.messageComponent == KafkaMessageComponent.VALUE) {
       return new SchemaAndValue(record.valueSchema(), record.value());
     }
     return new SchemaAndValue(record.keySchema(), record.key());

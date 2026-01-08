@@ -15,6 +15,7 @@
  */
 package com.google.cloud.kafka.connect.bigtable.integration;
 
+import com.google.cloud.kafka.connect.bigtable.util.NestedNullStructFactory;
 import static com.google.cloud.kafka.connect.bigtable.util.NestedNullStructFactory.NESTED_NULL_STRUCT_FIELD_NAME;
 import static com.google.cloud.kafka.connect.bigtable.util.NestedNullStructFactory.NESTED_NULL_STRUCT_FIELD_NAME_BYTES;
 import static com.google.cloud.kafka.connect.bigtable.util.NestedNullStructFactory.getStructWithNullOnNthNestingLevel;

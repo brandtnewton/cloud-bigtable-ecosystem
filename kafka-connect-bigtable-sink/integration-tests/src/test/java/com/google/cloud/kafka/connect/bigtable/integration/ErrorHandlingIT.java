@@ -25,8 +25,9 @@ import com.google.cloud.bigtable.data.v2.models.RowCell;
 import com.google.cloud.kafka.connect.bigtable.config.BigtableSinkConfig;
 import com.google.cloud.kafka.connect.bigtable.config.InsertMode;
 import com.google.cloud.kafka.connect.bigtable.config.NullValueMode;
-import com.google.cloud.kafka.connect.bigtable.util.JsonConverterFactory;
 import com.google.protobuf.ByteString;
+import com.google.cloud.kafka.connect.bigtable.util.JsonConverterFactory;
+
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.AbstractMap;
@@ -37,6 +38,7 @@ import java.util.Map;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeoutException;
 import java.util.function.Function;
+
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
@@ -75,7 +77,7 @@ public class ErrorHandlingIT extends BaseKafkaConnectBigtableIT {
     String testId = startSingleTopicConnector(props);
     createTablesAndColumnFamilies(testId);
 
-    byte[] key = "key".getBytes(StandardCharsets.UTF_8);
+    byte[] key = "key" .getBytes(StandardCharsets.UTF_8);
     // The hard limit is 100 MB as per https://cloud.google.com/bigtable/quotas#limits-data-size
     int twoHundredMegabytes = 200 * 1000 * 1000;
     byte[] value = new byte[twoHundredMegabytes];

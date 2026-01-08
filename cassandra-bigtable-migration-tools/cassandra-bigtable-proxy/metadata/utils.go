@@ -71,9 +71,9 @@ func detectTableEncoding(tableInfo *bigtable.TableInfo, defaultEncoding types.In
 	return defaultEncoding
 }
 
-func createBigtableRowKeySchema(pmks []types.CreateTablePrimaryKeyConfig, cols []types.CreateColumn, intRowKeyEncoding types.IntRowKeyEncodingType) (*bigtable.StructType, error) {
+func createBigtableRowKeySchema(primaryKeys []types.CreateTablePrimaryKeyConfig, cols []types.CreateColumn, intRowKeyEncoding types.IntRowKeyEncodingType) (*bigtable.StructType, error) {
 	var rowKeySchemaFields []bigtable.StructField
-	for _, key := range pmks {
+	for _, key := range primaryKeys {
 		pmkIndex := slices.IndexFunc(cols, func(c types.CreateColumn) bool {
 			return c.Name == key.Name
 		})
@@ -96,7 +96,9 @@ func createBigtableRowKeyField(col types.CreateColumn, intRowKeyEncoding types.I
 	switch col.TypeInfo.DataType() {
 	case datatype.Varchar:
 		return bigtable.StructField{FieldName: string(col.Name), FieldType: bigtable.StringType{Encoding: bigtable.StringUtf8BytesEncoding{}}}, nil
-	case datatype.Int, datatype.Bigint, datatype.Timestamp:
+	case datatype.Timestamp:
+		return bigtable.StructField{FieldName: string(col.Name), FieldType: bigtable.TimestampType{Encoding: bigtable.TimestampUnixMicrosInt64Encoding{UnixMicrosInt64Encoding: bigtable.Int64OrderedCodeBytesEncoding{}}}}, nil
+	case datatype.Int, datatype.Bigint:
 		switch intRowKeyEncoding {
 		case types.OrderedCodeEncoding:
 			return bigtable.StructField{FieldName: string(col.Name), FieldType: bigtable.Int64Type{Encoding: bigtable.Int64OrderedCodeBytesEncoding{}}}, nil

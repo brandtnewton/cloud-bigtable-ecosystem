@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/global/types"
 	schemaMapping "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/metadata"
+	"time"
 )
 
 var kOrderedCodeEmptyField = []byte("\x00\x00")
@@ -44,6 +45,13 @@ func BindRowKey(tableConfig *schemaMapping.TableSchema, rowKeyValues []types.Dyn
 			}
 		case int64:
 			orderEncodedField, err = encodeInt64Key(v, tableConfig.IntRowKeyEncoding)
+			if err != nil {
+				return "", err
+			}
+		case time.Time:
+			// always use Ordered Code encoding because we don't have to worry about backwards compatability, like with Int64/32 row key types.
+			// truncate to Milliseconds because Bigtable uses microseconds for keys but Cassandra uses milliseconds
+			orderEncodedField, err = encodeInt64Key(v.Truncate(time.Millisecond).UnixMicro(), types.OrderedCodeEncoding)
 			if err != nil {
 				return "", err
 			}

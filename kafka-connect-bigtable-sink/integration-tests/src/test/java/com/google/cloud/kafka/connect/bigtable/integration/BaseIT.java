@@ -39,6 +39,8 @@ import org.apache.kafka.connect.storage.StringConverter;
 
 public abstract class BaseIT {
   public static final String CREDENTIALS_PATH_ENV_VAR = "GOOGLE_APPLICATION_CREDENTIALS";
+  public static final String GCP_PROJECT_ID = "PROJECT_ID";
+  public static final String BIGTABLE_INSTANCE_ID = "INSTANCE_ID";
   public static final String CONNECTOR_CLASS_NAME =
       "com.google.cloud.kafka.connect.bigtable.BigtableSinkConnector";
 
@@ -63,11 +65,8 @@ public abstract class BaseIT {
             + ProducerConfig.BUFFER_MEMORY_CONFIG,
         String.valueOf(maxKafkaMessageSizeBytes));
 
-    String projectId = Objects.requireNonNull(System.getenv("PROJECT_ID"), "Environment variable PROJECT_ID must be set.");
-    String instanceId = Objects.requireNonNull(System.getenv("INSTANCE_ID"), "Environment variable INSTANCE_ID must be set.");
-
-    result.put(GCP_PROJECT_ID_CONFIG, projectId);
-    result.put(BIGTABLE_INSTANCE_ID_CONFIG, instanceId);
+    result.put(GCP_PROJECT_ID_CONFIG, Objects.requireNonNull(System.getenv(GCP_PROJECT_ID)));
+    result.put(BIGTABLE_INSTANCE_ID_CONFIG, Objects.requireNonNull(System.getenv(BIGTABLE_INSTANCE_ID)));
     result.put(
         BigtableSinkConfig.GCP_CREDENTIALS_PATH_CONFIG,
         Objects.requireNonNull(System.getenv(CREDENTIALS_PATH_ENV_VAR)));

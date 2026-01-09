@@ -144,7 +144,7 @@ func TestBlobEdgeCases(t *testing.T) {
 				val:  nil,
 				name: "null key",
 			},
-			writeErr: "invalid null value",
+			writeErr: "value cannot be null for primary key 'pk'",
 		},
 		{
 			name: "empty col",
@@ -273,13 +273,13 @@ func TestBlobLiteralEdgeCases(t *testing.T) {
 			inputVal: "0x01",
 			wantKey:  []byte{},
 			wantVal:  []byte{0x01},
-			writeErr: "invalid hex literal",
+			writeErr: "parsing error",
 		},
 		{
 			name:     "key: single hex",
 			inputKey: "0x1",
 			inputVal: "0x01",
-			writeErr: "could not parse hex bytes",
+			writeErr: "odd length hex string",
 		},
 		{
 			name:     "key: 0x00",
@@ -330,18 +330,18 @@ func TestBlobLiteralEdgeCases(t *testing.T) {
 			wantVal:  []byte{0xff},
 		},
 		{
-			name:     "val: empty key",
+			name:     "val: missing prefix",
 			inputKey: "0x01",
 			inputVal: "ffff",
 			wantKey:  []byte{0x01},
 			wantVal:  []byte{},
-			writeErr: "invalid hex literal",
+			writeErr: "parsing error:",
 		},
 		{
 			name:     "val: single hex",
 			inputKey: "0x01",
 			inputVal: "0x1",
-			writeErr: "could not parse hex bytes",
+			writeErr: "odd length hex string",
 		},
 		{
 			name:     "val: empty hex",

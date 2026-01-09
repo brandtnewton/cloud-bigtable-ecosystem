@@ -37,6 +37,7 @@ CREATE TABLE IF NOT EXISTS bigtabledevinstance.user_info (
 	map_text_ts map<text,timestamp>,
 	map_text_float map<text,float>,
 	map_text_double map<text,double>,
+	map_ascii map<ascii,ascii>,
 	ts_text_map map<timestamp,text>,
 	ts_boolean_map map<timestamp,boolean>,
 	ts_float_map map<timestamp,float>,
@@ -51,6 +52,7 @@ CREATE TABLE IF NOT EXISTS bigtabledevinstance.user_info (
 	set_float set<float>,
 	set_double set<double>,
 	set_timestamp set<timestamp>,
+	set_ascii set<ascii>,
 	list_text list<text>,
 	list_int list<int>,
 	list_bigint list<bigint>,
@@ -58,6 +60,7 @@ CREATE TABLE IF NOT EXISTS bigtabledevinstance.user_info (
 	list_double list<double>,
 	list_boolean list<boolean>,
 	list_timestamp list<timestamp>,
+	list_ascii list<ascii>,
 	PRIMARY KEY (age, name)
 );
 `,

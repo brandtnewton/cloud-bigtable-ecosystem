@@ -444,7 +444,7 @@ func parseCqlTimestamp(timestampStr string) (time.Time, error) {
 
 func isSupportedCollectionElementType(dt datatype.DataType) bool {
 	switch dt {
-	case datatype.Int, datatype.Bigint, datatype.Varchar, datatype.Float, datatype.Double, datatype.Timestamp, datatype.Boolean:
+	case datatype.Int, datatype.Bigint, datatype.Varchar, datatype.Float, datatype.Double, datatype.Timestamp, datatype.Boolean, datatype.Ascii:
 		return true
 	default:
 		return false

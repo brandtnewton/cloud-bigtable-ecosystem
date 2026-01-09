@@ -2,6 +2,7 @@ package compliance
 
 import (
 	"crypto/rand"
+	"fmt"
 	"github.com/gocql/gocql"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -137,6 +138,19 @@ func TestBlobEdgeCases(t *testing.T) {
 			writeErr: "key may not be empty",
 		},
 		{
+			name: "null key",
+			input: blobRow{
+				pk:   nil,
+				val:  nil,
+				name: "null key",
+			},
+			want: blobRow{
+				pk:   nil,
+				val:  nil,
+				name: "null key",
+			},
+		},
+		{
 			name: "empty col",
 			input: blobRow{
 				pk:   []byte{0x01},
@@ -147,6 +161,20 @@ func TestBlobEdgeCases(t *testing.T) {
 				pk:   []byte{0x01},
 				val:  nil,
 				name: "empty col",
+			},
+			writeErr: "",
+		},
+		{
+			name: "empty val",
+			input: blobRow{
+				pk:   []byte{0x01},
+				val:  []byte{},
+				name: "empty val",
+			},
+			want: blobRow{
+				pk:   []byte{0x01},
+				val:  nil,
+				name: "empty val",
 			},
 			writeErr: "",
 		},
@@ -195,12 +223,83 @@ func TestBlobEdgeCases(t *testing.T) {
 			require.NoError(t, err)
 
 			var gotPk []byte
-			var gotVal []byte
 			var gotName string
+			var gotVal []byte
 			require.NoError(t, session.Query(`SELECT pk, name, val FROM blob_table WHERE pk=? AND name=?`, tc.input.pk, tc.input.name).Scan(&gotPk, &gotName, &gotVal))
 			assert.Equal(t, tc.want.pk, gotPk)
 			assert.Equal(t, tc.want.name, gotName)
 			assert.Equal(t, tc.want.val, gotVal)
+		})
+	}
+}
+func TestBlobLiteralEdgeCases(t *testing.T) {
+	t.Parallel()
+
+	testCases := []struct {
+		name     string
+		input    string
+		want     []byte
+		writeErr string
+	}{
+		{
+			name:  "empty key",
+			input: "0XCAFE",
+			want:  []byte{},
+		},
+		{
+			name:  "empty key",
+			input: "0XcAFe",
+			want:  []byte{},
+		},
+		{
+			name:  "empty key",
+			input: "0XFf",
+			want:  []byte{},
+		},
+		{
+			name:     "empty key",
+			input:    "ffff",
+			want:     []byte{},
+			writeErr: "invalid hex literal",
+		},
+		{
+			name:  "single hex",
+			input: "0x1",
+			want:  []byte{},
+		},
+		{
+			name:  "empty hex",
+			input: "0x",
+			want:  []byte{},
+		},
+		{
+			name:  "empty string",
+			input: "",
+			want:  []byte{},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			err := session.Query(fmt.Sprintf(`INSERT INTO blob_table (pk, name, val) VALUES (%s, %s, %s)`, tc.input, tc.name, tc.input)).Exec()
+			if tc.writeErr != "" {
+				require.Error(t, err)
+				if testTarget == TestTargetProxy {
+					require.Contains(t, err.Error(), tc.writeErr)
+				}
+				return
+			}
+			require.NoError(t, err)
+
+			var gotPk []byte
+			var gotName string
+			var gotVal []byte
+			require.NoError(t, session.Query(fmt.Sprintf(`SELECT pk, name, val FROM blob_table WHERE pk=%s AND name=%s`, tc.input, tc.input)).Scan(&gotPk, &gotName, &gotVal))
+			assert.Equal(t, tc.want, gotPk)
+			assert.Equal(t, tc.name, gotName)
+			assert.Equal(t, tc.want, gotVal)
 		})
 	}
 }

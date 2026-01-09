@@ -347,7 +347,7 @@ func StringToGo(value string, cqlType types.CqlDataType) (types.GoValue, error) 
 		iv = val
 	case datatype.Blob:
 		// remove the '0x' prefix that CQL requires for blob literals
-		if strings.HasPrefix(value, "0x") {
+		if strings.HasPrefix(value, "0x") || strings.HasPrefix(value, "0X") {
 			value = value[2:]
 		}
 		hexBytes, err := hex.DecodeString(value)

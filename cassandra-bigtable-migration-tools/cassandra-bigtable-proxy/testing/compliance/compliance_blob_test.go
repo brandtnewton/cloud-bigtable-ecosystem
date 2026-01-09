@@ -144,11 +144,7 @@ func TestBlobEdgeCases(t *testing.T) {
 				val:  nil,
 				name: "null key",
 			},
-			want: blobRow{
-				pk:   nil,
-				val:  nil,
-				name: "null key",
-			},
+			writeErr: "invalid null value",
 		},
 		{
 			name: "empty col",
@@ -237,45 +233,95 @@ func TestBlobLiteralEdgeCases(t *testing.T) {
 
 	testCases := []struct {
 		name     string
-		input    string
-		want     []byte
+		inputKey string
+		inputVal string
+		wantKey  []byte
+		wantVal  []byte
 		writeErr string
 	}{
 		{
-			name:  "empty key",
-			input: "0XCAFE",
-			want:  []byte{},
+			name:     "key: valid",
+			inputKey: "0x01",
+			wantKey:  []byte{0x01},
 		},
 		{
-			name:  "empty key",
-			input: "0XcAFe",
-			want:  []byte{},
+			name:     "key: capitalized hex",
+			inputKey: "0XCAFE",
+			wantKey:  []byte{0xca, 0xfe},
 		},
 		{
-			name:  "empty key",
-			input: "0XFf",
-			want:  []byte{},
+			name:     "key: mixed case hex",
+			inputKey: "0XcAFe",
+			wantKey:  []byte{0xca, 0xfe},
 		},
 		{
-			name:     "empty key",
-			input:    "ffff",
-			want:     []byte{},
+			name:     "key: empty key",
+			inputKey: "0XFf",
+			wantKey:  []byte{0xff},
+		},
+		{
+			name:     "key: empty key",
+			inputKey: "ffff",
+			wantKey:  []byte{},
 			writeErr: "invalid hex literal",
 		},
 		{
-			name:  "single hex",
-			input: "0x1",
-			want:  []byte{},
+			name:     "key: single hex",
+			inputKey: "0x1",
+			writeErr: "could not parse hex bytes",
 		},
 		{
-			name:  "empty hex",
-			input: "0x",
-			want:  []byte{},
+			name:     "key: empty hex",
+			inputKey: "0x",
+			writeErr: "key may not be empty",
 		},
 		{
-			name:  "empty string",
-			input: "",
-			want:  []byte{},
+			name:     "val: valid",
+			inputKey: "0x01",
+			inputVal: "0x01",
+			wantKey:  []byte{0x01},
+			wantVal:  []byte{0x01},
+		},
+		{
+			name:     "val: capitalized hex",
+			inputKey: "0x01",
+			inputVal: "0XCAFE",
+			wantKey:  []byte{0x01},
+			wantVal:  []byte{0xca, 0xfe},
+		},
+		{
+			name:     "val: mixed case hex",
+			inputKey: "0x01",
+			inputVal: "0XcAFe",
+			wantKey:  []byte{0x01},
+			wantVal:  []byte{0xca, 0xfe},
+		},
+		{
+			name:     "val: empty key",
+			inputKey: "0x01",
+			inputVal: "0XFf",
+			wantKey:  []byte{0x01},
+			wantVal:  []byte{0xff},
+		},
+		{
+			name:     "val: empty key",
+			inputKey: "0x01",
+			inputVal: "ffff",
+			wantKey:  []byte{0x01},
+			wantVal:  []byte{},
+			writeErr: "invalid hex literal",
+		},
+		{
+			name:     "val: single hex",
+			inputKey: "0x01",
+			inputVal: "0x1",
+			writeErr: "could not parse hex bytes",
+		},
+		{
+			name:     "val: empty hex",
+			inputKey: "0x01",
+			inputVal: "0x",
+			writeErr: "key may not be empty",
 		},
 	}
 
@@ -283,7 +329,7 @@ func TestBlobLiteralEdgeCases(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
-			err := session.Query(fmt.Sprintf(`INSERT INTO blob_table (pk, name, val) VALUES (%s, %s, %s)`, tc.input, tc.name, tc.input)).Exec()
+			err := session.Query(fmt.Sprintf(`INSERT INTO blob_table (pk, name, val) VALUES (%s, '%s', %s)`, tc.inputKey, tc.name, tc.inputVal)).Exec()
 			if tc.writeErr != "" {
 				require.Error(t, err)
 				if testTarget == TestTargetProxy {
@@ -296,10 +342,10 @@ func TestBlobLiteralEdgeCases(t *testing.T) {
 			var gotPk []byte
 			var gotName string
 			var gotVal []byte
-			require.NoError(t, session.Query(fmt.Sprintf(`SELECT pk, name, val FROM blob_table WHERE pk=%s AND name=%s`, tc.input, tc.input)).Scan(&gotPk, &gotName, &gotVal))
-			assert.Equal(t, tc.want, gotPk)
+			require.NoError(t, session.Query(fmt.Sprintf(`SELECT pk, name, val FROM blob_table WHERE pk=%s AND name='%s'`, tc.inputKey, tc.name)).Scan(&gotPk, &gotName, &gotVal))
+			assert.Equal(t, tc.wantKey, gotPk)
 			assert.Equal(t, tc.name, gotName)
-			assert.Equal(t, tc.want, gotVal)
+			assert.Equal(t, tc.wantVal, gotVal)
 		})
 	}
 }

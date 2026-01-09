@@ -282,6 +282,22 @@ func TestBlobLiteralEdgeCases(t *testing.T) {
 			writeErr: "could not parse hex bytes",
 		},
 		{
+			name:     "key: 0x00",
+			inputKey: "0x00",
+			inputVal: "0x00",
+			writeErr: "could not parse hex bytes",
+		},
+		{
+			name:     "key: 0x00 0x00",
+			inputKey: "0x0000",
+			inputVal: "0x0000",
+		},
+		{
+			name:     "key: null byte escaped",
+			inputKey: "0x00ff",
+			inputVal: "0x00ff",
+		},
+		{
 			name:     "key: empty hex",
 			inputKey: "0x",
 			inputVal: "0x01",

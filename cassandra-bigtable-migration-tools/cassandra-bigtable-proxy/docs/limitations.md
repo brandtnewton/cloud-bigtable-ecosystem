@@ -20,6 +20,7 @@ simply because certain features haven't been fully implemented yet in the proxy.
 | timestamp             | yes       | yes         | RAW BYTES                                                                          |
 | int                   | yes       | yes         | RAW BYTES                                                                          |
 | bigint                | yes       | yes         | RAW BYTES                                                                          |
+| blob                  | yes       | yes         | RAW BYTES                                                                          |
 | float                 | yes       | no          | RAW BYTES                                                                          |
 | double                | yes       | no          | RAW BYTES                                                                          |
 | boolean               | yes       | no          | RAW BYTES                                                                          |
@@ -35,7 +36,7 @@ column qualifier, list items as column value.**
 
 ### Non-supported data types
 
-The proxy currently doesn't support the following data types: US-ASCII, blob, 
+The proxy currently doesn't support the following data types: US-ASCII, 
 date, decimal, duration, inet, smallint, time, timeuuid, tinyint, uuid,
 varint, frozen and user-defined types (UDT).
 

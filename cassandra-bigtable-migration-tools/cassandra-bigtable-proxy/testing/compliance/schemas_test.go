@@ -160,6 +160,14 @@ CREATE TABLE IF NOT EXISTS bigtabledevinstance.compound_key_table (
 );
 `,
 		`
+CREATE TABLE IF NOT EXISTS bigtabledevinstance.blob_table (
+	pk blob,
+	name varchar,
+	val blob,
+	PRIMARY KEY (pk, name)
+);
+`,
+		`
 CREATE TABLE IF NOT EXISTS bigtabledevinstance.timestamp_key (
 	region text,
 	event_time timestamp,

@@ -475,22 +475,45 @@ func ParseCqlConstant(c cql.IConstantContext, dt types.CqlDataType) (types.GoVal
 	if c.QUESTION_MARK() != nil {
 		return nil, fmt.Errorf("cannot get constant from prepared query")
 	}
-	if c.StringLiteral() != nil {
-		return utilities.StringToGo(TrimQuotes(c.StringLiteral().GetText()), dt)
-	}
-	if c.DecimalLiteral() != nil {
-		return utilities.StringToGo(c.DecimalLiteral().GetText(), dt)
-	}
-	if c.FloatLiteral() != nil {
-		return utilities.StringToGo(c.FloatLiteral().GetText(), dt)
-	}
-	if c.BooleanLiteral() != nil {
-		return utilities.StringToGo(c.BooleanLiteral().GetText(), dt)
-	}
+
 	if c.KwNull() != nil {
 		return nil, nil
 	}
-	return nil, fmt.Errorf("unhandled constant: %s", c.GetText())
+
+	switch dt.Code() {
+	case types.TIMESTAMP:
+		if c.StringLiteral() != nil {
+			return parseStringLiteral(c.StringLiteral(), dt)
+		}
+		if c.DecimalLiteral() != nil {
+			return utilities.StringToGo(c.DecimalLiteral().GetText(), dt)
+		}
+	case types.VARCHAR, types.TEXT:
+		if c.StringLiteral() != nil {
+			return parseStringLiteral(c.StringLiteral(), dt)
+		}
+	case types.INT, types.BIGINT, types.DECIMAL, types.FLOAT, types.COUNTER:
+		if c.DecimalLiteral() != nil {
+			return utilities.StringToGo(c.DecimalLiteral().GetText(), dt)
+		}
+		if c.FloatLiteral() != nil {
+			return utilities.StringToGo(c.FloatLiteral().GetText(), dt)
+		}
+	case types.BOOLEAN:
+		if c.BooleanLiteral() != nil {
+			return utilities.StringToGo(c.BooleanLiteral().GetText(), dt)
+		}
+	case types.BLOB:
+		if c.HexadecimalLiteral() != nil {
+			return utilities.StringToGo(c.HexadecimalLiteral().GetText(), dt)
+		}
+	}
+
+	return nil, fmt.Errorf("invalid literal for type %s: '%s'", dt.String(), c.GetText())
+}
+
+func parseStringLiteral(s cql.IStringLiteralContext, dt types.CqlDataType) (types.GoValue, error) {
+	return utilities.StringToGo(TrimQuotes(s.GetText()), dt)
 }
 
 const (

@@ -17,6 +17,8 @@
 package utilities
 
 import (
+	"encoding/base64"
+	"encoding/hex"
 	"fmt"
 	"reflect"
 	"sort"
@@ -245,7 +247,7 @@ func IsSupportedPrimaryKeyType(dt types.CqlDataType) bool {
 	}
 
 	switch dt.DataType() {
-	case datatype.Int, datatype.Bigint, datatype.Varchar, datatype.Timestamp:
+	case datatype.Int, datatype.Bigint, datatype.Varchar, datatype.Timestamp, datatype.Blob:
 		return true
 	default:
 		return false
@@ -285,6 +287,10 @@ func GoToString(value types.GoValue) (string, error) {
 		}
 	case time.Time:
 		return fmt.Sprintf("TIMESTAMP_FROM_UNIX_MILLIS(%d)", v.UnixMilli()), nil
+	case []uint8:
+		encoded := base64.StdEncoding.EncodeToString(v)
+		// note: Bigtable limits SQL strings to 1,024k characters while Cassandra has no official limit. We only encode blobs to base64 when a literal is used. Placeholders will not have this issue.
+		return fmt.Sprintf("FROM_BASE64('%s')", encoded), nil
 	case []interface{}:
 		var values []string
 		for _, vi := range v {
@@ -341,7 +347,15 @@ func StringToGo(value string, cqlType types.CqlDataType) (types.GoValue, error) 
 		}
 		iv = val
 	case datatype.Blob:
-		iv = value
+		// remove the '0x' prefix that CQL requires for blob literals
+		if strings.HasPrefix(value, "0x") || strings.HasPrefix(value, "0X") {
+			value = value[2:]
+		}
+		hexBytes, err := hex.DecodeString(value)
+		if err != nil {
+			return nil, err
+		}
+		iv = hexBytes
 	case datatype.Varchar:
 		iv = value
 	default:

@@ -57,6 +57,11 @@ func GetSchemaMappingConfig() *schemaMapping.SchemaMetadata {
 			{Name: "event_time", CQLType: types.TypeTime, KeyType: types.KeyTypePartition, IsPrimaryKey: true, PkPrecedence: 1},
 			{Name: "email", CQLType: types.TypeText},
 		}
+		blobKeyColumns = []*types.Column{
+			{Name: "pk", CQLType: types.TypeBlob, KeyType: types.KeyTypePartition, IsPrimaryKey: true, PkPrecedence: 1},
+			{Name: "name", CQLType: types.TypeVarchar, KeyType: types.KeyTypeClustering, IsPrimaryKey: true, PkPrecedence: 2},
+			{Name: "val", CQLType: types.TypeBlob},
+		}
 	)
 
 	var allTableConfigs = []*schemaMapping.TableSchema{
@@ -87,6 +92,13 @@ func GetSchemaMappingConfig() *schemaMapping.SchemaMetadata {
 			"cf1",
 			types.BigEndianEncoding,
 			timestampKeyColumns,
+		),
+		schemaMapping.NewTableConfig(
+			"test_keyspace",
+			"blob_table",
+			"cf1",
+			types.BigEndianEncoding,
+			blobKeyColumns,
 		),
 	}
 	return schemaMapping.NewSchemaMetadata(

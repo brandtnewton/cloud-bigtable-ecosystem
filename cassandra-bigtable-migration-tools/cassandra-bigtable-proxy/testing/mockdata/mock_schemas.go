@@ -36,6 +36,7 @@ func GetSchemaMappingConfig() *schemaMapping.SchemaMetadata {
 			{Name: "list_text", CQLType: types.NewListType(types.TypeText)},
 			{Name: "col_ts", CQLType: types.TypeTimestamp},
 			{Name: "col_int", CQLType: types.TypeInt},
+			{Name: "col_ascii", CQLType: types.TypeAscii},
 			{Name: "col_float", CQLType: types.TypeFloat},
 			{Name: "col_double", CQLType: types.TypeDouble},
 			{Name: "col_bigint", CQLType: types.TypeBigInt},

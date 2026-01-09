@@ -2,6 +2,7 @@ package compliance
 
 import (
 	"crypto/rand"
+	"fmt"
 	"github.com/gocql/gocql"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -137,6 +138,15 @@ func TestBlobEdgeCases(t *testing.T) {
 			writeErr: "key may not be empty",
 		},
 		{
+			name: "null key",
+			input: blobRow{
+				pk:   nil,
+				val:  nil,
+				name: "null key",
+			},
+			writeErr: "value cannot be null for primary key 'pk'",
+		},
+		{
 			name: "empty col",
 			input: blobRow{
 				pk:   []byte{0x01},
@@ -147,6 +157,20 @@ func TestBlobEdgeCases(t *testing.T) {
 				pk:   []byte{0x01},
 				val:  nil,
 				name: "empty col",
+			},
+			writeErr: "",
+		},
+		{
+			name: "empty val",
+			input: blobRow{
+				pk:   []byte{0x01},
+				val:  []byte{},
+				name: "empty val",
+			},
+			want: blobRow{
+				pk:   []byte{0x01},
+				val:  nil,
+				name: "empty val",
 			},
 			writeErr: "",
 		},
@@ -195,12 +219,167 @@ func TestBlobEdgeCases(t *testing.T) {
 			require.NoError(t, err)
 
 			var gotPk []byte
-			var gotVal []byte
 			var gotName string
+			var gotVal []byte
 			require.NoError(t, session.Query(`SELECT pk, name, val FROM blob_table WHERE pk=? AND name=?`, tc.input.pk, tc.input.name).Scan(&gotPk, &gotName, &gotVal))
 			assert.Equal(t, tc.want.pk, gotPk)
 			assert.Equal(t, tc.want.name, gotName)
 			assert.Equal(t, tc.want.val, gotVal)
+		})
+	}
+}
+func TestBlobLiteralEdgeCases(t *testing.T) {
+	t.Parallel()
+
+	testCases := []struct {
+		name     string
+		inputKey string
+		inputVal string
+		wantKey  []byte
+		wantVal  []byte
+		writeErr string
+	}{
+		{
+			name:     "key: valid",
+			inputKey: "0x01",
+			inputVal: "0x01",
+			wantKey:  []byte{0x01},
+			wantVal:  []byte{0x01},
+		},
+		{
+			name:     "key: capitalized hex",
+			inputKey: "0XCAFE",
+			inputVal: "0x01",
+			wantKey:  []byte{0xca, 0xfe},
+			wantVal:  []byte{0x01},
+		},
+		{
+			name:     "key: mixed case hex",
+			inputKey: "0XcAFe",
+			inputVal: "0x01",
+			wantKey:  []byte{0xca, 0xfe},
+			wantVal:  []byte{0x01},
+		},
+		{
+			name:     "key: empty key",
+			inputKey: "0XFf",
+			inputVal: "0x01",
+			wantKey:  []byte{0xff},
+			wantVal:  []byte{0x01},
+		},
+		{
+			name:     "key: empty key",
+			inputKey: "ffff",
+			inputVal: "0x01",
+			wantKey:  []byte{},
+			wantVal:  []byte{0x01},
+			writeErr: "parsing error",
+		},
+		{
+			name:     "key: single hex",
+			inputKey: "0x1",
+			inputVal: "0x01",
+			writeErr: "odd length hex string",
+		},
+		{
+			name:     "key: 0x00",
+			inputKey: "0x00",
+			inputVal: "0x00",
+			wantKey:  []byte{0x00},
+			wantVal:  []byte{0x00},
+		},
+		{
+			name:     "key: 0x00 0x00",
+			inputKey: "0x0000",
+			inputVal: "0x0000",
+			wantKey:  []byte{0x00, 0x00},
+			wantVal:  []byte{0x00, 0x00},
+		},
+		{
+			name:     "key: null byte escaped",
+			inputKey: "0xfe00ff",
+			inputVal: "0xfe00ff",
+			wantKey:  []byte{0xfe, 0x00, 0xff},
+			wantVal:  []byte{0xfe, 0x00, 0xff},
+		},
+		{
+			name:     "key: empty hex",
+			inputKey: "0x",
+			inputVal: "0x01",
+			writeErr: "key may not be empty",
+		},
+		{
+			name:     "val: capitalized hex",
+			inputKey: "0x01",
+			inputVal: "0XCAFE",
+			wantKey:  []byte{0x01},
+			wantVal:  []byte{0xca, 0xfe},
+		},
+		{
+			name:     "val: mixed case hex",
+			inputKey: "0x01",
+			inputVal: "0XcAFe",
+			wantKey:  []byte{0x01},
+			wantVal:  []byte{0xca, 0xfe},
+		},
+		{
+			name:     "val: empty key",
+			inputKey: "0x01",
+			inputVal: "0XFf",
+			wantKey:  []byte{0x01},
+			wantVal:  []byte{0xff},
+		},
+		{
+			name:     "val: missing prefix",
+			inputKey: "0x01",
+			inputVal: "ffff",
+			wantKey:  []byte{0x01},
+			wantVal:  []byte{},
+			writeErr: "parsing error:",
+		},
+		{
+			name:     "val: single hex",
+			inputKey: "0x01",
+			inputVal: "0x1",
+			writeErr: "odd length hex string",
+		},
+		{
+			name:     "val: empty hex",
+			inputKey: "0x01",
+			inputVal: "0x",
+			wantKey:  []byte{0x01},
+			wantVal:  nil,
+		},
+		{
+			name:     "val: null",
+			inputKey: "0x01",
+			inputVal: "null",
+			wantKey:  []byte{0x01},
+			wantVal:  nil,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			err := session.Query(fmt.Sprintf(`INSERT INTO blob_table (pk, name, val) VALUES (%s, '%s', %s)`, tc.inputKey, tc.name, tc.inputVal)).Exec()
+			if tc.writeErr != "" {
+				require.Error(t, err)
+				if testTarget == TestTargetProxy {
+					require.Contains(t, err.Error(), tc.writeErr)
+				}
+				return
+			}
+			require.NoError(t, err)
+
+			var gotPk []byte
+			var gotName string
+			var gotVal []byte
+			require.NoError(t, session.Query(fmt.Sprintf(`SELECT pk, name, val FROM blob_table WHERE pk=%s AND name='%s'`, tc.inputKey, tc.name)).Scan(&gotPk, &gotName, &gotVal))
+			assert.Equal(t, tc.wantKey, gotPk)
+			assert.Equal(t, tc.name, gotName)
+			assert.Equal(t, tc.wantVal, gotVal)
 		})
 	}
 }

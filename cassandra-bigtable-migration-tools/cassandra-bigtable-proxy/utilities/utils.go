@@ -290,6 +290,7 @@ func GoToString(value types.GoValue) (string, error) {
 		return fmt.Sprintf("TIMESTAMP_FROM_UNIX_MILLIS(%d)", v.UnixMilli()), nil
 	case []uint8:
 		encoded := base64.StdEncoding.EncodeToString(v)
+		// note: Bigtable limits SQL strings to 1,024k characters while Cassandra has no official limit. We only encode blobs to base64 when a literal is used. Placeholders will not have this issue.
 		return fmt.Sprintf("FROM_BASE64('%s')", encoded), nil
 	case []interface{}:
 		var values []string
@@ -346,7 +347,7 @@ func StringToGo(value string, cqlType types.CqlDataType) (types.GoValue, error) 
 		return val, nil
 	case datatype.Blob:
 		// remove the '0x' prefix that CQL requires for blob literals
-		if strings.HasPrefix(value, "0x") {
+		if strings.HasPrefix(value, "0x") || strings.HasPrefix(value, "0X") {
 			value = value[2:]
 		}
 		hexBytes, err := hex.DecodeString(value)

@@ -326,7 +326,15 @@ func TestBlobLiteralEdgeCases(t *testing.T) {
 			name:     "val: empty hex",
 			inputKey: "0x01",
 			inputVal: "0x",
-			writeErr: "key may not be empty",
+			wantKey:  []byte{0x01},
+			wantVal:  nil,
+		},
+		{
+			name:     "val: null",
+			inputKey: "0x01",
+			inputVal: "null",
+			wantKey:  []byte{0x01},
+			wantVal:  nil,
 		},
 	}
 

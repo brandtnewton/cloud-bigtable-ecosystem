@@ -43,12 +43,20 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.MockitoAnnotations.openMocks;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.google.api.gax.batching.Batcher;
 import com.google.api.gax.rpc.ApiException;
 import com.google.bigtable.admin.v2.Table;
+import com.google.bigtable.v2.MutateRowRequest;
 import com.google.cloud.bigtable.data.v2.BigtableDataClient;
+import com.google.cloud.bigtable.data.v2.internal.RequestContext;
 import com.google.cloud.bigtable.data.v2.models.Mutation;
+import com.google.cloud.bigtable.data.v2.models.RowMutation;
 import com.google.cloud.bigtable.data.v2.models.RowMutationEntry;
+import com.google.cloud.bigtable.data.v2.models.TableId;
 import com.google.cloud.kafka.connect.bigtable.autocreate.BigtableSchemaManager;
 import com.google.cloud.kafka.connect.bigtable.autocreate.ResourceCreationResult;
 import com.google.cloud.kafka.connect.bigtable.config.*;
@@ -63,24 +71,20 @@ import com.google.common.collect.Collections2;
 import com.google.protobuf.ByteString;
 
 import java.nio.charset.StandardCharsets;
-import java.util.AbstractMap;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.Set;
+import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
+import com.google.protobuf.util.JsonFormat;
 import org.apache.kafka.common.record.TimestampType;
+import org.apache.kafka.connect.data.Schema;
+import org.apache.kafka.connect.data.SchemaBuilder;
+import org.apache.kafka.connect.data.Struct;
 import org.apache.kafka.connect.errors.ConnectException;
+import org.apache.kafka.connect.errors.DataException;
 import org.apache.kafka.connect.sink.ErrantRecordReporter;
 import org.apache.kafka.connect.sink.SinkRecord;
 import org.apache.kafka.connect.sink.SinkTaskContext;
@@ -189,6 +193,92 @@ public class BigtableSinkTaskTest {
 
     assertTrue(task.createRecordMutationData(emptyRecord).isEmpty());
     assertTrue(task.createRecordMutationData(okRecord).isPresent());
+  }
+
+  private final Schema valueSchema = SchemaBuilder.struct()
+      .name("com.example.User")
+      .field("id", Schema.INT32_SCHEMA)
+      .field("name", Schema.STRING_SCHEMA)
+      .build();
+
+  @Test
+  public void testCreateRecordMutationData() throws JsonProcessingException {
+    Struct value = new Struct(valueSchema)
+        .put("id", 42)
+        .put("name", "John Doe");
+    SinkRecord okRecord = new SinkRecord("topic", 1, null, "key", valueSchema, value, 2);
+
+    keyMapper = new KeyMapper("#", List.of());
+    valueMapper = new ValueMapper("default", "KAFKA_VALUE", NullValueMode.IGNORE);
+    task = new TestBigtableSinkTask(config, null, null, new RecordDataExtractor(KafkaMessageComponent.KEY), keyMapper, valueMapper, null, null);
+
+    Optional<MutationData> result = task.createRecordMutationData(okRecord);
+    assertTrue(result.isPresent());
+    String proto = toProto(result.get()).replace("\n", "");
+
+    ObjectMapper mapper = new ObjectMapper();
+    JsonNode actual = mapper.readTree(proto);
+    assertEquals("projects/project/instances/instance/tables/topic", actual.get("tableName").asText());
+    assertEquals("a2V5", actual.get("rowKey").asText());
+    ArrayNode mutations = (ArrayNode) actual.get("mutations");
+    assertEquals(2, mutations.size());
+    assertEquals("default", mutations.get(0).get("setCell").get("familyName").textValue());
+    assertEquals("id", fromBase64(mutations.get(0).get("setCell").get("columnQualifier").textValue()));
+    assertEquals("AAAAKg==", mutations.get(0).get("setCell").get("value").textValue());
+    assertEquals("default", mutations.get(1).get("setCell").get("familyName").textValue());
+    assertEquals("name", fromBase64(mutations.get(1).get("setCell").get("columnQualifier").textValue()));
+    assertEquals("Sm9obiBEb2U=", mutations.get(1).get("setCell").get("value").textValue());
+  }
+
+  @Test
+  public void testCreateRecordMutationWithRowKeyFromValue() throws JsonProcessingException {
+    Struct value = new Struct(valueSchema)
+        .put("id", 42)
+        .put("name", "John Doe");
+    SinkRecord okRecord = new SinkRecord("topic", 1, null, "key", valueSchema, value, 2);
+
+    keyMapper = new KeyMapper("#", List.of("id", "name"));
+    valueMapper = new ValueMapper("default", "KAFKA_VALUE", NullValueMode.IGNORE);
+    task = new TestBigtableSinkTask(config, null, null, new RecordDataExtractor(KafkaMessageComponent.VALUE), keyMapper, valueMapper, null, null);
+
+    Optional<MutationData> result = task.createRecordMutationData(okRecord);
+    assertTrue(result.isPresent());
+    String proto = toProto(result.get()).replace("\n", "");
+
+    ObjectMapper mapper = new ObjectMapper();
+    JsonNode actual = mapper.readTree(proto);
+    assertEquals("projects/project/instances/instance/tables/topic", actual.get("tableName").asText());
+    assertEquals("42#John Doe", fromBase64(actual.get("rowKey").asText()));
+    ArrayNode mutations = (ArrayNode) actual.get("mutations");
+    assertEquals(2, mutations.size());
+    assertEquals("default", mutations.get(0).get("setCell").get("familyName").textValue());
+    assertEquals("id", fromBase64(mutations.get(0).get("setCell").get("columnQualifier").textValue()));
+    assertEquals("AAAAKg==", mutations.get(0).get("setCell").get("value").textValue());
+    assertEquals("default", mutations.get(1).get("setCell").get("familyName").textValue());
+    assertEquals("name", fromBase64(mutations.get(1).get("setCell").get("columnQualifier").textValue()));
+    assertEquals("Sm9obiBEb2U=", mutations.get(1).get("setCell").get("value").textValue());
+  }
+
+  @Test
+  public void testCreateRecordMutationWithRowKeyFromValueInvalid() {
+    Struct value = new Struct(valueSchema)
+        .put("id", 42)
+        .put("name", "John Doe");
+    SinkRecord okRecord = new SinkRecord("topic", 1, null, "key", valueSchema, value, 2);
+
+    keyMapper = new KeyMapper("#", List.of("id", "NO_SUCH_COLUMN"));
+    valueMapper = new ValueMapper("default", "KAFKA_VALUE", NullValueMode.IGNORE);
+    task = new TestBigtableSinkTask(config, null, null, new RecordDataExtractor(KafkaMessageComponent.VALUE), keyMapper, valueMapper, null, null);
+
+    Exception actualException = null;
+    try {
+      task.createRecordMutationData(okRecord);
+    } catch (Exception e) {
+      actualException = e;
+    }
+    assertNotNull(actualException);
+    assertEquals(DataException.class, actualException.getClass());
+    assertEquals("NO_SUCH_COLUMN is not a valid field name", actualException.getMessage());
   }
 
   @Test
@@ -441,7 +531,7 @@ public class BigtableSinkTaskTest {
     SinkRecord exceptionRecord = new SinkRecord("", 1, null, null, null, null, 3);
     MutationData commonMutationData = mock(MutationData.class);
     doReturn("ignored").when(commonMutationData).getTargetTable();
-    doReturn(ByteString.copyFrom("ignored" .getBytes(StandardCharsets.UTF_8)))
+    doReturn(ByteString.copyFrom("ignored".getBytes(StandardCharsets.UTF_8)))
         .when(commonMutationData)
         .getRowKey();
     doReturn(Mutation.create()).when(commonMutationData).getInsertMutation();
@@ -578,7 +668,7 @@ public class BigtableSinkTaskTest {
       props.put(INSERT_MODE_CONFIG, (useInsertMode ? InsertMode.INSERT : InsertMode.UPSERT).name());
       config = new BigtableSinkTaskConfig(props);
 
-      byte[] rowKey = "rowKey" .getBytes(StandardCharsets.UTF_8);
+      byte[] rowKey = "rowKey".getBytes(StandardCharsets.UTF_8);
       doReturn(rowKey).when(keyMapper).getKey(any());
       doAnswer(
           i -> {
@@ -640,6 +730,28 @@ public class BigtableSinkTaskTest {
 
     public Map<String, Batcher<RowMutationEntry, Void>> getBatchers() {
       return batchers;
+    }
+  }
+
+  private static String fromBase64(String b64) {
+    byte[] decodedBytes = Base64.getDecoder().decode(b64);
+    return new String(decodedBytes, StandardCharsets.UTF_8);
+  }
+
+  private String toProto(MutationData mutation) {
+    try {
+      // 1. Create a dummy RequestContext (Internal but commonly used for this)
+      RequestContext context = RequestContext.create("project", "instance", "profile");
+
+      // 2. Build a RowMutation which exposes a toProto method
+      RowMutation rowMutation = RowMutation.create(TableId.of(mutation.getTargetTable()), mutation.getRowKey(), mutation.getInsertMutation());
+
+      // 3. Convert to the full Request Proto
+      MutateRowRequest request = rowMutation.toProto(context);
+
+      return JsonFormat.printer().print(request);
+    } catch (Exception e) {
+      return "Conversion failed: " + e.getMessage();
     }
   }
 }

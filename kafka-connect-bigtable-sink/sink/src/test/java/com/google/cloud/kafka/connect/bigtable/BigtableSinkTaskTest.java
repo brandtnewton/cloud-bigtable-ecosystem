@@ -224,10 +224,10 @@ public class BigtableSinkTaskTest {
     assertEquals(2, mutations.size());
     assertEquals("default", mutations.get(0).get("setCell").get("familyName").textValue());
     assertEquals("id", fromBase64(mutations.get(0).get("setCell").get("columnQualifier").textValue()));
-    assertEquals("AAAAKg==", mutations.get(0).get("setCell").get("value").textValue());
+    assertEquals(toBase64(42), mutations.get(0).get("setCell").get("value").textValue());
     assertEquals("default", mutations.get(1).get("setCell").get("familyName").textValue());
     assertEquals("name", fromBase64(mutations.get(1).get("setCell").get("columnQualifier").textValue()));
-    assertEquals("Sm9obiBEb2U=", mutations.get(1).get("setCell").get("value").textValue());
+    assertEquals(toBase64("John Doe"), mutations.get(1).get("setCell").get("value").textValue());
   }
 
   @Test
@@ -253,10 +253,10 @@ public class BigtableSinkTaskTest {
     assertEquals(2, mutations.size());
     assertEquals("default", mutations.get(0).get("setCell").get("familyName").textValue());
     assertEquals("id", fromBase64(mutations.get(0).get("setCell").get("columnQualifier").textValue()));
-    assertEquals("AAAAKg==", mutations.get(0).get("setCell").get("value").textValue());
+    assertEquals(toBase64(42), mutations.get(0).get("setCell").get("value").textValue());
     assertEquals("default", mutations.get(1).get("setCell").get("familyName").textValue());
     assertEquals("name", fromBase64(mutations.get(1).get("setCell").get("columnQualifier").textValue()));
-    assertEquals("Sm9obiBEb2U=", mutations.get(1).get("setCell").get("value").textValue());
+    assertEquals(toBase64("John Doe"), mutations.get(1).get("setCell").get("value").textValue());
   }
 
   @Test
@@ -736,6 +736,21 @@ public class BigtableSinkTaskTest {
   private static String fromBase64(String b64) {
     byte[] decodedBytes = Base64.getDecoder().decode(b64);
     return new String(decodedBytes, StandardCharsets.UTF_8);
+  }
+
+  private static String toBase64(int value) {
+    byte[] bytes = ByteUtils.toBytes(value);
+    return toBase64(bytes);
+  }
+
+  private static String toBase64(String value) {
+    byte[] bytes = ByteUtils.toBytes(value);
+    return toBase64(bytes);
+  }
+
+  private static String toBase64(byte[] bytes) {
+    byte[] encodedBytes = Base64.getEncoder().encode(bytes);
+    return new String(encodedBytes, StandardCharsets.UTF_8);
   }
 
   private String toProto(MutationData mutation) {

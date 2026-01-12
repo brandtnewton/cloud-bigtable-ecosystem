@@ -22,6 +22,7 @@ import com.google.cloud.bigtable.data.v2.models.RowCell;
 import com.google.cloud.kafka.connect.bigtable.config.BigtableErrorMode;
 import com.google.cloud.kafka.connect.bigtable.config.BigtableSinkConfig;
 import com.google.cloud.kafka.connect.bigtable.config.InsertMode;
+import com.google.cloud.kafka.connect.bigtable.config.KafkaMessageComponent;
 import com.google.protobuf.ByteString;
 
 import java.nio.charset.StandardCharsets;
@@ -84,6 +85,32 @@ public class InsertUpsertIT extends BaseKafkaConnectBigtableIT {
   public void testUpsert() throws InterruptedException, ExecutionException {
     Map<String, String> props = baseConnectorProps();
     props.put(BigtableSinkConfig.INSERT_MODE_CONFIG, InsertMode.UPSERT.name());
+    String testId = startSingleTopicConnector(props);
+    createTablesAndColumnFamilies(testId);
+
+    connect.kafka().produce(testId, KEY1, VALUE1);
+    waitUntilBigtableContainsNumberOfRows(testId, 1);
+    connect.kafka().produce(testId, KEY1, VALUE2);
+    connect.kafka().produce(testId, KEY2, VALUE3);
+    waitUntilBigtableContainsNumberOfRows(testId, 2);
+
+    Map<ByteString, Row> rows = readAllRows(bigtableData, testId);
+    Row row1 = rows.get(KEY1_BYTES);
+    Row row2 = rows.get(KEY2_BYTES);
+    assertEquals(2, row1.getCells().size());
+    assertEquals(
+        Set.of(VALUE1_BYTES, VALUE2_BYTES),
+        row1.getCells().stream().map(RowCell::getValue).collect(Collectors.toSet()));
+    assertEquals(1, row2.getCells().size());
+    assertEquals(VALUE3_BYTES, row2.getCells().get(0).getValue());
+    assertConnectorAndAllTasksAreRunning(testId);
+  }
+
+  @Test
+  public void testUpsertWithRowKeyFromValue() throws InterruptedException, ExecutionException {
+    Map<String, String> props = baseConnectorProps();
+    props.put(BigtableSinkConfig.INSERT_MODE_CONFIG, InsertMode.UPSERT.name());
+    props.put(BigtableSinkConfig.ROW_KEY_SOURCE_CONFIG, KafkaMessageComponent.VALUE.name());
     String testId = startSingleTopicConnector(props);
     createTablesAndColumnFamilies(testId);
 

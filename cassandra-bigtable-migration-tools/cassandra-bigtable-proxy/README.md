@@ -163,7 +163,7 @@ recommended approach for setting up your schema.
     - Create a Bigtable instance manually through the Google Cloud Console or
       using `gcloud` commands.
     - [Creating a Cloud Bigtable instance](https://cloud.google.com/bigtable/docs/creating-instance)
-    - Make sure to create an app profile in the bigtable instance if needed.
+    - Make sure to create an app profile in the Bigtable instance if needed.
 
 2. **Configure Proxy:**
     - Update `config.yaml` with your Bigtable instance details and other

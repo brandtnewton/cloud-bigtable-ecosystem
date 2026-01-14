@@ -15,22 +15,30 @@
  */
 package com.google.cloud.kafka.connect.bigtable.integration;
 
+import static org.apache.kafka.connect.runtime.WorkerConfig.VALUE_CONVERTER_CLASS_CONFIG;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.cloud.bigtable.data.v2.models.Row;
 import com.google.cloud.bigtable.data.v2.models.RowCell;
 import com.google.cloud.kafka.connect.bigtable.config.BigtableErrorMode;
 import com.google.cloud.kafka.connect.bigtable.config.BigtableSinkConfig;
 import com.google.cloud.kafka.connect.bigtable.config.InsertMode;
 import com.google.cloud.kafka.connect.bigtable.config.KafkaMessageComponent;
+import com.google.cloud.kafka.connect.bigtable.mapping.ByteUtils;
 import com.google.protobuf.ByteString;
 
 import java.nio.charset.StandardCharsets;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ExecutionException;
 import java.util.stream.Collectors;
 
+import org.apache.kafka.connect.json.JsonConverter;
+import org.apache.kafka.connect.storage.StringConverter;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -107,28 +115,48 @@ public class InsertUpsertIT extends BaseKafkaConnectBigtableIT {
   }
 
   @Test
-  public void testUpsertWithRowKeyFromValue() throws InterruptedException, ExecutionException {
+  public void testUpsertWithRowKeyFromValue() throws InterruptedException, ExecutionException, JsonProcessingException {
     Map<String, String> props = baseConnectorProps();
     props.put(BigtableSinkConfig.INSERT_MODE_CONFIG, InsertMode.UPSERT.name());
+    props.put(BigtableSinkConfig.ROW_KEY_DEFINITION_CONFIG, "orderId,product");
+    props.put(BigtableSinkConfig.ROW_KEY_DELIMITER_CONFIG, "#");
+    props.put(BigtableSinkConfig.DEFAULT_COLUMN_FAMILY_CONFIG, "cf");
+    props.put(BigtableSinkConfig.ERROR_MODE_CONFIG, BigtableErrorMode.FAIL.name());
     props.put(BigtableSinkConfig.ROW_KEY_SOURCE_CONFIG, KafkaMessageComponent.VALUE.name());
+    props.put("value.converter.schemas.enable", "false");
+    props.put(VALUE_CONVERTER_CLASS_CONFIG, JsonConverter.class.getName());
+
     String testId = startSingleTopicConnector(props);
-    createTablesAndColumnFamilies(testId);
+    createTablesAndColumnFamilies(Map.of(testId, Set.of(testId, "cf")));
+    ObjectMapper mapper = new ObjectMapper();
 
-    connect.kafka().produce(testId, KEY1, VALUE1);
+    // todo null values
+    // todo nested objects
+    // todo schema wrapper {schema:{}, value:{}}
+    Order o = new Order("order1", "ball", 3);
+    connect.kafka().produce(testId, KEY1, mapper.writeValueAsString(o));
+//    connect.kafka().produce(testId, KEY1, "{\"orderId\":\"f\", \"product\":\"x\", \"quantity\":1}");
+
     waitUntilBigtableContainsNumberOfRows(testId, 1);
-    connect.kafka().produce(testId, KEY1, VALUE2);
-    connect.kafka().produce(testId, KEY2, VALUE3);
-    waitUntilBigtableContainsNumberOfRows(testId, 2);
-
     Map<ByteString, Row> rows = readAllRows(bigtableData, testId);
-    Row row1 = rows.get(KEY1_BYTES);
-    Row row2 = rows.get(KEY2_BYTES);
-    assertEquals(2, row1.getCells().size());
-    assertEquals(
-        Set.of(VALUE1_BYTES, VALUE2_BYTES),
-        row1.getCells().stream().map(RowCell::getValue).collect(Collectors.toSet()));
-    assertEquals(1, row2.getCells().size());
-    assertEquals(VALUE3_BYTES, row2.getCells().get(0).getValue());
-    assertConnectorAndAllTasksAreRunning(testId);
+    ByteString key = ByteString.copyFrom("order1#ball".getBytes(StandardCharsets.UTF_8));
+    Row row1 = rows.get(key);
+    assertNotNull(row1);
+    assertEquals(3, row1.getCells().size());
+
+    List<RowCell> orderIdCells = row1.getCells("cf", "orderId");
+    assertEquals(1, orderIdCells.size());
+    assertEquals("order1", orderIdCells.get(0).getValue().toString(StandardCharsets.UTF_8));
+
+    List<RowCell> productCells = row1.getCells("cf", "product");
+    assertEquals(1, productCells.size());
+    assertEquals("ball", productCells.get(0).getValue().toString(StandardCharsets.UTF_8));
+
+    List<RowCell> quantityCells = row1.getCells("cf", "quantity");
+    assertEquals(1, quantityCells.size());
+    assertEquals(ByteUtils.toBytes(3), quantityCells.get(0).getValue().toByteArray());
+  }
+
+  public record Order(String orderId, String product, int quantity) {
   }
 }

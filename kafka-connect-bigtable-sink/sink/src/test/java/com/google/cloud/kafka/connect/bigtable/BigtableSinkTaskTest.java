@@ -66,6 +66,7 @@ import com.google.cloud.kafka.connect.bigtable.mapping.*;
 import com.google.cloud.kafka.connect.bigtable.util.ApiExceptionFactory;
 import com.google.cloud.kafka.connect.bigtable.util.BasicPropertiesFactory;
 import com.google.cloud.kafka.connect.bigtable.util.FutureUtil;
+import com.google.cloud.kafka.connect.bigtable.util.ProtoUtil;
 import com.google.cloud.kafka.connect.bigtable.wrappers.BigtableTableAdminClientInterface;
 import com.google.common.collect.Collections2;
 import com.google.protobuf.ByteString;
@@ -214,7 +215,7 @@ public class BigtableSinkTaskTest {
 
     Optional<MutationData> result = task.createRecordMutationData(okRecord);
     assertTrue(result.isPresent());
-    String proto = toProto(result.get()).replace("\n", "");
+    String proto = ProtoUtil.toProto(result.get()).replace("\n", "");
 
     ObjectMapper mapper = new ObjectMapper();
     JsonNode actual = mapper.readTree(proto);
@@ -223,11 +224,11 @@ public class BigtableSinkTaskTest {
     ArrayNode mutations = (ArrayNode) actual.get("mutations");
     assertEquals(2, mutations.size());
     assertEquals("default", mutations.get(0).get("setCell").get("familyName").textValue());
-    assertEquals("id", fromBase64(mutations.get(0).get("setCell").get("columnQualifier").textValue()));
-    assertEquals(toBase64(42), mutations.get(0).get("setCell").get("value").textValue());
+    assertEquals("id", ProtoUtil.fromBase64(mutations.get(0).get("setCell").get("columnQualifier").textValue()));
+    assertEquals(ProtoUtil.toBase64(42), mutations.get(0).get("setCell").get("value").textValue());
     assertEquals("default", mutations.get(1).get("setCell").get("familyName").textValue());
-    assertEquals("name", fromBase64(mutations.get(1).get("setCell").get("columnQualifier").textValue()));
-    assertEquals(toBase64("John Doe"), mutations.get(1).get("setCell").get("value").textValue());
+    assertEquals("name", ProtoUtil.fromBase64(mutations.get(1).get("setCell").get("columnQualifier").textValue()));
+    assertEquals(ProtoUtil.toBase64("John Doe"), mutations.get(1).get("setCell").get("value").textValue());
   }
 
   @Test
@@ -243,20 +244,20 @@ public class BigtableSinkTaskTest {
 
     Optional<MutationData> result = task.createRecordMutationData(okRecord);
     assertTrue(result.isPresent());
-    String proto = toProto(result.get()).replace("\n", "");
+    String proto = ProtoUtil.toProto(result.get()).replace("\n", "");
 
     ObjectMapper mapper = new ObjectMapper();
     JsonNode actual = mapper.readTree(proto);
     assertEquals("projects/project/instances/instance/tables/topic", actual.get("tableName").asText());
-    assertEquals("42#John Doe", fromBase64(actual.get("rowKey").asText()));
+    assertEquals("42#John Doe", ProtoUtil.fromBase64(actual.get("rowKey").asText()));
     ArrayNode mutations = (ArrayNode) actual.get("mutations");
     assertEquals(2, mutations.size());
     assertEquals("default", mutations.get(0).get("setCell").get("familyName").textValue());
-    assertEquals("id", fromBase64(mutations.get(0).get("setCell").get("columnQualifier").textValue()));
-    assertEquals(toBase64(42), mutations.get(0).get("setCell").get("value").textValue());
+    assertEquals("id", ProtoUtil.fromBase64(mutations.get(0).get("setCell").get("columnQualifier").textValue()));
+    assertEquals(ProtoUtil.toBase64(42), mutations.get(0).get("setCell").get("value").textValue());
     assertEquals("default", mutations.get(1).get("setCell").get("familyName").textValue());
-    assertEquals("name", fromBase64(mutations.get(1).get("setCell").get("columnQualifier").textValue()));
-    assertEquals(toBase64("John Doe"), mutations.get(1).get("setCell").get("value").textValue());
+    assertEquals("name", ProtoUtil.fromBase64(mutations.get(1).get("setCell").get("columnQualifier").textValue()));
+    assertEquals(ProtoUtil.toBase64("John Doe"), mutations.get(1).get("setCell").get("value").textValue());
   }
 
   @Test
@@ -730,43 +731,6 @@ public class BigtableSinkTaskTest {
 
     public Map<String, Batcher<RowMutationEntry, Void>> getBatchers() {
       return batchers;
-    }
-  }
-
-  private static String fromBase64(String b64) {
-    byte[] decodedBytes = Base64.getDecoder().decode(b64);
-    return new String(decodedBytes, StandardCharsets.UTF_8);
-  }
-
-  private static String toBase64(int value) {
-    byte[] bytes = ByteUtils.toBytes(value);
-    return toBase64(bytes);
-  }
-
-  private static String toBase64(String value) {
-    byte[] bytes = ByteUtils.toBytes(value);
-    return toBase64(bytes);
-  }
-
-  private static String toBase64(byte[] bytes) {
-    byte[] encodedBytes = Base64.getEncoder().encode(bytes);
-    return new String(encodedBytes, StandardCharsets.UTF_8);
-  }
-
-  private String toProto(MutationData mutation) {
-    try {
-      // 1. Create a dummy RequestContext (Internal but commonly used for this)
-      RequestContext context = RequestContext.create("project", "instance", "profile");
-
-      // 2. Build a RowMutation which exposes a toProto method
-      RowMutation rowMutation = RowMutation.create(TableId.of(mutation.getTargetTable()), mutation.getRowKey(), mutation.getInsertMutation());
-
-      // 3. Convert to the full Request Proto
-      MutateRowRequest request = rowMutation.toProto(context);
-
-      return JsonFormat.printer().print(request);
-    } catch (Exception e) {
-      return "Conversion failed: " + e.getMessage();
     }
   }
 }

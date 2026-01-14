@@ -19,24 +19,28 @@ import static com.google.cloud.kafka.connect.bigtable.util.MockUtil.assertTotalN
 import static com.google.cloud.kafka.connect.bigtable.util.NestedNullStructFactory.NESTED_NULL_STRUCT_FIELD_NAME;
 import static com.google.cloud.kafka.connect.bigtable.util.NestedNullStructFactory.NESTED_NULL_STRUCT_FIELD_NAME_BYTES;
 import static com.google.cloud.kafka.connect.bigtable.util.NestedNullStructFactory.getStructWithNullOnNthNestingLevel;
-import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.*;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.google.cloud.bigtable.data.v2.models.Range;
 import com.google.cloud.kafka.connect.bigtable.config.ConfigInterpolation;
 import com.google.cloud.kafka.connect.bigtable.config.NullValueMode;
+import com.google.cloud.kafka.connect.bigtable.util.ProtoUtil;
 import com.google.protobuf.ByteString;
+
 import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
-import java.util.Date;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
+import java.util.stream.StreamSupport;
+
 import org.apache.kafka.connect.data.Schema;
 import org.apache.kafka.connect.data.SchemaAndValue;
 import org.apache.kafka.connect.data.SchemaBuilder;
@@ -596,6 +600,41 @@ public class ValueMapperTest {
   }
 
   @Test
+  public void testSchemalessJson() throws JsonProcessingException {
+    Map<String, Object> json = new HashMap<>();
+    json.put("orderId", "order1");
+    json.put("product", "ball");
+    json.put("quantity", 3);
+
+    ValueMapper valueMapper = new TestValueMapper("cf", null, NullValueMode.IGNORE);
+    Optional<MutationData> result = valueMapper.getRecordMutationDataBuilder(new SchemaAndValue(null, json), "my-topic", 1234L).maybeBuild("my-table", ROW_KEY);
+    assertTrue(result.isPresent());
+    String proto = ProtoUtil.toProto(result.get()).replace("\n", "");
+
+    ObjectMapper mapper = new ObjectMapper();
+    JsonNode actual = mapper.readTree(proto);
+    assertEquals("projects/project/instances/instance/tables/my-table", actual.get("tableName").asText());
+    assertEquals(ROW_KEY.toString(StandardCharsets.UTF_8), ProtoUtil.fromBase64(actual.get("rowKey").asText()));
+    ArrayNode mutations = (ArrayNode) actual.get("mutations");
+    assertEquals(3, mutations.size());
+
+    // orderId
+    JsonNode orderIdNode = findSetCell(mutations, "cf", "orderId");
+    assertNotNull(orderIdNode);
+    assertEquals(ProtoUtil.toBase64("order1"), orderIdNode.get("value").textValue());
+
+    // product
+    JsonNode productNode = findSetCell(mutations, "cf", "product");
+    assertNotNull(productNode);
+    assertEquals(ProtoUtil.toBase64("ball"), productNode.get("value").textValue());
+
+    // quantity
+    JsonNode quantityNode = findSetCell(mutations, "cf", "quantity");
+    assertNotNull(quantityNode);
+    assertArrayEquals(ByteUtils.toBytes(3), ProtoUtil.fromBase64(quantityNode.get("value").textValue()).getBytes());
+  }
+
+  @Test
   public void testComplicatedCase() {
     String innerStructKey = "innerStructKey";
     String familyToBeDeleted = "familyToBeDeleted";
@@ -836,5 +875,22 @@ public class ValueMapperTest {
     protected MutationDataBuilder createMutationDataBuilder() {
       return spy(super.createMutationDataBuilder());
     }
+  }
+
+  private static JsonNode findSetCell(ArrayNode src, String cf, String col) {
+    return StreamSupport.stream(src.spliterator(), false)
+        .flatMap(node -> Optional.ofNullable(node.get("setCell")).stream())
+        .filter(setCell -> {
+          JsonNode familyName = setCell.get("familyName");
+          JsonNode columnQualifier = setCell.get("columnQualifier");
+
+          if (familyName == null || columnQualifier == null) {
+            return false;
+          }
+
+          return familyName.asText().equals(cf) && ProtoUtil.fromBase64(columnQualifier.asText()).equals(col);
+        })
+        .findFirst()
+        .orElse(null); // Returns null if no match is found
   }
 }

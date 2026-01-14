@@ -77,7 +77,7 @@ public class ErrorHandlingIT extends BaseKafkaConnectBigtableIT {
     String testId = startSingleTopicConnector(props);
     createTablesAndColumnFamilies(testId);
 
-    byte[] key = "key" .getBytes(StandardCharsets.UTF_8);
+    byte[] key = "key".getBytes(StandardCharsets.UTF_8);
     // The hard limit is 100 MB as per https://cloud.google.com/bigtable/quotas#limits-data-size
     int twoHundredMegabytes = 200 * 1000 * 1000;
     byte[] value = new byte[twoHundredMegabytes];

@@ -39,6 +39,7 @@ import java.util.Set;
 import java.util.concurrent.ExecutionException;
 import java.util.stream.Collectors;
 
+import static com.google.cloud.kafka.connect.bigtable.config.BigtableSinkConfig.*;
 import static org.apache.kafka.connect.runtime.WorkerConfig.VALUE_CONVERTER_CLASS_CONFIG;
 import static org.junit.Assert.*;
 
@@ -64,8 +65,8 @@ public class InsertUpsertIT extends BaseKafkaConnectBigtableIT {
   public void testInsert() throws InterruptedException, ExecutionException {
     String dlqTopic = createDlq();
     Map<String, String> props = baseConnectorProps();
-    props.put(BigtableSinkConfig.INSERT_MODE_CONFIG, InsertMode.INSERT.name());
-    props.put(BigtableSinkConfig.ERROR_MODE_CONFIG, BigtableErrorMode.IGNORE.name());
+    props.put(INSERT_MODE_CONFIG, InsertMode.INSERT.name());
+    props.put(ERROR_MODE_CONFIG, BigtableErrorMode.IGNORE.name());
     configureDlq(props, dlqTopic);
     String testId = startSingleTopicConnector(props);
     createTablesAndColumnFamilies(testId);
@@ -91,7 +92,7 @@ public class InsertUpsertIT extends BaseKafkaConnectBigtableIT {
   @Test
   public void testUpsert() throws InterruptedException, ExecutionException {
     Map<String, String> props = baseConnectorProps();
-    props.put(BigtableSinkConfig.INSERT_MODE_CONFIG, InsertMode.UPSERT.name());
+    props.put(INSERT_MODE_CONFIG, InsertMode.UPSERT.name());
     String testId = startSingleTopicConnector(props);
     createTablesAndColumnFamilies(testId);
 
@@ -116,12 +117,12 @@ public class InsertUpsertIT extends BaseKafkaConnectBigtableIT {
   @Test
   public void testUpsertWithRowKeyFromValue() throws InterruptedException, ExecutionException {
     Map<String, String> props = baseConnectorProps();
-    props.put(BigtableSinkConfig.INSERT_MODE_CONFIG, InsertMode.UPSERT.name());
-    props.put(BigtableSinkConfig.ROW_KEY_DEFINITION_CONFIG, "orderId,product");
-    props.put(BigtableSinkConfig.ROW_KEY_DELIMITER_CONFIG, "#");
-    props.put(BigtableSinkConfig.DEFAULT_COLUMN_FAMILY_CONFIG, "cf");
-    props.put(BigtableSinkConfig.ERROR_MODE_CONFIG, BigtableErrorMode.FAIL.name());
-    props.put(BigtableSinkConfig.ROW_KEY_SOURCE_CONFIG, KafkaMessageComponent.VALUE.name());
+    props.put(INSERT_MODE_CONFIG, InsertMode.UPSERT.name());
+    props.put(ROW_KEY_DEFINITION_CONFIG, "orderId,product");
+    props.put(ROW_KEY_DELIMITER_CONFIG, "#");
+    props.put(DEFAULT_COLUMN_FAMILY_CONFIG, "cf");
+    props.put(ERROR_MODE_CONFIG, BigtableErrorMode.FAIL.name());
+    props.put(ROW_KEY_SOURCE_CONFIG, KafkaMessageComponent.VALUE.name());
     props.put(VALUE_CONVERTER_CLASS_CONFIG, JsonConverter.class.getName());
 
     String testId = startSingleTopicConnector(props);
@@ -169,12 +170,12 @@ public class InsertUpsertIT extends BaseKafkaConnectBigtableIT {
   @Test
   public void testUpsertWithRowKeyFromValueNoSchema() throws InterruptedException, ExecutionException, JsonProcessingException {
     Map<String, String> props = baseConnectorProps();
-    props.put(BigtableSinkConfig.INSERT_MODE_CONFIG, InsertMode.UPSERT.name());
-    props.put(BigtableSinkConfig.ROW_KEY_DEFINITION_CONFIG, "orderId,product");
-    props.put(BigtableSinkConfig.ROW_KEY_DELIMITER_CONFIG, "#");
-    props.put(BigtableSinkConfig.DEFAULT_COLUMN_FAMILY_CONFIG, "cf");
-    props.put(BigtableSinkConfig.ERROR_MODE_CONFIG, BigtableErrorMode.FAIL.name());
-    props.put(BigtableSinkConfig.ROW_KEY_SOURCE_CONFIG, KafkaMessageComponent.VALUE.name());
+    props.put(INSERT_MODE_CONFIG, InsertMode.UPSERT.name());
+    props.put(ROW_KEY_DEFINITION_CONFIG, "orderId,product");
+    props.put(ROW_KEY_DELIMITER_CONFIG, "#");
+    props.put(DEFAULT_COLUMN_FAMILY_CONFIG, "cf");
+    props.put(ERROR_MODE_CONFIG, BigtableErrorMode.FAIL.name());
+    props.put(ROW_KEY_SOURCE_CONFIG, KafkaMessageComponent.VALUE.name());
     props.put("value.converter.schemas.enable", "false");
     props.put(VALUE_CONVERTER_CLASS_CONFIG, JsonConverter.class.getName());
 
@@ -205,12 +206,12 @@ public class InsertUpsertIT extends BaseKafkaConnectBigtableIT {
   public void testUpsertWithRowKeyFromValueMissingField() throws InterruptedException, ExecutionException {
     String dlqTopic = createDlq();
     Map<String, String> props = baseConnectorProps();
-    props.put(BigtableSinkConfig.INSERT_MODE_CONFIG, InsertMode.UPSERT.name());
-    props.put(BigtableSinkConfig.ROW_KEY_DEFINITION_CONFIG, "orderId,NO_SUCH_COLUMN");
-    props.put(BigtableSinkConfig.ROW_KEY_DELIMITER_CONFIG, "#");
-    props.put(BigtableSinkConfig.DEFAULT_COLUMN_FAMILY_CONFIG, "cf");
-    props.put(BigtableSinkConfig.ERROR_MODE_CONFIG, BigtableErrorMode.FAIL.name());
-    props.put(BigtableSinkConfig.ROW_KEY_SOURCE_CONFIG, KafkaMessageComponent.VALUE.name());
+    props.put(INSERT_MODE_CONFIG, InsertMode.UPSERT.name());
+    props.put(ROW_KEY_DEFINITION_CONFIG, "orderId,NO_SUCH_COLUMN");
+    props.put(ROW_KEY_DELIMITER_CONFIG, "#");
+    props.put(DEFAULT_COLUMN_FAMILY_CONFIG, "cf");
+    props.put(ERROR_MODE_CONFIG, BigtableErrorMode.FAIL.name());
+    props.put(ROW_KEY_SOURCE_CONFIG, KafkaMessageComponent.VALUE.name());
     props.put(VALUE_CONVERTER_CLASS_CONFIG, JsonConverter.class.getName());
     configureDlq(props, dlqTopic);
     String testId = startSingleTopicConnector(props);
@@ -242,12 +243,12 @@ public class InsertUpsertIT extends BaseKafkaConnectBigtableIT {
   public void testUpsertWithRowKeyFromValueNullValue() throws InterruptedException, ExecutionException {
     String dlqTopic = createDlq();
     Map<String, String> props = baseConnectorProps();
-    props.put(BigtableSinkConfig.INSERT_MODE_CONFIG, InsertMode.UPSERT.name());
-    props.put(BigtableSinkConfig.ROW_KEY_DEFINITION_CONFIG, "orderId,product");
-    props.put(BigtableSinkConfig.ROW_KEY_DELIMITER_CONFIG, "#");
-    props.put(BigtableSinkConfig.DEFAULT_COLUMN_FAMILY_CONFIG, "cf");
-    props.put(BigtableSinkConfig.ERROR_MODE_CONFIG, BigtableErrorMode.FAIL.name());
-    props.put(BigtableSinkConfig.ROW_KEY_SOURCE_CONFIG, KafkaMessageComponent.VALUE.name());
+    props.put(INSERT_MODE_CONFIG, InsertMode.UPSERT.name());
+    props.put(ROW_KEY_DEFINITION_CONFIG, "orderId,product");
+    props.put(ROW_KEY_DELIMITER_CONFIG, "#");
+    props.put(DEFAULT_COLUMN_FAMILY_CONFIG, "cf");
+    props.put(ERROR_MODE_CONFIG, BigtableErrorMode.FAIL.name());
+    props.put(ROW_KEY_SOURCE_CONFIG, KafkaMessageComponent.VALUE.name());
     props.put(VALUE_CONVERTER_CLASS_CONFIG, JsonConverter.class.getName());
     configureDlq(props, dlqTopic);
     String testId = startSingleTopicConnector(props);

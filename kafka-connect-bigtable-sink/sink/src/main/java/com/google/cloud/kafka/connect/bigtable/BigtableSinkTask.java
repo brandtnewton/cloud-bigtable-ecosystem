@@ -173,10 +173,6 @@ public class BigtableSinkTask extends SinkTask {
       return;
     }
 
-    for (SinkRecord record : records) {
-      logSchemaAndValue("BRANDT|", new SchemaAndValue(record.valueSchema(), record.value()));
-    }
-
     Map<SinkRecord, MutationData> mutations = prepareRecords(records);
     if (config.getBoolean(BigtableSinkTaskConfig.AUTO_CREATE_TABLES_CONFIG)) {
       mutations = autoCreateTablesAndHandleErrors(mutations);
@@ -294,7 +290,6 @@ public class BigtableSinkTask extends SinkTask {
     ErrantRecordReporter reporter;
     /// We get a reference to `reporter` using a procedure described in javadoc of
     /// {@link SinkTaskContext#errantRecordReporter()} that guards against old Kafka versions.
-    logger.error("brandtbrandtbrandt reportError: " + throwable.getMessage());
     try {
       reporter = context.errantRecordReporter();
     } catch (NoSuchMethodError | NoClassDefFoundError ignored) {
@@ -316,28 +311,6 @@ public class BigtableSinkTask extends SinkTask {
         case FAIL:
           throw new BatchException(throwable);
       }
-    }
-  }
-
-  public void logSchemaAndValue(String label, SchemaAndValue schemaAndValue) {
-    if (schemaAndValue == null) {
-      logger.debug("{}: SchemaAndValue is null", label);
-      return;
-    }
-
-    String schemaType = (schemaAndValue.schema() != null)
-        ? schemaAndValue.schema().type().toString()
-        : "NULL SCHEMA";
-
-    String valueString = (schemaAndValue.value() != null)
-        ? schemaAndValue.value().toString()
-        : "NULL VALUE";
-
-    logger.info("{}: [Schema: {}, Value: {}]", label, schemaType, valueString);
-
-    // Detailed schema logging if it exists
-    if (schemaAndValue.schema() != null) {
-      logger.info("{}: Full Schema details: {}", label, schemaAndValue.schema());
     }
   }
 

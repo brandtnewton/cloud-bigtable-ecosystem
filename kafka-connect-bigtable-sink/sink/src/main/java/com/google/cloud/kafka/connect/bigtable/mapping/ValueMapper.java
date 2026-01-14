@@ -147,25 +147,6 @@ public class ValueMapper {
           }
         }
       }
-    }
-    // schemaless JSON
-    else if (rootKafkaValue instanceof Map && kafkaValueAndSchema.schema() == null) {
-      String defaultColumnFamily = getDefaultColumnFamily(topic);
-      for (Map.Entry<?, ?> field : ((Map<?, ?>) rootKafkaValue).entrySet()) {
-        String fieldName = field.getKey().toString();
-        Object fieldValue = field.getValue();
-        ByteString fieldNameBytes = ByteString.copyFrom(fieldName.getBytes(StandardCharsets.UTF_8));
-
-        if (fieldValue == null) {
-          handleNullValue(mutationDataBuilder, defaultColumnFamily, fieldNameBytes, nullMode, timestampMicros);
-        } else {
-          mutationDataBuilder.setCell(
-              defaultColumnFamily,
-              fieldNameBytes,
-              timestampMicros,
-              ByteString.copyFrom(serialize(fieldValue)));
-        }
-      }
     } else {
       if (defaultColumnFamilyTemplate != null && defaultColumnQualifier != null) {
         mutationDataBuilder.setCell(

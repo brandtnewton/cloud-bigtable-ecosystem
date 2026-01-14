@@ -600,41 +600,6 @@ public class ValueMapperTest {
   }
 
   @Test
-  public void testSchemalessJson() throws JsonProcessingException {
-    Map<String, Object> json = new HashMap<>();
-    json.put("orderId", "order1");
-    json.put("product", "ball");
-    json.put("quantity", 3);
-
-    ValueMapper valueMapper = new TestValueMapper("cf", null, NullValueMode.IGNORE);
-    Optional<MutationData> result = valueMapper.getRecordMutationDataBuilder(new SchemaAndValue(null, json), "my-topic", 1234L).maybeBuild("my-table", ROW_KEY);
-    assertTrue(result.isPresent());
-    String proto = ProtoUtil.toProto(result.get()).replace("\n", "");
-
-    ObjectMapper mapper = new ObjectMapper();
-    JsonNode actual = mapper.readTree(proto);
-    assertEquals("projects/project/instances/instance/tables/my-table", actual.get("tableName").asText());
-    assertEquals(ROW_KEY.toString(StandardCharsets.UTF_8), ProtoUtil.fromBase64(actual.get("rowKey").asText()));
-    ArrayNode mutations = (ArrayNode) actual.get("mutations");
-    assertEquals(3, mutations.size());
-
-    // orderId
-    JsonNode orderIdNode = findSetCell(mutations, "cf", "orderId");
-    assertNotNull(orderIdNode);
-    assertEquals(ProtoUtil.toBase64("order1"), orderIdNode.get("value").textValue());
-
-    // product
-    JsonNode productNode = findSetCell(mutations, "cf", "product");
-    assertNotNull(productNode);
-    assertEquals(ProtoUtil.toBase64("ball"), productNode.get("value").textValue());
-
-    // quantity
-    JsonNode quantityNode = findSetCell(mutations, "cf", "quantity");
-    assertNotNull(quantityNode);
-    assertArrayEquals(ByteUtils.toBytes(3), ProtoUtil.fromBase64(quantityNode.get("value").textValue()).getBytes());
-  }
-
-  @Test
   public void testComplicatedCase() {
     String innerStructKey = "innerStructKey";
     String familyToBeDeleted = "familyToBeDeleted";

@@ -224,6 +224,17 @@ together directly.
 * Valid Values:
 * Importance: low
 
+`row.key.source`
+
+Determines the source of the data used to construct the row key. Can either be
+KEY (default) or VALUE. KEY will extract row key data from the message key.
+VALUE will extract row key data from the message value.
+
+* Type: string
+* Default: KEY
+* Valid Values: (case insensitive) [KEY, VALUE]
+* Importance: medium
+
 `table.name.format`
 
 Name of the destination table. Use `${topic}` within the table name to specify

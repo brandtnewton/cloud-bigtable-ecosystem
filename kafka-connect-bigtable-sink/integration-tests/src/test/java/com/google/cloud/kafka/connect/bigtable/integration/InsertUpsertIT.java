@@ -15,6 +15,9 @@
  */
 package com.google.cloud.kafka.connect.bigtable.integration;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.cloud.bigtable.data.v2.models.Row;
 import com.google.cloud.bigtable.data.v2.models.RowCell;
 import com.google.cloud.kafka.connect.bigtable.config.BigtableErrorMode;
@@ -124,8 +127,6 @@ public class InsertUpsertIT extends BaseKafkaConnectBigtableIT {
     String testId = startSingleTopicConnector(props);
     createTablesAndColumnFamilies(Map.of(testId, Set.of(testId, "cf")));
 
-    // todo nested objects
-    // todo schema wrapper {schema:{}, value:{}}
     String json = """
         {
           "schema": {
@@ -164,6 +165,42 @@ public class InsertUpsertIT extends BaseKafkaConnectBigtableIT {
     assertEquals(1, quantityCells.size());
     assertArrayEquals(ByteUtils.toBytes(2), quantityCells.get(0).getValue().toByteArray());
   }
+
+  @Test
+  public void testUpsertWithRowKeyFromValueNoSchema() throws InterruptedException, ExecutionException, JsonProcessingException {
+    Map<String, String> props = baseConnectorProps();
+    props.put(BigtableSinkConfig.INSERT_MODE_CONFIG, InsertMode.UPSERT.name());
+    props.put(BigtableSinkConfig.ROW_KEY_DEFINITION_CONFIG, "orderId,product");
+    props.put(BigtableSinkConfig.ROW_KEY_DELIMITER_CONFIG, "#");
+    props.put(BigtableSinkConfig.DEFAULT_COLUMN_FAMILY_CONFIG, "cf");
+    props.put(BigtableSinkConfig.ERROR_MODE_CONFIG, BigtableErrorMode.FAIL.name());
+    props.put(BigtableSinkConfig.ROW_KEY_SOURCE_CONFIG, KafkaMessageComponent.VALUE.name());
+    props.put("value.converter.schemas.enable", "false");
+    props.put(VALUE_CONVERTER_CLASS_CONFIG, JsonConverter.class.getName());
+
+    String testId = startSingleTopicConnector(props);
+    createTablesAndColumnFamilies(Map.of(testId, Set.of(testId, "cf")));
+
+    String json = """
+        {
+            "orderId": "ORD-12345",
+            "product": "ball",
+            "quantity": 2
+        }""";
+    connect.kafka().produce(testId, KEY1, json);
+
+    waitUntilBigtableContainsNumberOfRows(testId, 1);
+    Map<ByteString, Row> rows = readAllRows(bigtableData, testId);
+    ByteString key = ByteString.copyFrom("ORD-12345#ball".getBytes(StandardCharsets.UTF_8));
+    Row row1 = rows.get(key);
+    assertNotNull(row1);
+    assertEquals(1, row1.getCells().size());
+
+    List<RowCell> cells = row1.getCells("cf", "KAFKA_VALUE");
+    assertEquals(1, cells.size());
+    assertEquals(parseJson(json), parseJson(cells.get(0).getValue().toString(StandardCharsets.UTF_8)));
+  }
+
   @Test
   public void testUpsertWithRowKeyFromValueMissingField() throws InterruptedException, ExecutionException {
     String dlqTopic = createDlq();
@@ -179,7 +216,6 @@ public class InsertUpsertIT extends BaseKafkaConnectBigtableIT {
     String testId = startSingleTopicConnector(props);
     createTablesAndColumnFamilies(Map.of(testId, Set.of(testId, "cf")));
 
-    // todo nested objects
     String json = """
         {
           "schema": {
@@ -201,6 +237,7 @@ public class InsertUpsertIT extends BaseKafkaConnectBigtableIT {
 
     assertSingleDlqEntry(dlqTopic, KEY1, json, DataException.class);
   }
+
   @Test
   public void testUpsertWithRowKeyFromValueNullValue() throws InterruptedException, ExecutionException {
     String dlqTopic = createDlq();
@@ -237,5 +274,16 @@ public class InsertUpsertIT extends BaseKafkaConnectBigtableIT {
 
     // null key values aren't allowed
     assertSingleDlqEntry(dlqTopic, KEY1, json, DataException.class);
+  }
+
+  public JsonNode parseJson(String json) throws JsonProcessingException {
+    ObjectMapper mapper = new ObjectMapper();
+    return mapper.readTree(json);
+  }
+
+  public String minifyJson(String json) throws JsonProcessingException {
+    ObjectMapper mapper = new ObjectMapper();
+    Object obj = mapper.readValue(json, Object.class);
+    return mapper.writeValueAsString(obj);
   }
 }

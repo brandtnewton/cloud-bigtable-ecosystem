@@ -26,20 +26,23 @@ import com.google.cloud.kafka.connect.bigtable.config.InsertMode;
 import com.google.cloud.kafka.connect.bigtable.config.KafkaMessageComponent;
 import com.google.cloud.kafka.connect.bigtable.mapping.ByteUtils;
 import com.google.protobuf.ByteString;
+import org.apache.kafka.connect.data.Schema;
+import org.apache.kafka.connect.data.SchemaBuilder;
 import org.apache.kafka.connect.errors.DataException;
 import org.apache.kafka.connect.json.JsonConverter;
+import org.apache.kafka.connect.storage.StringConverter;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
+import org.apache.kafka.connect.data.Struct;
 
 import java.nio.charset.StandardCharsets;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 import java.util.concurrent.ExecutionException;
 import java.util.stream.Collectors;
 
 import static com.google.cloud.kafka.connect.bigtable.config.BigtableSinkConfig.*;
+import static org.apache.kafka.connect.runtime.WorkerConfig.KEY_CONVERTER_CLASS_CONFIG;
 import static org.apache.kafka.connect.runtime.WorkerConfig.VALUE_CONVERTER_CLASS_CONFIG;
 import static org.junit.Assert.*;
 
@@ -275,6 +278,104 @@ public class InsertUpsertIT extends BaseKafkaConnectBigtableIT {
 
     // null key values aren't allowed
     assertSingleDlqEntry(dlqTopic, KEY1, json, DataException.class);
+  }
+
+  @Test
+  public void testUpsertWithRowKeyWithRootLevelArray() throws InterruptedException, ExecutionException {
+    Map<String, String> props = baseConnectorProps();
+    props.put(INSERT_MODE_CONFIG, InsertMode.UPSERT.name());
+    props.put(ROW_KEY_DEFINITION_CONFIG, "userId,orderId");
+    props.put("transforms", "createKey,flatten,rename,flattenElements");
+    props.put("transforms.createKey.type", "org.apache.kafka.connect.transforms.ValueToKey");
+    props.put("transforms.createKey.fields", "orderId,userId");
+    props.put("transforms.flatten.type", "org.apache.kafka.connect.transforms.ExtractField$Value");
+    props.put("transforms.flatten.field", "products");
+    props.put("transforms.rename.type", "org.apache.kafka.connect.transforms.ReplaceField$Value");
+    props.put("transforms.rename.renames", "list:products");
+    props.put("transforms.flattenElements.type", "com.google.cloud.kafka.connect.bigtable.transformations.FlattenArrayElement");
+    props.put("transforms.flattenElements.array.field", "products");
+    props.put("transforms.flattenElements.element.field", "element");
+
+    props.put(ROW_KEY_DELIMITER_CONFIG, "#");
+    props.put(DEFAULT_COLUMN_FAMILY_CONFIG, "cf");
+    props.put(ERROR_MODE_CONFIG, BigtableErrorMode.FAIL.name());
+    props.put(KEY_CONVERTER_CLASS_CONFIG, StringConverter.class.getName());
+    props.put(VALUE_CONVERTER_CLASS_CONFIG, JsonConverter.class.getName());
+
+    String testId = startSingleTopicConnector(props);
+    createTablesAndColumnFamilies(Map.of(testId, Set.of(testId, "cf", "products")));
+
+    Schema productSchema = SchemaBuilder.struct()
+        .field("name", Schema.STRING_SCHEMA)
+        .field("id", Schema.STRING_SCHEMA)
+        .field("quantity", Schema.INT32_SCHEMA)
+        .build();
+
+    Schema elementSchema = SchemaBuilder.struct().field("element", productSchema).build();
+
+    Schema schema = SchemaBuilder.struct().optional()
+        .field("orderId", Schema.STRING_SCHEMA)
+        .field("userId", Schema.STRING_SCHEMA)
+        .field("products",
+            SchemaBuilder.struct().field("list", SchemaBuilder.array(elementSchema)).build()
+        )
+        .build();
+
+    JsonConverter converter = new JsonConverter();
+    converter.configure(Collections.singletonMap("schemas.enable", "true"), false);
+
+    Struct productElement1 = new Struct(elementSchema).put("element", new Struct(productSchema)
+        .put("name", "Ball")
+        .put("id", "PROD-123")
+        .put("quantity", 5)
+    );
+    Struct productElement2 = new Struct(elementSchema).put("element", new Struct(productSchema)
+        .put("name", "Car")
+        .put("id", "PROD-456")
+        .put("quantity", 1)
+    );
+    Struct productElement3 = new Struct(elementSchema).put("element", new Struct(productSchema)
+        .put("name", "Tambourine")
+        .put("id", "PROD-789")
+        .put("quantity", 2)
+    );
+
+    List<Struct> productList = Arrays.stream(new Struct[]{productElement1, productElement2, productElement3}).toList();
+
+    Struct productsWrapper = new Struct(schema.field("products").schema())
+        .put("list", productList);
+
+    Struct value = new Struct(schema)
+        .put("orderId", "ORD-999")
+        .put("userId", "USER-42")
+        .put("products", productsWrapper);
+
+
+    byte[] schemaAsJson = converter.fromConnectData(testId, schema, value);
+    System.out.println(new String(schemaAsJson));
+
+    connect.kafka().produce(testId, KEY1, new String(schemaAsJson));
+
+    waitUntilBigtableContainsNumberOfRows(testId, 1);
+    Map<ByteString, Row> rows = readAllRows(bigtableData, testId);
+    ByteString key = ByteString.copyFrom("USER-42#ORD-999".getBytes(StandardCharsets.UTF_8));
+    Row row1 = rows.get(key);
+    assertNotNull(row1);
+    assertEquals(3, row1.getCells().size());
+
+    List<RowCell> orderIdCells = row1.getCells("cf", "orderId");
+    assertEquals(1, orderIdCells.size());
+    assertEquals("ORD-999", orderIdCells.get(0).getValue().toString(StandardCharsets.UTF_8));
+
+    List<RowCell> userIdCells = row1.getCells("cf", "userId");
+    assertEquals(1, userIdCells.size());
+    assertEquals("USER-42", userIdCells.get(0).getValue().toString(StandardCharsets.UTF_8));
+
+    List<RowCell> productsCells = row1.getCells("products");
+    assertEquals(3, productsCells.size());
+    assertEquals("{foo}", productsCells.get(0).getValue().toString(StandardCharsets.UTF_8));
+    assertEquals("{foo}", productsCells.get(1).getValue().toString(StandardCharsets.UTF_8));
+    assertEquals("{foo}", productsCells.get(2).getValue().toString(StandardCharsets.UTF_8));
   }
 
   public JsonNode parseJson(String json) throws JsonProcessingException {

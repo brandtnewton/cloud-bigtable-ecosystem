@@ -32,20 +32,6 @@ public class ProtoUtil {
     }
   }
 
-  public static JsonNode findNodeOrNull(ArrayNode src, String fieldName, String value) {
-    for (int i = 0; i < src.size(); i++) {
-      JsonNode item = src.get(i);
-      JsonNode field = item.get(fieldName);
-      if (field == null) {
-        continue;
-      }
-      if (value.equalsIgnoreCase(field.asText())) {
-        return item;
-      }
-    }
-    return null;
-  }
-
   public static String fromBase64(String b64) {
     byte[] decodedBytes = Base64.getDecoder().decode(b64);
     return new String(decodedBytes, StandardCharsets.UTF_8);

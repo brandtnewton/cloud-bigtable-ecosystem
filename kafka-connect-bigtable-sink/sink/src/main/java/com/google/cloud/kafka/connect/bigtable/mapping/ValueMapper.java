@@ -159,27 +159,6 @@ public class ValueMapper {
     return mutationDataBuilder;
   }
 
-  private void handleNullValue(MutationDataBuilder mutationDataBuilder, String columnFamily, ByteString column, NullValueMode mode, long timestampMicros) {
-    switch (mode) {
-      case WRITE:
-        mutationDataBuilder.setCell(
-            columnFamily,
-            column,
-            timestampMicros,
-            ByteString.copyFrom(serialize(null)));
-        break;
-      case IGNORE:
-        // no-op
-        break;
-      case DELETE:
-        mutationDataBuilder.deleteCells(
-            columnFamily,
-            column,
-            Range.TimestampRange.create(0, timestampMicros));
-        break;
-    }
-  }
-
   @VisibleForTesting
   // Method only needed for use in tests. It could be inlined otherwise.
   protected MutationDataBuilder createMutationDataBuilder() {

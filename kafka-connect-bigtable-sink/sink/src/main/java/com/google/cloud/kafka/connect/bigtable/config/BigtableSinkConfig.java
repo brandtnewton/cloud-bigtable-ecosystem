@@ -77,7 +77,6 @@ public class BigtableSinkConfig extends AbstractConfig {
   public static final String VALUE_NULL_MODE_CONFIG = "value.null.mode";
   public static final String ERROR_MODE_CONFIG = "error.mode";
   public static final String TABLE_NAME_FORMAT_CONFIG = "table.name.format";
-  public static final String ROW_KEY_SOURCE_CONFIG = "row.key.source";
   public static final String ROW_KEY_DEFINITION_CONFIG = "row.key.definition";
   public static final String ROW_KEY_DELIMITER_CONFIG = "row.key.delimiter";
   public static final String EXPAND_ROOT_LEVEL_ARRAYS = "expand.root.level.arrays";
@@ -355,15 +354,6 @@ public class BigtableSinkConfig extends AbstractConfig {
                 + " your Row Key, consider configuring an SMT to add relevant fields to the Kafka"
                 + " Record key.")
         .define(
-            ROW_KEY_SOURCE_CONFIG,
-            ConfigDef.Type.STRING,
-            KafkaMessageComponent.KEY.name(),
-            ConfigDef.Importance.MEDIUM,
-            "Determines the source of the data used to construct the row key. Can either be `"
-                + KafkaMessageComponent.KEY + "` (default) or `" + KafkaMessageComponent.VALUE + "`. `" + KafkaMessageComponent.KEY
-                + "` will extract row key data from the message key. `" + KafkaMessageComponent.VALUE
-                + "` will extract row key data from the message value.")
-        .define(
             ROW_KEY_DELIMITER_CONFIG,
             ConfigDef.Type.STRING,
             "",
@@ -462,10 +452,6 @@ public class BigtableSinkConfig extends AbstractConfig {
 
   public InsertMode getInsertMode() {
     return getEnum(INSERT_MODE_CONFIG, InsertMode::valueOf);
-  }
-
-  public KafkaMessageComponent getKeySource() {
-    return getEnum(ROW_KEY_SOURCE_CONFIG, KafkaMessageComponent::valueOf);
   }
 
   /**

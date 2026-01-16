@@ -841,21 +841,4 @@ public class ValueMapperTest {
       return spy(super.createMutationDataBuilder());
     }
   }
-
-  private static JsonNode findSetCell(ArrayNode src, String cf, String col) {
-    return StreamSupport.stream(src.spliterator(), false)
-        .flatMap(node -> Optional.ofNullable(node.get("setCell")).stream())
-        .filter(setCell -> {
-          JsonNode familyName = setCell.get("familyName");
-          JsonNode columnQualifier = setCell.get("columnQualifier");
-
-          if (familyName == null || columnQualifier == null) {
-            return false;
-          }
-
-          return familyName.asText().equals(cf) && ProtoUtil.fromBase64(columnQualifier.asText()).equals(col);
-        })
-        .findFirst()
-        .orElse(null); // Returns null if no match is found
-  }
 }

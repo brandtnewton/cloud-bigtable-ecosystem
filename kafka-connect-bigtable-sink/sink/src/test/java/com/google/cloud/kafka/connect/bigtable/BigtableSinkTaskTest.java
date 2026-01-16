@@ -138,7 +138,7 @@ public class BigtableSinkTaskTest {
 
       BigtableTableAdminClientInterface maybeAdmin = adminIsNotNull ? bigtableAdmin : null;
       BigtableDataClient maybeData = dataIsNotNull ? bigtableData : null;
-      task = new TestBigtableSinkTask(null, maybeData, maybeAdmin, null, null, null, null, null);
+      task = new TestBigtableSinkTask(null, maybeData, maybeAdmin, null, null, null, null);
       Batcher<RowMutationEntry, Void> batcher = mock(Batcher.class);
       doReturn(completedApiFuture(null)).when(batcher).closeAsync();
       task.getBatchers().put("batcherTable", batcher);
@@ -160,7 +160,7 @@ public class BigtableSinkTaskTest {
 
   @Test
   public void testVersion() {
-    task = spy(new TestBigtableSinkTask(null, null, null, null, null, null, null, null));
+    task = spy(new TestBigtableSinkTask(null, null, null, null, null, null, null));
     assertNotNull(task.version());
   }
 
@@ -172,13 +172,13 @@ public class BigtableSinkTaskTest {
     props.put(TABLE_NAME_FORMAT_CONFIG, tableFormat);
     task =
         new TestBigtableSinkTask(
-            new BigtableSinkTaskConfig(props), null, null, null, null, null, null, null);
+            new BigtableSinkTaskConfig(props), null, null, null, null, null, null);
     assertEquals(tableFormat, task.getTableName(record));
   }
 
   @Test
   public void testCreateRecordMutationDataEmptyKey() {
-    task = new TestBigtableSinkTask(config, null, null, new RecordDataExtractor(KafkaMessageComponent.KEY), keyMapper, null, null, null);
+    task = new TestBigtableSinkTask(config, null, null, keyMapper, null, null, null);
     doReturn(new byte[0]).when(keyMapper).getKey(any());
     SinkRecord record = new SinkRecord("topic", 1, null, new Object(), null, null, 1);
     assertThrows(ConnectException.class, () -> task.createRecordMutationData(record));
@@ -190,7 +190,7 @@ public class BigtableSinkTaskTest {
     SinkRecord okRecord = new SinkRecord("topic", 1, null, "key", null, "value", 2);
     keyMapper = new KeyMapper("#", List.of());
     valueMapper = new ValueMapper("default", "KAFKA_VALUE", NullValueMode.IGNORE);
-    task = new TestBigtableSinkTask(config, null, null, new RecordDataExtractor(KafkaMessageComponent.KEY), keyMapper, valueMapper, null, null);
+    task = new TestBigtableSinkTask(config, null, null, keyMapper, valueMapper, null, null);
 
     assertTrue(task.createRecordMutationData(emptyRecord).isEmpty());
     assertTrue(task.createRecordMutationData(okRecord).isPresent());
@@ -211,7 +211,7 @@ public class BigtableSinkTaskTest {
 
     keyMapper = new KeyMapper("#", List.of());
     valueMapper = new ValueMapper("default", "KAFKA_VALUE", NullValueMode.IGNORE);
-    task = new TestBigtableSinkTask(config, null, null, new RecordDataExtractor(KafkaMessageComponent.KEY), keyMapper, valueMapper, null, null);
+    task = new TestBigtableSinkTask(config, null, null, keyMapper, valueMapper, null, null);
 
     Optional<MutationData> result = task.createRecordMutationData(okRecord);
     assertTrue(result.isPresent());
@@ -240,7 +240,7 @@ public class BigtableSinkTaskTest {
 
     keyMapper = new KeyMapper("#", List.of("id", "name"));
     valueMapper = new ValueMapper("default", "KAFKA_VALUE", NullValueMode.IGNORE);
-    task = new TestBigtableSinkTask(config, null, null, new RecordDataExtractor(KafkaMessageComponent.VALUE), keyMapper, valueMapper, null, null);
+    task = new TestBigtableSinkTask(config, null, null, keyMapper, valueMapper, null, null);
 
     Optional<MutationData> result = task.createRecordMutationData(okRecord);
     assertTrue(result.isPresent());
@@ -261,31 +261,9 @@ public class BigtableSinkTaskTest {
   }
 
   @Test
-  public void testCreateRecordMutationWithRowKeyFromValueInvalid() {
-    Struct value = new Struct(valueSchema)
-        .put("id", 42)
-        .put("name", "John Doe");
-    SinkRecord okRecord = new SinkRecord("topic", 1, null, "key", valueSchema, value, 2);
-
-    keyMapper = new KeyMapper("#", List.of("id", "NO_SUCH_COLUMN"));
-    valueMapper = new ValueMapper("default", "KAFKA_VALUE", NullValueMode.IGNORE);
-    task = new TestBigtableSinkTask(config, null, null, new RecordDataExtractor(KafkaMessageComponent.VALUE), keyMapper, valueMapper, null, null);
-
-    Exception actualException = null;
-    try {
-      task.createRecordMutationData(okRecord);
-    } catch (Exception e) {
-      actualException = e;
-    }
-    assertNotNull(actualException);
-    assertEquals(DataException.class, actualException.getClass());
-    assertEquals("NO_SUCH_COLUMN is not a valid field name", actualException.getMessage());
-  }
-
-  @Test
   public void testErrorReporterWithDLQ() {
     doReturn(errorReporter).when(context).errantRecordReporter();
-    task = new TestBigtableSinkTask(null, null, null, null, null, null, null, context);
+    task = new TestBigtableSinkTask(null, null, null, null, null, null, context);
     SinkRecord record = new SinkRecord(null, 1, null, null, null, null, 1);
     Throwable t = new Exception("testErrorReporterWithDLQ");
     verifyNoMoreInteractions(task.getLogger());
@@ -300,7 +278,7 @@ public class BigtableSinkTaskTest {
     BigtableSinkTaskConfig config = new BigtableSinkTaskConfig(props);
 
     doThrow(new NoSuchMethodError()).when(context).errantRecordReporter();
-    task = new TestBigtableSinkTask(config, null, null, null, null, null, null, context);
+    task = new TestBigtableSinkTask(config, null, null, null, null, null, context);
     SinkRecord record = new SinkRecord(null, 1, null, null, null, null, 1);
     verifyNoMoreInteractions(task.getLogger());
     verifyNoMoreInteractions(errorReporter);
@@ -314,7 +292,7 @@ public class BigtableSinkTaskTest {
     BigtableSinkTaskConfig config = new BigtableSinkTaskConfig(props);
 
     doReturn(null).when(context).errantRecordReporter();
-    task = new TestBigtableSinkTask(config, null, null, null, null, null, null, context);
+    task = new TestBigtableSinkTask(config, null, null, null, null, null, context);
     SinkRecord record = new SinkRecord(null, 1, null, "key", null, null, 1);
     Throwable t = new Exception("testErrorReporterNoDLQWarnMode");
     verifyNoMoreInteractions(errorReporter);
@@ -329,7 +307,7 @@ public class BigtableSinkTaskTest {
     BigtableSinkTaskConfig config = new BigtableSinkTaskConfig(props);
 
     doReturn(null).when(context).errantRecordReporter();
-    task = new TestBigtableSinkTask(config, null, null, null, null, null, null, context);
+    task = new TestBigtableSinkTask(config, null, null, null, null, null, context);
     SinkRecord record = new SinkRecord(null, 1, null, "key", null, null, 1);
     Throwable t = new Exception("testErrorReporterNoDLQFailMode");
     verifyNoMoreInteractions(errorReporter);
@@ -339,7 +317,7 @@ public class BigtableSinkTaskTest {
 
   @Test
   public void testGetTimestamp() {
-    task = new TestBigtableSinkTask(null, null, null, null, null, null, null, null);
+    task = new TestBigtableSinkTask(null, null, null, null, null, null, null);
     long timestampMillis = 123L;
     SinkRecord recordWithTimestamp =
         new SinkRecord(
@@ -369,7 +347,7 @@ public class BigtableSinkTaskTest {
             errorSinkRecord, CompletableFuture.failedFuture(new Exception("testHandleResults")),
             successSinkRecord, CompletableFuture.completedFuture(null));
     doReturn(errorReporter).when(context).errantRecordReporter();
-    task = new TestBigtableSinkTask(null, null, null, null, null, null, null, context);
+    task = new TestBigtableSinkTask(null, null, null, null, null, null, context);
     task.handleResults(perRecordResults);
     verify(errorReporter, times(1)).report(eq(errorSinkRecord), any());
     assertTotalNumberOfInvocations(errorReporter, 1);
@@ -377,7 +355,7 @@ public class BigtableSinkTaskTest {
 
   @Test
   public void testPrepareRecords() {
-    task = spy(new TestBigtableSinkTask(null, null, null, null, null, null, null, context));
+    task = spy(new TestBigtableSinkTask(null, null, null, null, null, null, context));
     doReturn(errorReporter).when(context).errantRecordReporter();
 
     MutationData okMutationData = mock(MutationData.class);
@@ -455,7 +433,7 @@ public class BigtableSinkTaskTest {
 
   @Test
   public void testAutoCreateTablesAndHandleErrors() {
-    task = spy(new TestBigtableSinkTask(null, null, null, null, null, null, schemaManager, context));
+    task = spy(new TestBigtableSinkTask(null, null, null, null, null, schemaManager, context));
     doReturn(errorReporter).when(context).errantRecordReporter();
 
     doReturn(errorReporter).when(context).errantRecordReporter();
@@ -489,7 +467,7 @@ public class BigtableSinkTaskTest {
 
   @Test
   public void testAutoCreateColumnFamiliesAndHandleErrors() {
-    task = spy(new TestBigtableSinkTask(null, null, null, null, null, null, schemaManager, context));
+    task = spy(new TestBigtableSinkTask(null, null, null, null, null, schemaManager, context));
     doReturn(errorReporter).when(context).errantRecordReporter();
 
     doReturn(errorReporter).when(context).errantRecordReporter();
@@ -523,7 +501,7 @@ public class BigtableSinkTaskTest {
 
   @Test
   public void testInsertRows() throws ExecutionException, InterruptedException {
-    task = new TestBigtableSinkTask(null, bigtableData, null, null, null, null, null, null);
+    task = new TestBigtableSinkTask(null, bigtableData, null, null, null, null, null);
     ApiException exception = ApiExceptionFactory.create();
     doReturn(false).doReturn(true).doThrow(exception).when(bigtableData).checkAndMutateRow(any());
 
@@ -563,7 +541,7 @@ public class BigtableSinkTaskTest {
     props.put(BigtableSinkTaskConfig.MAX_BATCH_SIZE_CONFIG, Integer.toString(maxBatchSize));
     BigtableSinkTaskConfig config = new BigtableSinkTaskConfig(props);
 
-    task = spy(new TestBigtableSinkTask(config, null, null, null, null, null, null, null));
+    task = spy(new TestBigtableSinkTask(config, null, null, null, null, null, null));
     String batcherTable = "batcherTable";
     Batcher<RowMutationEntry, Void> batcher = mock(Batcher.class);
     doAnswer(
@@ -608,7 +586,7 @@ public class BigtableSinkTaskTest {
 
     doReturn(okBatcher).when(bigtableData).newBulkMutationBatcher(okTable);
     doReturn(errorBatcher).when(bigtableData).newBulkMutationBatcher(errorTable);
-    task = new TestBigtableSinkTask(null, bigtableData, null, null, null, null, null, null);
+    task = new TestBigtableSinkTask(null, bigtableData, null, null, null, null, null);
 
     SinkRecord okRecord = new SinkRecord(okTable, 1, null, null, null, null, 1);
     SinkRecord errorRecord = new SinkRecord(errorTable, 1, null, null, null, null, 2);
@@ -693,7 +671,7 @@ public class BigtableSinkTaskTest {
       task =
           spy(
               new TestBigtableSinkTask(
-                  config, bigtableData, null, new RecordDataExtractor(KafkaMessageComponent.KEY), keyMapper, valueMapper, schemaManager, null));
+                  config, bigtableData, null, keyMapper, valueMapper, schemaManager, null));
 
       task.put(List.of(record1, record2));
 
@@ -716,12 +694,11 @@ public class BigtableSinkTaskTest {
         BigtableSinkTaskConfig config,
         BigtableDataClient bigtableData,
         BigtableTableAdminClientInterface bigtableAdmin,
-        RecordDataExtractor keyDataExtractor,
         KeyMapper keyMapper,
         ValueMapper valueMapper,
         BigtableSchemaManager schemaManager,
         SinkTaskContext context) {
-      super(config, bigtableData, bigtableAdmin, keyDataExtractor, keyMapper, valueMapper, schemaManager, context);
+      super(config, bigtableData, bigtableAdmin, keyMapper, valueMapper, schemaManager, context);
       this.logger = mock(Logger.class);
     }
 

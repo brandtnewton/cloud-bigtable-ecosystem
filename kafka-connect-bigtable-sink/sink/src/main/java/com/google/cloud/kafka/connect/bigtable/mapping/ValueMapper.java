@@ -61,6 +61,7 @@ public class ValueMapper {
   public final String defaultColumnFamilyTemplate;
   public final ByteString defaultColumnQualifier;
   private final NullValueMode nullMode;
+  private final boolean expandRootLevelArrays;
   private static final ObjectMapper jsonMapper = getJsonMapper();
 
   /**
@@ -72,7 +73,7 @@ public class ValueMapper {
    *                               com.google.cloud.kafka.connect.bigtable.config.BigtableSinkConfig#ROW_KEY_DELIMITER_CONFIG}.
    */
   public ValueMapper(
-      String defaultColumnFamily, String defaultColumnQualifier, @Nonnull NullValueMode nullMode) {
+      String defaultColumnFamily, String defaultColumnQualifier, @Nonnull NullValueMode nullMode, boolean expandRootLevelArrays) {
     this.defaultColumnFamilyTemplate =
         Utils.isBlank(defaultColumnFamily) ? null : defaultColumnFamily;
     this.defaultColumnQualifier =
@@ -80,6 +81,7 @@ public class ValueMapper {
             ? null
             : ByteString.copyFrom(defaultColumnQualifier.getBytes(StandardCharsets.UTF_8));
     this.nullMode = nullMode;
+    this.expandRootLevelArrays = expandRootLevelArrays;
   }
 
   /**

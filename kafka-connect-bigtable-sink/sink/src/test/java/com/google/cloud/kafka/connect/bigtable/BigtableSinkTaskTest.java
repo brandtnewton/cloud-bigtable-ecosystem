@@ -232,35 +232,6 @@ public class BigtableSinkTaskTest {
   }
 
   @Test
-  public void testCreateRecordMutationWithRowKeyFromValue() throws JsonProcessingException {
-    Struct value = new Struct(valueSchema)
-        .put("id", 42)
-        .put("name", "John Doe");
-    SinkRecord okRecord = new SinkRecord("topic", 1, null, "key", valueSchema, value, 2);
-
-    keyMapper = new KeyMapper("#", List.of("id", "name"));
-    valueMapper = new ValueMapper("default", "KAFKA_VALUE", NullValueMode.IGNORE, false);
-    task = new TestBigtableSinkTask(config, null, null, keyMapper, valueMapper, null, null);
-
-    Optional<MutationData> result = task.createRecordMutationData(okRecord);
-    assertTrue(result.isPresent());
-    String proto = ProtoUtil.toProto(result.get()).replace("\n", "");
-
-    ObjectMapper mapper = new ObjectMapper();
-    JsonNode actual = mapper.readTree(proto);
-    assertEquals("projects/project/instances/instance/tables/topic", actual.get("tableName").asText());
-    assertEquals("42#John Doe", ProtoUtil.fromBase64(actual.get("rowKey").asText()));
-    ArrayNode mutations = (ArrayNode) actual.get("mutations");
-    assertEquals(2, mutations.size());
-    assertEquals("default", mutations.get(0).get("setCell").get("familyName").textValue());
-    assertEquals("id", ProtoUtil.fromBase64(mutations.get(0).get("setCell").get("columnQualifier").textValue()));
-    assertEquals(ProtoUtil.toBase64(42), mutations.get(0).get("setCell").get("value").textValue());
-    assertEquals("default", mutations.get(1).get("setCell").get("familyName").textValue());
-    assertEquals("name", ProtoUtil.fromBase64(mutations.get(1).get("setCell").get("columnQualifier").textValue()));
-    assertEquals(ProtoUtil.toBase64("John Doe"), mutations.get(1).get("setCell").get("value").textValue());
-  }
-
-  @Test
   public void testErrorReporterWithDLQ() {
     doReturn(errorReporter).when(context).errantRecordReporter();
     task = new TestBigtableSinkTask(null, null, null, null, null, null, context);

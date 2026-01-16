@@ -115,6 +115,16 @@ public class ValueMapper {
           continue;
         } else if (kafkaFieldValue == null && nullMode == NullValueMode.DELETE) {
           mutationDataBuilder.deleteFamily(kafkaFieldName);
+        } else if (expandRootLevelArrays && kafkaFieldValue instanceof List) {
+          List<?> listValue = (List<?>) kafkaFieldValue;
+          for (int i = 0; i < listValue.size(); i++) {
+            Object o = listValue.get(i);
+            mutationDataBuilder.setCell(
+                kafkaFieldName,
+                ByteString.copyFrom(Integer.toString(i).getBytes(StandardCharsets.UTF_8)),
+                timestampMicros,
+                ByteString.copyFrom(serialize(o)));
+          }
         } else if (kafkaFieldValue instanceof Struct) {
           for (Map.Entry<Object, SchemaAndValue> subfield :
               getChildren((Struct) kafkaFieldValue, kafkaFieldSchema)) {

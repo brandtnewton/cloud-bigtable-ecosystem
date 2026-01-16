@@ -18,6 +18,7 @@ package com.google.cloud.kafka.connect.bigtable.mapping;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.json.JsonMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.google.cloud.bigtable.data.v2.models.Range;
 import com.google.cloud.kafka.connect.bigtable.config.ConfigInterpolation;
@@ -816,7 +817,7 @@ public class ValueMapperTest {
   public void testExpandRootLevelArrays() throws JsonProcessingException {
     ValueMapper mapper =
         new TestValueMapper(
-            ConfigInterpolation.TOPIC_PLACEHOLDER, DEFAULT_COLUMN, NullValueMode.WRITE, true);
+            "cf", "", NullValueMode.WRITE, true);
 
     Schema productSchema = SchemaBuilder.struct()
         .field("name", Schema.STRING_SCHEMA)
@@ -844,16 +845,13 @@ public class ValueMapperTest {
 
     List<Struct> productList = Arrays.stream(new Struct[]{productElement1, productElement2, productElement3}).toList();
 
-    Struct productsWrapper = new Struct(schema.field("products").schema())
-        .put("list", productList);
-
     Struct value = new Struct(schema)
         .put("orderId", "ORD-999")
         .put("userId", "USER-42")
-        .put("products", productsWrapper);
+        .put("products", productList);
 
 
-    MutationDataBuilder mutationDataBuilder = getRecordMutationDataBuilder(mapper, null);
+    MutationDataBuilder mutationDataBuilder = getRecordMutationDataBuilder(mapper, value);
 
     Optional<MutationData> mutationData = mutationDataBuilder.maybeBuild("my_table", ROW_KEY);
     assertTrue(mutationData.isPresent());
@@ -861,15 +859,38 @@ public class ValueMapperTest {
 
     JsonNode actual = new ObjectMapper().readTree(proto);
     assertEquals("projects/project/instances/instance/tables/my_table", actual.get("tableName").asText());
-    assertEquals("42#John Doe", ProtoUtil.fromBase64(actual.get("rowKey").asText()));
+    assertEquals(ROW_KEY.toString(StandardCharsets.UTF_8), ProtoUtil.fromBase64(actual.get("rowKey").asText()));
     ArrayNode mutations = (ArrayNode) actual.get("mutations");
-    assertEquals(3, mutations.size());
-    assertEquals("default", mutations.get(0).get("setCell").get("familyName").textValue());
-    assertEquals("id", ProtoUtil.fromBase64(mutations.get(0).get("setCell").get("columnQualifier").textValue()));
-    assertEquals(ProtoUtil.toBase64(42), mutations.get(0).get("setCell").get("value").textValue());
-    assertEquals("default", mutations.get(1).get("setCell").get("familyName").textValue());
-    assertEquals("name", ProtoUtil.fromBase64(mutations.get(1).get("setCell").get("columnQualifier").textValue()));
-    assertEquals(ProtoUtil.toBase64("John Doe"), mutations.get(1).get("setCell").get("value").textValue());
+    assertEquals(5, mutations.size());
+    assertEquals("cf", mutations.get(0).get("setCell").get("familyName").textValue());
+    assertEquals("orderId", ProtoUtil.fromBase64(mutations.get(0).get("setCell").get("columnQualifier").textValue()));
+    assertEquals(ProtoUtil.toBase64("ORD-999"), mutations.get(0).get("setCell").get("value").textValue());
+
+    assertEquals("cf", mutations.get(1).get("setCell").get("familyName").textValue());
+    assertEquals("userId", ProtoUtil.fromBase64(mutations.get(1).get("setCell").get("columnQualifier").textValue()));
+    assertEquals(ProtoUtil.toBase64("USER-42"), mutations.get(1).get("setCell").get("value").textValue());
+
+    // products
+    assertEquals("products", mutations.get(2).get("setCell").get("familyName").textValue());
+    assertEquals("0", ProtoUtil.fromBase64(mutations.get(2).get("setCell").get("columnQualifier").textValue()));
+    JsonMapper jsonMapper = new JsonMapper();
+
+    JsonNode product1Json = jsonMapper.readTree(ProtoUtil.fromBase64(mutations.get(2).get("setCell").get("value").textValue()));
+    assertEquals("Ball", product1Json.get("name").asText());
+    assertEquals("PROD-123", product1Json.get("id").asText());
+    assertEquals(5, product1Json.get("quantity").asInt());
+
+    assertEquals("1", ProtoUtil.fromBase64(mutations.get(3).get("setCell").get("columnQualifier").textValue()));
+    JsonNode product2Json = jsonMapper.readTree(ProtoUtil.fromBase64(mutations.get(3).get("setCell").get("value").textValue()));
+    assertEquals("Car", product2Json.get("name").asText());
+    assertEquals("PROD-456", product2Json.get("id").asText());
+    assertEquals(1, product2Json.get("quantity").asInt());
+
+    assertEquals("2", ProtoUtil.fromBase64(mutations.get(4).get("setCell").get("columnQualifier").textValue()));
+    JsonNode product3Json = jsonMapper.readTree(ProtoUtil.fromBase64(mutations.get(4).get("setCell").get("value").textValue()));
+    assertEquals("Tambourine", product3Json.get("name").asText());
+    assertEquals("PROD-789", product3Json.get("id").asText());
+    assertEquals(2, product3Json.get("quantity").asInt());
   }
 
   private MutationDataBuilder getRecordMutationDataBuilder(ValueMapper mapper, Object kafkaValue) {

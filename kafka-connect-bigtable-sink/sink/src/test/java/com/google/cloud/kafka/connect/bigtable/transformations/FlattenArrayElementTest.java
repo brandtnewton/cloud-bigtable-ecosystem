@@ -19,8 +19,8 @@ public class FlattenArrayElementTest {
   private FlattenArrayElement<SourceRecord> getTransformer() {
     FlattenArrayElement<SourceRecord> xform = new FlattenArrayElement<>();
     Map<String, String> props = new HashMap<>();
-    props.put("array.field", "products");
-    props.put("element.field", "element");
+    props.put("array.fields", "products");
+    props.put("element.fields", "element");
     xform.configure(props);
     return xform;
   }

@@ -1,7 +1,6 @@
 package com.google.cloud.kafka.connect.bigtable.transformations;
 
 import org.apache.kafka.common.config.ConfigDef;
-import org.apache.kafka.common.config.ConfigException;
 import org.apache.kafka.connect.connector.ConnectRecord;
 import org.apache.kafka.connect.data.Field;
 import org.apache.kafka.connect.data.Schema;
@@ -14,40 +13,35 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.stream.Collectors;
 
 public class FlattenArrayElement<R extends ConnectRecord<R>> implements Transformation<R> {
 
-  public static final String ARRAY_FIELD_CONF = "array.fields";
-  public static final String ELEMENT_WRAPPER_CONF = "element.fields";
+  public static final String ARRAY_FIELD_NAME = "array.field";
+  public static final String ARRAY_INNER_WRAPPER_FIELD_NAME = "array.inner.wrapper";
+  public static final String ARRAY_ELEMENT_WRAPPER_FIELD_NAME = "array.element.wrapper";
 
   public static final ConfigDef CONFIG_DEF = new ConfigDef()
-      .define(ARRAY_FIELD_CONF, ConfigDef.Type.LIST, ConfigDef.Importance.HIGH, "Field containing the list")
-      .define(ELEMENT_WRAPPER_CONF, ConfigDef.Type.LIST, ConfigDef.Importance.HIGH, "The wrapper field inside the list items");
+      .define(ARRAY_FIELD_NAME, ConfigDef.Type.STRING, ConfigDef.Importance.HIGH, "The name of the root level array field.")
+      .define(ARRAY_INNER_WRAPPER_FIELD_NAME, ConfigDef.Type.STRING, ConfigDef.Importance.HIGH, "The name of the inner array wrapper field.")
+      .define(ARRAY_ELEMENT_WRAPPER_FIELD_NAME, ConfigDef.Type.STRING, ConfigDef.Importance.HIGH, "The name of the wrapper field around each array element.");
 
-  private List<String> arrayFieldNames;
-  private List<String> elementWrapperNames;
+  private String arrayFieldName;
+  private String innerWrapperFieldName;
+  private String elementWrapperFieldName;
 
   @Override
   public void configure(Map<String, ?> configs) {
     SimpleConfig config = new SimpleConfig(CONFIG_DEF, configs);
-    this.arrayFieldNames = config.getList(ARRAY_FIELD_CONF);
-    this.elementWrapperNames = config.getList(ELEMENT_WRAPPER_CONF);
-    if (arrayFieldNames.size() != elementWrapperNames.size()) {
-      throw new ConfigException("arrayFieldNames", this.arrayFieldNames, String.format("%s and %s must be the same length", ARRAY_FIELD_CONF, ELEMENT_WRAPPER_CONF));
-    }
+    this.arrayFieldName = config.getString(ARRAY_FIELD_NAME);
+    this.innerWrapperFieldName = config.getString(ARRAY_INNER_WRAPPER_FIELD_NAME);
+    this.elementWrapperFieldName = config.getString(ARRAY_ELEMENT_WRAPPER_FIELD_NAME);
   }
 
   @Override
   public R apply(R record) {
-    Schema schema = record.valueSchema();
-    Object value = record.value();
-    for (int i = 0; i < arrayFieldNames.size(); i++) {
-      String arrayFieldName = arrayFieldNames.get(i);
-      String elementWrapperFieldName = elementWrapperNames.get(i);
-
-      schema = convertSchema(schema, arrayFieldName, elementWrapperFieldName);
-      value = convertValue(schema, value, arrayFieldName, elementWrapperFieldName);
-    }
+    Schema schema = convertSchema(record.valueSchema());
+    Object value = convertValue(schema, record.value());
     return record.newRecord(record.topic(), record.kafkaPartition(), record.keySchema(), record.key(), schema, value, record.timestamp());
   }
 
@@ -60,41 +54,45 @@ public class FlattenArrayElement<R extends ConnectRecord<R>> implements Transfor
   public void close() {
   }
 
-  private Field getArrayElementField(Schema schema, String arrayFieldName, String elementWrapperName) {
+  private Field getArrayElementField(Schema schema) {
     if (schema == null) {
       throw new IllegalArgumentException("No schema");
     }
     Field arrayField = schema.field(arrayFieldName);
     if (arrayField == null) {
-      throw new IllegalArgumentException("Unknown field: " + arrayFieldName);
+      throw new IllegalArgumentException("Missing root level field: " + arrayFieldName);
+    }
+    Field innerArrayField = arrayField.schema().field(innerWrapperFieldName);
+    if (innerArrayField == null) {
+      throw new IllegalArgumentException("Missing inner field: " + innerWrapperFieldName);
     }
 
-    if (arrayField.schema().type() != Schema.Type.ARRAY) {
-      throw new IllegalArgumentException("Array field: '" + arrayFieldName + "' is not an array");
+    if (innerArrayField.schema().type() != Schema.Type.ARRAY) {
+      throw new IllegalArgumentException("Array field: '" + innerWrapperFieldName + "' is not an array");
     }
 
-    Field innerElementField = arrayField.schema().valueSchema().field(elementWrapperName);
+    Field innerElementField = innerArrayField.schema().valueSchema().field(elementWrapperFieldName);
     if (innerElementField == null) {
-      throw new IllegalArgumentException("Unknown array element field: " + elementWrapperName);
+      throw new IllegalArgumentException("Unknown array element field: " + elementWrapperFieldName);
     }
     return innerElementField;
   }
 
-  private Schema convertSchema(Schema schema, String arrayFieldName, String elementWrapperName) {
+  private Schema convertSchema(Schema schema) {
     // build a modified schema
     SchemaBuilder builder = SchemaBuilder.struct().name("FlattenedRecord");
     for (Field field : schema.fields()) {
       if (!Objects.equals(field.name(), arrayFieldName)) {
         builder.field(field.name(), field.schema());
       } else {
-        Field innerElementField = getArrayElementField(schema, arrayFieldName, elementWrapperName);
+        Field innerElementField = getArrayElementField(schema);
         builder.field(arrayFieldName, SchemaBuilder.array(innerElementField.schema()));
       }
     }
     return builder.build();
   }
 
-  private Struct convertValue(Schema schema, Object original, String arrayFieldName, String elementWrapperName) {
+  private Struct convertValue(Schema schema, Object original) {
     if (original == null) {
       return null;
     }
@@ -112,9 +110,10 @@ public class FlattenArrayElement<R extends ConnectRecord<R>> implements Transfor
 
     // add the array
     List<Struct> array = new ArrayList<>();
-    for (Struct element : originalStruct.<Struct>getArray(arrayFieldName)) {
+    List<Struct> originalArray = ((Struct) originalStruct.get(arrayFieldName)).<Struct>getArray(innerWrapperFieldName);
+    for (Struct element : originalArray) {
       // unpack the element wrapper
-      Struct innerValue = element.getStruct(elementWrapperName);
+      Struct innerValue = element.getStruct(elementWrapperFieldName);
       array.add(innerValue);
     }
     resultValue.put(arrayFieldName, array);

@@ -8,6 +8,7 @@ import com.google.cloud.bigtable.data.v2.models.Row;
 import com.google.cloud.bigtable.data.v2.models.RowCell;
 import com.google.cloud.kafka.connect.bigtable.config.BigtableErrorMode;
 import com.google.cloud.kafka.connect.bigtable.config.InsertMode;
+import com.google.cloud.kafka.connect.bigtable.transformations.FlattenArrayElement;
 import com.google.protobuf.ByteString;
 import org.apache.kafka.connect.data.Schema;
 import org.apache.kafka.connect.data.SchemaBuilder;
@@ -38,9 +39,10 @@ public class FlattenArrayElementIT extends BaseKafkaConnectBigtableIT {
     Map<String, String> props = baseConnectorProps();
     props.put(INSERT_MODE_CONFIG, InsertMode.UPSERT.name());
     props.put("transforms", "flattenElements");
-    props.put("transforms.flattenElements.type", "com.google.cloud.kafka.connect.bigtable.transformations.FlattenArrayElement");
-    props.put("transforms.flattenElements.array.fields", "products");
-    props.put("transforms.flattenElements.element.fields", "element");
+    props.put("transforms.flattenElements.type", FlattenArrayElement.class.getName());
+    props.put("transforms.flattenElements." + FlattenArrayElement.ARRAY_FIELD_NAME, "products");
+    props.put("transforms.flattenElements." + FlattenArrayElement.ARRAY_INNER_WRAPPER_FIELD_NAME, "list");
+    props.put("transforms.flattenElements." + FlattenArrayElement.ARRAY_ELEMENT_WRAPPER_FIELD_NAME, "element");
     props.put(DEFAULT_COLUMN_FAMILY_CONFIG, "cf");
     props.put(ERROR_MODE_CONFIG, BigtableErrorMode.FAIL.name());
     props.put(KEY_CONVERTER_CLASS_CONFIG, StringConverter.class.getName());
@@ -61,7 +63,7 @@ public class FlattenArrayElementIT extends BaseKafkaConnectBigtableIT {
         .field("orderId", Schema.STRING_SCHEMA)
         .field("userId", Schema.STRING_SCHEMA)
         .field("products",
-            SchemaBuilder.array(elementSchema).build()
+            SchemaBuilder.struct().field("list", SchemaBuilder.array(elementSchema)).build()
         )
         .build();
 
@@ -86,10 +88,13 @@ public class FlattenArrayElementIT extends BaseKafkaConnectBigtableIT {
 
     List<Struct> productList = Arrays.stream(new Struct[]{productElement1, productElement2, productElement3}).toList();
 
+    Struct productsWrapper = new Struct(schema.field("products").schema())
+        .put("list", productList);
+
     Struct value = new Struct(schema)
         .put("orderId", "ORD-999")
         .put("userId", "USER-42")
-        .put("products", productList);
+        .put("products", productsWrapper);
 
 
     byte[] schemaAsJson = converter.fromConnectData(testId, schema, value);

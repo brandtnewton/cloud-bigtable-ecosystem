@@ -23,7 +23,6 @@ import com.google.cloud.bigtable.data.v2.models.Row;
 import com.google.cloud.bigtable.data.v2.models.RowCell;
 import com.google.cloud.kafka.connect.bigtable.config.BigtableErrorMode;
 import com.google.cloud.kafka.connect.bigtable.config.InsertMode;
-import com.google.cloud.kafka.connect.bigtable.config.KafkaMessageComponent;
 import com.google.cloud.kafka.connect.bigtable.mapping.ByteUtils;
 import com.google.cloud.kafka.connect.bigtable.transformations.FlattenArrayElement;
 import com.google.protobuf.ByteString;
@@ -126,7 +125,9 @@ public class InsertUpsertIT extends BaseKafkaConnectBigtableIT {
     props.put(ROW_KEY_DELIMITER_CONFIG, "#");
     props.put(DEFAULT_COLUMN_FAMILY_CONFIG, "cf");
     props.put(ERROR_MODE_CONFIG, BigtableErrorMode.FAIL.name());
-    props.put(ROW_KEY_SOURCE_CONFIG, KafkaMessageComponent.VALUE.name());
+    props.put("transforms", "createKey");
+    props.put("transforms.createKey.type", "org.apache.kafka.connect.transforms.ValueToKey");
+    props.put("transforms.createKey.fields", "orderId,userId");
     props.put(VALUE_CONVERTER_CLASS_CONFIG, JsonConverter.class.getName());
 
     String testId = startSingleTopicConnector(props);
@@ -179,7 +180,9 @@ public class InsertUpsertIT extends BaseKafkaConnectBigtableIT {
     props.put(ROW_KEY_DELIMITER_CONFIG, "#");
     props.put(DEFAULT_COLUMN_FAMILY_CONFIG, "cf");
     props.put(ERROR_MODE_CONFIG, BigtableErrorMode.FAIL.name());
-    props.put(ROW_KEY_SOURCE_CONFIG, KafkaMessageComponent.VALUE.name());
+    props.put("transforms", "createKey,flattenElements");
+    props.put("transforms.createKey.type", "org.apache.kafka.connect.transforms.ValueToKey");
+    props.put("transforms.createKey.fields", "orderId,userId");
     props.put("value.converter.schemas.enable", "false");
     props.put(VALUE_CONVERTER_CLASS_CONFIG, JsonConverter.class.getName());
 
@@ -215,7 +218,9 @@ public class InsertUpsertIT extends BaseKafkaConnectBigtableIT {
     props.put(ROW_KEY_DELIMITER_CONFIG, "#");
     props.put(DEFAULT_COLUMN_FAMILY_CONFIG, "cf");
     props.put(ERROR_MODE_CONFIG, BigtableErrorMode.FAIL.name());
-    props.put(ROW_KEY_SOURCE_CONFIG, KafkaMessageComponent.VALUE.name());
+    props.put("transforms", "createKey,flattenElements");
+    props.put("transforms.createKey.type", "org.apache.kafka.connect.transforms.ValueToKey");
+    props.put("transforms.createKey.fields", "orderId,userId");
     props.put(VALUE_CONVERTER_CLASS_CONFIG, JsonConverter.class.getName());
     configureDlq(props, dlqTopic);
     String testId = startSingleTopicConnector(props);
@@ -252,7 +257,9 @@ public class InsertUpsertIT extends BaseKafkaConnectBigtableIT {
     props.put(ROW_KEY_DELIMITER_CONFIG, "#");
     props.put(DEFAULT_COLUMN_FAMILY_CONFIG, "cf");
     props.put(ERROR_MODE_CONFIG, BigtableErrorMode.FAIL.name());
-    props.put(ROW_KEY_SOURCE_CONFIG, KafkaMessageComponent.VALUE.name());
+    props.put("transforms", "createKey,flattenElements");
+    props.put("transforms.createKey.type", "org.apache.kafka.connect.transforms.ValueToKey");
+    props.put("transforms.createKey.fields", "orderId,userId");
     props.put(VALUE_CONVERTER_CLASS_CONFIG, JsonConverter.class.getName());
     configureDlq(props, dlqTopic);
     String testId = startSingleTopicConnector(props);

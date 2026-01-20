@@ -1,5 +1,9 @@
 package com.google.cloud.kafka.connect.bigtable.util;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.cloud.bigtable.data.v2.models.Row;
+import com.google.cloud.bigtable.data.v2.models.RowCell;
 import org.apache.kafka.connect.data.Schema;
 import org.apache.kafka.connect.data.SchemaBuilder;
 import org.apache.kafka.connect.data.Struct;
@@ -51,6 +55,38 @@ public class TestDataUtil {
 
     byte[] schemaAsJson = converter.fromConnectData(topic, orderSchema, value);
     connect.kafka().produce(topic, key, new String(schemaAsJson));
+  }
+
+  public static TestDataUtil.Order extractExpandedOrderFromRow(Row row) throws JsonProcessingException {
+    ObjectMapper mapper = new ObjectMapper();
+
+    String orderId = getValue(row, "cf", "orderId");
+    String userId = getValue(row, "cf", "userId");
+
+    List<RowCell> productCells = new ArrayList<>(row.getCells("products"));
+    productCells.sort(Comparator.comparing(c -> c.getQualifier().toStringUtf8()));
+
+    List<TestDataUtil.OrderProduct> productList = new ArrayList<>();
+    for (RowCell cell : productCells) {
+      String json = cell.getValue().toStringUtf8();
+      TestDataUtil.OrderProduct product = mapper.readValue(json, TestDataUtil.OrderProduct.class);
+      productList.add(product);
+    }
+
+    return new TestDataUtil.Order(
+        orderId,
+        userId,
+        productList.toArray(new TestDataUtil.OrderProduct[0])
+    );
+  }
+
+  private static String getValue(Row row, String family, String qualifier) {
+    List<RowCell> cells = row.getCells(family, qualifier);
+    if (cells == null || cells.isEmpty()) {
+      return null;
+    }
+    // Return the latest cell (Bigtable returns them ordered by timestamp descending)
+    return cells.get(0).getValue().toStringUtf8();
   }
 
   public record Order(String orderId, String userId, OrderProduct[] products) {

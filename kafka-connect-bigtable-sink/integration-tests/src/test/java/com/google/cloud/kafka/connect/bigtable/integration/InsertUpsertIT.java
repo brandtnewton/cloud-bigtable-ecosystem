@@ -126,7 +126,7 @@ public class InsertUpsertIT extends BaseKafkaConnectBigtableIT {
     props.put(ERROR_MODE_CONFIG, BigtableErrorMode.FAIL.name());
     props.put("transforms", "createKey");
     props.put("transforms.createKey.type", "org.apache.kafka.connect.transforms.ValueToKey");
-    props.put("transforms.createKey.fields", "orderId,userId");
+    props.put("transforms.createKey.fields", "orderId,product");
     props.put(VALUE_CONVERTER_CLASS_CONFIG, JsonConverter.class.getName());
 
     String testId = startSingleTopicConnector(props);
@@ -179,9 +179,9 @@ public class InsertUpsertIT extends BaseKafkaConnectBigtableIT {
     props.put(ROW_KEY_DELIMITER_CONFIG, "#");
     props.put(DEFAULT_COLUMN_FAMILY_CONFIG, "cf");
     props.put(ERROR_MODE_CONFIG, BigtableErrorMode.FAIL.name());
-    props.put("transforms", "createKey,flattenElements");
+    props.put("transforms", "createKey");
     props.put("transforms.createKey.type", "org.apache.kafka.connect.transforms.ValueToKey");
-    props.put("transforms.createKey.fields", "orderId,userId");
+    props.put("transforms.createKey.fields", "orderId,product");
     props.put("value.converter.schemas.enable", "false");
     props.put(VALUE_CONVERTER_CLASS_CONFIG, JsonConverter.class.getName());
 
@@ -217,7 +217,7 @@ public class InsertUpsertIT extends BaseKafkaConnectBigtableIT {
     props.put(ROW_KEY_DELIMITER_CONFIG, "#");
     props.put(DEFAULT_COLUMN_FAMILY_CONFIG, "cf");
     props.put(ERROR_MODE_CONFIG, BigtableErrorMode.FAIL.name());
-    props.put("transforms", "createKey,flattenElements");
+    props.put("transforms", "createKey");
     props.put("transforms.createKey.type", "org.apache.kafka.connect.transforms.ValueToKey");
     props.put("transforms.createKey.fields", "orderId,userId");
     props.put(VALUE_CONVERTER_CLASS_CONFIG, JsonConverter.class.getName());
@@ -256,7 +256,7 @@ public class InsertUpsertIT extends BaseKafkaConnectBigtableIT {
     props.put(ROW_KEY_DELIMITER_CONFIG, "#");
     props.put(DEFAULT_COLUMN_FAMILY_CONFIG, "cf");
     props.put(ERROR_MODE_CONFIG, BigtableErrorMode.FAIL.name());
-    props.put("transforms", "createKey,flattenElements");
+    props.put("transforms", "createKey");
     props.put("transforms.createKey.type", "org.apache.kafka.connect.transforms.ValueToKey");
     props.put("transforms.createKey.fields", "orderId,userId");
     props.put(VALUE_CONVERTER_CLASS_CONFIG, JsonConverter.class.getName());

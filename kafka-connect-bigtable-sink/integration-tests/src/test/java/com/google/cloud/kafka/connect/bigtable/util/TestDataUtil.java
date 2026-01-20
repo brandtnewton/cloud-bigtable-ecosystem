@@ -20,7 +20,7 @@ public class TestDataUtil {
       .build();
 
 
-  public static final Schema orderElementSchema = SchemaBuilder.struct().field("element", orderProductSchema).build();
+  public static final Schema orderElementSchema = SchemaBuilder.struct().field("element", orderProductSchema).optional().build();
 
   public static final Schema orderSchema = SchemaBuilder.struct().optional()
       .field("orderId", Schema.STRING_SCHEMA)
@@ -36,6 +36,10 @@ public class TestDataUtil {
 
     List<Struct> productList = new ArrayList<>(order.products.length);
     for (OrderProduct product : order.products) {
+      if (product == null) {
+        productList.add(null);
+        continue;
+      }
       Struct productStruct = new Struct(orderElementSchema).put("element", new Struct(orderProductSchema)
           .put("name", product.name)
           .put("id", product.id)
@@ -51,7 +55,6 @@ public class TestDataUtil {
         .put("orderId", order.orderId)
         .put("userId", order.userId)
         .put("products", productsWrapper);
-
 
     byte[] schemaAsJson = converter.fromConnectData(topic, orderSchema, value);
     connect.kafka().produce(topic, key, new String(schemaAsJson));

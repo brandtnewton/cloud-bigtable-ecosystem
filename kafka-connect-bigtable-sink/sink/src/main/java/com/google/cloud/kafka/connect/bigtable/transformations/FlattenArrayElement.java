@@ -123,6 +123,10 @@ public class FlattenArrayElement<R extends ConnectRecord<R>> implements Transfor
     }
 
     for (Struct element : originalArray) {
+      if (element == null) {
+        array.add(null);
+        continue;
+      }
       // unpack the element wrapper
       Struct innerValue = element.getStruct(elementWrapperFieldName);
       array.add(innerValue);

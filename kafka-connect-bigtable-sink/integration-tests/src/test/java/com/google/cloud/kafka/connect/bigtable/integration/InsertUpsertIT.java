@@ -358,12 +358,8 @@ public class InsertUpsertIT extends BaseKafkaConnectBigtableIT {
         .put("orderId", "ORD-999")
         .put("userId", "USER-42")
         .put("products", productsWrapper);
-
-
-    byte[] schemaAsJson = converter.fromConnectData(testId, schema, value);
-    System.out.println(new String(schemaAsJson));
-
-    connect.kafka().produce(testId, KEY1, new String(schemaAsJson));
+    
+    connect.kafka().produce(testId, KEY1, new String(converter.fromConnectData(testId, schema, value)));
 
     waitUntilBigtableContainsNumberOfRows(testId, 1);
     Map<ByteString, Row> rows = readAllRows(bigtableData, testId);

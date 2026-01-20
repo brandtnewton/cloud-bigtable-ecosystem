@@ -41,7 +41,6 @@ import java.util.Optional;
 import java.util.stream.Collectors;
 import javax.annotation.Nonnull;
 
-import com.google.protobuf.MapEntry;
 import org.apache.kafka.common.utils.Utils;
 import org.apache.kafka.connect.data.Decimal;
 import org.apache.kafka.connect.data.Field;
@@ -116,15 +115,7 @@ public class ValueMapper {
         } else if (kafkaFieldValue == null && nullMode == NullValueMode.DELETE) {
           mutationDataBuilder.deleteFamily(kafkaFieldName);
         } else if (expandRootLevelArrays && kafkaFieldValue instanceof List) {
-          List<?> listValue = (List<?>) kafkaFieldValue;
-          for (int i = 0; i < listValue.size(); i++) {
-            Object o = listValue.get(i);
-            mutationDataBuilder.setCell(
-                kafkaFieldName,
-                ByteString.copyFrom(Integer.toString(i).getBytes(StandardCharsets.UTF_8)),
-                timestampMicros,
-                ByteString.copyFrom(serialize(o)));
-          }
+          writeRootLevelArray(mutationDataBuilder, kafkaFieldName, kafkaFieldValue, timestampMicros);
         } else if (kafkaFieldValue instanceof Struct) {
           for (Map.Entry<Object, SchemaAndValue> subfield :
               getChildren((Struct) kafkaFieldValue, kafkaFieldSchema)) {
@@ -169,6 +160,19 @@ public class ValueMapper {
       }
     }
     return mutationDataBuilder;
+  }
+
+  private void writeRootLevelArray(MutationDataBuilder mutationDataBuilder, String columnFamily, Object value, long timestampMicros) {
+    List<?> listValue = (List<?>) value;
+    mutationDataBuilder.deleteFamily(columnFamily);
+    for (int i = 0; i < listValue.size(); i++) {
+      Object o = listValue.get(i);
+      mutationDataBuilder.setCell(
+          columnFamily,
+          ByteString.copyFrom(Integer.toString(i).getBytes(StandardCharsets.UTF_8)),
+          timestampMicros,
+          ByteString.copyFrom(serialize(o)));
+    }
   }
 
   @VisibleForTesting

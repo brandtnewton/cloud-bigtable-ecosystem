@@ -861,7 +861,7 @@ public class ValueMapperTest {
     assertEquals("projects/project/instances/instance/tables/my_table", actual.get("tableName").asText());
     assertEquals(ROW_KEY.toString(StandardCharsets.UTF_8), ProtoUtil.fromBase64(actual.get("rowKey").asText()));
     ArrayNode mutations = (ArrayNode) actual.get("mutations");
-    assertEquals(5, mutations.size());
+    assertEquals(6, mutations.size());
     assertEquals("cf", mutations.get(0).get("setCell").get("familyName").textValue());
     assertEquals("orderId", ProtoUtil.fromBase64(mutations.get(0).get("setCell").get("columnQualifier").textValue()));
     assertEquals(ProtoUtil.toBase64("ORD-999"), mutations.get(0).get("setCell").get("value").textValue());
@@ -871,23 +871,25 @@ public class ValueMapperTest {
     assertEquals(ProtoUtil.toBase64("USER-42"), mutations.get(1).get("setCell").get("value").textValue());
 
     // products
-    assertEquals("products", mutations.get(2).get("setCell").get("familyName").textValue());
-    assertEquals("0", ProtoUtil.fromBase64(mutations.get(2).get("setCell").get("columnQualifier").textValue()));
+    assertEquals("products", mutations.get(2).get("deleteFromFamily").get("familyName").textValue());
+
+    assertEquals("products", mutations.get(3).get("setCell").get("familyName").textValue());
+    assertEquals("0", ProtoUtil.fromBase64(mutations.get(3).get("setCell").get("columnQualifier").textValue()));
     JsonMapper jsonMapper = new JsonMapper();
 
-    JsonNode product1Json = jsonMapper.readTree(ProtoUtil.fromBase64(mutations.get(2).get("setCell").get("value").textValue()));
+    JsonNode product1Json = jsonMapper.readTree(ProtoUtil.fromBase64(mutations.get(3).get("setCell").get("value").textValue()));
     assertEquals("Ball", product1Json.get("name").asText());
     assertEquals("PROD-123", product1Json.get("id").asText());
     assertEquals(5, product1Json.get("quantity").asInt());
 
-    assertEquals("1", ProtoUtil.fromBase64(mutations.get(3).get("setCell").get("columnQualifier").textValue()));
-    JsonNode product2Json = jsonMapper.readTree(ProtoUtil.fromBase64(mutations.get(3).get("setCell").get("value").textValue()));
+    assertEquals("1", ProtoUtil.fromBase64(mutations.get(4).get("setCell").get("columnQualifier").textValue()));
+    JsonNode product2Json = jsonMapper.readTree(ProtoUtil.fromBase64(mutations.get(4).get("setCell").get("value").textValue()));
     assertEquals("Car", product2Json.get("name").asText());
     assertEquals("PROD-456", product2Json.get("id").asText());
     assertEquals(1, product2Json.get("quantity").asInt());
 
-    assertEquals("2", ProtoUtil.fromBase64(mutations.get(4).get("setCell").get("columnQualifier").textValue()));
-    JsonNode product3Json = jsonMapper.readTree(ProtoUtil.fromBase64(mutations.get(4).get("setCell").get("value").textValue()));
+    assertEquals("2", ProtoUtil.fromBase64(mutations.get(5).get("setCell").get("columnQualifier").textValue()));
+    JsonNode product3Json = jsonMapper.readTree(ProtoUtil.fromBase64(mutations.get(5).get("setCell").get("value").textValue()));
     assertEquals("Tambourine", product3Json.get("name").asText());
     assertEquals("PROD-789", product3Json.get("id").asText());
     assertEquals(2, product3Json.get("quantity").asInt());

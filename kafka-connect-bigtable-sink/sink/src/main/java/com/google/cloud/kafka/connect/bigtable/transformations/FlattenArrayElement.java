@@ -80,7 +80,7 @@ public class FlattenArrayElement<R extends ConnectRecord<R>> implements Transfor
 
   private Schema convertSchema(Schema schema) {
     // build a modified schema
-    SchemaBuilder builder = SchemaBuilder.struct().name("FlattenedRecord");
+    SchemaBuilder builder = SchemaBuilder.struct().name(schema.name());
     for (Field field : schema.fields()) {
       if (!Objects.equals(field.name(), arrayFieldName)) {
         builder.field(field.name(), field.schema());
@@ -110,13 +110,23 @@ public class FlattenArrayElement<R extends ConnectRecord<R>> implements Transfor
 
     // add the array
     List<Struct> array = new ArrayList<>();
-    List<Struct> originalArray = ((Struct) originalStruct.get(arrayFieldName)).<Struct>getArray(innerWrapperFieldName);
+    resultValue.put(arrayFieldName, array);
+
+    Struct arrayFieldValue = (Struct) originalStruct.get(arrayFieldName);
+    if (arrayFieldValue == null) {
+      return resultValue;
+    }
+
+    List<Struct> originalArray = arrayFieldValue.getArray(innerWrapperFieldName);
+    if (originalArray == null) {
+      return resultValue;
+    }
+
     for (Struct element : originalArray) {
       // unpack the element wrapper
       Struct innerValue = element.getStruct(elementWrapperFieldName);
       array.add(innerValue);
     }
-    resultValue.put(arrayFieldName, array);
     return resultValue;
   }
 }

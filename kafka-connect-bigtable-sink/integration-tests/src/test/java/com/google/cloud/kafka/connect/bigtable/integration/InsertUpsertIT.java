@@ -18,17 +18,14 @@ package com.google.cloud.kafka.connect.bigtable.integration;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.google.cloud.bigtable.data.v2.models.Row;
 import com.google.cloud.bigtable.data.v2.models.RowCell;
 import com.google.cloud.kafka.connect.bigtable.config.BigtableErrorMode;
 import com.google.cloud.kafka.connect.bigtable.config.InsertMode;
 import com.google.cloud.kafka.connect.bigtable.mapping.ByteUtils;
 import com.google.cloud.kafka.connect.bigtable.transformations.FlattenArrayElement;
+import com.google.cloud.kafka.connect.bigtable.util.TestDataUtil;
 import com.google.protobuf.ByteString;
-import org.apache.kafka.connect.data.Schema;
-import org.apache.kafka.connect.data.SchemaBuilder;
-import org.apache.kafka.connect.data.Struct;
 import org.apache.kafka.connect.errors.DataException;
 import org.apache.kafka.connect.json.JsonConverter;
 import org.apache.kafka.connect.storage.StringConverter;
@@ -37,7 +34,9 @@ import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
 import java.nio.charset.StandardCharsets;
-import java.util.*;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ExecutionException;
 import java.util.stream.Collectors;
 
@@ -314,52 +313,13 @@ public class InsertUpsertIT extends BaseKafkaConnectBigtableIT {
     String testId = startSingleTopicConnector(props);
     createTablesAndColumnFamilies(Map.of(testId, Set.of(testId, "cf", "products")));
 
-    Schema productSchema = SchemaBuilder.struct()
-        .field("name", Schema.STRING_SCHEMA)
-        .field("id", Schema.STRING_SCHEMA)
-        .field("quantity", Schema.INT32_SCHEMA)
-        .build();
+    TestDataUtil.Order order = new TestDataUtil.Order("ORD-999", "USER-42", new TestDataUtil.OrderProduct[]{
+        new TestDataUtil.OrderProduct("Ball", "PROD-123", 5),
+        new TestDataUtil.OrderProduct("Car", "PROD-456", 1),
+        new TestDataUtil.OrderProduct("Tambourine", "PROD-789", 2)
+    });
 
-    Schema elementSchema = SchemaBuilder.struct().field("element", productSchema).build();
-
-    Schema schema = SchemaBuilder.struct().optional()
-        .field("orderId", Schema.STRING_SCHEMA)
-        .field("userId", Schema.STRING_SCHEMA)
-        .field("products",
-            SchemaBuilder.struct().field("list", SchemaBuilder.array(elementSchema)).build()
-        )
-        .build();
-
-    JsonConverter converter = new JsonConverter();
-    converter.configure(Collections.singletonMap("schemas.enable", "true"), false);
-
-    Struct productElement1 = new Struct(elementSchema).put("element", new Struct(productSchema)
-        .put("name", "Ball")
-        .put("id", "PROD-123")
-        .put("quantity", 5)
-    );
-    Struct productElement2 = new Struct(elementSchema).put("element", new Struct(productSchema)
-        .put("name", "Car")
-        .put("id", "PROD-456")
-        .put("quantity", 1)
-    );
-    Struct productElement3 = new Struct(elementSchema).put("element", new Struct(productSchema)
-        .put("name", "Tambourine")
-        .put("id", "PROD-789")
-        .put("quantity", 2)
-    );
-
-    List<Struct> productList = Arrays.stream(new Struct[]{productElement1, productElement2, productElement3}).toList();
-
-    Struct productsWrapper = new Struct(schema.field("products").schema())
-        .put("list", productList);
-
-    Struct value = new Struct(schema)
-        .put("orderId", "ORD-999")
-        .put("userId", "USER-42")
-        .put("products", productsWrapper);
-    
-    connect.kafka().produce(testId, KEY1, new String(converter.fromConnectData(testId, schema, value)));
+    TestDataUtil.writeOrder(connect, testId, KEY1, order);
 
     waitUntilBigtableContainsNumberOfRows(testId, 1);
     Map<ByteString, Row> rows = readAllRows(bigtableData, testId);
@@ -378,33 +338,29 @@ public class InsertUpsertIT extends BaseKafkaConnectBigtableIT {
 
     List<RowCell> productsCells = row1.getCells("cf", "products");
     ObjectMapper mapper = new ObjectMapper();
-    ArrayNode productsJson = (ArrayNode) mapper.readTree(productsCells.get(0).getValue().toString(StandardCharsets.UTF_8));
-    assertEquals(3, productsJson.size());
+
+    TestDataUtil.OrderProduct[] products = mapper.readValue(productsCells.get(0).getValue().toString(StandardCharsets.UTF_8), TestDataUtil.OrderProduct[].class);
+
+    assertEquals(3, products.length);
 
     // product 1
-    assertEquals("Ball", productsJson.get(0).get("name").asText());
-    assertEquals("PROD-123", productsJson.get(0).get("id").asText());
-    assertEquals(5, productsJson.get(0).get("quantity").asInt());
+    assertEquals("Ball", products[0].name());
+    assertEquals("PROD-123", products[0].id());
+    assertEquals(5, products[0].quantity());
 
     // product 2
-    assertEquals("Car", productsJson.get(1).get("name").asText());
-    assertEquals("PROD-456", productsJson.get(1).get("id").asText());
-    assertEquals(1, productsJson.get(1).get("quantity").asInt());
+    assertEquals("Car", products[1].name());
+    assertEquals("PROD-456", products[1].id());
+    assertEquals(1, products[1].quantity());
 
     // product 3
-    assertEquals("Tambourine", productsJson.get(2).get("name").asText());
-    assertEquals("PROD-789", productsJson.get(2).get("id").asText());
-    assertEquals(2, productsJson.get(2).get("quantity").asInt());
+    assertEquals("Tambourine", products[2].name());
+    assertEquals("PROD-789", products[2].id());
+    assertEquals(2, products[2].quantity());
   }
 
   public JsonNode parseJson(String json) throws JsonProcessingException {
     ObjectMapper mapper = new ObjectMapper();
     return mapper.readTree(json);
-  }
-
-  public String minifyJson(String json) throws JsonProcessingException {
-    ObjectMapper mapper = new ObjectMapper();
-    Object obj = mapper.readValue(json, Object.class);
-    return mapper.writeValueAsString(obj);
   }
 }

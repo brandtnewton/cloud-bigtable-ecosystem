@@ -18,7 +18,6 @@ package com.google.cloud.kafka.connect.bigtable.integration;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.google.cloud.bigtable.data.v2.models.Row;
 import com.google.cloud.bigtable.data.v2.models.RowCell;
 import com.google.cloud.kafka.connect.bigtable.config.BigtableErrorMode;
@@ -27,9 +26,6 @@ import com.google.cloud.kafka.connect.bigtable.mapping.ByteUtils;
 import com.google.cloud.kafka.connect.bigtable.transformations.FlattenArrayElement;
 import com.google.cloud.kafka.connect.bigtable.util.TestDataUtil;
 import com.google.protobuf.ByteString;
-import org.apache.kafka.connect.data.Schema;
-import org.apache.kafka.connect.data.SchemaBuilder;
-import org.apache.kafka.connect.data.Struct;
 import org.apache.kafka.connect.errors.DataException;
 import org.apache.kafka.connect.json.JsonConverter;
 import org.apache.kafka.connect.storage.StringConverter;
@@ -38,7 +34,9 @@ import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
 import java.nio.charset.StandardCharsets;
-import java.util.*;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ExecutionException;
 import java.util.stream.Collectors;
 
@@ -364,11 +362,5 @@ public class InsertUpsertIT extends BaseKafkaConnectBigtableIT {
   public JsonNode parseJson(String json) throws JsonProcessingException {
     ObjectMapper mapper = new ObjectMapper();
     return mapper.readTree(json);
-  }
-
-  public String minifyJson(String json) throws JsonProcessingException {
-    ObjectMapper mapper = new ObjectMapper();
-    Object obj = mapper.readValue(json, Object.class);
-    return mapper.writeValueAsString(obj);
   }
 }

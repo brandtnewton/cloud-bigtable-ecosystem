@@ -15,6 +15,8 @@
  */
 package com.google.cloud.kafka.connect.bigtable.integration;
 
+import static org.apache.kafka.test.TestUtils.waitForCondition;
+
 import com.google.api.gax.rpc.FailedPreconditionException;
 import com.google.api.gax.rpc.NotFoundException;
 import com.google.cloud.bigtable.admin.v2.models.ColumnFamily;
@@ -24,12 +26,8 @@ import com.google.cloud.bigtable.data.v2.BigtableDataClient;
 import com.google.cloud.bigtable.data.v2.models.Query;
 import com.google.cloud.bigtable.data.v2.models.Row;
 import com.google.cloud.kafka.connect.bigtable.wrappers.BigtableTableAdminClientInterface;
+import com.google.common.util.concurrent.Futures;
 import com.google.protobuf.ByteString;
-import org.apache.kafka.test.TestCondition;
-import org.junit.After;
-import org.junit.Before;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.util.List;
 import java.util.Map;
@@ -39,7 +37,11 @@ import java.util.concurrent.Future;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
-import static org.apache.kafka.test.TestUtils.waitForCondition;
+import org.apache.kafka.test.TestCondition;
+import org.junit.After;
+import org.junit.Before;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public abstract class BaseKafkaConnectBigtableIT extends BaseKafkaConnectIT {
 

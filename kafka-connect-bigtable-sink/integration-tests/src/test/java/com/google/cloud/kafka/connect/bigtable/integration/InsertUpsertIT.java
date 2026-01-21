@@ -24,6 +24,7 @@ import com.google.cloud.kafka.connect.bigtable.config.BigtableErrorMode;
 import com.google.cloud.kafka.connect.bigtable.config.InsertMode;
 import com.google.cloud.kafka.connect.bigtable.config.NullValueMode;
 import com.google.cloud.kafka.connect.bigtable.mapping.ByteUtils;
+import com.google.cloud.kafka.connect.bigtable.transformations.ApplyJsonSchema;
 import com.google.cloud.kafka.connect.bigtable.transformations.FlattenArrayElement;
 import com.google.cloud.kafka.connect.bigtable.util.TestDataUtil;
 import com.google.protobuf.ByteString;
@@ -322,6 +323,83 @@ public class InsertUpsertIT extends BaseKafkaConnectBigtableIT {
     });
 
     TestDataUtil.writeOrder(connect, testId, KEY1, order);
+
+    waitUntilBigtableContainsNumberOfRows(testId, 1);
+    Map<ByteString, Row> rows = readAllRows(bigtableData, testId);
+    ByteString key = ByteString.copyFrom("USER-42#ORD-999".getBytes(StandardCharsets.UTF_8));
+    Row row1 = rows.get(key);
+    assertNotNull(row1);
+    assertEquals(3, row1.getCells().size());
+
+    List<RowCell> orderIdCells = row1.getCells("cf", "orderId");
+    assertEquals(1, orderIdCells.size());
+    assertEquals("ORD-999", orderIdCells.get(0).getValue().toString(StandardCharsets.UTF_8));
+
+    List<RowCell> userIdCells = row1.getCells("cf", "userId");
+    assertEquals(1, userIdCells.size());
+    assertEquals("USER-42", userIdCells.get(0).getValue().toString(StandardCharsets.UTF_8));
+
+    List<RowCell> productsCells = row1.getCells("cf", "products");
+    ObjectMapper mapper = new ObjectMapper();
+
+    TestDataUtil.OrderProduct[] products = mapper.readValue(productsCells.get(0).getValue().toString(StandardCharsets.UTF_8), TestDataUtil.OrderProduct[].class);
+
+    assertEquals(3, products.length);
+
+    // product 1
+    assertEquals("Ball", products[0].name());
+    assertEquals("PROD-123", products[0].id());
+    assertEquals(5, products[0].quantity());
+
+    // product 2
+    assertEquals("Car", products[1].name());
+    assertEquals("PROD-456", products[1].id());
+    assertEquals(1, products[1].quantity());
+
+    // product 3
+    assertEquals("Tambourine", products[2].name());
+    assertEquals("PROD-789", products[2].id());
+    assertEquals(2, products[2].quantity());
+  }
+
+  @Test
+  public void testUpsertAppliedSchema() throws InterruptedException, ExecutionException, JsonProcessingException {
+    Map<String, String> props = baseConnectorProps();
+    props.put(INSERT_MODE_CONFIG, InsertMode.UPSERT.name());
+    props.put(ROW_KEY_DEFINITION_CONFIG, "userId,orderId");
+    props.put("value.converter.schemas.enable", "false");
+    props.put("transforms", "applySchema,createKey,flattenElements");
+    props.put("transforms.applySchema.type", ApplyJsonSchema.class.getName()+"$Value");
+    props.put("transforms.applySchema.schema.json", "{\"type\":\"struct\",\"fields\":[{\"type\":\"string\",\"optional\":false,\"field\":\"orderId\"},{\"type\":\"string\",\"optional\":false,\"field\":\"userId\"},{\"type\":\"struct\",\"fields\":[{\"type\":\"array\",\"items\":{\"type\":\"struct\",\"fields\":[{\"type\":\"struct\",\"fields\":[{\"type\":\"string\",\"optional\":false,\"field\":\"name\"},{\"type\":\"string\",\"optional\":false,\"field\":\"id\"},{\"type\":\"int32\",\"optional\":false,\"field\":\"quantity\"}],\"optional\":false,\"field\":\"element\"}],\"optional\":true},\"optional\":true,\"field\":\"list\"}],\"optional\":false,\"field\":\"products\"}],\"optional\":true}");
+    props.put("transforms.createKey.type", "org.apache.kafka.connect.transforms.ValueToKey");
+    props.put("transforms.createKey.fields", "orderId,userId");
+    props.put("transforms.flatten.type", "org.apache.kafka.connect.transforms.ExtractField$Value");
+    props.put("transforms.flatten.field", "products");
+    props.put("transforms.rename.type", "org.apache.kafka.connect.transforms.ReplaceField$Value");
+    props.put("transforms.rename.renames", "list:products");
+    props.put("transforms.flattenElements.type", FlattenArrayElement.class.getName());
+    props.put("transforms.flattenElements." + FlattenArrayElement.ARRAY_FIELD_NAME, "products");
+    props.put("transforms.flattenElements." + FlattenArrayElement.ARRAY_INNER_WRAPPER_FIELD_NAME, "list");
+    props.put("transforms.flattenElements." + FlattenArrayElement.ARRAY_ELEMENT_WRAPPER_FIELD_NAME, "element");
+
+    props.put(ROW_KEY_DELIMITER_CONFIG, "#");
+    props.put(DEFAULT_COLUMN_FAMILY_CONFIG, "cf");
+    props.put(ERROR_MODE_CONFIG, BigtableErrorMode.FAIL.name());
+    props.put(KEY_CONVERTER_CLASS_CONFIG, StringConverter.class.getName());
+    props.put(VALUE_CONVERTER_CLASS_CONFIG, JsonConverter.class.getName());
+
+    String testId = startSingleTopicConnector(props);
+    createTablesAndColumnFamilies(Map.of(testId, Set.of(testId, "cf", "products")));
+
+    TestDataUtil.Order order = new TestDataUtil.Order("ORD-999", "USER-42", new TestDataUtil.OrderProduct[]{
+        new TestDataUtil.OrderProduct("Ball", "PROD-123", 5),
+        new TestDataUtil.OrderProduct("Car", "PROD-456", 1),
+        new TestDataUtil.OrderProduct("Tambourine", "PROD-789", 2)
+    });
+
+    System.out.println("btnbtn");
+    System.out.println(new ObjectMapper().writeValueAsString(order));
+    connect.kafka().produce(testId, KEY1, new ObjectMapper().writeValueAsString(order));
 
     waitUntilBigtableContainsNumberOfRows(testId, 1);
     Map<ByteString, Row> rows = readAllRows(bigtableData, testId);

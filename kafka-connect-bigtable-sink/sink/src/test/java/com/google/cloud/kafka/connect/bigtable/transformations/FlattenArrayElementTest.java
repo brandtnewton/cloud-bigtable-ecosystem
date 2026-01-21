@@ -1,5 +1,7 @@
 package com.google.cloud.kafka.connect.bigtable.transformations;
 
+import com.google.cloud.kafka.connect.bigtable.config.BigtableSinkConfig;
+import org.apache.kafka.common.config.ConfigException;
 import org.apache.kafka.connect.data.Schema;
 import org.apache.kafka.connect.data.SchemaBuilder;
 import org.apache.kafka.connect.data.Struct;
@@ -72,13 +74,11 @@ public class FlattenArrayElementTest {
         .put("userId", "USER-42")
         .put("products", productsWrapper);
 
-    // 5. Run the transformation
     SourceRecord record = new SourceRecord(null, null, "test-topic", 0,
         null, null, value.schema(), value);
 
     SourceRecord transformedRecord = smt.apply(record);
 
-    // 6. Assertions
     assertNotNull(transformedRecord);
     Struct resultValue = (Struct) transformedRecord.value();
 
@@ -109,6 +109,115 @@ public class FlattenArrayElementTest {
   }
 
   @Test
+  public void testConvertSchema() {
+    Schema productSchema = SchemaBuilder.struct()
+        .field("name", Schema.STRING_SCHEMA)
+        .field("id", Schema.STRING_SCHEMA)
+        .field("quantity", Schema.INT32_SCHEMA)
+        .build();
+
+    Schema elementSchema = SchemaBuilder.struct().field("element", productSchema).build();
+
+    Schema schema = SchemaBuilder.struct()
+        .field("orderId", Schema.STRING_SCHEMA)
+        .field("userId", Schema.INT32_SCHEMA)
+        .field("products",
+            SchemaBuilder.struct().field("list", SchemaBuilder.array(elementSchema)).build()
+        )
+        .build();
+    Schema result = getTransformer().convertSchema(schema);
+    assertEquals(Schema.Type.STRING, result.schema().field("orderId").schema().type());
+    assertEquals(Schema.Type.INT32, result.schema().field("userId").schema().type());
+    assertEquals(Schema.Type.ARRAY, result.schema().field("products").schema().type());
+    Schema productValueSchema = result.schema().field("products").schema().valueSchema();
+    assertNotNull(productValueSchema.field("name"));
+    assertEquals(Schema.STRING_SCHEMA, productValueSchema.field("name").schema());
+    assertEquals(Schema.STRING_SCHEMA, productValueSchema.field("id").schema());
+    assertEquals(Schema.INT32_SCHEMA, productValueSchema.field("quantity").schema());
+  }
+
+  @Test
+  public void testConvertSchemaWrongTypeRootLevelField() {
+    Schema schema = SchemaBuilder.struct()
+        .field("orderId", Schema.STRING_SCHEMA)
+        .field("userId", Schema.INT32_SCHEMA)
+        .field("products", Schema.STRING_SCHEMA)
+        .build();
+    Exception e = assertThrows(IllegalArgumentException.class, () -> getTransformer().convertSchema(schema));
+    assertEquals("Root level field 'products' is not a struct", e.getMessage());
+  }
+
+  @Test
+  public void testConvertSchemaWrongTypeArrayWrapperField() {
+    Schema schema = SchemaBuilder.struct()
+        .field("orderId", Schema.STRING_SCHEMA)
+        .field("userId", Schema.INT32_SCHEMA)
+        .field("products",
+            SchemaBuilder.struct().field("list", Schema.STRING_SCHEMA).build()
+        )
+        .build();
+    Exception e = assertThrows(IllegalArgumentException.class, () -> getTransformer().convertSchema(schema));
+    assertEquals("Array field: 'list' is not an array", e.getMessage());
+  }
+
+  @Test
+  public void testConvertSchemaWrongTypeArrayElementField() {
+    Schema elementSchema = SchemaBuilder.struct().field("element", Schema.STRING_SCHEMA).build();
+
+    Schema schema = SchemaBuilder.struct()
+        .field("orderId", Schema.STRING_SCHEMA)
+        .field("userId", Schema.INT32_SCHEMA)
+        .field("products",
+            SchemaBuilder.struct().field("list", SchemaBuilder.array(elementSchema)).build()
+        )
+        .build();
+    Exception e = assertThrows(IllegalArgumentException.class, () -> getTransformer().convertSchema(schema));
+    assertEquals("Array element wrapper: 'element' is not a struct", e.getMessage());
+  }
+
+  @Test
+  public void testConvertSchemaMissingRootLevelField() {
+    Schema schema = SchemaBuilder.struct()
+        .field("orderId", Schema.STRING_SCHEMA)
+        .field("userId", Schema.STRING_SCHEMA)
+        .build();
+    Exception e = assertThrows(IllegalArgumentException.class, () -> getTransformer().convertSchema(schema));
+    assertEquals("Missing root level field: 'products'", e.getMessage());
+  }
+
+  @Test
+  public void testConvertSchemaMissingArrayWrapper() {
+    Schema schema = SchemaBuilder.struct().optional()
+        .field("orderId", Schema.STRING_SCHEMA)
+        .field("userId", Schema.STRING_SCHEMA)
+        .field("products",
+            SchemaBuilder.struct().field("foo", Schema.STRING_SCHEMA).build()
+        )
+        .build();
+
+    Exception e = assertThrows(IllegalArgumentException.class, () -> getTransformer().convertSchema(schema));
+    assertEquals("Missing inner field: 'list'", e.getMessage());
+  }
+
+  @Test
+  public void testConvertSchemaMissingElementWrapper() {
+    Schema productSchema = SchemaBuilder.struct()
+        .field("name", Schema.STRING_SCHEMA)
+        .field("id", Schema.STRING_SCHEMA)
+        .field("quantity", Schema.INT32_SCHEMA)
+        .build();
+    Schema schema = SchemaBuilder.struct().optional()
+        .field("orderId", Schema.STRING_SCHEMA)
+        .field("userId", Schema.STRING_SCHEMA)
+        .field("products",
+            SchemaBuilder.struct().field("list", SchemaBuilder.array(productSchema)).build()
+        )
+        .build();
+    Exception e = assertThrows(IllegalArgumentException.class, () -> getTransformer().convertSchema(schema));
+    assertEquals("Missing array element field: 'element'", e.getMessage());
+  }
+
+  @Test
   public void testApplyNullRootArray() {
     FlattenArrayElement<SourceRecord> smt = getTransformer();
 
@@ -133,30 +242,18 @@ public class FlattenArrayElementTest {
         .put("userId", "USER-42")
         .put("products", null);
 
-    // 5. Run the transformation
     SourceRecord record = new SourceRecord(null, null, "test-topic", 0,
         null, null, value.schema(), value);
 
     SourceRecord transformedRecord = smt.apply(record);
 
-    // 6. Assertions
     assertNotNull(transformedRecord);
     Struct resultValue = (Struct) transformedRecord.value();
 
-    // Verify root level field still exists
     assertEquals("ORD-999", resultValue.get("orderId"));
 
-    // Verify the array structure is flattened (unwrapped from "element")
     List<Struct> resultList = resultValue.getArray("products");
     assertEquals(0, resultList.size());
-
-    // Verify schema change: The array's value schema should now be the elementSchema
-    assertEquals(Schema.Type.ARRAY, resultValue.schema().field("products").schema().type());
-    Schema productValueSchema = resultValue.schema().field("products").schema().valueSchema();
-    assertNotNull(productValueSchema.field("name"));
-    assertEquals(Schema.STRING_SCHEMA, productValueSchema.field("name").schema());
-    assertEquals(Schema.STRING_SCHEMA, productValueSchema.field("id").schema());
-    assertEquals(Schema.INT32_SCHEMA, productValueSchema.field("quantity").schema());
   }
 
   @Test
@@ -187,30 +284,18 @@ public class FlattenArrayElementTest {
         .put("userId", "USER-42")
         .put("products", productsWrapper);
 
-    // 5. Run the transformation
     SourceRecord record = new SourceRecord(null, null, "test-topic", 0,
         null, null, value.schema(), value);
 
     SourceRecord transformedRecord = smt.apply(record);
 
-    // 6. Assertions
     assertNotNull(transformedRecord);
     Struct resultValue = (Struct) transformedRecord.value();
 
-    // Verify root level field still exists
     assertEquals("ORD-999", resultValue.get("orderId"));
 
-    // Verify the array structure is flattened (unwrapped from "element")
     List<Struct> resultList = resultValue.getArray("products");
     assertEquals(0, resultList.size());
-
-    // Verify schema change: The array's value schema should now be the elementSchema
-    assertEquals(Schema.Type.ARRAY, resultValue.schema().field("products").schema().type());
-    Schema productValueSchema = resultValue.schema().field("products").schema().valueSchema();
-    assertNotNull(productValueSchema.field("name"));
-    assertEquals(Schema.STRING_SCHEMA, productValueSchema.field("name").schema());
-    assertEquals(Schema.STRING_SCHEMA, productValueSchema.field("id").schema());
-    assertEquals(Schema.INT32_SCHEMA, productValueSchema.field("quantity").schema());
   }
 
   @Test
@@ -253,20 +338,16 @@ public class FlattenArrayElementTest {
         .put("userId", "USER-42")
         .put("products", productsWrapper);
 
-    // 5. Run the transformation
     SourceRecord record = new SourceRecord(null, null, "test-topic", 0,
         null, null, value.schema(), value);
 
     SourceRecord transformedRecord = smt.apply(record);
 
-    // 6. Assertions
     assertNotNull(transformedRecord);
     Struct resultValue = (Struct) transformedRecord.value();
 
-    // Verify root level field still exists
     assertEquals("ORD-999", resultValue.get("orderId"));
 
-    // Verify the array structure is flattened (unwrapped from "element")
     List<Struct> resultList = resultValue.getArray("products");
     assertEquals(3, resultList.size());
 
@@ -278,7 +359,6 @@ public class FlattenArrayElementTest {
     assertEquals("PROD-789", resultList.get(2).getString("id"));
     assertEquals(2, resultList.get(2).getInt32("quantity").intValue());
 
-    // Verify schema change: The array's value schema should now be the elementSchema
     assertEquals(Schema.Type.ARRAY, resultValue.schema().field("products").schema().type());
     Schema productValueSchema = resultValue.schema().field("products").schema().valueSchema();
     assertNotNull(productValueSchema.field("name"));
@@ -328,20 +408,16 @@ public class FlattenArrayElementTest {
         .put("userId", "USER-42")
         .put("products", productsWrapper);
 
-    // 5. Run the transformation
     SourceRecord record = new SourceRecord(null, null, "test-topic", 0,
         null, null, value.schema(), value);
 
     SourceRecord transformedRecord = smt.apply(record);
 
-    // 6. Assertions
     assertNotNull(transformedRecord);
     Struct resultValue = (Struct) transformedRecord.value();
 
-    // Verify root level field still exists
     assertEquals("ORD-999", resultValue.get("orderId"));
 
-    // Verify the array structure is flattened (unwrapped from "element")
     List<Struct> resultList = resultValue.getArray("products");
     assertEquals(3, resultList.size());
 
@@ -352,25 +428,5 @@ public class FlattenArrayElementTest {
     assertEquals("Tambourine", resultList.get(2).getString("name"));
     assertEquals("PROD-789", resultList.get(2).getString("id"));
     assertEquals(2, resultList.get(2).getInt32("quantity").intValue());
-
-    // Verify schema change: The array's value schema should now be the elementSchema
-    assertEquals(Schema.Type.ARRAY, resultValue.schema().field("products").schema().type());
-    Schema productValueSchema = resultValue.schema().field("products").schema().valueSchema();
-    assertNotNull(productValueSchema.field("name"));
-    assertEquals(Schema.STRING_SCHEMA, productValueSchema.field("name").schema());
-    assertEquals(Schema.STRING_SCHEMA, productValueSchema.field("id").schema());
-    assertEquals(Schema.INT32_SCHEMA, productValueSchema.field("quantity").schema());
-  }
-
-  @Test
-  public void testApply_ThrowsExceptionOnMissingField() {
-    FlattenArrayElement<SourceRecord> smt = getTransformer();
-    Schema simpleSchema = SchemaBuilder.struct().field("wrongField", Schema.STRING_SCHEMA).build();
-    Struct simpleValue = new Struct(simpleSchema).put("wrongField", "data");
-
-    SourceRecord record = new SourceRecord(null, null, "test-topic", 0,
-        null, null, simpleSchema, simpleValue);
-
-    assertThrows(DataException.class, () -> smt.apply(record));
   }
 }

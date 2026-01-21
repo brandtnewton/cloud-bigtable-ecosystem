@@ -26,7 +26,7 @@ public class TestDataUtil {
       .field("orderId", Schema.STRING_SCHEMA)
       .field("userId", Schema.STRING_SCHEMA)
       .field("products",
-          SchemaBuilder.struct().field("list", SchemaBuilder.array(orderElementSchema)).build()
+          SchemaBuilder.struct().field("list", SchemaBuilder.array(orderElementSchema).optional()).build()
       )
       .build();
 
@@ -34,18 +34,21 @@ public class TestDataUtil {
     JsonConverter converter = new JsonConverter();
     converter.configure(Collections.singletonMap("schemas.enable", "true"), false);
 
-    List<Struct> productList = new ArrayList<>(order.products.length);
-    for (OrderProduct product : order.products) {
-      if (product == null) {
-        productList.add(null);
-        continue;
+    List<Struct> productList = null;
+    if (order.products != null) {
+      productList = new ArrayList<>(order.products.length);
+      for (OrderProduct product : order.products) {
+        if (product == null) {
+          productList.add(null);
+          continue;
+        }
+        Struct productStruct = new Struct(orderElementSchema).put("element", new Struct(orderProductSchema)
+            .put("name", product.name)
+            .put("id", product.id)
+            .put("quantity", product.quantity)
+        );
+        productList.add(productStruct);
       }
-      Struct productStruct = new Struct(orderElementSchema).put("element", new Struct(orderProductSchema)
-          .put("name", product.name)
-          .put("id", product.id)
-          .put("quantity", product.quantity)
-      );
-      productList.add(productStruct);
     }
 
     Struct productsWrapper = new Struct(orderSchema.field("products").schema())

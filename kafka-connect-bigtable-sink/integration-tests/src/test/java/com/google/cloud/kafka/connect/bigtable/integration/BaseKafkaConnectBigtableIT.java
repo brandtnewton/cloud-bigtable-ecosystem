@@ -98,7 +98,7 @@ public abstract class BaseKafkaConnectBigtableIT extends BaseKafkaConnectIT {
   public Map<ByteString, Row> readAllRows(BigtableDataClient bigtable, String table) {
     Integer numRecords = null;
     try {
-      Query query = Query.create(TableId.of(table)).filter(Filters.FILTERS.limit().cellsPerColumn(1));
+      Query query = Query.create(TableId.of(table));
       Map<ByteString, Row> result =
           bigtable.readRows(query).stream().collect(Collectors.toMap(Row::getKey, r -> r));
       numRecords = result.size();

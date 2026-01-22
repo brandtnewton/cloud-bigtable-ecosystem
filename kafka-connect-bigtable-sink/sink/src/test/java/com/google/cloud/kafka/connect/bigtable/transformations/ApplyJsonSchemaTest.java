@@ -10,10 +10,7 @@ import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.Map;
+import java.util.*;
 
 import static org.junit.Assert.*;
 
@@ -108,6 +105,62 @@ public class ApplyJsonSchemaTest {
 
     // Assert that the optional field is null
     assertNull(metaStruct.get("retry_count"));
+  }
+
+  @Test
+  public void testComplexObject() {
+    Map<String, Object> product1 = new HashMap<>();
+    product1.put("name", "Wireless Headphones");
+    product1.put("id", "PROD-123");
+    product1.put("quantity", 2);
+
+    Map<String, Object> product2 = new HashMap<>();
+    product2.put("name", "HDMI Cable");
+    product2.put("id", "PROD-456");
+    product2.put("quantity", 5);
+
+    // 2. Wrap them in the 'Element' map (orderElementSchema)
+    // Schema requires: field("element", orderProductSchema)
+    Map<String, Object> elementWrapper1 = new HashMap<>();
+    elementWrapper1.put("element", product1);
+
+    Map<String, Object> elementWrapper2 = new HashMap<>();
+    elementWrapper2.put("element", product2);
+
+    // 3. Create the List for 'products.list'
+    // Schema requires: SchemaBuilder.array(orderElementSchema)
+    List<Map<String, Object>> productList = new ArrayList<>();
+    productList.add(elementWrapper1);
+    productList.add(elementWrapper2);
+
+    // 4. Create the 'products' wrapper map
+    // Schema requires: field("products", struct().field("list", ...))
+    Map<String, Object> productsMap = new HashMap<>();
+    productsMap.put("list", productList);
+
+    // 5. Create the Root 'Order' map
+    Map<String, Object> orderMap = new HashMap<>();
+    orderMap.put("orderId", "ORD-2023-999");
+    orderMap.put("userId", "USER-007");
+    orderMap.put("products", productsMap);
+
+    SourceRecord record = new SourceRecord(null, null, "topic", null, orderMap);
+    ApplyJsonSchema.Value<SourceRecord> smt = new ApplyJsonSchema.Value<>();
+    Map<String, String> configs = new HashMap<>();
+    configs.put(ApplyJsonSchema.SCHEMA_CONFIG, "{\"type\":\"struct\",\"fields\":[{\"type\":\"string\",\"optional\":false,\"field\":\"orderId\"},{\"type\":\"string\",\"optional\":false,\"field\":\"userId\"},{\"type\":\"struct\",\"fields\":[{\"type\":\"array\",\"items\":{\"type\":\"struct\",\"fields\":[{\"type\":\"struct\",\"fields\":[{\"type\":\"string\",\"optional\":false,\"field\":\"name\"},{\"type\":\"string\",\"optional\":false,\"field\":\"id\"},{\"type\":\"int32\",\"optional\":false,\"field\":\"quantity\"}],\"optional\":false,\"field\":\"element\"}],\"optional\":true},\"optional\":true,\"field\":\"list\"}],\"optional\":false,\"field\":\"products\"}],\"optional\":true}");
+    smt.configure(configs);
+    SourceRecord transformed = smt.apply(record);
+
+    Struct rootStruct = (Struct) transformed.value();
+
+    assertEquals("ORD-2023-999", rootStruct.getString("orderId"));
+    assertEquals("USER-007", rootStruct.getString("userId"));
+
+    Struct products = rootStruct.getStruct("products");
+    assertNotNull(products);
+
+    List<Object> list = products.getArray("list");
+    assertEquals(2, list.size());
   }
 
   @Test(expected = DataException.class)

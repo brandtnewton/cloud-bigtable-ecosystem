@@ -51,7 +51,7 @@ public abstract class ApplyJsonSchema<R extends ConnectRecord<R>> implements Tra
     }
 
     // We assume the incoming record is schemaless (Value is a Map<String, Object>)
-    Object newValue = convertToConnectData(record.value(), targetSchema);
+    Object newValue = convertToConnectData("(root)", record.value(), targetSchema);
 
     return record.newRecord(
         record.topic(),
@@ -68,46 +68,45 @@ public abstract class ApplyJsonSchema<R extends ConnectRecord<R>> implements Tra
    * Recursively converts a Java Object (Map, List, or Primitive) into a Connect Struct/Array
    * based on the provided Schema.
    */
-  private Object convertToConnectData(Object input, Schema schema) {
-    if (input == null) {
-      if (schema.isOptional()) return null;
-      throw new DataException("Found null value for non-optional schema field: " + schema.name());
+  private Object convertToConnectData(String name, Object input, Schema schema) {
+    if (input == null && schema.isOptional()) {
+      return null;
+    } else if (input == null) {
+      throw new DataException("Found null value for non-optional schema field: " + name);
     }
 
     switch (schema.type()) {
       case STRUCT:
         if (!(input instanceof Map)) {
-          throw new DataException("Expected Map for STRUCT schema, found " + input.getClass());
+          throw new DataException(String.format("Expected Map for STRUCT schema for field %s, found %s", name, input.getClass()));
         }
         Struct struct = new Struct(schema);
         Map<?, ?> inputMap = (Map<?, ?>) input;
 
         for (org.apache.kafka.connect.data.Field field : schema.fields()) {
           Object fieldVal = inputMap.get(field.name());
-          struct.put(field, convertToConnectData(fieldVal, field.schema()));
+          struct.put(field, convertToConnectData(field.name(), fieldVal, field.schema()));
         }
         return struct;
-
       case ARRAY:
         if (!(input instanceof List)) {
-          throw new DataException("Expected List for ARRAY schema, found " + input.getClass());
+          throw new DataException(String.format("Expected List for ARRAY schema for field %s, found %s", name, input.getClass()));
         }
         List<?> inputList = (List<?>) input;
         List<Object> outputList = new ArrayList<>();
         Schema valueSchema = schema.valueSchema();
 
-        for (Object elem : inputList) {
-          outputList.add(convertToConnectData(elem, valueSchema));
+        for (int i = 0; i < inputList.size(); i++) {
+          Object elem = inputList.get(i);
+          outputList.add(convertToConnectData(name + "[" + i + "]", elem, valueSchema));
         }
         return outputList;
-
       case MAP:
         if (!(input instanceof Map)) {
-          throw new DataException("Expected Map for MAP schema, found " + input.getClass());
+          throw new DataException(String.format("Expected Map for MAP schema for field %s, found %s", name, input.getClass()));
         }
         // Handle Map logic if necessary (omitted for brevity, similar to Array)
         return input;
-
       default:
         // For primitives (STRING, INT32, etc.), we rely on Connect's loose typing
         // or specific casting here if strictly required.
@@ -116,9 +115,27 @@ public abstract class ApplyJsonSchema<R extends ConnectRecord<R>> implements Tra
   }
 
   private Object getPrimitiveValue(Object input, Schema schema) {
-    // Simple pass-through. In a production scenario, you might add strict type
-    // conversion logic here (e.g., Integer to Long casting).
-    return input;
+    switch (schema.type()) {
+      case INT8:
+      case INT16:
+        return ((Number) input).shortValue();
+      case INT32:
+        return ((Number) input).intValue();
+      case INT64:
+        return ((Number) input).longValue();
+      case FLOAT32:
+        return ((Number) input).floatValue();
+      case FLOAT64:
+        return ((Number) input).doubleValue();
+      case BOOLEAN:
+      case ARRAY:
+      case MAP:
+      case STRUCT:
+      case STRING:
+      case BYTES:
+      default:
+        return input;
+    }
   }
 
   /**
@@ -127,6 +144,7 @@ public abstract class ApplyJsonSchema<R extends ConnectRecord<R>> implements Tra
    */
   private Schema parseSchemaNode(JsonNode node) {
     String type = node.get("type").asText().toLowerCase();
+    String name = node.has("name") ? node.get("name").asText() : "UNKNOWN";
     boolean isOptional = node.has("optional") && node.get("optional").asBoolean();
 
     SchemaBuilder builder;
@@ -134,7 +152,9 @@ public abstract class ApplyJsonSchema<R extends ConnectRecord<R>> implements Tra
     switch (type) {
       case "struct":
         builder = SchemaBuilder.struct();
-        if (node.has("name")) builder.name(node.get("name").asText());
+        if (node.has("name")) {
+          builder.name(node.get("name").asText());
+        }
         JsonNode fields = node.get("fields");
         if (fields != null && fields.isArray()) {
           for (JsonNode field : fields) {
@@ -145,7 +165,9 @@ public abstract class ApplyJsonSchema<R extends ConnectRecord<R>> implements Tra
         break;
       case "array":
         JsonNode items = node.get("items");
-        if (items == null) throw new DataException("Array type must specify 'items' schema");
+        if (items == null) {
+          throw new DataException("Array type must specify 'items' schema");
+        }
         builder = SchemaBuilder.array(parseSchemaNode(items));
         break;
       case "string":
@@ -173,7 +195,7 @@ public abstract class ApplyJsonSchema<R extends ConnectRecord<R>> implements Tra
         builder = SchemaBuilder.bool();
         break;
       default:
-        throw new DataException("Unsupported schema type in config: " + type);
+        throw new DataException(String.format("Unsupported schema type in config for field %s: %s", name, type));
     }
 
     if (isOptional) {
@@ -193,7 +215,9 @@ public abstract class ApplyJsonSchema<R extends ConnectRecord<R>> implements Tra
   }
 
   // Boilerplate for Key/Value distinct implementations
-  public static class Key<R extends ConnectRecord<R>> extends ApplyJsonSchema<R> { }
+  public static class Key<R extends ConnectRecord<R>> extends ApplyJsonSchema<R> {
+  }
 
-  public static class Value<R extends ConnectRecord<R>> extends ApplyJsonSchema<R> { }
+  public static class Value<R extends ConnectRecord<R>> extends ApplyJsonSchema<R> {
+  }
 }

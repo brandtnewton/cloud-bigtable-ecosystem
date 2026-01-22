@@ -60,8 +60,6 @@ public class TestDataUtil {
         .put("products", productsWrapper);
 
     byte[] schemaAsJson = converter.fromConnectData(topic, orderSchema, value);
-    System.out.println("Schemaschemaschema");
-    System.out.println(new String(schemaAsJson));
     connect.kafka().produce(topic, key, new String(schemaAsJson));
   }
 

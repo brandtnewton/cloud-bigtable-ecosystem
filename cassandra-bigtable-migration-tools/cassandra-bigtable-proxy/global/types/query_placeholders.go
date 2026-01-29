@@ -8,16 +8,23 @@ import (
 )
 
 type Placeholder string
+type Marker string
 
 type PlaceholderMetadata struct {
-	Key  Placeholder
-	Type CqlDataType
+	Key    Placeholder
+	Type   CqlDataType
+	Marker Marker
 	// can be null if the placeholder is not related to a specific column
 	Column *Column
 }
 
-func newPlaceholderMetadata(key Placeholder, tpe CqlDataType, column *Column) PlaceholderMetadata {
-	return PlaceholderMetadata{Key: key, Type: tpe, Column: column}
+func newPlaceholderMetadata(
+	key Placeholder,
+	marker Marker,
+	tpe CqlDataType,
+	column *Column,
+) PlaceholderMetadata {
+	return PlaceholderMetadata{Key: key, Marker: marker, Type: tpe, Column: column}
 }
 
 type QueryParameters struct {
@@ -63,26 +70,30 @@ func (q *QueryParameters) getNextParameter() Placeholder {
 	return Placeholder(fmt.Sprintf("@value%d", len(q.ordered)))
 }
 
-func (q *QueryParameters) BuildParameter(dataType CqlDataType, c *Column) *QueryParameters {
-	_ = q.PushParameter(dataType, c)
+func (q *QueryParameters) BuildParameter(dataType CqlDataType, marker Marker, c *Column) *QueryParameters {
+	_ = q.PushParameter(dataType, marker, c)
 	return q
 }
 
-func (q *QueryParameters) PushParameter(dataType CqlDataType, c *Column) Placeholder {
+func (q *QueryParameters) PushParameter(dataType CqlDataType, marker Marker, c *Column) Placeholder {
 	p := q.getNextParameter()
-	q.AddParameter(p, dataType, c)
+	q.AddParameter(p, marker, dataType, c)
 	return p
 }
 
-func (q *QueryParameters) AddParameter(p Placeholder, dt CqlDataType, c *Column) {
+func (q *QueryParameters) AddParameter(p Placeholder, marker Marker, dt CqlDataType, c *Column) {
 	q.ordered = append(q.ordered, p)
-	q.metadata[p] = newPlaceholderMetadata(p, dt, c)
+	q.metadata[p] = newPlaceholderMetadata(p, marker, dt, c)
 }
 
 func (q *QueryParameters) GetMetadata(p Placeholder) PlaceholderMetadata {
 	// assume you are passing in a valid placeholder
 	d, _ := q.metadata[p]
 	return d
+}
+
+func (q *QueryParameters) Metadata() map[Placeholder]PlaceholderMetadata {
+	return q.metadata
 }
 
 type QueryParameterValues struct {

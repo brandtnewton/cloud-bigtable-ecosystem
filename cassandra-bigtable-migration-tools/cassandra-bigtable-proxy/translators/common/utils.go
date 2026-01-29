@@ -35,15 +35,23 @@ func ExtractDecimalLiteral(d cql.IDecimalLiteralContext, cqlType types.CqlDataTy
 	if d == nil {
 		return nil, fmt.Errorf("decimal literal missing")
 	}
-	if d.QUESTION_MARK() != nil {
-		p := params.PushParameter(cqlType, column)
-		return types.NewParameterizedValue(p), nil
+	if d.Marker() != nil {
+		return ParseMarker(d.Marker(), cqlType, params, column), nil
 	}
 	val, err := GetDecimalLiteral(d, cqlType)
 	if err != nil {
 		return nil, err
 	}
 	return types.NewLiteralValue(val), err
+}
+
+func ParseMarker(m cql.IMarkerContext, cqlType types.CqlDataType, params *types.QueryParameters, column *types.Column) types.DynamicValue {
+	var marker types.Marker = "?"
+	if m.NAMED_MARK() != nil {
+		marker = types.Marker(m.NAMED_MARK().GetText())
+	}
+	p := params.PushParameter(cqlType, marker, column)
+	return types.NewParameterizedValue(p)
 }
 
 func GetDecimalLiteral(d cql.IDecimalLiteralContext, cqlType types.CqlDataType) (types.GoValue, error) {
@@ -239,9 +247,8 @@ func parseWhereIn(whereIn cql.IRelationInContext, tableConfig *schemaMapping.Tab
 }
 
 func ParseTupleValue(tuple cql.ITupleValueContext, lt *types.ListType, params *types.QueryParameters, column *types.Column) (types.DynamicValue, error) {
-	if tuple.QUESTION_MARK() != nil {
-		p := params.PushParameter(lt, column)
-		return types.NewParameterizedValue(p), nil
+	if tuple.Marker() != nil {
+		return ParseMarker(tuple.Marker(), lt, params, column), nil
 	}
 
 	valueFn := tuple.FunctionArgs()
@@ -261,9 +268,8 @@ func ParseTupleValue(tuple cql.ITupleValueContext, lt *types.ListType, params *t
 }
 
 func ParseValueAny(v cql.IValueAnyContext, dt types.CqlDataType, params *types.QueryParameters, column *types.Column) (types.DynamicValue, error) {
-	if v.QUESTION_MARK() != nil {
-		p := params.PushParameter(dt, column)
-		return types.NewParameterizedValue(p), nil
+	if v.Marker() != nil {
+		return ParseMarker(v.Marker(), dt, params, column), nil
 	}
 	// todo handle tuple
 	if v.Constant() != nil {
@@ -308,11 +314,9 @@ func ParseValueAny(v cql.IValueAnyContext, dt types.CqlDataType, params *types.Q
 }
 
 func ParseConstantValue(v cql.IConstantContext, dt types.CqlDataType, params *types.QueryParameters, c *types.Column) (types.DynamicValue, error) {
-	if v.QUESTION_MARK() != nil {
-		p := params.PushParameter(dt, c)
-		return types.NewParameterizedValue(p), nil
+	if v.Marker() != nil {
+		return ParseMarker(v.Marker(), dt, params, c), nil
 	}
-
 	goValue, err := ParseCqlConstant(v, dt)
 	if err != nil {
 		return nil, err
@@ -455,7 +459,7 @@ func ParseCqlSetAssignment(s cql.IValueSetContext, dt types.CqlDataType) ([]type
 // Converts CQL constant values to their corresponding Go types with validation.
 // Returns error if constant is invalid or conversion fails.
 func ParseCqlConstant(c cql.IConstantContext, dt types.CqlDataType) (types.GoValue, error) {
-	if c.QUESTION_MARK() != nil {
+	if c.Marker() != nil {
 		return nil, fmt.Errorf("cannot get constant from prepared query")
 	}
 

@@ -46,9 +46,9 @@ func ExtractDecimalLiteral(d cql.IDecimalLiteralContext, cqlType types.CqlDataTy
 }
 
 func ParseMarker(m cql.IMarkerContext, cqlType types.CqlDataType, params *types.QueryParameters, column *types.Column) types.DynamicValue {
-	var marker types.Marker = "?"
+	var marker types.Marker = ""
 	if m.NAMED_MARK() != nil {
-		marker = types.Marker(m.NAMED_MARK().GetText())
+		marker = types.Marker(m.NAMED_MARK().GetText())[1:]
 	}
 	p := params.PushParameter(cqlType, marker, column)
 	return types.NewParameterizedValue(p)

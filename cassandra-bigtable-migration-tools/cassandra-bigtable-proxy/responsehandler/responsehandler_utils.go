@@ -60,7 +60,9 @@ func BuildPreparedResultResponse(id [16]byte, query types.IPreparedQuery) (*mess
 	for i, p := range params.AllKeys() {
 		md := params.GetMetadata(p)
 		columnName := ""
-		if md.Column != nil {
+		if md.Marker != "" {
+			columnName = string(md.Marker)
+		} else if md.Column != nil {
 			columnName = string(md.Column.Name)
 		}
 		var col = message.ColumnMetadata{

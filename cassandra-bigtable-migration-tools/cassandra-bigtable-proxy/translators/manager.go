@@ -91,18 +91,11 @@ func (t *TranslatorManager) TranslateQuery(q *types.RawQuery, sessionKeyspace ty
 		return nil, fmt.Errorf("table name cannot be the same as the configured schema mapping table name '%s'", t.config.SchemaMappingTable)
 	}
 
-	// parameters are nil for non-prepare-able queries like ALTER
-	if preparedQuery.Parameters() != nil {
-		if validationErr := preparedQuery.Parameters().ValidateParams(); validationErr != nil {
-			return nil, validationErr
-		}
-	}
-
 	return preparedQuery, err
 }
 
-func (t *TranslatorManager) BindQuery(st types.IPreparedQuery, cassandraValues []*primitive.Value, pv primitive.ProtocolVersion) (types.IExecutableQuery, error) {
-	values, err := common.BindQueryParams(st.Parameters(), cassandraValues, pv)
+func (t *TranslatorManager) BindQuery(st types.IPreparedQuery, cassandraValues []*primitive.Value, namedValues map[string]*primitive.Value, pv primitive.ProtocolVersion) (types.IExecutableQuery, error) {
+	values, err := common.BindQueryParams(st.Parameters(), cassandraValues, namedValues, pv)
 	if err != nil {
 		return nil, err
 	}

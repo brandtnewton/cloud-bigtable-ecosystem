@@ -472,7 +472,11 @@ func (btc *BigtableAdapter) PrepareStatement(ctx context.Context, query types.IP
 		return nil, err
 	}
 
-	paramTypes := BuildParamTypes(selectQuery)
+	paramTypes, err := BuildParamTypes(selectQuery)
+	if err != nil {
+		btc.Logger.Error("Failed to prepare statement", zap.String("query", query.BigtableQuery()), zap.Error(err))
+		return nil, err
+	}
 	preparedStatement, err := client.PrepareStatement(ctx, query.BigtableQuery(), paramTypes)
 	if err != nil {
 		btc.Logger.Error("Failed to prepare statement", zap.String("query", query.BigtableQuery()), zap.Error(err))

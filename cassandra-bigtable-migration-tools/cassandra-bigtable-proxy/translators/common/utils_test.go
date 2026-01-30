@@ -94,7 +94,7 @@ func Test_formatValues(t *testing.T) {
 func Test_bindValues(t *testing.T) {
 	tests := []struct {
 		name   string
-		params *types.QueryParameters
+		params types.IQueryParameters
 		values []*primitive.Value
 		pv     primitive.ProtocolVersion
 		want   map[types.Placeholder]types.GoValue
@@ -102,9 +102,13 @@ func Test_bindValues(t *testing.T) {
 	}{
 		{
 			name: "success",
-			params: types.NewQueryParameters().
-				BuildParameter(types.TypeVarchar, "", nil).
-				BuildParameter(types.TypeVarchar, "", nil),
+			params: func() types.IQueryParameters {
+				p, _ := types.NewQueryParameterBuilder().
+					BuildParameter(types.TypeVarchar, "", nil).
+					BuildParameter(types.TypeVarchar, "", nil).
+					Build()
+				return p
+			}(),
 			values: []*primitive.Value{
 				mockdata.EncodePrimitiveValueOrDie("abc", types.TypeText, primitive.ProtocolVersion4),
 				mockdata.EncodePrimitiveValueOrDie("def", types.TypeText, primitive.ProtocolVersion4),
@@ -117,9 +121,13 @@ func Test_bindValues(t *testing.T) {
 		},
 		{
 			name: "too many input values",
-			params: types.NewQueryParameters().
-				BuildParameter(types.TypeVarchar, "", nil).
-				BuildParameter(types.TypeVarchar, "", nil),
+			params: func() types.IQueryParameters {
+				p, _ := types.NewQueryParameterBuilder().
+					BuildParameter(types.TypeVarchar, "", nil).
+					BuildParameter(types.TypeVarchar, "", nil).
+					Build()
+				return p
+			}(),
 			values: []*primitive.Value{
 				mockdata.EncodePrimitiveValueOrDie("abc", types.TypeText, primitive.ProtocolVersion4),
 				mockdata.EncodePrimitiveValueOrDie("def", types.TypeText, primitive.ProtocolVersion4),
@@ -131,9 +139,13 @@ func Test_bindValues(t *testing.T) {
 		},
 		{
 			name: "too few input values",
-			params: types.NewQueryParameters().
-				BuildParameter(types.TypeVarchar, "", nil).
-				BuildParameter(types.TypeVarchar, "", nil),
+			params: func() types.IQueryParameters {
+				p, _ := types.NewQueryParameterBuilder().
+					BuildParameter(types.TypeVarchar, nil).
+					BuildParameter(types.TypeVarchar, nil).
+					Build()
+				return p
+			}(),
 			values: []*primitive.Value{
 				mockdata.EncodePrimitiveValueOrDie("abc", types.TypeText, primitive.ProtocolVersion4),
 			},
@@ -142,8 +154,12 @@ func Test_bindValues(t *testing.T) {
 		},
 		{
 			name: "wrong input type",
-			params: types.NewQueryParameters().
-				BuildParameter(types.NewListType(types.TypeBigInt), "", nil),
+			params: func() types.IQueryParameters {
+				p, _ := types.NewQueryParameterBuilder().
+					BuildParameter(types.NewListType(types.TypeBigInt), "", nil).
+					Build()
+				return p
+			}(),
 			values: []*primitive.Value{
 				mockdata.EncodePrimitiveValueOrDie("abcdefgh", types.TypeText, primitive.ProtocolVersion4),
 			},
@@ -808,7 +824,7 @@ func TestRelationFragment(t *testing.T) {
 	m := p.Marker()
 	assert.Empty(t, errs.Errors)
 
-	qp := types.NewQueryParameters()
+	qp := types.NewQueryParameterBuilder()
 	col := &types.Column{
 		Name:         "Foo",
 		ColumnFamily: "cf",
@@ -822,7 +838,11 @@ func TestRelationFragment(t *testing.T) {
 	param, ok := result.(*types.ParameterizedValue)
 	assert.True(t, ok)
 	assert.Equal(t, types.Placeholder("@value0"), param.Placeholder)
-	metadata := qp.GetMetadata(param.Placeholder)
+
+	builtParams, err := qp.Build()
+	assert.NoError(t, err)
+
+	metadata := builtParams.GetMetadata(param.Placeholder)
 	assert.Equal(t, types.Marker("my_marker_1"), metadata.Marker)
 	assert.Equal(t, types.TypeText, metadata.Type)
 	assert.Equal(t, col, metadata.Column)

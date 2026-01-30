@@ -97,6 +97,32 @@ func TestSelectTranslator_Translate(t *testing.T) {
 			},
 		},
 		{
+			name:  "duplicate named markers",
+			query: "INSERT INTO test_keyspace.test_table (pk1, pk2, col_int) VALUES (:pk, :pk, :i)",
+			want: &Want{
+				Keyspace:    "test_keyspace",
+				Table:       "test_table",
+				IfNotExists: false,
+				Assignments: []types.Assignment{
+					types.NewComplexAssignmentSet(mockdata.GetColumnOrDie("test_keyspace", "test_table", "pk1"), types.NewParameterizedValue("@value0")),
+					types.NewComplexAssignmentSet(mockdata.GetColumnOrDie("test_keyspace", "test_table", "pk2"), types.NewParameterizedValue("@value1")),
+					types.NewComplexAssignmentSet(mockdata.GetColumnOrDie("test_keyspace", "test_table", "col_int"), types.NewParameterizedValue("@value2")),
+				},
+				AllParams: map[types.Placeholder]types.PlaceholderMetadata{
+					"pk": {
+						Key:    "pk",
+						Type:   types.TypeVarchar,
+						Column: mockdata.GetColumnOrDie("test_keyspace", "test_table", "pk1"),
+					},
+					"i": {
+						Key:    "i",
+						Type:   types.TypeInt,
+						Column: mockdata.GetColumnOrDie("test_keyspace", "test_table", "col_int"),
+					},
+				},
+			},
+		},
+		{
 			name:  "success with prepared query and USING TIMESTAMP",
 			query: "INSERT INTO test_keyspace.test_table (pk2, col_blob, col_bool, list_text, col_int, col_bigint, pk1) VALUES (?, ?, ?, ?, ?, ?, ?) USING TIMESTAMP ?",
 			want: &Want{

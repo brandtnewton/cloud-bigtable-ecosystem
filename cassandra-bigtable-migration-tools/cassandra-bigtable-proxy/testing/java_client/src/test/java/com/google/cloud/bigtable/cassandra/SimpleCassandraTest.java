@@ -24,10 +24,11 @@ public class SimpleCassandraTest {
   public static void setup() {
     session = CqlSession.builder()
         .addContactPoint(new InetSocketAddress("127.0.0.1", 9042))
+        .withKeyspace(KEYSPACE)
         .withLocalDatacenter("datacenter1")
         .build();
 
-    session.execute("CREATE TABLE IF NOT EXISTS " + KEYSPACE + "." + TABLE + " (user_id text, order_num int, name varchar, PRIMARY KEY (user_id, order_num))");
+    session.execute("CREATE TABLE IF NOT EXISTS " + TABLE + " (user_id text, order_num int, name varchar, PRIMARY KEY (user_id, order_num))");
   }
 
   @AfterAll
@@ -40,10 +41,10 @@ public class SimpleCassandraTest {
   @Test
   public void testCrudLiteral() {
     // Insert
-    session.execute("INSERT INTO " + KEYSPACE + "." + TABLE + " (user_id, order_num, name) VALUES ('literal123', 1, 'literal bob')");
+    session.execute("INSERT INTO " + TABLE + " (user_id, order_num, name) VALUES ('literal123', 1, 'literal bob')");
 
     // Select
-    ResultSet rs = session.execute("SELECT * FROM " + KEYSPACE + "." + TABLE + " WHERE user_id='literal123' AND order_num=1");
+    ResultSet rs = session.execute("SELECT * FROM " + TABLE + " WHERE user_id='literal123' AND order_num=1");
     Row row = rs.one();
     assertNotNull(row, "Row should not be null");
     assertEquals("literal123", row.getString("user_id"));
@@ -51,15 +52,15 @@ public class SimpleCassandraTest {
     assertEquals("literal bob", row.getString("name"));
 
     // Update
-    session.execute("UPDATE " + KEYSPACE + "." + TABLE + " SET name='literal bob updated' WHERE user_id='literal123' AND order_num=1");
-    rs = session.execute("SELECT * FROM " + KEYSPACE + "." + TABLE + " WHERE user_id='literal123' AND order_num=1");
+    session.execute("UPDATE " + TABLE + " SET name='literal bob updated' WHERE user_id='literal123' AND order_num=1");
+    rs = session.execute("SELECT * FROM " + TABLE + " WHERE user_id='literal123' AND order_num=1");
     row = rs.one();
     assertNotNull(row, "Row should not be null after update");
     assertEquals("literal bob updated", row.getString("name"));
 
     // Delete
-    session.execute("DELETE FROM " + KEYSPACE + "." + TABLE + " WHERE user_id='literal123' AND order_num=1");
-    rs = session.execute("SELECT * FROM " + KEYSPACE + "." + TABLE + " WHERE user_id='literal123' AND order_num=1");
+    session.execute("DELETE FROM " + TABLE + " WHERE user_id='literal123' AND order_num=1");
+    rs = session.execute("SELECT * FROM " + TABLE + " WHERE user_id='literal123' AND order_num=1");
     row = rs.one();
     assertNull(row, "Row should be null after delete");
   }
@@ -71,12 +72,12 @@ public class SimpleCassandraTest {
     String name = "named bob";
 
     // Insert
-    PreparedStatement psInsert = session.prepare("INSERT INTO " + KEYSPACE + "." + TABLE + " (user_id, order_num, name) VALUES (:u, :o, :n)");
+    PreparedStatement psInsert = session.prepare("INSERT INTO " + TABLE + " (user_id, order_num, name) VALUES (:u, :o, :n)");
     BoundStatement bsInsert = psInsert.bind().setString("u", userId).setInt("o", orderNum).setString("n", name);
     session.execute(bsInsert);
 
     // Select
-    PreparedStatement psSelect = session.prepare("SELECT * FROM " + KEYSPACE + "." + TABLE + " WHERE user_id=:u AND order_num=:o");
+    PreparedStatement psSelect = session.prepare("SELECT * FROM " + TABLE + " WHERE user_id=:u AND order_num=:o");
     BoundStatement bsSelect = psSelect.bind().setString("u", userId).setInt("o", orderNum);
     ResultSet rs = session.execute(bsSelect);
     Row row = rs.one();
@@ -86,7 +87,7 @@ public class SimpleCassandraTest {
     assertEquals(name, row.getString("name"));
 
     // Update
-    PreparedStatement psUpdate = session.prepare("UPDATE " + KEYSPACE + "." + TABLE + " SET name=:n WHERE user_id=:u AND order_num=:o");
+    PreparedStatement psUpdate = session.prepare("UPDATE " + TABLE + " SET name=:n WHERE user_id=:u AND order_num=:o");
     BoundStatement bsUpdate = psUpdate.bind().setString("n", name + " updated").setString("u", userId).setInt("o", orderNum);
     session.execute(bsUpdate);
 
@@ -96,7 +97,7 @@ public class SimpleCassandraTest {
     assertEquals(name + " updated", row.getString("name"));
 
     // Delete
-    PreparedStatement psDelete = session.prepare("DELETE FROM " + KEYSPACE + "." + TABLE + " WHERE user_id=:u AND order_num=:o");
+    PreparedStatement psDelete = session.prepare("DELETE FROM " + TABLE + " WHERE user_id=:u AND order_num=:o");
     BoundStatement bsDelete = psDelete.bind().setString("u", userId).setInt("o", orderNum);
     session.execute(bsDelete);
 
@@ -112,11 +113,11 @@ public class SimpleCassandraTest {
     String name = "pos bob";
 
     // Insert
-    PreparedStatement psInsert = session.prepare("INSERT INTO " + KEYSPACE + "." + TABLE + " (user_id, order_num, name) VALUES (?, ?, ?)");
+    PreparedStatement psInsert = session.prepare("INSERT INTO " + TABLE + " (user_id, order_num, name) VALUES (?, ?, ?)");
     session.execute(psInsert.bind(userId, orderNum, name));
 
     // Select
-    PreparedStatement psSelect = session.prepare("SELECT * FROM " + KEYSPACE + "." + TABLE + " WHERE user_id=? AND order_num=?");
+    PreparedStatement psSelect = session.prepare("SELECT * FROM " + TABLE + " WHERE user_id=? AND order_num=?");
     ResultSet rs = session.execute(psSelect.bind(userId, orderNum));
     Row row = rs.one();
     assertNotNull(row, "Row should not be null");
@@ -125,7 +126,7 @@ public class SimpleCassandraTest {
     assertEquals(name, row.getString("name"));
 
     // Update
-    PreparedStatement psUpdate = session.prepare("UPDATE " + KEYSPACE + "." + TABLE + " SET name=? WHERE user_id=? AND order_num=?");
+    PreparedStatement psUpdate = session.prepare("UPDATE " + TABLE + " SET name=? WHERE user_id=? AND order_num=?");
     session.execute(psUpdate.bind(name + " updated", userId, orderNum));
 
     rs = session.execute(psSelect.bind(userId, orderNum));
@@ -134,7 +135,7 @@ public class SimpleCassandraTest {
     assertEquals(name + " updated", row.getString("name"));
 
     // Delete
-    PreparedStatement psDelete = session.prepare("DELETE FROM " + KEYSPACE + "." + TABLE + " WHERE user_id=? AND order_num=?");
+    PreparedStatement psDelete = session.prepare("DELETE FROM " + TABLE + " WHERE user_id=? AND order_num=?");
     session.execute(psDelete.bind(userId, orderNum));
 
     rs = session.execute(psSelect.bind(userId, orderNum));

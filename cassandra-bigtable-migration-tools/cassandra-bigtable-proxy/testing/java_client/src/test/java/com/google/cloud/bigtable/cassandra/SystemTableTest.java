@@ -73,7 +73,7 @@ public class SystemTableTest {
 
   @Test
   public void testQuerySystemSchemaColumns() {
-    ResultSet rs = session.execute("SELECT column_name, table_name FROM system_schema.columns " +
+    ResultSet rs = session.execute("SELECT column_name, type FROM system_schema.columns " +
         "WHERE keyspace_name = 'system' AND table_name = 'local'");
     List<String> columns = new ArrayList<>();
     for (Row row : rs) {

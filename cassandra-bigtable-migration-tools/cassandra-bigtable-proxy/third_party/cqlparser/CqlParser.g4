@@ -913,6 +913,7 @@ table
 
 column
    : OBJECT_NAME
+   | kwType
    | K_KEY // hack to handle some queries to system.local with unquoted key column reference from cqlsh
    | DQUOTE OBJECT_NAME DQUOTE
    ;

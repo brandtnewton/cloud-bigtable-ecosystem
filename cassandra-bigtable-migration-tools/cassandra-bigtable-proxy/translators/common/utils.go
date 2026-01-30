@@ -335,6 +335,8 @@ func ParseColumnContext(table *schemaMapping.TableSchema, r cql.IColumnContext) 
 		col = TrimDoubleQuotes(r.OBJECT_NAME().GetText())
 	} else if r.K_KEY() != nil { // hack to handle unquoted `key` column reference that cqlsh does
 		col = "key"
+	} else if r.KwType() != nil { // hack to handle unquoted `type` column reference that can happen
+		col = "type"
 	} else {
 		return nil, fmt.Errorf("unknown column form: `%s`", r.GetText())
 	}

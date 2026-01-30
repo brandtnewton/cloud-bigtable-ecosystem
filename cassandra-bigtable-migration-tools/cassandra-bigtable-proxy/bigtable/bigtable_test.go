@@ -390,7 +390,7 @@ func TestMutateRowInvalidKeyspace(t *testing.T) {
 func wasApplied(result message.Message) bool {
 	rowsResult, ok := result.(*message.RowsResult)
 	if !ok {
-		return true
+		return false
 	}
 	if len(rowsResult.Data) == 0 || len(rowsResult.Data[0]) == 0 {
 		return false

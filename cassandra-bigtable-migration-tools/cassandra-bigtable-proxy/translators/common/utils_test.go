@@ -20,6 +20,7 @@ import (
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/global/types"
 	schemaMapping "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/metadata"
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/testing/mockdata"
+	"github.com/datastax/go-cassandra-native-protocol/message"
 	"github.com/datastax/go-cassandra-native-protocol/primitive"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -797,4 +798,32 @@ func TestTrimQuotes(t *testing.T) {
 			assert.Equal(t, tt.want, got)
 		})
 	}
+}
+
+func TestRelationFragment(t *testing.T) {
+	input := ":my_marker_1"
+
+	p, errs := setupParser(input)
+
+	m := p.Marker()
+	assert.Empty(t, errs.Errors)
+
+	qp := types.NewQueryParameters()
+	col := &types.Column{
+		Name:         "Foo",
+		ColumnFamily: "cf",
+		CQLType:      types.TypeText,
+		IsPrimaryKey: false,
+		PkPrecedence: 0,
+		KeyType:      types.KeyTypeRegular,
+		Metadata:     message.ColumnMetadata{},
+	}
+	result := ParseMarker(m, types.TypeText, qp, col)
+	param, ok := result.(*types.ParameterizedValue)
+	assert.True(t, ok)
+	assert.Equal(t, types.Placeholder("@value0"), param.Placeholder)
+	metadata := qp.GetMetadata(param.Placeholder)
+	assert.Equal(t, types.Marker("my_marker_1"), metadata.Marker)
+	assert.Equal(t, types.TypeText, metadata.Type)
+	assert.Equal(t, col, metadata.Column)
 }

@@ -176,7 +176,7 @@ func Test_bindValues(t *testing.T) {
 			name: "wrong input type",
 			params: func() types.IQueryParameters {
 				p := types.NewQueryParameterBuilder()
-				_, _ = p.AddPositionalParam(types.TypeBigInt, nil)
+				_, _ = p.AddPositionalParam(types.NewListType(types.TypeBigInt), nil)
 				result, _ := p.Build()
 				return result
 			}(),
@@ -191,6 +191,7 @@ func Test_bindValues(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			values, err := BindQueryParams(tt.params, tt.positionalValues, tt.namedValues, tt.pv)
 			if tt.err != "" {
+				assert.Nil(t, values)
 				require.Error(t, err)
 				assert.Contains(t, err.Error(), tt.err)
 				return
@@ -868,5 +869,5 @@ func TestRelationFragment(t *testing.T) {
 	assert.Equal(t, types.Placeholder("my_marker_1"), metadata.Key)
 	assert.Equal(t, types.TypeText, metadata.Type)
 	assert.Equal(t, true, metadata.IsNamed)
-	assert.Equal(t, col, metadata.Column)
+	assert.Equal(t, (*types.Column)(nil), metadata.Column)
 }

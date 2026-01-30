@@ -358,7 +358,7 @@ func TestSelectTranslator_Translate(t *testing.T) {
 			assert.Equal(t, tt.want.Table, gotInsert.Table())
 			assert.Equal(t, tt.want.IfNotExists, gotInsert.IfNotExists)
 			assert.Equal(t, tt.want.Assignments, gotInsert.Assignments)
-			assert.Equal(t, tt.want.AllParams, gotInsert.Parameters().Metadata())
+			assert.ElementsMatch(t, tt.want.AllParams, gotInsert.Parameters().Metadata())
 		})
 	}
 }

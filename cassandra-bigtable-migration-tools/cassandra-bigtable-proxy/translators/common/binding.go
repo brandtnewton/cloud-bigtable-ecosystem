@@ -399,8 +399,7 @@ func bindPositionalParams(params *types.PositionalQueryParameters, values []*pri
 	}
 	result := types.NewQueryParameterValues(params, time.Now())
 	for i, param := range params.Ordered() {
-		value := values[i]
-		goVal, err := cassandraValueToGoValue(param.Type, value, pv)
+		goVal, err := cassandraValueToGoValue(param.Type, values[i], pv)
 		if err != nil {
 			return nil, err
 		}

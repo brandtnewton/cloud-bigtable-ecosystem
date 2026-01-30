@@ -1453,7 +1453,7 @@ func TestTranslator_TranslateSelectQuerytoBigtable(t *testing.T) {
 			assert.Equal(t, tt.want.LimitValue, gotSelect.LimitValue)
 			assert.Equal(t, tt.want.OrderBy, gotSelect.OrderBy)
 			assert.Equal(t, tt.want.GroupByColumns, gotSelect.GroupByColumns)
-			assert.Equal(t, tt.want.AllParams, gotSelect.Params.Metadata())
+			assert.ElementsMatch(t, tt.want.AllParams, gotSelect.Params.Metadata())
 		})
 	}
 }

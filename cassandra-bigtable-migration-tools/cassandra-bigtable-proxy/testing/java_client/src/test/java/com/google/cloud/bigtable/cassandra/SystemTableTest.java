@@ -19,10 +19,7 @@ public class SystemTableTest {
 
   @BeforeAll
   public static void setup() {
-    session = CqlSession.builder()
-        .addContactPoint(new InetSocketAddress("127.0.0.1", 9042))
-        .withLocalDatacenter("datacenter1")
-        .build();
+    session = Utils.createClient();
   }
 
   @AfterAll
@@ -37,12 +34,12 @@ public class SystemTableTest {
     ResultSet rs = session.execute("SELECT cluster_name, release_version, dse_version FROM system.local");
     Row row = rs.one();
     assertNotNull(row, "system.local should return at least one row");
-    
+
     String clusterName = row.getString("cluster_name");
     assertNotNull(clusterName);
-    assertTrue(clusterName.contains("cassandra-bigtable-proxy") || clusterName.contains("Test Cluster"), 
+    assertTrue(clusterName.contains("cassandra-bigtable-proxy") || clusterName.contains("Test Cluster"),
         "Cluster name should indicate it's the proxy or a test cluster");
-    
+
     assertNotNull(row.getString("release_version"));
   }
 
@@ -53,9 +50,9 @@ public class SystemTableTest {
     for (Row row : rs) {
       keyspaces.add(row.getString("keyspace_name"));
     }
-    
+
     assertFalse(keyspaces.isEmpty(), "Should have at least one keyspace");
-    assertTrue(keyspaces.contains("system") || keyspaces.contains("system_schema"), 
+    assertTrue(keyspaces.contains("system") || keyspaces.contains("system_schema"),
         "Should contain standard system keyspaces");
   }
 
@@ -66,7 +63,7 @@ public class SystemTableTest {
     for (Row row : rs) {
       tables.add(row.getString("table_name"));
     }
-    
+
     assertFalse(tables.isEmpty(), "Should have tables in 'system' keyspace");
     assertTrue(tables.contains("local"), "Should contain 'local' table in 'system' keyspace");
   }
@@ -79,7 +76,7 @@ public class SystemTableTest {
     for (Row row : rs) {
       columns.add(row.getString("column_name"));
     }
-    
+
     assertFalse(columns.isEmpty(), "Should have columns for system.local");
     assertTrue(columns.contains("cluster_name"), "system.local should have 'cluster_name' column");
     assertTrue(columns.contains("release_version"), "system.local should have 'release_version' column");

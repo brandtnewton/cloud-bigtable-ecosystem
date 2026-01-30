@@ -13,18 +13,11 @@ import java.util.UUID;
 import static org.junit.jupiter.api.Assertions.*;
 
 public class DdlTests {
-
   private static CqlSession session;
-  private static final String KEYSPACE = "bigtabledevinstance";
-  private static final String TABLE = "orders";
 
   @BeforeAll
   public static void setup() {
-    session = CqlSession.builder()
-        .addContactPoint(new InetSocketAddress("127.0.0.1", 9042))
-        .withKeyspace(KEYSPACE)
-        .withLocalDatacenter("datacenter1")
-        .build();
+    session = Utils.createClient("bigtabledevinstance");
   }
 
   @AfterAll

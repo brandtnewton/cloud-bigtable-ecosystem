@@ -217,7 +217,7 @@ func parseWhereBetween(between cql.IRelationBetweenContext, tableConfig *schemaM
 	}
 
 	if len(between.AllConstant()) != 2 {
-		return types.Condition{}, fmt.Errorf("BETWEEN condition must have exactly 2 positionalValues")
+		return types.Condition{}, fmt.Errorf("BETWEEN condition must have exactly 2 values")
 	}
 
 	v1, err := ParseConstantValue(between.Constant(0), column.CQLType, params, column)

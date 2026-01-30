@@ -140,7 +140,7 @@ func Test_bindValues(t *testing.T) {
 			err: "",
 		},
 		{
-			name: "too many input positionalValues",
+			name: "too many input values",
 			params: func() types.IQueryParameters {
 				p := types.NewQueryParameterBuilder()
 				_, _ = p.AddPositionalParam(types.TypeVarchar, nil)
@@ -158,7 +158,7 @@ func Test_bindValues(t *testing.T) {
 			err:  "expected 2 prepared positional values but got 3",
 		},
 		{
-			name: "too few input positionalValues",
+			name: "too few input values",
 			params: func() types.IQueryParameters {
 				p := types.NewQueryParameterBuilder()
 				_, _ = p.AddPositionalParam(types.TypeVarchar, nil)
@@ -355,7 +355,7 @@ func TestCreateOrderedCodeKey(t *testing.T) {
 			values:  []*types.TypedGoValue{types.NewTypedGoValue(int64(-1), types.TypeBigInt)},
 			rowKey:  []types.DynamicValue{types.NewParameterizedValue("value0")},
 			want:    "",
-			wantErr: "row keys with big endian encoding cannot contain negative integer positionalValues",
+			wantErr: "row keys with big endian encoding cannot contain negative integer values",
 		},
 		{
 			name: "int zero",

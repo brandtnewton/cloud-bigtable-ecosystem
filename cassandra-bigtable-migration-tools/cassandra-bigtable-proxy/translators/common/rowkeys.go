@@ -118,7 +118,7 @@ func encodeInt64Key(value int64, intRowKeyEncoding types.IntRowKeyEncodingType) 
 
 func encodeIntRowKeysWithBigEndian(value int64) ([]byte, error) {
 	if value < 0 {
-		return nil, errors.New("row keys with big endian encoding cannot contain negative integer positionalValues")
+		return nil, errors.New("row keys with big endian encoding cannot contain negative integer values")
 	}
 
 	var b bytes.Buffer

@@ -53,7 +53,7 @@ func parseUpdateValues(assignments []cql.IAssignmentElementContext, tableConfig 
 				if err != nil {
 					return nil, fmt.Errorf("failed to parse map key: %w", err)
 				}
-				value, err := common.ParseConstantValue(assignment.Constant(), mt.ValueType(), params)
+				value, err := common.ParseConstantValue(assignment.Constant(), mt.ValueType(), params, col)
 				if err != nil {
 					return nil, err
 				}
@@ -65,7 +65,7 @@ func parseUpdateValues(assignments []cql.IAssignmentElementContext, tableConfig 
 				if err != nil {
 					return nil, fmt.Errorf("failed to parse list collection index: %w", err)
 				}
-				value, err := common.ParseConstantValue(assignment.Constant(), lt.ElementType(), params)
+				value, err := common.ParseConstantValue(assignment.Constant(), lt.ElementType(), params, col)
 				if err != nil {
 					return nil, err
 				}

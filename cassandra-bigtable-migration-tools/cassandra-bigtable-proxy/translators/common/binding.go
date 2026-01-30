@@ -247,7 +247,7 @@ func getListIndexColumn(now time.Time, index int, totalLength int, prepend bool)
 }
 
 // encodeTimestampIndex encodes a timestamp value into bytes.
-// Converts timestamp values to byte representation with validation.
+// Converts timestamp positionalValues to byte representation with validation.
 // Returns error if timestamp format is invalid or encoding fails.
 func encodeTimestampIndex(millis int64, nanos int32) []byte {
 	buf := make([]byte, 12) // 8 bytes for millis + 4 bytes for nanos
@@ -334,7 +334,7 @@ func removeSetElements(keys []types.GoValue, colFamily types.ColumnFamily, outpu
 }
 
 // addMapEntries adds key-value pairs to a map column in raw queries.
-// Handles type validation and conversion for both keys and values.
+// Handles type validation and conversion for both keys and positionalValues.
 // Returns error if key/value types don't match map types or conversion fails.
 func addMapEntries(mapValue map[types.GoValue]types.GoValue, mt *types.MapType, column *types.Column, output *types.BigtableWriteMutation) error {
 	for k, v := range mapValue {
@@ -395,7 +395,7 @@ func BindQueryParams(params types.IQueryParameters, positionalValues []*primitiv
 
 func bindPositionalParams(params *types.PositionalQueryParameters, values []*primitive.Value, pv primitive.ProtocolVersion) (*types.QueryParameterValues, error) {
 	if params.Count() != len(values) {
-		return nil, fmt.Errorf("expected %d prepared positional values but got %d", params.Count(), len(values))
+		return nil, fmt.Errorf("expected %d prepared positional positionalValues but got %d", params.Count(), len(values))
 	}
 	result := types.NewQueryParameterValues(params, time.Now())
 	for i, param := range params.Ordered() {
@@ -414,7 +414,7 @@ func bindPositionalParams(params *types.PositionalQueryParameters, values []*pri
 
 func bindNamedParams(params *types.NamedQueryParameters, values map[string]*primitive.Value, pv primitive.ProtocolVersion) (*types.QueryParameterValues, error) {
 	if params.Count() != len(values) {
-		return nil, fmt.Errorf("expected %d prepared named values but got %d", params.Count(), len(values))
+		return nil, fmt.Errorf("expected %d prepared named positionalValues but got %d", params.Count(), len(values))
 	}
 	result := types.NewQueryParameterValues(params, time.Now())
 	for _, md := range params.Params() {

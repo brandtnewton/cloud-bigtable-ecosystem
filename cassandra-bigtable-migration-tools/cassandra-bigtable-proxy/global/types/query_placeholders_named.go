@@ -1,9 +1,16 @@
 package types
 
-import "fmt"
+import (
+	"fmt"
+	"golang.org/x/exp/maps"
+)
 
 type NamedQueryParameters struct {
 	params map[Placeholder]*PlaceholderMetadata
+}
+
+func (n *NamedQueryParameters) Metadata() []*PlaceholderMetadata {
+	return maps.Values(n.params)
 }
 
 func (n *NamedQueryParameters) GetMetadata(placeholder Placeholder) (*PlaceholderMetadata, error) {

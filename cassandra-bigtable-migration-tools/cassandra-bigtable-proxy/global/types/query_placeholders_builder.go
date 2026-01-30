@@ -20,7 +20,7 @@ func (q *QueryParameterBuilder) getNextIndex() int {
 	return len(q.metadata)
 }
 func (q *QueryParameterBuilder) getNextParameter() Placeholder {
-	return Placeholder(fmt.Sprintf("@value%d", q.getNextIndex()))
+	return Placeholder(fmt.Sprintf("value%d", q.getNextIndex()))
 }
 
 func (q *QueryParameterBuilder) AddPositionalParam(dt CqlDataType, c *Column) (Placeholder, error) {
@@ -35,9 +35,12 @@ func (q *QueryParameterBuilder) AddPositionalParam(dt CqlDataType, c *Column) (P
 }
 
 func (q *QueryParameterBuilder) AddNamedParam(p Placeholder, dt CqlDataType) error {
-	existing, ok := q.metadata[p]
-	if ok && existing.Type.Code() != dt.Code() {
+	existing, exists := q.metadata[p]
+	if exists && existing.Type.Code() != dt.Code() {
 		return fmt.Errorf("multiple named placeholders for '%s' with conflicting types: '%s' vs. '%s'", string(p), existing.Type.String(), dt.String())
+	} else if exists {
+		// we already have this param so we can return now
+		return nil
 	}
 	q.metadata[p] = newPlaceholderMetadata(p, q.getNextIndex(), true, dt, nil)
 	return nil

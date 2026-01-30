@@ -31,12 +31,12 @@ func ParseArithmeticOperator(a cql.IArithmeticOperatorContext) (types.Arithmetic
 	return "", fmt.Errorf("unsupported arithmetic operator: `%s`", a.GetText())
 }
 
-func ExtractDecimalLiteral(d cql.IDecimalLiteralContext, cqlType types.CqlDataType, params *types.QueryParameterBuilder) (types.DynamicValue, error) {
+func ExtractDecimalLiteral(d cql.IDecimalLiteralContext, cqlType types.CqlDataType, params *types.QueryParameterBuilder, col *types.Column) (types.DynamicValue, error) {
 	if d == nil {
 		return nil, fmt.Errorf("decimal literal missing")
 	}
 	if d.Marker() != nil {
-		return ParseMarker(d.Marker(), cqlType, params)
+		return ParseMarker(d.Marker(), cqlType, params, col)
 	}
 	val, err := GetDecimalLiteral(d, cqlType)
 	if err != nil {
@@ -45,12 +45,15 @@ func ExtractDecimalLiteral(d cql.IDecimalLiteralContext, cqlType types.CqlDataTy
 	return types.NewLiteralValue(val), err
 }
 
-func ParseMarker(m cql.IMarkerContext, dt types.CqlDataType, params *types.QueryParameterBuilder) (types.DynamicValue, error) {
+func ParseMarker(m cql.IMarkerContext, dt types.CqlDataType, params *types.QueryParameterBuilder, col *types.Column) (types.DynamicValue, error) {
 	var marker types.Placeholder = ""
+	var err error
 	if m.NAMED_MARK() != nil {
 		marker = types.Placeholder(m.NAMED_MARK().GetText())[1:]
+		err = params.AddNamedParam(marker, dt)
+	} else {
+		marker, err = params.AddPositionalParam(dt, col)
 	}
-	err := params.AddNamedParam(marker, dt)
 	if err != nil {
 		return nil, err
 	}
@@ -136,7 +139,7 @@ func parseWhereCompare(compare cql.IRelationCompareContext, tableConfig *schemaM
 		return types.Condition{}, err
 	}
 
-	value, err := ParseConstantValue(compare.Constant(), column.CQLType, params)
+	value, err := ParseConstantValue(compare.Constant(), column.CQLType, params, column)
 	if err != nil {
 		return types.Condition{}, err
 	}
@@ -152,7 +155,7 @@ func parseWhereLike(like cql.IRelationLikeContext, tableConfig *schemaMapping.Ta
 	if err != nil {
 		return types.Condition{}, err
 	}
-	value, err := ParseConstantValue(like.Constant(), column.CQLType, params)
+	value, err := ParseConstantValue(like.Constant(), column.CQLType, params, column)
 	if err != nil {
 		return types.Condition{}, err
 	}
@@ -171,7 +174,7 @@ func parseWhereContainsKey(containsKey cql.IRelationContainsKeyContext, tableCon
 		return types.Condition{}, errors.New("CONTAINS KEY are only supported for map")
 	}
 	keyType := column.CQLType.(*types.MapType).KeyType()
-	value, err := ParseConstantValue(containsKey.Constant(), keyType, params)
+	value, err := ParseConstantValue(containsKey.Constant(), keyType, params, column)
 	if err != nil {
 		return types.Condition{}, err
 	}
@@ -196,7 +199,7 @@ func parseWhereContains(contains cql.IRelationContainsContext, tableConfig *sche
 		return types.Condition{}, fmt.Errorf("CONTAINS are only supported for set and list type columns, not %s", column.CQLType.String())
 	}
 
-	value, err := ParseConstantValue(contains.Constant(), elementType, params)
+	value, err := ParseConstantValue(contains.Constant(), elementType, params, column)
 	if err != nil {
 		return types.Condition{}, err
 	}
@@ -214,14 +217,14 @@ func parseWhereBetween(between cql.IRelationBetweenContext, tableConfig *schemaM
 	}
 
 	if len(between.AllConstant()) != 2 {
-		return types.Condition{}, fmt.Errorf("BETWEEN condition must have exactly 2 values")
+		return types.Condition{}, fmt.Errorf("BETWEEN condition must have exactly 2 positionalValues")
 	}
 
-	v1, err := ParseConstantValue(between.Constant(0), column.CQLType, params)
+	v1, err := ParseConstantValue(between.Constant(0), column.CQLType, params, column)
 	if err != nil {
 		return types.Condition{}, err
 	}
-	v2, err := ParseConstantValue(between.Constant(1), column.CQLType, params)
+	v2, err := ParseConstantValue(between.Constant(1), column.CQLType, params, column)
 	if err != nil {
 		return types.Condition{}, err
 	}
@@ -251,13 +254,13 @@ func parseWhereIn(whereIn cql.IRelationInContext, tableConfig *schemaMapping.Tab
 
 func ParseTupleValue(tuple cql.ITupleValueContext, lt *types.ListType, params *types.QueryParameterBuilder, column *types.Column) (types.DynamicValue, error) {
 	if tuple.Marker() != nil {
-		return ParseMarker(tuple.Marker(), lt, params)
+		return ParseMarker(tuple.Marker(), lt, params, column)
 	}
 
 	valueFn := tuple.FunctionArgs()
 	all := valueFn.AllConstant()
 	if all == nil || len(all) == 0 {
-		return nil, errors.New("failed to parse values for IN operator")
+		return nil, errors.New("failed to parse positionalValues for IN operator")
 	}
 	var inValues []any
 	for _, v := range all {
@@ -272,11 +275,11 @@ func ParseTupleValue(tuple cql.ITupleValueContext, lt *types.ListType, params *t
 
 func ParseValueAny(v cql.IValueAnyContext, dt types.CqlDataType, params *types.QueryParameterBuilder, column *types.Column) (types.DynamicValue, error) {
 	if v.Marker() != nil {
-		return ParseMarker(v.Marker(), dt, params)
+		return ParseMarker(v.Marker(), dt, params, column)
 	}
 	// todo handle tuple
 	if v.Constant() != nil {
-		return ParseConstantValue(v.Constant(), dt, params)
+		return ParseConstantValue(v.Constant(), dt, params, column)
 	}
 	if v.ValueList() != nil {
 		value, err := ParseListValue(v.ValueList(), dt)
@@ -316,9 +319,9 @@ func ParseValueAny(v cql.IValueAnyContext, dt types.CqlDataType, params *types.Q
 	return nil, fmt.Errorf("unhandled value set `%s`", v.GetText())
 }
 
-func ParseConstantValue(v cql.IConstantContext, dt types.CqlDataType, params *types.QueryParameterBuilder) (types.DynamicValue, error) {
+func ParseConstantValue(v cql.IConstantContext, dt types.CqlDataType, params *types.QueryParameterBuilder, col *types.Column) (types.DynamicValue, error) {
 	if v.Marker() != nil {
-		return ParseMarker(v.Marker(), dt, params)
+		return ParseMarker(v.Marker(), dt, params, col)
 	}
 	goValue, err := ParseCqlConstant(v, dt)
 	if err != nil {
@@ -371,12 +374,11 @@ func GetTimestampInfo(timestampContext cql.ITimestampContext, params *types.Quer
 	if timestampContext == nil {
 		return nil, nil
 	}
-
 	literal := timestampContext.DecimalLiteral()
 	if literal == nil {
 		return nil, nil
 	}
-	value, err := ExtractDecimalLiteral(literal, types.TypeBigInt, params)
+	value, err := ExtractDecimalLiteral(literal, types.TypeBigInt, params, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -461,7 +463,7 @@ func ParseCqlSetAssignment(s cql.IValueSetContext, dt types.CqlDataType) ([]type
 }
 
 // ParseCqlConstant parses a CQL constant value.
-// Converts CQL constant values to their corresponding Go types with validation.
+// Converts CQL constant positionalValues to their corresponding Go types with validation.
 // Returns error if constant is invalid or conversion fails.
 func ParseCqlConstant(c cql.IConstantContext, dt types.CqlDataType) (types.GoValue, error) {
 	if c.Marker() != nil {
@@ -618,8 +620,8 @@ func dereferenceSlice(goValue types.GoValue) types.GoValue {
 	return goValue
 }
 
-// encodeBigIntForBigtable encodes bigint values to bytes.
-// Converts bigint values to byte representation with validation.
+// encodeBigIntForBigtable encodes bigint positionalValues to bytes.
+// Converts bigint positionalValues to byte representation with validation.
 // Returns error if value is invalid or encoding fails.
 func encodeBigIntForBigtable(value interface{}) ([]byte, error) {
 	var intVal int64
@@ -684,8 +686,8 @@ func encodeFloat64ForBigtable(value interface{}) (types.BigtableValue, error) {
 	return result, err
 }
 
-// encodeBoolForBigtable encodes boolean values to bytes.
-// Converts boolean values to byte representation with validation.
+// encodeBoolForBigtable encodes boolean positionalValues to bytes.
+// Converts boolean positionalValues to byte representation with validation.
 // Returns error if value is invalid or encoding fails.
 func encodeBoolForBigtable(value interface{}) (types.BigtableValue, error) {
 	var intVal int64
@@ -855,7 +857,7 @@ func ParseSelectFunction(sf cql.ISelectFunctionContext, alias string, table *sch
 		}
 
 		resultType := col.CQLType
-		// integer type columns need to have result a result type that captures decimal values
+		// integer type columns need to have result a result type that captures decimal positionalValues
 		if f == types.FuncCodeAvg && (col.CQLType.Code() == types.BIGINT || col.CQLType.Code() == types.INT || col.CQLType.Code() == types.COUNTER) {
 			resultType = types.TypeDouble
 		}

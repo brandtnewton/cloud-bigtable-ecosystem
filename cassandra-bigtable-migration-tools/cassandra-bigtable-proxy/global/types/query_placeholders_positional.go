@@ -6,6 +6,10 @@ type PositionalQueryParameters struct {
 	ordered []*PlaceholderMetadata
 }
 
+func (p *PositionalQueryParameters) Metadata() []*PlaceholderMetadata {
+	return p.ordered
+}
+
 func (p *PositionalQueryParameters) GetMetadata(placeholder Placeholder) (*PlaceholderMetadata, error) {
 	for _, metadata := range p.ordered {
 		if metadata.Key == placeholder {

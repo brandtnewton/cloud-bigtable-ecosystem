@@ -14,7 +14,7 @@ var kOrderedCodeEmptyField = []byte("\x00\x00")
 var kOrderedCodeDelimiter = []byte("\x00\x01")
 
 // BindRowKey creates an ordered row key.
-// Generates a byte-encoded row key from primary key values with validation.
+// Generates a byte-encoded row key from primary key positionalValues with validation.
 // Returns error if key type is invalid or encoding fails.
 func BindRowKey(tableConfig *schemaMapping.TableSchema, rowKeyValues []types.DynamicValue, values *types.QueryParameterValues) (types.RowKey, error) {
 	if len(rowKeyValues) != len(tableConfig.PrimaryKeys) {
@@ -104,7 +104,7 @@ func BindRowKey(tableConfig *schemaMapping.TableSchema, rowKeyValues []types.Dyn
 }
 
 // encodeInt64Key encodes an int64 value for row keys.
-// Converts int64 values to byte representation with validation.
+// Converts int64 positionalValues to byte representation with validation.
 // Returns error if value is invalid or encoding fails.
 func encodeInt64Key(value int64, intRowKeyEncoding types.IntRowKeyEncodingType) ([]byte, error) {
 	switch intRowKeyEncoding {
@@ -118,7 +118,7 @@ func encodeInt64Key(value int64, intRowKeyEncoding types.IntRowKeyEncodingType) 
 
 func encodeIntRowKeysWithBigEndian(value int64) ([]byte, error) {
 	if value < 0 {
-		return nil, errors.New("row keys with big endian encoding cannot contain negative integer values")
+		return nil, errors.New("row keys with big endian encoding cannot contain negative integer positionalValues")
 	}
 
 	var b bytes.Buffer

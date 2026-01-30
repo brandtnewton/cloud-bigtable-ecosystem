@@ -29,6 +29,7 @@ func newPlaceholderMetadata(
 type IQueryParameters interface {
 	Count() int
 	GetMetadata(placeholder Placeholder) (*PlaceholderMetadata, error)
+	Metadata() []*PlaceholderMetadata
 }
 
 func NewEmptyQueryParameters() IQueryParameters {

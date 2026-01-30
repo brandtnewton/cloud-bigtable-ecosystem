@@ -100,7 +100,7 @@ func escapeNullByte(s []byte, x string) []byte {
 // There are many more examples in orderedcode_test.go.
 
 func encodeInt64(x int64) []byte {
-	// Fast-path those values of x that encode to a single byte.
+	// Fast-path those positionalValues of x that encode to a single byte.
 	if x >= -64 && x < 64 {
 		return []byte{uint8(x) ^ 0x80}
 	}

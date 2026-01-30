@@ -140,8 +140,7 @@ func addBindValueIfNeeded(dynamicValue types.DynamicValue, values *types.QueryPa
 			return err
 		}
 	}
-	// drop the leading '@' symbol
-	result[string(param.Placeholder)[1:]] = value
+	result[string(param.Placeholder)] = value
 	return nil
 }
 

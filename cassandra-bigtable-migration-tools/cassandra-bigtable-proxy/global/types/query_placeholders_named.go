@@ -9,6 +9,15 @@ type NamedQueryParameters struct {
 	params map[Placeholder]*PlaceholderMetadata
 }
 
+func (n *NamedQueryParameters) GetMetadataByIndex(index int) (*PlaceholderMetadata, error) {
+	for _, md := range n.params {
+		if md.Order == index {
+			return md, nil
+		}
+	}
+	return nil, fmt.Errorf("no placeholder for index %d", index)
+}
+
 func (n *NamedQueryParameters) Metadata() []*PlaceholderMetadata {
 	return maps.Values(n.params)
 }

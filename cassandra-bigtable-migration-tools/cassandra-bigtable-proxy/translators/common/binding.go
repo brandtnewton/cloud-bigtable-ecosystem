@@ -247,7 +247,7 @@ func getListIndexColumn(now time.Time, index int, totalLength int, prepend bool)
 }
 
 // encodeTimestampIndex encodes a timestamp value into bytes.
-// Converts timestamp positionalValues to byte representation with validation.
+// Converts timestamp values to byte representation with validation.
 // Returns error if timestamp format is invalid or encoding fails.
 func encodeTimestampIndex(millis int64, nanos int32) []byte {
 	buf := make([]byte, 12) // 8 bytes for millis + 4 bytes for nanos
@@ -383,7 +383,7 @@ func BindQueryParams(params types.IQueryParameters, positionalValues []*primitiv
 	case *types.PositionalQueryParameters:
 		result, err = bindPositionalParams(v, positionalValues, pv)
 	case *types.NamedQueryParameters:
-		result, err = bindNamedParams(v, namedValues, pv)
+		result, err = bindNamedParams(v, positionalValues, namedValues, pv)
 	default:
 		return nil, fmt.Errorf("unexpected params type: %T", params)
 	}
@@ -395,7 +395,7 @@ func BindQueryParams(params types.IQueryParameters, positionalValues []*primitiv
 
 func bindPositionalParams(params *types.PositionalQueryParameters, values []*primitive.Value, pv primitive.ProtocolVersion) (*types.QueryParameterValues, error) {
 	if params.Count() != len(values) {
-		return nil, fmt.Errorf("expected %d prepared positional positionalValues but got %d", params.Count(), len(values))
+		return nil, fmt.Errorf("expected %d prepared positional values but got %d", params.Count(), len(values))
 	}
 	result := types.NewQueryParameterValues(params, time.Now())
 	for i, param := range params.Ordered() {
@@ -411,9 +411,21 @@ func bindPositionalParams(params *types.PositionalQueryParameters, values []*pri
 	return result, nil
 }
 
-func bindNamedParams(params *types.NamedQueryParameters, values map[string]*primitive.Value, pv primitive.ProtocolVersion) (*types.QueryParameterValues, error) {
+func bindNamedParams(params *types.NamedQueryParameters, positionalValues []*primitive.Value, values map[string]*primitive.Value, pv primitive.ProtocolVersion) (*types.QueryParameterValues, error) {
+	// some clients send named params back by index to save on bandwidth so convert them back to a value map here first
+	if len(positionalValues) > 0 {
+		values = make(map[string]*primitive.Value, len(positionalValues))
+		for i, value := range positionalValues {
+			md, err := params.GetMetadataByIndex(i)
+			if err != nil {
+				return nil, err
+			}
+			values[string(md.Key)] = value
+		}
+	}
+
 	if params.Count() != len(values) {
-		return nil, fmt.Errorf("expected %d prepared named positionalValues but got %d", params.Count(), len(values))
+		return nil, fmt.Errorf("expected %d prepared named values but got %d", params.Count(), len(values))
 	}
 	result := types.NewQueryParameterValues(params, time.Now())
 	for _, md := range params.Params() {

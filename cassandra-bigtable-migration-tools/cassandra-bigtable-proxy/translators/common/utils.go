@@ -260,7 +260,7 @@ func ParseTupleValue(tuple cql.ITupleValueContext, lt *types.ListType, params *t
 	valueFn := tuple.FunctionArgs()
 	all := valueFn.AllConstant()
 	if all == nil || len(all) == 0 {
-		return nil, errors.New("failed to parse positionalValues for IN operator")
+		return nil, errors.New("failed to parse values for IN operator")
 	}
 	var inValues []any
 	for _, v := range all {
@@ -463,7 +463,7 @@ func ParseCqlSetAssignment(s cql.IValueSetContext, dt types.CqlDataType) ([]type
 }
 
 // ParseCqlConstant parses a CQL constant value.
-// Converts CQL constant positionalValues to their corresponding Go types with validation.
+// Converts CQL constant values to their corresponding Go types with validation.
 // Returns error if constant is invalid or conversion fails.
 func ParseCqlConstant(c cql.IConstantContext, dt types.CqlDataType) (types.GoValue, error) {
 	if c.Marker() != nil {
@@ -621,8 +621,8 @@ func dereferenceSlice(goValue types.GoValue) types.GoValue {
 	return goValue
 }
 
-// encodeBigIntForBigtable encodes bigint positionalValues to bytes.
-// Converts bigint positionalValues to byte representation with validation.
+// encodeBigIntForBigtable encodes bigint values to bytes.
+// Converts bigint values to byte representation with validation.
 // Returns error if value is invalid or encoding fails.
 func encodeBigIntForBigtable(value interface{}) ([]byte, error) {
 	var intVal int64
@@ -687,8 +687,8 @@ func encodeFloat64ForBigtable(value interface{}) (types.BigtableValue, error) {
 	return result, err
 }
 
-// encodeBoolForBigtable encodes boolean positionalValues to bytes.
-// Converts boolean positionalValues to byte representation with validation.
+// encodeBoolForBigtable encodes boolean values to bytes.
+// Converts boolean values to byte representation with validation.
 // Returns error if value is invalid or encoding fails.
 func encodeBoolForBigtable(value interface{}) (types.BigtableValue, error) {
 	var intVal int64

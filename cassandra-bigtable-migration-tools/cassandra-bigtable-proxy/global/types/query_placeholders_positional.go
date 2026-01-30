@@ -6,6 +6,13 @@ type PositionalQueryParameters struct {
 	ordered []*PlaceholderMetadata
 }
 
+func (p *PositionalQueryParameters) GetMetadataByIndex(index int) (*PlaceholderMetadata, error) {
+	if index < 0 || index >= len(p.ordered) {
+		return nil, fmt.Errorf("no placeholder for index %d", index)
+	}
+	return p.ordered[index], nil
+}
+
 func (p *PositionalQueryParameters) Metadata() []*PlaceholderMetadata {
 	return p.ordered
 }

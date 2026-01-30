@@ -155,7 +155,7 @@ func Test_bindValues(t *testing.T) {
 				mockdata.EncodePrimitiveValueOrDie("xyz", types.TypeText, primitive.ProtocolVersion4),
 			},
 			want: nil,
-			err:  "expected 2 prepared positional positionalValues but got 3",
+			err:  "expected 2 prepared positional values but got 3",
 		},
 		{
 			name: "too few input positionalValues",
@@ -170,7 +170,7 @@ func Test_bindValues(t *testing.T) {
 				mockdata.EncodePrimitiveValueOrDie("abc", types.TypeText, primitive.ProtocolVersion4),
 			},
 			want: nil,
-			err:  "expected 2 prepared positional positionalValues but got 1",
+			err:  "expected 2 prepared positional values but got 1",
 		},
 		{
 			name: "wrong input type",

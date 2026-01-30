@@ -103,8 +103,8 @@ func Test_bindValues(t *testing.T) {
 		{
 			name: "success",
 			params: types.NewQueryParameters().
-				BuildParameter(types.TypeVarchar, "?", nil).
-				BuildParameter(types.TypeVarchar, "?", nil),
+				BuildParameter(types.TypeVarchar, "", nil).
+				BuildParameter(types.TypeVarchar, "", nil),
 			values: []*primitive.Value{
 				mockdata.EncodePrimitiveValueOrDie("abc", types.TypeText, primitive.ProtocolVersion4),
 				mockdata.EncodePrimitiveValueOrDie("def", types.TypeText, primitive.ProtocolVersion4),
@@ -118,8 +118,8 @@ func Test_bindValues(t *testing.T) {
 		{
 			name: "too many input values",
 			params: types.NewQueryParameters().
-				BuildParameter(types.TypeVarchar, "?", nil).
-				BuildParameter(types.TypeVarchar, "?", nil),
+				BuildParameter(types.TypeVarchar, "", nil).
+				BuildParameter(types.TypeVarchar, "", nil),
 			values: []*primitive.Value{
 				mockdata.EncodePrimitiveValueOrDie("abc", types.TypeText, primitive.ProtocolVersion4),
 				mockdata.EncodePrimitiveValueOrDie("def", types.TypeText, primitive.ProtocolVersion4),
@@ -132,8 +132,8 @@ func Test_bindValues(t *testing.T) {
 		{
 			name: "too few input values",
 			params: types.NewQueryParameters().
-				BuildParameter(types.TypeVarchar, "?", nil).
-				BuildParameter(types.TypeVarchar, "?", nil),
+				BuildParameter(types.TypeVarchar, "", nil).
+				BuildParameter(types.TypeVarchar, "", nil),
 			values: []*primitive.Value{
 				mockdata.EncodePrimitiveValueOrDie("abc", types.TypeText, primitive.ProtocolVersion4),
 			},
@@ -143,7 +143,7 @@ func Test_bindValues(t *testing.T) {
 		{
 			name: "wrong input type",
 			params: types.NewQueryParameters().
-				BuildParameter(types.NewListType(types.TypeBigInt), "?", nil),
+				BuildParameter(types.NewListType(types.TypeBigInt), "", nil),
 			values: []*primitive.Value{
 				mockdata.EncodePrimitiveValueOrDie("abcdefgh", types.TypeText, primitive.ProtocolVersion4),
 			},

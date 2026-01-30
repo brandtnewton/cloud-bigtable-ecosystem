@@ -91,6 +91,13 @@ func (t *TranslatorManager) TranslateQuery(q *types.RawQuery, sessionKeyspace ty
 		return nil, fmt.Errorf("table name cannot be the same as the configured schema mapping table name '%s'", t.config.SchemaMappingTable)
 	}
 
+	// parameters are nil for non-prepare-able queries like ALTER
+	if preparedQuery.Parameters() != nil {
+		if validationErr := preparedQuery.Parameters().ValidateParams(); validationErr != nil {
+			return nil, validationErr
+		}
+	}
+
 	return preparedQuery, err
 }
 

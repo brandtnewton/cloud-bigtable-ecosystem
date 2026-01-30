@@ -41,6 +41,37 @@ func NewQueryParameters() *QueryParameters {
 	}
 }
 
+func (q *QueryParameters) HasPositionalParams() bool {
+	if q.metadata == nil {
+		return false
+	}
+	for _, metadata := range q.metadata {
+		if metadata.Marker == "" {
+			return true
+		}
+	}
+	return false
+}
+
+func (q *QueryParameters) HasNamedParams() bool {
+	if q.metadata == nil {
+		return false
+	}
+	for _, metadata := range q.metadata {
+		if metadata.Marker != "" {
+			return true
+		}
+	}
+	return false
+}
+
+func (q *QueryParameters) ValidateParams() error {
+	if q.HasNamedParams() && q.HasPositionalParams() {
+		return fmt.Errorf("queries cannot have both named and positional parameters")
+	}
+	return nil
+}
+
 func (q *QueryParameters) AllKeys() []Placeholder {
 	return q.ordered
 }

@@ -9,8 +9,6 @@ import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
-import java.net.InetSocketAddress;
-
 import static org.junit.jupiter.api.Assertions.*;
 
 public class DmlTests {
@@ -31,6 +29,7 @@ public class DmlTests {
     }
   }
 
+  // todo try reusing markers
   @Test
   public void testCrudLiteral() {
     // Insert
@@ -97,6 +96,13 @@ public class DmlTests {
     rs = session.execute(bsSelect);
     row = rs.one();
     assertNull(row, "Row should be null after delete");
+  }
+
+  @Test
+  public void testCrudFailsWithBothPositionalAndNamedValues() {
+    assertThrows(Exception.class, () -> {
+      session.prepare("INSERT INTO " + TABLE + " (user_id, order_num, name) VALUES (:u, ?, :n)");
+    });
   }
 
   @Test

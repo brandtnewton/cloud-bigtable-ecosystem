@@ -27,6 +27,9 @@ import com.google.cloud.kafka.connect.bigtable.mapping.ByteUtils;
 import com.google.cloud.kafka.connect.bigtable.transformations.ApplyJsonSchema;
 import com.google.cloud.kafka.connect.bigtable.transformations.FlattenArrayElement;
 import com.google.cloud.kafka.connect.bigtable.util.TestDataUtil;
+import com.google.cloud.kafka.connect.bigtable.mapping.ByteUtils;
+import com.google.cloud.kafka.connect.bigtable.transformations.FlattenArrayElement;
+import com.google.cloud.kafka.connect.bigtable.util.TestDataUtil;
 import com.google.protobuf.ByteString;
 import org.apache.kafka.connect.errors.DataException;
 import org.apache.kafka.connect.json.JsonConverter;
@@ -37,6 +40,7 @@ import org.junit.runners.JUnit4;
 
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
+import java.util.List;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;

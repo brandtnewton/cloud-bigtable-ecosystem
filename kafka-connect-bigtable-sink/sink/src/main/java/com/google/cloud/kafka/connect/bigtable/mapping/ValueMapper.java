@@ -41,6 +41,7 @@ import java.util.Optional;
 import java.util.stream.Collectors;
 import javax.annotation.Nonnull;
 
+import com.google.protobuf.MapEntry;
 import org.apache.kafka.common.utils.Utils;
 import org.apache.kafka.connect.data.Decimal;
 import org.apache.kafka.connect.data.Field;

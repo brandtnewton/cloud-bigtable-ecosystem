@@ -29,34 +29,24 @@ import com.google.cloud.bigtable.data.v2.BigtableDataClient;
 import com.google.cloud.bigtable.data.v2.BigtableDataSettings;
 import com.google.cloud.bigtable.data.v2.stub.EnhancedBigtableStubSettings;
 import com.google.cloud.kafka.connect.bigtable.version.PackageMetadata;
-import com.google.cloud.kafka.connect.bigtable.wrappers.BigtableTableAdminClientWrapper;
 import com.google.cloud.kafka.connect.bigtable.wrappers.BigtableTableAdminClientInterface;
+import com.google.cloud.kafka.connect.bigtable.wrappers.BigtableTableAdminClientWrapper;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Sets;
+import org.apache.kafka.common.config.*;
+import org.apache.kafka.common.utils.Utils;
+import org.apache.kafka.connect.errors.RetriableException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.threeten.bp.Duration;
+import org.threeten.bp.temporal.ChronoUnit;
+
 import java.io.ByteArrayInputStream;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.Set;
+import java.util.*;
 import java.util.function.Function;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.apache.kafka.common.config.AbstractConfig;
-import org.apache.kafka.common.config.Config;
-import org.apache.kafka.common.config.ConfigDef;
-import org.apache.kafka.common.config.ConfigException;
-import org.apache.kafka.common.config.ConfigValue;
-import org.apache.kafka.common.utils.Utils;
-import org.apache.kafka.connect.errors.RetriableException;
-import org.threeten.bp.Duration;
-import org.threeten.bp.temporal.ChronoUnit;
 
 /**
  * A class defining the configuration of {@link

@@ -56,6 +56,33 @@ func TestUpsertOperation(t *testing.T) {
 	assert.Equal(t, 456, code)
 	assert.Equal(t, "abc", textCol)
 }
+func TestEmptyString(t *testing.T) {
+	t.Parallel()
+	pkName := ""
+	pkAge := int64(33)
+	err := session.Query(`INSERT INTO bigtabledevinstance.user_info (name, age, text_col) VALUES (?, ?, ?)`, pkName, pkAge, "").Exec()
+	require.NoError(t, err)
+
+	var name string
+	var textCol string
+	err = session.Query(`SELECT name, text_col FROM bigtabledevinstance.user_info WHERE name = ? AND age = ?`, pkName, pkAge).Scan(&name, &textCol)
+	require.NoError(t, err)
+	assert.Equal(t, "", name)
+	assert.Equal(t, "", textCol)
+}
+
+func TestEmptyStringLiteral(t *testing.T) {
+	t.Parallel()
+	err := session.Query(`INSERT INTO bigtabledevinstance.user_info (name, age, text_col) VALUES ('', 22, '')`).Exec()
+	require.NoError(t, err)
+
+	var name string
+	var textCol string
+	err = session.Query(`SELECT name, text_col FROM bigtabledevinstance.user_info WHERE name = '' AND age = 22 and text_col=''`).Scan(&name, &textCol)
+	require.NoError(t, err)
+	assert.Equal(t, "", name)
+	assert.Equal(t, "", textCol)
+}
 
 func TestInsertAndValidateCollectionData(t *testing.T) {
 	t.Parallel()

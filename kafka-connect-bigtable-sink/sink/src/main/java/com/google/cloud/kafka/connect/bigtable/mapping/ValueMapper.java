@@ -58,9 +58,12 @@ import org.apache.kafka.connect.errors.DataException;
  * Mutation(s)}.
  */
 public class ValueMapper {
+  private static final int ROOT_LEVEL_ARRAY_INDEX_PADDING_WIDTH = 6;
+  private static final String ROOT_LEVEL_ARRAY_INDEX_FORMAT = "%0" + ROOT_LEVEL_ARRAY_INDEX_PADDING_WIDTH + "d";
   public final String defaultColumnFamilyTemplate;
   public final ByteString defaultColumnQualifier;
   private final NullValueMode nullMode;
+  private final boolean expandRootLevelArrays;
   private static final ObjectMapper jsonMapper = getJsonMapper();
 
   /**
@@ -72,7 +75,7 @@ public class ValueMapper {
    *                               com.google.cloud.kafka.connect.bigtable.config.BigtableSinkConfig#ROW_KEY_DELIMITER_CONFIG}.
    */
   public ValueMapper(
-      String defaultColumnFamily, String defaultColumnQualifier, @Nonnull NullValueMode nullMode) {
+      String defaultColumnFamily, String defaultColumnQualifier, @Nonnull NullValueMode nullMode, boolean expandRootLevelArrays) {
     this.defaultColumnFamilyTemplate =
         Utils.isBlank(defaultColumnFamily) ? null : defaultColumnFamily;
     this.defaultColumnQualifier =
@@ -80,6 +83,7 @@ public class ValueMapper {
             ? null
             : ByteString.copyFrom(defaultColumnQualifier.getBytes(StandardCharsets.UTF_8));
     this.nullMode = nullMode;
+    this.expandRootLevelArrays = expandRootLevelArrays;
   }
 
   /**
@@ -113,6 +117,8 @@ public class ValueMapper {
           continue;
         } else if (kafkaFieldValue == null && nullMode == NullValueMode.DELETE) {
           mutationDataBuilder.deleteFamily(kafkaFieldName);
+        } else if (expandRootLevelArrays && kafkaFieldValue instanceof List) {
+          writeRootLevelArray(mutationDataBuilder, kafkaFieldName, kafkaFieldValue, timestampMicros);
         } else if (kafkaFieldValue instanceof Struct) {
           for (Map.Entry<Object, SchemaAndValue> subfield :
               getChildren((Struct) kafkaFieldValue, kafkaFieldSchema)) {
@@ -157,6 +163,21 @@ public class ValueMapper {
       }
     }
     return mutationDataBuilder;
+  }
+
+  private void writeRootLevelArray(MutationDataBuilder mutationDataBuilder, String columnFamily, Object value, long timestampMicros) {
+    List<?> listValue = (List<?>) value;
+    // clear the previous value in case it has more elements than this one
+    mutationDataBuilder.deleteFamily(columnFamily);
+    for (int i = 0; i < listValue.size(); i++) {
+      Object o = listValue.get(i);
+      mutationDataBuilder.setCell(
+          columnFamily,
+          // pad element names with leading zeros for easier sorting: '000001'
+          ByteString.copyFrom(String.format(ROOT_LEVEL_ARRAY_INDEX_FORMAT, i).getBytes(StandardCharsets.UTF_8)),
+          timestampMicros,
+          ByteString.copyFrom(serialize(o)));
+    }
   }
 
   @VisibleForTesting

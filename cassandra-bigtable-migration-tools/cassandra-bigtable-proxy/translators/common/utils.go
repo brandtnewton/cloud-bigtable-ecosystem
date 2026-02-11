@@ -487,7 +487,7 @@ func ParseCqlConstant(c cql.IConstantContext, dt types.CqlDataType) (types.GoVal
 		if c.StringLiteral() != nil {
 			return parseStringLiteral(c.StringLiteral(), dt)
 		}
-	case types.INT, types.BIGINT, types.DECIMAL, types.FLOAT, types.COUNTER:
+	case types.INT, types.BIGINT, types.DECIMAL, types.DOUBLE, types.FLOAT, types.COUNTER:
 		if c.DecimalLiteral() != nil {
 			return utilities.StringToGo(c.DecimalLiteral().GetText(), dt)
 		}

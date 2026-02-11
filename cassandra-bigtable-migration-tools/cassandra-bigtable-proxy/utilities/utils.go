@@ -740,6 +740,11 @@ func GetValueSlice(value types.DynamicValue, values *types.QueryParameterValues)
 		return nil, err
 	}
 
+	// the value is getting set to NULL
+	if v == nil {
+		return nil, nil
+	}
+
 	val := reflect.ValueOf(v)
 
 	if val.Kind() != reflect.Slice {
@@ -761,6 +766,12 @@ func GetValueMap(value types.DynamicValue, values *types.QueryParameterValues) (
 	if err != nil {
 		return nil, err
 	}
+	
+	// the value is getting set to NULL
+	if v == nil {
+		return nil, nil
+	}
+
 	val := reflect.ValueOf(v)
 
 	if val.Kind() != reflect.Map {

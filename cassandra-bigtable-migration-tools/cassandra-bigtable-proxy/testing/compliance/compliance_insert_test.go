@@ -364,3 +364,65 @@ func TestTimestampInKey(t *testing.T) {
 		assert.Equal(t, input, got)
 	})
 }
+
+func TestInsertNullValues(t *testing.T) {
+	t.Parallel()
+
+	t.Run("Placeholders", func(t *testing.T) {
+		t.Parallel()
+		pkName := uuid.New().String()
+		pkAge := int64(100)
+
+		// Insert nulls using placeholders (zip_code ensures it's not an empty row)
+		err := session.Query(`INSERT INTO bigtabledevinstance.user_info (name, age, code, credited, text_col, tags, extra_info, list_text, zip_code) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+			pkName, pkAge, nil, nil, nil, nil, nil, nil, 2).Exec()
+		require.NoError(t, err)
+
+		var code *int
+		var credited *float64
+		var textCol *string
+		var tags []string
+		var extraInfo map[string]string
+		var listText []string
+
+		err = session.Query(`SELECT code, credited, text_col, tags, extra_info, list_text FROM bigtabledevinstance.user_info WHERE name = ? AND age = ?`, pkName, pkAge).
+			Scan(&code, &credited, &textCol, &tags, &extraInfo, &listText)
+		require.NoError(t, err)
+
+		assert.Nil(t, code, "code should be null")
+		assert.Nil(t, credited, "credited should be null")
+		assert.Nil(t, textCol, "text_col should be null")
+		assert.Empty(t, tags, "tags should be empty/null")
+		assert.Empty(t, extraInfo, "extra_info should be empty/null")
+		assert.Empty(t, listText, "list_text should be empty/null")
+	})
+
+	t.Run("Literals", func(t *testing.T) {
+		t.Parallel()
+		pkName := uuid.New().String()
+		pkAge := int64(101)
+
+		// Insert nulls using NULL literal (zip_code ensures it's not an empty row)
+		err := session.Query(`INSERT INTO bigtabledevinstance.user_info (name, age, code, credited, text_col, tags, extra_info, list_text, zip_code) VALUES (?, ?, NULL, NULL, NULL, NULL, NULL, NULL, 1)`,
+			pkName, pkAge).Exec()
+		require.NoError(t, err)
+
+		var code *int
+		var credited *float64
+		var textCol *string
+		var tags []string
+		var extraInfo map[string]string
+		var listText []string
+
+		err = session.Query(`SELECT code, credited, text_col, tags, extra_info, list_text FROM bigtabledevinstance.user_info WHERE name = ? AND age = ?`, pkName, pkAge).
+			Scan(&code, &credited, &textCol, &tags, &extraInfo, &listText)
+		require.NoError(t, err)
+
+		assert.Nil(t, code, "code should be null")
+		assert.Nil(t, credited, "credited should be null")
+		assert.Nil(t, textCol, "text_col should be null")
+		assert.Empty(t, tags, "tags should be empty/null")
+		assert.Empty(t, extraInfo, "extra_info should be empty/null")
+		assert.Empty(t, listText, "list_text should be empty/null")
+	})
+}

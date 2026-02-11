@@ -158,8 +158,22 @@ func BindMutations(assignments []types.Assignment, usingTimestamp types.DynamicV
 	return nil
 }
 
+func deleteColumn(col *types.Column) types.IBigtableMutationOp {
+	if col.CQLType.IsCollection() {
+		return types.NewDeleteCellsOp(col.ColumnFamily)
+	} else {
+		return types.NewDeleteColumnOp(types.BigtableColumn{Family: col.ColumnFamily, Column: types.ColumnQualifier(col.Name)})
+	}
+}
+
 func encodeSetValue(assignment *types.ComplexAssignmentSet, values *types.QueryParameterValues) ([]types.IBigtableMutationOp, error) {
 	col := assignment.Column()
+
+	value, err := assignment.Value().GetValue(values)
+	// clear the column if the value is explicitly set to null
+	if value == nil && err == nil {
+		return []types.IBigtableMutationOp{deleteColumn(col)}, nil
+	}
 
 	var results []types.IBigtableMutationOp
 	if col.CQLType.IsCollection() {

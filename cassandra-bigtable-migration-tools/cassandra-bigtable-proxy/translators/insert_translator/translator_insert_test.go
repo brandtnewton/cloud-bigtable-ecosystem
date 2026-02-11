@@ -275,6 +275,20 @@ func TestSelectTranslator_Translate(t *testing.T) {
 			},
 		},
 		{
+			name:  "success with NULL literal",
+			query: "INSERT INTO test_keyspace.test_table (pk1, pk2, col_int) VALUES ('abc', 'pkval', NULL)",
+			want: &Want{
+				Table:    "test_table",
+				Keyspace: "test_keyspace",
+				Assignments: []types.Assignment{
+					types.NewComplexAssignmentSet(mockdata.GetColumnOrDie("test_keyspace", "test_table", "pk1"), types.NewLiteralValue("abc")),
+					types.NewComplexAssignmentSet(mockdata.GetColumnOrDie("test_keyspace", "test_table", "pk2"), types.NewLiteralValue("pkval")),
+					types.NewComplexAssignmentSet(mockdata.GetColumnOrDie("test_keyspace", "test_table", "col_int"), types.NewLiteralValue(nil)),
+				},
+				AllParams: []*types.ParameterMetadata{},
+			},
+		},
+		{
 			name:    "no keyspace",
 			query:   "INSERT INTO test_table (pk1, pk2, col_int) VALUES ('abc', 'pkva''l', 3)",
 			want:    nil,

@@ -140,4 +140,90 @@ public class DmlTests {
     row = rs.one();
     assertNull(row, "Row should be null after delete");
   }
+
+  @Test
+  public void testReadUndefinedScalars() {
+    // 1. Write row with only partial columns (primitives left out)
+    session.execute(
+        "INSERT INTO bigtabledevinstance.user_info (name, age, extra_info) " +
+            "VALUES ('undefined_primitives_test', 1, {'foo': 'bar'})"
+    );
+
+    // 2. Select the columns that weren't explicitly inserted
+    Row row = session.execute(
+        "SELECT code, credited, text_col, balance, is_active, birth_date, zip_code " +
+            "FROM bigtabledevinstance.user_info " +
+            "WHERE name='undefined_primitives_test' AND age=1"
+    ).one();
+
+    assertNotNull(row);
+
+    assertEquals(0, row.getInt("code"));
+    assertEquals(0.0, row.getDouble("credited"), 0.001);
+
+    assertNull(row.getString("text_col"));
+
+    assertEquals(0.0f, row.getFloat("balance"), 0.001f);
+    assertFalse(row.getBoolean("is_active"));
+
+    assertNull(row.getInstant("birth_date"));
+
+    assertEquals(0L, row.getLong("zip_code"));
+  }
+
+  @Test
+  public void testReadDefaultScalarValues() {
+    session.execute(
+        "INSERT INTO bigtabledevinstance.user_info (name, age, code, credited, text_col, balance, is_active, birth_date, zip_code) " +
+            "VALUES ('undefined_primitives_test', 1, 0, 0, '', 0, false, 0, 0)"
+    );
+
+    // 2. Select the columns that weren't explicitly inserted
+    Row row = session.execute(
+        "SELECT code, credited, text_col, balance, is_active, birth_date, zip_code " +
+            "FROM bigtabledevinstance.user_info " +
+            "WHERE name='undefined_primitives_test' AND age=1"
+    ).one();
+
+    assertNotNull(row);
+
+    assertEquals(0, row.getInt("code"));
+    assertEquals(0.0, row.getDouble("credited"), 0.001);
+
+    assertEquals("", row.getString("text_col"));
+
+    assertEquals(0.0f, row.getFloat("balance"), 0.001f);
+    assertFalse(row.getBoolean("is_active"));
+
+    assertEquals(Instant.EPOCH, row.getInstant("birth_date"));
+
+    assertEquals(0L, row.getLong("zip_code"));
+  }
+
+  @Test
+  public void testInsertIfNotExists() {
+    String userId = "lwt123";
+    int orderNum = 4;
+    String name = "lwt bob";
+
+    // ensure the row does not exist.
+    session.execute("DELETE FROM " + TABLE + " WHERE user_id='" + userId + "' AND order_num=" + orderNum);
+
+    // Insert IF NOT EXISTS (should succeed)
+    ResultSet rs = session.execute("INSERT INTO " + TABLE + " (user_id, order_num, name) VALUES ('" + userId + "', " + orderNum + ", '" + name + "') IF NOT EXISTS");
+    assertTrue(rs.wasApplied(), "Insert should be applied");
+
+    // Insert IF NOT EXISTS again (should fail)
+    rs = session.execute("INSERT INTO " + TABLE + " (user_id, order_num, name) VALUES ('" + userId + "', " + orderNum + ", 'new name') IF NOT EXISTS");
+    assertFalse(rs.wasApplied(), "Insert should not be applied second time");
+
+    // Verify original data remains
+    rs = session.execute("SELECT * FROM " + TABLE + " WHERE user_id='" + userId + "' AND order_num=" + orderNum);
+    Row row = rs.one();
+    assertNotNull(row);
+    assertEquals(name, row.getString("name"));
+
+    // Cleanup
+    session.execute("DELETE FROM " + TABLE + " WHERE user_id='" + userId + "' AND order_num=" + orderNum);
+  }
 }

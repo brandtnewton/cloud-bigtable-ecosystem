@@ -364,3 +364,36 @@ func TestTimestampInKey(t *testing.T) {
 		assert.Equal(t, input, got)
 	})
 }
+
+// This tests that a known limitation of the proxy returns an error. We can delete this test once we support setting empty rows. An empty row is a row that only has a primary key defined and no columns (which Bigtable doesn't allow, but Cassandra does).
+func TestInsertEmptyRow(t *testing.T) {
+	t.Parallel()
+
+	pkName := uuid.New().String()
+	pkAge := int64(100)
+
+	err := session.Query(`INSERT INTO bigtabledevinstance.user_info (name, age) VALUES (?, ?)`,
+		pkName, pkAge).Exec()
+	require.NoError(t, err)
+
+	var name string
+	var age int64
+	var code *int
+	var credited *float64
+	var textCol *string
+	var tags []string
+	var extraInfo map[string]string
+	var listText []string
+	err = session.Query(`SELECT name, age, code, credited, text_col, tags, extra_info, list_text FROM bigtabledevinstance.user_info WHERE name = ? AND age = ?`, pkName, pkAge).
+		Scan(&name, &age, &code, &credited, &textCol, &tags, &extraInfo, &listText)
+	require.NoError(t, err)
+
+	assert.Equal(t, pkName, name)
+	assert.Equal(t, pkAge, age)
+	assert.Nil(t, code)
+	assert.Nil(t, credited)
+	assert.Nil(t, textCol)
+	assert.Empty(t, tags)
+	assert.Empty(t, extraInfo)
+	assert.Empty(t, listText)
+}

@@ -17,6 +17,7 @@
 package compliance
 
 import (
+	"github.com/google/uuid"
 	"testing"
 	"time"
 
@@ -180,4 +181,31 @@ func TestNegativeTestCasesForUpdateOperations(t *testing.T) {
 			assert.Contains(t, err.Error(), tc.expectedError)
 		})
 	}
+}
+
+func TestUpdateToEmptyRow(t *testing.T) {
+	t.Parallel()
+
+	pkName := uuid.New().String()
+	pkAge := int64(120)
+
+	// write a row with 1 non-primary key value
+	require.NoError(t, session.Query(`INSERT INTO bigtabledevinstance.user_info (name, age, code) VALUES (?, ?, ?)`,
+		pkName, pkAge, 1).Exec())
+
+	// update the row by deleting the only non-primary key value
+	require.NoError(t, session.Query(`UPDATE bigtabledevinstance.user_info SET code=? WHERE name=? AND age=?`,
+		nil, pkName, pkAge).Exec())
+
+	var name string
+	var age int64
+	var code *int
+	// should still be able to read the empty row
+	err := session.Query(`SELECT name, age, code FROM bigtabledevinstance.user_info WHERE name = ? AND age = ?`, pkName, pkAge).
+		Scan(&name, &age, &code)
+	require.NoError(t, err)
+
+	assert.Equal(t, pkName, name)
+	assert.Equal(t, pkAge, age)
+	assert.Nil(t, code)
 }

@@ -192,7 +192,7 @@ func TestUpdateToEmptyRow(t *testing.T) {
 	// write a row with 1 non-primary key value
 	require.NoError(t, session.Query(`INSERT INTO bigtabledevinstance.user_info (name, age, code) VALUES (?, ?, ?)`,
 		pkName, pkAge, 1).Exec())
-
+	g
 	// update the row by deleting the only non-primary key value
 	require.NoError(t, session.Query(`UPDATE bigtabledevinstance.user_info SET code=? WHERE name=? AND age=?`,
 		nil, pkName, pkAge).Exec())

@@ -198,15 +198,6 @@ func (btc *BigtableAdapter) DropAllRows(ctx context.Context, data *types.Truncat
 		return err
 	}
 
-	// performance optimization because DropAllRows can be slow
-	hasRows, err := btc.hasAnyRows(ctx, data.Keyspace(), data.Table())
-	if err != nil {
-		return err
-	}
-	if !hasRows {
-		return nil
-	}
-
 	adminClient, err := btc.clients.GetAdmin(data.Keyspace())
 	if err != nil {
 		return err
@@ -225,37 +216,6 @@ func (btc *BigtableAdapter) DropAllRows(ctx context.Context, data *types.Truncat
 	}
 	btc.Logger.Info("truncate table: complete")
 	return nil
-}
-
-func (btc *BigtableAdapter) hasAnyRows(ctx context.Context, keyspace types.Keyspace, tableName types.TableName) (bool, error) {
-	dataClient, err := btc.clients.GetClient(keyspace)
-	if err != nil {
-		return false, err
-	}
-
-	tbl := dataClient.Open(string(tableName))
-
-	found := false
-	err = tbl.ReadRows(
-		ctx,
-		bigtable.InfiniteRange(""),
-		func(row bigtable.Row) bool {
-			found = true
-			return false
-		},
-		bigtable.LimitRows(1),
-		// Payload optimization: returns only the row key, no values or extra cols
-		bigtable.RowFilter(
-			bigtable.ChainFilters(
-				bigtable.CellsPerRowLimitFilter(1),
-				bigtable.StripValueFilter(),
-			),
-		),
-	)
-	if err != nil {
-		return false, fmt.Errorf("could not read rows: %v", err)
-	}
-	return found, nil
 }
 
 // InsertRow - Inserts a row into the specified bigtable table.

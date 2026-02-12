@@ -16,6 +16,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"time"
 )
 
 type MetadataStore struct {
@@ -41,7 +42,35 @@ func (b *MetadataStore) Initialize(ctx context.Context) error {
 			return err
 		}
 	}
+
+	if b.config.MetadataRefreshInterval > 0 {
+		go b.refreshLoop(ctx)
+	} else {
+		b.logger.Info("periodic metadata refresh disabled because interval is 0.")
+	}
 	return nil
+}
+
+func (b *MetadataStore) refreshLoop(ctx context.Context) {
+	b.logger.Info("starting periodic metadata refresh loop", zap.Int("interval_seconds", b.config.MetadataRefreshInterval))
+	ticker := time.NewTicker(time.Duration(b.config.MetadataRefreshInterval) * time.Second)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-ctx.Done():
+			b.logger.Info("stopping periodic metadata refresh loop")
+			return
+		case <-ticker.C:
+			b.logger.Debug("starting periodic metadata refresh")
+			for keyspace := range b.config.Instances {
+				err := b.ReloadKeyspaceSchemas(ctx, keyspace)
+				if err != nil {
+					b.logger.Error("failed to periodically reload keyspace schemas", zap.String("keyspace", string(keyspace)), zap.Error(err))
+				}
+			}
+		}
+	}
 }
 
 func (b *MetadataStore) Schemas() *SchemaMetadata {
@@ -567,6 +596,7 @@ func (b *MetadataStore) ReloadKeyspaceSchemas(ctx context.Context, keyspace type
 	if err != nil {
 		return fmt.Errorf("error when reloading schema mappings for %s.%s: %w", keyspace, b.config.SchemaMappingTable, err)
 	}
-	b.schemas.SyncKeyspace(keyspace, tableConfigs)
+	changeCount := b.schemas.SyncKeyspace(keyspace, tableConfigs)
+	b.logger.Info("successfully synced keyspace schemas", zap.String("keyspace", string(keyspace)), zap.Int("changes", changeCount))
 	return nil
 }

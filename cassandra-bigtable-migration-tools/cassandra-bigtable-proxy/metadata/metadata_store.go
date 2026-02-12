@@ -63,12 +63,18 @@ func (b *MetadataStore) refreshLoop(ctx context.Context) {
 			return
 		case <-ticker.C:
 			b.logger.Debug("starting periodic metadata refresh")
+			var wg sync.WaitGroup
 			for keyspace := range b.config.Instances {
-				err := b.ReloadKeyspaceSchemas(ctx, keyspace)
-				if err != nil {
-					b.logger.Error("failed to periodically reload keyspace schemas", zap.String("keyspace", string(keyspace)), zap.Error(err))
-				}
+				wg.Add(1)
+				go func(ks types.Keyspace) {
+					defer wg.Done()
+					err := b.ReloadKeyspaceSchemas(ctx, ks)
+					if err != nil {
+						b.logger.Error("failed to periodically reload keyspace schemas", zap.String("keyspace", string(ks)), zap.Error(err))
+					}
+				}(keyspace)
 			}
+			wg.Wait()
 		}
 	}
 }

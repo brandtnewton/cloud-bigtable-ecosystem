@@ -27,6 +27,7 @@ import (
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/utilities"
 	"github.com/datastax/go-cassandra-native-protocol/message"
 	"github.com/datastax/go-cassandra-native-protocol/primitive"
+	"github.com/gocql/gocql"
 	"github.com/google/uuid"
 	"go.uber.org/zap"
 	"time"
@@ -175,6 +176,9 @@ func rowValueToGoValue(val any, expectedType types.CqlDataType) (types.GoValue, 
 				sec, nsec := u.Time().UnixTime()
 				return time.Unix(sec, nsec).UTC(), nil
 			}
+			if u.Version() == 7 {
+				return types.GetTimeFromUUIDv7(primitive.UUID(u))
+			}
 			return v, nil
 		case types.BLOB:
 			return v, nil
@@ -292,15 +296,8 @@ func rowValueToGoValue(val any, expectedType types.CqlDataType) (types.GoValue, 
 	case time.Time:
 		if expectedType.Code() == types.TIMEUUID {
 			// This happens for now() which we translate to CURRENT_TIMESTAMP()
-			// We should probably generate a UUID from this time, but for now we'll just return it as a version 1 UUID
-			// using the time.
-			// Actually, gocql might expect [16]byte.
-			// Let's use the current time to generate a proper UUIDv1 if possible, or just use the given time.
-			u, err := uuid.NewUUID() // This uses current time.
-			if err != nil {
-				return v, nil
-			}
-			return primitive.UUID(u), nil
+			// We must use the time from Bigtable to generate the UUID.
+			return primitive.UUID(gocql.UUIDFromTime(v)), nil
 		}
 		return v, nil
 	case nil:

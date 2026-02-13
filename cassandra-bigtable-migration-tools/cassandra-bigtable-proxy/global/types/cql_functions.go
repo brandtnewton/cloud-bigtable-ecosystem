@@ -108,12 +108,12 @@ func toTimestamp(args []GoValue) (GoValue, error) {
 		return time.Unix(sec, nsec).UTC(), nil
 	}
 	if u.Version() == 7 {
-		return getTimeFromUUIDv7(p)
+		return GetTimeFromUUIDv7(p)
 	}
 	return nil, fmt.Errorf("unsupported uuid version: %d", u.Version())
 }
 
-func getTimeFromUUIDv7(p primitive.UUID) (time.Time, error) {
+func GetTimeFromUUIDv7(p primitive.UUID) (time.Time, error) {
 	id := uuid.UUID(p)
 	// 1. Check the UUID version. UUIDv7 has the '7' in the 4 most significant bits
 	//    of the 7th byte (index 6). This is a good sanity check.
@@ -136,5 +136,5 @@ func getTimeFromUUIDv7(p primitive.UUID) (time.Time, error) {
 	seconds := milliseconds / 1000
 	nanos := (milliseconds % 1000) * int64(time.Millisecond) // Remaining millis * 1,000,000 nanosec/millis
 
-	return time.Unix(seconds, nanos), nil
+	return time.Unix(seconds, nanos).UTC(), nil
 }

@@ -699,7 +699,7 @@ func ParseCqlType(dtc cql.IDataTypeContext) (types.CqlDataType, error) {
 		}
 		return types.TypeTinyint, nil
 	default:
-		return nil, fmt.Errorf("unknown data type name: '%s' in type '%s'", dataTypeName, dtc)
+		return nil, fmt.Errorf("unknown data type name: '%s'", dataTypeName)
 	}
 }
 

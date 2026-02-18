@@ -124,6 +124,11 @@ func loadListenerConfig(args *types.CliArgs, l *yamlListener, config *yamlProxyC
 		intRowKeyEncoding = types.BigEndianEncoding
 	}
 
+	var metadataRefreshInterval = DefaultMetadataRefreshInterval
+	if l.Bigtable.MetadataRefreshInterval != nil {
+		metadataRefreshInterval = *l.Bigtable.MetadataRefreshInterval
+	}
+
 	bigtableConfig := &types.BigtableConfig{
 		ProjectID:          projectId,
 		Instances:          instances,
@@ -133,7 +138,7 @@ func loadListenerConfig(args *types.CliArgs, l *yamlListener, config *yamlProxyC
 		},
 		DefaultColumnFamily:      types.ColumnFamily(l.Bigtable.DefaultColumnFamily),
 		DefaultIntRowKeyEncoding: intRowKeyEncoding,
-		MetadataRefreshInterval:  l.Bigtable.MetadataRefreshInterval,
+		MetadataRefreshInterval:  metadataRefreshInterval,
 	}
 
 	result := NewProxyInstanceConfig(args, l.Port, otel, bigtableConfig)

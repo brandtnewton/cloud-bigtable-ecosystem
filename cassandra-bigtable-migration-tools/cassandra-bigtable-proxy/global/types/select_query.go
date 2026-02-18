@@ -125,6 +125,8 @@ type ExecutableSelectQuery struct {
 	ResultColumnMetadata []*message.ColumnMetadata
 	ProtocolVersion      primitive.ProtocolVersion
 	Values               *QueryParameterValues
+	PageSize             int32
+	PagingState          []byte
 }
 
 func NewExecutableSelectQuery(query *PreparedSelectQuery, protocolVersion primitive.ProtocolVersion, values *QueryParameterValues) *ExecutableSelectQuery {

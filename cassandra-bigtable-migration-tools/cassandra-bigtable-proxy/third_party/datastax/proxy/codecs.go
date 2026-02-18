@@ -37,11 +37,19 @@ func (c *partialQueryCodec) EncodedLength(_ message.Message, _ primitive.Protoco
 	panic("not implemented")
 }
 
-func (c *partialQueryCodec) Decode(source io.Reader, _ primitive.ProtocolVersion) (message.Message, error) {
+func (c *partialQueryCodec) Decode(source io.Reader, protocolV primitive.ProtocolVersion) (message.Message, error) {
 	if query, err := primitive.ReadLongString(source); err != nil {
 		return nil, err
 	} else {
-		return &partialQuery{query}, nil
+		options, err := message.DecodeQueryOptions(source, protocolV)
+		if err != nil {
+			return nil, err
+		}
+		return &partialQuery{
+			query:       query,
+			PageSize:    options.PageSize,
+			PagingState: options.PagingState,
+		}, nil
 	}
 }
 
@@ -50,7 +58,9 @@ func (c *partialQueryCodec) GetOpCode() primitive.OpCode {
 }
 
 type partialQuery struct {
-	query string
+	query       string
+	PageSize    int32
+	PagingState []byte
 }
 
 func (p *partialQuery) IsResponse() bool {
@@ -62,7 +72,7 @@ func (p *partialQuery) GetOpCode() primitive.OpCode {
 }
 
 func (p *partialQuery) Clone() message.Message {
-	return &partialQuery{p.query}
+	return &partialQuery{p.query, p.PageSize, p.PagingState}
 }
 
 type partialExecute struct {
@@ -79,6 +89,9 @@ type partialExecute struct {
 	// It is illegal to use both positional and named values at the same time. If this happens, positional values will
 	// be used and named values will be silently ignored.
 	NamedValues map[string]*primitive.Value
+
+	PageSize    int32
+	PagingState []byte
 }
 
 func (m *partialExecute) IsResponse() bool {
@@ -91,7 +104,11 @@ func (m *partialExecute) GetOpCode() primitive.OpCode {
 
 func (m *partialExecute) Clone() message.Message {
 	return &partialExecute{
-		queryId: primitive.CloneByteSlice(m.queryId),
+		queryId:          primitive.CloneByteSlice(m.queryId),
+		PositionalValues: m.PositionalValues,
+		NamedValues:      m.NamedValues,
+		PageSize:         m.PageSize,
+		PagingState:      m.PagingState,
 	}
 }
 
@@ -117,12 +134,14 @@ func (c *partialExecuteCodec) Decode(source io.Reader, protocolV primitive.Proto
 		return nil, errors.New("EXECUTE missing query id")
 	}
 	options, err := message.DecodeQueryOptions(source, protocolV)
+	if err != nil {
+		return nil, fmt.Errorf("error while decoding bytes for values : %s ", err.Error())
+	}
 	execute.PositionalValues = options.PositionalValues
 	execute.NamedValues = options.NamedValues
-	if err != nil {
-		err = fmt.Errorf("error while decoding bytes for values : %s ", err.Error())
-	}
-	return execute, err
+	execute.PageSize = options.PageSize
+	execute.PagingState = options.PagingState
+	return execute, nil
 }
 
 func (c *partialExecuteCodec) GetOpCode() primitive.OpCode {

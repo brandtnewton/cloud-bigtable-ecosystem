@@ -77,7 +77,7 @@ func (btc *BigtableAdapter) ExecutePreparedStatement(ctx context.Context, query 
 		return nil, fmt.Errorf("failed during row processing: %w", processingErr)
 	}
 
-	return responsehandler.BuildRowsResultResponse(query, rows, query.ProtocolVersion)
+	return responsehandler.BuildRowsResultResponse(query, rows, query.ProtocolVersion, nil)
 }
 
 func (btc *BigtableAdapter) convertResultRow(resultRow bigtable.ResultRow, query *types.ExecutableSelectQuery) (types.GoRow, error) {

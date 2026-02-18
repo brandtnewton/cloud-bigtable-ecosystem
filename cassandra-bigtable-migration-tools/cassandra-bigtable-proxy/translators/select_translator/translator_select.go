@@ -95,7 +95,7 @@ func (t *SelectTranslator) Translate(query *types.RawQuery, sessionKeyspace type
 	return st, nil
 }
 
-func (t *SelectTranslator) Bind(st types.IPreparedQuery, values *types.QueryParameterValues, pv primitive.ProtocolVersion) (types.IExecutableQuery, error) {
+func (t *SelectTranslator) Bind(st types.IPreparedQuery, values *types.QueryParameterValues, pv primitive.ProtocolVersion, pageSize int32, pagingState []byte) (types.IExecutableQuery, error) {
 	sst, ok := st.(*types.PreparedSelectQuery)
 	if !ok {
 		return nil, fmt.Errorf("cannot bind to %T", st)
@@ -111,5 +111,7 @@ func (t *SelectTranslator) Bind(st types.IPreparedQuery, values *types.QueryPara
 		}
 	}
 	query := types.NewExecutableSelectQuery(sst, pv, values)
+	query.PageSize = pageSize
+	query.PagingState = pagingState
 	return query, nil
 }

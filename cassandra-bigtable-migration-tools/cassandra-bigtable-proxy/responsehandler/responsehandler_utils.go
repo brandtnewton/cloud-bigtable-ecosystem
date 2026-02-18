@@ -24,7 +24,7 @@ import (
 	"github.com/datastax/go-cassandra-native-protocol/primitive"
 )
 
-func BuildRowsResultResponse(st *types.ExecutableSelectQuery, rows []types.GoRow, pv primitive.ProtocolVersion) (*message.RowsResult, error) {
+func BuildRowsResultResponse(st *types.ExecutableSelectQuery, rows []types.GoRow, pv primitive.ProtocolVersion, pagingState []byte) (*message.RowsResult, error) {
 	var outputRows []message.Row
 	for _, row := range rows {
 		var outputRow []message.Column
@@ -44,8 +44,8 @@ func BuildRowsResultResponse(st *types.ExecutableSelectQuery, rows []types.GoRow
 
 	return &message.RowsResult{
 		Metadata: &message.RowsMetadata{
-			// todo implement pagination?
-			LastContinuousPage: true,
+			PagingState:        pagingState,
+			LastContinuousPage: len(pagingState) == 0,
 			ColumnCount:        int32(len(st.ResultColumnMetadata)),
 			Columns:            st.ResultColumnMetadata,
 		},

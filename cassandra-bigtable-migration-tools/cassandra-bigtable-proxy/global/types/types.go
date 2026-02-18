@@ -220,7 +220,7 @@ type IPreparedQuery interface {
 
 type IQueryTranslator interface {
 	Translate(query *RawQuery, sessionKeyspace Keyspace) (IPreparedQuery, error)
-	Bind(st IPreparedQuery, values *QueryParameterValues, pv primitive.ProtocolVersion) (IExecutableQuery, error)
+	Bind(st IPreparedQuery, values *QueryParameterValues, pv primitive.ProtocolVersion, pageSize int32, pagingState []byte) (IExecutableQuery, error)
 	QueryType() QueryType
 }
 

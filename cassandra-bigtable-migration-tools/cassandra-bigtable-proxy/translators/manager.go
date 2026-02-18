@@ -94,18 +94,18 @@ func (t *TranslatorManager) TranslateQuery(q *types.RawQuery, sessionKeyspace ty
 	return preparedQuery, err
 }
 
-func (t *TranslatorManager) BindQuery(st types.IPreparedQuery, cassandraValues []*primitive.Value, namedValues map[string]*primitive.Value, pv primitive.ProtocolVersion) (types.IExecutableQuery, error) {
+func (t *TranslatorManager) BindQuery(st types.IPreparedQuery, cassandraValues []*primitive.Value, namedValues map[string]*primitive.Value, pv primitive.ProtocolVersion, pageSize int32, pagingState []byte) (types.IExecutableQuery, error) {
 	values, err := common.BindQueryParams(st.Parameters(), cassandraValues, namedValues, pv)
 	if err != nil {
 		return nil, err
 	}
-	return t.BindQueryParameters(st, values, pv)
+	return t.BindQueryParameters(st, values, pv, pageSize, pagingState)
 }
 
-func (t *TranslatorManager) BindQueryParameters(st types.IPreparedQuery, values *types.QueryParameterValues, pv primitive.ProtocolVersion) (types.IExecutableQuery, error) {
+func (t *TranslatorManager) BindQueryParameters(st types.IPreparedQuery, values *types.QueryParameterValues, pv primitive.ProtocolVersion, pageSize int32, pagingState []byte) (types.IExecutableQuery, error) {
 	queryTranslator, err := t.getTranslator(st.QueryType())
 	if err != nil {
 		return nil, err
 	}
-	return queryTranslator.Bind(st, values, pv)
+	return queryTranslator.Bind(st, values, pv, pageSize, pagingState)
 }

@@ -34,7 +34,7 @@ func (d *selectSystemTableExecutor) Execute(_ context.Context, c types.ICassandr
 		return nil, err
 	}
 
-	response, err := responsehandler.BuildRowsResultResponse(query, rows, query.ProtocolVersion)
+	response, err := responsehandler.BuildRowsResultResponse(query, rows, query.ProtocolVersion, nil)
 	if err != nil {
 		return nil, err
 	}

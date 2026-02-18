@@ -32,7 +32,7 @@ func (t *UseTranslator) Translate(query *types.RawQuery, _ types.Keyspace) (type
 	return types.NewUseTableStatementMap(keyspace, query.RawCql()), nil
 }
 
-func (t *UseTranslator) Bind(st types.IPreparedQuery, _ *types.QueryParameterValues, _ primitive.ProtocolVersion) (types.IExecutableQuery, error) {
+func (t *UseTranslator) Bind(st types.IPreparedQuery, _ *types.QueryParameterValues, _ primitive.ProtocolVersion, _ int32, _ []byte) (types.IExecutableQuery, error) {
 	use, ok := st.(*types.UseTableStatementMap)
 	if !ok {
 		return nil, fmt.Errorf("cannot bind to %T", st)

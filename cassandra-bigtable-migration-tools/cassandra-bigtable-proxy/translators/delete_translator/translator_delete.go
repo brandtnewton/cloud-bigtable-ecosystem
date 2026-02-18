@@ -72,7 +72,7 @@ func (t *DeleteTranslator) Translate(query *types.RawQuery, sessionKeyspace type
 	return st, nil
 }
 
-func (t *DeleteTranslator) Bind(st types.IPreparedQuery, values *types.QueryParameterValues, pv primitive.ProtocolVersion) (types.IExecutableQuery, error) {
+func (t *DeleteTranslator) Bind(st types.IPreparedQuery, values *types.QueryParameterValues, pv primitive.ProtocolVersion, _ int32, _ []byte) (types.IExecutableQuery, error) {
 	dst, ok := st.(*types.PreparedDeleteQuery)
 	if !ok {
 		return nil, fmt.Errorf("cannot bind to %T", st)

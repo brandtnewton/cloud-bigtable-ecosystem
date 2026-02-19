@@ -2,6 +2,18 @@
 
 This document describes the high-level architecture of the Cassandra-to-Bigtable proxy, which translates Cassandra Query Language (CQL) requests into Google Cloud Bigtable operations.
 
+## Table of Contents
+- [Overview](#overview)
+- [System Components](#system-components)
+- [Data Flow](#data-flow)
+- [Life of a Prepared SELECT Query](#life-of-a-prepared-select-query)
+- [Life of an INSERT Query](#life-of-an-insert-query)
+- [Observability and Monitoring](#observability-and-monitoring)
+- [Response Handling](#response-handling)
+- [Configuration](#configuration)
+- [CQL Data Type Storage in Bigtable](#cql-data-type-storage-in-bigtable)
+- [Schema Mapping Strategy](#schema-mapping-strategy)
+
 ## Overview
 
 The proxy acts as an intermediary between Cassandra clients and Bigtable. It implements the Cassandra Native Protocol, allowing existing applications to interact with Bigtable using CQL drivers. The proxy handles the translation of CQL queries into Bigtable SQL or Bigtable Mutation API calls.
@@ -77,10 +89,56 @@ This layer is responsible for converting CQL into intermediate, structured query
 3.  Mutations for the same table are grouped.
 4.  `BigtableAdapter` uses `ApplyBulkMutation` to execute them efficiently.
 
-## Observability and Monitoring
+## Life of a Prepared SELECT Query
 
-- **`otel/`**: The proxy integrates with OpenTelemetry for tracing and metrics. It records spans for query handling, translation, and Bigtable execution, providing visibility into latency and errors.
-- **Logging**: Uses `uber-go/zap` for structured, high-performance logging.
+1.  **Preparation Phase**:
+    - The client sends a `PREPARE` frame containing a CQL `SELECT` string.
+    - `Proxy.handlePrepare` (in `proxy.go`) calls `TranslatorManager.TranslateQuery`.
+    - `SelectTranslator` parses the CQL, identifies the table/columns, and generates a corresponding Bigtable SQL string.
+    - It returns a `PreparedSelectQuery` which is cached by the `Proxy` and assigned a 16-byte ID.
+    - The proxy sends a `PREPARED` result frame back to the client.
+
+2.  **Execution Phase**:
+    - The client sends an `EXECUTE` frame with the query ID and parameter values.
+    - `Proxy.handleExecute` retrieves the `PreparedSelectQuery` from the cache.
+    - It calls `TranslatorManager.BindQuery`, which converts the CQL parameter values into Go types and produces an `ExecutableSelectQuery`.
+    - `QueryExecutorManager` routes the query to the `BigtableExecutor`.
+
+3.  **Bigtable Interaction**:
+    - `BigtableExecutor` calls `BigtableAdapter.ExecutePreparedStatement`.
+    - The adapter converts the bound parameters into Bigtable SQL parameters via `BuildBigtableParams`.
+    - It uses the Bigtable Go client to execute the SQL statement against the Bigtable SQL API.
+
+4.  **Result Processing**:
+    - As rows are returned from Bigtable, `BigtableAdapter.convertResultRow` maps each Bigtable column back to its CQL equivalent.
+    - This involves decoding Big-Endian bytes for scalars and reconstructing collection types (lists, sets, maps) from multiple cells/qualifiers if necessary.
+    - `responsehandler.BuildRowsResultResponse` packages the resulting Go rows into a Cassandra protocol `RESULT` frame (specifically a `RowsResult`).
+    - The `Proxy` sends this frame back to the client.
+
+## Life of a Prepared INSERT Query
+
+1.  **Preparation Phase**:
+    - The client sends a `PREPARE` frame containing a CQL `INSERT` string.
+    - `InsertTranslator` (via `TranslatorManager`) parses the query to identify the table, columns, and provided values.
+    - It determines which columns are part of the primary key to be used for row key generation later.
+    - It returns a `PreparedInsertQuery` which is cached by the `Proxy`.
+
+2.  **Execution Phase**:
+    - The client sends an `EXECUTE` frame with the query ID and parameter values.
+    - `TranslatorManager.BindQuery` is called to create an `IExecutableQuery`.
+    - `common.BindRowKey` generates the Bigtable **Row Key** by encoding the primary key values using the "Ordered Code" format.
+    - `common.BindMutations` converts the non-primary key column values into `BigtableWriteMutation` operations.
+    - `QueryExecutorManager` routes the `BigtableWriteMutation` to the `BigtableExecutor`.
+
+3.  **Bigtable Interaction**:
+    - `BigtableExecutor` calls `BigtableAdapter.mutateRow`.
+    - `BigtableAdapter.buildMutation` constructs a `bigtable.Mutation` object.
+    - Scalar values are encoded into Big-Endian bytes and added to the mutation via `mut.Set`.
+    - Collection assignments (sets, maps, lists) are converted into multiple `mut.Set` operations using the appropriate column qualifiers.
+    - If `IF NOT EXISTS` was specified, the adapter uses a `CondMutation` (Conditional Mutation) with a `CellsPerRowLimitFilter(1)` as a predicate to check for row existence before applying the mutation.
+
+4.  **Result Processing**:
+    - If the mutation is successful, the proxy returns a `VOID` result frame (or a `RowsResult` for conditional inserts to indicate if they were `[applied]`).
 
 ## Response Handling
 

@@ -7,8 +7,8 @@ This document describes the high-level architecture of the Cassandra-to-Bigtable
 - [System Components](#system-components)
 - [Data Flow](#data-flow)
 - [Life of a Prepared SELECT Query](#life-of-a-prepared-select-query)
-- [Life of an INSERT Query](#life-of-an-insert-query)
-- [Observability and Monitoring](#observability-and-monitoring)
+- [Life of an INSERT Query](#life-of-a-prepared-insert-query)
+- [Handling DDL, USE, and DESCRIBE Statements](#handling-ddl-use-and-describe-statements)
 - [Response Handling](#response-handling)
 - [Configuration](#configuration)
 - [CQL Data Type Storage in Bigtable](#cql-data-type-storage-in-bigtable)
@@ -186,6 +186,30 @@ Collections are mapped to multiple Bigtable cells within the same row and column
 
 ### 4. Special Types
 - **Counters**: Use Bigtable's native counter support (64-bit increments).
+
+## Handling DDL, USE, and DESCRIBE Statements
+
+Beyond standard DML queries (SELECT, INSERT, etc.), the proxy handles administrative and session-level CQL commands.
+
+### 1. DDL Statements (CREATE, ALTER, DROP, TRUNCATE)
+DDL operations modify both the Bigtable physical schema and the proxy's internal metadata.
+- **`BigtableExecutor`**: Routes these requests to the `BigtableAdapter`.
+- **`MetadataStore`**: Orchestrates the changes for `CREATE`, `ALTER`, and `DROP`.
+    - It uses the Bigtable Admin API to create, modify, or delete the physical Bigtable table.
+    - It updates the `schema_mapping` Bigtable table (the proxy's "source of truth" for schema) with details about column types and primary key roles.
+    - It refreshes the global in-memory schema cache to ensure subsequent queries use the updated definitions.
+- **`TRUNCATE`**: The `BigtableAdapter` directly calls the Bigtable Admin API's `DropAllRows` method for the target table.
+
+### 2. USE Statements
+- **`UseExecutor`**: Processes `USE <keyspace>;` commands.
+- **Validation**: It verifies that the requested keyspace exists in the configured Bigtable instances.
+- **Session State**: Updates the `sessionKeyspace` on the `client` connection object. All subsequent queries on that connection will use this keyspace by default.
+- **Result**: Returns a `SetKeyspaceResult` frame to the client.
+
+### 3. DESCRIBE Statements
+- **`DescribeExecutor`**: Handles `DESCRIBE` commands (e.g., `DESCRIBE TABLE`, `DESCRIBE KEYSPACES`).
+- **Metadata-Driven**: These queries **do not** interact with Bigtable. They are served entirely from the in-memory schema cache.
+- **Formatting**: The executor formats the cached metadata into a `RowsResult` that mimics the output format expected by Cassandra tools like `cqlsh`.
 
 ## Schema Mapping Strategy
 

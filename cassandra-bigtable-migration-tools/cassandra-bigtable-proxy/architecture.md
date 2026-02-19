@@ -7,8 +7,10 @@ This document describes the high-level architecture of the Cassandra-to-Bigtable
 - [System Components](#system-components)
 - [Data Flow](#data-flow)
 - [Life of a Prepared SELECT Query](#life-of-a-prepared-select-query)
-- [Life of an INSERT Query](#life-of-a-prepared-insert-query)
+- [Life of an INSERT Query](#life-of-an-insert-query)
 - [Handling DDL, USE, and DESCRIBE Statements](#handling-ddl-use-and-describe-statements)
+- [The Schema Mapping Table](#the-schema-mapping-table)
+- [Observability and Monitoring](#observability-and-monitoring)
 - [Response Handling](#response-handling)
 - [Configuration](#configuration)
 - [CQL Data Type Storage in Bigtable](#cql-data-type-storage-in-bigtable)
@@ -210,6 +212,27 @@ DDL operations modify both the Bigtable physical schema and the proxy's internal
 - **`DescribeExecutor`**: Handles `DESCRIBE` commands (e.g., `DESCRIBE TABLE`, `DESCRIBE KEYSPACES`).
 - **Metadata-Driven**: These queries **do not** interact with Bigtable. They are served entirely from the in-memory schema cache.
 - **Formatting**: The executor formats the cached metadata into a `RowsResult` that mimics the output format expected by Cassandra tools like `cqlsh`.
+
+## The Schema Mapping Table
+
+The proxy maintains a "source of truth" for the Cassandra-to-Bigtable schema mapping in a dedicated Bigtable table (default: `schema_mapping`). This table allows the proxy to persist and recover the mapping across restarts and among multiple proxy instances.
+
+### Table Structure
+The schema mapping table uses a single column family (`cf`) and stores one Bigtable row for each column in every Cassandra table.
+- **Row Key**: The row key is formatted as `TableName#ColumnName`.
+- **Columns (in `cf`)**:
+    - `TableName`: The name of the Cassandra table.
+    - `ColumnName`: The name of the Cassandra column.
+    - `ColumnType`: The CQL type string (e.g., `varchar`, `int`, `map<text, int>`).
+    - `IsPrimaryKey`: A boolean string (`true`/`false`) indicating if the column is part of the primary key.
+    - `PK_Precedence`: An integer (1-indexed) indicating the column's position in the primary key.
+    - `KeyType`: The role of the column in the primary key (e.g., `partition_key`, `clustering`).
+
+### Usage
+1.  **Initialization**: During startup, the `MetadataStore` reads all rows from the schema mapping table for each configured keyspace to build the in-memory schema cache.
+2.  **DDL Operations**: When a `CREATE TABLE` or `ALTER TABLE` command is executed, the proxy updates the schema mapping table before refreshing its local cache.
+3.  **Discovery**: `DESCRIBE` commands and queries against `system_schema` tables use the metadata stored in this table (via the cache) to respond to clients.
+4.  **Validation**: Every DML query is validated against the schema mapping to ensure columns exist and types are compatible.
 
 ## Schema Mapping Strategy
 

@@ -2,6 +2,7 @@ package types
 
 import (
 	"github.com/datastax/go-cassandra-native-protocol/primitive"
+	"time"
 )
 
 type CliArgs struct {
@@ -33,7 +34,6 @@ type CliArgs struct {
 	QuickStartAppProfile          string
 	QuickStartSchemaMappingTable  string
 	QuickStartDefaultColumnFamily string
-	MetadataRefreshInterval       int
 }
 
 type OtelConfig struct {
@@ -67,7 +67,7 @@ type BigtableConfig struct {
 	Session                  *Session
 	DefaultColumnFamily      ColumnFamily
 	DefaultIntRowKeyEncoding IntRowKeyEncodingType
-	MetadataRefreshInterval  int
+	MetadataRefreshInterval  *time.Duration
 }
 
 type Session struct {

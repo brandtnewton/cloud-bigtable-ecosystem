@@ -3,10 +3,6 @@ package config
 import (
 	"errors"
 	"fmt"
-	"net"
-	"os"
-	"strconv"
-
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/global/constants"
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/global/types"
 	"github.com/alecthomas/kong"
@@ -15,6 +11,10 @@ import (
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 	"gopkg.in/yaml.v2"
+	"net"
+	"os"
+	"strconv"
+	"time"
 )
 
 const (
@@ -47,14 +47,13 @@ type rawCliArgs struct {
 	ClientPid         int32  `yaml:"client-pid" help:"" hidden:"" optional:"" default:"" short:""`
 	ClientUid         uint32 `yaml:"client-uid" help:"" hidden:"" optional:"" default:"" short:""`
 	// quick start config - used for running the proxy without a yaml config file
-	ProjectId               string `yaml:"project-id" help:"Google Cloud Project Id to use."`
-	InstanceId              string `yaml:"instance-id" help:"Bigtable Instance Id to use."`
-	KeyspaceId              string `yaml:"keyspace-id" help:"Cassandra Keyspace which will map to the instance-id option."`
-	AppProfile              string `yaml:"app-profile" help:"Bigtable App Profile to use." default:"default"`
-	Port                    int    `yaml:"port" help:"Port to serve CQL traffic on." default:"9042"`
-	DefaultColumnFamily     string `yaml:"default-column-family" help:"The Bigtable column family used for storing scalar values." default:"cf1"`
-	SchemaMappingTable      string `yaml:"metadata-table" help:"The Bigtable table name used for storing schema information (automatically created by the proxy)." default:"schema_mapping"`
-	MetadataRefreshInterval int    `yaml:"metadata-refresh-interval" help:"The interval in seconds to automatically refresh metadata from Bigtable. Setting this to 0 will disable it." default:"30"`
+	ProjectId           string `yaml:"project-id" help:"Google Cloud Project Id to use."`
+	InstanceId          string `yaml:"instance-id" help:"Bigtable Instance Id to use."`
+	KeyspaceId          string `yaml:"keyspace-id" help:"Cassandra Keyspace which will map to the instance-id option."`
+	AppProfile          string `yaml:"app-profile" help:"Bigtable App Profile to use." default:"default"`
+	Port                int    `yaml:"port" help:"Port to serve CQL traffic on." default:"9042"`
+	DefaultColumnFamily string `yaml:"default-column-family" help:"The Bigtable column family used for storing scalar values." default:"cf1"`
+	SchemaMappingTable  string `yaml:"metadata-table" help:"The Bigtable table name used for storing schema information (automatically created by the proxy)." default:"schema_mapping"`
 }
 
 func ParseCliArgs(args []string) (*types.CliArgs, error) {
@@ -134,7 +133,6 @@ func ParseCliArgs(args []string) (*types.CliArgs, error) {
 		QuickStartPort:                parsed.Port,
 		QuickStartDefaultColumnFamily: parsed.DefaultColumnFamily,
 		QuickStartSchemaMappingTable:  parsed.SchemaMappingTable,
-		MetadataRefreshInterval:       parsed.MetadataRefreshInterval,
 	}
 
 	err = validateCliArgs(&result)
@@ -168,7 +166,7 @@ func maybeParseQuickStartArgs(args *types.CliArgs) (*types.ProxyInstanceConfig, 
 		},
 		DefaultColumnFamily:      types.ColumnFamily(args.QuickStartDefaultColumnFamily),
 		DefaultIntRowKeyEncoding: types.OrderedCodeEncoding,
-		MetadataRefreshInterval:  args.MetadataRefreshInterval,
+		MetadataRefreshInterval:  (*time.Duration)(&DefaultMetadataRefreshInterval),
 	}
 
 	// quick start instances don't have a way to configure otel, so just disable it
@@ -203,7 +201,7 @@ func ParseLoggerConfig(args *types.CliArgs) (*zap.Logger, error) {
 
 	var loggerConfig *yamlLoggerConfig = nil
 	if args.ConfigFilePath != "" {
-		config, err := readProxyConfig(args.ConfigFilePath)
+		config, err := readProxyConfigFile(args.ConfigFilePath)
 		if err != nil {
 			return nil, err
 		}
@@ -275,12 +273,16 @@ func setupConsoleLogger(level zap.AtomicLevel) (*zap.Logger, error) {
 	return config.Build()
 }
 
-func readProxyConfig(path string) (*yamlProxyConfig, error) {
+func readProxyConfigFile(path string) (*yamlProxyConfig, error) {
 	fileData, err := readFile(path)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read config file: %w", err)
 	}
+	return readProxyConfig(fileData)
+}
 
+func readProxyConfig(fileData []byte) (*yamlProxyConfig, error) {
+	var err error
 	var config yamlProxyConfig
 	if err = yaml.Unmarshal(fileData, &config); err != nil {
 		return nil, fmt.Errorf("failed to unmarshal config: %w", err)
@@ -295,7 +297,7 @@ func readProxyConfig(path string) (*yamlProxyConfig, error) {
 func ParseProxyConfig(args *types.CliArgs) ([]*types.ProxyInstanceConfig, error) {
 	var instanceConfigs []*types.ProxyInstanceConfig = nil
 	if args.ConfigFilePath != "" {
-		config, err := readProxyConfig(args.ConfigFilePath)
+		config, err := readProxyConfigFile(args.ConfigFilePath)
 		if err != nil {
 			return nil, err
 		}

@@ -18,6 +18,7 @@ package config
 import (
 	"errors"
 	"fmt"
+	"time"
 
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/global/types"
 )
@@ -25,7 +26,7 @@ import (
 var (
 	// todo ensure this is a reasonable default
 	DefaultBigtableGrpcChannels    = 1
-	DefaultMetadataRefreshInterval = 30 // seconds
+	DefaultMetadataRefreshInterval = Duration(30 * time.Second)
 	BigtableMinSession             = 100
 	BigtableMaxSession             = 400
 	DefaultSchemaMappingTableName  = "schema_mapping"
@@ -69,7 +70,7 @@ func validateAndApplyDefaults(cfg *yamlProxyConfig) error {
 			cfg.Listeners[i].Bigtable.DefaultColumnFamily = DefaultColumnFamily
 		}
 		if cfg.Listeners[i].Bigtable.MetadataRefreshInterval == nil {
-			cfg.Listeners[i].Bigtable.MetadataRefreshInterval = &DefaultMetadataRefreshInterval
+			cfg.Listeners[i].Bigtable.MetadataRefreshInterval = (*Duration)(&DefaultMetadataRefreshInterval)
 		}
 
 		if cfg.Listeners[i].Bigtable.SchemaMappingTable == "" {

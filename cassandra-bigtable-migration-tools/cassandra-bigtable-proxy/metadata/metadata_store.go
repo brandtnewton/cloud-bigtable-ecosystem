@@ -43,17 +43,17 @@ func (b *MetadataStore) Initialize(ctx context.Context) error {
 		}
 	}
 
-	if b.config.MetadataRefreshInterval > 0 {
+	if b.config.MetadataRefreshInterval != nil {
 		go b.refreshLoop(ctx)
 	} else {
-		b.logger.Info("periodic metadata refresh disabled because interval is 0.")
+		b.logger.Info("periodic metadata refresh disabled because interval is undefined.")
 	}
 	return nil
 }
 
 func (b *MetadataStore) refreshLoop(ctx context.Context) {
-	b.logger.Info("starting periodic metadata refresh loop", zap.Int("interval_seconds", b.config.MetadataRefreshInterval))
-	ticker := time.NewTicker(time.Duration(b.config.MetadataRefreshInterval) * time.Second)
+	b.logger.Info("starting periodic metadata refresh loop", zap.String("interval", b.config.MetadataRefreshInterval.String()))
+	ticker := time.NewTicker(*b.config.MetadataRefreshInterval)
 	defer ticker.Stop()
 
 	for {
@@ -63,20 +63,25 @@ func (b *MetadataStore) refreshLoop(ctx context.Context) {
 			return
 		case <-ticker.C:
 			b.logger.Debug("starting periodic metadata refresh")
-			var wg sync.WaitGroup
-			for keyspace := range b.config.Instances {
-				wg.Add(1)
-				go func(ks types.Keyspace) {
-					defer wg.Done()
-					err := b.ReloadKeyspaceSchemas(ctx, ks)
-					if err != nil {
-						b.logger.Error("failed to periodically reload keyspace schemas", zap.String("keyspace", string(ks)), zap.Error(err))
-					}
-				}(keyspace)
-			}
-			wg.Wait()
+			b.reloadAllKeyspaces(ctx)
 		}
 	}
+}
+
+// reloads schemas for all known keyspaces in parallel
+func (b *MetadataStore) reloadAllKeyspaces(ctx context.Context) {
+	var wg sync.WaitGroup
+	for keyspace := range b.config.Instances {
+		wg.Add(1)
+		go func(ks types.Keyspace) {
+			defer wg.Done()
+			err := b.ReloadKeyspaceSchemas(ctx, ks)
+			if err != nil {
+				b.logger.Error("failed to reload keyspace schemas", zap.String("keyspace", string(ks)), zap.Error(err))
+			}
+		}(keyspace)
+	}
+	wg.Wait()
 }
 
 func (b *MetadataStore) Schemas() *SchemaMetadata {

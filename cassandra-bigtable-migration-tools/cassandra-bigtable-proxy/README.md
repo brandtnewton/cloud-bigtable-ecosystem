@@ -263,6 +263,9 @@ listeners:
     # [Optional] Default column family for primitive data types is "cf1".
     defaultColumnFamily: DEFAULT_COLUMN_FAMILY
 
+    # [Optional] The interval in seconds to automatically refresh metadata from Bigtable. Setting this to 0 will disable it. The default is 30. 
+    metadataRefreshInterval: 30 
+      
     # Number of grpc channels to be used for Bigtable session.
     Session:
       grpcChannels: 4

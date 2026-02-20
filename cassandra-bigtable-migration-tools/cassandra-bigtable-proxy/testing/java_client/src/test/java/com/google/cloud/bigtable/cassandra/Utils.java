@@ -28,6 +28,9 @@ public class Utils {
     return cqlSessionBuilder.build();
   }
 
+  /**
+   * A testing utility function for subverting the Proxy's schema cache.
+   */
   public static void addSchemaMappingColumn(String tableName, String columnName, String columnType) {
     RowMutation mut = RowMutation.create("schema_mapping", String.format("%s#%s", tableName, columnName))
         .setCell("cf", "ColumnName", columnName)

@@ -70,7 +70,7 @@ func validateAndApplyDefaults(cfg *yamlProxyConfig) error {
 			cfg.Listeners[i].Bigtable.DefaultColumnFamily = DefaultColumnFamily
 		}
 		if cfg.Listeners[i].Bigtable.MetadataRefreshInterval == nil {
-			cfg.Listeners[i].Bigtable.MetadataRefreshInterval = (*Duration)(&DefaultMetadataRefreshInterval)
+			cfg.Listeners[i].Bigtable.MetadataRefreshInterval = &DefaultMetadataRefreshInterval
 		}
 
 		if cfg.Listeners[i].Bigtable.SchemaMappingTable == "" {

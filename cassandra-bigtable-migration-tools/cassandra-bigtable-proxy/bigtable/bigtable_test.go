@@ -113,7 +113,7 @@ func TestInsertRow(t *testing.T) {
 		ifNotExists   bool
 		mutations     []types.IBigtableMutationOp
 		expectedError string
-		expectedValue []byte
+		expectedValue map[string][]byte
 	}{
 		{
 			name:     "insert row",
@@ -123,7 +123,10 @@ func TestInsertRow(t *testing.T) {
 			mutations: []types.IBigtableMutationOp{
 				types.NewWriteCellOp("cf1", "col1", []byte("value1")),
 			},
-			expectedValue: []byte("value1"),
+			expectedValue: map[string][]byte{
+				"":     nil,
+				"col1": []byte("value1"),
+			},
 		},
 	}
 	for _, tt := range tests {
@@ -144,9 +147,11 @@ func TestInsertRow(t *testing.T) {
 			require.NoError(t, err)
 			require.NotEmpty(t, row)
 			require.Contains(t, row, "cf1")
-			require.Len(t, row["cf1"], 1)
-			assert.Equal(t, "col1", row["cf1"][0].Column[len("cf1:"):])
-			assert.Equal(t, tt.expectedValue, row["cf1"][0].Value)
+			require.Equal(t, len(tt.expectedValue), len(row["cf1"]))
+			for _, item := range row["cf1"] {
+				columnName := item.Column[len("cf1:"):]
+				assert.Equal(t, tt.expectedValue[columnName], item.Value)
+			}
 		})
 	}
 }
@@ -196,7 +201,8 @@ func TestApplyBulkMutation(t *testing.T) {
 	row1, err := tbl.ReadRow(t.Context(), "bulk1")
 	assert.NoError(t, err)
 	assert.NotEmpty(t, row1)
-	assert.Equal(t, []byte("buddy-2"), row1["cf1"][0].Value)
+	assert.Equal(t, []byte(nil), row1["cf1"][0].Value) // empty row cell
+	assert.Equal(t, []byte("buddy-2"), row1["cf1"][1].Value)
 
 	row2, err := tbl.ReadRow(t.Context(), "bulk2")
 	assert.NoError(t, err)
@@ -205,7 +211,8 @@ func TestApplyBulkMutation(t *testing.T) {
 	row3, err := tbl.ReadRow(t.Context(), "bulk3")
 	assert.NoError(t, err)
 	assert.NotEmpty(t, row3)
-	assert.Equal(t, []byte("walter"), row3["cf1"][0].Value)
+	assert.Equal(t, []byte(nil), row3["cf1"][0].Value) // empty row cell
+	assert.Equal(t, []byte("walter"), row3["cf1"][1].Value)
 }
 
 func TestMutateRowDeleteColumnFamily(t *testing.T) {
@@ -292,7 +299,8 @@ func TestMutateRowIfExists(t *testing.T) {
 
 	row, err := tbl.ReadRow(t.Context(), key1, bigtable.RowFilter(bigtable.FamilyFilter("cf1")))
 	require.NoError(t, err)
-	assert.Equal(t, "v2", string(row["cf1"][0].Value), "value should be updated to v2")
+	assert.Equal(t, []byte(nil), row["cf1"][0].Value) // empty row cell
+	assert.Equal(t, "v2", string(row["cf1"][1].Value), "value should be updated to v2")
 
 	// Attempt to update a non-existent row
 	updateDataNonExistent := types.NewBigtableWriteMutation(keyspace, tableName, "", types.IfSpec{IfExists: true}, types.QueryTypeUpdate, key2)
@@ -321,7 +329,8 @@ func TestMutateRowIfNotExists(t *testing.T) {
 	require.NoError(t, err)
 	row, err := tbl.ReadRow(t.Context(), key, bigtable.RowFilter(bigtable.FamilyFilter("cf1")))
 	require.NoError(t, err)
-	assert.Equal(t, "v1", string(row["cf1"][0].Value), "row1 should be created with value v1")
+	assert.Equal(t, []byte(nil), row["cf1"][0].Value) // empty row cell
+	assert.Equal(t, "v1", string(row["cf1"][1].Value), "row1 should be created with value v1")
 
 	// Attempt to insert the same row again
 	res, err = btc.InsertRow(t.Context(), insertData)
@@ -331,7 +340,8 @@ func TestMutateRowIfNotExists(t *testing.T) {
 	// Verify the row is not updated
 	row, err = tbl.ReadRow(t.Context(), key, bigtable.RowFilter(bigtable.FamilyFilter("cf1")))
 	require.NoError(t, err)
-	assert.Equal(t, "v1", string(row["cf1"][0].Value), "row1 should not be updated")
+	assert.Equal(t, []byte(nil), row["cf1"][0].Value) // empty row cell
+	assert.Equal(t, "v1", string(row["cf1"][1].Value), "row1 should not be updated")
 }
 
 func TestMutateRowInvalidKeyspace(t *testing.T) {

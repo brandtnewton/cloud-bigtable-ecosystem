@@ -153,21 +153,20 @@ func (btc *BigtableAdapter) buildMutation(ctx context.Context, table *bigtable.T
 		timestamp = bigtable.Time(time.Now())
 	}
 
-	anyWriteOps := false
+	// write empty bytes to an empty column qualifier in the default to allow for empty rows (Bigtable doesn't allow us to write rows with just a row key, but Cassandra does)
+	mut.Set(string(schema.SystemColumnFamily), "", timestamp, []byte{})
+
 	for _, mutationOp := range input.Mutations() {
 		switch m := mutationOp.(type) {
 		case *types.WriteCellOp:
-			anyWriteOps = true
 			mut.Set(string(m.Family), string(m.Column), timestamp, m.Bytes)
 		case *types.DeleteColumnOp:
 			mut.DeleteCellsInColumn(string(m.Column.Family), string(m.Column.Column))
 		case *types.BigtableCounterOp:
-			anyWriteOps = true
 			mut.AddIntToCell(string(m.Family), "", counterTimestamp, m.Value)
 		case *types.DeleteCellsOp:
 			mut.DeleteCellsInFamily(string(m.Family))
 		case *types.BigtableSetIndexOp:
-			anyWriteOps = true
 			reqTimestamp, err := btc.getIndexOpTimestamp(ctx, table, input.RowKey(), m.Family, int(m.Index))
 			if err != nil {
 				return err
@@ -181,12 +180,6 @@ func (btc *BigtableAdapter) buildMutation(ctx context.Context, table *bigtable.T
 		default:
 			return fmt.Errorf("unhandled mutation type %T", mutationOp)
 		}
-	}
-
-	if !anyWriteOps {
-		// write empty bytes to an empty column qualifier in the default to allow for empty rows (Bigtable doesn't allow us to write rows with just a row key, but Cassandra does)
-		// we only need to write this empty string to protect against empty rows when our mutation is potentially creating an empty row (like an insert with no columns, or an update that deletes column values)
-		mut.Set(string(schema.SystemColumnFamily), "", timestamp, []byte{})
 	}
 
 	return nil

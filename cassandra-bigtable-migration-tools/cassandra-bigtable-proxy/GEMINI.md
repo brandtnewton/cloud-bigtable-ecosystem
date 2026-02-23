@@ -59,3 +59,7 @@ handler located in the mem_table/ module.
   parameters into executable queries.
 - The executors/ module handles running executable queries.
 
+# Testing
+
+You can run the compliance/integration tests with `./run-compliance-tests.sh` which will build and start the server and
+then run the tests. This is the best way to verify that the server is working correctly.

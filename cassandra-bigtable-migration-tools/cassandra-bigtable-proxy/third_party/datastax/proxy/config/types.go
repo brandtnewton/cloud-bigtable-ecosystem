@@ -51,6 +51,7 @@ type yamlInstancesMap struct {
 
 type yamlBigtable struct {
 	ProjectID                     string             `yaml:"projectId"`
+	AdminEndpoint                 string             `yaml:"adminEndpoint"`
 	Instances                     []yamlInstancesMap `yaml:"instances"`
 	InstanceIDs                   string             `yaml:"instanceIds"`
 	SchemaMappingTable            string             `yaml:"schemaMappingTable"`

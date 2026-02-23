@@ -1,3 +1,4 @@
 # ignore default binary build output
 cassandra-bigtable-proxy
 coverage.out
+server.log

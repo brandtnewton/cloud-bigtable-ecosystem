@@ -83,7 +83,7 @@ class MyClass {
 
     BigtableCqlSessionFactory bigtableCqlSessionFactory = new BigtableCqlSessionFactory(bigtableCqlConfiguration);
 
-    // Create CqlSession
+    // Create the CqlSession
     try (CqlSession session = bigtableCqlSessionFactory.newSession()) {
       // Execute query
       PreparedStatement preparedInsert = session.prepare("<query here>");

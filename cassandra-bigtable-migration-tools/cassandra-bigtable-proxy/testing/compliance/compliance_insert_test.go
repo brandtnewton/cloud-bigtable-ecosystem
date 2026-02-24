@@ -433,27 +433,33 @@ func TestInsertNullValues(t *testing.T) {
 		pkAge := int64(100)
 
 		// Insert nulls using placeholders
-		err := session.Query(`INSERT INTO bigtabledevinstance.user_info (name, age, code, credited, text_col, tags, extra_info, list_text) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-			pkName, pkAge, nil, nil, nil, nil, nil, nil).Exec()
+		err := session.Query(`INSERT INTO bigtabledevinstance.user_info (name, age, code, credited, text_col, tags, is_active, zip_code, birth_date, extra_info, list_text) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+			pkName, pkAge, nil, nil, nil, nil, nil, nil, nil, nil, nil).Exec()
 		require.NoError(t, err)
 
 		var code *int
 		var credited *float64
 		var textCol *string
+		var isActive *bool
+		var zipCode *int64
+		var birthDate *time.Time
 		var tags []string
 		var extraInfo map[string]string
 		var listText []string
 
-		err = session.Query(`SELECT code, credited, text_col, tags, extra_info, list_text FROM bigtabledevinstance.user_info WHERE name = ? AND age = ?`, pkName, pkAge).
-			Scan(&code, &credited, &textCol, &tags, &extraInfo, &listText)
+		err = session.Query(`SELECT code, credited, text_col, tags, is_active, zip_code, birth_date, extra_info, list_text FROM bigtabledevinstance.user_info WHERE name = ? AND age = ?`, pkName, pkAge).
+			Scan(&code, &credited, &textCol, &tags, &isActive, &zipCode, &birthDate, &extraInfo, &listText)
 		require.NoError(t, err)
 
-		assert.Nil(t, code, "code should be null")
-		assert.Nil(t, credited, "credited should be null")
-		assert.Nil(t, textCol, "text_col should be null")
-		assert.Empty(t, tags, "tags should be empty/null")
-		assert.Empty(t, extraInfo, "extra_info should be empty/null")
-		assert.Empty(t, listText, "list_text should be empty/null")
+		assert.Nil(t, code)
+		assert.Nil(t, credited)
+		assert.Nil(t, textCol)
+		assert.Nil(t, isActive)
+		assert.Nil(t, zipCode)
+		assert.Nil(t, birthDate)
+		assert.Empty(t, tags)
+		assert.Empty(t, extraInfo)
+		assert.Empty(t, listText)
 	})
 
 	t.Run("Literals", func(t *testing.T) {
@@ -462,27 +468,33 @@ func TestInsertNullValues(t *testing.T) {
 		pkAge := int64(101)
 
 		// Insert nulls using NULL literal
-		err := session.Query(`INSERT INTO bigtabledevinstance.user_info (name, age, code, credited, text_col, tags, extra_info, list_text) VALUES (?, ?, NULL, NULL, NULL, NULL, NULL, NULL)`,
+		err := session.Query(`INSERT INTO bigtabledevinstance.user_info (name, age, code, credited, text_col, tags, is_active, zip_code, birth_date, extra_info, list_text) VALUES (?, ?, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL)`,
 			pkName, pkAge).Exec()
 		require.NoError(t, err)
 
 		var code *int
 		var credited *float64
 		var textCol *string
+		var isActive *bool
+		var zipCode *int64
+		var birthDate *time.Time
 		var tags []string
 		var extraInfo map[string]string
 		var listText []string
 
-		err = session.Query(`SELECT code, credited, text_col, tags, extra_info, list_text FROM bigtabledevinstance.user_info WHERE name = ? AND age = ?`, pkName, pkAge).
-			Scan(&code, &credited, &textCol, &tags, &extraInfo, &listText)
+		err = session.Query(`SELECT code, credited, text_col, tags, is_active, zip_code, birth_date, extra_info, list_text FROM bigtabledevinstance.user_info WHERE name = ? AND age = ?`, pkName, pkAge).
+			Scan(&code, &credited, &textCol, &tags, &isActive, &zipCode, &birthDate, &extraInfo, &listText)
 		require.NoError(t, err)
 
-		assert.Nil(t, code, "code should be null")
-		assert.Nil(t, credited, "credited should be null")
-		assert.Nil(t, textCol, "text_col should be null")
-		assert.Empty(t, tags, "tags should be empty/null")
-		assert.Empty(t, extraInfo, "extra_info should be empty/null")
-		assert.Empty(t, listText, "list_text should be empty/null")
+		assert.Nil(t, code)
+		assert.Nil(t, credited)
+		assert.Nil(t, textCol)
+		assert.Nil(t, isActive)
+		assert.Nil(t, zipCode)
+		assert.Nil(t, birthDate)
+		assert.Empty(t, tags)
+		assert.Empty(t, extraInfo)
+		assert.Empty(t, listText)
 	})
 
 	t.Run("list element", func(t *testing.T) {

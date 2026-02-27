@@ -536,3 +536,50 @@ func TestInsertNullValues(t *testing.T) {
 		assert.Contains(t, err.Error(), "map keys cannot be null")
 	})
 }
+
+func TestInsertMixedNullValues(t *testing.T) {
+	t.Parallel()
+
+	pkName := uuid.New().String()
+	pkAge := int64(200)
+	code := 123
+	textCol := "some text"
+
+	// Mix of null and non-null values using placeholders
+	err := session.Query(`INSERT INTO bigtabledevinstance.user_info (name, age, code, credited, text_col, tags) VALUES (?, ?, ?, ?, ?, ?)`,
+		pkName, pkAge, code, nil, textCol, nil).Exec()
+	require.NoError(t, err)
+
+	var retrievedCode *int
+	var retrievedCredited *float64
+	var retrievedTextCol *string
+	var retrievedTags []string
+
+	err = session.Query(`SELECT code, credited, text_col, tags FROM bigtabledevinstance.user_info WHERE name = ? AND age = ?`, pkName, pkAge).
+		Scan(&retrievedCode, &retrievedCredited, &retrievedTextCol, &retrievedTags)
+	require.NoError(t, err)
+
+	assert.NotNil(t, retrievedCode)
+	assert.Equal(t, code, *retrievedCode)
+	assert.Nil(t, retrievedCredited)
+	assert.NotNil(t, retrievedTextCol)
+	assert.Equal(t, textCol, *retrievedTextCol)
+	assert.Empty(t, retrievedTags)
+
+	// Mix of null and non-null values using literals
+	pkName = uuid.New().String()
+	err = session.Query(`INSERT INTO bigtabledevinstance.user_info (name, age, code, credited, text_col, tags) VALUES (?, ?, 456, NULL, 'literal text', NULL)`,
+		pkName, pkAge).Exec()
+	require.NoError(t, err)
+
+	err = session.Query(`SELECT code, credited, text_col, tags FROM bigtabledevinstance.user_info WHERE name = ? AND age = ?`, pkName, pkAge).
+		Scan(&retrievedCode, &retrievedCredited, &retrievedTextCol, &retrievedTags)
+	require.NoError(t, err)
+
+	assert.NotNil(t, retrievedCode)
+	assert.Equal(t, 456, *retrievedCode)
+	assert.Nil(t, retrievedCredited)
+	assert.NotNil(t, retrievedTextCol)
+	assert.Equal(t, "literal text", *retrievedTextCol)
+	assert.Empty(t, retrievedTags)
+}

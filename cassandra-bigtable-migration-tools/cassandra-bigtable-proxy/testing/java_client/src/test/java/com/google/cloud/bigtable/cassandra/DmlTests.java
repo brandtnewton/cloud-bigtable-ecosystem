@@ -19,7 +19,7 @@ public class DmlTests {
   @BeforeAll
   public static void setup() {
     session = Utils.createClient("bigtabledevinstance");
-    session.execute("CREATE TABLE IF NOT EXISTS " + TABLE + " (user_id text, order_num int, name varchar, PRIMARY KEY (user_id, order_num))");
+    session.execute("CREATE TABLE IF NOT EXISTS " + TABLE + " (user_id text, order_num int, name varchar, created_at timestamp, PRIMARY KEY (user_id, order_num))");
   }
 
   @AfterAll
@@ -166,5 +166,97 @@ public class DmlTests {
 
     // Cleanup
     session.execute("DELETE FROM " + TABLE + " WHERE user_id='" + userId + "' AND order_num=" + orderNum);
+  }
+
+  @Test
+  public void testCrudWithTimestamp() {
+    String userId = "ts123";
+    int orderNum = 6;
+    String tsLiteral = "2023-10-27T10:00:00Z";
+
+    // Insert with timestamp literal
+    session.execute("INSERT INTO " + TABLE + " (user_id, order_num, name, created_at) VALUES ('" + userId + "', " + orderNum + ", 'ts bob', '" + tsLiteral + "')");
+
+    // Select
+    ResultSet rs = session.execute("SELECT * FROM " + TABLE + " WHERE user_id='" + userId + "' AND order_num=" + orderNum);
+    Row row = rs.one();
+    assertNotNull(row);
+    assertNotNull(row.getInstant("created_at"));
+
+    // Update with toTimestamp(now())
+    session.execute("UPDATE " + TABLE + " SET created_at=toTimestamp(now()) WHERE user_id='" + userId + "' AND order_num=" + orderNum);
+    rs = session.execute("SELECT * FROM " + TABLE + " WHERE user_id='" + userId + "' AND order_num=" + orderNum);
+    row = rs.one();
+    assertNotNull(row);
+    assertNotNull(row.getInstant("created_at"));
+
+    // Cleanup
+    session.execute("DELETE FROM " + TABLE + " WHERE user_id='" + userId + "' AND order_num=" + orderNum);
+  }
+
+  @Test
+  public void testInsertAndUpdateWithNull() {
+    String userId = "null123";
+    int orderNum = 5;
+
+    // Insert with null literal
+    session.execute("INSERT INTO " + TABLE + " (user_id, order_num, name, created_at) VALUES ('" + userId + "', " + orderNum + ", null, null)");
+    ResultSet rs = session.execute("SELECT * FROM " + TABLE + " WHERE user_id='" + userId + "' AND order_num=" + orderNum);
+    Row row = rs.one();
+    assertNotNull(row, "Row should not be null after insert with null literal");
+    assertNull(row.getString("name"), "Name should be null");
+    assertNull(row.getInstant("created_at"), "created_at should be null");
+
+    // Update with null literal
+    session.execute("UPDATE " + TABLE + " SET name='some name', created_at=toTimestamp(now()) WHERE user_id='" + userId + "' AND order_num=" + orderNum);
+    session.execute("UPDATE " + TABLE + " SET name=null, created_at=null WHERE user_id='" + userId + "' AND order_num=" + orderNum);
+    rs = session.execute("SELECT * FROM " + TABLE + " WHERE user_id='" + userId + "' AND order_num=" + orderNum);
+    row = rs.one();
+    assertNotNull(row, "Row should not be null after update to null literal");
+    assertNull(row.getString("name"), "Name should be null after update to null literal");
+    assertNull(row.getInstant("created_at"), "created_at should be null after update to null literal");
+
+    // Insert with null prepared statement (positional)
+    userId = "null456";
+    PreparedStatement psInsert = session.prepare("INSERT INTO " + TABLE + " (user_id, order_num, name, created_at) VALUES (?, ?, ?, ?)");
+    session.execute(psInsert.bind(userId, orderNum, null, null));
+    rs = session.execute("SELECT * FROM " + TABLE + " WHERE user_id='" + userId + "' AND order_num=" + orderNum);
+    row = rs.one();
+    assertNotNull(row, "Row should not be null after insert with null parameter");
+    assertNull(row.getString("name"), "Name should be null");
+    assertNull(row.getInstant("created_at"), "created_at should be null");
+
+    // Update with null prepared statement (positional)
+    PreparedStatement psUpdate = session.prepare("UPDATE " + TABLE + " SET name=?, created_at=? WHERE user_id=? AND order_num=?");
+    session.execute(psUpdate.bind(null, null, userId, orderNum));
+    rs = session.execute("SELECT * FROM " + TABLE + " WHERE user_id='" + userId + "' AND order_num=" + orderNum);
+    row = rs.one();
+    assertNotNull(row, "Row should not be null after update to null parameter");
+    assertNull(row.getString("name"), "Name should be null after update to null parameter");
+    assertNull(row.getInstant("created_at"), "created_at should be null after update to null parameter");
+
+    // Insert with null prepared statement (named)
+    userId = "null789";
+    PreparedStatement psInsertNamed = session.prepare("INSERT INTO " + TABLE + " (user_id, order_num, name, created_at) VALUES (:u, :o, :n, :c)");
+    session.execute(psInsertNamed.bind().setString("u", userId).setInt("o", orderNum).setToNull("n").setToNull("c"));
+    rs = session.execute("SELECT * FROM " + TABLE + " WHERE user_id='" + userId + "' AND order_num=" + orderNum);
+    row = rs.one();
+    assertNotNull(row, "Row should not be null after insert with named null parameter");
+    assertNull(row.getString("name"), "Name should be null after insert with named null parameter");
+    assertNull(row.getInstant("created_at"), "created_at should be null after insert with named null parameter");
+
+    // Update with null prepared statement (named)
+    PreparedStatement psUpdateNamed = session.prepare("UPDATE " + TABLE + " SET name=:n, created_at=:c WHERE user_id=:u AND order_num=:o");
+    session.execute(psUpdateNamed.bind().setToNull("n").setToNull("c").setString("u", userId).setInt("o", orderNum));
+    rs = session.execute("SELECT * FROM " + TABLE + " WHERE user_id='" + userId + "' AND order_num=" + orderNum);
+    row = rs.one();
+    assertNotNull(row, "Row should not be null after update to named null parameter");
+    assertNull(row.getString("name"), "Name should be null after update to named null parameter");
+    assertNull(row.getInstant("created_at"), "created_at should be null after update to named null parameter");
+
+    // Cleanup
+    session.execute("DELETE FROM " + TABLE + " WHERE user_id='null123' AND order_num=5");
+    session.execute("DELETE FROM " + TABLE + " WHERE user_id='null456' AND order_num=5");
+    session.execute("DELETE FROM " + TABLE + " WHERE user_id='null789' AND order_num=5");
   }
 }

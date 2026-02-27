@@ -307,3 +307,56 @@ func TestUpdateNullValues(t *testing.T) {
 		assert.Empty(t, retrievedListText, "list_text should be empty")
 	})
 }
+
+func TestUpdateMixedNullValues(t *testing.T) {
+	t.Parallel()
+
+	pkName := uuid.New().String()
+	pkAge := int64(300)
+
+	// 1. Insert initial record with values
+	err := session.Query(`INSERT INTO bigtabledevinstance.user_info (name, age, code, credited, text_col) VALUES (?, ?, ?, ?, ?)`,
+		pkName, pkAge, 111, 222.2, "original text").Exec()
+	require.NoError(t, err)
+
+	// 2. Update with mix of null and non-null values using placeholders
+	newCode := 333
+	err = session.Query(`UPDATE bigtabledevinstance.user_info SET code = ?, credited = ?, text_col = ? WHERE name = ? AND age = ?`,
+		newCode, nil, "updated text", pkName, pkAge).Exec()
+	require.NoError(t, err)
+
+	// 3. Validate
+	var retrievedCode *int
+	var retrievedCredited *float64
+	var retrievedTextCol *string
+
+	err = session.Query(`SELECT code, credited, text_col FROM bigtabledevinstance.user_info WHERE name = ? AND age = ?`, pkName, pkAge).
+		Scan(&retrievedCode, &retrievedCredited, &retrievedTextCol)
+	require.NoError(t, err)
+
+	assert.NotNil(t, retrievedCode)
+	assert.Equal(t, newCode, *retrievedCode)
+	assert.Nil(t, retrievedCredited)
+	assert.NotNil(t, retrievedTextCol)
+	assert.Equal(t, "updated text", *retrievedTextCol)
+
+	// 4. Update with mix of null and non-null values using literals
+	pkName = uuid.New().String()
+	err = session.Query(`INSERT INTO bigtabledevinstance.user_info (name, age, code, credited, text_col) VALUES (?, ?, 444, 555.5, 'original literal text')`,
+		pkName, pkAge).Exec()
+	require.NoError(t, err)
+
+	err = session.Query(`UPDATE bigtabledevinstance.user_info SET code = 666, credited = NULL, text_col = 'updated literal text' WHERE name = ? AND age = ?`,
+		pkName, pkAge).Exec()
+	require.NoError(t, err)
+
+	err = session.Query(`SELECT code, credited, text_col FROM bigtabledevinstance.user_info WHERE name = ? AND age = ?`, pkName, pkAge).
+		Scan(&retrievedCode, &retrievedCredited, &retrievedTextCol)
+	require.NoError(t, err)
+
+	assert.NotNil(t, retrievedCode)
+	assert.Equal(t, 666, *retrievedCode)
+	assert.Nil(t, retrievedCredited)
+	assert.NotNil(t, retrievedTextCol)
+	assert.Equal(t, "updated literal text", *retrievedTextCol)
+}

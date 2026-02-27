@@ -525,7 +525,7 @@ func parseStringLiteral(s cql.IStringLiteralContext, dt types.CqlDataType) (type
 
 const (
 	bigtableEncodingVersion = primitive.ProtocolVersion4
-	referenceTime           = int64(1262304000000)
+	referenceTime           = int64(1262304000000) // 1/1/2010
 	maxNanos                = int32(9999)
 )
 

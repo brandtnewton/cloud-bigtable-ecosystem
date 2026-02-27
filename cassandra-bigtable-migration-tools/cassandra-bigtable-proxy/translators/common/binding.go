@@ -241,7 +241,7 @@ func encodeSetValue(assignment *types.ComplexAssignmentSet, values *types.QueryP
 
 func addListElements(listValues []types.GoValue, cf types.ColumnFamily, lt *types.ListType, isPrepend bool) ([]types.IBigtableMutationOp, error) {
 	var results []types.IBigtableMutationOp
-	now := time.Now()
+	now := time.Now() // it's important to set this value outside the loop to keep the list index bytes correct.
 	for i, v := range listValues {
 		// Calculate encoded timestamp for the list element
 		column := getListIndexColumn(now, i, len(listValues), isPrepend)
@@ -257,27 +257,29 @@ func addListElements(listValues []types.GoValue, cf types.ColumnFamily, lt *type
 }
 
 // getListIndexColumn generates encoded timestamp bytes.
-// Creates timestamp byte representation for specific positions with validation.
-// Returns error if position is invalid or encoding fails.
+// Creates nanosecond precision timestamp where the first 8 bytes are the current time in milliseconds and the last 4
+// bytes are a special "index bytes" encoding of the element's index. The millisecond bytes ensure correct
+// append/prepend ordering between operations, while the index bytes ensure correct ordering of elements within an
+// operation. Prepends use an ever further back millisecond time, to ensure that they are sorted before any appends or
+// previous prepends. It's critical that "now" is based on the time at the start of query execution, rather than the
+// time that this function is evaluated in case the millisecond time rolls over during the list processing.
 func getListIndexColumn(now time.Time, index int, totalLength int, prepend bool) types.ColumnQualifier {
 	nowMilli := now.UnixMilli()
 	if prepend {
+		// The reference time is 1/1/2010. As time goes on, prepends will be written further and further back in time,
+		// before 1/1/2010 thus ensuring that a prepend operation written now will be sorted after a prepend operation
+		// written in one minute.
 		nowMilli = referenceTime - (nowMilli - referenceTime)
 	}
 
+	// create a nanoseconds encoding of the index
 	nanos := maxNanos - int32(totalLength) + int32(index)
-	encodedStr := string(encodeTimestampIndex(nowMilli, nanos))
-	return types.ColumnQualifier(encodedStr)
-}
 
-// encodeTimestampIndex encodes a timestamp value into bytes.
-// Converts timestamp values to byte representation with validation.
-// Returns error if timestamp format is invalid or encoding fails.
-func encodeTimestampIndex(millis int64, nanos int32) []byte {
 	buf := make([]byte, 12) // 8 bytes for millis + 4 bytes for nanos
-	binary.BigEndian.PutUint64(buf[0:8], uint64(millis))
+	binary.BigEndian.PutUint64(buf[0:8], uint64(nowMilli))
 	binary.BigEndian.PutUint32(buf[8:12], uint32(nanos))
-	return buf
+
+	return types.ColumnQualifier(buf)
 }
 
 // addSetElements adds elements to a set column in raw queries.

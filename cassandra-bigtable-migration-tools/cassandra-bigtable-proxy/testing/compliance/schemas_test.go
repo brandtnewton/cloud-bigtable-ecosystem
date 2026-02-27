@@ -187,6 +187,14 @@ CREATE TABLE IF NOT EXISTS bigtabledevinstance.ascii_key (
 	measurement int
 );
 		`,
+		`
+CREATE TABLE IF NOT EXISTS bigtabledevinstance.odccps_profiles_by_iccid (
+	iccid text PRIMARY KEY,
+	last_modification_date timestamp,
+	last_booked_timestamp timestamp,
+	last_retry_timestamp timestamp
+);
+		`,
 	}
 
 	if testTarget == TestTargetProxy {

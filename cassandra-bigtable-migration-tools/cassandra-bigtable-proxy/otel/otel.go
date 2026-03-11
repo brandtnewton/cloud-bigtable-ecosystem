@@ -20,6 +20,7 @@ import (
 	"context"
 	"errors"
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/global/types"
+	texporter "github.com/GoogleCloudPlatform/opentelemetry-operations-go/exporter/trace"
 	"net/http"
 	"net/url"
 	"strings"
@@ -65,6 +66,7 @@ type OTelConfig struct {
 	OTELEnabled        bool
 	Database           string
 	Instance           string
+	ProjectId          string
 	HealthCheckEnabled bool
 	HealthCheckEp      string
 	ServiceVersion     string
@@ -119,7 +121,7 @@ func NewOpenTelemetry(ctx context.Context, config *OTelConfig, logger *zap.Logge
 	otelResource := buildOtelResource(ctx, config)
 
 	// Initialize tracerProvider
-	tracerProvider, err := InitTracerProvider(ctx, config, otelResource)
+	tracerProvider, err := createTraceProvider(ctx, config, otelResource)
 	if err != nil {
 		logger.Error("error while initializing the tracer provider", zap.Error(err))
 		return nil, nil, err
@@ -179,33 +181,29 @@ func shutdownOpenTelemetryComponents(shutdownFuncs []func(context.Context) error
 	}
 }
 
-// InitTracerProvider() configures and initializes an OpenTelemetry TracerProvider.
-// It sets up a gRPC-based OTLP trace exporter and applies the sampling strategy.
-//
-// Parameters:
-//   - ctx: Context for managing initialization.
-//   - config: OpenTelemetry configuration settings.
-//   - resource: OpenTelemetry resource with metadata.
-//
-// Returns:
-//   - *sdktrace.TracerProvider: A configured TracerProvider instance.
-//   - error: An error if initialization fails.
-func InitTracerProvider(ctx context.Context, config *OTelConfig, resource *resource.Resource) (*sdktrace.TracerProvider, error) {
+func createTraceProvider(ctx context.Context, config *OTelConfig, resource *resource.Resource) (*sdktrace.TracerProvider, error) {
 	sampler := sdktrace.TraceIDRatioBased(config.TraceSampleRatio)
-	if config.TracerEndpoint == "" {
-		return nil, errors.New("tracer endpoint cannot be empty")
-	}
-	// Basic validation for incorrect endpoint format
-	if !isValidEndpoint(config.TracerEndpoint) {
-		return nil, errors.New("invalid tracer endpoint format")
-	}
-
-	traceExporter, err := otlptracegrpc.New(ctx,
-		otlptracegrpc.WithEndpoint(config.TracerEndpoint),
-		otlptracegrpc.WithInsecure(),
-	)
-	if err != nil {
-		return nil, err
+	var err error
+	var traceExporter sdktrace.SpanExporter
+	if config.ProjectId != "" {
+		traceExporter, err = texporter.New(texporter.WithProjectID(config.ProjectId))
+		if err != nil {
+			return nil, err
+		}
+	} else if config.TracerEndpoint != "" {
+		// Basic validation for incorrect endpoint format
+		if !isValidEndpoint(config.TracerEndpoint) {
+			return nil, errors.New("invalid tracer endpoint format")
+		}
+		traceExporter, err = otlptracegrpc.New(ctx,
+			otlptracegrpc.WithEndpoint(config.TracerEndpoint),
+			otlptracegrpc.WithInsecure(),
+		)
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		return nil, errors.New("no tracer endpoint or project id provided")
 	}
 
 	tp := sdktrace.NewTracerProvider(

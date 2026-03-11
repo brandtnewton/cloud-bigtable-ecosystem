@@ -45,7 +45,7 @@ type TranslatorManager struct {
 func NewTranslatorManager(logger *zap.Logger, schemaMappingConfig *schemaMapping.SchemaMetadata, config *types.BigtableConfig) *TranslatorManager {
 	// add more translators here
 	translators := []types.IQueryTranslator{
-		select_translator.NewSelectTranslator(schemaMappingConfig),
+		select_translator.NewSelectTranslator(schemaMappingConfig, logger),
 		insert_translator.NewInsertTranslator(schemaMappingConfig),
 		update_translator.NewUpdateTranslator(schemaMappingConfig),
 		delete_translator.NewDeleteTranslator(schemaMappingConfig),
@@ -73,6 +73,8 @@ func NewTranslatorManager(logger *zap.Logger, schemaMappingConfig *schemaMapping
 }
 
 func (t *TranslatorManager) TranslateQuery(q *types.RawQuery, sessionKeyspace types.Keyspace) (types.IPreparedQuery, error) {
+	defer q.Parser().Release()
+
 	queryTranslator, err := t.getTranslator(q.QueryType())
 	if err != nil {
 		return nil, err

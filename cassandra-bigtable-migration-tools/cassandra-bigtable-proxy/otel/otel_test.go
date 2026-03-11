@@ -498,13 +498,13 @@ func TestInitTracerProvider(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			resource := resource.NewSchemaless() // Mock resource
-			got, err := InitTracerProvider(ctx, tt.config, resource)
+			got, err := createTraceProvider(ctx, tt.config, resource)
 			if (err != nil) != tt.wantErr {
-				t.Errorf("InitTracerProvider() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("createTraceProvider() error = %v, wantErr %v", err, tt.wantErr)
 			}
 
 			if !tt.wantErr && (got == nil || reflect.TypeOf(got) != reflect.TypeOf(&sdktrace.TracerProvider{})) {
-				t.Errorf("InitTracerProvider() = %v, expected valid TracerProvider", got)
+				t.Errorf("createTraceProvider() = %v, expected valid TracerProvider", got)
 			}
 		})
 	}

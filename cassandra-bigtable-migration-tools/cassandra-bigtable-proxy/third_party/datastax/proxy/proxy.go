@@ -25,6 +25,7 @@ import (
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/responsehandler"
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/system_tables"
 	cql "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/third_party/cqlparser"
+	"go.opentelemetry.io/otel/codes"
 	"io"
 	"net"
 	"strings"
@@ -57,8 +58,10 @@ const errorWhileDecoding = "Error while decoding bytes - "
 const unhandledScenario = "Unhandled execution Scenario for prepared CqlQuery"
 const errQueryNotPrepared = "query is not prepared"
 const (
-	handleQuery = "handleQuery"
-	handleBatch = "Batch"
+	handleQuery   = "handleQuery"
+	handleBatch   = "Batch"
+	handlePrepare = "Prepare"
+	handleExecute = "Execute"
 )
 
 // Events
@@ -123,19 +126,16 @@ func NewProxy(ctx context.Context, logger *zap.Logger, config *types.ProxyInstan
 		return nil, err
 	}
 
-	bigtableClient := bigtableModule.NewBigtableClient(clientManager, logger, config.BigtableConfig, metadataStore)
-
-	translator := translators.NewTranslatorManager(logger, metadataStore.Schemas(), config.BigtableConfig)
-
 	// Enable OpenTelemetry traces by setting environment variable GOOGLE_API_GO_EXPERIMENTAL_TELEMETRY_PLATFORM_TRACING to the case-insensitive value "opentelemetry" before loading the client library.
 	otelConfig := &otelgo.OTelConfig{}
-	otelInst := &otelgo.OpenTelemetry{Config: &otelgo.OTelConfig{OTELEnabled: false}}
 
 	var shutdownOTel func(context.Context) error
+	var otelInst *otelgo.OpenTelemetry
 	// Initialize OpenTelemetry
 	if config.OtelConfig.Enabled {
 		otelConfig = &otelgo.OTelConfig{
 			TracerEndpoint:     config.OtelConfig.Traces.Endpoint,
+			ProjectId:          config.OtelConfig.Traces.ProjectId,
 			MetricEndpoint:     config.OtelConfig.Metrics.Endpoint,
 			ServiceName:        config.OtelConfig.ServiceName,
 			OTELEnabled:        config.OtelConfig.Enabled,
@@ -152,6 +152,10 @@ func NewProxy(ctx context.Context, logger *zap.Logger, config *types.ProxyInstan
 		logger.Error("Failed to enable the OTEL: " + err.Error())
 		return nil, err
 	}
+
+	bigtableClient := bigtableModule.NewBigtableClient(clientManager, logger, config.BigtableConfig, metadataStore, otelInst)
+
+	translator := translators.NewTranslatorManager(logger, metadataStore.Schemas(), config.BigtableConfig)
 
 	systemTables := system_tables.NewSystemTableManager(metadataStore, logger)
 
@@ -475,11 +479,25 @@ func (c *client) Receive(reader io.Reader) error {
 }
 
 func (c *client) handlePrepare(raw *frame.RawFrame, msg *message.Prepare) {
+	startTime := time.Now()
+	otelCtx, span := c.proxy.otelInst.StartSpan(c.proxy.ctx, handlePrepare, []attribute.KeyValue{
+		attribute.String(Query, msg.Query),
+	})
+	defer c.proxy.otelInst.EndSpan(span)
+
+	var otelErr error
+	queryType := types.QueryTypeUnknown.String()
+	defer func() {
+		c.proxy.otelInst.RecordMetrics(otelCtx, handlePrepare, startTime, queryType, c.sessionKeyspace, otelErr)
+	}()
+
 	id := c.getQueryId(msg)
 	if response, found := c.proxy.queryMetadataCache.Load(id); found {
+		span.SetAttributes(attribute.Bool("Cache Hit", true))
 		c.sender.Send(raw.Header, response)
 		return
 	}
+	span.SetAttributes(attribute.Bool("Cache Hit", false))
 
 	c.proxy.logger.Debug("preparing query", zap.String(Query, msg.Query), zap.Int16("stream", raw.Header.StreamId))
 
@@ -488,16 +506,23 @@ func (c *client) handlePrepare(raw *frame.RawFrame, msg *message.Prepare) {
 		keyspace = types.Keyspace(msg.Keyspace)
 	}
 
-	p := parser.NewParser(msg.Query)
+	p := parser.GetParser(msg.Query)
 	qt, err := parseQueryType(p)
 	if err != nil {
+		otelErr = err
+		c.proxy.otelInst.RecordError(span, otelErr)
 		c.proxy.logger.Error("error parsing query to see if it's handled", zap.String(Query, msg.Query), zap.Error(err))
 		c.sender.Send(raw.Header, &message.Invalid{ErrorMessage: err.Error()})
 		return
 	}
-	rawQuery := types.NewRawQuery(raw.Header, keyspace, msg.Query, p, qt)
 
-	c.handleServerPreparedQuery(rawQuery, id)
+	rawQuery := types.NewRawQuery(raw.Header, keyspace, msg.Query, p, qt)
+	otelErr = c.handleServerPreparedQuery(otelCtx, rawQuery, id)
+	if otelErr != nil {
+		c.proxy.otelInst.RecordError(span, otelErr)
+		return
+	}
+	span.SetStatus(codes.Ok, "")
 }
 
 func parseQueryType(p *parser.ProxyCqlParser) (types.QueryType, error) {
@@ -542,31 +567,37 @@ func (c *client) getQueryId(msg *message.Prepare) [16]byte {
 //   - raw: *frame.RawFrame
 //   - msg: *message.Prepare
 //
-// Returns: nil
-func (c *client) handleServerPreparedQuery(query *types.RawQuery, id [16]byte) {
-	preparedQuery, err := c.prepareQuery(query)
+// Returns: error if any error occurs during preparation
+func (c *client) handleServerPreparedQuery(ctx context.Context, query *types.RawQuery, id [16]byte) error {
+	preparedQuery, err := c.prepareQuery(ctx, query)
 	if err != nil {
 		c.proxy.logger.Error(translatorErrorMessage, zap.String(Query, query.RawCql()), zap.Error(err))
 		c.sender.Send(query.Header(), &message.Invalid{ErrorMessage: err.Error()})
-		return
+		return err
 	}
 
 	response, err := responsehandler.BuildPreparedResultResponse(id, preparedQuery)
+	if err != nil {
+		c.proxy.logger.Error("error building prepared result response", zap.String(Query, query.RawCql()), zap.Error(err))
+		c.sender.Send(query.Header(), &message.Invalid{ErrorMessage: err.Error()})
+		return err
+	}
 
 	// update caches
 	c.proxy.preparedQueryCache.Store(id, preparedQuery)
 	c.proxy.queryMetadataCache.Store(id, response)
 
 	c.sender.Send(query.Header(), response)
+	return nil
 }
 
-func (c *client) prepareQuery(query *types.RawQuery) (types.IPreparedQuery, error) {
+func (c *client) prepareQuery(ctx context.Context, query *types.RawQuery) (types.IPreparedQuery, error) {
 	preparedQuery, err := c.proxy.translator.TranslateQuery(query, c.sessionKeyspace)
 	if err != nil {
 		return nil, err
 	}
 
-	btPreparedQuery, err := c.proxy.bigtableClient.PrepareStatement(c.ctx, preparedQuery)
+	btPreparedQuery, err := c.proxy.bigtableClient.PrepareStatement(ctx, preparedQuery)
 	if err != nil {
 		return nil, fmt.Errorf("failed to prepare bigtable statement `%s`: %w", preparedQuery.BigtableQuery(), err)
 	}
@@ -577,25 +608,45 @@ func (c *client) prepareQuery(query *types.RawQuery) (types.IPreparedQuery, erro
 
 // handleExecute for prepared query
 func (c *client) handleExecute(raw *frame.RawFrame, msg *partialExecute) {
-	ctx := context.Background()
+	startTime := time.Now()
+	otelCtx, span := c.proxy.otelInst.StartSpan(c.proxy.ctx, handleExecute, nil)
+	defer c.proxy.otelInst.EndSpan(span)
+
+	var otelErr error
+	queryType := types.QueryTypeUnknown.String()
+	var preparedStmt types.IPreparedQuery
+	defer func() {
+		c.proxy.otelInst.RecordMetrics(otelCtx, handleExecute, startTime, queryType, c.sessionKeyspace, otelErr)
+	}()
+
 	id := preparedIdKey(msg.queryId)
 
-	preparedStmt, ok := c.proxy.preparedQueryCache.Load(id)
+	var ok bool
+	preparedStmt, ok = c.proxy.preparedQueryCache.Load(id)
 	if !ok {
+		otelErr = errors.New(errQueryNotPrepared)
+		c.proxy.otelInst.RecordError(span, otelErr)
 		c.proxy.logger.Error(errQueryNotPrepared)
 		c.sender.Send(raw.Header, &message.ServerError{ErrorMessage: errQueryNotPrepared})
 		return
 	}
 
+	span.SetAttributes(attribute.String(Query, preparedStmt.CqlQuery()))
+	queryType = preparedStmt.QueryType().String()
+
 	boundQuery, err := c.proxy.translator.BindQuery(preparedStmt, msg.PositionalValues, msg.NamedValues, raw.Header.Version)
 	if err != nil {
+		otelErr = err
+		c.proxy.otelInst.RecordError(span, otelErr)
 		c.proxy.logger.Error(errorWhileDecoding, zap.String(Query, preparedStmt.CqlQuery()), zap.Error(err))
 		c.sender.Send(raw.Header, &message.ConfigError{ErrorMessage: err.Error()})
 		return
 	}
 
-	results, err := c.proxy.executor.Execute(ctx, c, boundQuery)
+	results, err := c.proxy.executor.Execute(otelCtx, c, boundQuery)
 	if err != nil {
+		otelErr = err
+		c.proxy.otelInst.RecordError(span, otelErr)
 		c.proxy.logger.Error(errorAtBigtable, zap.String(Query, preparedStmt.CqlQuery()), zap.String(Query, preparedStmt.BigtableQuery()), zap.Error(err))
 		c.sender.Send(raw.Header, &message.ConfigError{ErrorMessage: err.Error()})
 		return
@@ -604,6 +655,7 @@ func (c *client) handleExecute(raw *frame.RawFrame, msg *partialExecute) {
 		c.handlePostDDLEvent(preparedStmt.QueryType(), preparedStmt.Keyspace(), preparedStmt.Table())
 	}
 	c.sender.Send(raw.Header, results)
+	span.SetStatus(codes.Ok, "")
 }
 
 // handle batch queries
@@ -627,17 +679,23 @@ func (c *client) handleBatch(raw *frame.RawFrame, msg *partialBatch) {
 	var errs []string
 	for tableName, mutations := range bulkMutations.Mutations() {
 		res, err := c.proxy.bigtableClient.ApplyBulkMutation(otelCtx, keyspace, tableName, mutations)
-		if err != nil || res.FailedRows != "" {
+		if err != nil {
+			c.proxy.otelInst.RecordError(span, err)
+			errs = append(errs, err.Error())
+		} else if res.FailedRows != "" {
+			err = fmt.Errorf("failed rows for table %s: %s", tableName, res.FailedRows)
 			c.proxy.otelInst.RecordError(span, err)
 			errs = append(errs, res.FailedRows)
 		}
 	}
 	otelgo.AddAnnotation(otelCtx, gotBulkApplyResp)
 	if len(errs) > 0 {
-		c.sender.Send(raw.Header, &message.ServerError{ErrorMessage: strings.Join(errs, "\n")})
+		otelErr = errors.New(strings.Join(errs, "\n"))
+		c.sender.Send(raw.Header, &message.ServerError{ErrorMessage: otelErr.Error()})
 		return
 	}
 	c.sender.Send(raw.Header, &message.VoidResult{})
+	span.SetStatus(codes.Ok, "")
 }
 
 func (c *client) bindBulkOperations(msg *partialBatch, pv primitive.ProtocolVersion) (*bigtableModule.BigtableBulkMutation, types.Keyspace, error) {
@@ -681,30 +739,41 @@ func (c *client) handleQuery(raw *frame.RawFrame, msg *partialQuery) {
 	otelCtx, span := c.proxy.otelInst.StartSpan(c.proxy.ctx, handleQuery, []attribute.KeyValue{
 		attribute.String("CqlQuery", msg.query),
 	})
+	defer c.proxy.otelInst.EndSpan(span)
 
-	p := parser.NewParser(msg.query)
+	var otelErr error
+	queryType := types.QueryTypeUnknown.String()
+	defer func() {
+		c.proxy.otelInst.RecordMetrics(otelCtx, handleQuery, startTime, queryType, c.sessionKeyspace, otelErr)
+	}()
+
+	p := parser.GetParser(msg.query)
 	qt, err := parseQueryType(p)
 	if err != nil {
+		otelErr = err
+		c.proxy.otelInst.RecordError(span, otelErr)
 		c.proxy.logger.Error("error parsing query to see if it's handled", zap.String(Query, msg.query), zap.Error(err))
 		c.sender.Send(raw.Header, &message.Invalid{ErrorMessage: err.Error()})
 		return
 	}
+	queryType = qt.String()
 
 	rawQuery := types.NewRawQuery(raw.Header, c.sessionKeyspace, msg.query, p, qt)
-	defer c.proxy.otelInst.EndSpan(span)
 
-	var otelErr error
-	defer c.proxy.otelInst.RecordMetrics(otelCtx, handleQuery, startTime, rawQuery.QueryType().String(), c.sessionKeyspace, otelErr)
-
-	query, err := c.prepareQuery(rawQuery)
+	query, err := c.prepareQuery(otelCtx, rawQuery)
 	if err != nil {
+		otelErr = err
+		c.proxy.otelInst.RecordError(span, otelErr)
 		c.proxy.logger.Error(translatorErrorMessage, zap.String(Query, msg.query), zap.Error(err))
 		c.sender.Send(raw.Header, &message.Invalid{ErrorMessage: err.Error()})
 		return
 	}
+
 	values := types.NewQueryParameterValues(query.Parameters(), time.Now())
 	executableQuery, err := c.proxy.translator.BindQueryParameters(query, values, raw.Header.Version)
 	if err != nil {
+		otelErr = err
+		c.proxy.otelInst.RecordError(span, otelErr)
 		c.proxy.logger.Error(translatorErrorMessage, zap.String(Query, msg.query), zap.Error(err))
 		c.sender.Send(raw.Header, &message.Invalid{ErrorMessage: err.Error()})
 		return
@@ -727,6 +796,7 @@ func (c *client) handleQuery(raw *frame.RawFrame, msg *partialQuery) {
 	}
 
 	c.sender.Send(raw.Header, selectResult)
+	span.SetStatus(codes.Ok, "")
 }
 
 func (c *client) Send(hdr *frame.Header, msg message.Message) {

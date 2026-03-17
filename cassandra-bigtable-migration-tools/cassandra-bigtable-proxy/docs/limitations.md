@@ -21,6 +21,8 @@ simply because certain features haven't been fully implemented yet in the proxy.
 | int                   | yes       | yes         | RAW BYTES                                                                          |
 | bigint                | yes       | yes         | RAW BYTES                                                                          |
 | blob                  | yes       | yes         | RAW BYTES                                                                          |
+| uuid                  | yes       | yes         | RAW BYTES                                                                          |
+| timeuuid              | yes       | yes         | RAW BYTES                                                                          |
 | ascii                 | yes       | yes         | RAW BYTES                                                                          |
 | float                 | yes       | no          | RAW BYTES                                                                          |
 | double                | yes       | no          | RAW BYTES                                                                          |
@@ -37,18 +39,18 @@ column qualifier, list items as column value.**
 ### Non-supported data types
 
 The proxy currently doesn't support the following data types:
-date, decimal, duration, inet, smallint, time, timeuuid, tinyint, uuid,
+date, decimal, duration, inet, smallint, time, tinyint,
 varint, frozen and user-defined types (UDT).
 
 ## 2. Supported Functions
 
 We are only supporting these functions as of now.
 
-- **count** - `"select count(colx) from keyspacex.tablex.keyspaceX.tablex`
-- **sum** - `"select sum(colx) from keyspacex.tablex.keyspaceX.tablex`
-- **avg** - `"select avg(colx) from keyspacex.tablex.keyspaceX.tablex`
-- **min** - `"select min(colx) from keyspacex.tablex.keyspaceX.tablex`
-- **max** - `"select max(colx) from keyspacex.tablex.keyspaceX.tablex`
+- **count** - `"select count(colx) from keyspacex.tablex`
+- **sum** - `"select sum(colx) from keyspacex.tablex`
+- **avg** - `"select avg(colx) from keyspacex.tablex`
+- **min** - `"select min(colx) from keyspacex.tablex`
+- **max** - `"select max(colx) from keyspacex.tablex`
 - **writetime** - `select writetime(colx)  from keyspacex.tablex`
 - **toTimestamp(now())** - `insert into keyspacex.tablex (event_time) values (toTimestamp(now()))`
 

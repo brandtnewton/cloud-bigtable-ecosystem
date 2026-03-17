@@ -15,6 +15,32 @@
  */
 package com.google.cloud.kafka.connect.bigtable;
 
+import static com.google.cloud.kafka.connect.bigtable.config.BigtableSinkConfig.*;
+import static com.google.cloud.kafka.connect.bigtable.util.FutureUtil.completedApiFuture;
+import static com.google.cloud.kafka.connect.bigtable.util.FutureUtil.failedApiFuture;
+import static com.google.cloud.kafka.connect.bigtable.util.MockUtil.assertTotalNumberOfInvocations;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertThrows;
+import static org.junit.Assert.assertTrue;
+import static org.mockito.Mockito.any;
+import static org.mockito.Mockito.anyLong;
+import static org.mockito.Mockito.anyString;
+import static org.mockito.Mockito.argThat;
+import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.doNothing;
+import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.eq;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.reset;
+import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoMoreInteractions;
+import static org.mockito.MockitoAnnotations.openMocks;
+
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -43,6 +69,13 @@ import com.google.cloud.kafka.connect.bigtable.util.ProtoUtil;
 import com.google.cloud.kafka.connect.bigtable.wrappers.BigtableTableAdminClientInterface;
 import com.google.common.collect.Collections2;
 import com.google.protobuf.ByteString;
+import java.nio.charset.StandardCharsets;
+import java.util.*;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Future;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 import org.apache.kafka.common.record.TimestampType;
 import org.apache.kafka.connect.data.Schema;
 import org.apache.kafka.connect.data.SchemaBuilder;
@@ -58,40 +91,18 @@ import org.junit.runners.JUnit4;
 import org.mockito.Mock;
 import org.slf4j.Logger;
 
-import java.nio.charset.StandardCharsets;
-import java.util.*;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.Future;
-import java.util.stream.Collectors;
-import java.util.stream.IntStream;
-
-import static com.google.cloud.kafka.connect.bigtable.config.BigtableSinkConfig.*;
-import static com.google.cloud.kafka.connect.bigtable.util.FutureUtil.completedApiFuture;
-import static com.google.cloud.kafka.connect.bigtable.util.MockUtil.assertTotalNumberOfInvocations;
-import static org.junit.Assert.*;
-import static org.mockito.Mockito.*;
-import static org.mockito.MockitoAnnotations.openMocks;
-
 @RunWith(JUnit4.class)
 public class BigtableSinkTaskTest {
 
   TestBigtableSinkTask task;
   BigtableSinkTaskConfig config;
-  @Mock
-  BigtableDataClient bigtableData;
-  @Mock
-  BigtableTableAdminClientInterface bigtableAdmin;
-  @Mock
-  KeyMapper keyMapper;
-  @Mock
-  ValueMapper valueMapper;
-  @Mock
-  BigtableSchemaManager schemaManager;
-  @Mock
-  SinkTaskContext context;
-  @Mock
-  ErrantRecordReporter errorReporter;
+  @Mock BigtableDataClient bigtableData;
+  @Mock BigtableTableAdminClientInterface bigtableAdmin;
+  @Mock KeyMapper keyMapper;
+  @Mock ValueMapper valueMapper;
+  @Mock BigtableSchemaManager schemaManager;
+  @Mock SinkTaskContext context;
+  @Mock ErrantRecordReporter errorReporter;
 
   @Before
   public void setUp() {
@@ -173,17 +184,16 @@ public class BigtableSinkTaskTest {
     assertTrue(task.createRecordMutationData(okRecord).isPresent());
   }
 
-  private final Schema valueSchema = SchemaBuilder.struct()
-      .name("com.example.User")
-      .field("id", Schema.INT32_SCHEMA)
-      .field("name", Schema.STRING_SCHEMA)
-      .build();
+  private final Schema valueSchema =
+      SchemaBuilder.struct()
+          .name("com.example.User")
+          .field("id", Schema.INT32_SCHEMA)
+          .field("name", Schema.STRING_SCHEMA)
+          .build();
 
   @Test
   public void testCreateRecordMutationData() throws JsonProcessingException {
-    Struct value = new Struct(valueSchema)
-        .put("id", 42)
-        .put("name", "John Doe");
+    Struct value = new Struct(valueSchema).put("id", 42).put("name", "John Doe");
     SinkRecord okRecord = new SinkRecord("topic", 1, null, "key", valueSchema, value, 2);
 
     keyMapper = new KeyMapper("#", List.of());
@@ -196,16 +206,22 @@ public class BigtableSinkTaskTest {
 
     ObjectMapper mapper = new ObjectMapper();
     JsonNode actual = mapper.readTree(proto);
-    assertEquals("projects/project/instances/instance/tables/topic", actual.get("tableName").asText());
+    assertEquals(
+        "projects/project/instances/instance/tables/topic", actual.get("tableName").asText());
     assertEquals("a2V5", actual.get("rowKey").asText());
     ArrayNode mutations = (ArrayNode) actual.get("mutations");
     assertEquals(2, mutations.size());
     assertEquals("default", mutations.get(0).get("setCell").get("familyName").textValue());
-    assertEquals("id", ProtoUtil.fromBase64(mutations.get(0).get("setCell").get("columnQualifier").textValue()));
+    assertEquals(
+        "id",
+        ProtoUtil.fromBase64(mutations.get(0).get("setCell").get("columnQualifier").textValue()));
     assertEquals(ProtoUtil.toBase64(42), mutations.get(0).get("setCell").get("value").textValue());
     assertEquals("default", mutations.get(1).get("setCell").get("familyName").textValue());
-    assertEquals("name", ProtoUtil.fromBase64(mutations.get(1).get("setCell").get("columnQualifier").textValue()));
-    assertEquals(ProtoUtil.toBase64("John Doe"), mutations.get(1).get("setCell").get("value").textValue());
+    assertEquals(
+        "name",
+        ProtoUtil.fromBase64(mutations.get(1).get("setCell").get("columnQualifier").textValue()));
+    assertEquals(
+        ProtoUtil.toBase64("John Doe"), mutations.get(1).get("setCell").get("value").textValue());
   }
 
   @Test
@@ -452,7 +468,7 @@ public class BigtableSinkTaskTest {
     doReturn(ByteString.copyFrom("ignored".getBytes(StandardCharsets.UTF_8)))
         .when(commonMutationData)
         .getRowKey();
-    doReturn(Mutation.create()).when(commonMutationData).getInsertMutation();
+    doReturn(Mutation.create()).when(commonMutationData).getMutation();
 
     // LinkedHashMap, because we mock consecutive return values of Bigtable client mock and thus
     // rely on the order.
@@ -484,11 +500,11 @@ public class BigtableSinkTaskTest {
     String batcherTable = "batcherTable";
     Batcher<RowMutationEntry, Void> batcher = mock(Batcher.class);
     doAnswer(
-        invocation -> {
-          TestBigtableSinkTask task = (TestBigtableSinkTask) invocation.getMock();
-          task.getBatchers().computeIfAbsent(batcherTable, ignored -> batcher);
-          return null;
-        })
+            invocation -> {
+              TestBigtableSinkTask task = (TestBigtableSinkTask) invocation.getMock();
+              task.getBatchers().computeIfAbsent(batcherTable, ignored -> batcher);
+              return null;
+            })
         .when(task)
         .performUpsertBatch(any(), any());
 
@@ -532,10 +548,10 @@ public class BigtableSinkTaskTest {
 
     MutationData okMutationData = mock(MutationData.class);
     doReturn(okTable).when(okMutationData).getTargetTable();
-    doReturn(mock(RowMutationEntry.class)).when(okMutationData).getUpsertMutation();
+    doReturn(mock(RowMutationEntry.class)).when(okMutationData).getRowMutationEntry();
     MutationData errorMutationData = mock(MutationData.class);
     doReturn(errorTable).when(errorMutationData).getTargetTable();
-    doReturn(mock(RowMutationEntry.class)).when(errorMutationData).getUpsertMutation();
+    doReturn(mock(RowMutationEntry.class)).when(errorMutationData).getRowMutationEntry();
 
     Map<SinkRecord, MutationData> input =
         Map.of(
@@ -562,44 +578,127 @@ public class BigtableSinkTaskTest {
   }
 
   @Test
+  public void testReplaceRows() {
+    Map<String, String> props = BasicPropertiesFactory.getTaskProps();
+    int maxBatchSize = 3;
+    int totalRecords = 1000;
+    props.put(BigtableSinkTaskConfig.MAX_BATCH_SIZE_CONFIG, Integer.toString(maxBatchSize));
+    BigtableSinkTaskConfig config = new BigtableSinkTaskConfig(props);
+
+    task = spy(new TestBigtableSinkTask(config, null, null, null, null, null, null));
+    MutationData commonMutationData = mock(MutationData.class);
+    doNothing().when(task).performReplaceBatch(any(), any());
+
+    Map<SinkRecord, MutationData> input =
+        IntStream.range(0, totalRecords)
+            .mapToObj(i -> new SinkRecord("", 1, null, null, null, null, i))
+            .collect(Collectors.toMap(i -> i, ignored -> commonMutationData));
+
+    Map<SinkRecord, Future<Void>> fakeMutationData = mock(Map.class);
+    task.replaceRows(input, fakeMutationData);
+
+    int expectedFullBatches = totalRecords / maxBatchSize;
+    int expectedPartialBatches = totalRecords % maxBatchSize == 0 ? 0 : 1;
+    int replaceRowsCalls = 1;
+
+    verify(task, times(expectedFullBatches))
+        .performReplaceBatch(argThat(v -> v.size() == maxBatchSize), any());
+    verify(task, times(expectedPartialBatches))
+        .performReplaceBatch(argThat(v -> v.size() != maxBatchSize), any());
+    assertTotalNumberOfInvocations(
+        task, expectedFullBatches + expectedPartialBatches + replaceRowsCalls);
+  }
+
+  @Test
+  public void testPerformReplaceBatch() throws ExecutionException, InterruptedException {
+    ApiException exception = ApiExceptionFactory.create();
+    doReturn(completedApiFuture(false))
+        .doReturn(completedApiFuture(true))
+        .doReturn(failedApiFuture(exception))
+        .when(bigtableData)
+        .checkAndMutateRowAsync(any());
+    task = new TestBigtableSinkTask(null, bigtableData, null, null, null, null, null);
+
+    SinkRecord falseRecord = new SinkRecord("", 1, null, null, null, null, 1);
+    SinkRecord trueRecord = new SinkRecord("", 1, null, null, null, null, 2);
+    SinkRecord exceptionRecord = new SinkRecord("", 1, null, null, null, null, 3);
+
+    MutationData commonMutationData = mock(MutationData.class);
+    doReturn("ignored").when(commonMutationData).getTargetTable();
+    doReturn(ByteString.copyFrom("ignored".getBytes(StandardCharsets.UTF_8)))
+        .when(commonMutationData)
+        .getRowKey();
+    doReturn(0L).when(commonMutationData).getTimestampMicros();
+    doReturn(Mutation.create()).when(commonMutationData).getMutation();
+
+    // LinkedHashMap, because we mock consecutive return values of Bigtable client mock and thus
+    // rely on the order.
+    Map<SinkRecord, MutationData> input = new LinkedHashMap<>();
+    input.put(falseRecord, commonMutationData);
+    input.put(trueRecord, commonMutationData);
+    input.put(exceptionRecord, commonMutationData);
+
+    Map<SinkRecord, Future<Void>> output = new HashMap<>();
+    task.performReplaceBatch(new ArrayList<>(input.entrySet()), output);
+    output.get(falseRecord).get();
+    output.get(trueRecord).get();
+    assertThrows(ExecutionException.class, () -> output.get(exceptionRecord).get());
+  }
+
+  private static class PutBranchesTestCase {
+    public final boolean autoCreateTables;
+    public final boolean autoCreateColumnFamilies;
+    public final InsertMode insertMode;
+
+    public PutBranchesTestCase(
+        boolean autoCreateTables, boolean autoCreateColumnFamilies, InsertMode insertMode) {
+      this.autoCreateTables = autoCreateTables;
+      this.autoCreateColumnFamilies = autoCreateColumnFamilies;
+      this.insertMode = insertMode;
+    }
+  }
+
+  @Test
   public void testPutBranches() {
     SinkRecord record1 = new SinkRecord("table1", 1, null, null, null, null, 1);
     SinkRecord record2 = new SinkRecord("table2", 1, null, null, null, null, 2);
 
-    for (List<Boolean> test :
+    for (PutBranchesTestCase testCase :
         List.of(
-            List.of(false, false, false),
-            List.of(false, false, true),
-            List.of(false, true, false),
-            List.of(false, true, true),
-            List.of(true, false, false),
-            List.of(true, false, true),
-            List.of(true, true, false),
-            List.of(true, true, true))) {
-      boolean autoCreateTables = test.get(0);
-      boolean autoCreateColumnFamilies = test.get(1);
-      boolean useInsertMode = test.get(2);
-
+            new PutBranchesTestCase(false, false, InsertMode.INSERT),
+            new PutBranchesTestCase(false, true, InsertMode.INSERT),
+            new PutBranchesTestCase(true, false, InsertMode.INSERT),
+            new PutBranchesTestCase(true, true, InsertMode.INSERT),
+            new PutBranchesTestCase(false, false, InsertMode.UPSERT),
+            new PutBranchesTestCase(false, true, InsertMode.UPSERT),
+            new PutBranchesTestCase(true, false, InsertMode.UPSERT),
+            new PutBranchesTestCase(true, true, InsertMode.UPSERT),
+            new PutBranchesTestCase(false, false, InsertMode.REPLACE_IF_NEWEST),
+            new PutBranchesTestCase(false, true, InsertMode.REPLACE_IF_NEWEST),
+            new PutBranchesTestCase(true, false, InsertMode.REPLACE_IF_NEWEST),
+            new PutBranchesTestCase(true, true, InsertMode.REPLACE_IF_NEWEST))) {
       Map<String, String> props = BasicPropertiesFactory.getTaskProps();
-      props.put(AUTO_CREATE_TABLES_CONFIG, Boolean.toString(autoCreateTables));
-      props.put(AUTO_CREATE_COLUMN_FAMILIES_CONFIG, Boolean.toString(autoCreateColumnFamilies));
-      props.put(INSERT_MODE_CONFIG, (useInsertMode ? InsertMode.INSERT : InsertMode.UPSERT).name());
+      props.put(AUTO_CREATE_TABLES_CONFIG, Boolean.toString(testCase.autoCreateTables));
+      props.put(
+          AUTO_CREATE_COLUMN_FAMILIES_CONFIG, Boolean.toString(testCase.autoCreateColumnFamilies));
+      props.put(INSERT_MODE_CONFIG, testCase.insertMode.name());
       config = new BigtableSinkTaskConfig(props);
 
       byte[] rowKey = "rowKey".getBytes(StandardCharsets.UTF_8);
       doReturn(rowKey).when(keyMapper).getKey(any());
       doAnswer(
-          i -> {
-            MutationDataBuilder builder = new MutationDataBuilder();
-            builder.deleteRow();
-            return builder;
-          })
+              i -> {
+                MutationDataBuilder builder = new MutationDataBuilder(0);
+                builder.deleteRow();
+                return builder;
+              })
           .when(valueMapper)
-          .getRecordMutationDataBuilder(any(), anyString(), anyLong());
+          .getRecordMutationDataBuilder(any(), anyString(), any(), anyLong());
 
       Batcher<RowMutationEntry, Void> batcher = mock(Batcher.class);
       doReturn(completedApiFuture(null)).when(batcher).add(any());
       doReturn(batcher).when(bigtableData).newBulkMutationBatcher(anyString());
+      doReturn(completedApiFuture(true)).when(bigtableData).checkAndMutateRowAsync(any());
       doReturn(new ResourceCreationResult(Collections.emptySet(), Collections.emptySet()))
           .when(schemaManager)
           .ensureTablesExist(any());
@@ -615,11 +714,15 @@ public class BigtableSinkTaskTest {
       task.put(List.of(record1, record2));
 
       verify(task, times(1)).prepareRecords(any());
-      verify(schemaManager, times(autoCreateTables ? 1 : 0)).ensureTablesExist(any());
-      verify(schemaManager, times(autoCreateColumnFamilies ? 1 : 0))
+      verify(schemaManager, times(testCase.autoCreateTables ? 1 : 0)).ensureTablesExist(any());
+      verify(schemaManager, times(testCase.autoCreateColumnFamilies ? 1 : 0))
           .ensureColumnFamiliesExist(any());
-      verify(task, times(useInsertMode ? 1 : 0)).insertRows(any(), any());
-      verify(task, times(useInsertMode ? 0 : 1)).upsertRows(any(), any());
+      verify(task, times(testCase.insertMode == InsertMode.INSERT ? 1 : 0))
+          .insertRows(any(), any());
+      verify(task, times(testCase.insertMode == InsertMode.UPSERT ? 1 : 0))
+          .upsertRows(any(), any());
+      verify(task, times(testCase.insertMode == InsertMode.REPLACE_IF_NEWEST ? 1 : 0))
+          .replaceRows(any(), any());
       verify(task, times(1)).handleResults(any());
 
       reset(task);

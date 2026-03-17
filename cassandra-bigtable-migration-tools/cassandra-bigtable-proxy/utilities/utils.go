@@ -20,7 +20,6 @@ import (
 	"encoding/base64"
 	"encoding/hex"
 	"fmt"
-	"reflect"
 	"sort"
 	"strconv"
 	"strings"
@@ -32,6 +31,7 @@ import (
 	"github.com/antlr4-go/antlr/v4"
 	"github.com/datastax/go-cassandra-native-protocol/datatype"
 	"github.com/datastax/go-cassandra-native-protocol/primitive"
+	"github.com/google/uuid"
 )
 
 // from https://cassandra.apache.org/doc/4.0/cassandra/cql/appendices.html#appendix-A
@@ -248,7 +248,7 @@ func IsSupportedPrimaryKeyType(dt types.CqlDataType) bool {
 	}
 
 	switch dt.DataType() {
-	case datatype.Int, datatype.Bigint, datatype.Varchar, datatype.Timestamp, datatype.Blob, datatype.Ascii:
+	case datatype.Int, datatype.Bigint, datatype.Varchar, datatype.Timestamp, datatype.Blob, datatype.Ascii, datatype.Uuid, datatype.Timeuuid:
 		return true
 	default:
 		return false
@@ -263,7 +263,7 @@ func ParseBigInt(value string) (int64, error) {
 	return val, err
 }
 
-func GoToString(value types.GoValue) (string, error) {
+func GoToQueryString(value types.GoValue) (string, error) {
 	if value == nil {
 		return "null", nil
 	}
@@ -288,6 +288,12 @@ func GoToString(value types.GoValue) (string, error) {
 		}
 	case time.Time:
 		return fmt.Sprintf("TIMESTAMP_FROM_UNIX_MILLIS(%d)", v.UnixMilli()), nil
+	case uuid.UUID:
+		encoded := base64.StdEncoding.EncodeToString(v[:])
+		return fmt.Sprintf("FROM_BASE64('%s')", encoded), nil
+	case primitive.UUID:
+		encoded := base64.StdEncoding.EncodeToString(v[:])
+		return fmt.Sprintf("FROM_BASE64('%s')", encoded), nil
 	case []uint8:
 		encoded := base64.StdEncoding.EncodeToString(v)
 		// note: Bigtable limits SQL strings to 1,024k characters while Cassandra has no official limit. We only encode blobs to base64 when a literal is used. Placeholders will not have this issue.
@@ -295,7 +301,7 @@ func GoToString(value types.GoValue) (string, error) {
 	case []interface{}:
 		var values []string
 		for _, vi := range v {
-			s, err := GoToString(vi)
+			s, err := GoToQueryString(vi)
 			if err != nil {
 				return "", err
 			}
@@ -345,6 +351,18 @@ func StringToGo(value string, cqlType types.CqlDataType) (types.GoValue, error) 
 			return nil, fmt.Errorf("error converting string to timestamp: %w", err)
 		}
 		return val, nil
+	case datatype.Uuid:
+		u, err := uuid.Parse(value)
+		if err != nil {
+			return nil, err
+		}
+		return primitive.UUID(u), nil
+	case datatype.Timeuuid:
+		u, err := uuid.Parse(value)
+		if err != nil {
+			return nil, err
+		}
+		return primitive.UUID(u), nil
 	case datatype.Blob:
 		// remove the '0x' prefix that CQL requires for blob literals
 		if strings.HasPrefix(value, "0x") || strings.HasPrefix(value, "0X") {
@@ -444,7 +462,7 @@ func parseCqlTimestamp(timestampStr string) (time.Time, error) {
 
 func isSupportedCollectionElementType(dt datatype.DataType) bool {
 	switch dt {
-	case datatype.Int, datatype.Bigint, datatype.Varchar, datatype.Float, datatype.Double, datatype.Timestamp, datatype.Boolean, datatype.Ascii:
+	case datatype.Int, datatype.Bigint, datatype.Varchar, datatype.Float, datatype.Double, datatype.Timestamp, datatype.Boolean, datatype.Ascii, datatype.Uuid, datatype.Timeuuid:
 		return true
 	default:
 		return false
@@ -457,7 +475,7 @@ func IsSupportedColumnType(dt types.CqlDataType) bool {
 	}
 
 	switch dt.DataType().GetDataTypeCode() {
-	case primitive.DataTypeCodeInt, primitive.DataTypeCodeBigint, primitive.DataTypeCodeBlob, primitive.DataTypeCodeBoolean, primitive.DataTypeCodeDouble, primitive.DataTypeCodeFloat, primitive.DataTypeCodeTimestamp, primitive.DataTypeCodeText, primitive.DataTypeCodeVarchar, primitive.DataTypeCodeCounter, primitive.DataTypeCodeAscii:
+	case primitive.DataTypeCodeInt, primitive.DataTypeCodeBigint, primitive.DataTypeCodeBlob, primitive.DataTypeCodeBoolean, primitive.DataTypeCodeDouble, primitive.DataTypeCodeFloat, primitive.DataTypeCodeTimestamp, primitive.DataTypeCodeText, primitive.DataTypeCodeVarchar, primitive.DataTypeCodeCounter, primitive.DataTypeCodeAscii, primitive.DataTypeCodeUuid, primitive.DataTypeCodeTimeuuid:
 		return true
 	case primitive.DataTypeCodeMap:
 		mapType := dt.DataType().(datatype.MapType)
@@ -680,7 +698,7 @@ func ParseCqlType(dtc cql.IDataTypeContext) (types.CqlDataType, error) {
 		}
 		return types.TypeTinyint, nil
 	default:
-		return nil, fmt.Errorf("unknown data type name: '%s' in type '%s'", dataTypeName, dtc)
+		return nil, fmt.Errorf("unknown data type name: '%s'", dataTypeName)
 	}
 }
 
@@ -708,104 +726,4 @@ func validateDataTypeDefinition(dt cql.IDataTypeContext, expectedTypeCount int) 
 		return fmt.Errorf("missing closing type bracket in: '%s'", dt.GetText())
 	}
 	return nil
-}
-
-func GetValueInt32(value types.DynamicValue, values *types.QueryParameterValues) (int32, error) {
-	v, err := value.GetValue(values)
-	if err != nil {
-		return 0, err
-	}
-	intVal, ok := v.(int32)
-	if !ok {
-		return 0, fmt.Errorf("query value is a %T, not an int32", v)
-	}
-	return intVal, nil
-}
-
-func GetValueInt64(value types.DynamicValue, values *types.QueryParameterValues) (int64, error) {
-	v, err := value.GetValue(values)
-	if err != nil {
-		return 0, err
-	}
-	intVal, ok := v.(int64)
-	if !ok {
-		return 0, fmt.Errorf("query value is a %T, not an int64", v)
-	}
-	return intVal, nil
-}
-
-func GetValueSlice(value types.DynamicValue, values *types.QueryParameterValues) ([]types.GoValue, error) {
-	v, err := value.GetValue(values)
-	if err != nil {
-		return nil, err
-	}
-
-	if v == nil {
-		return nil, nil
-	}
-
-	val := reflect.ValueOf(v)
-
-	if val.Kind() != reflect.Slice {
-		return nil, fmt.Errorf("query value is a %T, not a slice", v)
-	}
-
-	length := val.Len()
-	result := make([]types.GoValue, length)
-
-	for i := 0; i < length; i++ {
-		anyVal := val.Index(i).Interface()
-		if anyVal == nil {
-			// don't allow collections to contain null elements to be consistent with Cassandra
-			return nil, fmt.Errorf("collection items are not allowed to be null")
-		}
-		result[i] = anyVal
-	}
-
-	return result, nil
-}
-
-func GetValueMap(value types.DynamicValue, values *types.QueryParameterValues) (map[types.GoValue]types.GoValue, error) {
-	v, err := value.GetValue(values)
-	if err != nil {
-		return nil, err
-	}
-
-	if v == nil {
-		return nil, nil
-	}
-
-	val := reflect.ValueOf(v)
-
-	if val.Kind() != reflect.Map {
-		return nil, fmt.Errorf("value is a %T, not a map", v)
-	}
-
-	result := make(map[types.GoValue]types.GoValue, val.Len())
-
-	// 3. Iterate over the keys of the original map
-	iter := val.MapRange()
-	for iter.Next() {
-		// Get the reflection Parameter for the key and the value
-		keyVal := iter.Key()
-		valueVal := iter.Value()
-
-		// 4. Use .Interface() to convert the concrete key/value to an any (interface{})
-		keyAny := keyVal.Interface()
-		valueAny := valueVal.Interface()
-
-		if keyAny == nil {
-			// don't allow collections to contain null elements to be consistent with Cassandra
-			return nil, fmt.Errorf("map keys cannot be null")
-		}
-
-		if valueAny == nil {
-			// don't allow collections to contain null elements to be consistent with Cassandra
-			return nil, fmt.Errorf("map values cannot be null")
-		}
-
-		// 5. Add to the new map[any]any
-		result[keyAny] = valueAny
-	}
-	return result, nil
 }

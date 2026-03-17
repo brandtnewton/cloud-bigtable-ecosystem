@@ -22,6 +22,8 @@ import (
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/global/types"
 	"github.com/datastax/go-cassandra-native-protocol/datatype"
 	"github.com/datastax/go-cassandra-native-protocol/message"
+	"github.com/datastax/go-cassandra-native-protocol/primitive"
+	"github.com/google/uuid"
 )
 
 const (
@@ -116,15 +118,15 @@ func addBindValueIfNeeded(dynamicValue types.DynamicValue, values *types.QueryPa
 	if dynamicValue == nil {
 		return nil
 	}
-	param, ok := dynamicValue.(*types.ParameterizedValue)
-	if !ok {
+	p := dynamicValue.GetParameter()
+	if p == "" {
 		return nil
 	}
 
 	var value any
 	if needsByteConversion {
 		var err error
-		value, err = param.GetValue(values)
+		value, err = dynamicValue.GetValue(values)
 		if err != nil {
 			return err
 		}
@@ -135,12 +137,26 @@ func addBindValueIfNeeded(dynamicValue types.DynamicValue, values *types.QueryPa
 		}
 	} else {
 		var err error
-		value, err = param.GetValue(values)
+		value, err = dynamicValue.GetValue(values)
 		if err != nil {
 			return err
 		}
+		// ensure UUIDs are converted to []byte for Bigtable SQL
+		switch v := value.(type) {
+		case primitive.UUID:
+			value = v[:]
+		case [16]byte:
+			value = v[:]
+		}
 	}
-	result[string(param.Parameter)] = value
+	if u, ok := value.(uuid.UUID); ok {
+		b, err := u.MarshalBinary()
+		if err != nil {
+			return err
+		}
+		value = b
+	}
+	result[string(p)] = value
 	return nil
 }
 
@@ -182,12 +198,12 @@ func addParamIfNeeded(value types.DynamicValue, params *types.QueryParameters, n
 		return nil
 	}
 
-	param, ok := value.(*types.ParameterizedValue)
-	if !ok {
+	p := value.GetParameter()
+	if p == "" {
 		return nil
 	}
 
-	md, err := params.GetMetadata(param.Parameter)
+	md, err := params.GetMetadata(p)
 	if err != nil {
 		return err
 	}
@@ -196,6 +212,6 @@ func addParamIfNeeded(value types.DynamicValue, params *types.QueryParameters, n
 	if needsByteConversion {
 		bigtableType = bigtable.BytesSQLType{}
 	}
-	result[string(param.Parameter)] = bigtableType
+	result[string(p)] = bigtableType
 	return nil
 }

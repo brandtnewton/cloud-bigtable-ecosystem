@@ -54,15 +54,15 @@ func minUUIDv1ForTime(t time.Time) (uuid.UUID, error) {
 	u[8] = 0x80
 
 	// clock_seq_low (byte 9, 8 bits)
-	u[9] = 0x80 // Min 8 bits
+	u[9] = 0x00 // Min 8 bits
 
 	// Node ID (bytes 10-15, 48 bits) - set to all 0's (min)
-	u[10] = 0x80
-	u[11] = 0x80
-	u[12] = 0x80
-	u[13] = 0x80
-	u[14] = 0x80
-	u[15] = 0x80
+	u[10] = 0x00
+	u[11] = 0x00
+	u[12] = 0x00
+	u[13] = 0x00
+	u[14] = 0x00
+	u[15] = 0x00
 
 	// Create the UUID from the byte array
 	return u, nil

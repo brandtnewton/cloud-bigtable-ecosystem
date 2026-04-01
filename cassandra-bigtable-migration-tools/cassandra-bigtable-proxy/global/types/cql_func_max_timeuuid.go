@@ -13,7 +13,7 @@ func (f *FuncMaxTimeuuid) GetValidClauses() []QueryClause {
 }
 
 func (f *FuncMaxTimeuuid) GetName() string {
-	return "minTimeuuid"
+	return "maxTimeuuid"
 }
 
 func (f *FuncMaxTimeuuid) GetCode() CqlFuncCode {
@@ -56,18 +56,18 @@ func maxUUIDv1ForTime(t time.Time) (uuid.UUID, error) {
 	// clock_seq_hi_and_variant (byte 8, 8 bits)
 	// The variant bits must be 10 (0x80 to 0xBF). We set the clock sequence to max.
 	// 0xBF is 0b10111111 (variant 10 and max 6 bits for the clock sequence high part)
-	u[8] = 0x7f
+	u[8] = 0xBF
 
 	// clock_seq_low (byte 9, 8 bits)
-	u[9] = 0x7f
+	u[9] = 0xFF
 
 	// Node ID (bytes 10-15, 48 bits) - set to all F's (max)
-	u[10] = 0x7f
-	u[11] = 0x7f
-	u[12] = 0x7f
-	u[13] = 0x7f
-	u[14] = 0x7f
-	u[15] = 0x7f
+	u[10] = 0xFF
+	u[11] = 0xFF
+	u[12] = 0xFF
+	u[13] = 0xFF
+	u[14] = 0xFF
+	u[15] = 0xFF
 
 	// Create the UUID from the byte array
 	return u, nil

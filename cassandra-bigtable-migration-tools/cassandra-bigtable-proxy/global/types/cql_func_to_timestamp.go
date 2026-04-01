@@ -41,7 +41,7 @@ func (f *FuncToTimestamp) Apply(args []DynamicValue, values *QueryParameterValue
 }
 
 func (f *FuncToTimestamp) GetReturnType(_ []DynamicValue) CqlDataType {
-	return TypeTimeuuid
+	return TypeTimestamp
 }
 
 func getTimeFromUUID(id uuid.UUID) (time.Time, error) {

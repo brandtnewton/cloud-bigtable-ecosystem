@@ -147,9 +147,9 @@ func TestInsertTimeUuidNull(t *testing.T) {
 func TestValidateMaxAndMin(t *testing.T) {
 	inputTime := time.Date(2025, 12, 12, 13, 20, 42, 456000000, time.UTC)
 
-	minUuid, err := gocql.ParseUUID("5c09c580-d75d-11f0-8080-808080808080")
+	minUuid, err := gocql.ParseUUID("5c09c580-d75d-11f0-0000-000000000000")
 	require.NoError(t, err)
-	maxUuid, err := gocql.ParseUUID("5c09ec8f-d75d-11f0-7f7f-7f7f7f7f7f7f")
+	maxUuid, err := gocql.ParseUUID("5c09ec8f-d75d-11f0-ffff-ffffffffffff")
 	require.NoError(t, err)
 
 	require.NoError(t, session.Query(`INSERT INTO timeuuid_key (pk, id, val, parentEvent) VALUES ('timeuuid-validate', ?, '3', now())`, minUuid).Exec())

@@ -27,6 +27,8 @@ import (
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/third_party/datastax/proxycore"
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/utilities"
 	"github.com/datastax/go-cassandra-native-protocol/message"
+	"github.com/datastax/go-cassandra-native-protocol/primitive"
+	"github.com/gocql/gocql"
 	"go.uber.org/zap"
 	"time"
 )
@@ -158,7 +160,14 @@ func rowValueToGoValue(val any, expectedType types.CqlDataType) (types.GoValue, 
 		}
 		return goVal, nil
 	case []byte:
-		return v, nil
+		switch expectedType.Code() {
+		case types.UUID:
+			return primitive.UUID(v), nil
+		case types.TIMEUUID:
+			return primitive.UUID(v), nil
+		default:
+			return v, nil
+		}
 	case map[string]*int64:
 		// counters are always a column family with a single column with an empty qualifier
 		counterValue, ok := v[""]
@@ -268,9 +277,18 @@ func rowValueToGoValue(val any, expectedType types.CqlDataType) (types.GoValue, 
 			return nil, fmt.Errorf("unhandled type coersion: %T to %s", v, expectedType.String())
 		}
 	case time.Time:
+		if expectedType.Code() == types.TIMEUUID {
+			// This happens for now() which we translate to CURRENT_TIMESTAMP()
+			// We must use the time from Bigtable to generate the UUID.
+			return primitive.UUID(gocql.UUIDFromTime(v)), nil
+		}
 		return v, nil
 	case nil:
 		return nil, nil
+	case [16]byte:
+		return primitive.UUID(v), nil
+	case primitive.UUID:
+		return v, nil
 	case []*string:
 		return v, nil
 	default:

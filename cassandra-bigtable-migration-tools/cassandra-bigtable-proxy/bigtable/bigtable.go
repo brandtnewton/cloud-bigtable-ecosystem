@@ -305,16 +305,9 @@ func (btc *BigtableAdapter) updateRow(ctx context.Context, input *types.Bigtable
 }
 
 func (btc *BigtableAdapter) deleteRow(ctx context.Context, deleteQueryData *types.BoundDeleteQuery) (message.Message, error) {
-	ctx, span := btc.otelInst.StartSpan(ctx, spanDeleteRow, []attribute.KeyValue{
-		attribute.String("Keyspace", string(deleteQueryData.Keyspace())),
-		attribute.String("Table", string(deleteQueryData.Table())),
-	})
-	defer btc.otelInst.EndSpan(span)
-
 	otelgo.AddAnnotation(ctx, applyingDeleteMutation)
 	client, err := btc.clients.GetClient(deleteQueryData.Keyspace())
 	if err != nil {
-		btc.otelInst.RecordError(span, err)
 		return nil, err
 	}
 	table := client.Open(string(deleteQueryData.Table()))
@@ -322,7 +315,6 @@ func (btc *BigtableAdapter) deleteRow(ctx context.Context, deleteQueryData *type
 
 	err = btc.buildDeleteMutation(ctx, table, deleteQueryData, mut)
 	if err != nil {
-		btc.otelInst.RecordError(span, err)
 		return nil, err
 	}
 	if deleteQueryData.IfExists {
@@ -331,11 +323,9 @@ func (btc *BigtableAdapter) deleteRow(ctx context.Context, deleteQueryData *type
 		matched := true
 		err := table.Apply(ctx, string(deleteQueryData.RowKey()), conditionalMutation, bigtable.GetCondMutationResult(&matched))
 		if err != nil {
-			btc.otelInst.RecordError(span, err)
 			return nil, err
 		}
 
-		span.SetStatus(otelcodes.Ok, "")
 		if !matched {
 			return GenerateAppliedRowsResult(deleteQueryData.Keyspace(), deleteQueryData.Table(), false), nil
 		} else {
@@ -344,12 +334,10 @@ func (btc *BigtableAdapter) deleteRow(ctx context.Context, deleteQueryData *type
 	} else {
 		err := table.Apply(ctx, string(deleteQueryData.RowKey()), mut)
 		if err != nil {
-			btc.otelInst.RecordError(span, err)
 			return nil, err
 		}
 	}
 	otelgo.AddAnnotation(ctx, deleteMutationApplied)
-	span.SetStatus(otelcodes.Ok, "")
 	return &message.VoidResult{}, nil
 }
 
@@ -386,16 +374,8 @@ func (btc *BigtableAdapter) buildDeleteMutation(ctx context.Context, table *bigt
 //   - BulkOperationResponse: Response indicating the result of the bulk operation.
 //   - error: Error if the bulk mutation fails.
 func (btc *BigtableAdapter) ApplyBulkMutation(ctx context.Context, keyspace types.Keyspace, tableName types.TableName, mutationData []types.IBigtableMutation) (BulkOperationResponse, error) {
-	ctx, span := btc.otelInst.StartSpan(ctx, spanApplyBulkMutation, []attribute.KeyValue{
-		attribute.String("Keyspace", string(keyspace)),
-		attribute.String("Table", string(tableName)),
-		attribute.Int("Batch Size", len(mutationData)),
-	})
-	defer btc.otelInst.EndSpan(span)
-
 	client, err := btc.clients.GetClient(keyspace)
 	if err != nil {
-		btc.otelInst.RecordError(span, err)
 		return BulkOperationResponse{
 			FailedRows: "All Rows are failed",
 		}, err
@@ -405,7 +385,6 @@ func (btc *BigtableAdapter) ApplyBulkMutation(ctx context.Context, keyspace type
 
 	schema, err := btc.schemaManager.Schemas().GetTableSchema(keyspace, tableName)
 	if err != nil {
-		btc.otelInst.RecordError(span, err)
 		return BulkOperationResponse{
 			FailedRows: "All Rows are failed",
 		}, err
@@ -423,7 +402,6 @@ func (btc *BigtableAdapter) ApplyBulkMutation(ctx context.Context, keyspace type
 		case *types.BigtableWriteMutation:
 			err := btc.buildMutation(ctx, table, v, mut, schema)
 			if err != nil {
-				btc.otelInst.RecordError(span, err)
 				return BulkOperationResponse{
 					FailedRows: fmt.Sprintf("All Rows are failed because: %s", err.Error()),
 				}, err
@@ -431,14 +409,12 @@ func (btc *BigtableAdapter) ApplyBulkMutation(ctx context.Context, keyspace type
 		case *types.BoundDeleteQuery:
 			err := btc.buildDeleteMutation(ctx, table, v, mut)
 			if err != nil {
-				btc.otelInst.RecordError(span, err)
 				return BulkOperationResponse{
 					FailedRows: fmt.Sprintf("All Rows are failed because: %s", err.Error()),
 				}, err
 			}
 		default:
 			err := fmt.Errorf("unhandled bulk mutation type %T", md)
-			btc.otelInst.RecordError(span, err)
 			return BulkOperationResponse{
 				FailedRows: fmt.Sprintf("All Rows are failed because: unsupported bulk operation: %T", v),
 			}, err
@@ -456,7 +432,6 @@ func (btc *BigtableAdapter) ApplyBulkMutation(ctx context.Context, keyspace type
 
 	errs, err := table.ApplyBulk(ctx, rowKeys, mutations)
 	if err != nil {
-		btc.otelInst.RecordError(span, err)
 		return BulkOperationResponse{
 			FailedRows: "All Rows are failed",
 		}, fmt.Errorf("ApplyBulk: %w", err)
@@ -473,12 +448,10 @@ func (btc *BigtableAdapter) ApplyBulkMutation(ctx context.Context, keyspace type
 		res = BulkOperationResponse{
 			FailedRows: fmt.Sprintf("failed rowkeys: %v", failedRows),
 		}
-		btc.otelInst.RecordError(span, fmt.Errorf(res.FailedRows))
 	} else {
 		res = BulkOperationResponse{
 			FailedRows: "",
 		}
-		span.SetStatus(otelcodes.Ok, "")
 	}
 	otelgo.AddAnnotation(ctx, bulkMutationApplied)
 	return res, nil
@@ -575,8 +548,8 @@ func (btc *BigtableAdapter) PrepareStatement(ctx context.Context, query types.IP
 		return nil, nil
 	}
 
-	selectQuery, ok := query.(*types.PreparedSelectQuery)
-	if !ok {
+	selectQuery, isType := query.(*types.PreparedSelectQuery)
+	if !isType {
 		// only select queries can be prepared in Bigtable at this time
 		span.SetStatus(otelcodes.Ok, "")
 		return nil, nil

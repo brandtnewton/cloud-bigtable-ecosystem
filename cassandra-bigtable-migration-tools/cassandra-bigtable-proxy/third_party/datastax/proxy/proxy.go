@@ -15,22 +15,13 @@
 package proxy
 
 import (
-	"bytes"
 	"context"
-	"crypto/md5"
 	"errors"
 	"fmt"
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/executors"
-	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/parser"
-	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/responsehandler"
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/system_tables"
-	cql "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/third_party/cqlparser"
-	"go.opentelemetry.io/otel/codes"
-	"io"
 	"net"
-	"strings"
 	"sync"
-	"time"
 
 	bigtableModule "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/bigtable"
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/global/types"
@@ -38,11 +29,9 @@ import (
 	otelgo "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/otel"
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/third_party/datastax/proxycore"
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/translators"
-	"github.com/datastax/go-cassandra-native-protocol/frame"
 	"github.com/datastax/go-cassandra-native-protocol/message"
 	"github.com/datastax/go-cassandra-native-protocol/primitive"
 	lru "github.com/hashicorp/golang-lru"
-	"go.opentelemetry.io/otel/attribute"
 	"go.uber.org/zap"
 )
 
@@ -52,16 +41,21 @@ var ErrProxyNotConnected = errors.New("proxy not connected")
 
 const preparedIdSize = 16
 const Query = "CqlQuery"
+const QueryType = "QueryType"
 const translatorErrorMessage = "Error occurred at translators"
 const errorAtBigtable = "Error occurred at bigtable - "
 const errorWhileDecoding = "Error while decoding bytes - "
 const unhandledScenario = "Unhandled execution Scenario for prepared CqlQuery"
 const errQueryNotPrepared = "query is not prepared"
+
 const (
-	handleQuery   = "handleQuery"
-	handleBatch   = "Batch"
-	handlePrepare = "Prepare"
-	handleExecute = "Execute"
+	traceNamespace = "cassandra.bigtable.proxy"
+	handleQuery    = traceNamespace + "/HandleQuery"
+	handleBatch    = traceNamespace + "/ExecuteBatch"
+	handlePrepare  = traceNamespace + "/PrepareQuery"
+	handleExecute  = traceNamespace + "/ExecuteQuery"
+	handleRegister = traceNamespace + "/ExecuteRegister"
+	handleOptions  = traceNamespace + "/ExecuteOptions"
 )
 
 // Events
@@ -86,7 +80,6 @@ type Proxy struct {
 	listeners          map[*net.Listener]struct{}
 	eventClients       sync.Map
 	preparedQueryCache proxycore.PreparedCache[types.IPreparedQuery]
-	queryMetadataCache proxycore.PreparedCache[*message.PreparedResult]
 	systemLocalValues  map[string]message.Column
 	closed             chan struct{}
 	localNode          *node
@@ -153,9 +146,9 @@ func NewProxy(ctx context.Context, logger *zap.Logger, config *types.ProxyInstan
 		return nil, err
 	}
 
-	bigtableClient := bigtableModule.NewBigtableClient(clientManager, logger, config.BigtableConfig, metadataStore, otelInst)
+	bigtableClient := bigtableModule.NewBigtableClient(clientManager, logger, config.BigtableConfig, metadataStore)
 
-	translator := translators.NewTranslatorManager(logger, metadataStore.Schemas(), config.BigtableConfig)
+	translator := translators.NewTranslatorManager(logger, metadataStore.Schemas(), config.BigtableConfig, otelInst)
 
 	systemTables := system_tables.NewSystemTableManager(metadataStore, logger)
 
@@ -171,7 +164,7 @@ func NewProxy(ctx context.Context, logger *zap.Logger, config *types.ProxyInstan
 		metadataStore:      metadataStore,
 		bigtableClient:     bigtableClient,
 		translator:         translator,
-		executor:           executors.NewQueryExecutorManager(logger, metadataStore.Schemas(), bigtableClient, systemTables.Db()),
+		executor:           executors.NewQueryExecutorManager(logger, metadataStore.Schemas(), bigtableClient, systemTables.Db(), otelInst),
 		otelInst:           otelInst,
 		otelShutdown:       shutdownOTel,
 	}
@@ -196,10 +189,6 @@ func (p *Proxy) Connect() error {
 	var err error
 	const cacheSize = 1e8 / 256 // ~100MB with an average query size of 256 bytes
 	p.preparedQueryCache, err = NewDefaultPreparedCache[types.IPreparedQuery](cacheSize)
-	if err != nil {
-		return fmt.Errorf("unable to create cache: %w", err)
-	}
-	p.queryMetadataCache, err = NewDefaultPreparedCache[*message.PreparedResult](cacheSize)
 	if err != nil {
 		return fmt.Errorf("unable to create cache: %w", err)
 	}
@@ -408,407 +397,6 @@ func (p *Proxy) removeClient(cl *client) {
 
 }
 
-type Sender interface {
-	Send(hdr *frame.Header, msg message.Message)
-}
-
-type client struct {
-	sessionKeyspace types.Keyspace
-	ctx             context.Context
-	proxy           *Proxy
-	conn            *proxycore.Conn
-	sender          Sender
-}
-
-func (c *client) SetSessionKeyspace(k types.Keyspace) {
-	c.sessionKeyspace = k
-}
-
-func (c *client) Receive(reader io.Reader) error {
-	raw, err := codec.DecodeRawFrame(reader)
-	if err != nil {
-		if !errors.Is(err, io.EOF) {
-			c.proxy.logger.Error("unable to decode frame", zap.Error(err))
-		}
-		return err
-	}
-
-	if raw.Header.Version > c.proxy.config.Options.MaxProtocolVersion || raw.Header.Version < primitive.ProtocolVersion3 {
-		c.sender.Send(raw.Header, &message.ProtocolError{
-			ErrorMessage: fmt.Sprintf("Invalid or unsupported protocol version %d", raw.Header.Version),
-		})
-		return nil
-	}
-
-	body, err := codec.DecodeBody(raw.Header, bytes.NewReader(raw.Body))
-	if err != nil {
-		c.proxy.logger.Error("unable to decode body", zap.Error(err))
-		return err
-	}
-
-	switch msg := body.Message.(type) {
-	case *message.Options:
-		// CC - responding with status READY
-		c.sender.Send(raw.Header, &message.Supported{Options: map[string][]string{
-			"CQL_VERSION": {c.proxy.config.Options.CQLVersion},
-			"COMPRESSION": {},
-		}})
-	case *message.Startup:
-		// CC -  register for Event types and respond READY
-		c.sender.Send(raw.Header, &message.Ready{})
-	case *message.Register:
-		c.proxy.logger.Info("Client registered for events", zap.Any("event_types", msg.EventTypes))
-		for _, t := range msg.EventTypes {
-			if t == primitive.EventTypeSchemaChange {
-				c.proxy.registerForEvents(c)
-			}
-		}
-		c.sender.Send(raw.Header, &message.Ready{})
-	case *message.Prepare:
-		c.handlePrepare(raw, msg)
-	case *partialExecute:
-		c.handleExecute(raw, msg)
-	case *partialQuery:
-		c.handleQuery(raw, msg)
-	case *partialBatch:
-		c.handleBatch(raw, msg)
-	default:
-		c.sender.Send(raw.Header, &message.ProtocolError{ErrorMessage: "Unsupported operation"})
-	}
-	return nil
-}
-
-func (c *client) handlePrepare(raw *frame.RawFrame, msg *message.Prepare) {
-	startTime := time.Now()
-	otelCtx, span := c.proxy.otelInst.StartSpan(c.proxy.ctx, handlePrepare, []attribute.KeyValue{
-		attribute.String(Query, msg.Query),
-	})
-	defer c.proxy.otelInst.EndSpan(span)
-
-	var otelErr error
-	queryType := types.QueryTypeUnknown.String()
-	defer func() {
-		c.proxy.otelInst.RecordMetrics(otelCtx, handlePrepare, startTime, queryType, c.sessionKeyspace, otelErr)
-	}()
-
-	id := c.getQueryId(msg)
-	if response, found := c.proxy.queryMetadataCache.Load(id); found {
-		span.SetAttributes(attribute.Bool("Cache Hit", true))
-		c.sender.Send(raw.Header, response)
-		return
-	}
-	span.SetAttributes(attribute.Bool("Cache Hit", false))
-
-	c.proxy.logger.Debug("preparing query", zap.String(Query, msg.Query), zap.Int16("stream", raw.Header.StreamId))
-
-	keyspace := c.sessionKeyspace
-	if len(msg.Keyspace) != 0 {
-		keyspace = types.Keyspace(msg.Keyspace)
-	}
-
-	p := parser.GetParser(msg.Query)
-	qt, err := parseQueryType(p)
-	if err != nil {
-		otelErr = err
-		c.proxy.otelInst.RecordError(span, otelErr)
-		c.proxy.logger.Error("error parsing query to see if it's handled", zap.String(Query, msg.Query), zap.Error(err))
-		c.sender.Send(raw.Header, &message.Invalid{ErrorMessage: err.Error()})
-		return
-	}
-
-	rawQuery := types.NewRawQuery(raw.Header, keyspace, msg.Query, p, qt)
-	otelErr = c.handleServerPreparedQuery(otelCtx, rawQuery, id)
-	if otelErr != nil {
-		c.proxy.otelInst.RecordError(span, otelErr)
-		return
-	}
-	span.SetStatus(codes.Ok, "")
-}
-
-func parseQueryType(p *parser.ProxyCqlParser) (types.QueryType, error) {
-	tok := p.GetFirstToken()
-	t := tok.GetTokenType()
-	switch t {
-	case cql.CqlLexerK_SELECT:
-		return types.QueryTypeSelect, nil
-	case cql.CqlLexerK_INSERT:
-		return types.QueryTypeInsert, nil
-	case cql.CqlLexerK_UPDATE:
-		return types.QueryTypeUpdate, nil
-	case cql.CqlLexerK_DELETE:
-		return types.QueryTypeDelete, nil
-	case cql.CqlLexerK_CREATE:
-		return types.QueryTypeCreate, nil
-	case cql.CqlLexerK_ALTER:
-		return types.QueryTypeAlter, nil
-	case cql.CqlLexerK_DROP:
-		return types.QueryTypeDrop, nil
-	case cql.CqlLexerK_TRUNCATE:
-		return types.QueryTypeTruncate, nil
-	case cql.CqlLexerK_USE:
-		return types.QueryTypeUse, nil
-	case cql.CqlLexerK_DESCRIBE, cql.CqlLexerK_DESC:
-		return types.QueryTypeDescribe, nil
-	default:
-		return types.QueryTypeUnknown, fmt.Errorf("unsupported query type: %s", tok.String())
-	}
-}
-
-func (c *client) getQueryId(msg *message.Prepare) [16]byte {
-	// Generating unique prepared query_id
-	return md5.Sum([]byte(msg.Query + string(c.sessionKeyspace)))
-}
-
-// handleServerPreparedQuery handle prepared query that was supposed to run on cassandra server
-// This method will keep track of prepared query in a map and send hashed query_id with result
-// metadata and variable column metadata to the client
-//
-// Parameters:
-//   - raw: *frame.RawFrame
-//   - msg: *message.Prepare
-//
-// Returns: error if any error occurs during preparation
-func (c *client) handleServerPreparedQuery(ctx context.Context, query *types.RawQuery, id [16]byte) error {
-	preparedQuery, err := c.prepareQuery(ctx, query)
-	if err != nil {
-		c.proxy.logger.Error(translatorErrorMessage, zap.String(Query, query.RawCql()), zap.Error(err))
-		c.sender.Send(query.Header(), &message.Invalid{ErrorMessage: err.Error()})
-		return err
-	}
-
-	response, err := responsehandler.BuildPreparedResultResponse(id, preparedQuery)
-	if err != nil {
-		c.proxy.logger.Error("error building prepared result response", zap.String(Query, query.RawCql()), zap.Error(err))
-		c.sender.Send(query.Header(), &message.Invalid{ErrorMessage: err.Error()})
-		return err
-	}
-
-	// update caches
-	c.proxy.preparedQueryCache.Store(id, preparedQuery)
-	c.proxy.queryMetadataCache.Store(id, response)
-
-	c.sender.Send(query.Header(), response)
-	return nil
-}
-
-func (c *client) prepareQuery(ctx context.Context, query *types.RawQuery) (types.IPreparedQuery, error) {
-	preparedQuery, err := c.proxy.translator.TranslateQuery(query, c.sessionKeyspace)
-	if err != nil {
-		return nil, err
-	}
-
-	btPreparedQuery, err := c.proxy.bigtableClient.PrepareStatement(ctx, preparedQuery)
-	if err != nil {
-		return nil, fmt.Errorf("failed to prepare bigtable statement `%s`: %w", preparedQuery.BigtableQuery(), err)
-	}
-	preparedQuery.SetBigtablePreparedQuery(btPreparedQuery)
-
-	return preparedQuery, err
-}
-
-// handleExecute for prepared query
-func (c *client) handleExecute(raw *frame.RawFrame, msg *partialExecute) {
-	startTime := time.Now()
-	otelCtx, span := c.proxy.otelInst.StartSpan(c.proxy.ctx, handleExecute, nil)
-	defer c.proxy.otelInst.EndSpan(span)
-
-	var otelErr error
-	queryType := types.QueryTypeUnknown.String()
-	var preparedStmt types.IPreparedQuery
-	defer func() {
-		c.proxy.otelInst.RecordMetrics(otelCtx, handleExecute, startTime, queryType, c.sessionKeyspace, otelErr)
-	}()
-
-	id := preparedIdKey(msg.queryId)
-
-	var ok bool
-	preparedStmt, ok = c.proxy.preparedQueryCache.Load(id)
-	if !ok {
-		otelErr = errors.New(errQueryNotPrepared)
-		c.proxy.otelInst.RecordError(span, otelErr)
-		c.proxy.logger.Error(errQueryNotPrepared)
-		c.sender.Send(raw.Header, &message.ServerError{ErrorMessage: errQueryNotPrepared})
-		return
-	}
-
-	span.SetAttributes(attribute.String(Query, preparedStmt.CqlQuery()))
-	queryType = preparedStmt.QueryType().String()
-
-	boundQuery, err := c.proxy.translator.BindQuery(preparedStmt, msg.PositionalValues, msg.NamedValues, raw.Header.Version)
-	if err != nil {
-		otelErr = err
-		c.proxy.otelInst.RecordError(span, otelErr)
-		c.proxy.logger.Error(errorWhileDecoding, zap.String(Query, preparedStmt.CqlQuery()), zap.Error(err))
-		c.sender.Send(raw.Header, &message.ConfigError{ErrorMessage: err.Error()})
-		return
-	}
-
-	results, err := c.proxy.executor.Execute(otelCtx, c, boundQuery)
-	if err != nil {
-		otelErr = err
-		c.proxy.otelInst.RecordError(span, otelErr)
-		c.proxy.logger.Error(errorAtBigtable, zap.String(Query, preparedStmt.CqlQuery()), zap.String(Query, preparedStmt.BigtableQuery()), zap.Error(err))
-		c.sender.Send(raw.Header, &message.ConfigError{ErrorMessage: err.Error()})
-		return
-	}
-	if preparedStmt.QueryType().IsDDLType() {
-		c.handlePostDDLEvent(preparedStmt.QueryType(), preparedStmt.Keyspace(), preparedStmt.Table())
-	}
-	c.sender.Send(raw.Header, results)
-	span.SetStatus(codes.Ok, "")
-}
-
-// handle batch queries
-func (c *client) handleBatch(raw *frame.RawFrame, msg *partialBatch) {
-	startTime := time.Now()
-	otelCtx, span := c.proxy.otelInst.StartSpan(c.proxy.ctx, handleBatch, []attribute.KeyValue{
-		attribute.Int("Batch Size", len(msg.queryOrIds)),
-	})
-	defer c.proxy.otelInst.EndSpan(span)
-	var otelErr error
-	defer c.proxy.otelInst.RecordMetrics(otelCtx, handleBatch, startTime, handleBatch, c.sessionKeyspace, otelErr)
-	bulkMutations, keyspace, err := c.bindBulkOperations(msg, raw.Header.Version)
-	if err != nil {
-		c.proxy.logger.Error("Error preparing batch query metadata", zap.Error(err))
-		c.sender.Send(raw.Header, &message.ConfigError{ErrorMessage: err.Error()})
-		otelErr = err
-		c.proxy.otelInst.RecordError(span, otelErr)
-		return
-	}
-	otelgo.AddAnnotation(otelCtx, sendingBulkApplyMutation)
-	var errs []string
-	for tableName, mutations := range bulkMutations.Mutations() {
-		res, err := c.proxy.bigtableClient.ApplyBulkMutation(otelCtx, keyspace, tableName, mutations)
-		if err != nil {
-			c.proxy.otelInst.RecordError(span, err)
-			errs = append(errs, err.Error())
-		} else if res.FailedRows != "" {
-			err = fmt.Errorf("failed rows for table %s: %s", tableName, res.FailedRows)
-			c.proxy.otelInst.RecordError(span, err)
-			errs = append(errs, res.FailedRows)
-		}
-	}
-	otelgo.AddAnnotation(otelCtx, gotBulkApplyResp)
-	if len(errs) > 0 {
-		otelErr = errors.New(strings.Join(errs, "\n"))
-		c.sender.Send(raw.Header, &message.ServerError{ErrorMessage: otelErr.Error()})
-		return
-	}
-	c.sender.Send(raw.Header, &message.VoidResult{})
-	span.SetStatus(codes.Ok, "")
-}
-
-func (c *client) bindBulkOperations(msg *partialBatch, pv primitive.ProtocolVersion) (*bigtableModule.BigtableBulkMutation, types.Keyspace, error) {
-	var keyspace types.Keyspace
-	tableMutationsMap := bigtableModule.NewBigtableBulkMutation()
-	for index, queryId := range msg.queryOrIds {
-		queryOrId, ok := queryId.([]byte)
-		if !ok {
-			return nil, "", fmt.Errorf("batch query id malformed")
-		}
-		id := preparedIdKey(queryOrId)
-		preparedStmt, ok := c.proxy.preparedQueryCache.Load(id)
-		if !ok {
-			return nil, "", fmt.Errorf("prepared query not found in cache")
-		}
-
-		if preparedStmt.Keyspace() != "" {
-			keyspace = preparedStmt.Keyspace()
-		}
-
-		// note: we don't support batch named queries at this time
-		executableQuery, err := c.proxy.translator.BindQuery(preparedStmt, msg.BatchPositionalValues[index], nil, pv)
-		if err != nil {
-			return nil, "", err
-		}
-		mutation, ok := executableQuery.AsBulkMutation()
-		if !ok {
-			return nil, "", fmt.Errorf("query type '%s' not compatible with bulk", executableQuery.QueryType().String())
-		}
-		tableMutationsMap.AddMutation(mutation)
-	}
-	if keyspace == "" {
-		keyspace = c.sessionKeyspace
-	}
-	return tableMutationsMap, keyspace, nil
-}
-
-func (c *client) handleQuery(raw *frame.RawFrame, msg *partialQuery) {
-	startTime := time.Now()
-	c.proxy.logger.Debug("handling query", zap.String("encodedQuery", msg.query), zap.Int16("stream", raw.Header.StreamId))
-	otelCtx, span := c.proxy.otelInst.StartSpan(c.proxy.ctx, handleQuery, []attribute.KeyValue{
-		attribute.String("CqlQuery", msg.query),
-	})
-	defer c.proxy.otelInst.EndSpan(span)
-
-	var otelErr error
-	queryType := types.QueryTypeUnknown.String()
-	defer func() {
-		c.proxy.otelInst.RecordMetrics(otelCtx, handleQuery, startTime, queryType, c.sessionKeyspace, otelErr)
-	}()
-
-	p := parser.GetParser(msg.query)
-	qt, err := parseQueryType(p)
-	if err != nil {
-		otelErr = err
-		c.proxy.otelInst.RecordError(span, otelErr)
-		c.proxy.logger.Error("error parsing query to see if it's handled", zap.String(Query, msg.query), zap.Error(err))
-		c.sender.Send(raw.Header, &message.Invalid{ErrorMessage: err.Error()})
-		return
-	}
-	queryType = qt.String()
-
-	rawQuery := types.NewRawQuery(raw.Header, c.sessionKeyspace, msg.query, p, qt)
-
-	query, err := c.prepareQuery(otelCtx, rawQuery)
-	if err != nil {
-		otelErr = err
-		c.proxy.otelInst.RecordError(span, otelErr)
-		c.proxy.logger.Error(translatorErrorMessage, zap.String(Query, msg.query), zap.Error(err))
-		c.sender.Send(raw.Header, &message.Invalid{ErrorMessage: err.Error()})
-		return
-	}
-
-	values := types.NewQueryParameterValues(query.Parameters(), time.Now())
-	executableQuery, err := c.proxy.translator.BindQueryParameters(query, values, raw.Header.Version)
-	if err != nil {
-		otelErr = err
-		c.proxy.otelInst.RecordError(span, otelErr)
-		c.proxy.logger.Error(translatorErrorMessage, zap.String(Query, msg.query), zap.Error(err))
-		c.sender.Send(raw.Header, &message.Invalid{ErrorMessage: err.Error()})
-		return
-	}
-
-	otelgo.AddAnnotation(otelCtx, executingBigtableSQLAPIRequestEvent)
-	selectResult, err := c.proxy.executor.Execute(otelCtx, c, executableQuery)
-	otelgo.AddAnnotation(otelCtx, bigtableExecutionDoneEvent)
-
-	if err != nil {
-		c.proxy.logger.Error(errorAtBigtable, zap.String(Query, msg.query), zap.Error(err))
-		otelErr = err
-		c.proxy.otelInst.RecordError(span, otelErr)
-		c.sender.Send(raw.Header, &message.Invalid{ErrorMessage: err.Error()})
-		return
-	}
-
-	if rawQuery.QueryType().IsDDLType() {
-		c.handlePostDDLEvent(query.QueryType(), query.Keyspace(), query.Table())
-	}
-
-	c.sender.Send(raw.Header, selectResult)
-	span.SetStatus(codes.Ok, "")
-}
-
-func (c *client) Send(hdr *frame.Header, msg message.Message) {
-	_ = c.conn.Write(proxycore.SenderFunc(func(writer io.Writer) error {
-		return codec.EncodeFrame(frame.NewFrame(hdr.Version, hdr.StreamId, msg), writer)
-	}))
-}
-
-func (c *client) Closing(_ error) {
-	c.proxy.removeClient(c)
-}
-
 // NewDefaultPreparedCache creates a new default prepared cache capping the max item capacity to `size`.
 func NewDefaultPreparedCache[T any](size int) (proxycore.PreparedCache[T], error) {
 	cache, err := lru.New(size)
@@ -852,48 +440,3 @@ func (oc *closeOnceListener) Close() error {
 }
 
 func (oc *closeOnceListener) close() { oc.closeErr = oc.Listener.Close() }
-
-// handleEvent handles events from the proxy core
-// It sends the event message to all connected clients.
-func (c *client) handleEvent(event proxycore.Event) {
-	switch evt := event.(type) {
-	case *proxycore.SchemaChangeEvent:
-		c.sender.Send(&frame.Header{
-			Version:  c.proxy.config.Options.ProtocolVersion,
-			StreamId: -1, // -1 for events
-			OpCode:   primitive.OpCodeEvent,
-		}, evt.Message)
-	}
-}
-
-// handlePostDDLEvent handles common operations after DDL statements (CREATE, ALTER, DROP)
-func (c *client) handlePostDDLEvent(queryType types.QueryType, keyspace types.Keyspace, table types.TableName) {
-	var changeType primitive.SchemaChangeType
-	switch queryType {
-	case types.QueryTypeCreate:
-		changeType = primitive.SchemaChangeTypeCreated
-	case types.QueryTypeAlter:
-		changeType = primitive.SchemaChangeTypeUpdated
-	case types.QueryTypeDrop:
-		changeType = primitive.SchemaChangeTypeDropped
-	default:
-		c.proxy.logger.Warn("unhandled ddl event type", zap.String("queryType", queryType.String()))
-		return
-	}
-
-	// SendEvent all clients of schema change
-	event := &proxycore.SchemaChangeEvent{
-		Message: &message.SchemaChangeEvent{
-			ChangeType: changeType,
-			Target:     primitive.SchemaChangeTargetTable,
-			Keyspace:   string(keyspace),
-			Object:     string(table),
-		},
-	}
-	c.proxy.eventClients.Range(func(key, _ interface{}) bool {
-		if client, ok := key.(*client); ok {
-			client.handleEvent(event)
-		}
-		return true
-	})
-}

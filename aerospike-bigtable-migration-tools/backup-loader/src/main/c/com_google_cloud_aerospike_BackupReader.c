@@ -1384,8 +1384,7 @@ JNIEXPORT void JNICALL Java_com_google_cloud_aerospike_BackupReader_openFile(
   if (file_path == NULL) {
     throw_exception(
         env, jni_exception_class, jni_exception_str_ctor,
-        "Failed to convert the file path to be opened ('%s') to a Java String.",
-        file_path);
+        "Failed to convert the file path to be opened to a C String.");
     goto cleanup_allocations;
   }
 

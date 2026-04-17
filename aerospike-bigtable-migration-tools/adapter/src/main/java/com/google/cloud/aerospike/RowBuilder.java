@@ -152,11 +152,11 @@ public class RowBuilder<T extends RowBuilder.CellSetter> {
    * Validates the column identifier to ensure it does not contain the delimiter.
    *
    * @param columnIdentifier the column identifier to validate.
-   * @throws RuntimeException if the column identifier contains the delimiter.
+   * @throws IllegalArgumentException if the column identifier contains the delimiter.
    */
   public static void validateColumnIdentifier(String columnIdentifier) {
     if (columnIdentifier.contains(DELIMITER)) {
-      throw new RuntimeException(
+      throw new IllegalArgumentException(
           "Invalid column id:"
               + columnIdentifier
               + "! ColumnId cannot contain \""

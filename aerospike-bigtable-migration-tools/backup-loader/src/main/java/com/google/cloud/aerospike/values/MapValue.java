@@ -63,7 +63,6 @@ public final class MapValue extends Value {
    *
    * @param binName the name of the bin.
    * @param rowBuilder the {@link RowBuilder} to modify
-   * @throws UnsupportedOperationException always, as this method is not implemented.
    */
   @Override
   public void setCell(String binName, RowBuilder<?> rowBuilder) {
@@ -72,7 +71,6 @@ public final class MapValue extends Value {
 
   /** A {@link JsonAdapter} for (de)serializing {@link MapValue} as JSON object. */
   static class MoshiJsonAdapter extends JsonAdapter<MapValue> {
-
     @Override
     public MapValue fromJson(JsonReader jsonReader) {
       throw new UnsupportedOperationException();

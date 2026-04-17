@@ -59,7 +59,6 @@ public final class ListValue extends Value {
    *
    * @param binName the name of the bin.
    * @param rowBuilder the {@link RowBuilder} to modify
-   * @throws UnsupportedOperationException always, as this method is not implemented.
    */
   @Override
   public void setCell(String binName, RowBuilder<?> rowBuilder) {

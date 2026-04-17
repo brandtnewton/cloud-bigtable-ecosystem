@@ -60,7 +60,7 @@ public class AerospikeRecord {
     RipeMD160 hash = new RipeMD160();
     hash.update(result, 0, result.length);
 
-    return new String(Base64.getEncoder().encode(hash.digest()));
+    return Base64.getEncoder().encodeToString(hash.digest());
   }
 
   protected static <T> void extendListWithNulls(List<T> list, int targetSize) {

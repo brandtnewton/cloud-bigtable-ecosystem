@@ -59,7 +59,7 @@ public class BackupReader implements AutoCloseable {
       System.loadLibrary("backupreader");
     } catch (Exception e) {
       LOG.error("Error while loading the backupreader library", e);
-      System.exit(123);
+      throw e;
     }
   }
 

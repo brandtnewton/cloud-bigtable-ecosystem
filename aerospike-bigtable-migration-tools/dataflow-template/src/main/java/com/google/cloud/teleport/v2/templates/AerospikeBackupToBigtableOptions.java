@@ -66,7 +66,7 @@ public interface AerospikeBackupToBigtableOptions extends PipelineOptions, Bigta
       description = "Validate Table Schema Before Uploading",
       helpText =
           "By default, the pipeline ensures that all required column families exist in the target"
-              + " Cloud Bigtable beforestarting the upload. This behavior can be disabled by"
+              + " Cloud Bigtable before starting the upload. This behavior can be disabled by"
               + " setting this option to false.",
       optional = true,
       hiddenUi = true)

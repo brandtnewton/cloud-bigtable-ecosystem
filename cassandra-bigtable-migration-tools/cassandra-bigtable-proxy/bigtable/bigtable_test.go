@@ -268,12 +268,12 @@ func TestMutateRowDeleteQualifiers(t *testing.T) {
 	require.NoError(t, err)
 	row, err := tbl.ReadRow(t.Context(), key, bigtable.RowFilter(bigtable.FamilyFilter("cf1")))
 	require.NoError(t, err)
-	var columns []string
+	var columns map[string]bool
 	for _, item := range row["cf1"] {
-		columns = append(columns, item.Column)
+		columns[item.Column] = true
 	}
 	// 'cf1:' is an empty cell that we write to ensure the row isn't empty
-	assert.ElementsMatch(t, []string{"cf1:col2", "cf1:"}, columns, "col2 should still exist")
+	assert.ElementsMatch(t, []string{"cf1:col2", "cf1:"}, maps.Keys(columns), "col2 should still exist")
 }
 
 func TestMutateRowIfExists(t *testing.T) {

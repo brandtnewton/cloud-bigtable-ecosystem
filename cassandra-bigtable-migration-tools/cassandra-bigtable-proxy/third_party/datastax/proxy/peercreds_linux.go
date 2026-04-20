@@ -3,8 +3,8 @@
 package proxy
 
 import (
-	"net"
 	"golang.org/x/sys/unix"
+	"net"
 )
 
 func getUdsPeerCredentialsOS(conn *net.UnixConn) (UCred, error) {

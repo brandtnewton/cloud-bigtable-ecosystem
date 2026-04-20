@@ -16,26 +16,42 @@ run-emulator:
 run-backup-loader:
     mvn -Pall clean compile exec:java -Dexec.mainClass=com.google.cloud.aerospike.LoadBackupExample -Dexec.jvmArgs="-Djava.library.path=target/classes:/usr/lib:/usr/local/lib"
 
+dataflow-local-it region project bucket bigtable_instance:
+    BIGTABLE_EMULATOR_HOST="" mvn verify \
+        -fae \
+        -pl "dataflow-template" \
+        -am \
+        -Dregion={{ region }} \
+        -Dproject={{ project }} \
+        -DartifactBucket={{ bucket }} \
+        -DbigtableInstanceId={{ bigtable_instance }} \
+        -DdirectRunnerTest=1
+
+dataflow-stage project bucket image_registry:
+    mvn package -PtemplatesStage \
+        -pl dataflow-template \
+        -am \
+        -DskipTests \
+        -DprojectId="{{ project }}" \
+        -DbucketName="{{ bucket }}" \
+        -DstagePrefix="templates" \
+        -DtemplateName="AerospikeBackupToBigtable" \
+        -DartifactRegistry="{{ image_registry }}"
+
 build:
     mvn clean compile
 
 clean:
-    mvn clean
+    mvn -Pall clean
 
-test case="*":
-    mvn clean test -Dtest="{{ case }}" -Dsurefire.failIfNoSpecifiedTests=false
+test:
+    mvn clean test -pl '!dataflow-template'
 
 format: && clang-format
     mvn -Pall clean spotless:apply
 
 pull-dependencies:
     mvn org.apache.maven.plugins:maven-dependency-plugin:3.8.1:go-offline -DexcludeGroupIds=com.google.cloud.aerospike
-
-package:
-    mvn clean package -Dmaven.test.skip
-
-install:
-    mvn clean install -Dmaven.test.skip
 
 run-mvn module target:
     mvn -Pall clean "{{ target }}" -pl "{{ module }}" -am

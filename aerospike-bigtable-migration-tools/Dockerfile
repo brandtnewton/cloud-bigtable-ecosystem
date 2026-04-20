@@ -61,6 +61,11 @@ RUN cd aws-sdk-cpp && \
         -DENABLE_UNITY_BUILD=ON && \
     make -j$(nproc) -C build && make install -C build
 
+# Clone and install into local maven repository the dependencies of the Dataflow template
+RUN git clone https://github.com/GoogleCloudPlatform/DataflowTemplates --depth 1 --branch 2025-05-27-00_RC00
+RUN cd DataflowTemplates && \
+    mvn install -ntp -am -pl v2/bigtable-common,plugins/templates-maven-plugin,it/google-cloud-platform -DskipTests
+
 # Clone and build Aerospike backup tools
 RUN git clone https://github.com/aerospike/aerospike-tools-backup.git /app --branch 4.5.1 --depth 1 --recurse-submodules -j"$(nproc)" --shallow-submodules
 
@@ -98,14 +103,16 @@ ENV LD_LIBRARY_PATH=/usr/local/lib
 # ----------- Stage 2: compiled -----------
 FROM builder AS compiled
 
+WORKDIR /src
+
 # copy the source and build the library
-COPY adapter /src/adapter
-COPY Justfile /src/Justfile
-COPY backup-loader /src/backup-loader
-COPY replicator /src/replicator
-COPY pom.xml /src/pom.xml
-RUN cd /src && \
-    just build
+COPY adapter adapter
+COPY Justfile Justfile
+COPY backup-loader backup-loader
+COPY replicator replicator
+COPY dataflow-template dataflow-template
+COPY pom.xml pom.xml
+RUN just build
 
 # ----------- Stage 3: dataflow-worker -----------
 FROM gcr.io/cloud-dataflow/v1beta3/beam_java17_sdk:${BEAM_VERSION} AS dataflow-worker

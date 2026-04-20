@@ -59,7 +59,8 @@ public class AerospikeTransforms {
     @ProcessElement
     public void processElement(
         @Element MatchResult.Metadata fileMetadata, OutputReceiver<ReadRecordResult> receiver) {
-      String pipePath = "fifoPipe-" + UUID.randomUUID();
+      String tmpDirPath = System.getProperty("java.io.tmpdir", "/tmp");
+      String pipePath = new File(tmpDirPath, "fifoPipe-" + UUID.randomUUID()).getAbsolutePath();
       String gcsFilePath = fileMetadata.resourceId().toString();
       Map<String, Integer> unsupportedEntryMessages = new HashMap<>();
       try (BucketStreamer bucketStreamer = new BucketStreamer(gcsFilePath, pipePath);

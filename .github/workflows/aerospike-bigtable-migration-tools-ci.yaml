@@ -30,7 +30,6 @@ jobs:
         working-directory: aerospike-bigtable-migration-tools
         run: mvn -B -ntp test -pl adapter,replicator
       # Replicator's integration tests need to be provided with Kafka Connect Bigtable Sink .jar
-      # TODO: Download the sink .jar from maven once Google starts publishing it.
       - name: Compile sink .jar
         working-directory: kafka-connect-bigtable-sink
         run: mvn -B -ntp clean package -pl sink -DskipUnitTests -DskipIntegrationTests

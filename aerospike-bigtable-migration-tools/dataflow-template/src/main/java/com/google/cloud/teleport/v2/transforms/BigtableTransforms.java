@@ -68,7 +68,7 @@ public class BigtableTransforms {
       // Note that we can use a single batcher for the whole `DoFn` because `ParDo` guarantees that
       // "A DoFn that has terminated abnormally (by throwing an Exception) will never be reused".
       batcher = client.newBulkMutationBatcher(TableId.of(bigtableTarget.tableId));
-      currentBatch = new HashMap();
+      currentBatch = new HashMap<>();
       LOG.debug("Succesfully created bigtable client connected to: " + bigtableTarget.instanceId);
     }
 
@@ -120,7 +120,7 @@ public class BigtableTransforms {
           invalidRecordHandler.accept(record);
         }
       }
-      currentBatch = new HashMap();
+      currentBatch = new HashMap<>();
       if (exceptionCounter > 0) {
         LOG.error(
             "During writing a batch of writes "

@@ -61,7 +61,7 @@ public class AerospikeTransforms {
         @Element MatchResult.Metadata fileMetadata, OutputReceiver<ReadRecordResult> receiver) {
       String pipePath = "fifoPipe-" + UUID.randomUUID();
       String gcsFilePath = fileMetadata.resourceId().toString();
-      Map<String, Integer> unsupportedEntryMessages = new HashMap();
+      Map<String, Integer> unsupportedEntryMessages = new HashMap<>();
       try (BucketStreamer bucketStreamer = new BucketStreamer(gcsFilePath, pipePath);
           BackupReader backupReader =
               new BackupReader(bucketStreamer.pipe.getAbsolutePath(), this.compressionAlgorithm)) {

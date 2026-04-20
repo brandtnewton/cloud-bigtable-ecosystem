@@ -95,14 +95,16 @@ public class BigtableTransforms {
       flushBatcher(failedMessage -> c.output(failedMessage, Instant.now(), GlobalWindow.INSTANCE));
     }
 
-    public void flushBatcher(Consumer<ReadRecordResult> invalidRecordHandler) {
+    public void flushBatcher(Consumer<ReadRecordResult> invalidRecordHandler)
+        throws InterruptedException {
       Exception exception = null;
       int exceptionCounter = 0;
+      batcher.flush();
       for (Map.Entry<ReadRecordResult, ApiFuture<Void>> recordResult : currentBatch.entrySet()) {
         ReadRecordResult record = recordResult.getKey();
         try {
           recordResult.getValue().get();
-        } catch (ExecutionException | InterruptedException e) {
+        } catch (ExecutionException e) {
           String recordAsJson = "<Failed to parse record to JSON>";
           try {
             recordAsJson = record.toJson();
@@ -131,7 +133,7 @@ public class BigtableTransforms {
     }
 
     @ProcessElement
-    public void processElement(ProcessContext c) {
+    public void processElement(ProcessContext c) throws InterruptedException {
       ReadRecordResult record = c.element();
 
       ByteString rowKey = ByteString.copyFromUtf8(record.base64Digest());

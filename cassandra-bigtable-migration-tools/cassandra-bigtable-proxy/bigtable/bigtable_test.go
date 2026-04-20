@@ -268,7 +268,7 @@ func TestMutateRowDeleteQualifiers(t *testing.T) {
 	require.NoError(t, err)
 	row, err := tbl.ReadRow(t.Context(), key, bigtable.RowFilter(bigtable.FamilyFilter("cf1")))
 	require.NoError(t, err)
-	var columns map[string]bool
+	columns := make(map[string]bool)
 	for _, item := range row["cf1"] {
 		columns[item.Column] = true
 	}

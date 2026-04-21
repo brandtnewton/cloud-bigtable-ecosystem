@@ -424,7 +424,7 @@ setups alongside a config file, but we recommend keeping all of your config in
 one place.
 
 ```
-./cassandra-to-bigtable-proxy --project-id='YOUR_GOOGLE_CLOUD_PROJECT_ID' --instance-id='YOUR_BIGTABLE_INSTANCE_ID' --keyspace-id='YOUR_CASSANDRA_KEYSPACE'
+./cassandra-bigtable-proxy --project-id='YOUR_GOOGLE_CLOUD_PROJECT_ID' --instance-id='YOUR_BIGTABLE_INSTANCE_ID' --keyspace-id='YOUR_CASSANDRA_KEYSPACE'
 ```
 
 - **project-id** the Google Cloud project id to use

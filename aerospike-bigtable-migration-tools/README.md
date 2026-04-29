@@ -7,6 +7,7 @@ The process consists of three parts:
 - Streaming changes - replicate ongoing updates from Aerospike to Cloud Bigtable (see [Kafka Connect tools section](#kafka-connect-tools) for details),
 - Cutover - switch the application to use Cloud Bigtable as the database.
 
+
 ## Submodules
 The primary tool used for managing this project is Maven.
 

@@ -18,48 +18,48 @@ FROM ubuntu:22.04 AS builder
 ENV DEBIAN_FRONTEND=noninteractive
 
 # Update and install dependencies
-RUN apt-get update -y && apt-get install -y --no-install-recommends 
-    build-essential 
-    libssl-dev 
-    libzstd-dev 
-    libpsl-dev 
-    cmake 
-    pkg-config 
-    zlib1g-dev 
-    autotools-dev 
-    automake 
-    libtool 
-    git 
-    openjdk-17-jdk 
-    maven 
-    curl 
-    libuv1-dev 
-    libcurl4-openssl-dev 
+RUN apt-get update -y && apt-get install -y --no-install-recommends \
+    build-essential \
+    libssl-dev \
+    libzstd-dev \
+    libpsl-dev \
+    cmake \
+    pkg-config \
+    zlib1g-dev \
+    autotools-dev \
+    automake \
+    libtool \
+    git \
+    openjdk-17-jdk \
+    maven \
+    curl \
+    libuv1-dev \
+    libcurl4-openssl-dev \
     libjansson-dev
 
 WORKDIR /build
 
 # Build AWS SDK for C++ (needed by aerospike-tools-backup)
 RUN git clone https://github.com/aws/aws-sdk-cpp.git --branch 1.11.210 --depth 1 --recurse-submodules -j"$(nproc)" --shallow-submodules
-RUN cd aws-sdk-cpp && 
-    mkdir build && 
-    cmake -S . -B build 
-        -DCMAKE_BUILD_TYPE=Release 
-        -DBUILD_ONLY="s3" 
-        -DBUILD_SHARED_LIBS=ON 
-        -DENABLE_TESTING=OFF 
-        -DCMAKE_INSTALL_PREFIX=/usr/local 
-        -DCMAKE_INSTALL_LIBDIR=lib 
-        -DENABLE_UNITY_BUILD=ON && 
+RUN cd aws-sdk-cpp && \
+    mkdir build && \
+    cmake -S . -B build \
+        -DCMAKE_BUILD_TYPE=Release \
+        -DBUILD_ONLY="s3" \
+        -DBUILD_SHARED_LIBS=ON \
+        -DENABLE_TESTING=OFF \
+        -DCMAKE_INSTALL_PREFIX=/usr/local \
+        -DCMAKE_INSTALL_LIBDIR=lib \
+        -DENABLE_UNITY_BUILD=ON && \
     make -j$(nproc) -C build && make install -C build
 
 # Clone and build Aerospike backup tools (provides headers and asrestore.so)
 RUN git clone https://github.com/aerospike/aerospike-tools-backup.git /app --branch 4.5.1 --depth 1 --recurse-submodules -j"$(nproc)" --shallow-submodules
 WORKDIR /app
-RUN CPPFLAGS="-g -Derr=aerospike_backup_err_func__" 
-    EVENT_LIB=libuv 
-    CC="gcc" 
-    CXX="g++" 
+RUN CPPFLAGS="-g -Derr=aerospike_backup_err_func__" \
+    EVENT_LIB=libuv \
+    CC="gcc" \
+    CXX="g++" \
     make -f - shared all -j$(nproc) <<EOF
 include Makefile
 CFLAGS += \$(CPPFLAGS)

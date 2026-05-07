@@ -42,11 +42,6 @@ RUN apt-get update -y && apt-get install -y --no-install-recommends \
 
 WORKDIR /build
 
-# install just
-RUN mkdir just
-RUN curl -sSL https://just.systems/install.sh | bash -s -- --to /build/just
-ENV PATH="/build/just:$PATH"
-
 # Build AWS SDK for C++
 RUN git clone https://github.com/aws/aws-sdk-cpp.git --branch 1.11.210 --depth 1 --recurse-submodules -j"$(nproc)" --shallow-submodules
 RUN cd aws-sdk-cpp && \
@@ -107,12 +102,11 @@ WORKDIR /src
 
 # copy the source and build the library
 COPY adapter adapter
-COPY Justfile Justfile
 COPY backup-loader backup-loader
 COPY replicator replicator
 COPY dataflow-template dataflow-template
 COPY pom.xml pom.xml
-RUN just build
+RUN mvn clean compile
 
 # ----------- Stage 3: dataflow-worker -----------
 FROM gcr.io/cloud-dataflow/v1beta3/beam_java17_sdk:${BEAM_VERSION} AS dataflow-worker

@@ -1,14 +1,28 @@
+/*
+ * Copyright 2026 Google LLC
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     https://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package com.google.cloud.kafka.connect.bigtable.util;
 
 import com.google.cloud.kafka.connect.bigtable.mapping.LogicalTypeUtils;
 import com.google.cloud.kafka.connect.bigtable.mapping.SchemaUtils;
+import java.util.Map;
+import java.util.Optional;
 import org.apache.kafka.connect.data.Schema;
 import org.apache.kafka.connect.data.SchemaAndValue;
 import org.apache.kafka.connect.data.Struct;
 import org.apache.kafka.connect.errors.DataException;
-
-import java.util.Map;
-import java.util.Optional;
 
 public class SchemaParsingUtils {
 
@@ -20,12 +34,13 @@ public class SchemaParsingUtils {
    * Extract possibly nested fields from the input value.
    *
    * @param keySchemaAndValue {@link org.apache.kafka.connect.sink.SinkRecord SinkRecord's} key or
-   *                          some its child with corresponding {@link Schema}.
-   * @param fields            Fields that need to be accessed before the target value is reached.
-   * @param index             Index of the field that is being extracted.
+   *     some its child with corresponding {@link Schema}.
+   * @param fields Fields that need to be accessed before the target value is reached.
+   * @param index Index of the field that is being extracted.
    * @return Extracted nested field.
    */
-  private static SchemaAndValue extractField(SchemaAndValue keySchemaAndValue, String[] fields, int index) {
+  private static SchemaAndValue extractField(
+      SchemaAndValue keySchemaAndValue, String[] fields, int index) {
     Object value = keySchemaAndValue.value();
     Optional<Schema> schema = Optional.ofNullable(keySchemaAndValue.schema());
     ensureKeyElementIsNotNull(value);

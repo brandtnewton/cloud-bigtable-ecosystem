@@ -17,12 +17,9 @@ package com.google.cloud.kafka.connect.bigtable.transformations;
 
 import static org.junit.Assert.*;
 
-import java.io.IOException;
-import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.*;
 import org.apache.kafka.connect.data.Schema;
-import org.apache.kafka.connect.data.SchemaAndValue;
 import org.apache.kafka.connect.data.SchemaBuilder;
 import org.apache.kafka.connect.data.Struct;
 import org.apache.kafka.connect.errors.DataException;
@@ -55,11 +52,8 @@ public class ExtractTimestampTest {
     configs.put(ExtractTimestamp.TIMESTAMP_FORMAT_TYPE, ExtractTimestampFormat.MILLIS.name());
     valueSmt.configure(configs);
 
-    Schema valueSchema = SchemaBuilder.struct()
-        .field("ts", Schema.INT64_SCHEMA)
-        .build();
-    Struct value = new Struct(valueSchema)
-        .put("ts", 123456789L);
+    Schema valueSchema = SchemaBuilder.struct().field("ts", Schema.INT64_SCHEMA).build();
+    Struct value = new Struct(valueSchema).put("ts", 123456789L);
 
     SourceRecord record = new SourceRecord(null, null, "test", 0, null, null, valueSchema, value);
     SourceRecord transformed = valueSmt.apply(record);
@@ -74,11 +68,8 @@ public class ExtractTimestampTest {
     configs.put(ExtractTimestamp.TIMESTAMP_FORMAT_TYPE, ExtractTimestampFormat.MILLIS.name());
     keySmt.configure(configs);
 
-    Schema keySchema = SchemaBuilder.struct()
-        .field("ts", Schema.INT64_SCHEMA)
-        .build();
-    Struct key = new Struct(keySchema)
-        .put("ts", 123456789L);
+    Schema keySchema = SchemaBuilder.struct().field("ts", Schema.INT64_SCHEMA).build();
+    Struct key = new Struct(keySchema).put("ts", 123456789L);
 
     SourceRecord record = new SourceRecord(null, null, "test", 0, keySchema, key, null, null);
     SourceRecord transformed = keySmt.apply(record);
@@ -93,13 +84,9 @@ public class ExtractTimestampTest {
     configs.put(ExtractTimestamp.TIMESTAMP_FORMAT_TYPE, ExtractTimestampFormat.MILLIS.name());
     valueSmt.configure(configs);
 
-    Schema innerSchema = SchemaBuilder.struct()
-        .field("inner", Schema.INT64_SCHEMA)
-        .build();
-    Schema outerSchema = SchemaBuilder.struct()
-        .field("outer", innerSchema)
-        .build();
-    
+    Schema innerSchema = SchemaBuilder.struct().field("inner", Schema.INT64_SCHEMA).build();
+    Schema outerSchema = SchemaBuilder.struct().field("outer", innerSchema).build();
+
     Struct inner = new Struct(innerSchema).put("inner", 987654321L);
     Struct outer = new Struct(outerSchema).put("outer", inner);
 
@@ -128,16 +115,16 @@ public class ExtractTimestampTest {
   @Test
   public void testFormats() {
     long baseMillis = 1715698738000L;
-    
+
     // SECONDS
     verifyFormat(baseMillis / 1000, ExtractTimestampFormat.SECONDS, baseMillis);
-    
+
     // MILLIS
     verifyFormat(baseMillis, ExtractTimestampFormat.MILLIS, baseMillis);
-    
+
     // MICROS
     verifyFormat(baseMillis * 1000, ExtractTimestampFormat.MICROS, baseMillis);
-    
+
     // NANOS
     verifyFormat(baseMillis * 1000000, ExtractTimestampFormat.NANOS, baseMillis);
   }
@@ -152,27 +139,31 @@ public class ExtractTimestampTest {
     Schema schema = SchemaBuilder.struct().field("ts", Schema.INT64_SCHEMA).build();
     Struct value = new Struct(schema).put("ts", inputValue);
     SourceRecord record = new SourceRecord(null, null, "test", 0, null, null, schema, value);
-    
+
     SourceRecord transformed = smt.apply(record);
-    assertEquals("Failed for format " + format, Long.valueOf(expectedMillis), transformed.timestamp());
+    assertEquals(
+        "Failed for format " + format, Long.valueOf(expectedMillis), transformed.timestamp());
   }
 
   @Test
   public void testInputTypes() {
     long expectedMillis = 1715698738123L;
-    
+
     // Long
     verifyInputType(expectedMillis, expectedMillis);
-    
+
     // String (long)
     verifyInputType(String.valueOf(expectedMillis), expectedMillis);
-    
+
     // String (double/float)
-    verifyInputType("1715698738.123", 1715698738L); // ExtractTimestamp code casts double to long, so it gets seconds if it's float seconds. Wait, the code says "1715698738.123" -> 1715698738L.
+    verifyInputType(
+        "1715698738.123",
+        1715698738L); // ExtractTimestamp code casts double to long, so it gets seconds if it's
+    // float seconds. Wait, the code says "1715698738.123" -> 1715698738L.
 
     // Date
     verifyInputType(new Date(expectedMillis), expectedMillis);
-    
+
     // Instant
     verifyInputType(Instant.ofEpochMilli(expectedMillis), expectedMillis);
   }
@@ -186,9 +177,12 @@ public class ExtractTimestampTest {
     Schema schema = null; // Schemaless test
     Map<String, Object> value = Collections.singletonMap("ts", inputValue);
     SourceRecord record = new SourceRecord(null, null, "test", 0, null, null, schema, value);
-    
+
     SourceRecord transformed = valueSmt.apply(record);
-    assertEquals("Failed for input type " + inputValue.getClass().getName(), Long.valueOf(expectedMillis), transformed.timestamp());
+    assertEquals(
+        "Failed for input type " + inputValue.getClass().getName(),
+        Long.valueOf(expectedMillis),
+        transformed.timestamp());
   }
 
   @Test(expected = DataException.class)
@@ -201,7 +195,7 @@ public class ExtractTimestampTest {
     Schema schema = SchemaBuilder.struct().field("other", Schema.INT64_SCHEMA).build();
     Struct value = new Struct(schema).put("other", 123L);
     SourceRecord record = new SourceRecord(null, null, "test", 0, null, null, schema, value);
-    
+
     valueSmt.apply(record);
   }
 
@@ -215,7 +209,7 @@ public class ExtractTimestampTest {
     Schema schema = SchemaBuilder.struct().field("ts", Schema.OPTIONAL_INT64_SCHEMA).build();
     Struct value = new Struct(schema).put("ts", null);
     SourceRecord record = new SourceRecord(null, null, "test", 0, null, null, schema, value);
-    
+
     valueSmt.apply(record);
   }
 }

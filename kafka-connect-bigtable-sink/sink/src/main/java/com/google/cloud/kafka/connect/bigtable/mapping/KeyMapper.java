@@ -16,6 +16,7 @@
 package com.google.cloud.kafka.connect.bigtable.mapping;
 
 import com.google.cloud.kafka.connect.bigtable.config.BigtableSinkConfig;
+import com.google.cloud.kafka.connect.bigtable.util.SchemaParsingUtils;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.math.BigDecimal;
@@ -26,8 +27,6 @@ import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
-
-import com.google.cloud.kafka.connect.bigtable.util.SchemaParsingUtils;
 import org.apache.kafka.connect.data.Field;
 import org.apache.kafka.connect.data.Schema;
 import org.apache.kafka.connect.data.SchemaAndValue;
@@ -54,10 +53,7 @@ public class KeyMapper {
    */
   public KeyMapper(String delimiter, List<String> definition) {
     this.delimiter = delimiter.getBytes(StandardCharsets.UTF_8);
-    this.definition =
-        definition.stream()
-            .map(s -> s.split("\\."))
-            .toArray(String[][]::new);
+    this.definition = definition.stream().map(s -> s.split("\\.")).toArray(String[][]::new);
   }
 
   /**
@@ -78,8 +74,10 @@ public class KeyMapper {
 
     Stream<byte[]> keyParts =
         Arrays.stream(this.getDefinition(kafkaKey))
-            .map((d) -> serializeTopLevelKeyElement(
-                SchemaParsingUtils.extractField(keySchemaAndValue, d)));
+            .map(
+                (d) ->
+                    serializeTopLevelKeyElement(
+                        SchemaParsingUtils.extractField(keySchemaAndValue, d)));
 
     return concatenateByteArrays(new byte[0], keyParts, delimiter, new byte[0]);
   }
@@ -89,17 +87,19 @@ public class KeyMapper {
    * mapped if it's been configured to an empty definition.
    *
    * @param kafkaKey {@link org.apache.kafka.connect.sink.SinkRecord SinkRecord's} key.
-   * @return A 2D array of strings containing key fields that need to be retrieved and
-   *     concatenated to construct the Cloud Bigtable row key.
-   *     <p>See {@link SchemaParsingUtils#extractField(SchemaAndValue, String[])} for details on semantics of
-   *     the inner elements.
+   * @return A 2D array of strings containing key fields that need to be retrieved and concatenated
+   *     to construct the Cloud Bigtable row key.
+   *     <p>See {@link SchemaParsingUtils#extractField(SchemaAndValue, String[])} for details on
+   *     semantics of the inner elements.
    */
   private String[][] getDefinition(Object kafkaKey) {
     if (this.definition.length == 0) {
       Optional<List<String>> maybeRootFields = getFieldsOfRootValue(kafkaKey);
-      return maybeRootFields.map(strings -> strings.stream()
-          .map(field -> new String[]{field})
-          .toArray(String[][]::new)).orElseGet(() -> new String[][]{new String[0]});
+      return maybeRootFields
+          .map(
+              strings ->
+                  strings.stream().map(field -> new String[] {field}).toArray(String[][]::new))
+          .orElseGet(() -> new String[][] {new String[0]});
     }
     return this.definition;
   }

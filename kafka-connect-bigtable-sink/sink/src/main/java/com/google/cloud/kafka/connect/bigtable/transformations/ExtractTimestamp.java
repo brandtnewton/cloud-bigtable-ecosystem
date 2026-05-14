@@ -17,16 +17,10 @@ package com.google.cloud.kafka.connect.bigtable.transformations;
 
 import com.google.cloud.kafka.connect.bigtable.util.SchemaParsingUtils;
 import com.google.common.annotations.VisibleForTesting;
-
-import java.util.ArrayList;
-import java.util.List;
 import java.util.Map;
-import java.util.Objects;
-
 import org.apache.kafka.common.config.ConfigDef;
 import org.apache.kafka.connect.connector.ConnectRecord;
 import org.apache.kafka.connect.data.*;
-import org.apache.kafka.connect.errors.DataException;
 import org.apache.kafka.connect.transforms.Transformation;
 import org.apache.kafka.connect.transforms.util.SimpleConfig;
 
@@ -42,11 +36,7 @@ public abstract class ExtractTimestamp<R extends ConnectRecord<R>> implements Tr
               ConfigDef.Type.STRING,
               ConfigDef.Importance.HIGH,
               "The name of the timestamp field.")
-          .define(
-              TIMESTAMP_FORMAT_TYPE,
-              ConfigDef.Type.STRING,
-              ConfigDef.Importance.HIGH,
-              "TODO");
+          .define(TIMESTAMP_FORMAT_TYPE, ConfigDef.Type.STRING, ConfigDef.Importance.HIGH, "TODO");
 
   private String[] fieldPath;
   private ExtractTimestampFormat elementWrapperFieldName;
@@ -55,13 +45,16 @@ public abstract class ExtractTimestamp<R extends ConnectRecord<R>> implements Tr
   public void configure(Map<String, ?> configs) {
     SimpleConfig config = new SimpleConfig(CONFIG_DEF, configs);
     this.fieldPath = config.getString(TIMESTAMP_FIELD_NAME).split("\\.");
-    this.elementWrapperFieldName = ExtractTimestampFormat.valueOf(config.getString(TIMESTAMP_FORMAT_TYPE));
+    this.elementWrapperFieldName =
+        ExtractTimestampFormat.valueOf(config.getString(TIMESTAMP_FORMAT_TYPE));
   }
 
   @Override
   public R apply(R record) {
-    SchemaAndValue timestampField = SchemaParsingUtils.extractField(getOperatingValue(record), fieldPath);
-    long parsedTimestampMillis = ExtractTimestamp.parseTimestampToMillis(timestampField, elementWrapperFieldName);
+    SchemaAndValue timestampField =
+        SchemaParsingUtils.extractField(getOperatingValue(record), fieldPath);
+    long parsedTimestampMillis =
+        ExtractTimestamp.parseTimestampToMillis(timestampField, elementWrapperFieldName);
     return record.newRecord(
         record.topic(),
         record.kafkaPartition(),
@@ -69,8 +62,7 @@ public abstract class ExtractTimestamp<R extends ConnectRecord<R>> implements Tr
         record.key(),
         record.valueSchema(),
         record.value(),
-        parsedTimestampMillis
-    );
+        parsedTimestampMillis);
   }
 
   @Override
@@ -79,8 +71,7 @@ public abstract class ExtractTimestamp<R extends ConnectRecord<R>> implements Tr
   }
 
   @Override
-  public void close() {
-  }
+  public void close() {}
 
   protected abstract SchemaAndValue getOperatingValue(R record);
 
@@ -109,7 +100,8 @@ public abstract class ExtractTimestamp<R extends ConnectRecord<R>> implements Tr
       try {
         epochValue = Long.parseLong(strVal);
       } catch (NumberFormatException e) {
-        // Graceful fallback if the string is represented as a floating-point epoch (e.g., "1715698738.123")
+        // Graceful fallback if the string is represented as a floating-point epoch (e.g.,
+        // "1715698738.123")
         epochValue = (long) Double.parseDouble(strVal);
       }
     } else {
@@ -131,7 +123,6 @@ public abstract class ExtractTimestamp<R extends ConnectRecord<R>> implements Tr
         throw new IllegalStateException("Unexpected timestamp format: " + timestampFormat);
     }
   }
-
 
   // Boilerplate for Key/Value distinct implementations
   public static class Key<R extends ConnectRecord<R>> extends ExtractTimestamp<R> {

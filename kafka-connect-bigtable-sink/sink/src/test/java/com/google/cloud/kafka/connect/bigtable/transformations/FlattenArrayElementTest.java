@@ -378,7 +378,7 @@ public class FlattenArrayElementTest {
                     .put("quantity", 2));
 
     List<Struct> productList =
-        Arrays.stream(new Struct[] {null, productElement2, productElement3}).toList();
+        Arrays.stream(new Struct[] {null, productElement2, productElement3})gi.toList();
 
     Struct productsWrapper = new Struct(schema.field("products").schema()).put("list", productList);
 

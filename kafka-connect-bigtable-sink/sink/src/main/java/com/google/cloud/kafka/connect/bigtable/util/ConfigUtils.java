@@ -13,11 +13,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.google.cloud.kafka.connect.bigtable.transformations;
+package com.google.cloud.kafka.connect.bigtable.util;
 
-public enum ExtractTimestampFormat {
-  NANOS,
-  MICROS,
-  MILLIS,
-  SECONDS,
+import java.util.Arrays;
+import org.apache.kafka.common.config.ConfigDef;
+
+public class ConfigUtils {
+  public static ConfigDef.Validator enumValidator(Enum<?>[] enumValues) {
+    return ConfigDef.CaseInsensitiveValidString.in(
+        Arrays.stream(enumValues).map(Enum::name).toArray(String[]::new));
+  }
 }

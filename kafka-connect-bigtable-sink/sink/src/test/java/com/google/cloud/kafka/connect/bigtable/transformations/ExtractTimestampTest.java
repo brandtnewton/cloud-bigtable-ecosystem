@@ -48,8 +48,8 @@ public class ExtractTimestampTest {
   @Test
   public void testExtractTimestampFromStructValue() {
     Map<String, String> configs = new HashMap<>();
-    configs.put(ExtractTimestamp.TIMESTAMP_FIELD_NAME, "ts");
-    configs.put(ExtractTimestamp.TIMESTAMP_FORMAT_TYPE, ExtractTimestampFormat.MILLIS.name());
+    configs.put(ExtractTimestamp.TIMESTAMP_FIELD_CONFIG, "ts");
+    configs.put(ExtractTimestamp.TIMESTAMP_FIELD_FORMAT_CONFIG, TimestampFormat.MILLIS.name());
     valueSmt.configure(configs);
 
     Schema valueSchema = SchemaBuilder.struct().field("ts", Schema.INT64_SCHEMA).build();
@@ -64,8 +64,8 @@ public class ExtractTimestampTest {
   @Test
   public void testExtractTimestampFromStructKey() {
     Map<String, String> configs = new HashMap<>();
-    configs.put(ExtractTimestamp.TIMESTAMP_FIELD_NAME, "ts");
-    configs.put(ExtractTimestamp.TIMESTAMP_FORMAT_TYPE, ExtractTimestampFormat.MILLIS.name());
+    configs.put(ExtractTimestamp.TIMESTAMP_FIELD_CONFIG, "ts");
+    configs.put(ExtractTimestamp.TIMESTAMP_FIELD_FORMAT_CONFIG, TimestampFormat.MILLIS.name());
     keySmt.configure(configs);
 
     Schema keySchema = SchemaBuilder.struct().field("ts", Schema.INT64_SCHEMA).build();
@@ -80,8 +80,8 @@ public class ExtractTimestampTest {
   @Test
   public void testNestedFieldExtraction() {
     Map<String, String> configs = new HashMap<>();
-    configs.put(ExtractTimestamp.TIMESTAMP_FIELD_NAME, "outer.inner");
-    configs.put(ExtractTimestamp.TIMESTAMP_FORMAT_TYPE, ExtractTimestampFormat.MILLIS.name());
+    configs.put(ExtractTimestamp.TIMESTAMP_FIELD_CONFIG, "outer.inner");
+    configs.put(ExtractTimestamp.TIMESTAMP_FIELD_FORMAT_CONFIG, TimestampFormat.MILLIS.name());
     valueSmt.configure(configs);
 
     Schema innerSchema = SchemaBuilder.struct().field("inner", Schema.INT64_SCHEMA).build();
@@ -99,8 +99,8 @@ public class ExtractTimestampTest {
   @Test
   public void testNestedMapExtraction() {
     Map<String, String> configs = new HashMap<>();
-    configs.put(ExtractTimestamp.TIMESTAMP_FIELD_NAME, "outer.inner");
-    configs.put(ExtractTimestamp.TIMESTAMP_FORMAT_TYPE, ExtractTimestampFormat.MILLIS.name());
+    configs.put(ExtractTimestamp.TIMESTAMP_FIELD_CONFIG, "outer.inner");
+    configs.put(ExtractTimestamp.TIMESTAMP_FIELD_FORMAT_CONFIG, TimestampFormat.MILLIS.name());
     valueSmt.configure(configs);
 
     Map<String, Object> inner = Collections.singletonMap("inner", 987654321L);
@@ -117,22 +117,22 @@ public class ExtractTimestampTest {
     long baseMillis = 1715698738000L;
 
     // SECONDS
-    verifyFormat(baseMillis / 1000, ExtractTimestampFormat.SECONDS, baseMillis);
+    verifyFormat(baseMillis / 1000, TimestampFormat.SECONDS, baseMillis);
 
     // MILLIS
-    verifyFormat(baseMillis, ExtractTimestampFormat.MILLIS, baseMillis);
+    verifyFormat(baseMillis, TimestampFormat.MILLIS, baseMillis);
 
     // MICROS
-    verifyFormat(baseMillis * 1000, ExtractTimestampFormat.MICROS, baseMillis);
+    verifyFormat(baseMillis * 1000, TimestampFormat.MICROS, baseMillis);
 
     // NANOS
-    verifyFormat(baseMillis * 1000000, ExtractTimestampFormat.NANOS, baseMillis);
+    verifyFormat(baseMillis * 1000000, TimestampFormat.NANOS, baseMillis);
   }
 
-  private void verifyFormat(long inputValue, ExtractTimestampFormat format, long expectedMillis) {
+  private void verifyFormat(long inputValue, TimestampFormat format, long expectedMillis) {
     Map<String, String> configs = new HashMap<>();
-    configs.put(ExtractTimestamp.TIMESTAMP_FIELD_NAME, "ts");
-    configs.put(ExtractTimestamp.TIMESTAMP_FORMAT_TYPE, format.name());
+    configs.put(ExtractTimestamp.TIMESTAMP_FIELD_CONFIG, "ts");
+    configs.put(ExtractTimestamp.TIMESTAMP_FIELD_FORMAT_CONFIG, format.name());
     ExtractTimestamp.Value<SourceRecord> smt = new ExtractTimestamp.Value<>();
     smt.configure(configs);
 
@@ -170,8 +170,8 @@ public class ExtractTimestampTest {
 
   private void verifyInputType(Object inputValue, long expectedMillis) {
     Map<String, String> configs = new HashMap<>();
-    configs.put(ExtractTimestamp.TIMESTAMP_FIELD_NAME, "ts");
-    configs.put(ExtractTimestamp.TIMESTAMP_FORMAT_TYPE, ExtractTimestampFormat.MILLIS.name());
+    configs.put(ExtractTimestamp.TIMESTAMP_FIELD_CONFIG, "ts");
+    configs.put(ExtractTimestamp.TIMESTAMP_FIELD_FORMAT_CONFIG, TimestampFormat.MILLIS.name());
     valueSmt.configure(configs);
 
     Schema schema = null; // Schemaless test
@@ -188,8 +188,8 @@ public class ExtractTimestampTest {
   @Test(expected = DataException.class)
   public void testMissingField() {
     Map<String, String> configs = new HashMap<>();
-    configs.put(ExtractTimestamp.TIMESTAMP_FIELD_NAME, "missing");
-    configs.put(ExtractTimestamp.TIMESTAMP_FORMAT_TYPE, ExtractTimestampFormat.MILLIS.name());
+    configs.put(ExtractTimestamp.TIMESTAMP_FIELD_CONFIG, "missing");
+    configs.put(ExtractTimestamp.TIMESTAMP_FIELD_FORMAT_CONFIG, TimestampFormat.MILLIS.name());
     valueSmt.configure(configs);
 
     Schema schema = SchemaBuilder.struct().field("other", Schema.INT64_SCHEMA).build();
@@ -202,8 +202,8 @@ public class ExtractTimestampTest {
   @Test(expected = DataException.class)
   public void testNullField() {
     Map<String, String> configs = new HashMap<>();
-    configs.put(ExtractTimestamp.TIMESTAMP_FIELD_NAME, "ts");
-    configs.put(ExtractTimestamp.TIMESTAMP_FORMAT_TYPE, ExtractTimestampFormat.MILLIS.name());
+    configs.put(ExtractTimestamp.TIMESTAMP_FIELD_CONFIG, "ts");
+    configs.put(ExtractTimestamp.TIMESTAMP_FIELD_FORMAT_CONFIG, TimestampFormat.MILLIS.name());
     valueSmt.configure(configs);
 
     Schema schema = SchemaBuilder.struct().field("ts", Schema.OPTIONAL_INT64_SCHEMA).build();

@@ -15,6 +15,7 @@
  */
 package com.google.cloud.kafka.connect.bigtable.transformations;
 
+import com.google.cloud.kafka.connect.bigtable.util.ConfigUtils;
 import com.google.cloud.kafka.connect.bigtable.util.SchemaParsingUtils;
 import com.google.common.annotations.VisibleForTesting;
 import java.util.Map;
@@ -26,27 +27,40 @@ import org.apache.kafka.connect.transforms.util.SimpleConfig;
 
 public abstract class ExtractTimestamp<R extends ConnectRecord<R>> implements Transformation<R> {
 
-  public static final String TIMESTAMP_FIELD_NAME = "timestamp.field";
-  public static final String TIMESTAMP_FORMAT_TYPE = "timestamp.format";
+  public static final String TIMESTAMP_FIELD_CONFIG = "timestamp.field";
+  public static final String TIMESTAMP_FIELD_FORMAT_CONFIG = "timestamp.field.format";
 
   public static final ConfigDef CONFIG_DEF =
       new ConfigDef()
           .define(
-              TIMESTAMP_FIELD_NAME,
+              TIMESTAMP_FIELD_CONFIG,
               ConfigDef.Type.STRING,
               ConfigDef.Importance.HIGH,
-              "The name of the timestamp field.")
-          .define(TIMESTAMP_FORMAT_TYPE, ConfigDef.Type.STRING, ConfigDef.Importance.HIGH, "TODO");
+              "The name of the timestamp field. Non-root fields can be referenced by specifying the"
+                  + " field path, with periods separating each field. If the field cannot be found,"
+                  + " or if the value is null, the message is failed. The field may be a numeric,"
+                  + " string or date type.")
+          .define(
+              TIMESTAMP_FIELD_FORMAT_CONFIG,
+              ConfigDef.Type.STRING,
+              TimestampFormat.MILLIS.name(),
+              ConfigUtils.enumValidator(TimestampFormat.values()),
+              ConfigDef.Importance.HIGH,
+              "The format of the timestamp field. Defaults to MILLIS. This only effects the output"
+                  + " for numeric fields. Ignore this config if your field is a date type."
+                  + " Supported values are NANOS, MICROS, MILLIS and SECONDS. Use the value that"
+                  + " matches the field's precision. Example: if your field has epoch millisecond"
+                  + " values, use the MILLIS config value.");
 
   private String[] fieldPath;
-  private ExtractTimestampFormat elementWrapperFieldName;
+  private TimestampFormat elementWrapperFieldName;
 
   @Override
   public void configure(Map<String, ?> configs) {
     SimpleConfig config = new SimpleConfig(CONFIG_DEF, configs);
-    this.fieldPath = config.getString(TIMESTAMP_FIELD_NAME).split("\\.");
+    this.fieldPath = config.getString(TIMESTAMP_FIELD_CONFIG).split("\\.");
     this.elementWrapperFieldName =
-        ExtractTimestampFormat.valueOf(config.getString(TIMESTAMP_FORMAT_TYPE));
+        TimestampFormat.valueOf(config.getString(TIMESTAMP_FIELD_FORMAT_CONFIG));
   }
 
   @Override
@@ -76,7 +90,7 @@ public abstract class ExtractTimestamp<R extends ConnectRecord<R>> implements Tr
   protected abstract SchemaAndValue getOperatingValue(R record);
 
   @VisibleForTesting
-  static long parseTimestampToMillis(SchemaAndValue value, ExtractTimestampFormat timestampFormat) {
+  static long parseTimestampToMillis(SchemaAndValue value, TimestampFormat timestampFormat) {
     if (value == null || value.value() == null) {
       throw new IllegalArgumentException("Cannot parse timestamp value of null");
     }

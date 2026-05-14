@@ -88,6 +88,17 @@ public class SchemaParsingUtilsTest {
     assertEquals(42, result.value());
   }
 
+  @Test(expected = DataException.class)
+  public void testExtractNestedFieldNotFound() {
+    Schema innerSchema = SchemaBuilder.struct().field("inner", Schema.INT32_SCHEMA).build();
+    Struct inner = new Struct(innerSchema).put("inner", 42);
+
+    Map<String, Object> outer = Collections.singletonMap("outer", inner);
+    SchemaAndValue input = new SchemaAndValue(null, outer);
+
+    SchemaParsingUtils.extractField(input, new String[] {"outer", "not_found"});
+  }
+
   @Test
   public void testExtractFieldEmptyPath() {
     SchemaAndValue input = new SchemaAndValue(Schema.STRING_SCHEMA, "v1");

@@ -55,7 +55,7 @@ public abstract class ExtractTimestamp<R extends ConnectRecord<R>> implements Tr
                   + " values, use the MILLIS config value.");
 
   private String[] fieldPath;
-  private TimestampFormat elementWrapperFieldName;
+  private TimestampFormat timestampFormat;
 
   @Override
   public void configure(Map<String, ?> configs) {

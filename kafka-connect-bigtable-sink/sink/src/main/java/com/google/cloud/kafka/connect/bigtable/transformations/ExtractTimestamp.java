@@ -70,7 +70,7 @@ public abstract class ExtractTimestamp<R extends ConnectRecord<R>> implements Tr
     SchemaAndValue timestampField =
         SchemaParsingUtils.extractField(getOperatingValue(record), fieldPath);
     long parsedTimestampMillis =
-        ExtractTimestamp.parseTimestampToMillis(timestampField, elementWrapperFieldName);
+        ExtractTimestamp.parseTimestampToMillis(timestampField, timestampFormat);
     return record.newRecord(
         record.topic(),
         record.kafkaPartition(),

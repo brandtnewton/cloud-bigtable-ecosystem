@@ -69,7 +69,7 @@ result in the corresponding row being deleted.
 
 ### Cell Timestamps
 
-The Bigtable cell timestamps for your data is set to the timestamp of the Kafka message. If the message timestamp is
+The Bigtable cell timestamps for your data are set to the timestamp of the Kafka message. If the message timestamp is
 null, the Sink system time is used. If you need a message value to be used for the cell timestamp, try using the Extract
 Timestamp SMT that's included in this package.
 

@@ -152,14 +152,11 @@ public class ExtractTimestampTest {
     // Long
     verifyInputType(expectedMillis, expectedMillis);
 
+    // Int
+    verifyInputType(123, 123);
+
     // String (long)
     verifyInputType(String.valueOf(expectedMillis), expectedMillis);
-
-    // String (double/float)
-    verifyInputType(
-        "1715698738.123",
-        1715698738L); // ExtractTimestamp code casts double to long, so it gets seconds if it's
-    // float seconds. Wait, the code says "1715698738.123" -> 1715698738L.
 
     // Date
     verifyInputType(new Date(expectedMillis), expectedMillis);

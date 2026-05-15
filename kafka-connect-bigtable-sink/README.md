@@ -159,7 +159,7 @@ a numeric, string or date type.
 
 `timestamp.field.format`
 
-The format of the timestamp field. Defaults to MILLIS. This only effects the output for numeric fields. Ignore this
+The format of the timestamp field. Defaults to MILLIS. This only affects the output for numeric fields. Ignore this
 config if your field is a date type. Supported values are NANOS, MICROS, MILLIS and SECONDS. Use the value that matches
 the field's precision. Example: if your field has epoch millisecond values, use the MILLIS config value.
 

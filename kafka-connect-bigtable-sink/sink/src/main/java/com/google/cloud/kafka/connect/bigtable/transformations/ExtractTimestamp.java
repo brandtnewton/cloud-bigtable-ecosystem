@@ -111,13 +111,7 @@ public abstract class ExtractTimestamp<R extends ConnectRecord<R>> implements Tr
       epochValue = ((Number) rawValue).longValue();
     } else if (rawValue instanceof String) {
       String strVal = ((String) rawValue).trim();
-      try {
-        epochValue = Long.parseLong(strVal);
-      } catch (NumberFormatException e) {
-        // Graceful fallback if the string is represented as a floating-point epoch (e.g.,
-        // "1715698738.123")
-        epochValue = (long) Double.parseDouble(strVal);
-      }
+      epochValue = Long.parseLong(strVal);
     } else {
       throw new IllegalArgumentException(
           "Unsupported timestamp payload type: " + rawValue.getClass().getName());

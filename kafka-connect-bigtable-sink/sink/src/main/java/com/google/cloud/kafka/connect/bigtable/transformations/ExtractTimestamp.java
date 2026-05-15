@@ -59,8 +59,8 @@ public abstract class ExtractTimestamp<R extends ConnectRecord<R>> implements Tr
   public void configure(Map<String, ?> configs) {
     SimpleConfig config = new SimpleConfig(CONFIG_DEF, configs);
     this.fieldPath = config.getString(TIMESTAMP_FIELD_CONFIG).split("\\.");
-    this.elementWrapperFieldName =
-        TimestampFormat.valueOf(config.getString(TIMESTAMP_FIELD_FORMAT_CONFIG));
+    this.timestampFormat =
+        TimestampFormat.valueOf(config.getString(TIMESTAMP_FIELD_FORMAT_CONFIG).toUpperCase());
   }
 
   @Override

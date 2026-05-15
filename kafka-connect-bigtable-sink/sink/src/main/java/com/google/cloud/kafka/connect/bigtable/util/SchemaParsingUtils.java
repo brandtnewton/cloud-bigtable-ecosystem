@@ -71,7 +71,7 @@ public class SchemaParsingUtils {
   public static void ensureKeyElementIsNotNull(Object value) {
     if (value == null) {
       // Matching Confluent's sink behavior.
-      throw new DataException("Error with row key definition: row key fields cannot be null.");
+      throw new DataException("The extracted field value cannot be null.");
     }
   }
 }

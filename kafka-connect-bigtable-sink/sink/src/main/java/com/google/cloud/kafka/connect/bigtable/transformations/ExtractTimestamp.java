@@ -21,7 +21,9 @@ import com.google.common.annotations.VisibleForTesting;
 import java.util.Map;
 import org.apache.kafka.common.config.ConfigDef;
 import org.apache.kafka.connect.connector.ConnectRecord;
-import org.apache.kafka.connect.data.*;
+import org.apache.kafka.connect.data.Schema;
+import org.apache.kafka.connect.data.SchemaAndValue;
+import org.apache.kafka.connect.data.Struct;
 import org.apache.kafka.connect.transforms.Transformation;
 import org.apache.kafka.connect.transforms.util.SimpleConfig;
 
@@ -53,14 +55,14 @@ public abstract class ExtractTimestamp<R extends ConnectRecord<R>> implements Tr
                   + " values, use the MILLIS config value.");
 
   private String[] fieldPath;
-  private TimestampFormat elementWrapperFieldName;
+  private TimestampFormat timestampFormat;
 
   @Override
   public void configure(Map<String, ?> configs) {
     SimpleConfig config = new SimpleConfig(CONFIG_DEF, configs);
     this.fieldPath = config.getString(TIMESTAMP_FIELD_CONFIG).split("\\.");
-    this.elementWrapperFieldName =
-        TimestampFormat.valueOf(config.getString(TIMESTAMP_FIELD_FORMAT_CONFIG));
+    this.timestampFormat =
+        TimestampFormat.valueOf(config.getString(TIMESTAMP_FIELD_FORMAT_CONFIG).toUpperCase());
   }
 
   @Override
@@ -68,7 +70,7 @@ public abstract class ExtractTimestamp<R extends ConnectRecord<R>> implements Tr
     SchemaAndValue timestampField =
         SchemaParsingUtils.extractField(getOperatingValue(record), fieldPath);
     long parsedTimestampMillis =
-        ExtractTimestamp.parseTimestampToMillis(timestampField, elementWrapperFieldName);
+        ExtractTimestamp.parseTimestampToMillis(timestampField, timestampFormat);
     return record.newRecord(
         record.topic(),
         record.kafkaPartition(),

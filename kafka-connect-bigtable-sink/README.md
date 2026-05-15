@@ -69,7 +69,7 @@ result in the corresponding row being deleted.
 
 ### Cell Timestamps
 
-The Bigtable cell timestamps for your data is set to the timestamp of the Kafka message. If the message timestamp is
+The Bigtable cell timestamps for your data are set to the timestamp of the Kafka message. If the message timestamp is
 null, the Sink system time is used. If you need a message value to be used for the cell timestamp, try using the Extract
 Timestamp SMT that's included in this package.
 
@@ -159,7 +159,7 @@ a numeric, string or date type.
 
 `timestamp.field.format`
 
-The format of the timestamp field. Defaults to MILLIS. This only effects the output for numeric fields. Ignore this
+The format of the timestamp field. Defaults to MILLIS. This only affects the output for numeric fields. Ignore this
 config if your field is a date type. Supported values are NANOS, MICROS, MILLIS and SECONDS. Use the value that matches
 the field's precision. Example: if your field has epoch millisecond values, use the MILLIS config value.
 

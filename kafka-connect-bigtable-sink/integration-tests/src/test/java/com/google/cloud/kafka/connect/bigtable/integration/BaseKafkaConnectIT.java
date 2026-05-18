@@ -39,20 +39,14 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import org.apache.commons.lang.StringUtils;
 import org.apache.kafka.clients.admin.Admin;
-import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
 import org.apache.kafka.clients.producer.KafkaProducer;
-import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.clients.producer.RecordMetadata;
 import org.apache.kafka.common.utils.Utils;
 import org.apache.kafka.connect.data.SchemaAndValue;
-import org.apache.kafka.connect.runtime.SinkConnectorConfig;
-import org.apache.kafka.connect.runtime.WorkerConfig;
 import org.apache.kafka.connect.runtime.errors.DeadLetterQueueReporter;
-import org.apache.kafka.connect.runtime.errors.ToleranceType;
-import org.apache.kafka.connect.runtime.isolation.PluginDiscoveryMode;
 import org.apache.kafka.connect.storage.Converter;
 import org.apache.kafka.connect.util.clusters.EmbeddedConnectCluster;
 import org.junit.After;
@@ -93,19 +87,16 @@ public abstract class BaseKafkaConnectIT extends BaseIT {
     brokerProps.put("delete.topic.enable", "true");
 
     Map<String, String> clientConfigs = new HashMap<>();
-    clientConfigs.put(
-        ProducerConfig.MAX_REQUEST_SIZE_CONFIG, String.valueOf(maxKafkaMessageSizeBytes));
-    clientConfigs.put(
-        ProducerConfig.BUFFER_MEMORY_CONFIG, String.valueOf(maxKafkaMessageSizeBytes));
-    clientConfigs.put(
-        ConsumerConfig.MAX_PARTITION_FETCH_BYTES_CONFIG, String.valueOf(maxKafkaMessageSizeBytes));
+    clientConfigs.put("max.request.size", String.valueOf(maxKafkaMessageSizeBytes));
+    clientConfigs.put("buffer.memory", String.valueOf(maxKafkaMessageSizeBytes));
+    clientConfigs.put("max.partition.fetch.bytes", String.valueOf(maxKafkaMessageSizeBytes));
 
     Map<String, String> workerProps = new HashMap<>();
     String pluginPath = Objects.requireNonNull(System.getenv(PLUGIN_PATH_ENV_VAR_NAME));
     assertTrue(new File(pluginPath).isDirectory());
-    workerProps.put(WorkerConfig.PLUGIN_PATH_CONFIG, pluginPath);
-    workerProps.put(WorkerConfig.OFFSET_COMMIT_INTERVAL_MS_CONFIG, Long.toString(10000));
-    workerProps.put(WorkerConfig.PLUGIN_DISCOVERY_CONFIG, PluginDiscoveryMode.HYBRID_WARN.name());
+    workerProps.put("plugin.path", pluginPath);
+    workerProps.put("offset.flush.interval.ms", Long.toString(10000));
+    workerProps.put("plugin.discovery", "HYBRID_WARN");
 
     connect =
         new EmbeddedConnectCluster.Builder()
@@ -166,11 +157,11 @@ public abstract class BaseKafkaConnectIT extends BaseIT {
             getTestCaseId() + System.currentTimeMillis(),
             MAX_BIGTABLE_TABLE_NAME_LENGTH - longestSuffix);
     if (topicNameSuffixes.isEmpty()) {
-      configProps.put(SinkConnectorConfig.TOPICS_CONFIG, id);
+      configProps.put("topics", id);
       connect.kafka().createTopic(id, numTasks);
       logger.info("Created topic: " + id);
     } else {
-      configProps.put(SinkConnectorConfig.TOPICS_REGEX_CONFIG, id + ".*");
+      configProps.put("topics.regex", id + ".*");
       for (String suffix : topicNameSuffixes) {
         connect.kafka().createTopic(id + suffix, numTasks);
       }
@@ -232,10 +223,10 @@ public abstract class BaseKafkaConnectIT extends BaseIT {
   }
 
   public void configureDlq(Map<String, String> props, String dlqTopic) {
-    props.put(SinkConnectorConfig.DLQ_TOPIC_NAME_CONFIG, dlqTopic);
-    props.put(SinkConnectorConfig.DLQ_CONTEXT_HEADERS_ENABLE_CONFIG, String.valueOf(true));
-    props.put(SinkConnectorConfig.DLQ_TOPIC_REPLICATION_FACTOR_CONFIG, String.valueOf(numBrokers));
-    props.put(SinkConnectorConfig.ERRORS_TOLERANCE_CONFIG, ToleranceType.ALL.value());
+    props.put("errors.deadletterqueue.topic.name", dlqTopic);
+    props.put("errors.deadletterqueue.context.headers.enable", String.valueOf(true));
+    props.put("errors.deadletterqueue.topic.replication.factor", String.valueOf(numBrokers));
+    props.put("errors.tolerance", "all");
   }
 
   public void assertDlqIsEmpty(String dlqTopic)

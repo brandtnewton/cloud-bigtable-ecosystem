@@ -18,7 +18,6 @@ package com.google.cloud.kafka.connect.bigtable.integration;
 import io.confluent.connect.avro.AvroConverter;
 import io.confluent.connect.json.JsonSchemaConverter;
 import io.confluent.connect.protobuf.ProtobufConverter;
-import io.confluent.kafka.serializers.AbstractKafkaSchemaSerDeConfig;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashMap;
@@ -26,8 +25,6 @@ import java.util.Map;
 import java.util.concurrent.ExecutionException;
 import java.util.function.Supplier;
 import org.apache.kafka.connect.json.JsonConverter;
-import org.apache.kafka.connect.json.JsonConverterConfig;
-import org.apache.kafka.connect.runtime.ConnectorConfig;
 import org.apache.kafka.connect.storage.Converter;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -36,6 +33,7 @@ import org.junit.runners.Parameterized;
 @RunWith(Parameterized.class)
 public class DifferentConvertersIT extends BaseDataGeneratorIT {
   private Supplier<Converter> converterConstructor;
+  private String converterClassName;
   private Map<String, String> converterBaseConfig;
   private boolean converterUsesSchemaRegistry;
 
@@ -43,17 +41,19 @@ public class DifferentConvertersIT extends BaseDataGeneratorIT {
   public static Collection testCases() {
     return Arrays.asList(
         new Object[][] {
-          {(Supplier<Converter>) AvroConverter::new, Map.of(), true},
-          {(Supplier<Converter>) ProtobufConverter::new, Map.of(), true},
-          {(Supplier<Converter>) JsonSchemaConverter::new, Map.of(), true},
+          {(Supplier<Converter>) AvroConverter::new, "io.confluent.connect.avro.AvroConverter", Map.of(), true},
+          {(Supplier<Converter>) ProtobufConverter::new, "io.confluent.connect.protobuf.ProtobufConverter", Map.of(), true},
+          {(Supplier<Converter>) JsonSchemaConverter::new, "io.confluent.connect.json.JsonSchemaConverter", Map.of(), true},
           {
             (Supplier<Converter>) JsonConverter::new,
-            Map.of(JsonConverterConfig.SCHEMAS_ENABLE_CONFIG, String.valueOf(false)),
+            "org.apache.kafka.connect.json.JsonConverter",
+            Map.of("schemas.enable", String.valueOf(false)),
             false
           },
           {
             (Supplier<Converter>) JsonConverter::new,
-            Map.of(JsonConverterConfig.SCHEMAS_ENABLE_CONFIG, String.valueOf(true)),
+            "org.apache.kafka.connect.json.JsonConverter",
+            Map.of("schemas.enable", String.valueOf(true)),
             false
           },
         });
@@ -61,9 +61,11 @@ public class DifferentConvertersIT extends BaseDataGeneratorIT {
 
   public DifferentConvertersIT(
       Supplier<Converter> converterConstructor,
+      String converterClassName,
       Map<String, String> converterBaseConfig,
       boolean converterUsesSchemaRegistry) {
     this.converterConstructor = converterConstructor;
+    this.converterClassName = converterClassName;
     this.converterBaseConfig = converterBaseConfig;
     this.converterUsesSchemaRegistry = converterUsesSchemaRegistry;
   }
@@ -73,7 +75,7 @@ public class DifferentConvertersIT extends BaseDataGeneratorIT {
     Map<String, String> converterProps = new HashMap<>(converterBaseConfig);
     if (converterUsesSchemaRegistry) {
       converterProps.put(
-          AbstractKafkaSchemaSerDeConfig.SCHEMA_REGISTRY_URL_CONFIG,
+          "schema.registry.url",
           schemaRegistry.schemaRegistryUrl());
     }
     Converter keyConverter = converterConstructor.get();
@@ -84,14 +86,14 @@ public class DifferentConvertersIT extends BaseDataGeneratorIT {
     Map<String, String> connectorProps = baseConnectorProps();
     for (Map.Entry<String, String> prop : converterProps.entrySet()) {
       connectorProps.put(
-          ConnectorConfig.KEY_CONVERTER_CLASS_CONFIG + "." + prop.getKey(), prop.getValue());
+          "key.converter" + "." + prop.getKey(), prop.getValue());
       connectorProps.put(
-          ConnectorConfig.VALUE_CONVERTER_CLASS_CONFIG + "." + prop.getKey(), prop.getValue());
+          "value.converter" + "." + prop.getKey(), prop.getValue());
     }
     connectorProps.put(
-        ConnectorConfig.KEY_CONVERTER_CLASS_CONFIG, keyConverter.getClass().getName());
+        "key.converter", converterClassName);
     connectorProps.put(
-        ConnectorConfig.VALUE_CONVERTER_CLASS_CONFIG, valueConverter.getClass().getName());
+        "value.converter", converterClassName);
     String topic = startSingleTopicConnector(connectorProps);
     createTablesAndColumnFamilies(Map.of(topic, valueFields(topic)));
     connect

@@ -21,9 +21,6 @@ import static org.junit.Assert.assertTrue;
 
 import com.google.cloud.bigtable.admin.v2.models.ModifyColumnFamiliesRequest;
 import com.google.cloud.bigtable.data.v2.models.Range;
-import com.google.cloud.kafka.connect.bigtable.config.BigtableSinkConfig;
-import com.google.cloud.kafka.connect.bigtable.config.InsertMode;
-import com.google.cloud.kafka.connect.bigtable.config.NullValueMode;
 import com.google.cloud.kafka.connect.bigtable.exception.InvalidBigtableSchemaModificationException;
 import com.google.cloud.kafka.connect.bigtable.util.JsonConverterFactory;
 import com.google.protobuf.ByteString;
@@ -41,8 +38,6 @@ import org.apache.kafka.connect.data.Schema;
 import org.apache.kafka.connect.data.SchemaBuilder;
 import org.apache.kafka.connect.data.Struct;
 import org.apache.kafka.connect.json.JsonConverter;
-import org.apache.kafka.connect.json.JsonConverterConfig;
-import org.apache.kafka.connect.runtime.ConnectorConfig;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -65,12 +60,8 @@ public class ResourceAutoCreationIT extends BaseKafkaConnectBigtableIT {
     String dlqTopic = createDlq();
     Map<String, String> props = baseConnectorProps();
     configureDlq(props, dlqTopic);
-    props.put(ConnectorConfig.VALUE_CONVERTER_CLASS_CONFIG, JsonConverter.class.getName());
-    props.put(
-        ConnectorConfig.VALUE_CONVERTER_CLASS_CONFIG
-            + "."
-            + JsonConverterConfig.SCHEMAS_ENABLE_CONFIG,
-        String.valueOf(true));
+    props.put("value.converter", "org.apache.kafka.connect.json.JsonConverter");
+    props.put("value.converter.schemas.enable", String.valueOf(true));
 
     String testId = startSingleTopicConnector(props);
 
@@ -130,13 +121,9 @@ public class ResourceAutoCreationIT extends BaseKafkaConnectBigtableIT {
     String dlqTopic = createDlq();
     Map<String, String> props = baseConnectorProps();
     configureDlq(props, dlqTopic);
-    props.put(BigtableSinkConfig.AUTO_CREATE_COLUMN_FAMILIES_CONFIG, String.valueOf(true));
-    props.put(ConnectorConfig.VALUE_CONVERTER_CLASS_CONFIG, JsonConverter.class.getName());
-    props.put(
-        ConnectorConfig.VALUE_CONVERTER_CLASS_CONFIG
-            + "."
-            + JsonConverterConfig.SCHEMAS_ENABLE_CONFIG,
-        String.valueOf(true));
+    props.put("auto.create.column.families", String.valueOf(true));
+    props.put("value.converter", "org.apache.kafka.connect.json.JsonConverter");
+    props.put("value.converter.schemas.enable", String.valueOf(true));
 
     String testId = startSingleTopicConnector(props);
     assertFalse(bigtableAdmin.listTables().contains(testId));
@@ -159,8 +146,8 @@ public class ResourceAutoCreationIT extends BaseKafkaConnectBigtableIT {
     String dlqTopic = createDlq();
     Map<String, String> props = baseConnectorProps();
     configureDlq(props, dlqTopic);
-    props.put(BigtableSinkConfig.AUTO_CREATE_TABLES_CONFIG, String.valueOf(true));
-    props.put(BigtableSinkConfig.AUTO_CREATE_COLUMN_FAMILIES_CONFIG, String.valueOf(true));
+    props.put("auto.create.tables", String.valueOf(true));
+    props.put("auto.create.column.families", String.valueOf(true));
 
     Set<String> topicSuffixes = Set.of("topic1", "topic2", "topic3", "topic4");
     String testId = startMultipleTopicConnector(props, topicSuffixes);
@@ -182,10 +169,10 @@ public class ResourceAutoCreationIT extends BaseKafkaConnectBigtableIT {
     String dlqTopic = createDlq();
     Map<String, String> props = baseConnectorProps();
     String invalidTableName = "T".repeat(MAX_BIGTABLE_TABLE_NAME_LENGTH + 1);
-    props.put(BigtableSinkConfig.TABLE_NAME_FORMAT_CONFIG, invalidTableName);
-    props.put(BigtableSinkConfig.AUTO_CREATE_TABLES_CONFIG, String.valueOf(true));
-    props.put(BigtableSinkConfig.AUTO_CREATE_COLUMN_FAMILIES_CONFIG, String.valueOf(true));
-    props.put(BigtableSinkConfig.RETRY_TIMEOUT_MILLIS_CONFIG, "10000");
+    props.put("table.name.format", invalidTableName);
+    props.put("auto.create.tables", String.valueOf(true));
+    props.put("auto.create.column.families", String.valueOf(true));
+    props.put("retry.timeout.ms", "10000");
 
     configureDlq(props, dlqTopic);
     String testId = startSingleTopicConnector(props);
@@ -203,16 +190,12 @@ public class ResourceAutoCreationIT extends BaseKafkaConnectBigtableIT {
     String dlqTopic = createDlq();
     Map<String, String> props = baseConnectorProps();
     configureDlq(props, dlqTopic);
-    props.put(BigtableSinkConfig.AUTO_CREATE_TABLES_CONFIG, String.valueOf(true));
-    props.put(BigtableSinkConfig.AUTO_CREATE_COLUMN_FAMILIES_CONFIG, String.valueOf(true));
-    props.put(BigtableSinkConfig.VALUE_NULL_MODE_CONFIG, NullValueMode.DELETE.name());
-    props.put(BigtableSinkConfig.INSERT_MODE_CONFIG, InsertMode.UPSERT.name());
-    props.put(ConnectorConfig.VALUE_CONVERTER_CLASS_CONFIG, JsonConverter.class.getName());
-    props.put(
-        ConnectorConfig.VALUE_CONVERTER_CLASS_CONFIG
-            + "."
-            + JsonConverterConfig.SCHEMAS_ENABLE_CONFIG,
-        String.valueOf(true));
+    props.put("auto.create.tables", String.valueOf(true));
+    props.put("auto.create.column.families", String.valueOf(true));
+    props.put("value.null.mode", "DELETE");
+    props.put("insert.mode", "UPSERT");
+    props.put("value.converter", "org.apache.kafka.connect.json.JsonConverter");
+    props.put("value.converter.schemas.enable", String.valueOf(true));
     String testId = startSingleTopicConnector(props);
 
     String rowDeletionValue = jsonify(testId, Schema.OPTIONAL_BYTES_SCHEMA, null);
@@ -231,16 +214,12 @@ public class ResourceAutoCreationIT extends BaseKafkaConnectBigtableIT {
     String dlqTopic = createDlq();
     Map<String, String> props = baseConnectorProps();
     configureDlq(props, dlqTopic);
-    props.put(BigtableSinkConfig.AUTO_CREATE_TABLES_CONFIG, String.valueOf(true));
-    props.put(BigtableSinkConfig.AUTO_CREATE_COLUMN_FAMILIES_CONFIG, String.valueOf(true));
-    props.put(BigtableSinkConfig.VALUE_NULL_MODE_CONFIG, NullValueMode.DELETE.name());
-    props.put(BigtableSinkConfig.INSERT_MODE_CONFIG, InsertMode.UPSERT.name());
-    props.put(ConnectorConfig.VALUE_CONVERTER_CLASS_CONFIG, JsonConverter.class.getName());
-    props.put(
-        ConnectorConfig.VALUE_CONVERTER_CLASS_CONFIG
-            + "."
-            + JsonConverterConfig.SCHEMAS_ENABLE_CONFIG,
-        String.valueOf(true));
+    props.put("auto.create.tables", String.valueOf(true));
+    props.put("auto.create.column.families", String.valueOf(true));
+    props.put("value.null.mode", "DELETE");
+    props.put("insert.mode", "UPSERT");
+    props.put("value.converter", "org.apache.kafka.connect.json.JsonConverter");
+    props.put("value.converter.schemas.enable", String.valueOf(true));
     String testId = startSingleTopicConnector(props);
 
     Struct deleteColumnFamily =
@@ -262,16 +241,12 @@ public class ResourceAutoCreationIT extends BaseKafkaConnectBigtableIT {
     String dlqTopic = createDlq();
     Map<String, String> props = baseConnectorProps();
     configureDlq(props, dlqTopic);
-    props.put(BigtableSinkConfig.AUTO_CREATE_TABLES_CONFIG, String.valueOf(true));
-    props.put(BigtableSinkConfig.AUTO_CREATE_COLUMN_FAMILIES_CONFIG, String.valueOf(true));
-    props.put(BigtableSinkConfig.VALUE_NULL_MODE_CONFIG, NullValueMode.DELETE.name());
-    props.put(BigtableSinkConfig.INSERT_MODE_CONFIG, InsertMode.UPSERT.name());
-    props.put(ConnectorConfig.VALUE_CONVERTER_CLASS_CONFIG, JsonConverter.class.getName());
-    props.put(
-        ConnectorConfig.VALUE_CONVERTER_CLASS_CONFIG
-            + "."
-            + JsonConverterConfig.SCHEMAS_ENABLE_CONFIG,
-        String.valueOf(true));
+    props.put("auto.create.tables", String.valueOf(true));
+    props.put("auto.create.column.families", String.valueOf(true));
+    props.put("value.null.mode", "DELETE");
+    props.put("insert.mode", "UPSERT");
+    props.put("value.converter", "org.apache.kafka.connect.json.JsonConverter");
+    props.put("value.converter.schemas.enable", String.valueOf(true));
     String testId = startSingleTopicConnector(props);
 
     Struct innerStruct =
@@ -299,14 +274,10 @@ public class ResourceAutoCreationIT extends BaseKafkaConnectBigtableIT {
     String dlqTopic = createDlq();
     Map<String, String> props = baseConnectorProps();
     configureDlq(props, dlqTopic);
-    props.put(BigtableSinkConfig.VALUE_NULL_MODE_CONFIG, NullValueMode.DELETE.name());
-    props.put(BigtableSinkConfig.INSERT_MODE_CONFIG, InsertMode.UPSERT.name());
-    props.put(ConnectorConfig.VALUE_CONVERTER_CLASS_CONFIG, JsonConverter.class.getName());
-    props.put(
-        ConnectorConfig.VALUE_CONVERTER_CLASS_CONFIG
-            + "."
-            + JsonConverterConfig.SCHEMAS_ENABLE_CONFIG,
-        String.valueOf(true));
+    props.put("value.null.mode", "DELETE");
+    props.put("insert.mode", "UPSERT");
+    props.put("value.converter", "org.apache.kafka.connect.json.JsonConverter");
+    props.put("value.converter.schemas.enable", String.valueOf(true));
 
     String deleteRowSuffix = "deleteRow";
     String deleteColumnFamilySuffix = "deleteColumnFamily";

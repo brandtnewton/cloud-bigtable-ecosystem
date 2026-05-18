@@ -22,9 +22,6 @@ import static org.junit.Assert.assertTrue;
 
 import com.google.cloud.bigtable.data.v2.models.Row;
 import com.google.cloud.bigtable.data.v2.models.RowCell;
-import com.google.cloud.kafka.connect.bigtable.config.BigtableSinkConfig;
-import com.google.cloud.kafka.connect.bigtable.config.InsertMode;
-import com.google.cloud.kafka.connect.bigtable.config.NullValueMode;
 import com.google.cloud.kafka.connect.bigtable.util.JsonConverterFactory;
 import com.google.protobuf.ByteString;
 import java.nio.charset.StandardCharsets;
@@ -37,18 +34,13 @@ import java.util.Map;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeoutException;
 import java.util.function.Function;
-import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
 import org.apache.kafka.clients.producer.ProducerRecord;
-import org.apache.kafka.connect.converters.ByteArrayConverter;
 import org.apache.kafka.connect.data.Schema;
 import org.apache.kafka.connect.data.SchemaAndValue;
 import org.apache.kafka.connect.data.SchemaBuilder;
 import org.apache.kafka.connect.data.Struct;
-import org.apache.kafka.connect.json.JsonConverter;
-import org.apache.kafka.connect.json.JsonConverterConfig;
-import org.apache.kafka.connect.runtime.ConnectorConfig;
 import org.apache.kafka.connect.storage.StringConverter;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -59,7 +51,7 @@ public class ErrorHandlingIT extends BaseKafkaConnectBigtableIT {
   @Test
   public void testBigtableCredentialsAreCheckedOnStartup() {
     Map<String, String> props = baseConnectorProps();
-    props.put(BigtableSinkConfig.GCP_CREDENTIALS_JSON_CONFIG, "{}");
+    props.put("gcp.bigtable.credentials.json", "{}");
 
     String testId = getTestCaseId();
     assertThrows(Throwable.class, () -> connect.configureConnector(testId, props));
@@ -70,7 +62,7 @@ public class ErrorHandlingIT extends BaseKafkaConnectBigtableIT {
   public void testTooLargeData() throws InterruptedException, ExecutionException {
     String dlqTopic = createDlq();
     Map<String, String> props = baseConnectorProps();
-    props.put(ConnectorConfig.VALUE_CONVERTER_CLASS_CONFIG, ByteArrayConverter.class.getName());
+    props.put("value.converter", "org.apache.kafka.connect.converters.ByteArrayConverter");
     configureDlq(props, dlqTopic);
     String testId = startSingleTopicConnector(props);
     createTablesAndColumnFamilies(testId);
@@ -121,19 +113,10 @@ public class ErrorHandlingIT extends BaseKafkaConnectBigtableIT {
 
     String dlqTopic = createDlq();
     Map<String, String> props = baseConnectorProps();
-    props.put(BigtableSinkConfig.INSERT_MODE_CONFIG, InsertMode.INSERT.name());
-    props.put(
-        ConnectorConfig.CONNECTOR_CLIENT_CONSUMER_OVERRIDES_PREFIX
-            + ConsumerConfig.MAX_POLL_RECORDS_CONFIG,
-        Long.toString(dataSize));
-    props.put(
-        ConnectorConfig.CONNECTOR_CLIENT_CONSUMER_OVERRIDES_PREFIX
-            + ConsumerConfig.MAX_PARTITION_FETCH_BYTES_CONFIG,
-        Integer.toString(Integer.MAX_VALUE));
-    props.put(
-        ConnectorConfig.CONNECTOR_CLIENT_CONSUMER_OVERRIDES_PREFIX
-            + ConsumerConfig.FETCH_MAX_BYTES_CONFIG,
-        Integer.toString(Integer.MAX_VALUE));
+    props.put("insert.mode", "INSERT");
+    props.put("consumer.max.poll.records", Long.toString(dataSize));
+    props.put("consumer.max.partition.fetch.bytes", Integer.toString(Integer.MAX_VALUE));
+    props.put("consumer.fetch.max.bytes", Integer.toString(Integer.MAX_VALUE));
     configureDlq(props, dlqTopic);
     String testId = startSingleTopicConnector(props);
     createTablesAndColumnFamilies(testId);
@@ -189,15 +172,11 @@ public class ErrorHandlingIT extends BaseKafkaConnectBigtableIT {
       throws InterruptedException, ExecutionException, TimeoutException {
     String dlqTopic = createDlq();
     Map<String, String> props = baseConnectorProps();
-    props.put(BigtableSinkConfig.VALUE_NULL_MODE_CONFIG, NullValueMode.DELETE.name());
-    props.put(BigtableSinkConfig.INSERT_MODE_CONFIG, InsertMode.UPSERT.name());
+    props.put("value.null.mode", "DELETE");
+    props.put("insert.mode", "UPSERT");
     configureDlq(props, dlqTopic);
-    props.put(ConnectorConfig.VALUE_CONVERTER_CLASS_CONFIG, JsonConverter.class.getName());
-    props.put(
-        ConnectorConfig.VALUE_CONVERTER_CLASS_CONFIG
-            + "."
-            + JsonConverterConfig.SCHEMAS_ENABLE_CONFIG,
-        String.valueOf(false));
+    props.put("value.converter", "org.apache.kafka.connect.json.JsonConverter");
+    props.put("value.converter.schemas.enable", String.valueOf(false));
     String testId = startSingleTopicConnector(props);
     createTablesAndColumnFamilies(testId);
 
@@ -226,15 +205,11 @@ public class ErrorHandlingIT extends BaseKafkaConnectBigtableIT {
       throws InterruptedException, ExecutionException, TimeoutException {
     String dlqTopic = createDlq();
     Map<String, String> props = baseConnectorProps();
-    props.put(BigtableSinkConfig.VALUE_NULL_MODE_CONFIG, NullValueMode.DELETE.name());
-    props.put(BigtableSinkConfig.INSERT_MODE_CONFIG, InsertMode.UPSERT.name());
+    props.put("value.null.mode", "DELETE");
+    props.put("insert.mode", "UPSERT");
     configureDlq(props, dlqTopic);
-    props.put(ConnectorConfig.VALUE_CONVERTER_CLASS_CONFIG, JsonConverter.class.getName());
-    props.put(
-        ConnectorConfig.VALUE_CONVERTER_CLASS_CONFIG
-            + "."
-            + JsonConverterConfig.SCHEMAS_ENABLE_CONFIG,
-        String.valueOf(true));
+    props.put("value.converter", "org.apache.kafka.connect.json.JsonConverter");
+    props.put("value.converter.schemas.enable", String.valueOf(true));
     String testId = startSingleTopicConnector(props);
     createTablesAndColumnFamilies(testId);
 
@@ -257,15 +232,11 @@ public class ErrorHandlingIT extends BaseKafkaConnectBigtableIT {
       throws ExecutionException, InterruptedException, TimeoutException {
     String dlqTopic = createDlq();
     Map<String, String> props = baseConnectorProps();
-    props.put(BigtableSinkConfig.VALUE_NULL_MODE_CONFIG, NullValueMode.DELETE.name());
-    props.put(BigtableSinkConfig.INSERT_MODE_CONFIG, InsertMode.UPSERT.name());
+    props.put("value.null.mode", "DELETE");
+    props.put("insert.mode", "UPSERT");
     configureDlq(props, dlqTopic);
-    props.put(ConnectorConfig.VALUE_CONVERTER_CLASS_CONFIG, JsonConverter.class.getName());
-    props.put(
-        ConnectorConfig.VALUE_CONVERTER_CLASS_CONFIG
-            + "."
-            + JsonConverterConfig.SCHEMAS_ENABLE_CONFIG,
-        String.valueOf(true));
+    props.put("value.converter", "org.apache.kafka.connect.json.JsonConverter");
+    props.put("value.converter.schemas.enable", String.valueOf(true));
     String testId = startSingleTopicConnector(props);
     createTablesAndColumnFamilies(testId);
 

@@ -17,14 +17,10 @@ package com.google.cloud.kafka.connect.bigtable.integration;
 
 import static org.junit.Assert.assertEquals;
 
-import com.google.cloud.kafka.connect.bigtable.config.BigtableSinkConfig;
-import com.google.cloud.kafka.connect.bigtable.config.InsertMode;
 import io.confluent.connect.avro.AvroConverter;
-import io.confluent.kafka.serializers.AbstractKafkaSchemaSerDeConfig;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ExecutionException;
-import org.apache.kafka.connect.runtime.ConnectorConfig;
 import org.apache.kafka.connect.storage.Converter;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -42,7 +38,7 @@ public class MultipleConnectorTasksIT extends BaseDataGeneratorIT {
 
     Map<String, String> converterProps =
         Map.of(
-            AbstractKafkaSchemaSerDeConfig.SCHEMA_REGISTRY_URL_CONFIG,
+            "schema.registry.url",
             schemaRegistry.schemaRegistryUrl());
     Converter keyConverter = new AvroConverter();
     keyConverter.configure(converterProps, true);
@@ -50,18 +46,18 @@ public class MultipleConnectorTasksIT extends BaseDataGeneratorIT {
     valueConverter.configure(converterProps, false);
 
     Map<String, String> connectorProps = baseConnectorProps();
-    connectorProps.put(BigtableSinkConfig.INSERT_MODE_CONFIG, InsertMode.UPSERT.name());
+    connectorProps.put("insert.mode", "UPSERT");
 
     for (Map.Entry<String, String> prop : converterProps.entrySet()) {
       connectorProps.put(
-          ConnectorConfig.KEY_CONVERTER_CLASS_CONFIG + "." + prop.getKey(), prop.getValue());
+          "key.converter" + "." + prop.getKey(), prop.getValue());
       connectorProps.put(
-          ConnectorConfig.VALUE_CONVERTER_CLASS_CONFIG + "." + prop.getKey(), prop.getValue());
+          "value.converter" + "." + prop.getKey(), prop.getValue());
     }
     connectorProps.put(
-        ConnectorConfig.KEY_CONVERTER_CLASS_CONFIG, keyConverter.getClass().getName());
+        "key.converter", "io.confluent.connect.avro.AvroConverter");
     connectorProps.put(
-        ConnectorConfig.VALUE_CONVERTER_CLASS_CONFIG, valueConverter.getClass().getName());
+        "value.converter", "io.confluent.connect.avro.AvroConverter");
 
     String testId = startSingleTopicConnector(connectorProps);
     createTablesAndColumnFamilies(Map.of(testId, valueFields(testId)));
@@ -81,7 +77,7 @@ public class MultipleConnectorTasksIT extends BaseDataGeneratorIT {
     String defaultColumnFamily = "default";
     String value = "1";
     Map<String, String> connectorProps = baseConnectorProps();
-    connectorProps.put(BigtableSinkConfig.DEFAULT_COLUMN_FAMILY_CONFIG, defaultColumnFamily);
+    connectorProps.put("default.column.family", defaultColumnFamily);
     String testId = startSingleTopicConnector(connectorProps);
     createTablesAndColumnFamilies(Map.of(testId, Set.of(defaultColumnFamily)));
 

@@ -16,7 +16,6 @@
 package com.google.cloud.kafka.connect.bigtable.integration;
 
 import java.util.Map;
-import org.apache.kafka.connect.runtime.SinkConnectorConfig;
 import org.apache.kafka.connect.runtime.rest.errors.ConnectRestException;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -30,7 +29,7 @@ public class ConfigIT extends BaseKafkaConnectIT {
     String connectorName = "connector-" + topic;
     connect.kafka().createTopic(topic, numTasks);
     Map<String, String> props = baseConnectorProps();
-    props.put(SinkConnectorConfig.TOPICS_CONFIG, topic);
+    props.put("topics", topic);
     connect.configureConnector(connectorName, props);
     connect
         .assertions()

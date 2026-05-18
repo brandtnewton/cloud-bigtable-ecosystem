@@ -15,8 +15,6 @@
  */
 package com.google.cloud.kafka.connect.bigtable.integration;
 
-import com.google.cloud.kafka.connect.bigtable.config.BigtableErrorMode;
-import com.google.cloud.kafka.connect.bigtable.config.BigtableSinkConfig;
 import java.util.Map;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -31,8 +29,8 @@ public class ErrorReportingIT extends BaseKafkaConnectIT {
   @Test
   public void testErrorModeFail() throws InterruptedException {
     Map<String, String> props = baseConnectorProps();
-    props.put(BigtableSinkConfig.ERROR_MODE_CONFIG, BigtableErrorMode.FAIL.name());
-    props.put(BigtableSinkConfig.TABLE_NAME_FORMAT_CONFIG, NONEXISTENT_TABLE_NAME);
+    props.put("error.mode", "FAIL");
+    props.put("table.name.format", NONEXISTENT_TABLE_NAME);
 
     String testId = startSingleTopicConnector(props);
     connect.kafka().produce(testId, "key", "value");
@@ -45,8 +43,8 @@ public class ErrorReportingIT extends BaseKafkaConnectIT {
   @Test
   public void testErrorModeWarn() throws InterruptedException {
     Map<String, String> props = baseConnectorProps();
-    props.put(BigtableSinkConfig.ERROR_MODE_CONFIG, BigtableErrorMode.WARN.name());
-    props.put(BigtableSinkConfig.TABLE_NAME_FORMAT_CONFIG, NONEXISTENT_TABLE_NAME);
+    props.put("error.mode", "WARN");
+    props.put("table.name.format", NONEXISTENT_TABLE_NAME);
 
     String testId = startSingleTopicConnector(props);
     connect.kafka().produce(testId, "key", "value");
@@ -59,8 +57,8 @@ public class ErrorReportingIT extends BaseKafkaConnectIT {
   @Test
   public void testErrorModeIgnore() throws InterruptedException {
     Map<String, String> props = baseConnectorProps();
-    props.put(BigtableSinkConfig.ERROR_MODE_CONFIG, BigtableErrorMode.IGNORE.name());
-    props.put(BigtableSinkConfig.TABLE_NAME_FORMAT_CONFIG, NONEXISTENT_TABLE_NAME);
+    props.put("error.mode", "IGNORE");
+    props.put("table.name.format", NONEXISTENT_TABLE_NAME);
 
     String testId = startSingleTopicConnector(props);
     connect.kafka().produce(testId, "key", "value");
@@ -74,8 +72,8 @@ public class ErrorReportingIT extends BaseKafkaConnectIT {
   public void testErrorModeDLQOverridesErrorMode() throws InterruptedException {
     String dlqTopic = createDlq();
     Map<String, String> props = baseConnectorProps();
-    props.put(BigtableSinkConfig.ERROR_MODE_CONFIG, BigtableErrorMode.FAIL.name());
-    props.put(BigtableSinkConfig.TABLE_NAME_FORMAT_CONFIG, NONEXISTENT_TABLE_NAME);
+    props.put("error.mode", "FAIL");
+    props.put("table.name.format", NONEXISTENT_TABLE_NAME);
     configureDlq(props, dlqTopic);
 
     String key = "key";

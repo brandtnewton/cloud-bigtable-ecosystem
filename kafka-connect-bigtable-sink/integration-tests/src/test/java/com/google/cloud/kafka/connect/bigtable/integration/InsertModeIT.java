@@ -15,9 +15,6 @@
  */
 package com.google.cloud.kafka.connect.bigtable.integration;
 
-import static com.google.cloud.kafka.connect.bigtable.config.BigtableSinkConfig.*;
-import static org.apache.kafka.connect.runtime.WorkerConfig.KEY_CONVERTER_CLASS_CONFIG;
-import static org.apache.kafka.connect.runtime.WorkerConfig.VALUE_CONVERTER_CLASS_CONFIG;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
@@ -27,12 +24,6 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.cloud.bigtable.data.v2.models.Row;
 import com.google.cloud.bigtable.data.v2.models.RowCell;
-import com.google.cloud.kafka.connect.bigtable.config.BigtableErrorMode;
-import com.google.cloud.kafka.connect.bigtable.config.BigtableSinkConfig;
-import com.google.cloud.kafka.connect.bigtable.config.InsertMode;
-import com.google.cloud.kafka.connect.bigtable.config.NullValueMode;
-import com.google.cloud.kafka.connect.bigtable.transformations.ApplyJsonSchema;
-import com.google.cloud.kafka.connect.bigtable.transformations.FlattenArrayElement;
 import com.google.cloud.kafka.connect.bigtable.util.JsonConverterFactory;
 import com.google.cloud.kafka.connect.bigtable.util.TestDataUtil;
 import com.google.cloud.kafka.connect.bigtable.utils.ByteUtils;
@@ -52,8 +43,6 @@ import org.apache.kafka.connect.data.SchemaAndValue;
 import org.apache.kafka.connect.data.SchemaBuilder;
 import org.apache.kafka.connect.data.Struct;
 import org.apache.kafka.connect.errors.DataException;
-import org.apache.kafka.connect.json.JsonConverter;
-import org.apache.kafka.connect.runtime.ConnectorConfig;
 import org.apache.kafka.connect.storage.Converter;
 import org.apache.kafka.connect.storage.StringConverter;
 import org.junit.Test;
@@ -98,8 +87,8 @@ public class InsertModeIT extends BaseKafkaConnectBigtableIT {
   public void testInsert() throws InterruptedException, ExecutionException {
     String dlqTopic = createDlq();
     Map<String, String> props = baseConnectorProps();
-    props.put(INSERT_MODE_CONFIG, InsertMode.INSERT.name());
-    props.put(ERROR_MODE_CONFIG, BigtableErrorMode.IGNORE.name());
+    props.put("insert.mode", "INSERT");
+    props.put("error.mode", "IGNORE");
     configureDlq(props, dlqTopic);
     String testId = startSingleTopicConnector(props);
     createTablesAndColumnFamilies(testId);
@@ -125,7 +114,7 @@ public class InsertModeIT extends BaseKafkaConnectBigtableIT {
   @Test
   public void testUpsert() throws InterruptedException, ExecutionException {
     Map<String, String> props = baseConnectorProps();
-    props.put(INSERT_MODE_CONFIG, InsertMode.UPSERT.name());
+    props.put("insert.mode", "UPSERT");
     String testId = startSingleTopicConnector(props);
     createTablesAndColumnFamilies(testId);
 
@@ -150,15 +139,15 @@ public class InsertModeIT extends BaseKafkaConnectBigtableIT {
   @Test
   public void testUpsertWithRowKeyFromValue() throws InterruptedException, ExecutionException {
     Map<String, String> props = baseConnectorProps();
-    props.put(INSERT_MODE_CONFIG, InsertMode.UPSERT.name());
-    props.put(ROW_KEY_DEFINITION_CONFIG, "orderId,product");
-    props.put(ROW_KEY_DELIMITER_CONFIG, "#");
-    props.put(DEFAULT_COLUMN_FAMILY_CONFIG, "cf");
-    props.put(ERROR_MODE_CONFIG, BigtableErrorMode.FAIL.name());
+    props.put("insert.mode", "UPSERT");
+    props.put("row.key.definition", "orderId,product");
+    props.put("row.key.delimiter", "#");
+    props.put("default.column.family", "cf");
+    props.put("error.mode", "FAIL");
     props.put("transforms", "createKey");
     props.put("transforms.createKey.type", "org.apache.kafka.connect.transforms.ValueToKey");
     props.put("transforms.createKey.fields", "orderId,product");
-    props.put(VALUE_CONVERTER_CLASS_CONFIG, JsonConverter.class.getName());
+    props.put("value.converter", "org.apache.kafka.connect.json.JsonConverter");
 
     String testId = startSingleTopicConnector(props);
     createTablesAndColumnFamilies(Map.of(testId, Set.of("cf")));
@@ -190,16 +179,16 @@ public class InsertModeIT extends BaseKafkaConnectBigtableIT {
   public void testUpsertWithRowKeyFromValueNoSchema()
       throws InterruptedException, ExecutionException, JsonProcessingException {
     Map<String, String> props = baseConnectorProps();
-    props.put(INSERT_MODE_CONFIG, InsertMode.UPSERT.name());
-    props.put(ROW_KEY_DEFINITION_CONFIG, "orderId,product");
-    props.put(ROW_KEY_DELIMITER_CONFIG, "#");
-    props.put(DEFAULT_COLUMN_FAMILY_CONFIG, "cf");
-    props.put(ERROR_MODE_CONFIG, BigtableErrorMode.FAIL.name());
+    props.put("insert.mode", "UPSERT");
+    props.put("row.key.definition", "orderId,product");
+    props.put("row.key.delimiter", "#");
+    props.put("default.column.family", "cf");
+    props.put("error.mode", "FAIL");
     props.put("transforms", "createKey");
     props.put("transforms.createKey.type", "org.apache.kafka.connect.transforms.ValueToKey");
     props.put("transforms.createKey.fields", "orderId,product");
     props.put("value.converter.schemas.enable", "false");
-    props.put(VALUE_CONVERTER_CLASS_CONFIG, JsonConverter.class.getName());
+    props.put("value.converter", "org.apache.kafka.connect.json.JsonConverter");
 
     String testId = startSingleTopicConnector(props);
     createTablesAndColumnFamilies(Map.of(testId, Set.of("cf")));
@@ -225,15 +214,15 @@ public class InsertModeIT extends BaseKafkaConnectBigtableIT {
       throws InterruptedException, ExecutionException {
     String dlqTopic = createDlq();
     Map<String, String> props = baseConnectorProps();
-    props.put(INSERT_MODE_CONFIG, InsertMode.UPSERT.name());
-    props.put(ROW_KEY_DEFINITION_CONFIG, "orderId,NO_SUCH_COLUMN");
-    props.put(ROW_KEY_DELIMITER_CONFIG, "#");
-    props.put(DEFAULT_COLUMN_FAMILY_CONFIG, "cf");
-    props.put(ERROR_MODE_CONFIG, BigtableErrorMode.FAIL.name());
+    props.put("insert.mode", "UPSERT");
+    props.put("row.key.definition", "orderId,NO_SUCH_COLUMN");
+    props.put("row.key.delimiter", "#");
+    props.put("default.column.family", "cf");
+    props.put("error.mode", "FAIL");
     props.put("transforms", "createKey");
     props.put("transforms.createKey.type", "org.apache.kafka.connect.transforms.ValueToKey");
     props.put("transforms.createKey.fields", "orderId,userId");
-    props.put(VALUE_CONVERTER_CLASS_CONFIG, JsonConverter.class.getName());
+    props.put("value.converter", "org.apache.kafka.connect.json.JsonConverter");
     configureDlq(props, dlqTopic);
     String testId = startSingleTopicConnector(props);
     createTablesAndColumnFamilies(Map.of(testId, Set.of("cf")));
@@ -249,15 +238,15 @@ public class InsertModeIT extends BaseKafkaConnectBigtableIT {
       throws InterruptedException, ExecutionException {
     String dlqTopic = createDlq();
     Map<String, String> props = baseConnectorProps();
-    props.put(INSERT_MODE_CONFIG, InsertMode.UPSERT.name());
-    props.put(ROW_KEY_DEFINITION_CONFIG, "orderId,product");
-    props.put(ROW_KEY_DELIMITER_CONFIG, "#");
-    props.put(DEFAULT_COLUMN_FAMILY_CONFIG, "cf");
-    props.put(ERROR_MODE_CONFIG, BigtableErrorMode.FAIL.name());
+    props.put("insert.mode", "UPSERT");
+    props.put("row.key.definition", "orderId,product");
+    props.put("row.key.delimiter", "#");
+    props.put("default.column.family", "cf");
+    props.put("error.mode", "FAIL");
     props.put("transforms", "createKey");
     props.put("transforms.createKey.type", "org.apache.kafka.connect.transforms.ValueToKey");
     props.put("transforms.createKey.fields", "orderId,product");
-    props.put(VALUE_CONVERTER_CLASS_CONFIG, JsonConverter.class.getName());
+    props.put("value.converter", "org.apache.kafka.connect.json.JsonConverter");
     configureDlq(props, dlqTopic);
     String testId = startSingleTopicConnector(props);
     createTablesAndColumnFamilies(Map.of(testId, Set.of("cf")));
@@ -273,27 +262,24 @@ public class InsertModeIT extends BaseKafkaConnectBigtableIT {
   public void testUpsertAppliedSchema()
       throws InterruptedException, ExecutionException, JsonProcessingException {
     Map<String, String> props = baseConnectorProps();
-    props.put(INSERT_MODE_CONFIG, InsertMode.UPSERT.name());
-    props.put(ROW_KEY_DEFINITION_CONFIG, "userId,orderId");
+    props.put("insert.mode", "UPSERT");
+    props.put("row.key.definition", "userId,orderId");
     props.put("value.converter.schemas.enable", "false");
     props.put("transforms", "applySchema,createKey,flattenElements");
-    props.put("transforms.applySchema.type", ApplyJsonSchema.class.getName() + "$Value");
+    props.put("transforms.applySchema.type", "com.google.cloud.kafka.connect.bigtable.transformations.ApplyJsonSchema$Value");
     props.put("transforms.applySchema.schema.json", readResource("json/applied-schema.json"));
     props.put("transforms.createKey.type", "org.apache.kafka.connect.transforms.ValueToKey");
     props.put("transforms.createKey.fields", "userId,orderId");
-    props.put("transforms.flattenElements.type", FlattenArrayElement.class.getName());
-    props.put("transforms.flattenElements." + FlattenArrayElement.ARRAY_FIELD_NAME, "products");
-    props.put(
-        "transforms.flattenElements." + FlattenArrayElement.ARRAY_INNER_WRAPPER_FIELD_NAME, "list");
-    props.put(
-        "transforms.flattenElements." + FlattenArrayElement.ARRAY_ELEMENT_WRAPPER_FIELD_NAME,
-        "element");
-    props.put(EXPAND_ROOT_LEVEL_ARRAYS, "true");
-    props.put(ROW_KEY_DELIMITER_CONFIG, "#");
-    props.put(DEFAULT_COLUMN_FAMILY_CONFIG, "cf");
-    props.put(ERROR_MODE_CONFIG, BigtableErrorMode.FAIL.name());
-    props.put(KEY_CONVERTER_CLASS_CONFIG, StringConverter.class.getName());
-    props.put(VALUE_CONVERTER_CLASS_CONFIG, JsonConverter.class.getName());
+    props.put("transforms.flattenElements.type", "com.google.cloud.kafka.connect.bigtable.transformations.FlattenArrayElement");
+    props.put("transforms.flattenElements.array.field", "products");
+    props.put("transforms.flattenElements.array.inner.wrapper", "list");
+    props.put("transforms.flattenElements.array.element.wrapper", "element");
+    props.put("expand.root.level.arrays", "true");
+    props.put("row.key.delimiter", "#");
+    props.put("default.column.family", "cf");
+    props.put("error.mode", "FAIL");
+    props.put("key.converter", "org.apache.kafka.connect.storage.StringConverter");
+    props.put("value.converter", "org.apache.kafka.connect.json.JsonConverter");
 
     String testId = startSingleTopicConnector(props);
     createTablesAndColumnFamilies(Map.of(testId, Set.of("cf", "products")));
@@ -324,25 +310,22 @@ public class InsertModeIT extends BaseKafkaConnectBigtableIT {
   public void testUpsertWithRowKeyWithRootLevelArrayExpanded()
       throws InterruptedException, ExecutionException, JsonProcessingException {
     Map<String, String> props = baseConnectorProps();
-    props.put(INSERT_MODE_CONFIG, InsertMode.UPSERT.name());
-    props.put(ROW_KEY_DEFINITION_CONFIG, "userId,orderId");
-    props.put(ROW_KEY_DELIMITER_CONFIG, "#");
+    props.put("insert.mode", "UPSERT");
+    props.put("row.key.definition", "userId,orderId");
+    props.put("row.key.delimiter", "#");
     props.put("transforms", "createKey,flattenElements");
     props.put("transforms.createKey.type", "org.apache.kafka.connect.transforms.ValueToKey");
     props.put("transforms.createKey.fields", "userId,orderId");
-    props.put("transforms.flattenElements.type", FlattenArrayElement.class.getName());
-    props.put("transforms.flattenElements." + FlattenArrayElement.ARRAY_FIELD_NAME, "products");
-    props.put(
-        "transforms.flattenElements." + FlattenArrayElement.ARRAY_INNER_WRAPPER_FIELD_NAME, "list");
-    props.put(
-        "transforms.flattenElements." + FlattenArrayElement.ARRAY_ELEMENT_WRAPPER_FIELD_NAME,
-        "element");
+    props.put("transforms.flattenElements.type", "com.google.cloud.kafka.connect.bigtable.transformations.FlattenArrayElement");
+    props.put("transforms.flattenElements.array.field", "products");
+    props.put("transforms.flattenElements.array.inner.wrapper", "list");
+    props.put("transforms.flattenElements.array.element.wrapper", "element");
 
-    props.put(EXPAND_ROOT_LEVEL_ARRAYS, "true");
-    props.put(DEFAULT_COLUMN_FAMILY_CONFIG, "cf");
-    props.put(ERROR_MODE_CONFIG, BigtableErrorMode.FAIL.name());
-    props.put(KEY_CONVERTER_CLASS_CONFIG, StringConverter.class.getName());
-    props.put(VALUE_CONVERTER_CLASS_CONFIG, JsonConverter.class.getName());
+    props.put("expand.root.level.arrays", "true");
+    props.put("default.column.family", "cf");
+    props.put("error.mode", "FAIL");
+    props.put("key.converter", "org.apache.kafka.connect.storage.StringConverter");
+    props.put("value.converter", "org.apache.kafka.connect.json.JsonConverter");
 
     String testId = startSingleTopicConnector(props);
     createTablesAndColumnFamilies(Map.of(testId, Set.of("cf", "products")));
@@ -404,26 +387,23 @@ public class InsertModeIT extends BaseKafkaConnectBigtableIT {
   public void testRootLevelArrayExpandedWriteNull()
       throws InterruptedException, ExecutionException, JsonProcessingException {
     Map<String, String> props = baseConnectorProps();
-    props.put(INSERT_MODE_CONFIG, InsertMode.UPSERT.name());
-    props.put(ROW_KEY_DEFINITION_CONFIG, "userId,orderId");
-    props.put(ROW_KEY_DELIMITER_CONFIG, "#");
+    props.put("insert.mode", "UPSERT");
+    props.put("row.key.definition", "userId,orderId");
+    props.put("row.key.delimiter", "#");
     props.put("transforms", "createKey,flattenElements");
     props.put("transforms.createKey.type", "org.apache.kafka.connect.transforms.ValueToKey");
     props.put("transforms.createKey.fields", "userId,orderId");
-    props.put("transforms.flattenElements.type", FlattenArrayElement.class.getName());
-    props.put("transforms.flattenElements." + FlattenArrayElement.ARRAY_FIELD_NAME, "products");
-    props.put(
-        "transforms.flattenElements." + FlattenArrayElement.ARRAY_INNER_WRAPPER_FIELD_NAME, "list");
-    props.put(
-        "transforms.flattenElements." + FlattenArrayElement.ARRAY_ELEMENT_WRAPPER_FIELD_NAME,
-        "element");
+    props.put("transforms.flattenElements.type", "com.google.cloud.kafka.connect.bigtable.transformations.FlattenArrayElement");
+    props.put("transforms.flattenElements.array.field", "products");
+    props.put("transforms.flattenElements.array.inner.wrapper", "list");
+    props.put("transforms.flattenElements.array.element.wrapper", "element");
 
-    props.put(EXPAND_ROOT_LEVEL_ARRAYS, "true");
-    props.put(VALUE_NULL_MODE_CONFIG, NullValueMode.WRITE.name());
-    props.put(DEFAULT_COLUMN_FAMILY_CONFIG, "cf");
-    props.put(ERROR_MODE_CONFIG, BigtableErrorMode.FAIL.name());
-    props.put(KEY_CONVERTER_CLASS_CONFIG, StringConverter.class.getName());
-    props.put(VALUE_CONVERTER_CLASS_CONFIG, JsonConverter.class.getName());
+    props.put("expand.root.level.arrays", "true");
+    props.put("value.null.mode", "WRITE");
+    props.put("default.column.family", "cf");
+    props.put("error.mode", "FAIL");
+    props.put("key.converter", "org.apache.kafka.connect.storage.StringConverter");
+    props.put("value.converter", "org.apache.kafka.connect.json.JsonConverter");
 
     String testId = startSingleTopicConnector(props);
     createTablesAndColumnFamilies(Map.of(testId, Set.of("cf", "products")));
@@ -452,11 +432,11 @@ public class InsertModeIT extends BaseKafkaConnectBigtableIT {
     Converter valueConverter = JsonConverterFactory.create(true, false);
 
     Map<String, String> props = baseConnectorProps();
-    props.put(ConnectorConfig.VALUE_CONVERTER_CLASS_CONFIG, valueConverter.getClass().getName());
-    props.put(BigtableSinkConfig.INSERT_MODE_CONFIG, InsertMode.REPLACE_IF_NEWEST.name());
+    props.put("value.converter", "org.apache.kafka.connect.json.JsonConverter");
+    props.put("insert.mode", "REPLACE_IF_NEWEST");
     // Let's ignore `null`s to ensure that we observe `InsertMode.REPLACE_IF_NEWEST`'s behavior
     // rather than `NullValueMode.DELETE`'s.
-    props.put(BigtableSinkConfig.VALUE_NULL_MODE_CONFIG, NullValueMode.IGNORE.name());
+    props.put("value.null.mode", "IGNORE");
 
     String testId = startSingleTopicConnector(props);
     createTablesAndColumnFamilies(testId);
@@ -535,11 +515,11 @@ public class InsertModeIT extends BaseKafkaConnectBigtableIT {
     Converter valueConverter = new StringConverter();
 
     Map<String, String> props = baseConnectorProps();
-    props.put(ConnectorConfig.VALUE_CONVERTER_CLASS_CONFIG, valueConverter.getClass().getName());
-    props.put(BigtableSinkConfig.INSERT_MODE_CONFIG, InsertMode.REPLACE_IF_NEWEST.name());
+    props.put("value.converter", "org.apache.kafka.connect.storage.StringConverter");
+    props.put("insert.mode", "REPLACE_IF_NEWEST");
     // `REPLACE_IF_NEWEST` mode empties the row before setting the new cells irregardless of
     // configured NullValueMode.
-    props.put(BigtableSinkConfig.VALUE_NULL_MODE_CONFIG, NullValueMode.IGNORE.name());
+    props.put("value.null.mode", "IGNORE");
 
     String testId = startSingleTopicConnector(props);
     createTablesAndColumnFamilies(testId);
@@ -603,9 +583,9 @@ public class InsertModeIT extends BaseKafkaConnectBigtableIT {
     Converter valueConverter = JsonConverterFactory.create(true, false);
 
     Map<String, String> props = baseConnectorProps();
-    props.put(ConnectorConfig.VALUE_CONVERTER_CLASS_CONFIG, valueConverter.getClass().getName());
-    props.put(BigtableSinkConfig.INSERT_MODE_CONFIG, InsertMode.REPLACE_IF_NEWEST.name());
-    props.put(BigtableSinkConfig.VALUE_NULL_MODE_CONFIG, NullValueMode.DELETE.name());
+    props.put("value.converter", "org.apache.kafka.connect.json.JsonConverter");
+    props.put("insert.mode", "REPLACE_IF_NEWEST");
+    props.put("value.null.mode", "DELETE");
 
     String testId = startSingleTopicConnector(props);
     createTablesAndColumnFamilies(testId);

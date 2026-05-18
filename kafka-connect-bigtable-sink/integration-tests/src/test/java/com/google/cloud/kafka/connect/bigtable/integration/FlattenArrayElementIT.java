@@ -15,9 +15,6 @@
  */
 package com.google.cloud.kafka.connect.bigtable.integration;
 
-import static com.google.cloud.kafka.connect.bigtable.config.BigtableSinkConfig.*;
-import static org.apache.kafka.connect.runtime.WorkerConfig.KEY_CONVERTER_CLASS_CONFIG;
-import static org.apache.kafka.connect.runtime.WorkerConfig.VALUE_CONVERTER_CLASS_CONFIG;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 
@@ -26,9 +23,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.google.cloud.bigtable.data.v2.models.Row;
 import com.google.cloud.bigtable.data.v2.models.RowCell;
-import com.google.cloud.kafka.connect.bigtable.config.BigtableErrorMode;
-import com.google.cloud.kafka.connect.bigtable.config.InsertMode;
-import com.google.cloud.kafka.connect.bigtable.transformations.FlattenArrayElement;
 import com.google.protobuf.ByteString;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
@@ -37,7 +31,6 @@ import org.apache.kafka.connect.data.Schema;
 import org.apache.kafka.connect.data.SchemaBuilder;
 import org.apache.kafka.connect.data.Struct;
 import org.apache.kafka.connect.json.JsonConverter;
-import org.apache.kafka.connect.storage.StringConverter;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -50,19 +43,16 @@ public class FlattenArrayElementIT extends BaseKafkaConnectBigtableIT {
   public void testFlattenArrayElementSmt()
       throws InterruptedException, ExecutionException, JsonProcessingException {
     Map<String, String> props = baseConnectorProps();
-    props.put(INSERT_MODE_CONFIG, InsertMode.UPSERT.name());
+    props.put("insert.mode", "UPSERT");
     props.put("transforms", "flattenElements");
-    props.put("transforms.flattenElements.type", FlattenArrayElement.class.getName());
-    props.put("transforms.flattenElements." + FlattenArrayElement.ARRAY_FIELD_NAME, "products");
-    props.put(
-        "transforms.flattenElements." + FlattenArrayElement.ARRAY_INNER_WRAPPER_FIELD_NAME, "list");
-    props.put(
-        "transforms.flattenElements." + FlattenArrayElement.ARRAY_ELEMENT_WRAPPER_FIELD_NAME,
-        "element");
-    props.put(DEFAULT_COLUMN_FAMILY_CONFIG, "cf");
-    props.put(ERROR_MODE_CONFIG, BigtableErrorMode.FAIL.name());
-    props.put(KEY_CONVERTER_CLASS_CONFIG, StringConverter.class.getName());
-    props.put(VALUE_CONVERTER_CLASS_CONFIG, JsonConverter.class.getName());
+    props.put("transforms.flattenElements.type", "com.google.cloud.kafka.connect.bigtable.transformations.FlattenArrayElement");
+    props.put("transforms.flattenElements.array.field", "products");
+    props.put("transforms.flattenElements.array.inner.wrapper", "list");
+    props.put("transforms.flattenElements.array.element.wrapper", "element");
+    props.put("default.column.family", "cf");
+    props.put("error.mode", "FAIL");
+    props.put("key.converter", "org.apache.kafka.connect.storage.StringConverter");
+    props.put("value.converter", "org.apache.kafka.connect.json.JsonConverter");
 
     String testId = startSingleTopicConnector(props);
     createTablesAndColumnFamilies(Map.of(testId, Set.of(testId, "cf", "products")));

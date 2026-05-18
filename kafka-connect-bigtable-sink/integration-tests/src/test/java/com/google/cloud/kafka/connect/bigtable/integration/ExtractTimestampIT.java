@@ -15,17 +15,11 @@
  */
 package com.google.cloud.kafka.connect.bigtable.integration;
 
-import static com.google.cloud.kafka.connect.bigtable.config.BigtableSinkConfig.DEFAULT_COLUMN_FAMILY_CONFIG;
-import static com.google.cloud.kafka.connect.bigtable.config.BigtableSinkConfig.INSERT_MODE_CONFIG;
-import static org.apache.kafka.connect.runtime.WorkerConfig.VALUE_CONVERTER_CLASS_CONFIG;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 
 import com.google.cloud.bigtable.data.v2.models.Row;
 import com.google.cloud.bigtable.data.v2.models.RowCell;
-import com.google.cloud.kafka.connect.bigtable.config.InsertMode;
-import com.google.cloud.kafka.connect.bigtable.transformations.ExtractTimestamp;
-import com.google.cloud.kafka.connect.bigtable.transformations.TimestampFormat;
 import com.google.protobuf.ByteString;
 import java.nio.charset.StandardCharsets;
 import java.util.Collections;
@@ -37,7 +31,6 @@ import org.apache.kafka.connect.data.Schema;
 import org.apache.kafka.connect.data.SchemaBuilder;
 import org.apache.kafka.connect.data.Struct;
 import org.apache.kafka.connect.json.JsonConverter;
-import org.apache.kafka.connect.storage.StringConverter;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -48,15 +41,15 @@ public class ExtractTimestampIT extends BaseKafkaConnectBigtableIT {
   @Test
   public void testExtractTimestampFromValue() throws InterruptedException, ExecutionException {
     Map<String, String> props = baseConnectorProps();
-    props.put(INSERT_MODE_CONFIG, InsertMode.UPSERT.name());
+    props.put("insert.mode", "UPSERT");
     props.put("transforms", "extractTimestamp");
-    props.put("transforms.extractTimestamp.type", ExtractTimestamp.Value.class.getName());
-    props.put("transforms.extractTimestamp." + ExtractTimestamp.TIMESTAMP_FIELD_CONFIG, "ts");
+    props.put("transforms.extractTimestamp.type", "com.google.cloud.kafka.connect.bigtable.transformations.ExtractTimestamp$Value");
+    props.put("transforms.extractTimestamp.timestamp.field", "ts");
     props.put(
-        "transforms.extractTimestamp." + ExtractTimestamp.TIMESTAMP_FIELD_FORMAT_CONFIG,
-        TimestampFormat.MILLIS.name());
-    props.put(DEFAULT_COLUMN_FAMILY_CONFIG, "cf");
-    props.put(VALUE_CONVERTER_CLASS_CONFIG, JsonConverter.class.getName());
+        "transforms.extractTimestamp.timestamp.field.precision",
+        "MILLIS");
+    props.put("default.column.family", "cf");
+    props.put("value.converter", "org.apache.kafka.connect.json.JsonConverter");
 
     String testId = startSingleTopicConnector(props);
     createTablesAndColumnFamilies(Map.of(testId, Set.of("cf")));
@@ -92,16 +85,16 @@ public class ExtractTimestampIT extends BaseKafkaConnectBigtableIT {
   public void testExtractTimestampFromNestedValue()
       throws InterruptedException, ExecutionException {
     Map<String, String> props = baseConnectorProps();
-    props.put(INSERT_MODE_CONFIG, InsertMode.UPSERT.name());
+    props.put("insert.mode", "UPSERT");
     props.put("transforms", "extractTimestamp");
-    props.put("transforms.extractTimestamp.type", ExtractTimestamp.Value.class.getName());
+    props.put("transforms.extractTimestamp.type", "com.google.cloud.kafka.connect.bigtable.transformations.ExtractTimestamp$Value");
     props.put(
-        "transforms.extractTimestamp." + ExtractTimestamp.TIMESTAMP_FIELD_CONFIG, "nested.ts");
+        "transforms.extractTimestamp.timestamp.field", "nested.ts");
     props.put(
-        "transforms.extractTimestamp." + ExtractTimestamp.TIMESTAMP_FIELD_FORMAT_CONFIG,
-        TimestampFormat.SECONDS.name());
-    props.put(DEFAULT_COLUMN_FAMILY_CONFIG, "cf");
-    props.put(VALUE_CONVERTER_CLASS_CONFIG, JsonConverter.class.getName());
+        "transforms.extractTimestamp.timestamp.field.precision",
+        "SECONDS");
+    props.put("default.column.family", "cf");
+    props.put("value.converter", "org.apache.kafka.connect.json.JsonConverter");
 
     String testId = startSingleTopicConnector(props);
     createTablesAndColumnFamilies(Map.of(testId, Set.of("cf", "nested")));
@@ -139,13 +132,13 @@ public class ExtractTimestampIT extends BaseKafkaConnectBigtableIT {
   @Test
   public void testExtractTimestampFromKey() throws InterruptedException, ExecutionException {
     Map<String, String> props = baseConnectorProps();
-    props.put(INSERT_MODE_CONFIG, InsertMode.UPSERT.name());
+    props.put("insert.mode", "UPSERT");
     props.put("transforms", "extractTimestamp");
-    props.put("transforms.extractTimestamp.type", ExtractTimestamp.Key.class.getName());
-    props.put("transforms.extractTimestamp." + ExtractTimestamp.TIMESTAMP_FIELD_CONFIG, "ts");
-    props.put(DEFAULT_COLUMN_FAMILY_CONFIG, "cf");
-    props.put(VALUE_CONVERTER_CLASS_CONFIG, StringConverter.class.getName());
-    props.put("key.converter", JsonConverter.class.getName());
+    props.put("transforms.extractTimestamp.type", "com.google.cloud.kafka.connect.bigtable.transformations.ExtractTimestamp$Key");
+    props.put("transforms.extractTimestamp.timestamp.field", "ts");
+    props.put("default.column.family", "cf");
+    props.put("value.converter", "org.apache.kafka.connect.storage.StringConverter");
+    props.put("key.converter", "org.apache.kafka.connect.json.JsonConverter");
     props.put("key.converter.schemas.enable", "true");
 
     String testId = startSingleTopicConnector(props);

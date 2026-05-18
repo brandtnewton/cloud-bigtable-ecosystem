@@ -24,9 +24,6 @@ import static org.junit.Assert.assertTrue;
 import com.google.cloud.bigtable.data.v2.models.Row;
 import com.google.cloud.bigtable.data.v2.models.RowCell;
 import com.google.cloud.bigtable.data.v2.models.RowMutation;
-import com.google.cloud.kafka.connect.bigtable.config.BigtableSinkConfig;
-import com.google.cloud.kafka.connect.bigtable.config.InsertMode;
-import com.google.cloud.kafka.connect.bigtable.config.NullValueMode;
 import com.google.protobuf.ByteString;
 import java.nio.charset.StandardCharsets;
 import java.util.AbstractMap;
@@ -42,8 +39,6 @@ import org.apache.kafka.connect.data.SchemaAndValue;
 import org.apache.kafka.connect.data.SchemaBuilder;
 import org.apache.kafka.connect.data.Struct;
 import org.apache.kafka.connect.json.JsonConverter;
-import org.apache.kafka.connect.json.JsonConverterConfig;
-import org.apache.kafka.connect.runtime.ConnectorConfig;
 import org.apache.kafka.connect.storage.StringConverter;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -52,7 +47,7 @@ import org.junit.runners.JUnit4;
 @RunWith(JUnit4.class)
 public class NullHandlingIT extends BaseKafkaConnectBigtableIT {
   private static final Map<String, String> JSON_CONVERTER_PROPS =
-      Map.of(JsonConverterConfig.SCHEMAS_ENABLE_CONFIG, String.valueOf(true));
+      Map.of("schemas.enable", String.valueOf(true));
   private static final StringConverter KEY_CONVERTER = new StringConverter();
   private static final JsonConverter VALUE_CONVERTER = new JsonConverter();
 
@@ -76,7 +71,7 @@ public class NullHandlingIT extends BaseKafkaConnectBigtableIT {
   @Test
   public void testIgnoreMode() throws InterruptedException, ExecutionException {
     Map<String, String> connectorProps = connectorProps();
-    connectorProps.put(BigtableSinkConfig.VALUE_NULL_MODE_CONFIG, NullValueMode.IGNORE.name());
+    connectorProps.put("value.null.mode", "IGNORE");
     String testId = startSingleTopicConnector(connectorProps);
     createTablesAndColumnFamilies(Map.of(testId, Set.of(testId, NESTED_NULL_STRUCT_FIELD_NAME)));
     connect
@@ -133,9 +128,9 @@ public class NullHandlingIT extends BaseKafkaConnectBigtableIT {
         ByteString.copyFrom(defaultColumnQualifier.getBytes(StandardCharsets.UTF_8));
 
     Map<String, String> connectorProps = connectorProps();
-    connectorProps.put(BigtableSinkConfig.VALUE_NULL_MODE_CONFIG, NullValueMode.WRITE.name());
-    connectorProps.put(BigtableSinkConfig.DEFAULT_COLUMN_FAMILY_CONFIG, defaultColumnFamily);
-    connectorProps.put(BigtableSinkConfig.DEFAULT_COLUMN_QUALIFIER_CONFIG, defaultColumnQualifier);
+    connectorProps.put("value.null.mode", "WRITE");
+    connectorProps.put("default.column.family", defaultColumnFamily);
+    connectorProps.put("default.column.qualifier", defaultColumnQualifier);
     String testId = startSingleTopicConnector(connectorProps);
     createTablesAndColumnFamilies(
         Map.of(testId, Set.of(testId, defaultColumnFamily, NESTED_NULL_STRUCT_FIELD_NAME)));
@@ -200,8 +195,8 @@ public class NullHandlingIT extends BaseKafkaConnectBigtableIT {
     String columnQualifier1 = "cq1";
     String columnQualifier2 = "cq2";
     Map<String, String> connectorProps = connectorProps();
-    connectorProps.put(BigtableSinkConfig.VALUE_NULL_MODE_CONFIG, NullValueMode.DELETE.name());
-    connectorProps.put(BigtableSinkConfig.INSERT_MODE_CONFIG, InsertMode.UPSERT.name());
+    connectorProps.put("value.null.mode", "DELETE");
+    connectorProps.put("insert.mode", "UPSERT");
     String testId = startSingleTopicConnector(connectorProps);
     createTablesAndColumnFamilies(
         Map.of(
@@ -333,10 +328,9 @@ public class NullHandlingIT extends BaseKafkaConnectBigtableIT {
     Map<String, String> props = super.baseConnectorProps();
     // We use JsonConverter since it doesn't care about schemas, so we may use differently-shaped
     // data within a single test.
-    props.put(ConnectorConfig.VALUE_CONVERTER_CLASS_CONFIG, JsonConverter.class.getName());
+    props.put("value.converter", "org.apache.kafka.connect.json.JsonConverter");
     for (Map.Entry<String, String> prop : JSON_CONVERTER_PROPS.entrySet()) {
-      props.put(
-          ConnectorConfig.VALUE_CONVERTER_CLASS_CONFIG + "." + prop.getKey(), prop.getValue());
+      props.put("value.converter" + "." + prop.getKey(), prop.getValue());
     }
     return props;
   }

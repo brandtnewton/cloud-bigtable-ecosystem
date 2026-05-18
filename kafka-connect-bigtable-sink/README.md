@@ -157,9 +157,9 @@ The name of the timestamp field. Non-root fields can be referenced by specifying
 separating each field. If the field cannot be found, or if the value is null, the message is failed. The field may be
 a numeric, string or date type.
 
-`timestamp.field.format`
+`timestamp.field.precision`
 
-The format of the timestamp field. Defaults to MILLIS. This only affects the output for numeric fields. Ignore this
+The precision of the timestamp field. Defaults to MILLIS. This only affects the output for numeric fields. Ignore this
 config if your field is a date type. Supported values are NANOS, MICROS, MILLIS and SECONDS. Use the value that matches
 the field's precision. Example: if your field has epoch millisecond values, use the MILLIS config value.
 

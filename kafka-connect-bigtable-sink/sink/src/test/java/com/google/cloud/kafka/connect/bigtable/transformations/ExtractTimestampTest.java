@@ -59,7 +59,8 @@ public class ExtractTimestampTest {
     assertEquals(
         baseMillis,
         ExtractTimestamp.parseTimestampToMillis(
-            new SchemaAndValue(Schema.INT64_SCHEMA, baseMillis * 1000L), TimestampPrecision.MICROS));
+            new SchemaAndValue(Schema.INT64_SCHEMA, baseMillis * 1000L),
+            TimestampPrecision.MICROS));
     assertEquals(
         baseMillis,
         ExtractTimestamp.parseTimestampToMillis(
@@ -91,7 +92,8 @@ public class ExtractTimestampTest {
     SchemaAndValue value = new SchemaAndValue(Schema.INT64_SCHEMA, 123456789L);
     for (TimestampPrecision precision : TimestampPrecision.values()) {
       try {
-        // We don't care about the output value, just that it doesn't throw IllegalStateException (default case)
+        // We don't care about the output value, just that it doesn't throw IllegalStateException
+        // (default case)
         ExtractTimestamp.parseTimestampToMillis(value, precision);
       } catch (IllegalStateException e) {
         fail("TimestampPrecision " + precision + " is not implemented in parseTimestampToMillis");
@@ -120,7 +122,8 @@ public class ExtractTimestampTest {
   public void testExtractTimestampFromStructValue() {
     Map<String, String> configs = new HashMap<>();
     configs.put(ExtractTimestamp.TIMESTAMP_FIELD_CONFIG, "ts");
-    configs.put(ExtractTimestamp.TIMESTAMP_FIELD_PRECISION_CONFIG, TimestampPrecision.MILLIS.name());
+    configs.put(
+        ExtractTimestamp.TIMESTAMP_FIELD_PRECISION_CONFIG, TimestampPrecision.MILLIS.name());
     valueSmt.configure(configs);
 
     Schema valueSchema = SchemaBuilder.struct().field("ts", Schema.INT64_SCHEMA).build();
@@ -136,7 +139,8 @@ public class ExtractTimestampTest {
   public void testExtractTimestampFromStructKey() {
     Map<String, String> configs = new HashMap<>();
     configs.put(ExtractTimestamp.TIMESTAMP_FIELD_CONFIG, "ts");
-    configs.put(ExtractTimestamp.TIMESTAMP_FIELD_PRECISION_CONFIG, TimestampPrecision.MILLIS.name());
+    configs.put(
+        ExtractTimestamp.TIMESTAMP_FIELD_PRECISION_CONFIG, TimestampPrecision.MILLIS.name());
     keySmt.configure(configs);
 
     Schema keySchema = SchemaBuilder.struct().field("ts", Schema.INT64_SCHEMA).build();
@@ -152,7 +156,8 @@ public class ExtractTimestampTest {
   public void testNestedFieldExtraction() {
     Map<String, String> configs = new HashMap<>();
     configs.put(ExtractTimestamp.TIMESTAMP_FIELD_CONFIG, "outer.inner");
-    configs.put(ExtractTimestamp.TIMESTAMP_FIELD_PRECISION_CONFIG, TimestampPrecision.MILLIS.name());
+    configs.put(
+        ExtractTimestamp.TIMESTAMP_FIELD_PRECISION_CONFIG, TimestampPrecision.MILLIS.name());
     valueSmt.configure(configs);
 
     Schema innerSchema = SchemaBuilder.struct().field("inner", Schema.INT64_SCHEMA).build();
@@ -171,7 +176,8 @@ public class ExtractTimestampTest {
   public void testNestedMapExtraction() {
     Map<String, String> configs = new HashMap<>();
     configs.put(ExtractTimestamp.TIMESTAMP_FIELD_CONFIG, "outer.inner");
-    configs.put(ExtractTimestamp.TIMESTAMP_FIELD_PRECISION_CONFIG, TimestampPrecision.MILLIS.name());
+    configs.put(
+        ExtractTimestamp.TIMESTAMP_FIELD_PRECISION_CONFIG, TimestampPrecision.MILLIS.name());
     valueSmt.configure(configs);
 
     Map<String, Object> inner = Collections.singletonMap("inner", 987654321L);
@@ -239,7 +245,8 @@ public class ExtractTimestampTest {
   private void verifyInputType(Object inputValue, long expectedMillis) {
     Map<String, String> configs = new HashMap<>();
     configs.put(ExtractTimestamp.TIMESTAMP_FIELD_CONFIG, "ts");
-    configs.put(ExtractTimestamp.TIMESTAMP_FIELD_PRECISION_CONFIG, TimestampPrecision.MILLIS.name());
+    configs.put(
+        ExtractTimestamp.TIMESTAMP_FIELD_PRECISION_CONFIG, TimestampPrecision.MILLIS.name());
     valueSmt.configure(configs);
 
     Schema schema = null; // Schemaless test
@@ -257,7 +264,8 @@ public class ExtractTimestampTest {
   public void testMissingField() {
     Map<String, String> configs = new HashMap<>();
     configs.put(ExtractTimestamp.TIMESTAMP_FIELD_CONFIG, "missing");
-    configs.put(ExtractTimestamp.TIMESTAMP_FIELD_PRECISION_CONFIG, TimestampPrecision.MILLIS.name());
+    configs.put(
+        ExtractTimestamp.TIMESTAMP_FIELD_PRECISION_CONFIG, TimestampPrecision.MILLIS.name());
     valueSmt.configure(configs);
 
     Schema schema = SchemaBuilder.struct().field("other", Schema.INT64_SCHEMA).build();
@@ -271,7 +279,8 @@ public class ExtractTimestampTest {
   public void testNullField() {
     Map<String, String> configs = new HashMap<>();
     configs.put(ExtractTimestamp.TIMESTAMP_FIELD_CONFIG, "ts");
-    configs.put(ExtractTimestamp.TIMESTAMP_FIELD_PRECISION_CONFIG, TimestampPrecision.MILLIS.name());
+    configs.put(
+        ExtractTimestamp.TIMESTAMP_FIELD_PRECISION_CONFIG, TimestampPrecision.MILLIS.name());
     valueSmt.configure(configs);
 
     Schema schema = SchemaBuilder.struct().field("ts", Schema.OPTIONAL_INT64_SCHEMA).build();

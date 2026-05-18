@@ -46,8 +46,8 @@ public abstract class ExtractTimestamp<R extends ConnectRecord<R>> implements Tr
               TimestampPrecision.MILLIS.name(),
               ConfigUtils.enumValidator(TimestampPrecision.values()),
               ConfigDef.Importance.HIGH,
-              "The precision of the timestamp field. Defaults to MILLIS. This only effects the output"
-                  + " for numeric fields. Ignore this config if your field is a date type."
+              "The precision of the timestamp field. Defaults to MILLIS. This only effects the"
+                  + " output for numeric fields. Ignore this config if your field is a date type."
                   + " Supported values are NANOS, MICROS, MILLIS and SECONDS. Use the value that"
                   + " matches the field's precision. Example: if your field has epoch millisecond"
                   + " values, use the MILLIS config value.");
@@ -60,7 +60,8 @@ public abstract class ExtractTimestamp<R extends ConnectRecord<R>> implements Tr
     SimpleConfig config = new SimpleConfig(CONFIG_DEF, configs);
     this.fieldPath = config.getString(TIMESTAMP_FIELD_CONFIG).split("\\.");
     this.timestampPrecision =
-        TimestampPrecision.valueOf(config.getString(TIMESTAMP_FIELD_PRECISION_CONFIG).toUpperCase());
+        TimestampPrecision.valueOf(
+            config.getString(TIMESTAMP_FIELD_PRECISION_CONFIG).toUpperCase());
   }
 
   @Override

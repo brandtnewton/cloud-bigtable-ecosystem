@@ -15,7 +15,7 @@
  */
 package com.google.cloud.kafka.connect.bigtable.transformations;
 
-public enum TimestampFormat {
+public enum TimestampPrecision {
   NANOS,
   MICROS,
   MILLIS,

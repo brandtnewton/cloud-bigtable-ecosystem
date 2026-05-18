@@ -28,7 +28,7 @@ import org.apache.kafka.connect.transforms.util.SimpleConfig;
 public abstract class ExtractTimestamp<R extends ConnectRecord<R>> implements Transformation<R> {
 
   public static final String TIMESTAMP_FIELD_CONFIG = "timestamp.field";
-  public static final String TIMESTAMP_FIELD_FORMAT_CONFIG = "timestamp.field.format";
+  public static final String TIMESTAMP_FIELD_PRECISION_CONFIG = "timestamp.field.precision";
 
   public static final ConfigDef CONFIG_DEF =
       new ConfigDef()
@@ -41,26 +41,26 @@ public abstract class ExtractTimestamp<R extends ConnectRecord<R>> implements Tr
                   + " or if the value is null, the message is failed. The field may be a numeric,"
                   + " string or date type.")
           .define(
-              TIMESTAMP_FIELD_FORMAT_CONFIG,
+              TIMESTAMP_FIELD_PRECISION_CONFIG,
               ConfigDef.Type.STRING,
-              TimestampFormat.MILLIS.name(),
-              ConfigUtils.enumValidator(TimestampFormat.values()),
+              TimestampPrecision.MILLIS.name(),
+              ConfigUtils.enumValidator(TimestampPrecision.values()),
               ConfigDef.Importance.HIGH,
-              "The format of the timestamp field. Defaults to MILLIS. This only effects the output"
+              "The precision of the timestamp field. Defaults to MILLIS. This only effects the output"
                   + " for numeric fields. Ignore this config if your field is a date type."
                   + " Supported values are NANOS, MICROS, MILLIS and SECONDS. Use the value that"
                   + " matches the field's precision. Example: if your field has epoch millisecond"
                   + " values, use the MILLIS config value.");
 
   private String[] fieldPath;
-  private TimestampFormat timestampFormat;
+  private TimestampPrecision timestampPrecision;
 
   @Override
   public void configure(Map<String, ?> configs) {
     SimpleConfig config = new SimpleConfig(CONFIG_DEF, configs);
     this.fieldPath = config.getString(TIMESTAMP_FIELD_CONFIG).split("\\.");
-    this.timestampFormat =
-        TimestampFormat.valueOf(config.getString(TIMESTAMP_FIELD_FORMAT_CONFIG).toUpperCase());
+    this.timestampPrecision =
+        TimestampPrecision.valueOf(config.getString(TIMESTAMP_FIELD_PRECISION_CONFIG).toUpperCase());
   }
 
   @Override
@@ -68,7 +68,7 @@ public abstract class ExtractTimestamp<R extends ConnectRecord<R>> implements Tr
     SchemaAndValue timestampField =
         SchemaParsingUtils.extractField(getOperatingValue(record), fieldPath);
     long parsedTimestampMillis =
-        ExtractTimestamp.parseTimestampToMillis(timestampField, timestampFormat);
+        ExtractTimestamp.parseTimestampToMillis(timestampField, timestampPrecision);
     return record.newRecord(
         record.topic(),
         record.kafkaPartition(),
@@ -90,7 +90,7 @@ public abstract class ExtractTimestamp<R extends ConnectRecord<R>> implements Tr
   protected abstract SchemaAndValue getOperatingValue(R record);
 
   @VisibleForTesting
-  static long parseTimestampToMillis(SchemaAndValue value, TimestampFormat timestampFormat) {
+  static long parseTimestampToMillis(SchemaAndValue value, TimestampPrecision timestampPrecision) {
     if (value == null || value.value() == null) {
       throw new IllegalArgumentException("Cannot parse timestamp value of null");
     }
@@ -118,7 +118,7 @@ public abstract class ExtractTimestamp<R extends ConnectRecord<R>> implements Tr
     }
 
     // Resolve to target milliseconds resolution
-    switch (timestampFormat) {
+    switch (timestampPrecision) {
       case NANOS:
         return epochValue / 1_000_000L;
       case MICROS:
@@ -128,7 +128,7 @@ public abstract class ExtractTimestamp<R extends ConnectRecord<R>> implements Tr
       case SECONDS:
         return epochValue * 1000L;
       default:
-        throw new IllegalStateException("Unexpected timestamp format: " + timestampFormat);
+        throw new IllegalStateException("Unexpected timestamp precision: " + timestampPrecision);
     }
   }
 

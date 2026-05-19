@@ -27,7 +27,6 @@ import com.google.cloud.kafka.connect.bigtable.config.NullValueMode;
 import com.google.cloud.kafka.connect.bigtable.exception.InvalidBigtableSchemaModificationException;
 import com.google.cloud.kafka.connect.bigtable.util.JsonConverterFactory;
 import com.google.protobuf.ByteString;
-
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.Arrays;
@@ -37,7 +36,6 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeoutException;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
-
 import org.apache.kafka.clients.consumer.ConsumerRecords;
 import org.apache.kafka.connect.data.Schema;
 import org.apache.kafka.connect.data.SchemaBuilder;
@@ -45,10 +43,10 @@ import org.apache.kafka.connect.data.Struct;
 import org.apache.kafka.connect.json.JsonConverter;
 import org.apache.kafka.connect.json.JsonConverterConfig;
 import org.apache.kafka.connect.runtime.ConnectorConfig;
+import org.junit.Assume;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
-import org.junit.jupiter.api.condition.DisabledIfEnvironmentVariable;
 
 @RunWith(JUnit4.class)
 public class ResourceAutoCreationIT extends BaseKafkaConnectBigtableIT {
@@ -181,9 +179,9 @@ public class ResourceAutoCreationIT extends BaseKafkaConnectBigtableIT {
   }
 
   @Test
-  @DisabledIfEnvironmentVariable(named = "BIGTABLE_EMULATOR_HOST", matches = ".*",
-      disabledReason = "Test not supported on emulator")
   public void testCreationOfInvalidTable() throws InterruptedException {
+    Assume.assumeTrue(
+        "Test not supported on emulator", System.getenv("BIGTABLE_EMULATOR_HOST") == null);
     String dlqTopic = createDlq();
     Map<String, String> props = baseConnectorProps();
     String invalidTableName = "T".repeat(MAX_BIGTABLE_TABLE_NAME_LENGTH + 1);
@@ -204,9 +202,9 @@ public class ResourceAutoCreationIT extends BaseKafkaConnectBigtableIT {
   }
 
   @Test
-  @DisabledIfEnvironmentVariable(named = "BIGTABLE_EMULATOR_HOST", matches = ".*",
-      disabledReason = "Test not supported on emulator")
   public void testRowDeletionCreatesTableWhenAutoCreationEnabled() throws InterruptedException {
+    Assume.assumeTrue(
+        "Test not supported on emulator", System.getenv("BIGTABLE_EMULATOR_HOST") == null);
     String dlqTopic = createDlq();
     Map<String, String> props = baseConnectorProps();
     configureDlq(props, dlqTopic);

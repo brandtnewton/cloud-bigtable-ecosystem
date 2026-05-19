@@ -27,7 +27,6 @@ import com.google.cloud.kafka.connect.bigtable.config.InsertMode;
 import com.google.cloud.kafka.connect.bigtable.config.NullValueMode;
 import com.google.cloud.kafka.connect.bigtable.util.JsonConverterFactory;
 import com.google.protobuf.ByteString;
-
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.AbstractMap;
@@ -38,7 +37,6 @@ import java.util.Map;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeoutException;
 import java.util.function.Function;
-
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
@@ -52,10 +50,10 @@ import org.apache.kafka.connect.json.JsonConverter;
 import org.apache.kafka.connect.json.JsonConverterConfig;
 import org.apache.kafka.connect.runtime.ConnectorConfig;
 import org.apache.kafka.connect.storage.StringConverter;
+import org.junit.Assume;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
-import org.junit.jupiter.api.condition.DisabledIfEnvironmentVariable;
 
 @RunWith(JUnit4.class)
 public class ErrorHandlingIT extends BaseKafkaConnectBigtableIT {
@@ -70,9 +68,9 @@ public class ErrorHandlingIT extends BaseKafkaConnectBigtableIT {
   }
 
   @Test
-  @DisabledIfEnvironmentVariable(named = "BIGTABLE_EMULATOR_HOST", matches = ".*",
-      disabledReason = "Test not supported on emulator")
   public void testTooLargeData() throws InterruptedException, ExecutionException {
+    Assume.assumeTrue(
+        "Test not supported on emulator", System.getenv("BIGTABLE_EMULATOR_HOST") == null);
     String dlqTopic = createDlq();
     Map<String, String> props = baseConnectorProps();
     props.put(ConnectorConfig.VALUE_CONVERTER_CLASS_CONFIG, ByteArrayConverter.class.getName());

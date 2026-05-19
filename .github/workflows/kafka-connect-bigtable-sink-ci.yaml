@@ -19,17 +19,28 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+
+      - name: Set up JDK
+        uses: actions/setup-java@v4
+        with:
+          java-version: '11'
+          distribution: 'temurin'
+          cache: 'maven'
+
       - name: Formatter
         working-directory: kafka-connect-bigtable-sink
-        run: mvn -Pintegration-tests -B -ntp spotless:check
+        run: mvn -B -ntp spotless:check
+
       - name: Unit tests
         working-directory: kafka-connect-bigtable-sink
-        run: mvn -B -ntp clean test
+        run: mvn clean test -pl sink -am -B -ntp
+
       - name: Set up Cloud SDK
         uses: google-github-actions/setup-gcloud@v2
         with:
           version: latest
           install_components: beta,bigtable
+
       - name: Integration tests against the emulator
         working-directory: kafka-connect-bigtable-sink
         run: |
@@ -43,12 +54,11 @@ jobs:
     if: github.event_name == 'release'
     runs-on: ubuntu-latest
     permissions:
-      contents: write # Crucial: Required to upload files to a GitHub release
+      contents: write # Required to upload files to a GitHub release
 
     steps:
       - uses: actions/checkout@v4
 
-      # It's best practice to explicitly define your Java version for builds
       - name: Set up JDK
         uses: actions/setup-java@v4
         with:

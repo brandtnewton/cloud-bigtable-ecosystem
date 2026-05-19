@@ -1,6 +1,11 @@
 name: Kafka Connect Bigtable Sink CI
 
 on:
+  push:
+    branches:
+      - main
+    paths:
+      - "kafka-connect-bigtable-sink/**"
   pull_request:
     paths:
       - "kafka-connect-bigtable-sink/**"

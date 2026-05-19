@@ -74,6 +74,7 @@
         </dependency>
     </dependencies>
     <build>
+        <finalName>kafka-connect-bigtable-sink</finalName>
         <plugins>
             <plugin>
                 <groupId>org.codehaus.mojo</groupId>
@@ -107,7 +108,6 @@
                             <goal>shade</goal>
                         </goals>
                         <configuration>
-                            <outputFile>${project.build.directory}/kafka-connect-bigtable-sink.jar</outputFile>
                             <filters>
                                 <filter>
                                     <artifact>*:*</artifact>

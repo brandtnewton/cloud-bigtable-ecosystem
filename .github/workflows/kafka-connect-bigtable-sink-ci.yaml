@@ -68,7 +68,7 @@ jobs:
 
       - name: Build Fat Jar
         working-directory: kafka-connect-bigtable-sink
-        run: mvn -B -ntp clean package -DskipTests
+        run: mvn -B -ntp clean package -pl sink -am -DskipTests
 
       - name: Upload Artifact to Release
         working-directory: kafka-connect-bigtable-sink

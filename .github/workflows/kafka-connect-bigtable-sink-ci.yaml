@@ -29,11 +29,11 @@ jobs:
 
       - name: Formatter
         working-directory: kafka-connect-bigtable-sink
-        run: mvn -Pintegration-tests -B -ntp spotless:check
+        run: mvn -B -ntp spotless:check
 
       - name: Unit tests
         working-directory: kafka-connect-bigtable-sink
-        run: mvn -B -ntp clean test
+        run: mvn clean test -pl sink -am -B -ntp
 
       - name: Set up Cloud SDK
         uses: google-github-actions/setup-gcloud@v2

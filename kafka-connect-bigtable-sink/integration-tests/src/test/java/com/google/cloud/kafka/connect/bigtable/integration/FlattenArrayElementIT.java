@@ -115,7 +115,7 @@ public class FlattenArrayElementIT extends BaseKafkaConnectBigtableIT {
                     .put("quantity", 2));
 
     List<Struct> productList = List.of(productElement1, productElement2, productElement3);
-    
+
     Struct productsWrapper = new Struct(schema.field("products").schema()).put("list", productList);
 
     Struct value =

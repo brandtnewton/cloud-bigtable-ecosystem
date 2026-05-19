@@ -1,4 +1,4 @@
-name: Kafka Connect Bigtable Sink Publish
+name: Kafka Connect Bigtable Sink CI
 
 on:
   pull_request:

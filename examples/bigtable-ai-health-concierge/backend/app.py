@@ -53,8 +53,13 @@ def chat():
     access_token = session.get('access_token')
     refresh_token = session.get('refresh_token')
     
+    import uuid
+    if 'chat_session_id' not in session:
+        session['chat_session_id'] = str(uuid.uuid4())
+    session_id = session['chat_session_id']
+    
     import asyncio
-    response = asyncio.run(chat_with_agent(user_email, message, access_token, refresh_token))
+    response = asyncio.run(chat_with_agent(user_email, message, access_token, refresh_token, session_id=session_id))
     return jsonify({"response": response})
 
 @app.route('/api/logout')

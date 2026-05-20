@@ -10,7 +10,6 @@ import uuid
 
 # Global session service to maintain history within the same server process
 SESSION_SERVICE = InMemorySessionService()
-my_sessionid = str(uuid.uuid4())
 
 from google.adk.auth.credential_service.base_credential_service import BaseCredentialService
 
@@ -47,20 +46,22 @@ from google.adk.memory.vertex_ai_memory_bank_service import VertexAiMemoryBankSe
 
 CONCIERGE_AGENT = None
 
-async def chat_with_agent(user_email, message, access_token=None, refresh_token=None):
+async def chat_with_agent(user_email, message, access_token=None, refresh_token=None, session_id=None):
     """
     Handles a chat turn with the agent using the Runner.
     """
     global CONCIERGE_AGENT
 
+    if not session_id:
+        session_id = str(uuid.uuid4())
 
     try:
-        existing_session = SESSION_SERVICE.get_session_sync(app_name="btagent", user_id=user_email, session_id=my_sessionid)
+        existing_session = SESSION_SERVICE.get_session_sync(app_name="btagent", user_id=user_email, session_id=session_id)
     except Exception:
         existing_session = None
 
     if not existing_session:
-       existing_session = SESSION_SERVICE.create_session_sync(app_name="btagent", user_id=user_email, session_id=my_sessionid)
+       existing_session = SESSION_SERVICE.create_session_sync(app_name="btagent", user_id=user_email, session_id=session_id)
 
     credential_service = ScopedCredentialService(access_token, refresh_token)
     
@@ -89,12 +90,11 @@ async def chat_with_agent(user_email, message, access_token=None, refresh_token=
     import time
     
     if access_token:
-        import asyncio
         from sub_agents.agent_booking import calendar_toolset
 
         try:
-            tools = asyncio.run(calendar_toolset.get_tools())
-        except RuntimeError:
+            tools = await calendar_toolset.get_tools()
+        except Exception:
             tools = []
 
         if tools:
@@ -117,7 +117,7 @@ async def chat_with_agent(user_email, message, access_token=None, refresh_token=
             # InMemorySessionService.get_session returns a deep copy.
             # We must mutate the actual session in the storage dictionary 
             # so that runner.run() picks up the injected credential.
-            real_session = SESSION_SERVICE.sessions["btagent"][user_email][my_sessionid]
+            real_session = SESSION_SERVICE.sessions["btagent"][user_email][session_id]
             
             cred = AuthCredential(auth_type=AuthCredentialTypes.OAUTH2, oauth2=oauth2_auth)
             real_session.state[key] = cred.model_dump(mode="json")
@@ -128,7 +128,7 @@ async def chat_with_agent(user_email, message, access_token=None, refresh_token=
     # Execute the agent asynchronously in the current request event loop
     events_stream = runner.run_async(
         user_id=user_email,
-        session_id=my_sessionid,
+        session_id=session_id,
         new_message=user_content
     )
     

@@ -117,10 +117,15 @@ async def chat_with_agent(user_email, message, access_token=None, refresh_token=
             # InMemorySessionService.get_session returns a deep copy.
             # We must mutate the actual session in the storage dictionary 
             # so that runner.run() picks up the injected credential.
-            real_session = SESSION_SERVICE.sessions["btagent"][user_email][session_id]
+            btagent_sessions = getattr(SESSION_SERVICE, "sessions", {}).get("btagent", {})
+            user_sessions = btagent_sessions.get(user_email, {})
+            real_session = user_sessions.get(session_id)
             
-            cred = AuthCredential(auth_type=AuthCredentialTypes.OAUTH2, oauth2=oauth2_auth)
-            real_session.state[key] = cred.model_dump(mode="json")
+            if real_session:
+                cred = AuthCredential(auth_type=AuthCredentialTypes.OAUTH2, oauth2=oauth2_auth)
+                real_session.state[key] = cred.model_dump(mode="json")
+            else:
+                logging.warning(f"Session {session_id} not found for user {user_email} in InMemorySessionService. Credential injection skipped.")
     
     final_text = ""
     start_time = time.time()

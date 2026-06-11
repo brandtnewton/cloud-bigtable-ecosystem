@@ -259,7 +259,7 @@ func TestParseProxyConfig(t *testing.T) {
 						},
 						SchemaMappingTable: "schema_mapping",
 						Session: &types.Session{
-							GrpcChannels: 1,
+							GrpcChannels: 4,
 						},
 						DefaultColumnFamily:      "cf1",
 						DefaultIntRowKeyEncoding: types.OrderedCodeEncoding,
@@ -292,7 +292,7 @@ func TestParseProxyConfig(t *testing.T) {
 						},
 						SchemaMappingTable: "sm",
 						Session: &types.Session{
-							GrpcChannels: 1,
+							GrpcChannels: 4,
 						},
 						DefaultColumnFamily:      "df",
 						DefaultIntRowKeyEncoding: types.OrderedCodeEncoding,
@@ -325,7 +325,7 @@ func TestParseProxyConfig(t *testing.T) {
 						},
 						SchemaMappingTable: "sm",
 						Session: &types.Session{
-							GrpcChannels: 1,
+							GrpcChannels: 4,
 						},
 						DefaultColumnFamily:      "df",
 						DefaultIntRowKeyEncoding: types.OrderedCodeEncoding,

@@ -31,7 +31,6 @@ func (l *syntaxErrorListener) SyntaxError(
 ) {
 	// Format a clear error message with location
 	l.errs = append(l.errs, msg)
-	recognizer.SetError(e)
 }
 
 type ProxyCqlParser struct {
@@ -100,84 +99,174 @@ func (p *ProxyCqlParser) ValidateNoErrors() error {
 	return p.errorListener.ValidateNoErrors()
 }
 
-func (p *ProxyCqlParser) AlterTable() (cql.IAlterTableContext, error) {
-	result := p.p.AlterTable()
+func (p *ProxyCqlParser) AlterTable() (res cql.IAlterTableContext, err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			if e := p.ValidateNoErrors(); e != nil {
+				err = e
+			} else {
+				err = fmt.Errorf("parsing error: %T", r)
+			}
+		}
+	}()
+	res = p.p.AlterTable()
 	if err := p.ValidateNoErrors(); err != nil {
 		return nil, err
 	}
-	return result, nil
+	return res, nil
 }
 
-func (p *ProxyCqlParser) Delete_() (cql.IDelete_Context, error) {
-	result := p.p.Delete_()
+func (p *ProxyCqlParser) Delete_() (res cql.IDelete_Context, err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			if e := p.ValidateNoErrors(); e != nil {
+				err = e
+			} else {
+				err = fmt.Errorf("parsing error: %T", r)
+			}
+		}
+	}()
+	res = p.p.Delete_()
 	if err := p.ValidateNoErrors(); err != nil {
 		return nil, err
 	}
-	return result, nil
+	return res, nil
 }
 
-func (p *ProxyCqlParser) Use_() (cql.IUse_Context, error) {
-	result := p.p.Use_()
+func (p *ProxyCqlParser) Use_() (res cql.IUse_Context, err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			if e := p.ValidateNoErrors(); e != nil {
+				err = e
+			} else {
+				err = fmt.Errorf("parsing error: %T", r)
+			}
+		}
+	}()
+	res = p.p.Use_()
 	if err := p.ValidateNoErrors(); err != nil {
 		return nil, err
 	}
-	return result, nil
+	return res, nil
 }
 
-func (p *ProxyCqlParser) Select_() (cql.ISelect_Context, error) {
-	result := p.p.Select_()
+func (p *ProxyCqlParser) Select_() (res cql.ISelect_Context, err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			if e := p.ValidateNoErrors(); e != nil {
+				err = e
+			} else {
+				err = fmt.Errorf("parsing error: %T", r)
+			}
+		}
+	}()
+	res = p.p.Select_()
 	if err := p.ValidateNoErrors(); err != nil {
 		return nil, err
 	}
-	return result, nil
+	return res, nil
 }
 
-func (p *ProxyCqlParser) Truncate() (cql.ITruncateContext, error) {
-	result := p.p.Truncate()
+func (p *ProxyCqlParser) Truncate() (res cql.ITruncateContext, err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			if e := p.ValidateNoErrors(); e != nil {
+				err = e
+			} else {
+				err = fmt.Errorf("parsing error: %T", r)
+			}
+		}
+	}()
+	res = p.p.Truncate()
 	if err := p.ValidateNoErrors(); err != nil {
 		return nil, err
 	}
-	return result, nil
+	return res, nil
 }
 
-func (p *ProxyCqlParser) DescribeStatement() (cql.IDescribeStatementContext, error) {
-	result := p.p.DescribeStatement()
+func (p *ProxyCqlParser) DescribeStatement() (res cql.IDescribeStatementContext, err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			if e := p.ValidateNoErrors(); e != nil {
+				err = e
+			} else {
+				err = fmt.Errorf("parsing error: %T", r)
+			}
+		}
+	}()
+	res = p.p.DescribeStatement()
 	if err := p.ValidateNoErrors(); err != nil {
 		return nil, err
 	}
-	return result, nil
+	return res, nil
 }
 
-func (p *ProxyCqlParser) CreateTable() (cql.ICreateTableContext, error) {
-	result := p.p.CreateTable()
+func (p *ProxyCqlParser) CreateTable() (res cql.ICreateTableContext, err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			if e := p.ValidateNoErrors(); e != nil {
+				err = e
+			} else {
+				err = fmt.Errorf("parsing error: %T", r)
+			}
+		}
+	}()
+	res = p.p.CreateTable()
 	if err := p.ValidateNoErrors(); err != nil {
 		return nil, err
 	}
-	return result, nil
+	return res, nil
 }
 
-func (p *ProxyCqlParser) DropTable() (cql.IDropTableContext, error) {
-	result := p.p.DropTable()
+func (p *ProxyCqlParser) DropTable() (res cql.IDropTableContext, err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			if e := p.ValidateNoErrors(); e != nil {
+				err = e
+			} else {
+				err = fmt.Errorf("parsing error: %T", r)
+			}
+		}
+	}()
+	res = p.p.DropTable()
 	if err := p.ValidateNoErrors(); err != nil {
 		return nil, err
 	}
-	return result, nil
+	return res, nil
 }
 
-func (p *ProxyCqlParser) Update() (cql.IUpdateContext, error) {
-	result := p.p.Update()
+func (p *ProxyCqlParser) Update() (res cql.IUpdateContext, err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			if e := p.ValidateNoErrors(); e != nil {
+				err = e
+			} else {
+				err = fmt.Errorf("parsing error: %T", r)
+			}
+		}
+	}()
+	res = p.p.Update()
 	if err := p.ValidateNoErrors(); err != nil {
 		return nil, err
 	}
-	return result, nil
+	return res, nil
 }
 
-func (p *ProxyCqlParser) Insert() (cql.IInsertContext, error) {
-	result := p.p.Insert()
+func (p *ProxyCqlParser) Insert() (res cql.IInsertContext, err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			if e := p.ValidateNoErrors(); e != nil {
+				err = e
+			} else {
+				err = fmt.Errorf("parsing error: %T", r)
+			}
+		}
+	}()
+	res = p.p.Insert()
 	if err := p.ValidateNoErrors(); err != nil {
 		return nil, err
 	}
-	return result, nil
+	return res, nil
 }
 
 func (p *ProxyCqlParser) GetFirstToken() antlr.Token {

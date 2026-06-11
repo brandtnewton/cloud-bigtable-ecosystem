@@ -465,7 +465,7 @@ func TestTranslateCreateTableToBigtable(t *testing.T) {
 				SchemaMappingTable:       "schema_mapping",
 				DefaultIntRowKeyEncoding: tt.defaultIntRowKeyEncoding,
 			})
-			query := types.NewRawQuery(nil, tt.defaultKeyspace, tt.query, parser.NewParser(tt.query), types.QueryTypeCreate)
+			query := types.NewRawQuery(nil, tt.defaultKeyspace, tt.query, parser.GetParser(tt.query), types.QueryTypeCreate)
 			got, err := tr.Translate(query, tt.defaultKeyspace)
 			if tt.error != "" {
 				require.Error(t, err)

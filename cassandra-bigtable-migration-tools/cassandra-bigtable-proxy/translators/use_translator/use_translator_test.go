@@ -42,7 +42,7 @@ func TestTranslator_TranslateUpdateQuerytoBigtable(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			tr := NewUseTranslator(mockdata.GetSchemaMappingConfig())
-			got, err := tr.Translate(types.NewRawQuery(nil, tt.sessionKeyspace, tt.query, parser.NewParser(tt.query), types.QueryTypeUse), tt.sessionKeyspace)
+			got, err := tr.Translate(types.NewRawQuery(nil, tt.sessionKeyspace, tt.query, parser.GetParser(tt.query), types.QueryTypeUse), tt.sessionKeyspace)
 
 			if tt.wantErr != "" {
 				require.Error(t, err)

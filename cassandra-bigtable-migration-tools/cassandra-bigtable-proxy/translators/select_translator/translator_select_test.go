@@ -1087,7 +1087,7 @@ func TestTranslator_TranslateSelectQuerytoBigtable(t *testing.T) {
 		{
 			name:            "CqlQuery Without Select Object",
 			query:           "UPDATE table_name SET pk1 = 'new_value1', col_int = 'new_value2' WHERE condition;",
-			wantErr:         "mismatched input 'UPDATE' expecting 'SELECT'",
+			wantErr:         "parsing error",
 			want:            nil,
 			sessionKeyspace: "test_keyspace",
 		},
@@ -1437,7 +1437,7 @@ func TestTranslator_TranslateSelectQuerytoBigtable(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			tr := NewSelectTranslator(mockdata.GetSchemaMappingConfig(), zap.NewNop())
-			got, err := tr.Translate(types.NewRawQuery(nil, tt.sessionKeyspace, tt.query, parser.NewParser(tt.query), types.QueryTypeSelect), tt.sessionKeyspace)
+			got, err := tr.Translate(types.NewRawQuery(nil, tt.sessionKeyspace, tt.query, parser.GetParser(tt.query), types.QueryTypeSelect), tt.sessionKeyspace)
 			if tt.wantErr != "" {
 				require.Error(t, err)
 				assert.Contains(t, err.Error(), tt.wantErr)

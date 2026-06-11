@@ -18,28 +18,18 @@ package otelgo
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"net/http"
 	"net/url"
 	"strings"
-	"time"
 
-	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/global/types"
-	texporter "github.com/GoogleCloudPlatform/opentelemetry-operations-go/exporter/trace"
 	"github.com/google/uuid"
 	"go.opentelemetry.io/contrib/detectors/gcp"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
-	"go.opentelemetry.io/otel/codes"
-	"go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetricgrpc"
-	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc"
 	"go.opentelemetry.io/otel/metric"
-	sdkmetric "go.opentelemetry.io/otel/sdk/metric"
 	"go.opentelemetry.io/otel/sdk/resource"
-	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 	semconv "go.opentelemetry.io/otel/semconv/v1.4.0"
-	"go.opentelemetry.io/otel/trace"
 	"go.uber.org/zap"
 )
 
@@ -49,6 +39,8 @@ type Attributes struct {
 	QueryType string
 	Keyspace  string
 }
+
+type ShutdownFn func(ctx context.Context) error
 
 var (
 	attributeKeyDatabase  = attribute.Key("database")
@@ -72,27 +64,18 @@ type OTelConfig struct {
 	ServiceVersion     string
 }
 
-const (
-	requestCountMetric = "bigtable/cassandra_adapter/request_count"
-	latencyMetric      = "bigtable/cassandra_adapter/roundtrip_latencies"
-)
-
 type OpenTelemetry struct {
 	Config         *OTelConfig
-	tracer         trace.Tracer
 	requestCount   metric.Int64Counter
 	requestLatency metric.Int64Histogram
 	logger         *zap.Logger
 }
 
 // NewOpenTelemetry initializes OpenTelemetry tracing and metrics components.
-func NewOpenTelemetry(ctx context.Context, config *OTelConfig, logger *zap.Logger) (*OpenTelemetry, func(context.Context) error, error) {
+func NewOpenTelemetry(ctx context.Context, config *OTelConfig, logger *zap.Logger) (*OpenTelemetry, ShutdownFn, error) {
 	otelInst := &OpenTelemetry{Config: config, logger: logger}
-	if !config.OTELEnabled {
-		return otelInst, nil, nil
-	}
 
-	if config.HealthCheckEnabled {
+	if config.OTELEnabled && config.HealthCheckEnabled {
 		resp, err := http.Get("http://" + config.HealthCheckEp)
 		if err != nil || resp.StatusCode != 200 {
 			return nil, nil, fmt.Errorf("OTEL health check failed: %v", err)
@@ -102,14 +85,13 @@ func NewOpenTelemetry(ctx context.Context, config *OTelConfig, logger *zap.Logge
 
 	res := buildOtelResource(ctx, config)
 
-	tp, err := createTraceProvider(ctx, config, res)
+	tp, shutdownTp, err := createTraceProvider(ctx, config, res)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to create trace provider: %w", err)
 	}
 	otel.SetTracerProvider(tp)
-	otelInst.tracer = tp.Tracer(config.ServiceName)
 
-	mp, err := InitMeterProvider(ctx, config, res)
+	mp, shutdownMp, err := InitMeterProvider(ctx, config, res)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to create meter provider: %w", err)
 	}
@@ -134,8 +116,8 @@ func NewOpenTelemetry(ctx context.Context, config *OTelConfig, logger *zap.Logge
 	}
 
 	shutdown := func(ctx context.Context) error {
-		err1 := tp.Shutdown(ctx)
-		err2 := mp.Shutdown(ctx)
+		err1 := shutdownTp(ctx)
+		err2 := shutdownMp(ctx)
 		if err1 != nil {
 			return err1
 		}
@@ -143,55 +125,6 @@ func NewOpenTelemetry(ctx context.Context, config *OTelConfig, logger *zap.Logge
 	}
 
 	return otelInst, shutdown, nil
-}
-
-func createTraceProvider(ctx context.Context, config *OTelConfig, res *resource.Resource) (*sdktrace.TracerProvider, error) {
-	var exporter sdktrace.SpanExporter
-	var err error
-
-	if config.ProjectId != "" {
-		exporter, err = texporter.New(texporter.WithProjectID(config.ProjectId))
-	} else if config.TracerEndpoint != "" {
-		if !isValidEndpoint(config.TracerEndpoint) {
-			return nil, errors.New("invalid tracer endpoint format")
-		}
-		exporter, err = otlptracegrpc.New(ctx, otlptracegrpc.WithEndpoint(config.TracerEndpoint), otlptracegrpc.WithInsecure())
-	} else {
-		return nil, errors.New("no tracer endpoint or project id provided")
-	}
-
-	if err != nil {
-		return nil, err
-	}
-
-	return sdktrace.NewTracerProvider(
-		sdktrace.WithBatcher(exporter),
-		sdktrace.WithResource(res),
-		sdktrace.WithSampler(sdktrace.ParentBased(sdktrace.TraceIDRatioBased(config.TraceSampleRatio))),
-	), nil
-}
-
-func InitMeterProvider(ctx context.Context, config *OTelConfig, res *resource.Resource) (*sdkmetric.MeterProvider, error) {
-	if config.MetricEndpoint == "" {
-		return nil, errors.New("metric endpoint cannot be empty")
-	}
-	if !isValidEndpoint(config.MetricEndpoint) {
-		return nil, errors.New("invalid metric endpoint format")
-	}
-
-	exporter, err := otlpmetricgrpc.New(ctx, otlpmetricgrpc.WithEndpoint(config.MetricEndpoint), otlpmetricgrpc.WithInsecure())
-	if err != nil {
-		return nil, err
-	}
-
-	return sdkmetric.NewMeterProvider(
-		sdkmetric.WithReader(sdkmetric.NewPeriodicReader(exporter)),
-		sdkmetric.WithResource(res),
-		sdkmetric.WithView(sdkmetric.NewView(
-			sdkmetric.Instrument{Name: "rpc.client.*"},
-			sdkmetric.Stream{Aggregation: sdkmetric.AggregationDrop{}},
-		)),
-	), nil
 }
 
 func buildOtelResource(ctx context.Context, config *OTelConfig) *resource.Resource {
@@ -210,79 +143,6 @@ func buildOtelResource(ctx context.Context, config *OTelConfig) *resource.Resour
 		return resource.NewWithAttributes(semconv.SchemaURL, attrs...)
 	}
 	return res
-}
-
-func (o *OpenTelemetry) StartSpan(ctx context.Context, name string, attrs []attribute.KeyValue) (context.Context, trace.Span) {
-	if !o.Config.OTELEnabled {
-		return ctx, nil
-	}
-	return o.tracer.Start(ctx, name, trace.WithAttributes(attrs...))
-}
-
-func (o *OpenTelemetry) RecordError(span trace.Span, err error) {
-	if span == nil || !o.Config.OTELEnabled {
-		return
-	}
-	if err != nil {
-		span.RecordError(err)
-		span.SetStatus(codes.Error, err.Error())
-	} else {
-		span.SetStatus(codes.Ok, "")
-	}
-}
-
-func (o *OpenTelemetry) EndSpan(span trace.Span) {
-	if span != nil && o.Config.OTELEnabled {
-		span.End()
-	}
-}
-
-func (o *OpenTelemetry) RecordMetrics(ctx context.Context, method string, startTime time.Time, queryType string, keyspace types.Keyspace, err error) {
-	if !o.Config.OTELEnabled {
-		return
-	}
-	status := "OK"
-	if err != nil {
-		status = "failure"
-	}
-	attrs := Attributes{
-		Method:    method,
-		Status:    status,
-		QueryType: queryType,
-		Keyspace:  string(keyspace),
-	}
-	o.RecordRequestCountMetric(ctx, attrs)
-	o.RecordLatencyMetric(ctx, startTime, attrs)
-}
-
-func (o *OpenTelemetry) commonAttributes(attrs Attributes) []attribute.KeyValue {
-	return []attribute.KeyValue{
-		attributeKeyInstance.String(attrs.Keyspace),
-		attributeKeyDatabase.String(o.Config.Database),
-		attributeKeyMethod.String(attrs.Method),
-		attributeKeyQueryType.String(attrs.QueryType),
-	}
-}
-
-func (o *OpenTelemetry) RecordLatencyMetric(ctx context.Context, startTime time.Time, attrs Attributes) {
-	if o.Config.OTELEnabled {
-		o.requestLatency.Record(ctx, time.Since(startTime).Milliseconds(), metric.WithAttributes(o.commonAttributes(attrs)...))
-	}
-}
-
-func (o *OpenTelemetry) RecordRequestCountMetric(ctx context.Context, attrs Attributes) {
-	if o.Config.OTELEnabled {
-		kv := append(o.commonAttributes(attrs), attributeKeyStatus.String(attrs.Status))
-		o.requestCount.Add(ctx, 1, metric.WithAttributes(kv...))
-	}
-}
-
-func AddAnnotation(ctx context.Context, event string) {
-	trace.SpanFromContext(ctx).AddEvent(event)
-}
-
-func AddAnnotationWithAttr(ctx context.Context, event string, attr []attribute.KeyValue) {
-	trace.SpanFromContext(ctx).AddEvent(event, trace.WithAttributes(attr...))
 }
 
 func isValidEndpoint(endpoint string) bool {

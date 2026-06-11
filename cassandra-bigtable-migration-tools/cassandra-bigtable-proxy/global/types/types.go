@@ -156,7 +156,6 @@ const (
 	QueryTypeInsert
 	QueryTypeUpdate
 	QueryTypeDelete
-	// ddl
 	QueryTypeCreate
 	QueryTypeAlter
 	QueryTypeDrop

@@ -20,6 +20,8 @@ import (
 	"fmt"
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/executors"
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/system_tables"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/trace"
 	"net"
 	"sync"
 
@@ -91,6 +93,7 @@ type Proxy struct {
 	translator         *translators.TranslatorManager
 	executor           *executors.QueryExecutorManager
 	otelInst           *otelgo.OpenTelemetry
+	tracer             trace.Tracer
 	otelShutdown       func(context.Context) error
 }
 
@@ -148,7 +151,7 @@ func NewProxy(ctx context.Context, logger *zap.Logger, config *types.ProxyInstan
 
 	bigtableClient := bigtableModule.NewBigtableClient(clientManager, logger, config.BigtableConfig, metadataStore)
 
-	translator := translators.NewTranslatorManager(logger, metadataStore.Schemas(), config.BigtableConfig, otelInst)
+	translator := translators.NewTranslatorManager(logger, metadataStore.Schemas(), config.BigtableConfig)
 
 	systemTables := system_tables.NewSystemTableManager(metadataStore, logger)
 
@@ -166,6 +169,7 @@ func NewProxy(ctx context.Context, logger *zap.Logger, config *types.ProxyInstan
 		translator:         translator,
 		executor:           executors.NewQueryExecutorManager(logger, metadataStore.Schemas(), bigtableClient, systemTables.Db(), otelInst),
 		otelInst:           otelInst,
+		tracer:             otel.GetTracerProvider().Tracer("handler"),
 		otelShutdown:       shutdownOTel,
 	}
 

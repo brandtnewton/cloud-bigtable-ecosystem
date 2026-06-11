@@ -28,7 +28,6 @@ import (
 	"cloud.google.com/go/bigtable"
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/global/types"
 	schemaMapping "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/metadata"
-	otelgo "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/otel"
 	"github.com/datastax/go-cassandra-native-protocol/message"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -64,7 +63,7 @@ func TestMain(m *testing.M) {
 		fmt.Printf("failed to initialize md store: %v", err)
 		os.Exit(1)
 	}
-	btc = NewBigtableClient(bts.Clients(), zap.NewNop(), &bigtableConfig, mdStore, &otelgo.OpenTelemetry{Config: &otelgo.OTelConfig{OTELEnabled: false}})
+	btc = NewBigtableClient(bts.Clients(), zap.NewNop(), &bigtableConfig, mdStore)
 
 	_, err = mdStore.CreateTable(ctx, types.NewCreateTableStatementMap(keyspace, tableName, "ignored", false, []types.CreateColumn{
 		{
@@ -104,7 +103,7 @@ func TestInsertRow(t *testing.T) {
 	mdStore := schemaMapping.NewMetadataStore(zap.NewNop(), bts.Clients(), &bigtableConfig)
 	mdStore.Schemas().AddTables(mockdata.GetSchemaMappingConfig().Tables())
 
-	localBtc := NewBigtableClient(bts.Clients(), zap.NewNop(), &bigtableConfig, mdStore, &otelgo.OpenTelemetry{Config: &otelgo.OTelConfig{OTELEnabled: false}})
+	localBtc := NewBigtableClient(bts.Clients(), zap.NewNop(), &bigtableConfig, mdStore)
 
 	tests := []struct {
 		name          string
@@ -347,7 +346,7 @@ func TestMutateRowIfNotExists(t *testing.T) {
 
 func TestMutateRowInvalidKeyspace(t *testing.T) {
 	localMdStore := schemaMapping.NewMetadataStore(zap.NewNop(), bts.Clients(), &bigtableConfig)
-	localBtc := NewBigtableClient(bts.Clients(), zap.NewNop(), &bigtableConfig, localMdStore, &otelgo.OpenTelemetry{Config: &otelgo.OTelConfig{OTELEnabled: false}})
+	localBtc := NewBigtableClient(bts.Clients(), zap.NewNop(), &bigtableConfig, localMdStore)
 
 	updateData := types.NewBigtableWriteMutation("invalid-keyspace", "any-table", "", types.IfSpec{}, types.QueryTypeUpdate, "row1")
 	updateData.AddMutations(types.NewWriteCellOp("cf1", "col1", []byte("value")))

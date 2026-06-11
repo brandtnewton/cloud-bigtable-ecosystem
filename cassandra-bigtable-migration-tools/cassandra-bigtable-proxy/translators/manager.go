@@ -21,7 +21,6 @@ import (
 	"fmt"
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/global/types"
 	schemaMapping "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/metadata"
-	otelgo "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/otel"
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/translators/alter_translator"
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/translators/common"
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/translators/create_translator"
@@ -34,6 +33,8 @@ import (
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/translators/update_translator"
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/translators/use_translator"
 	"github.com/datastax/go-cassandra-native-protocol/primitive"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/trace"
 	"go.uber.org/zap"
 )
 
@@ -42,10 +43,10 @@ type TranslatorManager struct {
 	SchemaMappingConfig *schemaMapping.SchemaMetadata
 	translators         map[types.QueryType]types.IQueryTranslator
 	config              *types.BigtableConfig
-	otelInst            *otelgo.OpenTelemetry
+	tracer              trace.Tracer
 }
 
-func NewTranslatorManager(logger *zap.Logger, schemaMappingConfig *schemaMapping.SchemaMetadata, config *types.BigtableConfig, otelInst *otelgo.OpenTelemetry) *TranslatorManager {
+func NewTranslatorManager(logger *zap.Logger, schemaMappingConfig *schemaMapping.SchemaMetadata, config *types.BigtableConfig) *TranslatorManager {
 	// add more translators here
 	translators := []types.IQueryTranslator{
 		select_translator.NewSelectTranslator(schemaMappingConfig, logger),
@@ -72,12 +73,12 @@ func NewTranslatorManager(logger *zap.Logger, schemaMappingConfig *schemaMapping
 		SchemaMappingConfig: schemaMappingConfig,
 		translators:         tm,
 		config:              config,
-		otelInst:            otelInst,
+		tracer:              otel.GetTracerProvider().Tracer("translator"),
 	}
 }
 
 func (t *TranslatorManager) TranslateQuery(ctx context.Context, q *types.RawQuery, sessionKeyspace types.Keyspace) (types.IPreparedQuery, error) {
-	_, childSpan := t.otelInst.StartSpan(ctx, "translate", nil)
+	_, childSpan := t.tracer.Start(ctx, "translate")
 	defer childSpan.End()
 	defer q.Parser().Release()
 

@@ -9,6 +9,8 @@ import (
 	schemaMapping "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/metadata"
 	otelgo "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/otel"
 	"github.com/datastax/go-cassandra-native-protocol/message"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/trace"
 	"go.uber.org/zap"
 	"strings"
 )
@@ -21,7 +23,7 @@ type IQueryExecutor interface {
 type QueryExecutorManager struct {
 	logger    *zap.Logger
 	executors []IQueryExecutor
-	otelInst  *otelgo.OpenTelemetry
+	trace     trace.Tracer
 }
 
 func NewQueryExecutorManager(logger *zap.Logger, s *schemaMapping.SchemaMetadata, bt *bigtableModule.BigtableAdapter, systemTables *mem_table.InMemEngine, otelInst *otelgo.OpenTelemetry) *QueryExecutorManager {
@@ -33,7 +35,7 @@ func NewQueryExecutorManager(logger *zap.Logger, s *schemaMapping.SchemaMetadata
 			newSelectSystemTableExecutor(s, systemTables),
 			newBigtableExecutor(bt),
 		},
-		otelInst: otelInst,
+		trace: otel.GetTracerProvider().Tracer("executor"),
 	}
 }
 
@@ -47,14 +49,19 @@ func (m *QueryExecutorManager) getExecutor(q types.IExecutableQuery) (IQueryExec
 }
 
 func (m *QueryExecutorManager) Execute(ctx context.Context, client types.ICassandraClient, q types.IExecutableQuery) (message.Message, error) {
+	otelCtx, childSpan := m.trace.Start(ctx, "execute")
+	defer childSpan.End()
+
 	executor, err := m.getExecutor(q)
 	if err != nil {
+		childSpan.RecordError(err)
 		return nil, err
 	}
 
-	otelCtx, childSpan := m.otelInst.StartSpan(ctx, "execute", nil)
-	defer childSpan.End()
 	msg, err := executor.Execute(otelCtx, client, q)
-	childSpan.RecordError(err)
-	return msg, err
+	if err != nil {
+		childSpan.RecordError(err)
+		return nil, err
+	}
+	return msg, nil
 }

@@ -8,6 +8,7 @@ import (
 	"github.com/datastax/go-cassandra-native-protocol/primitive"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"go.uber.org/zap"
 	"log"
 	"testing"
 	"time"
@@ -200,8 +201,8 @@ func Test_SelectEngine(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 
-			tr := select_translator.NewSelectTranslator(schemas)
-			preparedQuery, err := tr.Translate(types.NewRawQuery(nil, tt.sessionKeyspace, tt.query, parser.NewParser(tt.query), types.QueryTypeSelect), tt.sessionKeyspace)
+			tr := select_translator.NewSelectTranslator(schemas, zap.NewNop())
+			preparedQuery, err := tr.Translate(types.NewRawQuery(nil, tt.sessionKeyspace, tt.query, parser.GetParser(tt.query), types.QueryTypeSelect), tt.sessionKeyspace)
 			require.NoError(t, err)
 
 			values := types.NewQueryParameterValues(preparedQuery.Parameters(), time.Now())

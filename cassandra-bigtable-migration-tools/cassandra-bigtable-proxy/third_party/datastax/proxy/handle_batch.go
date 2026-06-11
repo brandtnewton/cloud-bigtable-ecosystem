@@ -24,7 +24,6 @@ import (
 	"github.com/datastax/go-cassandra-native-protocol/frame"
 	"github.com/datastax/go-cassandra-native-protocol/message"
 	"github.com/datastax/go-cassandra-native-protocol/primitive"
-	"go.opentelemetry.io/otel/attribute"
 	"strings"
 	"time"
 )
@@ -32,30 +31,24 @@ import (
 // handle batch queries
 func (c *client) handleBatch(ctx context.Context, raw *frame.RawFrame, msg *partialBatch) (message.Message, error) {
 	startTime := time.Now()
-	otelCtx, span := c.proxy.otelInst.StartSpan(c.proxy.ctx, handleBatch, []attribute.KeyValue{
-		attribute.Int("Batch Size", len(msg.queryOrIds)),
-	})
-	defer c.proxy.otelInst.EndSpan(span)
 	var otelErr error
-	defer c.proxy.otelInst.RecordMetrics(otelCtx, handleBatch, startTime, handleBatch, c.sessionKeyspace, otelErr)
+	defer c.proxy.otelInst.RecordMetrics(ctx, handleBatch, startTime, "batch", c.sessionKeyspace, otelErr)
 	bulkMutations, keyspace, err := c.bindBulkOperations(msg, raw.Header.Version)
 	if err != nil {
 		return &message.ConfigError{}, err
 	}
-	otelgo.AddAnnotation(otelCtx, sendingBulkApplyMutation)
+	otelgo.AddAnnotation(ctx, sendingBulkApplyMutation)
 	var errs []string
 	for tableName, mutations := range bulkMutations.Mutations() {
-		res, err := c.proxy.bigtableClient.ApplyBulkMutation(otelCtx, keyspace, tableName, mutations)
+		res, err := c.proxy.bigtableClient.ApplyBulkMutation(ctx, keyspace, tableName, mutations)
 		if err != nil {
-			c.proxy.otelInst.RecordError(span, err)
 			errs = append(errs, err.Error())
 		} else if res.FailedRows != "" {
 			err = fmt.Errorf("failed rows for table %s: %s", tableName, res.FailedRows)
-			c.proxy.otelInst.RecordError(span, err)
 			errs = append(errs, res.FailedRows)
 		}
 	}
-	otelgo.AddAnnotation(otelCtx, gotBulkApplyResp)
+	otelgo.AddAnnotation(ctx, gotBulkApplyResp)
 	if len(errs) > 0 {
 		return nil, errors.New(strings.Join(errs, "\n"))
 	}

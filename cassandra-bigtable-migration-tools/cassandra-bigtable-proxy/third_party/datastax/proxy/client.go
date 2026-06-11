@@ -28,6 +28,7 @@ import (
 	"go.opentelemetry.io/otel/codes"
 	"go.uber.org/zap"
 	"io"
+	"runtime/debug"
 	"time"
 )
 
@@ -49,9 +50,8 @@ func (c *client) SetSessionKeyspace(k types.Keyspace) {
 
 func (c *client) Receive(reader io.Reader) error {
 	startTime := time.Now()
-	otelCtx, span := c.proxy.otelInst.StartSpan(c.proxy.ctx, "Receive", nil)
-	defer c.proxy.otelInst.EndSpan(span)
-
+	otelCtx, span := c.proxy.tracer.Start(c.proxy.ctx, "receive", nil)
+	defer span.End()
 	raw, err := codec.DecodeRawFrame(reader)
 	if err != nil {
 		if !errors.Is(err, io.EOF) {
@@ -62,9 +62,25 @@ func (c *client) Receive(reader io.Reader) error {
 		return err
 	}
 
+	defer func() {
+		if r := recover(); r != nil {
+			fmt.Printf("Trapped a panic: %v\n", r)
+
+			fmt.Println("Stack Trace:")
+			debug.PrintStack()
+
+			c.sender.Send(raw.Header, &message.ProtocolError{
+				ErrorMessage: "internal error",
+			})
+
+			span.SetStatus(codes.Error, "internal error")
+		}
+	}()
+
 	if raw.Header.Version > c.proxy.config.Options.MaxProtocolVersion || raw.Header.Version < primitive.ProtocolVersion3 {
+		err = fmt.Errorf("invalid or unsupported protocol version %d", raw.Header.Version)
 		c.sender.Send(raw.Header, &message.ProtocolError{
-			ErrorMessage: fmt.Sprintf("Invalid or unsupported protocol version %d", raw.Header.Version),
+			ErrorMessage: err.Error(),
 		})
 		span.RecordError(err)
 		span.SetStatus(codes.Error, err.Error())

@@ -10,6 +10,7 @@ import (
 	otelgo "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/otel"
 	"github.com/datastax/go-cassandra-native-protocol/message"
 	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/trace"
 	"go.uber.org/zap"
 	"strings"
@@ -49,18 +50,26 @@ func (m *QueryExecutorManager) getExecutor(q types.IExecutableQuery) (IQueryExec
 }
 
 func (m *QueryExecutorManager) Execute(ctx context.Context, client types.ICassandraClient, q types.IExecutableQuery) (message.Message, error) {
-	otelCtx, childSpan := m.trace.Start(ctx, "execute")
-	defer childSpan.End()
+	otelCtx, span := m.trace.Start(ctx, "execute")
+	defer span.End()
+
+	otelgo.AddQueryAnnotations(span, types.Attributes{
+		QueryType: q.QueryType(),
+		Keyspace:  q.Keyspace(),
+		Table:     q.Table(),
+	})
 
 	executor, err := m.getExecutor(q)
 	if err != nil {
-		childSpan.RecordError(err)
+		span.RecordError(err)
+		span.SetStatus(codes.Error, err.Error())
 		return nil, err
 	}
 
 	msg, err := executor.Execute(otelCtx, client, q)
 	if err != nil {
-		childSpan.RecordError(err)
+		span.RecordError(err)
+		span.SetStatus(codes.Error, err.Error())
 		return nil, err
 	}
 	return msg, nil

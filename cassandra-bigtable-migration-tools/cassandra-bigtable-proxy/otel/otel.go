@@ -19,6 +19,8 @@ package otelgo
 import (
 	"context"
 	"fmt"
+	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/global/types"
+	"go.opentelemetry.io/otel/trace"
 	"net/http"
 	"net/url"
 	"strings"
@@ -33,21 +35,14 @@ import (
 	"go.uber.org/zap"
 )
 
-type Attributes struct {
-	Method    string
-	Status    string
-	QueryType string
-	Keyspace  string
-}
-
 type ShutdownFn func(ctx context.Context) error
 
 var (
-	attributeKeyDatabase  = attribute.Key("database")
 	attributeKeyMethod    = attribute.Key("method")
 	attributeKeyStatus    = attribute.Key("status")
-	attributeKeyInstance  = attribute.Key("instance")
+	attributeKeyKeyspace  = attribute.Key("keyspace")
 	attributeKeyQueryType = attribute.Key("query_type")
+	attributeKeyTable     = attribute.Key("table")
 )
 
 type OTelConfig struct {
@@ -155,4 +150,12 @@ func isValidEndpoint(endpoint string) bool {
 	}
 	parts := strings.Split(endpoint, ":")
 	return len(parts) == 2 && parts[0] != "" && parts[1] != ""
+}
+
+func AddQueryAnnotations(s trace.Span, attrs types.Attributes) {
+	s.SetAttributes(
+		attribute.String("QueryType", attrs.QueryType.String()),
+		attribute.String("Keyspace", string(attrs.Keyspace)),
+		attribute.String("Table", string(attrs.Table)),
+	)
 }

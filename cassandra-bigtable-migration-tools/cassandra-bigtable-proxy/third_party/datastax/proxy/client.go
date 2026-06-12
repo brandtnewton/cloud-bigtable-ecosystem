@@ -24,12 +24,10 @@ import (
 	"github.com/datastax/go-cassandra-native-protocol/frame"
 	"github.com/datastax/go-cassandra-native-protocol/message"
 	"github.com/datastax/go-cassandra-native-protocol/primitive"
-	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
 	"go.uber.org/zap"
 	"io"
 	"runtime/debug"
-	"time"
 )
 
 type Sender interface {
@@ -49,9 +47,9 @@ func (c *client) SetSessionKeyspace(k types.Keyspace) {
 }
 
 func (c *client) Receive(reader io.Reader) error {
-	startTime := time.Now()
-	otelCtx, span := c.proxy.tracer.Start(c.proxy.ctx, "receive", nil)
+	otelCtx, span := c.proxy.tracer.Start(c.proxy.ctx, "receive")
 	defer span.End()
+	span.AddEvent("decode-raw-request")
 	raw, err := codec.DecodeRawFrame(reader)
 	if err != nil {
 		if !errors.Is(err, io.EOF) {
@@ -87,6 +85,7 @@ func (c *client) Receive(reader io.Reader) error {
 		return nil
 	}
 
+	span.AddEvent("decode-request-body")
 	body, err := codec.DecodeBody(raw.Header, bytes.NewReader(raw.Body))
 	if err != nil {
 		c.proxy.logger.Error("unable to decode body", zap.Error(err))
@@ -96,55 +95,30 @@ func (c *client) Receive(reader io.Reader) error {
 	}
 
 	var response message.Message
-	queryType := types.QueryTypeUnknown
-	switch msg := body.Message.(type) {
-	case *message.Options:
-		span.SetName(handleOptions)
-		response, err = c.handleOptions(otelCtx, raw, msg)
-	case *message.Startup:
-		span.SetName("Startup")
-		response, err = c.handleStartup(otelCtx, raw, msg)
-	case *message.Register:
-		span.SetName(handleRegister)
-		response, err = c.handleRegister(otelCtx, raw, msg)
-	case *message.Prepare:
-		span.SetName(handlePrepare)
-		response, queryType, err = c.handlePrepare(otelCtx, raw, msg)
-	case *partialExecute:
-		span.SetName(handleExecute)
-		response, queryType, err = c.handleExecute(otelCtx, raw, msg)
-	case *partialQuery:
-		span.SetName(handleQuery)
-		response, queryType, err = c.handleQuery(otelCtx, raw, msg)
-	case *partialBatch:
-		span.SetName(handleBatch)
-		response, err = c.handleBatch(otelCtx, raw, msg)
-	default:
+	requestHandler, ok := c.proxy.requestHandlers[raw.Header.OpCode]
+
+	if ok {
+		span.SetName(requestHandler.Name())
+		response, err = requestHandler.HandleRequest(otelCtx, c, raw, body.Message)
+	} else {
 		response = &message.ServerError{ErrorMessage: "unsupported operation"}
 		err = errors.New("unsupported operation")
-	}
-
-	if queryType != types.QueryTypeUnknown {
-		span.SetAttributes(attribute.String(QueryType, queryType.String()))
-	}
-
-	c.proxy.otelInst.RecordMetrics(otelCtx, handleExecute, startTime, queryType.String(), c.sessionKeyspace, err)
-
-	if response == nil {
-		c.proxy.logger.Error("nil response")
-		// fix the response
-		response = &message.ServerError{ErrorMessage: "unhandled response"}
 	}
 
 	if err != nil {
 		span.RecordError(err)
 		span.SetStatus(codes.Error, err.Error())
+		if response == nil {
+			response = &message.ServerError{ErrorMessage: err.Error()}
+		}
 		c.sender.Send(raw.Header, response)
 		return nil
 	}
 
-	span.SetStatus(codes.Ok, "")
+	span.AddEvent("send-response")
 	c.sender.Send(raw.Header, response)
+	span.AddEvent("done")
+	span.SetStatus(codes.Ok, "")
 	return nil
 }
 

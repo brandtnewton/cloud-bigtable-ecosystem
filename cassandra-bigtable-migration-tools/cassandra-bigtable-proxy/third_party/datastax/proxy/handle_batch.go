@@ -24,20 +24,43 @@ import (
 	"github.com/datastax/go-cassandra-native-protocol/frame"
 	"github.com/datastax/go-cassandra-native-protocol/message"
 	"github.com/datastax/go-cassandra-native-protocol/primitive"
+	"go.opentelemetry.io/otel/trace"
 	"strings"
 	"time"
 )
 
-// handle batch queries
-func (c *client) handleBatch(ctx context.Context, raw *frame.RawFrame, msg *partialBatch) (message.Message, error) {
+type BatchRequestHandler struct {
+}
+
+func (b *BatchRequestHandler) Name() string {
+	return "batch"
+}
+
+func (b *BatchRequestHandler) OpCode() primitive.OpCode {
+	return primitive.OpCodeBatch
+}
+
+func (b *BatchRequestHandler) HandleRequest(ctx context.Context, c *client, raw *frame.RawFrame, m message.Message) (message.Message, error) {
+	msg := m.(*partialBatch)
+	span := trace.SpanFromContext(ctx)
 	startTime := time.Now()
 	var otelErr error
-	defer c.proxy.otelInst.RecordMetrics(ctx, handleBatch, startTime, "batch", c.sessionKeyspace, otelErr)
+	defer func() {
+		attrs := types.Attributes{
+			Method:   handleBatch,
+			Keyspace: c.sessionKeyspace,
+			Status:   otelgoStatus(otelErr),
+		}
+		otelgo.AddQueryAnnotations(span, attrs)
+		c.proxy.otelInst.RecordMetrics(ctx, startTime, attrs)
+	}()
+
 	bulkMutations, keyspace, err := c.bindBulkOperations(msg, raw.Header.Version)
 	if err != nil {
-		return &message.ConfigError{}, err
+		otelErr = err
+		return &message.ConfigError{ErrorMessage: err.Error()}, err
 	}
-	otelgo.AddAnnotation(ctx, sendingBulkApplyMutation)
+	span.AddEvent(sendingBulkApplyMutation)
 	var errs []string
 	for tableName, mutations := range bulkMutations.Mutations() {
 		res, err := c.proxy.bigtableClient.ApplyBulkMutation(ctx, keyspace, tableName, mutations)
@@ -48,12 +71,17 @@ func (c *client) handleBatch(ctx context.Context, raw *frame.RawFrame, msg *part
 			errs = append(errs, res.FailedRows)
 		}
 	}
-	otelgo.AddAnnotation(ctx, gotBulkApplyResp)
+	span.AddEvent(gotBulkApplyResp)
 	if len(errs) > 0 {
-		return nil, errors.New(strings.Join(errs, "\n"))
+		otelErr = errors.New(strings.Join(errs, "\n"))
+		return &message.ServerError{ErrorMessage: otelErr.Error()}, otelErr
 	}
 
 	return &message.VoidResult{}, nil
+}
+
+func NewBatchRequestHandler() IProxyRequestHandler {
+	return &BatchRequestHandler{}
 }
 
 func (c *client) bindBulkOperations(msg *partialBatch, pv primitive.ProtocolVersion) (*bigtableModule.BigtableBulkMutation, types.Keyspace, error) {

@@ -18,30 +18,75 @@ import (
 	"context"
 	"errors"
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/global/types"
+	otelgo "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/otel"
 	"github.com/datastax/go-cassandra-native-protocol/frame"
 	"github.com/datastax/go-cassandra-native-protocol/message"
+	"github.com/datastax/go-cassandra-native-protocol/primitive"
+	"go.opentelemetry.io/otel/trace"
+	"time"
 )
 
-// handleExecute for prepared query
-func (c *client) handleExecute(ctx context.Context, raw *frame.RawFrame, msg *partialExecute) (message.Message, types.QueryType, error) {
+type ExecuteRequestHandler struct {
+}
+
+func (e *ExecuteRequestHandler) Name() string {
+	return "execute"
+}
+
+func (e *ExecuteRequestHandler) OpCode() primitive.OpCode {
+	return primitive.OpCodeExecute
+}
+
+func (e *ExecuteRequestHandler) HandleRequest(ctx context.Context, c *client, raw *frame.RawFrame, m message.Message) (message.Message, error) {
+	msg := m.(*partialExecute)
+	span := trace.SpanFromContext(ctx)
+	startTime := time.Now()
+
+	var otelErr error
+	var preparedStmt types.IPreparedQuery
+	defer func() {
+		attrs := types.Attributes{
+			Method:   handleExecute,
+			Keyspace: c.sessionKeyspace,
+			Status:   otelgoStatus(otelErr),
+		}
+		if preparedStmt != nil {
+			attrs.QueryType = preparedStmt.QueryType()
+			attrs.Table = preparedStmt.Table()
+		}
+		otelgo.AddQueryAnnotations(span, attrs)
+		c.proxy.otelInst.RecordMetrics(ctx, startTime, attrs)
+	}()
+
 	id := preparedIdKey(msg.queryId)
 
-	preparedStmt, ok := c.proxy.preparedQueryCache.Load(id)
+	var ok bool
+	preparedStmt, ok = c.proxy.preparedQueryCache.Load(id)
 	if !ok {
-		return &message.ServerError{ErrorMessage: errQueryNotPrepared}, types.QueryTypeUnknown, errors.New(errQueryNotPrepared)
+		otelErr = errors.New(errQueryNotPrepared)
+		return &message.ServerError{ErrorMessage: errQueryNotPrepared}, otelErr
 	}
 
+	span.AddEvent("bind-query")
 	boundQuery, err := c.proxy.translator.BindQuery(preparedStmt, msg.PositionalValues, msg.NamedValues, raw.Header.Version)
 	if err != nil {
-		return &message.ConfigError{ErrorMessage: err.Error()}, preparedStmt.QueryType(), err
+		otelErr = err
+		return &message.ConfigError{ErrorMessage: err.Error()}, err
 	}
 
+	span.AddEvent("execute-query")
 	results, err := c.proxy.executor.Execute(ctx, c, boundQuery)
 	if err != nil {
-		return &message.ConfigError{ErrorMessage: err.Error()}, preparedStmt.QueryType(), err
+		otelErr = err
+		return &message.ConfigError{ErrorMessage: err.Error()}, err
 	}
 	if preparedStmt.QueryType().IsDDLType() {
+		span.AddEvent("execute-ddl-event")
 		c.handlePostDDLEvent(preparedStmt.QueryType(), preparedStmt.Keyspace(), preparedStmt.Table())
 	}
-	return results, preparedStmt.QueryType(), nil
+	return results, nil
+}
+
+func NewExecuteRequestHandler() IProxyRequestHandler {
+	return &ExecuteRequestHandler{}
 }

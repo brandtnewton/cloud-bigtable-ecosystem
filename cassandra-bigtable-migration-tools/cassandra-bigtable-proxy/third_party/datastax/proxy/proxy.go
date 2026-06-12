@@ -56,8 +56,9 @@ const (
 	handleBatch    = traceNamespace + "/ExecuteBatch"
 	handlePrepare  = traceNamespace + "/PrepareQuery"
 	handleExecute  = traceNamespace + "/ExecuteQuery"
-	handleRegister = traceNamespace + "/ExecuteRegister"
-	handleOptions  = traceNamespace + "/ExecuteOptions"
+	handleRegister = traceNamespace + "/Register"
+	handleStartup  = traceNamespace + "/Startup"
+	handleOptions  = traceNamespace + "/Options"
 )
 
 // Events
@@ -95,6 +96,7 @@ type Proxy struct {
 	otelInst           *otelgo.OpenTelemetry
 	tracer             trace.Tracer
 	otelShutdown       func(context.Context) error
+	requestHandlers    map[primitive.OpCode]IProxyRequestHandler
 }
 
 type node struct {
@@ -171,6 +173,21 @@ func NewProxy(ctx context.Context, logger *zap.Logger, config *types.ProxyInstan
 		otelInst:           otelInst,
 		tracer:             otel.GetTracerProvider().Tracer("handler"),
 		otelShutdown:       shutdownOTel,
+		requestHandlers:    make(map[primitive.OpCode]IProxyRequestHandler),
+	}
+
+	handlers := []IProxyRequestHandler{
+		NewOptionsRequestHandler(),
+		NewStartupRequestHandler(),
+		NewRegisterRequestHandler(),
+		NewPrepareRequestHandler(),
+		NewExecuteRequestHandler(),
+		NewQueryRequestHandler(),
+		NewBatchRequestHandler(),
+	}
+
+	for _, h := range handlers {
+		proxy.requestHandlers[h.OpCode()] = h
 	}
 
 	err = systemTables.Initialize(proxy)

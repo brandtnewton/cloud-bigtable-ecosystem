@@ -22,6 +22,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/global/types"
+	"go.opentelemetry.io/otel/trace"
 	"strings"
 	"time"
 
@@ -31,7 +32,6 @@ import (
 
 	btpb "cloud.google.com/go/bigtable/apiv2/bigtablepb"
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/metadata"
-	otelgo "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/otel"
 	"github.com/datastax/go-cassandra-native-protocol/message"
 	"go.uber.org/zap"
 )
@@ -88,7 +88,7 @@ func (btc *BigtableAdapter) Execute(ctx context.Context, query types.IExecutable
 // Returns:
 //   - error: Error if the mutation fails.
 func (btc *BigtableAdapter) mutateRow(ctx context.Context, input *types.BigtableWriteMutation) (message.Message, error) {
-	otelgo.AddAnnotation(ctx, applyingBigtableMutation)
+	span := trace.SpanFromContext(ctx)
 	mut := bigtable.NewMutation()
 
 	client, err := btc.clients.GetClient(input.Keyspace())
@@ -117,7 +117,7 @@ func (btc *BigtableAdapter) mutateRow(ctx context.Context, input *types.Bigtable
 		}
 
 		err := tbl.Apply(ctx, string(input.RowKey()), conditionalMutation, bigtable.GetCondMutationResult(&matched))
-		otelgo.AddAnnotation(ctx, bigtableMutationApplied)
+		span.AddEvent(bigtableMutationApplied)
 		if err != nil {
 			return nil, err
 		}
@@ -127,7 +127,7 @@ func (btc *BigtableAdapter) mutateRow(ctx context.Context, input *types.Bigtable
 
 	// If no conditions, apply the mutation directly
 	err = tbl.Apply(ctx, string(input.RowKey()), mut)
-	otelgo.AddAnnotation(ctx, bigtableMutationApplied)
+	span.AddEvent(bigtableMutationApplied)
 	if err != nil {
 		return nil, err
 	}
@@ -274,7 +274,8 @@ func (btc *BigtableAdapter) updateRow(ctx context.Context, input *types.Bigtable
 }
 
 func (btc *BigtableAdapter) deleteRow(ctx context.Context, deleteQueryData *types.BoundDeleteQuery) (message.Message, error) {
-	otelgo.AddAnnotation(ctx, applyingDeleteMutation)
+	span := trace.SpanFromContext(ctx)
+	span.AddEvent(applyingDeleteMutation)
 	client, err := btc.clients.GetClient(deleteQueryData.Keyspace())
 	if err != nil {
 		return nil, err
@@ -306,7 +307,7 @@ func (btc *BigtableAdapter) deleteRow(ctx context.Context, deleteQueryData *type
 			return nil, err
 		}
 	}
-	otelgo.AddAnnotation(ctx, deleteMutationApplied)
+	span.AddEvent(deleteMutationApplied)
 	return &message.VoidResult{}, nil
 }
 
@@ -343,6 +344,7 @@ func (btc *BigtableAdapter) buildDeleteMutation(ctx context.Context, table *bigt
 //   - BulkOperationResponse: Response indicating the result of the bulk operation.
 //   - error: Error if the bulk mutation fails.
 func (btc *BigtableAdapter) ApplyBulkMutation(ctx context.Context, keyspace types.Keyspace, tableName types.TableName, mutationData []types.IBigtableMutation) (BulkOperationResponse, error) {
+	span := trace.SpanFromContext(ctx)
 	client, err := btc.clients.GetClient(keyspace)
 	if err != nil {
 		return BulkOperationResponse{
@@ -397,7 +399,7 @@ func (btc *BigtableAdapter) ApplyBulkMutation(ctx context.Context, keyspace type
 		mutations = append(mutations, mutation)
 		rowKeys = append(rowKeys, string(key))
 	}
-	otelgo.AddAnnotation(ctx, applyingBulkMutation)
+	span.AddEvent(applyingBulkMutation)
 
 	errs, err := table.ApplyBulk(ctx, rowKeys, mutations)
 	if err != nil {
@@ -422,7 +424,7 @@ func (btc *BigtableAdapter) ApplyBulkMutation(ctx context.Context, keyspace type
 			FailedRows: "",
 		}
 	}
-	otelgo.AddAnnotation(ctx, bulkMutationApplied)
+	span.AddEvent(bulkMutationApplied)
 	return res, nil
 }
 

@@ -20,26 +20,49 @@ import (
 	"fmt"
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/global/types"
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/parser"
+	otelgo "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/otel"
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/responsehandler"
 	cql "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/third_party/cqlparser"
 	"github.com/datastax/go-cassandra-native-protocol/frame"
 	"github.com/datastax/go-cassandra-native-protocol/message"
+	"github.com/datastax/go-cassandra-native-protocol/primitive"
+	"go.opentelemetry.io/otel/trace"
 	"go.uber.org/zap"
 	"time"
-)
+	)
 
-func (c *client) handlePrepare(ctx context.Context, raw *frame.RawFrame, msg *message.Prepare) (message.Message, types.QueryType, error) {
+	type PrepareRequestHandler struct {
+	}
+
+	func (p *PrepareRequestHandler) Name() string {
+		return "prepare"
+	}
+
+	func (p *PrepareRequestHandler) OpCode() primitive.OpCode {
+		return primitive.OpCodePrepare
+	}
+func (p *PrepareRequestHandler) HandleRequest(ctx context.Context, c *client, raw *frame.RawFrame, m message.Message) (message.Message, error) {
+	msg := m.(*message.Prepare)
+	span := trace.SpanFromContext(ctx)
 	startTime := time.Now()
 
 	var otelErr error
-	queryType := types.QueryTypeUnknown.String()
+	qt := types.QueryTypeUnknown
 	defer func() {
-		c.proxy.otelInst.RecordMetrics(ctx, handlePrepare, startTime, queryType, c.sessionKeyspace, otelErr)
+		attrs := types.Attributes{
+			Method:    handlePrepare,
+			QueryType: qt,
+			Keyspace:  c.sessionKeyspace,
+			Status:    otelgoStatus(otelErr),
+		}
+		otelgo.AddQueryAnnotations(span, attrs)
+		c.proxy.otelInst.RecordMetrics(ctx, startTime, attrs)
 	}()
 
 	id := c.getQueryId(msg)
 	if preparedQuery, found := c.proxy.preparedQueryCache.Load(id); found {
-		return responsehandler.BuildPreparedResultResponse(id, preparedQuery), preparedQuery.QueryType(), nil
+		qt = preparedQuery.QueryType()
+		return responsehandler.BuildPreparedResultResponse(id, preparedQuery), nil
 	}
 
 	c.proxy.logger.Debug("preparing query", zap.String(Query, msg.Query), zap.Int16("stream", raw.Header.StreamId))
@@ -49,14 +72,22 @@ func (c *client) handlePrepare(ctx context.Context, raw *frame.RawFrame, msg *me
 		keyspace = types.Keyspace(msg.Keyspace)
 	}
 
-	p := parser.GetParser(msg.Query)
-	qt, err := parseQueryType(p)
+	pParser := parser.GetParser(msg.Query)
+	var err error
+	qt, err = parseQueryType(pParser)
 	if err != nil {
-		return &message.Invalid{}, qt, err
+		otelErr = err
+		return &message.Invalid{ErrorMessage: err.Error()}, err
 	}
 
-	rawQuery := types.NewRawQuery(raw.Header, keyspace, msg.Query, p, qt)
-	return c.handleServerPreparedQuery(ctx, rawQuery, id)
+	rawQuery := types.NewRawQuery(raw.Header, keyspace, msg.Query, pParser, qt)
+	resp, _, err := c.handleServerPreparedQuery(ctx, rawQuery, id)
+	otelErr = err
+	return resp, err
+}
+
+func NewPrepareRequestHandler() IProxyRequestHandler {
+	return &PrepareRequestHandler{}
 }
 
 func parseQueryType(p *parser.ProxyCqlParser) (types.QueryType, error) {
@@ -102,10 +133,10 @@ func (c *client) getQueryId(msg *message.Prepare) [16]byte {
 //   - msg: *message.Prepare
 //
 // Returns: error if any error occurs during preparation
-func (c *client) handleServerPreparedQuery(ctx context.Context, query *types.RawQuery, id [16]byte) (message.Message, types.QueryType, error) {
+func (c *client) handleServerPreparedQuery(ctx context.Context, query *types.RawQuery, id [16]byte) (message.Message, types.IPreparedQuery, error) {
 	preparedQuery, err := c.prepareQuery(ctx, query)
 	if err != nil {
-		return &message.Invalid{ErrorMessage: err.Error()}, query.QueryType(), err
+		return &message.Invalid{ErrorMessage: err.Error()}, nil, err
 	}
 
 	response := responsehandler.BuildPreparedResultResponse(id, preparedQuery)
@@ -113,7 +144,7 @@ func (c *client) handleServerPreparedQuery(ctx context.Context, query *types.Raw
 	// update cache
 	c.proxy.preparedQueryCache.Store(id, preparedQuery)
 
-	return response, query.QueryType(), nil
+	return response, preparedQuery, nil
 }
 
 func (c *client) prepareQuery(ctx context.Context, query *types.RawQuery) (types.IPreparedQuery, error) {

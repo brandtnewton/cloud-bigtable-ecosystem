@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/global/types"
 	schemaMapping "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/metadata"
+	otelgo "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/otel"
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/translators/alter_translator"
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/translators/common"
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/translators/create_translator"
@@ -34,6 +35,7 @@ import (
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/translators/use_translator"
 	"github.com/datastax/go-cassandra-native-protocol/primitive"
 	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/trace"
 	"go.uber.org/zap"
 )
@@ -78,29 +80,32 @@ func NewTranslatorManager(logger *zap.Logger, schemaMappingConfig *schemaMapping
 }
 
 func (t *TranslatorManager) TranslateQuery(ctx context.Context, q *types.RawQuery, sessionKeyspace types.Keyspace) (types.IPreparedQuery, error) {
-	_, childSpan := t.tracer.Start(ctx, "translate")
-	defer childSpan.End()
+	_, span := t.tracer.Start(ctx, "translate")
+	defer span.End()
 	defer q.Parser().Release()
 
 	queryTranslator, err := t.getTranslator(q.QueryType())
 	if err != nil {
-		childSpan.RecordError(err)
+		span.RecordError(err)
 		return nil, err
 	}
 
 	preparedQuery, err := queryTranslator.Translate(q, sessionKeyspace)
 
 	if err != nil {
-		childSpan.RecordError(err)
+		span.RecordError(err)
+		span.SetStatus(codes.Error, err.Error())
 		return nil, err
 	}
-
+	otelgo.AddQueryAnnotations(span, *q.Attributes())
 	t.Logger.Debug("translated query", zap.String("cql", q.RawCql()), zap.String("btql", preparedQuery.BigtableQuery()))
 
 	// ensure user doesn't try to drop or corrupt the schema mapping table
 	if !preparedQuery.Keyspace().IsSystemKeyspace() && preparedQuery.Table() == t.config.SchemaMappingTable {
-		childSpan.RecordError(err)
-		return nil, fmt.Errorf("table name cannot be the same as the configured schema mapping table name '%s'", t.config.SchemaMappingTable)
+		err = fmt.Errorf("table name cannot be the same as the configured schema mapping table name '%s'", t.config.SchemaMappingTable)
+		span.RecordError(err)
+		span.SetStatus(codes.Error, err.Error())
+		return nil, err
 	}
 
 	return preparedQuery, nil

@@ -22,7 +22,6 @@ import (
 	"go.opentelemetry.io/otel/trace/noop"
 
 	texporter "github.com/GoogleCloudPlatform/opentelemetry-operations-go/exporter/trace"
-	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc"
 	"go.opentelemetry.io/otel/sdk/resource"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
@@ -59,17 +58,4 @@ func createTraceProvider(ctx context.Context, config *OTelConfig, res *resource.
 	}
 	result := sdktrace.NewTracerProvider(opts...)
 	return result, result.Shutdown, nil
-}
-
-func (o *OpenTelemetry) RecordError(span trace.Span, err error) {
-	if err != nil {
-		span.RecordError(err)
-		span.SetStatus(codes.Error, err.Error())
-	} else {
-		span.SetStatus(codes.Ok, "")
-	}
-}
-
-func AddAnnotation(ctx context.Context, event string) {
-	trace.SpanFromContext(ctx).AddEvent(event)
 }

@@ -18,10 +18,11 @@ package otelgo
 
 import (
 	"context"
+	"errors"
+	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/global/types"
 	"go.opentelemetry.io/otel/metric/noop"
 	"time"
 
-	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/global/types"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetricgrpc"
 	"go.opentelemetry.io/otel/metric"
@@ -38,6 +39,9 @@ func InitMeterProvider(ctx context.Context, config *OTelConfig, res *resource.Re
 	if !config.OTELEnabled {
 		return noop.NewMeterProvider(), func(_ context.Context) error { return nil }, nil
 	}
+	if !isValidEndpoint(config.MetricEndpoint) {
+		return nil, nil, errors.New("invalid metric endpoint format")
+	}
 	exporter, err := otlpmetricgrpc.New(ctx, otlpmetricgrpc.WithEndpoint(config.MetricEndpoint), otlpmetricgrpc.WithInsecure())
 	if err != nil {
 		return nil, nil, err
@@ -53,42 +57,19 @@ func InitMeterProvider(ctx context.Context, config *OTelConfig, res *resource.Re
 	return mp, mp.Shutdown, nil
 }
 
-func (o *OpenTelemetry) RecordMetrics(ctx context.Context, method string, startTime time.Time, queryType string, keyspace types.Keyspace, err error) {
-	if !o.Config.OTELEnabled {
-		return
-	}
-	status := "OK"
-	if err != nil {
-		status = "failure"
-	}
-	attrs := Attributes{
-		Method:    method,
-		Status:    status,
-		QueryType: queryType,
-		Keyspace:  string(keyspace),
-	}
-	o.RecordRequestCountMetric(ctx, attrs)
-	o.RecordLatencyMetric(ctx, startTime, attrs)
+func (o *OpenTelemetry) RecordMetrics(ctx context.Context, startTime time.Time, attrs types.Attributes) {
+	a := commonAttributes(attrs)
+	o.requestLatency.Record(ctx, time.Since(startTime).Milliseconds(), metric.WithAttributes(a...))
+	o.requestCount.Add(ctx, 1, metric.WithAttributes(a...))
+
 }
 
-func (o *OpenTelemetry) commonAttributes(attrs Attributes) []attribute.KeyValue {
+func commonAttributes(attrs types.Attributes) []attribute.KeyValue {
 	return []attribute.KeyValue{
-		attributeKeyInstance.String(attrs.Keyspace),
-		attributeKeyDatabase.String(o.Config.Database),
+		attributeKeyKeyspace.String(string(attrs.Keyspace)),
 		attributeKeyMethod.String(attrs.Method),
-		attributeKeyQueryType.String(attrs.QueryType),
-	}
-}
-
-func (o *OpenTelemetry) RecordLatencyMetric(ctx context.Context, startTime time.Time, attrs Attributes) {
-	if o.Config.OTELEnabled {
-		o.requestLatency.Record(ctx, time.Since(startTime).Milliseconds(), metric.WithAttributes(o.commonAttributes(attrs)...))
-	}
-}
-
-func (o *OpenTelemetry) RecordRequestCountMetric(ctx context.Context, attrs Attributes) {
-	if o.Config.OTELEnabled {
-		kv := append(o.commonAttributes(attrs), attributeKeyStatus.String(attrs.Status))
-		o.requestCount.Add(ctx, 1, metric.WithAttributes(kv...))
+		attributeKeyQueryType.String(attrs.QueryType.String()),
+		attributeKeyTable.String(string(attrs.Table)),
+		attributeKeyStatus.String(attrs.Status),
 	}
 }

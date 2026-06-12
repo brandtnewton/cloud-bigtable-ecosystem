@@ -197,6 +197,12 @@ func (q QueryType) IsDDLType() bool {
 	}
 }
 
+type IQuery interface {
+	Keyspace() Keyspace
+	Table() TableName
+	QueryType() QueryType
+}
+
 type IExecutableQuery interface {
 	Keyspace() Keyspace
 	Table() TableName // empty string if no table involved e.g. "USE keyspace;"
@@ -205,6 +211,7 @@ type IExecutableQuery interface {
 	CqlQuery() string
 	BigtableQuery() string
 }
+
 type IPreparedQuery interface {
 	Keyspace() Keyspace
 	Table() TableName // empty string if no table involved e.g. "USE keyspace;"
@@ -227,6 +234,7 @@ type IQueryTranslator interface {
 type RawQuery struct {
 	header          *frame.Header
 	cql             string
+	attributes      Attributes
 	qt              QueryType
 	sessionKeyspace Keyspace
 	// warning: parsers are pooled for performance reasons. this will be released back into the pool and set to nil after translation
@@ -272,6 +280,9 @@ func (r *RawQuery) StartTime() time.Time {
 
 func (r *RawQuery) Header() *frame.Header {
 	return r.header
+}
+func (r *RawQuery) Attributes() *Attributes {
+	return &r.attributes
 }
 
 type ICassandraClient interface {

@@ -12,13 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package proxy
+package request_handlers
 
 import (
 	"context"
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/global/types"
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/parser"
-	otelgo "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/otel"
+	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/third_party/datastax/proxy/proxy_types"
 	"github.com/datastax/go-cassandra-native-protocol/frame"
 	"github.com/datastax/go-cassandra-native-protocol/message"
 	"github.com/datastax/go-cassandra-native-protocol/primitive"
@@ -29,6 +29,7 @@ import (
 )
 
 type QueryRequestHandler struct {
+	server IProxyServer
 }
 
 func (q *QueryRequestHandler) Name() string {
@@ -39,71 +40,49 @@ func (q *QueryRequestHandler) OpCode() primitive.OpCode {
 	return primitive.OpCodeQuery
 }
 
-func (q *QueryRequestHandler) HandleRequest(ctx context.Context, c *client, raw *frame.RawFrame, m message.Message) (message.Message, error) {
-	msg := m.(*partialQuery)
+func (q *QueryRequestHandler) HandleRequest(ctx context.Context, session IProxySession, raw *frame.RawFrame, m message.Message) (message.Message, error) {
+	msg := m.(*proxy_types.PartialQuery)
 	span := trace.SpanFromContext(ctx)
-	startTime := time.Now()
-	c.proxy.logger.Debug("handling query", zap.String("encodedQuery", msg.query), zap.Int16("stream", raw.Header.StreamId))
+	q.server.Logger().Debug("handling query", zap.String("encodedQuery", msg.Query), zap.Int16("stream", raw.Header.StreamId))
 
-	var otelErr error
-	qt := types.QueryTypeUnknown
-	var query types.IPreparedQuery
-	defer func() {
-		attrs := types.Attributes{
-			Method:    handleQuery,
-			QueryType: qt,
-			Keyspace:  c.sessionKeyspace,
-			Status:    otelgoStatus(otelErr),
-		}
-		if query != nil {
-			attrs.Table = query.Table()
-		}
-		otelgo.AddQueryAnnotations(span, attrs)
-		c.proxy.otelInst.RecordMetrics(ctx, startTime, attrs)
-	}()
-
-	p := parser.GetParser(msg.query)
+	p := parser.GetParser(msg.Query)
 	var err error
-	qt, err = parseQueryType(p)
+	qt, err := parseQueryType(p)
 	if err != nil {
-		otelErr = err
 		return &message.Invalid{ErrorMessage: err.Error()}, err
 	}
 	if span.IsRecording() {
-		span.SetAttributes(attribute.String(QueryType, qt.String()))
+		span.SetAttributes(attribute.String(proxy_types.QueryTypeConst, qt.String()))
 	}
 
-	rawQuery := types.NewRawQuery(raw.Header, c.sessionKeyspace, msg.query, p, qt)
+	rawQuery := types.NewRawQuery(raw.Header, session.SessionKeyspace(), msg.Query, p, qt)
 
-	query, err = c.prepareQuery(ctx, rawQuery)
+	query, err := prepareQuery(ctx, q.server, session, rawQuery)
 	if err != nil {
-		otelErr = err
 		return &message.ServerError{ErrorMessage: err.Error()}, err
 	}
 
 	values := types.NewQueryParameterValues(query.Parameters(), time.Now())
-	executableQuery, err := c.proxy.translator.BindQueryParameters(query, values, raw.Header.Version)
+	executableQuery, err := q.server.Translator().BindQueryParameters(query, values, raw.Header.Version)
 	if err != nil {
-		otelErr = err
 		return &message.ConfigError{ErrorMessage: err.Error()}, err
 	}
 
-	span.AddEvent(executingBigtableSQLAPIRequestEvent)
-	selectResult, err := c.proxy.executor.Execute(ctx, c, executableQuery)
-	span.AddEvent(bigtableExecutionDoneEvent)
+	span.AddEvent(proxy_types.ExecutingBigtableSQLAPIRequestEvent)
+	selectResult, err := q.server.Executor().Execute(ctx, session, executableQuery)
+	span.AddEvent(proxy_types.BigtableExecutionDoneEvent)
 
 	if err != nil {
-		otelErr = err
 		return &message.ServerError{ErrorMessage: err.Error()}, err
 	}
 
 	if rawQuery.QueryType().IsDDLType() {
-		c.handlePostDDLEvent(query.QueryType(), query.Keyspace(), query.Table())
+		q.server.HandlePostDDLEvent(query.QueryType(), query.Keyspace(), query.Table())
 	}
 
 	return selectResult, nil
 }
 
-func NewQueryRequestHandler() IProxyRequestHandler {
-	return &QueryRequestHandler{}
+func NewQueryRequestHandler(server IProxyServer) IProxyRequestHandler {
+	return &QueryRequestHandler{server: server}
 }

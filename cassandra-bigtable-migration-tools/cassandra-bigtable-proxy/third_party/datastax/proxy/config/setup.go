@@ -170,7 +170,8 @@ func maybeParseQuickStartArgs(args *types.CliArgs) (*types.ProxyInstanceConfig, 
 
 	// quick start instances don't have a way to configure otel, so just disable it
 	otel := &types.OtelConfig{
-		Enabled: false,
+		Enabled:        false,
+		ServiceVersion: args.ProtocolVersion.String(),
 	}
 
 	instanceConfig := NewProxyInstanceConfig(args, args.QuickStartPort, otel, bigtableConfig)

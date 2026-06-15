@@ -28,7 +28,8 @@ type yamlOtelConfig struct {
 		Endpoint string `yaml:"endpoint"`
 	} `yaml:"healthcheck"`
 	Metrics struct {
-		Endpoint string `yaml:"endpoint"`
+		Endpoint          string `yaml:"endpoint"`
+		GcpMetricsEnabled bool   `yaml:"gcpMetricsEnabled"`
 	} `yaml:"metrics"`
 	Traces struct {
 		Endpoint      string  `yaml:"endpoint"`

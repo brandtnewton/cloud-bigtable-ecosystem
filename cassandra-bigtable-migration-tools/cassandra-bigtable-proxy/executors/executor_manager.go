@@ -53,11 +53,7 @@ func (m *QueryExecutorManager) Execute(ctx context.Context, client types.ICassan
 	otelCtx, span := m.trace.Start(ctx, "execute")
 	defer span.End()
 
-	otelgo.AddQueryAnnotations(span, types.Attributes{
-		QueryType: q.QueryType(),
-		Keyspace:  q.Keyspace(),
-		Table:     q.Table(),
-	})
+	otelgo.AddQueryAnnotations(span, q)
 
 	executor, err := m.getExecutor(q)
 	if err != nil {

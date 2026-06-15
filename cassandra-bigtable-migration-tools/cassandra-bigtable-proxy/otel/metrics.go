@@ -23,6 +23,7 @@ import (
 	"go.opentelemetry.io/otel/metric/noop"
 	"time"
 
+	metricexporter "github.com/GoogleCloudPlatform/opentelemetry-operations-go/exporter/metric"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetricgrpc"
 	"go.opentelemetry.io/otel/metric"
@@ -35,14 +36,23 @@ const (
 	latencyMetric      = "bigtable/cassandra_adapter/roundtrip_latencies"
 )
 
-func InitMeterProvider(ctx context.Context, config *OTelConfig, res *resource.Resource) (metric.MeterProvider, ShutdownFn, error) {
-	if !config.OTELEnabled {
+func InitMeterProvider(ctx context.Context, config *types.OtelConfig, res *resource.Resource) (metric.MeterProvider, ShutdownFn, error) {
+	if !config.Enabled {
 		return noop.NewMeterProvider(), func(_ context.Context) error { return nil }, nil
 	}
-	if !isValidEndpoint(config.MetricEndpoint) {
-		return nil, nil, errors.New("invalid metric endpoint format")
+
+	var exporter sdkmetric.Exporter
+	var err error
+
+	if config.Metrics.GcpMetricsEnabled {
+		exporter, err = metricexporter.New(metricexporter.WithProjectID(config.Traces.ProjectId))
+	} else {
+		if !isValidEndpoint(config.Metrics.Endpoint) {
+			return nil, nil, errors.New("invalid metric endpoint format")
+		}
+		exporter, err = otlpmetricgrpc.New(ctx, otlpmetricgrpc.WithEndpoint(config.Metrics.Endpoint), otlpmetricgrpc.WithInsecure())
 	}
-	exporter, err := otlpmetricgrpc.New(ctx, otlpmetricgrpc.WithEndpoint(config.MetricEndpoint), otlpmetricgrpc.WithInsecure())
+
 	if err != nil {
 		return nil, nil, err
 	}
@@ -61,7 +71,6 @@ func (o *OpenTelemetry) RecordMetrics(ctx context.Context, startTime time.Time, 
 	a := commonAttributes(attrs)
 	o.requestLatency.Record(ctx, time.Since(startTime).Milliseconds(), metric.WithAttributes(a...))
 	o.requestCount.Add(ctx, 1, metric.WithAttributes(a...))
-
 }
 
 func commonAttributes(attrs types.Attributes) []attribute.KeyValue {

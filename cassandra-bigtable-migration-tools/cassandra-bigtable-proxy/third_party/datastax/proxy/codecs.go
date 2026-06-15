@@ -15,9 +15,9 @@
 package proxy
 
 import (
-	"encoding/hex"
 	"errors"
 	"fmt"
+	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/third_party/datastax/proxy/proxy_types"
 	"io"
 
 	"github.com/datastax/go-cassandra-native-protocol/frame"
@@ -41,62 +41,12 @@ func (c *partialQueryCodec) Decode(source io.Reader, _ primitive.ProtocolVersion
 	if query, err := primitive.ReadLongString(source); err != nil {
 		return nil, err
 	} else {
-		return &partialQuery{query}, nil
+		return &proxy_types.PartialQuery{Query: query}, nil
 	}
 }
 
 func (c *partialQueryCodec) GetOpCode() primitive.OpCode {
 	return primitive.OpCodeQuery
-}
-
-type partialQuery struct {
-	query string
-}
-
-func (p *partialQuery) IsResponse() bool {
-	return false
-}
-
-func (p *partialQuery) GetOpCode() primitive.OpCode {
-	return primitive.OpCodeQuery
-}
-
-func (p *partialQuery) Clone() message.Message {
-	return &partialQuery{p.query}
-}
-
-type partialExecute struct {
-	queryId []byte
-	// The positional values of the associated query. Positional values are designated in query strings with a
-	// question mark bind marker ('?'). Positional values are valid for all protocol versions.
-	// It is illegal to use both positional and named values at the same time. If this happens, positional values will
-	// be used and named values will be silently ignored.
-	PositionalValues []*primitive.Value
-
-	// The named values of the associated query. Named values are designated in query strings with a
-	// a bind marker starting with a colon (e.g. ':var1'). Named values can only be used with protocol version 3 or
-	// higher.
-	// It is illegal to use both positional and named values at the same time. If this happens, positional values will
-	// be used and named values will be silently ignored.
-	NamedValues map[string]*primitive.Value
-}
-
-func (m *partialExecute) IsResponse() bool {
-	return false
-}
-
-func (m *partialExecute) GetOpCode() primitive.OpCode {
-	return primitive.OpCodeExecute
-}
-
-func (m *partialExecute) Clone() message.Message {
-	return &partialExecute{
-		queryId: primitive.CloneByteSlice(m.queryId),
-	}
-}
-
-func (m *partialExecute) String() string {
-	return "EXECUTE " + hex.EncodeToString(m.queryId)
 }
 
 type partialExecuteCodec struct{}
@@ -110,10 +60,10 @@ func (c *partialExecuteCodec) EncodedLength(_ message.Message, _ primitive.Proto
 }
 
 func (c *partialExecuteCodec) Decode(source io.Reader, protocolV primitive.ProtocolVersion) (msg message.Message, err error) {
-	execute := &partialExecute{}
-	if execute.queryId, err = primitive.ReadShortBytes(source); err != nil {
+	execute := &proxy_types.PartialExecute{}
+	if execute.QueryId, err = primitive.ReadShortBytes(source); err != nil {
 		return nil, fmt.Errorf("cannot read EXECUTE query id: %w", err)
-	} else if len(execute.queryId) == 0 {
+	} else if len(execute.QueryId) == 0 {
 		return nil, errors.New("EXECUTE missing query id")
 	}
 	options, err := message.DecodeQueryOptions(source, protocolV)
@@ -129,31 +79,6 @@ func (c *partialExecuteCodec) GetOpCode() primitive.OpCode {
 	return primitive.OpCodeExecute
 }
 
-type partialBatch struct {
-	queryOrIds []interface{}
-	// The positional values of the associated query. Positional values are designated in query strings with a
-	// question mark bind marker ('?'). Positional values are valid for all protocol versions.
-	// It is illegal to use both positional and named values at the same time. If this happens, positional values will
-	// be used and named values will be silently ignored.
-	BatchPositionalValues [][]*primitive.Value
-}
-
-func (p partialBatch) IsResponse() bool {
-	return false
-}
-
-func (p partialBatch) GetOpCode() primitive.OpCode {
-	return primitive.OpCodeBatch
-}
-
-func (p partialBatch) Clone() message.Message {
-	queryOrIds := make([]interface{}, len(p.queryOrIds))
-	copy(queryOrIds, p.queryOrIds)
-	PositionalValues := make([][]*primitive.Value, len(p.BatchPositionalValues))
-	copy(PositionalValues, p.BatchPositionalValues)
-	return &partialBatch{queryOrIds, PositionalValues}
-}
-
 type partialBatchCodec struct{}
 
 func (p partialBatchCodec) Encode(msg message.Message, dest io.Writer, version primitive.ProtocolVersion) error {
@@ -165,7 +90,7 @@ func (p partialBatchCodec) EncodedLength(msg message.Message, version primitive.
 }
 
 func (p partialBatchCodec) Decode(source io.Reader, version primitive.ProtocolVersion) (msg message.Message, err error) {
-	var partialBatchExecute = &partialBatch{}
+	var partialBatchExecute = &proxy_types.PartialBatch{}
 	var positionalValues []*primitive.Value
 	var queryOrIds []interface{}
 	var typ uint8
@@ -205,7 +130,7 @@ func (p partialBatchCodec) Decode(source io.Reader, version primitive.ProtocolVe
 		}
 		queryOrIds[i] = queryOrId
 	}
-	partialBatchExecute.queryOrIds = queryOrIds
+	partialBatchExecute.QueryOrIds = queryOrIds
 	return partialBatchExecute, nil
 }
 

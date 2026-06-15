@@ -45,33 +45,19 @@ var (
 	attributeKeyTable     = attribute.Key("table")
 )
 
-type OTelConfig struct {
-	TracerEndpoint     string
-	MetricEndpoint     string
-	ServiceName        string
-	TraceSampleRatio   float64
-	OTELEnabled        bool
-	Database           string
-	Instance           string
-	ProjectId          string
-	HealthCheckEnabled bool
-	HealthCheckEp      string
-	ServiceVersion     string
-}
-
 type OpenTelemetry struct {
-	Config         *OTelConfig
+	Config         *types.OtelConfig
 	requestCount   metric.Int64Counter
 	requestLatency metric.Int64Histogram
 	logger         *zap.Logger
 }
 
 // NewOpenTelemetry initializes OpenTelemetry tracing and metrics components.
-func NewOpenTelemetry(ctx context.Context, config *OTelConfig, logger *zap.Logger) (*OpenTelemetry, ShutdownFn, error) {
+func NewOpenTelemetry(ctx context.Context, config *types.OtelConfig, logger *zap.Logger) (*OpenTelemetry, ShutdownFn, error) {
 	otelInst := &OpenTelemetry{Config: config, logger: logger}
 
-	if config.OTELEnabled && config.HealthCheckEnabled {
-		resp, err := http.Get("http://" + config.HealthCheckEp)
+	if config.Enabled && config.HealthCheck.Enabled {
+		resp, err := http.Get("http://" + config.HealthCheck.Endpoint)
 		if err != nil || resp.StatusCode != 200 {
 			return nil, nil, fmt.Errorf("OTEL health check failed: %v", err)
 		}
@@ -93,11 +79,12 @@ func NewOpenTelemetry(ctx context.Context, config *OTelConfig, logger *zap.Logge
 	otel.SetMeterProvider(mp)
 	meter := mp.Meter(config.ServiceName)
 
-	otelInst.requestCount, err = meter.Int64Counter(requestCountMetric, metric.WithDescription("Records number of query requests"), metric.WithUnit("1"))
-	if err != nil {
-		return nil, nil, err
+	var metricsErr error
+	otelInst.requestCount, metricsErr = meter.Int64Counter(requestCountMetric, metric.WithDescription("Records number of query requests"), metric.WithUnit("1"))
+	if metricsErr != nil {
+		return nil, nil, metricsErr
 	}
-	otelInst.requestLatency, err = meter.Int64Histogram(latencyMetric,
+	otelInst.requestLatency, metricsErr = meter.Int64Histogram(latencyMetric,
 		metric.WithDescription("Records latency for all query operations"),
 		metric.WithExplicitBucketBoundaries(0.0, 0.0010, 0.0013, 0.0016, 0.0020, 0.0024, 0.0031, 0.0038, 0.0048, 0.0060,
 			0.0075, 0.0093, 0.0116, 0.0146, 0.0182, 0.0227, 0.0284, 0.0355, 0.0444, 0.0555, 0.0694, 0.0867,
@@ -106,8 +93,8 @@ func NewOpenTelemetry(ctx context.Context, config *OTelConfig, logger *zap.Logge
 			22.9589, 28.6986, 35.8732, 44.8416, 56.0519, 70.0649, 87.5812, 109.4764, 136.8456, 171.0569, 213.8212,
 			267.2765, 334.0956, 417.6195, 522.0244, 652.5304),
 		metric.WithUnit("ms"))
-	if err != nil {
-		return nil, nil, err
+	if metricsErr != nil {
+		return nil, nil, metricsErr
 	}
 
 	shutdown := func(ctx context.Context) error {
@@ -122,7 +109,7 @@ func NewOpenTelemetry(ctx context.Context, config *OTelConfig, logger *zap.Logge
 	return otelInst, shutdown, nil
 }
 
-func buildOtelResource(ctx context.Context, config *OTelConfig) *resource.Resource {
+func buildOtelResource(ctx context.Context, config *types.OtelConfig) *resource.Resource {
 	attrs := []attribute.KeyValue{
 		semconv.ServiceNameKey.String(config.ServiceName),
 		semconv.ServiceInstanceIDKey.String(uuid.New().String()),
@@ -152,10 +139,10 @@ func isValidEndpoint(endpoint string) bool {
 	return len(parts) == 2 && parts[0] != "" && parts[1] != ""
 }
 
-func AddQueryAnnotations(s trace.Span, attrs types.Attributes) {
+func AddQueryAnnotations(s trace.Span, q types.IQuery) {
 	s.SetAttributes(
-		attribute.String("QueryType", attrs.QueryType.String()),
-		attribute.String("Keyspace", string(attrs.Keyspace)),
-		attribute.String("Table", string(attrs.Table)),
+		attributeKeyQueryType.String(q.QueryType().String()),
+		attributeKeyKeyspace.String(string(q.Keyspace())),
+		attributeKeyTable.String(string(q.Table())),
 	)
 }

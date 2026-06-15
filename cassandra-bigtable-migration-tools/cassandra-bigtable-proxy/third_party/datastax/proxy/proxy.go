@@ -19,6 +19,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/executors"
+	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/request_handlers"
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/system_tables"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/trace"
@@ -42,32 +43,14 @@ var ErrProxyAlreadyConnected = errors.New("proxy already connected")
 var ErrProxyNotConnected = errors.New("proxy not connected")
 
 const preparedIdSize = 16
-const Query = "CqlQuery"
-const QueryType = "QueryType"
 const translatorErrorMessage = "Error occurred at translators"
 const errorAtBigtable = "Error occurred at bigtable - "
 const errorWhileDecoding = "Error while decoding bytes - "
 const unhandledScenario = "Unhandled execution Scenario for prepared CqlQuery"
-const errQueryNotPrepared = "query is not prepared"
 
 const (
 	traceNamespace = "cassandra.bigtable.proxy"
-	handleQuery    = traceNamespace + "/HandleQuery"
-	handleBatch    = traceNamespace + "/ExecuteBatch"
-	handlePrepare  = traceNamespace + "/PrepareQuery"
-	handleExecute  = traceNamespace + "/ExecuteQuery"
-	handleRegister = traceNamespace + "/Register"
-	handleStartup  = traceNamespace + "/Startup"
 	handleOptions  = traceNamespace + "/Options"
-)
-
-// Events
-const (
-	executingBigtableRequestEvent       = "Executing Bigtable Mutation Request"
-	executingBigtableSQLAPIRequestEvent = "Executing Bigtable SQL API Request"
-	bigtableExecutionDoneEvent          = "bigtable Execution Done"
-	gotBulkApplyResp                    = "Got the response for bulk apply"
-	sendingBulkApplyMutation            = "Sending Mutation For Bulk Apply"
 )
 
 type Proxy struct {
@@ -96,7 +79,7 @@ type Proxy struct {
 	otelInst           *otelgo.OpenTelemetry
 	tracer             trace.Tracer
 	otelShutdown       func(context.Context) error
-	requestHandlers    map[primitive.OpCode]IProxyRequestHandler
+	handlerManager     *request_handlers.HandlerManager
 }
 
 type node struct {
@@ -124,28 +107,9 @@ func NewProxy(ctx context.Context, logger *zap.Logger, config *types.ProxyInstan
 		return nil, err
 	}
 
-	// Enable OpenTelemetry traces by setting environment variable GOOGLE_API_GO_EXPERIMENTAL_TELEMETRY_PLATFORM_TRACING to the case-insensitive value "opentelemetry" before loading the client library.
-	otelConfig := &otelgo.OTelConfig{}
-
 	var shutdownOTel func(context.Context) error
 	var otelInst *otelgo.OpenTelemetry
-	// Initialize OpenTelemetry
-	if config.OtelConfig.Enabled {
-		otelConfig = &otelgo.OTelConfig{
-			TracerEndpoint:     config.OtelConfig.Traces.Endpoint,
-			ProjectId:          config.OtelConfig.Traces.ProjectId,
-			MetricEndpoint:     config.OtelConfig.Metrics.Endpoint,
-			ServiceName:        config.OtelConfig.ServiceName,
-			OTELEnabled:        config.OtelConfig.Enabled,
-			TraceSampleRatio:   config.OtelConfig.Traces.SamplingRatio,
-			HealthCheckEnabled: config.OtelConfig.HealthCheck.Enabled,
-			HealthCheckEp:      config.OtelConfig.HealthCheck.Endpoint,
-			ServiceVersion:     config.Options.ProtocolVersion.String(),
-		}
-	} else {
-		otelConfig = &otelgo.OTelConfig{OTELEnabled: false}
-	}
-	otelInst, shutdownOTel, err = otelgo.NewOpenTelemetry(ctx, otelConfig, logger)
+	otelInst, shutdownOTel, err = otelgo.NewOpenTelemetry(ctx, config.OtelConfig, logger)
 	if err != nil {
 		logger.Error("Failed to enable the OTEL: " + err.Error())
 		return nil, err
@@ -156,6 +120,8 @@ func NewProxy(ctx context.Context, logger *zap.Logger, config *types.ProxyInstan
 	translator := translators.NewTranslatorManager(logger, metadataStore.Schemas(), config.BigtableConfig)
 
 	systemTables := system_tables.NewSystemTableManager(metadataStore, logger)
+
+	handlers := request_handlers.NewHandlerManager()
 
 	proxy := &Proxy{
 		ctx:                ctx,
@@ -173,21 +139,7 @@ func NewProxy(ctx context.Context, logger *zap.Logger, config *types.ProxyInstan
 		otelInst:           otelInst,
 		tracer:             otel.GetTracerProvider().Tracer("handler"),
 		otelShutdown:       shutdownOTel,
-		requestHandlers:    make(map[primitive.OpCode]IProxyRequestHandler),
-	}
-
-	handlers := []IProxyRequestHandler{
-		NewOptionsRequestHandler(),
-		NewStartupRequestHandler(),
-		NewRegisterRequestHandler(),
-		NewPrepareRequestHandler(),
-		NewExecuteRequestHandler(),
-		NewQueryRequestHandler(),
-		NewBatchRequestHandler(),
-	}
-
-	for _, h := range handlers {
-		proxy.requestHandlers[h.OpCode()] = h
+		handlerManager:     handlers,
 	}
 
 	err = systemTables.Initialize(proxy)
@@ -314,6 +266,42 @@ func (p *Proxy) removeListener(l *net.Listener) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	delete(p.listeners, l)
+}
+
+func (p *Proxy) Config() *types.ProxyInstanceConfig {
+	return p.config
+}
+
+func (p *Proxy) OtelInst() *otelgo.OpenTelemetry {
+	return p.otelInst
+}
+
+func (p *Proxy) Logger() *zap.Logger {
+	return p.logger
+}
+
+func (p *Proxy) Translator() *translators.TranslatorManager {
+	return p.translator
+}
+
+func (p *Proxy) Executor() *executors.QueryExecutorManager {
+	return p.executor
+}
+
+func (p *Proxy) PreparedQueryCache() proxycore.PreparedCache[types.IPreparedQuery] {
+	return p.preparedQueryCache
+}
+
+func (p *Proxy) BigtableClient() *bigtableModule.BigtableAdapter {
+	return p.bigtableClient
+}
+
+func (p *Proxy) EventClients() *sync.Map {
+	return &p.eventClients
+}
+
+func (p *Proxy) HandleOptions() string {
+	return handleOptions
 }
 
 func (p *Proxy) Close() error {

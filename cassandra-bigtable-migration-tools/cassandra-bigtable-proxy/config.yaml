@@ -92,6 +92,9 @@ otel:
   metrics:
     # Collector service endpoint
     endpoint: METRICS_SERVICE_ENDPOINT
+    # Set to true to export metrics directly to Google Cloud Monitoring.
+    # If true, 'endpoint' will be ignored, and metrics will be sent to the project specified in traces.projectId.
+    gcpMetricsEnabled: False
 
   traces:
     # Collector service endpoint

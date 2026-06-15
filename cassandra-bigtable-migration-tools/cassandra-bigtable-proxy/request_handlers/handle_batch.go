@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package proxy
+package request_handlers
 
 import (
 	"context"
@@ -20,16 +20,16 @@ import (
 	"fmt"
 	bigtableModule "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/bigtable"
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/global/types"
-	otelgo "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/otel"
+	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/third_party/datastax/proxy/proxy_types"
 	"github.com/datastax/go-cassandra-native-protocol/frame"
 	"github.com/datastax/go-cassandra-native-protocol/message"
 	"github.com/datastax/go-cassandra-native-protocol/primitive"
 	"go.opentelemetry.io/otel/trace"
 	"strings"
-	"time"
 )
 
 type BatchRequestHandler struct {
+	server IProxyServer
 }
 
 func (b *BatchRequestHandler) Name() string {
@@ -40,30 +40,18 @@ func (b *BatchRequestHandler) OpCode() primitive.OpCode {
 	return primitive.OpCodeBatch
 }
 
-func (b *BatchRequestHandler) HandleRequest(ctx context.Context, c *client, raw *frame.RawFrame, m message.Message) (message.Message, error) {
-	msg := m.(*partialBatch)
+func (b *BatchRequestHandler) HandleRequest(ctx context.Context, session IProxySession, raw *frame.RawFrame, m message.Message) (message.Message, error) {
+	msg := m.(*proxy_types.PartialBatch)
 	span := trace.SpanFromContext(ctx)
-	startTime := time.Now()
-	var otelErr error
-	defer func() {
-		attrs := types.Attributes{
-			Method:   handleBatch,
-			Keyspace: c.sessionKeyspace,
-			Status:   otelgoStatus(otelErr),
-		}
-		otelgo.AddQueryAnnotations(span, attrs)
-		c.proxy.otelInst.RecordMetrics(ctx, startTime, attrs)
-	}()
 
-	bulkMutations, keyspace, err := c.bindBulkOperations(msg, raw.Header.Version)
+	bulkMutations, keyspace, err := b.bindBulkOperations(msg, session, raw.Header.Version)
 	if err != nil {
-		otelErr = err
 		return &message.ConfigError{ErrorMessage: err.Error()}, err
 	}
-	span.AddEvent(sendingBulkApplyMutation)
+	span.AddEvent(proxy_types.SendingBulkApplyMutation)
 	var errs []string
 	for tableName, mutations := range bulkMutations.Mutations() {
-		res, err := c.proxy.bigtableClient.ApplyBulkMutation(ctx, keyspace, tableName, mutations)
+		res, err := b.server.BigtableClient().ApplyBulkMutation(ctx, keyspace, tableName, mutations)
 		if err != nil {
 			errs = append(errs, err.Error())
 		} else if res.FailedRows != "" {
@@ -71,29 +59,26 @@ func (b *BatchRequestHandler) HandleRequest(ctx context.Context, c *client, raw 
 			errs = append(errs, res.FailedRows)
 		}
 	}
-	span.AddEvent(gotBulkApplyResp)
+	span.AddEvent(proxy_types.GotBulkApplyResp)
+	span.SetAttributes()
 	if len(errs) > 0 {
-		otelErr = errors.New(strings.Join(errs, "\n"))
-		return &message.ServerError{ErrorMessage: otelErr.Error()}, otelErr
+		err := errors.New(strings.Join(errs, "\n"))
+		return &message.ServerError{ErrorMessage: err.Error()}, err
 	}
 
 	return &message.VoidResult{}, nil
 }
 
-func NewBatchRequestHandler() IProxyRequestHandler {
-	return &BatchRequestHandler{}
-}
-
-func (c *client) bindBulkOperations(msg *partialBatch, pv primitive.ProtocolVersion) (*bigtableModule.BigtableBulkMutation, types.Keyspace, error) {
+func (b *BatchRequestHandler) bindBulkOperations(msg *proxy_types.PartialBatch, session IProxySession, pv primitive.ProtocolVersion) (*bigtableModule.BigtableBulkMutation, types.Keyspace, error) {
 	var keyspace types.Keyspace
 	tableMutationsMap := bigtableModule.NewBigtableBulkMutation()
-	for index, queryId := range msg.queryOrIds {
+	for index, queryId := range msg.QueryOrIds {
 		queryOrId, ok := queryId.([]byte)
 		if !ok {
 			return nil, "", fmt.Errorf("batch query id malformed")
 		}
-		id := preparedIdKey(queryOrId)
-		preparedStmt, ok := c.proxy.preparedQueryCache.Load(id)
+		id := proxy_types.PreparedIdKey(queryOrId)
+		preparedStmt, ok := b.server.PreparedQueryCache().Load(id)
 		if !ok {
 			return nil, "", fmt.Errorf("prepared query not found in cache")
 		}
@@ -103,7 +88,7 @@ func (c *client) bindBulkOperations(msg *partialBatch, pv primitive.ProtocolVers
 		}
 
 		// note: we don't support batch named queries at this time
-		executableQuery, err := c.proxy.translator.BindQuery(preparedStmt, msg.BatchPositionalValues[index], nil, pv)
+		executableQuery, err := b.server.Translator().BindQuery(preparedStmt, msg.BatchPositionalValues[index], nil, pv)
 		if err != nil {
 			return nil, "", err
 		}
@@ -114,7 +99,11 @@ func (c *client) bindBulkOperations(msg *partialBatch, pv primitive.ProtocolVers
 		tableMutationsMap.AddMutation(mutation)
 	}
 	if keyspace == "" {
-		keyspace = c.sessionKeyspace
+		keyspace = session.SessionKeyspace()
 	}
 	return tableMutationsMap, keyspace, nil
+}
+
+func NewBatchRequestHandler(server IProxyServer) IProxyRequestHandler {
+	return &BatchRequestHandler{server: server}
 }

@@ -220,7 +220,8 @@ func TestParseProxyConfig(t *testing.T) {
 						DefaultIntRowKeyEncoding: types.OrderedCodeEncoding,
 					},
 					OtelConfig: &types.OtelConfig{
-						Enabled: false,
+						Enabled:        false,
+						ServiceVersion: "ProtocolVersion OSS 4",
 					},
 				},
 			},
@@ -265,7 +266,8 @@ func TestParseProxyConfig(t *testing.T) {
 						DefaultIntRowKeyEncoding: types.OrderedCodeEncoding,
 					},
 					OtelConfig: &types.OtelConfig{
-						Enabled: false,
+						Enabled:        false,
+						ServiceVersion: "ProtocolVersion OSS 4",
 					},
 				},
 			},
@@ -298,7 +300,8 @@ func TestParseProxyConfig(t *testing.T) {
 						DefaultIntRowKeyEncoding: types.OrderedCodeEncoding,
 					},
 					OtelConfig: &types.OtelConfig{
-						Enabled: false,
+						Enabled:        false,
+						ServiceVersion: "ProtocolVersion OSS 4",
 					},
 				},
 			},
@@ -331,7 +334,8 @@ func TestParseProxyConfig(t *testing.T) {
 						DefaultIntRowKeyEncoding: types.OrderedCodeEncoding,
 					},
 					OtelConfig: &types.OtelConfig{
-						Enabled: false,
+						Enabled:        false,
+						ServiceVersion: "ProtocolVersion OSS 4",
 					},
 				},
 			},

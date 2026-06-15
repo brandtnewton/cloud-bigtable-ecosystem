@@ -20,6 +20,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/global/types"
+	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/third_party/datastax/proxy/proxy_types"
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/third_party/datastax/proxycore"
 	"github.com/datastax/go-cassandra-native-protocol/frame"
 	"github.com/datastax/go-cassandra-native-protocol/message"
@@ -46,6 +47,22 @@ func (c *client) SetSessionKeyspace(k types.Keyspace) {
 	c.sessionKeyspace = k
 }
 
+func (c *client) SessionKeyspace() types.Keyspace {
+	return c.sessionKeyspace
+}
+
+func (c *client) Proxy() proxy_types.IProxy {
+	return c.proxy
+}
+
+func (c *client) RegisterForEvents() {
+	c.proxy.registerForEvents(c)
+}
+
+func (c *client) HandleEvent(event *proxycore.SchemaChangeEvent) {
+	c.handleEvent(event)
+}
+
 func (c *client) Receive(reader io.Reader) error {
 	otelCtx, span := c.proxy.tracer.Start(c.proxy.ctx, "receive")
 	defer span.End()
@@ -59,6 +76,7 @@ func (c *client) Receive(reader io.Reader) error {
 		span.SetStatus(codes.Error, err.Error())
 		return err
 	}
+	span.End()
 
 	defer func() {
 		if r := recover(); r != nil {
@@ -94,26 +112,7 @@ func (c *client) Receive(reader io.Reader) error {
 		return err
 	}
 
-	var response message.Message
-	requestHandler, ok := c.proxy.requestHandlers[raw.Header.OpCode]
-
-	if ok {
-		span.SetName(requestHandler.Name())
-		response, err = requestHandler.HandleRequest(otelCtx, c, raw, body.Message)
-	} else {
-		response = &message.ServerError{ErrorMessage: "unsupported operation"}
-		err = errors.New("unsupported operation")
-	}
-
-	if err != nil {
-		span.RecordError(err)
-		span.SetStatus(codes.Error, err.Error())
-		if response == nil {
-			response = &message.ServerError{ErrorMessage: err.Error()}
-		}
-		c.sender.Send(raw.Header, response)
-		return nil
-	}
+	response := c.proxy.handlerManager.HandleRequest(otelCtx, c, raw, body.Message)
 
 	span.AddEvent("send-response")
 	c.sender.Send(raw.Header, response)

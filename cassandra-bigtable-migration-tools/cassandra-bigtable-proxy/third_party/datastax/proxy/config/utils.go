@@ -41,8 +41,9 @@ func loadProxyConfigFile(config *yamlProxyConfig, args *types.CliArgs) ([]*types
 
 	// todo unit test with parent configs not defined to ensure no NPE is thrown
 	otel := &types.OtelConfig{
-		Enabled:     config.Otel.Enabled,
-		ServiceName: config.Otel.ServiceName,
+		Enabled:        config.Otel.Enabled,
+		ServiceName:    config.Otel.ServiceName,
+		ServiceVersion: args.ProtocolVersion.String(),
 		HealthCheck: struct {
 			Enabled  bool
 			Endpoint string
@@ -51,9 +52,11 @@ func loadProxyConfigFile(config *yamlProxyConfig, args *types.CliArgs) ([]*types
 			Endpoint: config.Otel.HealthCheck.Endpoint,
 		},
 		Metrics: struct {
-			Endpoint string
+			Endpoint          string
+			GcpMetricsEnabled bool
 		}{
-			Endpoint: config.Otel.Metrics.Endpoint,
+			Endpoint:          config.Otel.Metrics.Endpoint,
+			GcpMetricsEnabled: config.Otel.Metrics.GcpMetricsEnabled,
 		},
 		Traces: struct {
 			ProjectId     string

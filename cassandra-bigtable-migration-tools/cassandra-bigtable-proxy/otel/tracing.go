@@ -19,6 +19,7 @@ package otelgo
 import (
 	"context"
 	"errors"
+	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/global/types"
 	"go.opentelemetry.io/otel/trace/noop"
 
 	texporter "github.com/GoogleCloudPlatform/opentelemetry-operations-go/exporter/trace"
@@ -28,27 +29,48 @@ import (
 	"go.opentelemetry.io/otel/trace"
 )
 
-func createTraceProvider(ctx context.Context, config *OTelConfig, res *resource.Resource) (trace.TracerProvider, ShutdownFn, error) {
-	if !config.OTELEnabled {
+type noOptionsSampler struct {
+	sampler sdktrace.Sampler
+}
+
+func (s noOptionsSampler) ShouldSample(p sdktrace.SamplingParameters) sdktrace.SamplingResult {
+	if p.Name == "options" {
+		return sdktrace.SamplingResult{
+			Decision:   sdktrace.Drop,
+			Attributes: nil,
+			Tracestate: trace.SpanContextFromContext(p.ParentContext).TraceState(),
+		}
+	}
+	return s.sampler.ShouldSample(p)
+}
+
+func (s noOptionsSampler) Description() string {
+	return "NoOptionsSampler(" + s.sampler.Description() + ")"
+}
+
+func createTraceProvider(ctx context.Context, config *types.OtelConfig, res *resource.Resource) (trace.TracerProvider, ShutdownFn, error) {
+	if !config.Enabled {
 		return noop.NewTracerProvider(), func(_ context.Context) error { return nil }, nil
 	}
 
+	sampler := sdktrace.Sampler(noOptionsSampler{sampler: sdktrace.ParentBased(sdktrace.TraceIDRatioBased(config.Traces.SamplingRatio))})
+
 	opts := []sdktrace.TracerProviderOption{
 		sdktrace.WithResource(res),
-		sdktrace.WithSampler(sdktrace.ParentBased(sdktrace.TraceIDRatioBased(config.TraceSampleRatio))),
+		sdktrace.WithSampler(sampler),
 	}
 
-	if config.ProjectId != "" {
-		exporter, err := texporter.New(texporter.WithProjectID(config.ProjectId))
+	if config.Traces.ProjectId != "" {
+		exporter, err := texporter.New(texporter.WithProjectID(config.Traces.ProjectId))
 		if err != nil {
 			return nil, nil, err
 		}
 		opts = append(opts, sdktrace.WithBatcher(exporter))
-	} else if config.TracerEndpoint != "" {
-		if !isValidEndpoint(config.TracerEndpoint) {
+	} else if config.Traces.Endpoint != "" {
+		if !isValidEndpoint(config.Traces.Endpoint) {
 			return nil, nil, errors.New("invalid Tracer endpoint format")
 		}
-		exporter, err := otlptracegrpc.New(ctx, otlptracegrpc.WithEndpoint(config.TracerEndpoint), otlptracegrpc.WithInsecure())
+		exporter, err := otlptracegrpc.New(ctx, otlptracegrpc.WithEndpoint(config.Traces.Endpoint), otlptracegrpc.WithInsecure())
 		if err != nil {
 			return nil, nil, err
 		}

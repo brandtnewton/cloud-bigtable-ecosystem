@@ -33,4 +33,27 @@ listeners:
       grpcChannels: 4
 
 otel:
+  # Set enabled to true or false for OTEL metrics/traces/logs.
   enabled: False
+  # Name of the collector service to be setup as a sidecar
+  serviceName: YOUR_OTEL_COLLECTOR_SERVICE_NAME
+
+  healthcheck:
+    # Enable/Disable Health Check for OTEL, Default 'False'.
+    enabled: False
+    # Health check endpoint for the OTEL collector service
+    endpoint: localhost:13133
+  metrics:
+    # Collector service endpoint
+    endpoint: localhost:4317
+    # Set to true to export metrics directly to Google Cloud Monitoring.
+    # If true, 'endpoint' will be ignored, and metrics will be sent to the project specified in traces.projectId.
+    gcpMetricsEnabled: False
+
+  traces:
+    # Collector service endpoint
+    endpoint: localhost:4317
+    # Project ID to use for exporting traces to Google Cloud Trace.
+    projectId: YOUR_GCP_PROJECT_ID
+    #Sampling ratio should be between 0 and 1. Here 0.05 means 5/100 Sampling ratio.
+    samplingRatio: 1

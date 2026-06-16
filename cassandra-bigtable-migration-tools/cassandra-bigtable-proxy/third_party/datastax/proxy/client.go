@@ -20,6 +20,8 @@ import (
 	"errors"
 	"fmt"
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/global/types"
+	otelgo "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/otel"
+	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/request_handlers"
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/third_party/datastax/proxy/proxy_types"
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/third_party/datastax/proxycore"
 	"github.com/datastax/go-cassandra-native-protocol/frame"
@@ -78,7 +80,6 @@ func (c *client) Receive(reader io.Reader) error {
 		span.SetStatus(codes.Error, err.Error())
 		return err
 	}
-	span.End()
 
 	defer func() {
 		if r := recover(); r != nil {
@@ -114,8 +115,18 @@ func (c *client) Receive(reader io.Reader) error {
 		return err
 	}
 
-	response := c.proxy.handlerManager.HandleRequest(otelCtx, c, raw, body.Message)
+	span.AddEvent("handle-request")
+	req := request_handlers.NewProxyRequest(raw.Header, &body.Message)
+	response, err := c.proxy.handlerManager.HandleRequest(otelCtx, c, req)
+	if err != nil {
+		span.SetAttributes(otelgo.CommonAttributes(req.Attributes)...)
+		c.proxy.logger.Error("error handling request", zap.Error(err))
+		span.RecordError(err)
+		span.SetStatus(codes.Error, err.Error())
+		return err
+	}
 
+	span.SetAttributes(otelgo.CommonAttributes(req.Attributes)...)
 	span.AddEvent("send-response")
 	c.sender.Send(raw.Header, response)
 	span.AddEvent("done")

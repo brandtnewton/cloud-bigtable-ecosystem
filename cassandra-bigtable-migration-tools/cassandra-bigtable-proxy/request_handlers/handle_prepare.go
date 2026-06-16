@@ -18,6 +18,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/global/types"
+	otelgo "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/otel"
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/parser"
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/responsehandler"
 	cql "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/third_party/cqlparser"
@@ -25,6 +26,7 @@ import (
 	"github.com/datastax/go-cassandra-native-protocol/frame"
 	"github.com/datastax/go-cassandra-native-protocol/message"
 	"github.com/datastax/go-cassandra-native-protocol/primitive"
+	"go.opentelemetry.io/otel/trace"
 	"go.uber.org/zap"
 )
 
@@ -41,6 +43,7 @@ func (p *PrepareRequestHandler) OpCode() primitive.OpCode {
 }
 func (p *PrepareRequestHandler) HandleRequest(ctx context.Context, session IProxySession, raw *frame.RawFrame, m message.Message) (message.Message, error) {
 	msg := m.(*message.Prepare)
+	span := trace.SpanFromContext(ctx)
 
 	qt := types.QueryTypeUnknown
 
@@ -65,8 +68,18 @@ func (p *PrepareRequestHandler) HandleRequest(ctx context.Context, session IProx
 	}
 
 	rawQuery := types.NewRawQuery(raw.Header, keyspace, msg.Query, pParser, qt)
-	resp, _, err := handleServerPreparedQuery(ctx, p.server, session, rawQuery, id)
-	return resp, err
+
+	preparedQuery, err := prepareQuery(ctx, p.server, session, rawQuery)
+	if err != nil {
+		return nil, err
+	}
+	otelgo.AddQueryAnnotations(span, preparedQuery)
+
+	// update query cache
+	p.server.PreparedQueryCache().Store(id, preparedQuery)
+
+	resp := responsehandler.BuildPreparedResultResponse(id, preparedQuery)
+	return resp, nil
 }
 
 func NewPrepareRequestHandler(server IProxyServer) IProxyRequestHandler {

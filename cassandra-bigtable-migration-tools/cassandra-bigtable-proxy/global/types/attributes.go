@@ -9,7 +9,7 @@ type Attributes struct {
 	Status    string
 }
 
-func (a *Attributes) setQueryInfo(q IQuery) {
+func (a *Attributes) SetQueryInfo(q IQuery) {
 	a.Keyspace = q.Keyspace()
 	a.Table = q.Table()
 	a.QueryType = q.QueryType()

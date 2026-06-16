@@ -53,13 +53,6 @@ type IProxy interface {
 	EventClients() *sync.Map
 }
 
-func OtelgoStatus(err error) string {
-	if err != nil {
-		return "ERROR"
-	}
-	return "OK"
-}
-
 func PreparedIdKey(bytes []byte) [16]byte {
 	var buf [16]byte
 	copy(buf[:], bytes)

@@ -68,12 +68,12 @@ func InitMeterProvider(ctx context.Context, config *types.OtelConfig, res *resou
 }
 
 func (o *OpenTelemetry) RecordMetrics(ctx context.Context, startTime time.Time, attrs types.Attributes) {
-	a := commonAttributes(attrs)
+	a := CommonAttributes(attrs)
 	o.requestLatency.Record(ctx, time.Since(startTime).Milliseconds(), metric.WithAttributes(a...))
 	o.requestCount.Add(ctx, 1, metric.WithAttributes(a...))
 }
 
-func commonAttributes(attrs types.Attributes) []attribute.KeyValue {
+func CommonAttributes(attrs types.Attributes) []attribute.KeyValue {
 	return []attribute.KeyValue{
 		attributeKeyKeyspace.String(string(attrs.Keyspace)),
 		attributeKeyMethod.String(attrs.Method),

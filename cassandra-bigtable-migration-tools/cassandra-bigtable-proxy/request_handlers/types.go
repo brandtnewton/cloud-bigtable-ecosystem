@@ -16,7 +16,7 @@ import (
 type IProxyRequestHandler interface {
 	Name() string
 	OpCode() primitive.OpCode
-	HandleRequest(ctx context.Context, session IProxySession, raw *frame.RawFrame, m message.Message) (message.Message, error)
+	HandleRequest(ctx context.Context, session IProxySession, req *ProxyRequest) (message.Message, error)
 }
 
 type IProxySession interface {
@@ -33,4 +33,14 @@ type IProxyServer interface {
 	Executor() *executors.QueryExecutorManager
 	HandlePostDDLEvent(queryType types.QueryType, keyspace types.Keyspace, table types.TableName)
 	Logger() *zap.Logger
+}
+
+type ProxyRequest struct {
+	header     *frame.Header
+	msg        *message.Message
+	Attributes types.Attributes
+}
+
+func NewProxyRequest(header *frame.Header, msg *message.Message) *ProxyRequest {
+	return &ProxyRequest{header: header, msg: msg, Attributes: types.Attributes{}}
 }

@@ -3,11 +3,8 @@ package request_handlers
 import (
 	"context"
 	"fmt"
-	"github.com/datastax/go-cassandra-native-protocol/frame"
 	"github.com/datastax/go-cassandra-native-protocol/message"
 	"github.com/datastax/go-cassandra-native-protocol/primitive"
-	"go.opentelemetry.io/otel/codes"
-	"go.opentelemetry.io/otel/trace"
 )
 
 type HandlerManager struct {
@@ -36,17 +33,52 @@ func (h *HandlerManager) InitHandlers(server IProxyServer) {
 	}
 }
 
-func (h *HandlerManager) HandleRequest(ctx context.Context, session IProxySession, raw *frame.RawFrame, m message.Message) message.Message {
-	span := trace.SpanFromContext(ctx)
-	handler, ok := h.requestHandlers[raw.Header.OpCode]
+func (h *HandlerManager) HandleRequest(ctx context.Context, session IProxySession, req *ProxyRequest) (message.Message, error) {
+	req.Attributes.Method = opCodeToNiceString(req.header.OpCode)
+	handler, ok := h.requestHandlers[req.header.OpCode]
 	if !ok {
-		return &message.ServerError{ErrorMessage: fmt.Sprintf("unsupported operation: %s", raw.Header.OpCode.String())}
+		return nil, fmt.Errorf("unsupported operation: %s", opCodeToNiceString(req.header.OpCode))
 	}
-	result, err := handler.HandleRequest(ctx, session, raw, m)
-	if err != nil {
-		span.RecordError(err)
-		span.SetStatus(codes.Error, err.Error())
-		return &message.ServerError{ErrorMessage: err.Error()}
+	return handler.HandleRequest(ctx, session, req)
+}
+
+func opCodeToNiceString(c primitive.OpCode) string {
+	switch c {
+	case primitive.OpCodeStartup:
+		return "STARTUP"
+	case primitive.OpCodeOptions:
+		return "OPTIONS"
+	case primitive.OpCodeQuery:
+		return "QUERY"
+	case primitive.OpCodePrepare:
+		return "PREPARE"
+	case primitive.OpCodeExecute:
+		return "EXECUTE"
+	case primitive.OpCodeRegister:
+		return "REGISTER"
+	case primitive.OpCodeBatch:
+		return "BATCH"
+	case primitive.OpCodeAuthResponse:
+		return "AUTH RESPONSE"
+	case primitive.OpCodeDseRevise:
+		return "REVISE"
+		// responses
+	case primitive.OpCodeError:
+		return "ERROR"
+	case primitive.OpCodeReady:
+		return "READY"
+	case primitive.OpCodeAuthenticate:
+		return "AUTHENTICATE"
+	case primitive.OpCodeSupported:
+		return "SUPPORTED"
+	case primitive.OpCodeResult:
+		return "RESULT"
+	case primitive.OpCodeEvent:
+		return "EVENT"
+	case primitive.OpCodeAuthChallenge:
+		return "AUTH CHALLENGE"
+	case primitive.OpCodeAuthSuccess:
+		return "AUTH SUCCESS"
 	}
-	return result
+	return "UNKNOWN"
 }

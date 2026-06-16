@@ -70,7 +70,7 @@ func Run(ctx context.Context, args []string) error {
 		}
 		var mux http.ServeMux
 		wg.Add(1)
-		go func(cfg *types.ProxyInstanceConfig, p *Proxy, mux *http.ServeMux) {
+		go func(cfg *types.ProxyInstanceConfig, p *Server, mux *http.ServeMux) {
 			defer wg.Done()
 			err := listenAndServe(listenerConfig, p, mux, ctx, logger) // Use cfg2 or other instances as needed
 			if err != nil {
@@ -86,7 +86,7 @@ func Run(ctx context.Context, args []string) error {
 }
 
 // listenAndServe correctly handles serving both the proxy and an HTTP server simultaneously.
-func listenAndServe(c *types.ProxyInstanceConfig, p *Proxy, mux *http.ServeMux, ctx context.Context, logger *zap.Logger) (err error) {
+func listenAndServe(c *types.ProxyInstanceConfig, p *Server, mux *http.ServeMux, ctx context.Context, logger *zap.Logger) (err error) {
 	logger.Info("Starting proxy with configuration:\n")
 	logger.Info(fmt.Sprintf("  Bind: %s\n", c.Bind))
 	logger.Info(fmt.Sprintf("  Use Unix Socket: %v\n", c.Options.UseUnixSocket))

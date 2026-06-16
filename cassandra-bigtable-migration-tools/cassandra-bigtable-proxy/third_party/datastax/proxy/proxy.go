@@ -53,7 +53,7 @@ const (
 	handleOptions  = traceNamespace + "/Options"
 )
 
-type Proxy struct {
+type Server struct {
 	ctx                context.Context
 	config             *types.ProxyInstanceConfig
 	logger             *zap.Logger
@@ -82,20 +82,56 @@ type Proxy struct {
 	handlerManager     *request_handlers.HandlerManager
 }
 
+func (p *Server) CQLVersion() string {
+	return p.config.Options.CQLVersion
+}
+
+// HandlePostDDLEvent handles common operations after DDL statements (CREATE, ALTER, DROP)
+func (p *Server) HandlePostDDLEvent(queryType types.QueryType, keyspace types.Keyspace, table types.TableName) {
+	var changeType primitive.SchemaChangeType
+	switch queryType {
+	case types.QueryTypeCreate:
+		changeType = primitive.SchemaChangeTypeCreated
+	case types.QueryTypeAlter:
+		changeType = primitive.SchemaChangeTypeUpdated
+	case types.QueryTypeDrop:
+		changeType = primitive.SchemaChangeTypeDropped
+	default:
+		p.logger.Warn("unhandled ddl event type", zap.String("queryType", queryType.String()))
+		return
+	}
+
+	// SendEvent all clients of schema change
+	event := &proxycore.SchemaChangeEvent{
+		Message: &message.SchemaChangeEvent{
+			ChangeType: changeType,
+			Target:     primitive.SchemaChangeTargetTable,
+			Keyspace:   string(keyspace),
+			Object:     string(table),
+		},
+	}
+	p.eventClients.Range(func(key, _ interface{}) bool {
+		if client, ok := key.(*client); ok {
+			client.handleEvent(event)
+		}
+		return true
+	})
+}
+
 type node struct {
 	addr   *net.IPAddr
 	dc     string
 	tokens []string
 }
 
-func (p *Proxy) OnEvent(event proxycore.Event) {
+func (p *Server) OnEvent(event proxycore.Event) {
 	switch evt := event.(type) {
 	case *proxycore.SchemaChangeEvent:
 		p.logger.Debug("Schema change event detected", zap.String("SchemaChangeEvent", evt.Message.String()))
 	}
 }
 
-func NewProxy(ctx context.Context, logger *zap.Logger, config *types.ProxyInstanceConfig) (*Proxy, error) {
+func NewProxy(ctx context.Context, logger *zap.Logger, config *types.ProxyInstanceConfig) (*Server, error) {
 	clientManager, err := types.CreateBigtableClientManager(ctx, config)
 	if err != nil {
 		return nil, err
@@ -123,7 +159,7 @@ func NewProxy(ctx context.Context, logger *zap.Logger, config *types.ProxyInstan
 
 	handlers := request_handlers.NewHandlerManager()
 
-	proxy := &Proxy{
+	proxy := &Server{
 		ctx:                ctx,
 		config:             config,
 		logger:             logger,
@@ -142,6 +178,8 @@ func NewProxy(ctx context.Context, logger *zap.Logger, config *types.ProxyInstan
 		handlerManager:     handlers,
 	}
 
+	handlers.InitHandlers(proxy)
+
 	err = systemTables.Initialize(proxy)
 	if err != nil {
 		logger.Error("Failed to initialize system table manager: " + err.Error())
@@ -151,7 +189,7 @@ func NewProxy(ctx context.Context, logger *zap.Logger, config *types.ProxyInstan
 	return proxy, nil
 }
 
-func (p *Proxy) Connect() error {
+func (p *Server) Connect() error {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
@@ -204,7 +242,7 @@ func (p *Proxy) Connect() error {
 
 // Serve the proxy using the specified listener. It can be called multiple times with different listeners allowing
 // them to share the same backend clusters.
-func (p *Proxy) Serve(l net.Listener) (err error) {
+func (p *Server) Serve(l net.Listener) (err error) {
 	l = &closeOnceListener{Listener: l}
 	defer l.Close()
 
@@ -227,7 +265,7 @@ func (p *Proxy) Serve(l net.Listener) (err error) {
 	}
 }
 
-func (p *Proxy) GetSystemTableConfig() system_tables.SystemTableConfig {
+func (p *Server) GetSystemTableConfig() system_tables.SystemTableConfig {
 	var peers []system_tables.PeerConfig
 	for _, n := range p.nodes {
 		peers = append(peers, system_tables.PeerConfig{
@@ -249,7 +287,7 @@ func (p *Proxy) GetSystemTableConfig() system_tables.SystemTableConfig {
 	return systemTableConfig
 }
 
-func (p *Proxy) addListener(l *net.Listener) error {
+func (p *Server) addListener(l *net.Listener) error {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	if p.isClosing {
@@ -262,49 +300,49 @@ func (p *Proxy) addListener(l *net.Listener) error {
 	return nil
 }
 
-func (p *Proxy) removeListener(l *net.Listener) {
+func (p *Server) removeListener(l *net.Listener) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	delete(p.listeners, l)
 }
 
-func (p *Proxy) Config() *types.ProxyInstanceConfig {
+func (p *Server) Config() *types.ProxyInstanceConfig {
 	return p.config
 }
 
-func (p *Proxy) OtelInst() *otelgo.OpenTelemetry {
+func (p *Server) OtelInst() *otelgo.OpenTelemetry {
 	return p.otelInst
 }
 
-func (p *Proxy) Logger() *zap.Logger {
+func (p *Server) Logger() *zap.Logger {
 	return p.logger
 }
 
-func (p *Proxy) Translator() *translators.TranslatorManager {
+func (p *Server) Translator() *translators.TranslatorManager {
 	return p.translator
 }
 
-func (p *Proxy) Executor() *executors.QueryExecutorManager {
+func (p *Server) Executor() *executors.QueryExecutorManager {
 	return p.executor
 }
 
-func (p *Proxy) PreparedQueryCache() proxycore.PreparedCache[types.IPreparedQuery] {
+func (p *Server) PreparedQueryCache() proxycore.PreparedCache[types.IPreparedQuery] {
 	return p.preparedQueryCache
 }
 
-func (p *Proxy) BigtableClient() *bigtableModule.BigtableAdapter {
+func (p *Server) BigtableClient() *bigtableModule.BigtableAdapter {
 	return p.bigtableClient
 }
 
-func (p *Proxy) EventClients() *sync.Map {
+func (p *Server) EventClients() *sync.Map {
 	return &p.eventClients
 }
 
-func (p *Proxy) HandleOptions() string {
+func (p *Server) HandleOptions() string {
 	return handleOptions
 }
 
-func (p *Proxy) Close() error {
+func (p *Server) Close() error {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	select {
@@ -331,7 +369,7 @@ func (p *Proxy) Close() error {
 	return err
 }
 
-func (p *Proxy) Ready() bool {
+func (p *Server) Ready() bool {
 	return true
 }
 
@@ -344,7 +382,7 @@ func getUdsPeerCredentials(conn *net.UnixConn) (UCred, error) {
 	return getUdsPeerCredentialsOS(conn)
 }
 
-func (p *Proxy) handle(conn net.Conn) {
+func (p *Server) handle(conn net.Conn) {
 	if tcpConn, ok := conn.(*net.TCPConn); ok {
 		if err := tcpConn.SetKeepAlive(false); err != nil {
 			p.logger.Warn("failed to disable keepalive on connection", zap.Error(err))
@@ -372,7 +410,7 @@ func (p *Proxy) handle(conn net.Conn) {
 	cl.conn.Start()
 }
 
-func (p *Proxy) buildNodes() (err error) {
+func (p *Server) buildNodes() (err error) {
 	localDC := p.config.DC
 	if len(localDC) == 0 {
 		localDC = p.cluster.Info.LocalDC
@@ -387,17 +425,17 @@ func (p *Proxy) buildNodes() (err error) {
 	return nil
 }
 
-func (p *Proxy) addClient(cl *client) {
+func (p *Server) addClient(cl *client) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	p.clients[cl] = struct{}{}
 }
 
-func (p *Proxy) registerForEvents(cl *client) {
+func (p *Server) registerForEvents(cl *client) {
 	p.eventClients.Store(cl, struct{}{})
 }
 
-func (p *Proxy) removeClient(cl *client) {
+func (p *Server) removeClient(cl *client) {
 	p.eventClients.Delete(cl)
 
 	p.mu.Lock()

@@ -38,7 +38,7 @@ type Sender interface {
 type client struct {
 	sessionKeyspace types.Keyspace
 	ctx             context.Context
-	proxy           *Proxy
+	proxy           *Server
 	conn            *proxycore.Conn
 	sender          Sender
 }
@@ -142,36 +142,4 @@ func (c *client) handleEvent(event proxycore.Event) {
 			OpCode:   primitive.OpCodeEvent,
 		}, evt.Message)
 	}
-}
-
-// handlePostDDLEvent handles common operations after DDL statements (CREATE, ALTER, DROP)
-func (c *client) handlePostDDLEvent(queryType types.QueryType, keyspace types.Keyspace, table types.TableName) {
-	var changeType primitive.SchemaChangeType
-	switch queryType {
-	case types.QueryTypeCreate:
-		changeType = primitive.SchemaChangeTypeCreated
-	case types.QueryTypeAlter:
-		changeType = primitive.SchemaChangeTypeUpdated
-	case types.QueryTypeDrop:
-		changeType = primitive.SchemaChangeTypeDropped
-	default:
-		c.proxy.logger.Warn("unhandled ddl event type", zap.String("queryType", queryType.String()))
-		return
-	}
-
-	// SendEvent all clients of schema change
-	event := &proxycore.SchemaChangeEvent{
-		Message: &message.SchemaChangeEvent{
-			ChangeType: changeType,
-			Target:     primitive.SchemaChangeTargetTable,
-			Keyspace:   string(keyspace),
-			Object:     string(table),
-		},
-	}
-	c.proxy.eventClients.Range(func(key, _ interface{}) bool {
-		if client, ok := key.(*client); ok {
-			client.handleEvent(event)
-		}
-		return true
-	})
 }

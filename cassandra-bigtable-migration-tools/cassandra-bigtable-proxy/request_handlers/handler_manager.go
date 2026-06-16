@@ -14,7 +14,13 @@ type HandlerManager struct {
 	requestHandlers map[primitive.OpCode]IProxyRequestHandler
 }
 
-func NewHandlerManager(server IProxyServer) *HandlerManager {
+func NewHandlerManager() *HandlerManager {
+	return &HandlerManager{
+		requestHandlers: make(map[primitive.OpCode]IProxyRequestHandler),
+	}
+}
+
+func (h *HandlerManager) InitHandlers(server IProxyServer) {
 	handlers := []IProxyRequestHandler{
 		NewOptionsRequestHandler(server),
 		NewStartupRequestHandler(),
@@ -27,9 +33,6 @@ func NewHandlerManager(server IProxyServer) *HandlerManager {
 	handlersLookup := make(map[primitive.OpCode]IProxyRequestHandler)
 	for _, handler := range handlers {
 		handlersLookup[handler.OpCode()] = handler
-	}
-	return &HandlerManager{
-		requestHandlers: handlersLookup,
 	}
 }
 

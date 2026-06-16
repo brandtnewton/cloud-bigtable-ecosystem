@@ -30,9 +30,9 @@ func (h *HandlerManager) InitHandlers(server IProxyServer) {
 		NewQueryRequestHandler(server),
 		NewBatchRequestHandler(server),
 	}
-	handlersLookup := make(map[primitive.OpCode]IProxyRequestHandler)
+	h.requestHandlers = make(map[primitive.OpCode]IProxyRequestHandler)
 	for _, handler := range handlers {
-		handlersLookup[handler.OpCode()] = handler
+		h.requestHandlers[handler.OpCode()] = handler
 	}
 }
 

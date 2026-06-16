@@ -37,7 +37,6 @@ type Sender interface {
 
 type client struct {
 	sessionKeyspace types.Keyspace
-	ctx             context.Context
 	proxy           *Server
 	conn            *proxycore.Conn
 	sender          Sender
@@ -64,7 +63,10 @@ func (c *client) HandleEvent(event *proxycore.SchemaChangeEvent) {
 }
 
 func (c *client) Receive(reader io.Reader) error {
-	otelCtx, span := c.proxy.tracer.Start(c.proxy.ctx, "receive")
+	ctx, cancel := context.WithCancel(c.proxy.ctx)
+	defer cancel()
+
+	otelCtx, span := c.proxy.tracer.Start(ctx, "receive")
 	defer span.End()
 	span.AddEvent("decode-raw-request")
 	raw, err := codec.DecodeRawFrame(reader)

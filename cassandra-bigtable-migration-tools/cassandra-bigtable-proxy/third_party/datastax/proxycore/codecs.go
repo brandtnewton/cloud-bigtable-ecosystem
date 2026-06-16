@@ -19,11 +19,8 @@ import (
 
 	"github.com/datastax/go-cassandra-native-protocol/datacodec"
 	"github.com/datastax/go-cassandra-native-protocol/datatype"
-	"github.com/datastax/go-cassandra-native-protocol/frame"
 	"github.com/datastax/go-cassandra-native-protocol/primitive"
 )
-
-var codec = frame.NewRawCodec()
 
 var primitiveCodecs = map[datatype.DataType]datacodec.Codec{
 	datatype.Ascii:     datacodec.Ascii,

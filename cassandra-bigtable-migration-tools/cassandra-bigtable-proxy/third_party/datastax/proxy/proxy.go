@@ -57,8 +57,6 @@ type Server struct {
 	ctx                context.Context
 	config             *types.ProxyInstanceConfig
 	logger             *zap.Logger
-	cluster            *proxycore.Cluster
-	sessions           [primitive.ProtocolVersionDse2 + 1]sync.Map // Cache sessions per protocol version
 	mu                 sync.Mutex
 	isConnected        bool
 	isClosing          bool
@@ -204,32 +202,10 @@ func (p *Server) Connect() error {
 		return fmt.Errorf("unable to create cache: %w", err)
 	}
 
-	//  connecting to cassandra cluster
-	p.cluster, err = proxycore.ConnectCluster(p.ctx, proxycore.ClusterConfig{
-		Version: p.config.Options.ProtocolVersion,
-		Logger:  p.logger,
-	})
-
-	if err != nil {
-		return fmt.Errorf("unable to connect to cluster %w", err)
-	}
-
 	err = p.buildNodes()
 	if err != nil {
 		return fmt.Errorf("unable to build node information: %w", err)
 	}
-
-	// Create cassandra session
-	sess, err := proxycore.ConnectSession(p.ctx, proxycore.SessionConfig{
-		Version: p.cluster.NegotiatedVersion,
-		Logger:  p.logger,
-	})
-
-	if err != nil {
-		return fmt.Errorf("unable to connect session: %w", err)
-	}
-
-	p.sessions[p.cluster.NegotiatedVersion].Store("", sess)
 
 	err = p.systemTableManager.ReloadSystemTables()
 	if err != nil {
@@ -401,7 +377,6 @@ func (p *Server) handle(conn net.Conn) {
 	}
 
 	cl := &client{
-		ctx:   p.ctx,
 		proxy: p,
 	}
 	cl.sender = cl
@@ -411,17 +386,9 @@ func (p *Server) handle(conn net.Conn) {
 }
 
 func (p *Server) buildNodes() (err error) {
-	localDC := p.config.DC
-	if len(localDC) == 0 {
-		localDC = p.cluster.Info.LocalDC
-		p.logger.Info("no local DC configured using DC from the first successful contact point",
-			zap.String("dc", localDC))
-	}
-
 	p.localNode = &node{
-		dc: localDC,
+		dc: p.config.DC,
 	}
-
 	return nil
 }
 

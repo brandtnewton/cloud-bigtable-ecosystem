@@ -24,11 +24,6 @@ import (
 	"go.uber.org/zap"
 )
 
-const (
-	DefaultRefreshWindow  = 10 * time.Second
-	DefaultRefreshTimeout = 5 * time.Second
-)
-
 type Event interface {
 	isEvent() // Marker method for the event interface
 }

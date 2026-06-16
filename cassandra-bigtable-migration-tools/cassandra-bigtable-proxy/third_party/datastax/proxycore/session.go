@@ -14,54 +14,8 @@
 
 package proxycore
 
-import (
-	"context"
-	"sync"
-	"time"
-
-	"github.com/datastax/go-cassandra-native-protocol/frame"
-	"github.com/datastax/go-cassandra-native-protocol/primitive"
-	"go.uber.org/zap"
-)
-
-// PreparedEntry is an entry in the prepared cache.
-type PreparedEntry struct {
-	PreparedFrame *frame.RawFrame
-}
-
 type PreparedCache[T any] interface {
 	// Store add an entry to the cache.
 	Store(id [16]byte, entry T)
 	Load(id [16]byte) (entry T, ok bool)
-}
-
-type SessionConfig struct {
-	Version primitive.ProtocolVersion
-	Auth    Authenticator
-	// PreparedCache a global cache share across sessions for storing previously prepared queries
-	ConnectTimeout    time.Duration
-	HeartBeatInterval time.Duration
-	IdleTimeout       time.Duration
-	Logger            *zap.Logger
-}
-
-type Session struct {
-	ctx       context.Context
-	config    SessionConfig
-	logger    *zap.Logger
-	pools     sync.Map
-	connected chan struct{}
-	failed    chan error
-}
-
-func ConnectSession(ctx context.Context, config SessionConfig) (*Session, error) {
-	session := &Session{
-		ctx:       ctx,
-		config:    config,
-		logger:    GetOrCreateNopLogger(config.Logger),
-		pools:     sync.Map{},
-		connected: make(chan struct{}),
-		failed:    make(chan error, 1),
-	}
-	return session, nil
 }

@@ -23,7 +23,6 @@ import (
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/responsehandler"
 	cql "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/third_party/cqlparser"
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/third_party/datastax/proxy/proxy_types"
-	"github.com/datastax/go-cassandra-native-protocol/frame"
 	"github.com/datastax/go-cassandra-native-protocol/message"
 	"github.com/datastax/go-cassandra-native-protocol/primitive"
 	"go.opentelemetry.io/otel/trace"
@@ -41,8 +40,8 @@ func (p *PrepareRequestHandler) Name() string {
 func (p *PrepareRequestHandler) OpCode() primitive.OpCode {
 	return primitive.OpCodePrepare
 }
-func (p *PrepareRequestHandler) HandleRequest(ctx context.Context, session IProxySession, raw *frame.RawFrame, m message.Message) (message.Message, error) {
-	msg := m.(*message.Prepare)
+func (p *PrepareRequestHandler) HandleRequest(ctx context.Context, session IProxySession, req *ProxyRequest) (message.Message, error) {
+	msg := req.msg.(*message.Prepare)
 	span := trace.SpanFromContext(ctx)
 
 	qt := types.QueryTypeUnknown
@@ -53,7 +52,7 @@ func (p *PrepareRequestHandler) HandleRequest(ctx context.Context, session IProx
 		return responsehandler.BuildPreparedResultResponse(id, preparedQuery), nil
 	}
 
-	p.server.Logger().Debug("preparing query", zap.String(proxy_types.Query, msg.Query), zap.Int16("stream", raw.Header.StreamId))
+	p.server.Logger().Debug("preparing query", zap.String(proxy_types.Query, msg.Query), zap.Int16("stream", req.header.StreamId))
 
 	keyspace := session.SessionKeyspace()
 	if len(msg.Keyspace) != 0 {
@@ -67,7 +66,7 @@ func (p *PrepareRequestHandler) HandleRequest(ctx context.Context, session IProx
 		return &message.Invalid{ErrorMessage: err.Error()}, err
 	}
 
-	rawQuery := types.NewRawQuery(raw.Header, keyspace, msg.Query, pParser, qt)
+	rawQuery := types.NewRawQuery(req.header, keyspace, msg.Query, pParser, qt)
 
 	preparedQuery, err := prepareQuery(ctx, p.server, session, rawQuery)
 	if err != nil {

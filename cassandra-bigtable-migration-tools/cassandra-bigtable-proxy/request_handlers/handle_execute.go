@@ -20,7 +20,6 @@ import (
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/global/types"
 	otelgo "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/otel"
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/third_party/datastax/proxy/proxy_types"
-	"github.com/datastax/go-cassandra-native-protocol/frame"
 	"github.com/datastax/go-cassandra-native-protocol/message"
 	"github.com/datastax/go-cassandra-native-protocol/primitive"
 	"go.opentelemetry.io/otel/trace"
@@ -38,8 +37,8 @@ func (e *ExecuteRequestHandler) OpCode() primitive.OpCode {
 	return primitive.OpCodeExecute
 }
 
-func (e *ExecuteRequestHandler) HandleRequest(ctx context.Context, session IProxySession, raw *frame.RawFrame, m message.Message) (message.Message, error) {
-	msg := m.(*proxy_types.PartialExecute)
+func (e *ExecuteRequestHandler) HandleRequest(ctx context.Context, session IProxySession, req *ProxyRequest) (message.Message, error) {
+	msg := req.msg.(*proxy_types.PartialExecute)
 	span := trace.SpanFromContext(ctx)
 
 	var preparedStmt types.IPreparedQuery
@@ -56,7 +55,7 @@ func (e *ExecuteRequestHandler) HandleRequest(ctx context.Context, session IProx
 	otelgo.AddQueryAnnotations(span, preparedStmt)
 
 	span.AddEvent("bind-query")
-	boundQuery, err := e.server.Translator().BindQuery(preparedStmt, msg.PositionalValues, msg.NamedValues, raw.Header.Version)
+	boundQuery, err := e.server.Translator().BindQuery(preparedStmt, msg.PositionalValues, msg.NamedValues, req.header.Version)
 	if err != nil {
 		return &message.ConfigError{ErrorMessage: err.Error()}, err
 	}

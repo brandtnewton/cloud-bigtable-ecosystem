@@ -17,6 +17,7 @@ package proxy
 
 import (
 	"bytes"
+	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/third_party/datastax/proxy/proxy_types"
 	"io"
 	"testing"
 
@@ -25,7 +26,7 @@ import (
 )
 
 func Test_IsResponsePartialQuery(t *testing.T) {
-	var query partialQuery
+	var query proxy_types.PartialQuery
 	res := query.IsResponse()
 	assert.Equalf(t, res, false, "required to be false")
 
@@ -37,7 +38,7 @@ func Test_IsResponsePartialQuery(t *testing.T) {
 }
 
 func Test_IsResponsePartialExecute(t *testing.T) {
-	var query partialExecute
+	var query proxy_types.PartialExecute
 	query.IsResponse()
 }
 
@@ -82,14 +83,14 @@ func Test_EncodepartialQueryCodecEncodedLength(t *testing.T) {
 	assert.Errorf(t, err, "function should return error")
 }
 func TestPartialExecute(t *testing.T) {
-	pe := partialExecute{}
+	pe := proxy_types.PartialExecute{}
 	res := pe.GetOpCode()
 	assert.NotNilf(t, res, "function should return not nil")
 }
 
 func TestPartialExecuteClone(t *testing.T) {
-	pe := partialExecute{
-		queryId: []byte("testqueryid"),
+	pe := proxy_types.PartialExecute{
+		QueryId: []byte("testqueryid"),
 	}
 	res := pe.Clone()
 	assert.NotNilf(t, res, "should not be nil")
@@ -112,8 +113,7 @@ func TestPartialExecuteCodecDecode(t *testing.T) {
 }
 
 func TestPartialBatchClone(t *testing.T) {
-
-	pa := partialBatch{}
+	pa := proxy_types.PartialBatch{}
 	res := pa.Clone()
 	assert.NotNilf(t, res, "should not be nil")
 }
@@ -126,8 +126,8 @@ func TestPartialQueryCodecDecode(t *testing.T) {
 }
 
 func Test_partialExecuteString(t *testing.T) {
-	a := partialExecute{
-		queryId: []byte("test"),
+	a := proxy_types.PartialExecute{
+		QueryId: []byte("test"),
 	}
 	res := a.String()
 	assert.NotNilf(t, res, "should not be nil")
@@ -152,7 +152,7 @@ func Test_partialExecuteCodecEncode(t *testing.T) {
 	a.Encode(nil, writer, primitive.ProtocolVersion3)
 }
 
-func Test_partialExecuteCodecDecode(t *testing.T) {
+func Test_partialExecuteCodecEncodedLength(t *testing.T) {
 	a := partialExecuteCodec{}
 	var writer io.Writer
 
@@ -172,13 +172,13 @@ func Test_partialExecuteCodecDecode(t *testing.T) {
 }
 
 func Test_partialBatchIsResponse(t *testing.T) {
-	p := partialBatch{}
+	p := proxy_types.PartialBatch{}
 	res := p.IsResponse()
 	assert.Equalf(t, false, res, "should return falses")
 }
 
 func Test_partialBatchGetOpCode(t *testing.T) {
-	p := partialBatch{}
+	p := proxy_types.PartialBatch{}
 	res := p.GetOpCode()
 	assert.NotNilf(t, res, "should not return nil")
 }

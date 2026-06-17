@@ -21,7 +21,6 @@ import (
 	bigtableModule "github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/bigtable"
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/global/types"
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/third_party/datastax/proxy/proxy_types"
-	"github.com/datastax/go-cassandra-native-protocol/frame"
 	"github.com/datastax/go-cassandra-native-protocol/message"
 	"github.com/datastax/go-cassandra-native-protocol/primitive"
 	"go.opentelemetry.io/otel/trace"
@@ -40,11 +39,11 @@ func (b *BatchRequestHandler) OpCode() primitive.OpCode {
 	return primitive.OpCodeBatch
 }
 
-func (b *BatchRequestHandler) HandleRequest(ctx context.Context, session IProxySession, raw *frame.RawFrame, m message.Message) (message.Message, error) {
-	msg := m.(*proxy_types.PartialBatch)
+func (b *BatchRequestHandler) HandleRequest(ctx context.Context, session IProxySession, req *ProxyRequest) (message.Message, error) {
+	msg := req.msg.(*proxy_types.PartialBatch)
 	span := trace.SpanFromContext(ctx)
 
-	bulkMutations, keyspace, err := b.bindBulkOperations(msg, session, raw.Header.Version)
+	bulkMutations, keyspace, err := b.bindBulkOperations(msg, session, req.header.Version)
 	if err != nil {
 		return &message.ConfigError{ErrorMessage: err.Error()}, err
 	}

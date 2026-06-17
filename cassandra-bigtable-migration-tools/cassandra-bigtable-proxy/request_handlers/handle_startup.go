@@ -2,7 +2,6 @@ package request_handlers
 
 import (
 	"context"
-	"github.com/datastax/go-cassandra-native-protocol/frame"
 	"github.com/datastax/go-cassandra-native-protocol/message"
 	"github.com/datastax/go-cassandra-native-protocol/primitive"
 )
@@ -18,7 +17,7 @@ func (s *StartupRequestHandler) OpCode() primitive.OpCode {
 	return primitive.OpCodeStartup
 }
 
-func (s *StartupRequestHandler) HandleRequest(_ context.Context, _ IProxySession, _ *frame.RawFrame, _ message.Message) (message.Message, error) {
+func (s *StartupRequestHandler) HandleRequest(_ context.Context, _ IProxySession, req *ProxyRequest) (message.Message, error) {
 	// CC -  register for Event types and respond READY
 	return &message.Ready{}, nil
 }

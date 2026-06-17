@@ -37,10 +37,10 @@ type IProxyServer interface {
 
 type ProxyRequest struct {
 	header     *frame.Header
-	msg        *message.Message
+	msg        message.Message
 	Attributes types.Attributes
 }
 
-func NewProxyRequest(header *frame.Header, msg *message.Message) *ProxyRequest {
+func NewProxyRequest(header *frame.Header, msg message.Message) *ProxyRequest {
 	return &ProxyRequest{header: header, msg: msg, Attributes: types.Attributes{}}
 }

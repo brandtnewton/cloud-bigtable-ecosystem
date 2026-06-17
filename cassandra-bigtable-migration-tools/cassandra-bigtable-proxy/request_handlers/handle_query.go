@@ -19,7 +19,6 @@ import (
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/global/types"
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/parser"
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/third_party/datastax/proxy/proxy_types"
-	"github.com/datastax/go-cassandra-native-protocol/frame"
 	"github.com/datastax/go-cassandra-native-protocol/message"
 	"github.com/datastax/go-cassandra-native-protocol/primitive"
 	"go.opentelemetry.io/otel/attribute"
@@ -40,10 +39,10 @@ func (q *QueryRequestHandler) OpCode() primitive.OpCode {
 	return primitive.OpCodeQuery
 }
 
-func (q *QueryRequestHandler) HandleRequest(ctx context.Context, session IProxySession, raw *frame.RawFrame, m message.Message) (message.Message, error) {
-	msg := m.(*proxy_types.PartialQuery)
+func (q *QueryRequestHandler) HandleRequest(ctx context.Context, session IProxySession, req *ProxyRequest) (message.Message, error) {
+	msg := req.msg.(*proxy_types.PartialQuery)
 	span := trace.SpanFromContext(ctx)
-	q.server.Logger().Debug("handling query", zap.String("encodedQuery", msg.Query), zap.Int16("stream", raw.Header.StreamId))
+	q.server.Logger().Debug("handling query", zap.String("encodedQuery", msg.Query), zap.Int16("stream", req.header.StreamId))
 
 	p := parser.GetParser(msg.Query)
 	var err error
@@ -55,7 +54,7 @@ func (q *QueryRequestHandler) HandleRequest(ctx context.Context, session IProxyS
 		span.SetAttributes(attribute.String(proxy_types.QueryTypeConst, qt.String()))
 	}
 
-	rawQuery := types.NewRawQuery(raw.Header, session.SessionKeyspace(), msg.Query, p, qt)
+	rawQuery := types.NewRawQuery(req.header, session.SessionKeyspace(), msg.Query, p, qt)
 
 	query, err := prepareQuery(ctx, q.server, session, rawQuery)
 	if err != nil {
@@ -63,7 +62,7 @@ func (q *QueryRequestHandler) HandleRequest(ctx context.Context, session IProxyS
 	}
 
 	values := types.NewQueryParameterValues(query.Parameters(), time.Now())
-	executableQuery, err := q.server.Translator().BindQueryParameters(query, values, raw.Header.Version)
+	executableQuery, err := q.server.Translator().BindQueryParameters(query, values, req.header.Version)
 	if err != nil {
 		return &message.ConfigError{ErrorMessage: err.Error()}, err
 	}

@@ -116,7 +116,7 @@ func (c *client) Receive(reader io.Reader) error {
 	}
 
 	span.AddEvent("handle-request")
-	req := request_handlers.NewProxyRequest(raw.Header, &body.Message)
+	req := request_handlers.NewProxyRequest(raw.Header, body.Message)
 	response, err := c.proxy.handlerManager.HandleRequest(otelCtx, c, req)
 	if err != nil {
 		span.SetAttributes(otelgo.CommonAttributes(req.Attributes)...)

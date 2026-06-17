@@ -60,10 +60,6 @@ func (c *client) RegisterForEvents() {
 	c.proxy.registerForEvents(c)
 }
 
-func (c *client) HandleEvent(event *proxycore.SchemaChangeEvent) {
-	c.handleEvent(event)
-}
-
 func (c *client) Receive(reader io.Reader) error {
 	ctx, cancel := context.WithCancel(c.proxy.ctx)
 	defer cancel()

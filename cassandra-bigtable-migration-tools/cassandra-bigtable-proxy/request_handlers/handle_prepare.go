@@ -63,6 +63,7 @@ func (p *PrepareRequestHandler) HandleRequest(ctx context.Context, session IProx
 	var err error
 	qt, err = parseQueryType(pParser)
 	if err != nil {
+		p.server.Logger().Error("failed to parse query type", zap.Error(err), zap.String("cql", msg.Query))
 		return &message.Invalid{ErrorMessage: err.Error()}, err
 	}
 

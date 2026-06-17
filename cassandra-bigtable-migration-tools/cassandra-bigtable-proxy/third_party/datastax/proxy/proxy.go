@@ -86,6 +86,8 @@ func (p *Server) CQLVersion() string {
 
 // HandlePostDDLEvent handles common operations after DDL statements (CREATE, ALTER, DROP)
 func (p *Server) HandlePostDDLEvent(queryType types.QueryType, keyspace types.Keyspace, table types.TableName) {
+	p.logger.Debug("sending post DDL event", zap.String("queryType", queryType.String()), zap.String("keyspace", string(keyspace)), zap.String("table", string(table)))
+
 	var changeType primitive.SchemaChangeType
 	switch queryType {
 	case types.QueryTypeCreate:

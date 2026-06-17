@@ -45,7 +45,6 @@ func (q *QueryRequestHandler) HandleRequest(ctx context.Context, session IProxyS
 	q.server.Logger().Debug("handling query", zap.String("encodedQuery", msg.Query), zap.Int16("stream", req.header.StreamId))
 
 	p := parser.GetParser(msg.Query)
-	var err error
 	qt, err := parseQueryType(p)
 	if err != nil {
 		return &message.Invalid{ErrorMessage: err.Error()}, err

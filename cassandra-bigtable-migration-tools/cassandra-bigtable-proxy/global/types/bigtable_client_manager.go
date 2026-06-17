@@ -5,7 +5,8 @@ import (
 	"context"
 	"fmt"
 	"google.golang.org/api/option"
-	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 type BigtableClientSet struct {
@@ -42,12 +43,27 @@ func createBigtableClientSet(ctx context.Context, config *ProxyInstanceConfig, i
 	if err != nil {
 		return nil, fmt.Errorf("failed to create admin client for keyspace `%s`: %v", instanceMapping.Keyspace, err)
 	}
-	// Create a gRPC connection pool with the specified number of channels
-	pool := grpc.WithDefaultCallOptions(grpc.MaxCallRecvMsgSize(1024 * 1024 * 10)) // 10 MB max message size
+
+	err = adminClient.CreateTable(ctx, string(config.BigtableConfig.SchemaMappingTable))
+	if status.Code(err) == codes.AlreadyExists {
+		// continue - maybe another Proxy instance raced, and created it instead
+		err = nil
+	}
+	if err != nil {
+		return nil, err
+	}
+
+	// todo clean up
+	err = adminClient.CreateColumnFamily(ctx, string(config.BigtableConfig.SchemaMappingTable), "cf")
+	if status.Code(err) == codes.AlreadyExists {
+		err = nil
+	}
+	if err != nil {
+		return nil, err
+	}
 
 	// Specify gRPC connection options, including your custom number of channels
 	opts := []option.ClientOption{
-		option.WithGRPCDialOption(pool),
 		option.WithGRPCConnectionPool(config.BigtableConfig.Session.GrpcChannels),
 		option.WithUserAgent(config.Options.UserAgent),
 	}

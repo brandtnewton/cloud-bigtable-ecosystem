@@ -190,7 +190,7 @@ func (q QueryType) String() string {
 }
 func (q QueryType) IsDDLType() bool {
 	switch q {
-	case QueryTypeTruncate, QueryTypeDrop, QueryTypeAlter, QueryTypeCreate:
+	case QueryTypeDrop, QueryTypeAlter, QueryTypeCreate:
 		return true
 	default:
 		return false

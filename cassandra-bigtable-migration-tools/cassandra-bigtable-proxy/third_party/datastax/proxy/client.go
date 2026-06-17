@@ -93,10 +93,12 @@ func (c *client) Receive(reader io.Reader) error {
 	}()
 
 	if raw.Header.Version > c.proxy.config.Options.MaxProtocolVersion || raw.Header.Version < primitive.ProtocolVersion3 {
-		err = fmt.Errorf("invalid or unsupported protocol version %d", raw.Header.Version)
+		// IMPORTANT - do not change this message - it's parsed by CQL clients when negotiating the protocol version
+		errorMessage := fmt.Sprintf("Invalid or unsupported protocol version %d", raw.Header.Version)
 		c.sender.Send(raw.Header, &message.ProtocolError{
-			ErrorMessage: err.Error(),
+			ErrorMessage: errorMessage,
 		})
+		err := errors.New(errorMessage)
 		span.RecordError(err)
 		span.SetStatus(codes.Error, err.Error())
 		return nil

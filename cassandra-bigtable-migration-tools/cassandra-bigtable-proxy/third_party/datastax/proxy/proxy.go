@@ -60,13 +60,11 @@ type Server struct {
 	mu                 sync.Mutex
 	isConnected        bool
 	isClosing          bool
-	clients            map[*client]struct{}
+	sessions           map[*clientSession]struct{}
 	listeners          map[*net.Listener]struct{}
 	eventClients       sync.Map
 	preparedQueryCache proxycore.PreparedCache[types.IPreparedQuery]
-	systemLocalValues  map[string]message.Column
 	closed             chan struct{}
-	localNode          *node
 	nodes              []*node
 	clientManager      *types.BigtableClientManager
 	systemTableManager *system_tables.SystemTableManager
@@ -74,7 +72,6 @@ type Server struct {
 	bigtableClient     *bigtableModule.BigtableAdapter
 	translator         *translators.TranslatorManager
 	executor           *executors.QueryExecutorManager
-	otelInst           *otelgo.OpenTelemetry
 	tracer             trace.Tracer
 	otelShutdown       func(context.Context) error
 	handlerManager     *request_handlers.HandlerManager
@@ -101,7 +98,7 @@ func (p *Server) HandlePostDDLEvent(queryType types.QueryType, keyspace types.Ke
 		return
 	}
 
-	// SendEvent all clients of schema change
+	// SendEvent all sessions of schema change
 	event := &proxycore.SchemaChangeEvent{
 		Message: &message.SchemaChangeEvent{
 			ChangeType: changeType,
@@ -111,8 +108,8 @@ func (p *Server) HandlePostDDLEvent(queryType types.QueryType, keyspace types.Ke
 		},
 	}
 	p.eventClients.Range(func(key, _ interface{}) bool {
-		if client, ok := key.(*client); ok {
-			client.handleEvent(event)
+		if session, ok := key.(*clientSession); ok {
+			session.handleEvent(event)
 		}
 		return true
 	})
@@ -163,7 +160,7 @@ func NewProxy(ctx context.Context, logger *zap.Logger, config *types.ProxyInstan
 		ctx:                ctx,
 		config:             config,
 		logger:             logger,
-		clients:            make(map[*client]struct{}),
+		sessions:           make(map[*clientSession]struct{}),
 		listeners:          make(map[*net.Listener]struct{}),
 		closed:             make(chan struct{}),
 		clientManager:      clientManager,
@@ -172,7 +169,6 @@ func NewProxy(ctx context.Context, logger *zap.Logger, config *types.ProxyInstan
 		bigtableClient:     bigtableClient,
 		translator:         translator,
 		executor:           executors.NewQueryExecutorManager(logger, metadataStore.Schemas(), bigtableClient, systemTables.Db(), otelInst),
-		otelInst:           otelInst,
 		tracer:             otel.GetTracerProvider().Tracer("handler"),
 		otelShutdown:       shutdownOTel,
 		handlerManager:     handlers,
@@ -204,7 +200,6 @@ func (p *Server) Connect() error {
 		return fmt.Errorf("unable to create cache: %w", err)
 	}
 
-	err = p.buildNodes()
 	if err != nil {
 		return fmt.Errorf("unable to build node information: %w", err)
 	}
@@ -288,10 +283,6 @@ func (p *Server) Config() *types.ProxyInstanceConfig {
 	return p.config
 }
 
-func (p *Server) OtelInst() *otelgo.OpenTelemetry {
-	return p.otelInst
-}
-
 func (p *Server) Logger() *zap.Logger {
 	return p.logger
 }
@@ -334,10 +325,10 @@ func (p *Server) Close() error {
 			err = closeErr
 		}
 	}
-	for cl := range p.clients {
+	for cl := range p.sessions {
 		_ = cl.conn.Close()
 		p.eventClients.Delete(cl)
-		delete(p.clients, cl)
+		delete(p.sessions, cl)
 	}
 
 	p.clientManager.Close()
@@ -378,38 +369,29 @@ func (p *Server) handle(conn net.Conn) {
 		}
 	}
 
-	cl := &client{
-		proxy: p,
-	}
-	cl.sender = cl
-	p.addClient(cl)
-	cl.conn = proxycore.NewConn(conn, cl)
-	cl.conn.Start()
+	sess := p.createNewSession()
+	sess.conn = proxycore.NewConn(conn, sess)
+	sess.conn.Start()
 }
 
-func (p *Server) buildNodes() (err error) {
-	p.localNode = &node{
-		dc: p.config.DC,
-	}
-	return nil
-}
-
-func (p *Server) addClient(cl *client) {
+func (p *Server) createNewSession() *clientSession {
 	p.mu.Lock()
 	defer p.mu.Unlock()
-	p.clients[cl] = struct{}{}
+	cl := newClientSession(p)
+	p.sessions[cl] = struct{}{}
+	return cl
 }
 
-func (p *Server) registerForEvents(cl *client) {
+func (p *Server) registerForEvents(cl *clientSession) {
 	p.eventClients.Store(cl, struct{}{})
 }
 
-func (p *Server) removeClient(cl *client) {
+func (p *Server) removeClient(cl *clientSession) {
 	p.eventClients.Delete(cl)
 
 	p.mu.Lock()
 	defer p.mu.Unlock()
-	delete(p.clients, cl)
+	delete(p.sessions, cl)
 
 }
 

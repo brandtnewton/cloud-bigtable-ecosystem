@@ -1,0 +1,13 @@
+/Users/brandtnewton/git/forked/cloud-bigtable-ecosystem/aerospike-bigtable-migration-tools/backup-loader/src/main/java/com/google/cloud/aerospike/BackupReader.java
+/Users/brandtnewton/git/forked/cloud-bigtable-ecosystem/aerospike-bigtable-migration-tools/backup-loader/src/main/java/com/google/cloud/aerospike/ReadRecordResult.java
+/Users/brandtnewton/git/forked/cloud-bigtable-ecosystem/aerospike-bigtable-migration-tools/backup-loader/src/main/java/com/google/cloud/aerospike/exceptions/JNIException.java
+/Users/brandtnewton/git/forked/cloud-bigtable-ecosystem/aerospike-bigtable-migration-tools/backup-loader/src/main/java/com/google/cloud/aerospike/exceptions/MalformedBackupDataException.java
+/Users/brandtnewton/git/forked/cloud-bigtable-ecosystem/aerospike-bigtable-migration-tools/backup-loader/src/main/java/com/google/cloud/aerospike/exceptions/UnsupportedBackupEntryException.java
+/Users/brandtnewton/git/forked/cloud-bigtable-ecosystem/aerospike-bigtable-migration-tools/backup-loader/src/main/java/com/google/cloud/aerospike/values/BooleanValue.java
+/Users/brandtnewton/git/forked/cloud-bigtable-ecosystem/aerospike-bigtable-migration-tools/backup-loader/src/main/java/com/google/cloud/aerospike/values/BytesValue.java
+/Users/brandtnewton/git/forked/cloud-bigtable-ecosystem/aerospike-bigtable-migration-tools/backup-loader/src/main/java/com/google/cloud/aerospike/values/FloatValue.java
+/Users/brandtnewton/git/forked/cloud-bigtable-ecosystem/aerospike-bigtable-migration-tools/backup-loader/src/main/java/com/google/cloud/aerospike/values/IntegerValue.java
+/Users/brandtnewton/git/forked/cloud-bigtable-ecosystem/aerospike-bigtable-migration-tools/backup-loader/src/main/java/com/google/cloud/aerospike/values/ListValue.java
+/Users/brandtnewton/git/forked/cloud-bigtable-ecosystem/aerospike-bigtable-migration-tools/backup-loader/src/main/java/com/google/cloud/aerospike/values/MapValue.java
+/Users/brandtnewton/git/forked/cloud-bigtable-ecosystem/aerospike-bigtable-migration-tools/backup-loader/src/main/java/com/google/cloud/aerospike/values/StringValue.java
+/Users/brandtnewton/git/forked/cloud-bigtable-ecosystem/aerospike-bigtable-migration-tools/backup-loader/src/main/java/com/google/cloud/aerospike/values/Value.java

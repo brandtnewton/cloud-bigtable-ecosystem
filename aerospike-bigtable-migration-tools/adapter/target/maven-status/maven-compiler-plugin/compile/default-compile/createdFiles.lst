@@ -1,0 +1,5 @@
+com/google/cloud/aerospike/BigtableMutationBuilder.class
+com/google/cloud/aerospike/RowBuilder$CellSetter.class
+com/google/cloud/aerospike/BigtableMutationBuilder$CellSetter.class
+com/google/cloud/aerospike/AerospikeRecord.class
+com/google/cloud/aerospike/RowBuilder.class

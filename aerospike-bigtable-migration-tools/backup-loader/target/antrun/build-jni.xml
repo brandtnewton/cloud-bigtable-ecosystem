@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project name="maven-antrun-" default="jni">
+  <target name="jni" description="Compile native code and copy needed shared libaries">
+    <echo>Copying dependencies</echo>
+    <exec failonerror="true" executable="cp">
+      <arg value="/app/bin/asrestore.so"></arg>
+      <arg value="/usr/lib/libasrestore.so"></arg>
+    </exec>
+    <echo>Compiling backup reader files</echo>
+    <exec failonerror="true" executable="gcc">
+      <arg value="-DNDEBUG"></arg>
+      <arg value="-Wall"></arg>
+      <arg value="-Wextra"></arg>
+      <arg value="-Werror"></arg>
+      <arg value="-pedantic"></arg>
+      <arg value="/Users/brandtnewton/git/forked/cloud-bigtable-ecosystem/aerospike-bigtable-migration-tools/backup-loader/src/main/c/com_google_cloud_aerospike_BackupReader.c"></arg>
+      <arg value="-isystem"></arg>
+      <arg value="/Library/Java/JavaVirtualMachines/zulu-22.jdk/Contents/Home/include"></arg>
+      <arg value="-isystem"></arg>
+      <arg value="/Library/Java/JavaVirtualMachines/zulu-22.jdk/Contents/Home/include/linux"></arg>
+      <arg value="-isystem"></arg>
+      <arg value="/app/include"></arg>
+      <arg value="-isystem"></arg>
+      <arg value="/app/modules/c-client/modules/common/src/include"></arg>
+      <arg value="-isystem"></arg>
+      <arg value="/app/modules/c-client/src/include"></arg>
+      <arg value="-isystem"></arg>
+      <arg value="/app/modules/secret-agent-client/src/include"></arg>
+      <arg value="-isystem"></arg>
+      <arg value="/usr/local/include"></arg>
+      <arg value="-L/usr/local/lib"></arg>
+      <arg value="-L/app/bin"></arg>
+      <arg value="-lasrestore"></arg>
+      <arg value="-fPIC"></arg>
+      <arg value="-fno-omit-frame-pointer"></arg>
+      <arg value="-shared"></arg>
+      <arg value="-g"></arg>
+      <arg value="-o"></arg>
+      <arg value="/usr/lib/libbackupreader.so"></arg>
+      <arg value="-O2"></arg>
+    </exec>
+    <echo>Compiling done</echo>
+  </target>
+</project>

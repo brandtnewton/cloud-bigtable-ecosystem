@@ -114,8 +114,8 @@ func listenAndServe(c *types.ProxyInstanceConfig, p *Server, mux *http.ServeMux,
 		logger.Info(fmt.Sprintf("TCP listener created successfully on %s\n", c.Bind))
 	}
 
-	// Set up client
-	logger.Info("Initializing client...\n")
+	// Set up clientSession
+	logger.Info("Initializing clientSession...\n")
 	err = p.Connect()
 	if err != nil {
 		for _, l := range listeners {
@@ -148,7 +148,7 @@ func listenAndServe(c *types.ProxyInstanceConfig, p *Server, mux *http.ServeMux,
 	for _, listener := range listeners {
 		go func(l net.Listener) {
 			defer wg.Done()
-			// WARNING: Do NOT change this log - the cassandra-bigtable-java-client-lib and compliance tests use the "Starting to serve on listener" log message to check for start up.
+			// WARNING: Do NOT change this log - the cassandra-bigtable-java-clientSession-lib and compliance tests use the "Starting to serve on listener" log message to check for start up.
 			logger.Info(fmt.Sprintf("Starting to serve on listener: %v\n", l.Addr()))
 			err := p.Serve(l)
 			if err != nil && err != ErrProxyClosed {

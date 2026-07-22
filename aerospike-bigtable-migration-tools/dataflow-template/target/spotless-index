@@ -1,0 +1,10 @@
+HG9IC0Ryh8pObNQ+T7r/IIa7ZVL/fITG84WQPfnxx+w=
+pom.xml 2026-05-22T14:31:03.067953125Z
+src/main/java/com/google/cloud/teleport/v2/templates/AerospikeBackupToBigtable.java 2026-05-20T12:56:44.567621194Z
+src/main/java/com/google/cloud/teleport/v2/templates/AerospikeBackupToBigtableOptions.java 2026-05-20T12:56:44.567785819Z
+src/main/java/com/google/cloud/teleport/v2/templates/BigtableTarget.java 2026-05-20T12:56:44.567917569Z
+src/main/java/com/google/cloud/teleport/v2/templates/package-info.java 2026-05-20T12:56:44.568034694Z
+src/main/java/com/google/cloud/teleport/v2/transforms/AerospikeTransforms.java 2026-05-20T12:56:44.568213443Z
+src/main/java/com/google/cloud/teleport/v2/transforms/BigtableTransforms.java 2026-05-20T12:56:44.568327526Z
+src/main/java/com/google/cloud/teleport/v2/transforms/package-info.java 2026-05-20T12:56:44.568433693Z
+src/test/java/com/google/cloud/teleport/v2/templates/AerospikeBackupToBigtableIT.java 2026-05-20T12:56:44.568670609Z

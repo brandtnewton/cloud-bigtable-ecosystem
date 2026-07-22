@@ -33,34 +33,33 @@ import (
 	"runtime/debug"
 )
 
-type Sender interface {
-	Send(hdr *frame.Header, msg message.Message)
-}
-
-type client struct {
+type clientSession struct {
 	sessionKeyspace types.Keyspace
 	proxy           *Server
 	conn            *proxycore.Conn
-	sender          Sender
 }
 
-func (c *client) SetSessionKeyspace(k types.Keyspace) {
+func newClientSession(server *Server) *clientSession {
+	return &clientSession{proxy: server}
+}
+
+func (c *clientSession) SetSessionKeyspace(k types.Keyspace) {
 	c.sessionKeyspace = k
 }
 
-func (c *client) SessionKeyspace() types.Keyspace {
+func (c *clientSession) SessionKeyspace() types.Keyspace {
 	return c.sessionKeyspace
 }
 
-func (c *client) Proxy() proxy_types.IProxy {
+func (c *clientSession) Proxy() proxy_types.IProxy {
 	return c.proxy
 }
 
-func (c *client) RegisterForEvents() {
+func (c *clientSession) RegisterForEvents() {
 	c.proxy.registerForEvents(c)
 }
 
-func (c *client) Receive(reader io.Reader) error {
+func (c *clientSession) Receive(reader io.Reader) error {
 	ctx, cancel := context.WithCancel(c.proxy.ctx)
 	defer cancel()
 
@@ -84,7 +83,7 @@ func (c *client) Receive(reader io.Reader) error {
 			fmt.Println("Stack Trace:")
 			debug.PrintStack()
 
-			c.sender.Send(raw.Header, &message.ProtocolError{
+			c.Send(raw.Header, &message.ProtocolError{
 				ErrorMessage: "internal error",
 			})
 
@@ -93,9 +92,9 @@ func (c *client) Receive(reader io.Reader) error {
 	}()
 
 	if raw.Header.Version > c.proxy.config.Options.MaxProtocolVersion || raw.Header.Version < primitive.ProtocolVersion3 {
-		// IMPORTANT - do not change this message - it's parsed by CQL clients when negotiating the protocol version
+		// IMPORTANT - do not change this message - it's parsed by CQL sessions when negotiating the protocol version
 		errorMessage := fmt.Sprintf("Invalid or unsupported protocol version %d", raw.Header.Version)
-		c.sender.Send(raw.Header, &message.ProtocolError{
+		c.Send(raw.Header, &message.ProtocolError{
 			ErrorMessage: errorMessage,
 		})
 		err := errors.New(errorMessage)
@@ -126,28 +125,28 @@ func (c *client) Receive(reader io.Reader) error {
 
 	span.SetAttributes(otelgo.CommonAttributes(req.Attributes)...)
 	span.AddEvent("send-response")
-	c.sender.Send(raw.Header, response)
+	c.Send(raw.Header, response)
 	span.AddEvent("done")
 	span.SetStatus(codes.Ok, "")
 	return nil
 }
 
-func (c *client) Send(hdr *frame.Header, msg message.Message) {
+func (c *clientSession) Send(hdr *frame.Header, msg message.Message) {
 	_ = c.conn.Write(proxycore.SenderFunc(func(writer io.Writer) error {
 		return codec.EncodeFrame(frame.NewFrame(hdr.Version, hdr.StreamId, msg), writer)
 	}))
 }
 
-func (c *client) Closing(_ error) {
+func (c *clientSession) Closing(_ error) {
 	c.proxy.removeClient(c)
 }
 
 // handleEvent handles events from the proxy core
-// It sends the event message to all connected clients.
-func (c *client) handleEvent(event proxycore.Event) {
+// It sends the event message to all connected sessions.
+func (c *clientSession) handleEvent(event proxycore.Event) {
 	switch evt := event.(type) {
 	case *proxycore.SchemaChangeEvent:
-		c.sender.Send(&frame.Header{
+		c.Send(&frame.Header{
 			Version:  c.proxy.config.Options.ProtocolVersion,
 			StreamId: -1, // -1 for events
 			OpCode:   primitive.OpCodeEvent,

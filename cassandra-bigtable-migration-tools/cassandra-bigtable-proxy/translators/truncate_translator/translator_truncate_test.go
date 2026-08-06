@@ -94,7 +94,7 @@ func TestTranslateTruncateTableToBigtable(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 
 			tr := NewTruncateTranslator(mockdata.GetSchemaMappingConfig())
-			got, err := tr.Translate(types.NewRawQuery(nil, tt.defaultKeyspace, tt.query, parser.NewParser(tt.query), types.QueryTypeDelete), tt.defaultKeyspace)
+			got, err := tr.Translate(types.NewRawQuery(nil, tt.defaultKeyspace, tt.query, parser.GetParser(tt.query), types.QueryTypeDelete), tt.defaultKeyspace)
 
 			if tt.wantErr != "" {
 				require.Error(t, err)

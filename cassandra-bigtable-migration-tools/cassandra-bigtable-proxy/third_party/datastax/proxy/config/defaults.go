@@ -24,8 +24,7 @@ import (
 
 var (
 	// todo ensure this is a reasonable default
-	DefaultBigtableGrpcChannels   = 1
-	DefaultEnableMetadataRefresh  = true
+	DefaultBigtableGrpcChannels   = 4
 	BigtableMinSession            = 100
 	BigtableMaxSession            = 400
 	DefaultSchemaMappingTableName = "schema_mapping"
@@ -67,9 +66,6 @@ func validateAndApplyDefaults(cfg *yamlProxyConfig) error {
 		}
 		if cfg.Listeners[i].Bigtable.DefaultColumnFamily == "" {
 			cfg.Listeners[i].Bigtable.DefaultColumnFamily = DefaultColumnFamily
-		}
-		if cfg.Listeners[i].Bigtable.EnableMetadataRefresh == nil {
-			cfg.Listeners[i].Bigtable.EnableMetadataRefresh = &DefaultEnableMetadataRefresh
 		}
 
 		if cfg.Listeners[i].Bigtable.SchemaMappingTable == "" {

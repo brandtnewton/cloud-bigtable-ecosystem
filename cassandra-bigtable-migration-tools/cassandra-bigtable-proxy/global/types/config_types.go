@@ -36,16 +36,19 @@ type CliArgs struct {
 }
 
 type OtelConfig struct {
-	Enabled     bool
-	ServiceName string
-	HealthCheck struct {
+	Enabled        bool
+	ServiceName    string
+	ServiceVersion string
+	HealthCheck    struct {
 		Enabled  bool
 		Endpoint string
 	}
 	Metrics struct {
-		Endpoint string
+		Endpoint          string
+		GcpMetricsEnabled bool
 	}
 	Traces struct {
+		ProjectId     string
 		Endpoint      string
 		SamplingRatio float64
 	}
@@ -66,7 +69,6 @@ type BigtableConfig struct {
 	Session                  *Session
 	DefaultColumnFamily      ColumnFamily
 	DefaultIntRowKeyEncoding IntRowKeyEncodingType
-	EnableMetadataRefresh    bool
 }
 
 type Session struct {

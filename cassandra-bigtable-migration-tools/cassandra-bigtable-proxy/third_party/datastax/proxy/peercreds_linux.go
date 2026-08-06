@@ -4,7 +4,6 @@ package proxy
 
 import (
 	"net"
-
 	"golang.org/x/sys/unix"
 )
 

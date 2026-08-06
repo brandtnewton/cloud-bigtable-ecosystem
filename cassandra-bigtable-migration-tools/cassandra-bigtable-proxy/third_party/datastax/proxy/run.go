@@ -70,7 +70,7 @@ func Run(ctx context.Context, args []string) error {
 		}
 		var mux http.ServeMux
 		wg.Add(1)
-		go func(cfg *types.ProxyInstanceConfig, p *Proxy, mux *http.ServeMux) {
+		go func(cfg *types.ProxyInstanceConfig, p *Server, mux *http.ServeMux) {
 			defer wg.Done()
 			err := listenAndServe(listenerConfig, p, mux, ctx, logger) // Use cfg2 or other instances as needed
 			if err != nil {
@@ -86,7 +86,7 @@ func Run(ctx context.Context, args []string) error {
 }
 
 // listenAndServe correctly handles serving both the proxy and an HTTP server simultaneously.
-func listenAndServe(c *types.ProxyInstanceConfig, p *Proxy, mux *http.ServeMux, ctx context.Context, logger *zap.Logger) (err error) {
+func listenAndServe(c *types.ProxyInstanceConfig, p *Server, mux *http.ServeMux, ctx context.Context, logger *zap.Logger) (err error) {
 	logger.Info("Starting proxy with configuration:\n")
 	logger.Info(fmt.Sprintf("  Bind: %s\n", c.Bind))
 	logger.Info(fmt.Sprintf("  Use Unix Socket: %v\n", c.Options.UseUnixSocket))
@@ -114,8 +114,8 @@ func listenAndServe(c *types.ProxyInstanceConfig, p *Proxy, mux *http.ServeMux, 
 		logger.Info(fmt.Sprintf("TCP listener created successfully on %s\n", c.Bind))
 	}
 
-	// Set up client
-	logger.Info("Initializing client...\n")
+	// Set up clientSession
+	logger.Info("Initializing clientSession...\n")
 	err = p.Connect()
 	if err != nil {
 		for _, l := range listeners {
@@ -148,7 +148,7 @@ func listenAndServe(c *types.ProxyInstanceConfig, p *Proxy, mux *http.ServeMux, 
 	for _, listener := range listeners {
 		go func(l net.Listener) {
 			defer wg.Done()
-			// WARNING: Do NOT change this log - the cassandra-bigtable-java-client-lib and compliance tests use the "Starting to serve on listener" log message to check for start up.
+			// WARNING: Do NOT change this log - the cassandra-bigtable-java-clientSession-lib and compliance tests use the "Starting to serve on listener" log message to check for start up.
 			logger.Info(fmt.Sprintf("Starting to serve on listener: %v\n", l.Addr()))
 			err := p.Serve(l)
 			if err != nil && err != ErrProxyClosed {

@@ -378,7 +378,7 @@ func TestSelectTranslator_Translate(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			tr := NewInsertTranslator(mockdata.GetSchemaMappingConfig())
-			got, err := tr.Translate(types.NewRawQuery(nil, tt.sessionKeyspace, tt.query, parser.NewParser(tt.query), types.QueryTypeInsert), tt.sessionKeyspace)
+			got, err := tr.Translate(types.NewRawQuery(nil, tt.sessionKeyspace, tt.query, parser.GetParser(tt.query), types.QueryTypeInsert), tt.sessionKeyspace)
 
 			if tt.wantErr != "" {
 				require.Error(t, err)

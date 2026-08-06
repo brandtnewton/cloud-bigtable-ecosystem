@@ -192,7 +192,7 @@ func (c *SchemaMetadata) AddTables(tables []*TableSchema) {
 	}
 }
 
-func (c *SchemaMetadata) SyncKeyspace(keyspace types.Keyspace, updates []*TableSchema) int {
+func (c *SchemaMetadata) SyncKeyspace(keyspace types.Keyspace, updates []*TableSchema) {
 	c.mu.Lock()
 
 	// ensure keyspace exists
@@ -236,7 +236,6 @@ func (c *SchemaMetadata) SyncKeyspace(keyspace types.Keyspace, updates []*TableS
 	for _, e := range events {
 		c.events.SendEvent(e)
 	}
-	return len(events)
 }
 
 // GetTableSchema finds the primary key columns of a specified table in a given keyspace.

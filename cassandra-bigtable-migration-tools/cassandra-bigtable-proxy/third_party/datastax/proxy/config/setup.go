@@ -3,6 +3,10 @@ package config
 import (
 	"errors"
 	"fmt"
+	"net"
+	"os"
+	"strconv"
+
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/global/constants"
 	"github.com/GoogleCloudPlatform/cloud-bigtable-ecosystem/cassandra-bigtable-migration-tools/cassandra-bigtable-proxy/global/types"
 	"github.com/alecthomas/kong"
@@ -11,9 +15,6 @@ import (
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 	"gopkg.in/yaml.v2"
-	"net"
-	"os"
-	"strconv"
 )
 
 const (
@@ -165,12 +166,12 @@ func maybeParseQuickStartArgs(args *types.CliArgs) (*types.ProxyInstanceConfig, 
 		},
 		DefaultColumnFamily:      types.ColumnFamily(args.QuickStartDefaultColumnFamily),
 		DefaultIntRowKeyEncoding: types.OrderedCodeEncoding,
-		EnableMetadataRefresh:    DefaultEnableMetadataRefresh,
 	}
 
 	// quick start instances don't have a way to configure otel, so just disable it
 	otel := &types.OtelConfig{
-		Enabled: false,
+		Enabled:        false,
+		ServiceVersion: args.ProtocolVersion.String(),
 	}
 
 	instanceConfig := NewProxyInstanceConfig(args, args.QuickStartPort, otel, bigtableConfig)
@@ -200,7 +201,7 @@ func ParseLoggerConfig(args *types.CliArgs) (*zap.Logger, error) {
 
 	var loggerConfig *yamlLoggerConfig = nil
 	if args.ConfigFilePath != "" {
-		config, err := readProxyConfigFile(args.ConfigFilePath)
+		config, err := readProxyConfig(args.ConfigFilePath)
 		if err != nil {
 			return nil, err
 		}
@@ -272,16 +273,12 @@ func setupConsoleLogger(level zap.AtomicLevel) (*zap.Logger, error) {
 	return config.Build()
 }
 
-func readProxyConfigFile(path string) (*yamlProxyConfig, error) {
+func readProxyConfig(path string) (*yamlProxyConfig, error) {
 	fileData, err := readFile(path)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read config file: %w", err)
 	}
-	return readProxyConfig(fileData)
-}
 
-func readProxyConfig(fileData []byte) (*yamlProxyConfig, error) {
-	var err error
 	var config yamlProxyConfig
 	if err = yaml.Unmarshal(fileData, &config); err != nil {
 		return nil, fmt.Errorf("failed to unmarshal config: %w", err)
@@ -296,7 +293,7 @@ func readProxyConfig(fileData []byte) (*yamlProxyConfig, error) {
 func ParseProxyConfig(args *types.CliArgs) ([]*types.ProxyInstanceConfig, error) {
 	var instanceConfigs []*types.ProxyInstanceConfig = nil
 	if args.ConfigFilePath != "" {
-		config, err := readProxyConfigFile(args.ConfigFilePath)
+		config, err := readProxyConfig(args.ConfigFilePath)
 		if err != nil {
 			return nil, err
 		}

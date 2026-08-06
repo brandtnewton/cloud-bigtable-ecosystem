@@ -40,7 +40,7 @@ const (
 	// RetryNext should be returned when a request should be retried on the next host according to the request's query
 	// plan.
 	RetryNext
-	// ReturnError should be returned when a request's original error should be forwarded along to the client.
+	// ReturnError should be returned when a request's original error should be forwarded along to the clientSession.
 	ReturnError
 )
 
@@ -81,7 +81,7 @@ func NewDefaultRetryPolicy() RetryPolicy {
 // didn't respond with data and timed out. It's likely that a single retry to the same coordinator will succeed because
 // it will have recognized the replica as dead before the retry is attempted.
 //
-// In all other cases it will forward the original error to the client.
+// In all other cases it will forward the original error to the clientSession.
 func (d defaultRetryPolicy) OnReadTimeout(msg *message.ReadTimeout, retryCount int) RetryDecision {
 	if retryCount == 0 && msg.Received >= msg.BlockFor && !msg.DataPresent {
 		return RetrySame
@@ -94,7 +94,7 @@ func (d defaultRetryPolicy) OnReadTimeout(msg *message.ReadTimeout, retryCount i
 // nodes. It's likely that a single retry to the same coordinator will succeed because it will have recognized the
 // dead nodes and use a different set of nodes.
 //
-// In all other cases it will forward the original error to the client.
+// In all other cases it will forward the original error to the clientSession.
 func (d defaultRetryPolicy) OnWriteTimeout(msg *message.WriteTimeout, retryCount int) RetryDecision {
 	if retryCount == 0 && msg.WriteType == primitive.WriteTypeBatchLog {
 		return RetrySame

@@ -259,7 +259,7 @@ func TestTranslateAlterTableToBigtable(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			require.NotNil(t, tt.tableConfig, "tests must define a table config")
 			tr := NewAlterTranslator(mockdata.GetSchemaMappingConfig())
-			query := types.NewRawQuery(nil, tt.defaultKeyspace, tt.query, parser.NewParser(tt.query), types.QueryTypeAlter)
+			query := types.NewRawQuery(nil, tt.defaultKeyspace, tt.query, parser.GetParser(tt.query), types.QueryTypeAlter)
 			got, err := tr.Translate(query, tt.defaultKeyspace)
 			if tt.error != "" {
 				require.Error(t, err)

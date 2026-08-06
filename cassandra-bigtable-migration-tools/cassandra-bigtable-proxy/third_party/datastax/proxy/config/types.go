@@ -28,10 +28,12 @@ type yamlOtelConfig struct {
 		Endpoint string `yaml:"endpoint"`
 	} `yaml:"healthcheck"`
 	Metrics struct {
-		Endpoint string `yaml:"endpoint"`
+		Endpoint          string `yaml:"endpoint"`
+		GcpMetricsEnabled bool   `yaml:"gcpMetricsEnabled"`
 	} `yaml:"metrics"`
 	Traces struct {
 		Endpoint      string  `yaml:"endpoint"`
+		ProjectId     string  `yaml:"projectId"`
 		SamplingRatio float64 `yaml:"samplingRatio"`
 	} `yaml:"traces"`
 }
@@ -58,7 +60,6 @@ type yamlBigtable struct {
 	DefaultColumnFamily           string             `yaml:"defaultColumnFamily"`
 	AppProfileID                  string             `yaml:"appProfileID"`
 	EncodeIntRowKeysWithBigEndian bool               `yaml:"encodeIntRowKeysWithBigEndian"`
-	EnableMetadataRefresh         *bool              `yaml:"enableMetadataRefresh"`
 }
 
 type yamlSession struct {

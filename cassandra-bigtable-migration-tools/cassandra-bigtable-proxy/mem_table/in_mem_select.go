@@ -82,25 +82,15 @@ func matchesConditions(row types.GoRow, conditions []types.Condition, values *ty
 
 		switch cond.Operator {
 		case types.EQ:
-			if comparison != 0 {
-				return false, nil
-			}
+			return comparison == 0, nil
 		case types.GT:
-			if comparison <= 0 {
-				return false, nil
-			}
+			return comparison > 0, nil
 		case types.LT:
-			if comparison >= 0 {
-				return false, nil
-			}
+			return comparison < 0, nil
 		case types.GTE:
-			if comparison < 0 {
-				return false, nil
-			}
+			return comparison >= 0, nil
 		case types.LTE:
-			if comparison > 0 {
-				return false, nil
-			}
+			return comparison <= 0, nil
 		default:
 			return false, fmt.Errorf("unhandled where clause operator: '%s'", cond.Operator)
 		}

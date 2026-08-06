@@ -814,7 +814,7 @@ func ParseTable(t cql.ITableContext) (types.TableName, error) {
 		return "", errors.New("failed to parse table name")
 	}
 
-	name := TrimDoubleQuotes(t.OBJECT_NAME().GetText())
+	name := t.OBJECT_NAME().GetText()
 	if name == "" {
 		return "", errors.New("failed to parse table name")
 	}
